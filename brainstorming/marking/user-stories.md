@@ -51,90 +51,10 @@
 - 📌 Develop a marking-definition feature (TLP only) to let admins grant “Manage marking definitions” capability and users create, edit, or delete TLP markings.
 - 🚀 Provide default TLP markings (CLEAR, GREEN, AMBER, AMBER+STRICT, RED) and integrate them into the RBAC system for future role, group, and asset assignments.
 
----
 
-# 🎯 Business Context (👥 PM + Stakeholders)
+## Sub-task: US1 — Assign "Manage Marking Definitions" Capability to a Role
 
-## Use Case & Business Goals
-
-OpenAEV is introducing a marking-based access control layer to improve segregation of duties and sensitive data isolation across the platform. Task 1 focuses on the foundation: enabling authorized users to create and manage marking definitions (e.g. TLP:RED, TLP:GREEN, PAP:AMBER), mirroring the proven model from OpenCTI. These markings will later be assigned to roles, groups, and assets in subsequent tasks.
-
-## 👤 Users & Personas
-
-- **User with "Manage marking definitions" capability** ⇒ creates, edits, deletes marking definitions
-- **Administrator** ⇒ assigns the "Manage marking definitions" capability to roles
-
-# 🧠 WHAT DO WE WANT
-
-## 🧭 User Flow (mapped to user stories)
-
-### Flow A — Admin grants “Markings management” to users (RBAC)
-
-1. Admin opens **Roles & Permissions** and selects a role to edit. *(US1)*
-2. Admin enables **Manage Marking Definitions** for that role and saves. *(US1)*
-3. Admin assigns that role to the target users (or ensures they already have it). *(US1 — scope reminder)*
-4. User logs in / refreshes permissions and can access **Marking Definitions**. *(US2)*
-
-### Flow B — Create a marking definition (severity + color)
-
-1. User with the capability opens the menu and navigates to **Marking Definitions**. *(US2)*
-2. User clicks **Create marking**. *(US3)*
-3. User fills in:
-    - **Name / label** (e.g., TLP:GREEN)
-    - **Severity / level** (e.g., Low/Medium/High or TLP/PAP level as defined)
-    - **Color** (used consistently across UI)
-4. User saves and sees the new marking in the list and in its details. *(US3)*
-
-### Flow C — Maintain markings over time
-
-1. User opens an existing marking definition from the list. *(US2)*
-2. User edits name / severity / color and saves. *(US4)*
-3. If a marking should be removed, user deletes it (with any confirmation/warnings). *(US5)*
-
-## 🧩 Design Decision — Marking Types for OpenAEV
-
-### Context
-
-As part of the marking definitions feature, we evaluated whether OpenAEV should support both **TLP (Traffic Light Protocol)** and **PAP (Permissible Actions Protocol)** as marking types, in line with what ANSSI [https://www.cert.ssi.gouv.fr/csirt/politique-partage/](https://www.cert.ssi.gouv.fr/csirt/politique-partage/) reference.
-
-### Decision
-
-**OpenAEV will support TLP markings only** for this scope.
-
-### Rationale
-
-- **TLP** governs visibility — who can see and access an object (asset, simulation). This is the missing layer that markings introduce and is not covered by any existing mechanism.
-- **PAP** governs permissible actions — what a user is allowed to do with an object once they have access. In OpenAEV, this is **already covered** by the existing capabilities model.
-- Introducing PAP markings on top of this would be **redundant** and would create conflicting access control logic. so we stick to TLP.
-
-### Default TLP Markings
-
-On platform initialization, the following **5 default TLP markings** will be pre-loaded, consistent with OpenCTI and the TLP v2.0 standard:
-
-| NAME | ORDER |
-|---|---:|
-| TLP:CLEAR | 1 |
-| TLP:GREEN | 2 |
-| TLP:AMBER | 3 |
-| TLP:AMBER+STRICT | 4 |
-| TLP:RED | 5 |
-
-These are the same default markings used in OpenCTI, ensuring consistency across the Filigran platform ecosystem.
-
-## 📜 User Stories
-
-### User stories pages
-
-- US1 — Assign "Manage Marking Definitions" Capability to a Role
-- US2 — Navigate to Marking Definition
-- US3 — Create a Marking Definition
-- US4 — Edit a Marking Definition
-- US5 — Delete a Marking Definition
-- US6 — Default TLP Markings are Pre-loaded on Platform Initialization ( nice to have )
-
-# Sub-task: US1 — Assign "Manage Marking Definitions" Capability to a Role
-
-## Properties
+* Properties
 
 - **Task ID:** 596
 - **Status:** Business Refinement needed
@@ -142,18 +62,18 @@ These are the same default markings used in OpenCTI, ensuring consistency across
 - **Parent-task:** Task 1 — Create & Manage
 - **Verticals:** #3 Easy-to-Use & consistent platform
 
-## AI Summary
+* AI Summary
 
 - 🎯 Assign “Manage marking definitions” and “Assign marking” capabilities to roles for independent access control.
 - 🔧 Ensure capability cascades (Access → Manage/Assign → Delete) and respects Bypass overrides.
 
-## User story
+* User story
 
 **As an** administrator,  
 **I want** to assign the **"Manage marking definitions"** and/or **"Assign marking"** capabilities to a role,  
 **So that** users with that role can access and manage marking definitions, and/or assign/remove markings on groups and assets, independently of each other.
 
-## Acceptance criteria
+* Acceptance criteria
 
 - **AC1** — Given I am editing a role in Settings → Security → Roles, When I view the capability list, Then **"Marking"** appears as a new top-level capability group, containing two independently assignable chains — **"Marking definitions"** (Access → Manage → Delete) and **"Assign marking"** (Access → Assign → Delete) — neither nested under "Manage credentials" or any other existing category.
 
@@ -167,13 +87,11 @@ These are the same default markings used in OpenCTI, ensuring consistency across
 
 - **AC5** — Given each capability sits in a strict L1→L2→L3 chain (Access → Manage/Assign → Delete), When an admin enables **Manage marking definitions** or **Delete marking definitions**, Then **Access marking definitions** is automatically enabled as its parent — and symmetrically, enabling **Assign marking** or **Delete marking assignment** auto-enables **Access marking assignment**. *(Confirmed 2026-08-11: cascade behavior verified in the mock-up; both chains behave identically to existing capability categories.)*
 
-## Low-fidelity mockup
 
----
 
-# Sub-task: US2 — Navigate to Marking Definition
+## Sub-task: US2 — Navigate to Marking Definition
 
-## Properties
+* Properties
 
 - **Task ID:** 599
 - **Status:** Business Refinement needed
@@ -181,16 +99,16 @@ These are the same default markings used in OpenCTI, ensuring consistency across
 - **Parent-task:** Task 1 — Create & Manage
 - **Verticals:** #3 Easy-to-Use & consistent platform
 
-## AI Summary
+* AI Summary
 
 - 📌 Navigate to **Settings > Security > Marking Definitions** to manage all marking definitions in one place.
 - ✅ Users with the “Manage marking definitions” capability see the list, can create, search, and filter markings; others receive an access-denied response.
 
-## User story
+* User story
 
 > As a user with the "Manage marking definitions" capability, I want to navigate to Settings > Security > Marking Definitions so that I can manage all markings in one dedicated place.
 
-## Acceptance criteria
+* Acceptance criteria
 
 - **AC1** — Given I am logged in as a user with the "Manage marking definitions" capability, When I navigate to Settings > Security, Then I see a "Marking Definitions" entry in the left navigation menu.
 - **AC2** — Given I click on "Marking Definitions", When the page loads, Then I see a list of existing markings with columns: Type, Definition, Color, Order, Creation date.
@@ -199,27 +117,25 @@ These are the same default markings used in OpenCTI, ensuring consistency across
 - **AC5** — Given I am on the Marking Definitions page, When I use the search field, Then I can search existing marking definitions by Type, Definition, Color, Order, and Creation date.
 - **AC6** — Given I am on the Marking Definitions page, When I apply filters, Then I can filter the list by Type, Definition, Color, Order, and Creation date.
 
----
+## Sub-task: US3 — Create a Marking Definition
 
-# Sub-task: US3 — Create a Marking Definition
-
-## Properties
+* Properties
 
 - **Task ID:** 595
 - **Status:** Business Refinement needed
 - **Status 1:** Not started
 - **Parent-task:** Task 1 — Create & Manage
 
-## AI Summary
+* AI Summary
 
 - 📌 Create a new marking definition via a modal with required fields (Type, Definition, Color, Order).
 - ✅ Validate required inputs and save the marking, making it instantly visible in the list.
 
-## User story
+* User story
 
 > As a user with the "Manage marking definitions" capability, I want to create a new marking definition so that I can classify assets and payloads with the appropriate sensitivity level.
 
-## Acceptance criteria
+* Acceptance criteria
 
 - **AC1** — Given I am on the Marking Definitions page, When I click "Create Marking Definition", Then a creation modal opens with the following fields mirroring OpenCTI's model:
     - Type (required, e.g. TLP / PAP / custom)
@@ -231,79 +147,74 @@ These are the same default markings used in OpenCTI, ensuring consistency across
 
 - **AC3** — Given the creation modal is open, When I submit the form without filling in Type, Definition or Order, Then a validation error is shown on the missing required fields and the form cannot be submitted.
 
----
 
-# Sub-task: US4 — Edit a Marking Definition
+## Sub-task: US4 — Edit a Marking Definition
 
-## Properties
+* Properties
 
 - **Task ID:** 597
 - **Status:** Business Refinement needed
 - **Status 1:** Not started
 - **Parent-task:** Task 1 — Create & Manage
 
-## AI Summary
+* AI Summary
 
 - ✏️ Edit existing marking definitions directly from the list (via the action menu).
 - 📄 Pre-filled edit form with current values, allowing quick updates and immediate save reflection.
 
-## User story
+* User story
 
 > As a user with the "Manage marking definitions" capability, I want to edit an existing marking definition so that I can update its details if needed.
 
-## Acceptance criteria
+* Acceptance criteria
 
 - **AC1** — Given I am on the Marking Definitions page, When I click the action menu (⋮) on a marking row, Then I see an "Edit" option.
 - **AC2** — Given I click "Edit" on a marking, When the edit form opens, Then all existing values are pre-filled.
 - **AC3** — Given I update one or more fields and click "Save", When the save is confirmed, Then the changes are reflected immediately in the list.
 
----
+## Sub-task: US5 — Delete a Marking Definition
 
-# Sub-task: US5 — Delete a Marking Definition
-
-## Properties
+* Properties
 
 - **Task ID:** 598
 - **Status:** Business Refinement needed
 - **Status 1:** Not started
 - **Parent-task:** Task 1 — Create & Manage
 
-## AI Summary
+* AI Summary
 
 - 🗂️ Delete unwanted marking definitions to keep the list clean.
 - ✅ Confirm deletion and warn if the marking is in use.
 
-## User story
+* User story
 
 > As a user with the "Manage marking definitions" capability, I want to delete a marking definition that is no longer relevant so that I can keep the list clean.
 
-## Acceptance criteria
+* Acceptance criteria
 
 - **AC1** — Given I am on the Marking Definitions page, When I click the action menu (⋮) on a marking row, Then I see a "Delete" option.
 - **AC2** — Given I click "Delete" on a marking, When the confirmation dialog appears, Then I must confirm before the deletion is executed.
 - **AC3** — Given the marking is currently assigned to an asset, payload, or group, When I attempt to delete it, Then the system warns me that this marking is in use (block vs. warn — to be decided).
 
----
+## Sub-task: US6 — Default TLP Markings are Pre-loaded on Platform Initialization ( nice to have )
 
-# Sub-task: US6 — Default TLP Markings are Pre-loaded on Platform Initialization ( nice to have )
-
-## Properties
+* Properties
 
 - **Task ID:** 628
 - **Status:**
 - **Status 1:** Not started
 - **Parent-task:** Task 1 — Create & Manage
 
-## AI Summary
+* AI Summary
 
 - 📥 Auto-load the five standard TLP markings (CLEAR, GREEN, AMBER, AMBER+STRICT, RED) during platform initialization.
 - 🛠️ Enables administrators and users to apply TLP classifications instantly without manual setup.
 
-## User story
+* User story
 
 > As a platform administrator, I want the standard TLP marking definitions to be automatically available when the platform is initialized, so that users can immediately apply markings without requiring manual setup.
 
-## Acceptance criteria
+* Acceptance criteria
 
 - **AC1 — Pre-loaded markings** — Given the platform has just been initialized, When I navigate to Settings > Marking Definitions, Then the following 5 TLP markings are already present and visible:
 
@@ -337,63 +248,21 @@ These are the same default markings used in OpenCTI, ensuring consistency across
 - 🛠️ Admins can view, add, edit, or remove group markings and manage group membership to control object access.
 
 
-# 🎯 Business Context (👥 PM + Stakeholders)
 
-## Use Case & Business Goals
-
-Task 2 focuses on assigning marking definitions to groups in OpenAEV, following the same model as OpenCTI. A group can be assigned one or more markings — members of that group will only see and interact with objects whose marking level matches or is below their group's assigned markings. When a user belongs to multiple groups, the highest marking applies.
-
-## 👤 Users & Personas
-
-- **Administrator** ⇒ assigns markings to groups, manages group membership
-- **User with the right capability** ⇒ views and interacts with objects based on their group's marking level
-
-# 🧠 WHAT DO WE WANT (Business Refinement)
-
-## 🧭 User Flow (mapped to user stories)
-
-### Preconditions (dependency on Task 1)
-
-- A marking definition exists (created/managed in Task 1).
-- The admin has granted the appropriate permissions so the Administrator can manage group markings.
-
-### Flow A — View current group markings
-
-1. Administrator opens a **Group** and navigates to its **Markings** section. *(US1)*
-2. Administrator sees the list of markings currently assigned to the group. *(US1)*
-
-### Flow B — Assign markings to a group
-
-1. Administrator opens a group and clicks **Edit** (or **Manage markings**). *(US2)*
-2. Administrator selects one or more markings and saves. *(US2)*
-3. Administrator sees the updated markings displayed on the group. *(US1)*
-
-### Flow C — Remove a marking from a group
-
-1. Administrator opens the group’s markings and removes a marking, then saves. *(US3)*
-2. The marking is no longer listed on the group. *(US1)*
-
-### Flow D — Add users to groups (so they inherit markings)
-
-1. Administrator opens a group and goes to **Members**.
-2. Administrator adds/removes users in the group and saves.
-3. Users’ effective marking level updates (highest marking across their groups). *(US5)*
-4. Access is enforced based on group markings. *(US4)*
-
-## 📜 User Stories
-
-### User stories pages
+## User stories for task 2
 
 - US1 — View markings assigned to a group
 - US2 — Assign a marking to a group
 - US3 — Remove a marking from a group
-- US4 — Access control based on group marking .
-- US5 — Highest marking applies when user belongs to multiple groups
+- US4 — Assigning to default group
 
+## Sub-task: US0 — View markings assigned to a group
+Finish Sub-task: US1 — Assign "Manage Marking Definitions" Capability to a Role
+The “Assign marking” capabilities to roles for independent access control part was not completed in Task1, we need to have it to do task 2
+> **NOTE: this part was descoped from Task1 original PR but need to be added in Task2**
+## Sub-task: US1 — View markings assigned to a group
 
-# Sub-task: US1 — View markings assigned to a group
-
-## Properties
+* Properties
 
 - **Task ID:** 602
 - **Status:** Business Refinement needed
@@ -401,26 +270,25 @@ Task 2 focuses on assigning marking definitions to groups in OpenAEV, following 
 - **Parent-task:** Task 2 — Assign Markings to users
 - **Verticals:** #3 Easy-to-Use & consistent platform
 
-## AI Summary
+* AI Summary
 
 - 📋 View the list of markings assigned to a group on the group detail page.
 - ✅ Shows each marking’s name and color; displays an empty state if no markings are assigned.
 
-## User story
+* User story
 
 > *As a user with the right capability, I want to view the list of markings assigned to a group, so that I can understand what marking levels are accessible to members of that group.*
 
-## Acceptance criteria
+* Acceptance criteria
 
 - **AC1** — Given I am on the group detail page, When I open a group, Then I see a "Markings" section listing all markings currently assigned to that group.
 - **AC2** — Given no markings are assigned to the group, When I open the Markings section, Then I see an empty state.
 - **AC3** — Given markings are assigned, When I view the Markings section, Then each marking is displayed with its name and color.
 
----
 
-# Sub-task: US2 — Assign a marking to a group
+### Sub-task: US2 — Assign a marking to a group
 
-## Properties
+* Properties
 
 - **Task ID:** 601
 - **Status:** Business Refinement needed
@@ -428,16 +296,16 @@ Task 2 focuses on assigning marking definitions to groups in OpenAEV, following 
 - **Parent-task:** Task 2 — Assign Markings to users
 - **Verticals:** #3 Easy-to-Use & consistent platform
 
-## AI Summary
+* AI Summary
 
 - 📋 **User story:** Enable users with proper permissions to assign a marking to a group, allowing group members to access objects tagged with that marking.
 - ✅ **Acceptance criteria:** Add a marking via a selector on the group detail page, ensure selected markings are saved, prevent already-assigned markings from appearing again, and display the new marking in the Markings list.
 
-## User story
+* User story
 
 > *As a user with the right capability, I want to assign a marking to a group, so that members of that group can access objects with that marking.*
 
-## Acceptance criteria
+* Acceptance criteria
 
 - **AC1** — Given I am on the group detail page, When I click to add a marking, Then a selector opens showing available markings.
 - **AC2** — Given I select a marking from the list, When I confirm, Then the marking is added to the group.
@@ -446,9 +314,9 @@ Task 2 focuses on assigning marking definitions to groups in OpenAEV, following 
 
 ---
 
-# Sub-task: US3 — Remove a marking from a group
+### Sub-task: US3 — Remove a marking from a group
 
-## Properties
+* Properties
 
 - **Task ID:** 604
 - **Status:** Business Refinement needed
@@ -456,521 +324,134 @@ Task 2 focuses on assigning marking definitions to groups in OpenAEV, following 
 - **Parent-task:** Task 2 — Assign Markings to users
 - **Verticals:** #3 Easy-to-Use & consistent platform
 
-## AI Summary
+* AI Summary
 
 - 📌 User story: Enable users with proper rights to remove a marking from a group, restricting marking levels for group members.
 - ✅ Acceptance criteria: Show remove action per marking, confirm before deletion, and ensure the marking disappears after confirmation.
 
-## User story
+* User story
 
 > *As a user with the right capability, I want to remove a marking from a group, so that I can restrict what marking levels are accessible to members of that group.*
 
-## Acceptance criteria
+* Acceptance criteria
 
 - **AC1** — Given I am on the group detail page, When I view the Markings section, Then I see a remove action next to each assigned marking.
 - **AC2** — Given I click remove on a marking, When the action is triggered, Then a confirmation is shown before deletion.
 - **AC3** — Given I confirm the removal, When it is saved, Then the marking no longer appears in the group's Markings section.
 
----
+### Sub-task: US4 - Assigning to default group
 
-# Sub-task: US4 — Access control based on group marking .
+* AI summary
+- 📌 Define default TLP assignments for groups (Admin → RED, Manager → AMBER, Observer → GREEN) to standardize access levels.
+- ⚙️ Implement this feature in OpenAEV to ensure consistent platform security across default groups.
 
-## Properties
+  | Group | Default TLP (Allowed Marking) | Why |
+  | --- | --- | --- |
+  | Admin | TLP:RED | Highest order , covers all levels below it |
+  | Manager | TLP:AMBER | Operational visibility, excludes most restricted tier |
+  | Observer | TLP:GREEN | Lowest-trust, broadly shareable content only |
 
-- **Task ID:** 603
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 2 — Assign Markings to users
-- **Verticals:** #3 Easy-to-Use & consistent platform
+# Task 3 — Assign Markings to users
 
-## AI Summary
-
-- 🎯 Develop group-based access control so users only see groups with markings matching or below their own.
-- ✅ Ensure the feature restricts visibility according to assigned group markings, enhancing security and consistency.
-
-## User story
-
-> *As a user belonging to a single group, I want my access to groups, to be restricted to the markings assigned to my group, so that I only see what I am allowed to access.*
-
-## Acceptance criteria
-
-- **AC1** — Given I browse groups, When access is evaluated, Then I can only see groups whose marking matches or is below my group's assigned markings.
-
----
-
-# Sub-task: US5 — Highest marking applies when user belongs to multiple groups
-
-## Properties
-
-- **Task ID:** 605
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 2 — Assign Markings to users
-- **Verticals:** #3 Easy-to-Use & consistent platform
-
-## AI Summary
-
-- 📌 Highest marking determines user access when belonging to multiple groups.
-- 🔄 Access updates automatically when groups are added or removed.
-
-## User story
-
-> *As a user belonging to multiple groups, I want my access level to reflect the highest marking across all my groups, so that I am not unnecessarily restricted.*
-
-## Acceptance criteria
-
-- **AC1** — Given I browse groups, When access is evaluated, Then I can only see groups up to the highest marking level across all my groups.
-- **AC2** — Given I am removed from a group, When access is recalculated, Then my access reflects only my remaining groups' markings.
-# Task 2 — Assign Markings to users
-
-## Properties
-
-- **Task ID:** 591
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Verticals:** #3 Easy-to-Use & consistent platform
-- **EPIC:** https://app.notion.com/p/2c58fce17f2a803081dcf80b5a591db9
-- **Sub-tasks:**
-    - US1 — View markings assigned to a group
-    - US2 — Assign a marking to a group
-    - US3 — Remove a marking from a group
-    - US4 — Access control based on group marking .
-    - US5 — Highest marking applies when user belongs to multiple groups
-
-## AI Summary
-
-- 📌 Assign marking definitions to groups in OpenAEV, letting users inherit the highest marking from their groups.
-- 🛠️ Admins can view, add, edit, or remove group markings and manage group membership to control object access.
-
----
-
-# 🎯 Business Context (👥 PM + Stakeholders)
-
-## Use Case & Business Goals
-
-Task 2 focuses on assigning marking definitions to groups in OpenAEV, following the same model as OpenCTI. A group can be assigned one or more markings — members of that group will only see and interact with objects whose marking level matches or is below their group's assigned markings. When a user belongs to multiple groups, the highest marking applies.
-
-## 👤 Users & Personas
-
-- **Administrator** ⇒ assigns markings to groups, manages group membership
-- **User with the right capability** ⇒ views and interacts with objects based on their group's marking level
-
-# ⚠️ Important Flags
-
-| Flag | Value |
-|---|---|
-| Has **Breaking changes** |  |
-| Has **Data Model updates** |  |
-| Has **RBAC changes** |  |
-| Requires **Feature Flag** |  |
-| Targets master (minor release asap) |  |
-| Has impact on Import/Export |  |
-
-# 🤝 Decisions Log
-
-| Date | Decision | Validated by Product? | Validated by Technical? | Link to related Meeting |
-|---|---|---|---|---|
-| --- |  |  |  |  |
-|  | Markings are assigned at the Group level (not Role level), following OpenCTI's architecture to keep a consistent mental model for end users |  |  |  |
-
----
-
-# 🧠 WHAT DO WE WANT (Business Refinement)
-
-## 🧭 User Flow (mapped to user stories)
-
-### Preconditions (dependency on Task 1)
-
-- A marking definition exists (created/managed in Task 1).
-- The admin has granted the appropriate permissions so the Administrator can manage group markings.
-
-### Flow A — View current group markings
-
-1. Administrator opens a **Group** and navigates to its **Markings** section. *(US1)*
-2. Administrator sees the list of markings currently assigned to the group. *(US1)*
-
-### Flow B — Assign markings to a group
-
-1. Administrator opens a group and clicks **Edit** (or **Manage markings**). *(US2)*
-2. Administrator selects one or more markings and saves. *(US2)*
-3. Administrator sees the updated markings displayed on the group. *(US1)*
-
-### Flow C — Remove a marking from a group
-
-1. Administrator opens the group’s markings and removes a marking, then saves. *(US3)*
-2. The marking is no longer listed on the group. *(US1)*
-
-### Flow D — Add users to groups (so they inherit markings)
-
-1. Administrator opens a group and goes to **Members**.
-2. Administrator adds/removes users in the group and saves.
-3. Users’ effective marking level updates (highest marking across their groups). *(US5)*
-4. Access is enforced based on group markings. *(US4)*
-
-## 📜 User Stories
-
-### User stories pages
-
-- US1 — View markings assigned to a group
-- US2 — Assign a marking to a group
-- US3 — Remove a marking from a group
-- US4 — Access control based on group marking .
-- US5 — Highest marking applies when user belongs to multiple groups
-
-# Sub-task: US1 — View markings assigned to a group
-
-## Properties
-
-- **Task ID:** 602
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 2 — Assign Markings to users
-- **Verticals:** #3 Easy-to-Use & consistent platform
-
-## AI Summary
-
-- 📋 View the list of markings assigned to a group on the group detail page.
-- ✅ Shows each marking’s name and color; displays an empty state if no markings are assigned.
-
-## User story
-
-> *As a user with the right capability, I want to view the list of markings assigned to a group, so that I can understand what marking levels are accessible to members of that group.*
-
-## Acceptance criteria
-
-- **AC1** — Given I am on the group detail page, When I open a group, Then I see a "Markings" section listing all markings currently assigned to that group.
-- **AC2** — Given no markings are assigned to the group, When I open the Markings section, Then I see an empty state.
-- **AC3** — Given markings are assigned, When I view the Markings section, Then each marking is displayed with its name and color.
-
----
-
-# Sub-task: US2 — Assign a marking to a group
-
-## Properties
-
-- **Task ID:** 601
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 2 — Assign Markings to users
-- **Verticals:** #3 Easy-to-Use & consistent platform
-
-## AI Summary
-
-- 📋 **User story:** Enable users with proper permissions to assign a marking to a group, allowing group members to access objects tagged with that marking.
-- ✅ **Acceptance criteria:** Add a marking via a selector on the group detail page, ensure selected markings are saved, prevent already-assigned markings from appearing again, and display the new marking in the Markings list.
-
-## User story
-
-> *As a user with the right capability, I want to assign a marking to a group, so that members of that group can access objects with that marking.*
-
-## Acceptance criteria
-
-- **AC1** — Given I am on the group detail page, When I click to add a marking, Then a selector opens showing available markings.
-- **AC2** — Given I select a marking from the list, When I confirm, Then the marking is added to the group.
-- **AC3** — Given a marking is already assigned to the group, When I open the selector, Then that marking does not appear as an option.
-- **AC4** — Given the assignment is saved, When I view the Markings section, Then the new marking appears in the list.
-
----
-
-# Sub-task: US3 — Remove a marking from a group
-
-## Properties
-
-- **Task ID:** 604
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 2 — Assign Markings to users
-- **Verticals:** #3 Easy-to-Use & consistent platform
-
-## AI Summary
-
-- 📌 User story: Enable users with proper rights to remove a marking from a group, restricting marking levels for group members.
-- ✅ Acceptance criteria: Show remove action per marking, confirm before deletion, and ensure the marking disappears after confirmation.
-
-## User story
-
-> *As a user with the right capability, I want to remove a marking from a group, so that I can restrict what marking levels are accessible to members of that group.*
-
-## Acceptance criteria
-
-- **AC1** — Given I am on the group detail page, When I view the Markings section, Then I see a remove action next to each assigned marking.
-- **AC2** — Given I click remove on a marking, When the action is triggered, Then a confirmation is shown before deletion.
-- **AC3** — Given I confirm the removal, When it is saved, Then the marking no longer appears in the group's Markings section.
-
----
-
-# Sub-task: US4 — Access control based on group marking .
-
-## Properties
-
-- **Task ID:** 603
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 2 — Assign Markings to users
-- **Verticals:** #3 Easy-to-Use & consistent platform
-
-## AI Summary
-
-- 🎯 Develop group-based access control so users only see groups with markings matching or below their own.
-- ✅ Ensure the feature restricts visibility according to assigned group markings, enhancing security and consistency.
-
-## User story
-
-> *As a user belonging to a single group, I want my access to groups , to be restricted to the markings assigned to my group, so that I only see what I am allowed to access.*
-
-## Acceptance criteria
-
-- **AC1** — Given I browse groups, When access is evaluated, Then I can only see groups whose marking matches or is below my group's assigned markings.
-
----
-
-# Sub-task: US5 — Highest marking applies when user belongs to multiple groups
-
-## Properties
-
-- **Task ID:** 605
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 2 — Assign Markings to users
-- **Verticals:** #3 Easy-to-Use & consistent platform
-
-## AI Summary
-
-- 📌 Highest marking determines user access when belonging to multiple groups.
-- 🔄 Access updates automatically when groups are added or removed.
-
-## User story
-
-> *As a user belonging to multiple groups, I want my access level to reflect the highest marking across all my groups, so that I am not unnecessarily restricted.*
-
-## Acceptance criteria
-
-- **AC1** — Given I browse groups, When access is evaluated, Then I can only see groups up to the highest marking level across all my groups.
-- **AC2** — Given I am removed from a group, When access is recalculated, Then my access reflects only my remaining groups' markings.
-
-# Task 3 — Assign Markings to Assets
-
-## Properties
-
-- **Task ID:** 592
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Verticals:** #3 Easy-to-Use & consistent platform
-- **EPIC:** https://app.notion.com/p/2c58fce17f2a803081dcf80b5a591db9
-- **Sub-tasks:**
-  - US1 — Assign a marking to an Asset Group
-  - US2 — Assign a marking to an Endpoint
-  - US3 — Assign a marking to a Security Platform
-  - US4 — Assign a marking to a Credential
-  - US5 — Only users with the matching marking can see assets
-
-## AI Summary
-
-- 🎯 Assign markings to assets (Asset Groups, Endpoints, Security Platforms) in OpenAEV, mirroring OpenCTI’s model.
-- 🔐 Users with proper capability can set, update, or remove markings, controlling asset visibility based on group-marking alignment.
-- 📊 Ensure feature flags, breaking-change awareness, and telemetry for usage tracking; keep this field updatable.
-
----
-
-# 🎯 Business Context (👥 PM + Stakeholders)
-
-## Use Case & Business Goals
-
-Task 3 focuses on assigning marking definitions to **assets** in OpenAEV, following the same model as OpenCTI. Assets are divided into three types: **Asset Groups**, **Endpoints**, and **Security Platforms**. Users with the right capability can assign a marking to any of these asset types via the existing update flow.
+Task 3 focuses on assigning marking definitions to <b>assets</b> in OpenAEV.
 
 Once markings are set on assets:
 
-- Only users whose **group markings match (or are above / include)** the asset’s marking can see it
-- Assets with **no marking** remain visible to everyone (until defined otherwise)
+- Only users whose group holds a marking of the same Type as the asset, at an Order equal to or higher than the asset's Order for that Type, can see it. A group with no marking of the asset's Type has no access to it, regardless of Order.
+- Assets with <b>no marking</b> remain visible to everyone. <b>CONFIRM:</b> is this a final decision or still open? If open, move to Decisions Log as pending, not stated as settled behavior.
 
-## 👤 Users & Personas
+## User stories for task 3
+### sub-task US1 — Assign a marking to an Asset
 
-- **Administrator** ⇒ manages group membership and group markings (Task 2 dependency)
-- **User with the right capability** ⇒ assigns / updates / removes markings on assets
-- **Standard user** ⇒ can only view assets within their authorized marking scope
+* User story
 
-# ⚠️ Important Flags
+> <i>As a user with the right capability, I want to assign a marking to an asset , so that access to that asset is restricted to users with the matching marking.</i>
 
-| Flag | Value |
-|---|---|
-| Has **Breaking changes** | yes |
-| Has **Data Model updates** |  |
-| Has **RBAC changes** |  |
-| Requires **Feature Flag** |  |
-| Targets master (minor release asap) |  |
-| Has impact on Import/Export |  |
+* Mockup
+![list assets with marking](./task3-us1.png)
+![edit assets with marking](./task3-us1bis.png)
 
-# 🤝 Decisions Log
+* Acceptance criteria
 
-| Date | Decision | Validated by Product? | Validated by Technical? | Link to related Meeting |
-|---|---|---|---|---|
-| --- |  |  |  |  |
+- AC1 — Given I am on the Asset detail page, When I click Update, Then I see a marking field where I can select a marking
+- AC2 — Given I select a marking and save, When I view the Asset , Then the assigned marking is displayed
+- AC3 — Given a marking is already assigned, When I click Update, Then I can change or remove the existing marking
 
----
 
-# 🧠 WHAT DO WE WANT (Business Refinement)
+### sub-task US2 — search or filter assets per marking
 
-## 🧭 User Flow (mapped to user stories)
+* User story
 
-### Preconditions
+> <i>As a user, I want to see markings in the Assets list and be able to search and filter assets by marking, so that I can quickly find assets based on their assigned access classification.</i>
 
-- Marking definitions exist (created/managed in **Task 1**).
-- The user has the capability to update the relevant asset type (Asset Group / Endpoint / Security Platform / Credential).
+* Acceptance criteria
 
-### Flow A — Assign a marking to an asset (Asset Group / Endpoint / Security Platform / Credential)
+- AC1 — Given I am on the Assets list, When the list is displayed, Then I see a new <b>Marking</b> entry/column for each asset showing the marking assigned to that asset.
+- AC2 — Given I am on the Assets list, When I use the filter options, Then I can filter assets based on their assigned marking.
+- AC3 — Given I select one or more markings in the filter, When the filter is applied, Then the Assets list displays only assets matching the selected marking(s).
+- AC4 — Given I am on the Assets list, When I use the search input with a marking name, Then assets with a matching assigned marking are returned in the results.
+- AC5 — Given an asset has no marking assigned, When the Assets list is displayed or filtered, Then this asset is handled consistently with the existing “no value” behavior for list columns and filters.
 
-1. User opens the asset detail page and clicks **Update**. *(US1/US2/US3/US4 depending on asset type)*
-2. User selects a **Marking** value and saves. *(US1/US2/US3/US4)*
-3. The asset displays the selected marking; user can later change or remove it via the same update flow. *(US1/US2/US3/US4)*
+### sub-task US3 — Bulk edit (must have)
 
-### Flow B — Visibility & access control for marked assets (dependency only for US5)
+* User story
 
-**Dependency:** requires **Task 2** (group markings) so the platform can compare the asset marking with the user’s effective group markings.
+> <i>As a user with the right capability, I want to filter and select multiple assets across asset types at once, so that I can assign or change a marking on all of them in a single bulk action instead of updating each asset individually.</i>
 
-1. User navigates tries to access a specific asset.
-2. If the user’s group markings match/cover the asset’s marking, the asset is visible.
-3. If not, the asset is hidden / access is denied.
-4. Assets with **no marking** remain visible to everyone.
+* Acceptance criteria
 
-## 📜 User Stories
+- AC1 — Given I am on an asset list view, when I apply filters (type, name, tag, existing marking, etc.), then the list updates to show only matching assets.
+- AC2 — Given a filtered list is displayed, when I choose "select all," then <b>all assets matching the current filter are selected, including those beyond the currently loaded/visible page</b> — not just the rows rendered on screen. Individual row selection via checkboxes is also supported.
+- AC3 — Given one or more assets are selected, when I choose "Assign marking" from a bulk action menu, then I can pick a single marking to apply to all selected assets at once, <b>regardless of asset type</b> — a single bulk action can span Asset Groups, Endpoints, and Security Platforms together in one operation.
+- AC4 — Given I confirm the bulk marking assignment, when the action completes, then all selected assets are updated with the new marking and I see a confirmation summarizing how many assets were updated.
+- AC5 — Given some selected assets fail to update (e.g. due to insufficient capability on a subset), when the bulk action completes, then I see which assets succeeded and which failed, rather than a silent partial failure.
 
-### User stories pages
 
-- US1 — Assign a marking to an Asset Group
-- US2 — Assign a marking to an Endpoint
-- US3 — Assign a marking to a Security Platform
-- US4 — Assign a marking to a Credential
-- US5 — Only users with the matching marking can see assets
+### sub-task US4 — Access control based on group marking
 
-# Sub-task: US1 — Assign a marking to an Asset Group
+* User story
 
-## Properties
+> <i>As a user belonging to a single group, I want my access to groups, to be restricted to the markings assigned to my group, so that I only see what I am allowed to access.</i>
 
-- **Task ID:** 606
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 3 — Assign Markings to Assets
-- **Verticals:** #3 Easy-to-Use & consistent platform
+* Acceptance criteria
 
-## AI Summary
+- AC1 — Given my group holds a marking of Type X at Order N, when access is evaluated on an object marked with Type X, then I can access it only if its Order is ≤ N.
+- AC1b — Given my group holds no marking of Type Y at all, when access is evaluated on an object marked with Type Y, then I cannot access it, regardless of its Order value.
 
-- 📌 User story: Assign a marking to an asset group to restrict access based on matching markings.
-- ✅ Acceptance criteria: Ability to select, save, view, change, or remove the marking on the Asset Group detail page.
+### sub-task US5 — Only users with the matching marking can see assets
 
-## User story
+* User story
 
-> *As a user with the right capability, I want to assign a marking to an asset group, so that access to that asset group is restricted to users with the matching marking.*
+> <i>As a user, I want to only see assets whose marking matches or is below my group's assigned marking, so that I cannot access assets I am not allowed to see.</i>
 
-## Acceptance criteria
+* Acceptance criteria
 
-- **AC1** — Given I am on the Asset Group detail page, When I click Update, Then I see a marking field where I can select a marking.
-- **AC2** — Given I select a marking and save, When I view the Asset Group, Then the assigned marking is displayed.
-- **AC3** — Given a marking is already assigned, When I click Update, Then I can change or remove the existing marking.
+- AC1 — Given an asset has a marking of Type X at Order N, when I browse assets, then I only see it if my group holds a marking of Type X at Order ≥ N. If my group holds no marking of Type X, I cannot see the asset regardless of Order.
+- AC2 — Given an asset has a marking I do not have access to, When I try to access it, Then access is denied
+- AC3 — Given an asset has no marking assigned, When I browse assets, Then it is visible to all users
 
----
+### sub-task US6 — Highest marking applies when user belongs to multiple groups
 
-# Sub-task: US2 — Assign a marking to an Endpoint
+* User story
 
-## Properties
+> <i>As a user belonging to multiple groups, I want my access level to reflect the highest marking across all my groups, so that I am not unnecessarily restricted.</i>
 
-- **Task ID:** 607
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 3 — Assign Markings to Assets
-- **Verticals:** #3 Easy-to-Use & consistent platform
+* Acceptance criteria
 
-## AI Summary
+- AC1 — For each Type held by any of my groups, my effective Order for that Type is the highest Order among my groups holding that Type. I can access an object of Type X at Order N only if my effective Order for Type X is ≥ N. For any Type held by none of my groups, I have no access to objects of that Type.
+- AC2 — Given I am removed from a group, When access is recalculated, Then my access reflects only my remaining groups' markings
 
-- 📌 Assign a marking to an endpoint to restrict access based on user capabilities.
-- 🛠️ Users can add, change, or remove the marking via the Endpoint detail page’s Update function.
+### sub-task US8 — Markings are enforced as a first layer of access control
 
-## User story
+* User story
 
-> *As a user with the right capability, I want to assign a marking to an endpoint, so that access to that endpoint is restricted to users with the matching marking.*
+> <i>As a user, I want access to assets to be denied if I do not have the matching marking, regardless of my capabilities or grants, so that markings are always the first gate of access control.</i>
 
-## Acceptance criteria
+* Acceptance criteria
 
-- **AC1** — Given I am on the Endpoint detail page, When I click Update, Then I see a marking field where I can select a marking.
-- **AC2** — Given I select a marking and save, When I view the Endpoint, Then the assigned marking is displayed.
-- **AC3** — Given a marking is already assigned, When I click Update, Then I can change or remove the existing marking.
-
----
-
-# Sub-task: US3 — Assign a marking to a Security Platform
-
-## Properties
-
-- **Task ID:** 609
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 3 — Assign Markings to Assets
-- **Verticals:** #3 Easy-to-Use & consistent platform
-
-## AI Summary
-
-- 🛡️ Assign a marking to a security platform to restrict access based on matching markings.
-- 🔧 Users can add, change, or remove the marking directly from the platform’s detail page.
-
-## User story
-
-> *As a user with the right capability, I want to assign a marking to a security platform, so that access to that security platform is restricted to users with the matching marking.*
-
-## Acceptance criteria
-
-- **AC1** — Given I am on the Security Platform detail page, When I click Update, Then I see a marking field where I can select a marking.
-- **AC2** — Given I select a marking and save, When I view the Security Platform, Then the assigned marking is displayed.
-- **AC3** — Given a marking is already assigned, When I click Update, Then I can change or remove the existing marking.
-
----
-
-# Sub-task: US4 — Assign a marking to a Credential
-
-## Properties
-
-- **Task ID:** 620
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 3 — Assign Markings to Assets
-- **Verticals:** #3 Easy-to-Use & consistent platform
-
-## AI Summary
-
-- 📌 Assign a marking to a credential to control access based on matching markings.
-- ✏️ Users can add, change, or remove the marking via the Credential detail page’s **Marking** field.
-
-## User story
-
-> *As a user with the right capability, I want to assign a marking to a credential, so that access to that credential is restricted to users with the matching marking.*
-
-## Acceptance criteria
-
-- **AC1** — Given I am on the Credential detail page, When I click Update (or Edit), Then I see a **Marking** field where I can select a marking.
-- **AC2** — Given I select a marking and save, When I view the Credential, Then the assigned marking is displayed.
-- **AC3** — Given a marking is already assigned, When I click Update (or Edit), Then I can change or remove the existing marking.
-
----
-
-# Sub-task: US5 — Only users with the matching marking can see assets
-
-## Properties
-
-- **Task ID:** 608
-- **Status:** Business Refinement needed
-- **Status 1:** Not started
-- **Parent-task:** Task 3 — Assign Markings to Assets
-- **Verticals:** #3 Easy-to-Use & consistent platform
-
-## AI Summary
-
-- 🔐 Enable users to view only assets whose marking matches or is lower than their group's assigned marking.
-- 🚫 Deny access to assets with higher markings and allow unrestricted view of unmarked assets.
-
-## User story
-
-> *As a user, I want to only see assets whose marking matches or is below my group's assigned marking, so that I cannot access assets I am not allowed to see.*
-
-## Acceptance criteria
-
-- **AC1** — Given an asset has a marking assigned, When I browse assets, Then I only see assets whose marking matches or is below my group's marking.
-- **AC2** — Given an asset has a marking I do not have access to, When I try to access it, Then access is denied.
-- **AC3** — Given an asset has no marking assigned, When I browse assets, Then it is visible to all users.
+- AC1 — Given an asset has a marking assigned, When I do not have the matching marking, Then I cannot see or access it even if I have the relevant capability
+- AC2 — Given an asset has a marking assigned, When I have the matching marking, Then my capabilities and grants determine what I can do with it
+- AC3 — Given an asset has no marking assigned, When I access it, Then only my capabilities and grants apply
+- AC4 — Given no marking is assigned to an asset, When I interact with it, Then my capabilities and grants behave exactly as before
+- AC5 — Given a marking is assigned and I have the matching marking, When I interact with the asset, Then my capabilities and grants behave exactly as before
+- AC6 — Given markings are introduced on the platform, When existing users access assets with no marking, Then no regression is observed on their permissions

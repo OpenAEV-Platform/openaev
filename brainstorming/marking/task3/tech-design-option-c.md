@@ -1,5 +1,11 @@
 # Option C — Marking isolation "à la" tenant v2 
 
+> This document covers the generic SQL-rewrite mechanism (`ScopeDimension`, `ScopeStatementInspector`) and
+> its asset-side data model (Task 3). Group clearance — `groups_markings`, `MarkingScopeResolver`,
+> `MarkingClearanceCacheManager` and the group assign/unassign write path — is Task 2's own scope and is
+> documented in [`../task2/tech-design.md`](../task2/tech-design.md); it is referenced here only where this
+> design consumes it (§2.2, §3.3).
+
 **Marking cardinality: many-to-many.** An entity carries **zero, one or many** markings
 (STIX `object_marking_refs` semantics). This is the decision this document is built on, and it drives most
 of the design below. *How* that set is stored physically is a separate, argued choice — see section 3.
@@ -173,6 +179,7 @@ row write would be a no-op that *looks* like protection. Eviction belongs only w
 (group membership, grant removal, definition delete, order lowered).
 
 Two consequences fall out for free:
+
 - **Self-lockout is impossible.** The write guard enforces `requested ⊆ your clearance`, and a row is visible
   iff `row_markings ⊆ clearance` — so you can always still read what you just marked.
 - **Declassification is the only direction worth auditing.** Adding a marking narrows visibility; removing one
@@ -293,16 +300,14 @@ unchanged.
 **Tenant scoping**: `marking_ids` lives on the marked row, which is already tenant-scoped. There is no second
 table to confine.
 
-#### `groups_markings` is a clearance **grant**, not a marking attachment
+#### `groups_markings` — clearance grant, detailed in Task 2
 
-| Relation | Question it answers | Role |
-|---|---|---|
-| `groups_markings(group_id, marking_id)` | *What can members of this group see?* | clearance **grant** — an input to authorization (Task 2) |
-| `groups.marking_ids` | *Who is allowed to see this group?* | marking **attachment** — an output of authorization |
-
-**`groups_markings` stays a join table under Option 2.** It is read by the Java resolver (groups → markings →
-ordinal expansion, §2.2), never by the SQL predicate, so denormalising it buys nothing on the hot path; and as
-authorization data it wants real FKs, keeping a genuine `ON DELETE CASCADE`.
+`groups_markings(group_id, marking_id)` is the clearance **grant** this design's read predicate is checked
+against — it is *not* a marking attachment (it answers "what can members of this group see?", not "who is
+allowed to see this group?"). Its full rationale (why it stays a plain join table under Option 2, why it is
+deliberately not itself marking-filtered, and the write/escalation path that populates it) is documented in
+[`../task2/tech-design.md`](../task2/tech-design.md) §2, since assigning markings to groups is Task 2's own
+scope. What this design needs from it is only the resolved, flattened clearance set described in §2.2 above.
 
 Marking the `groups` table itself, if ever wanted, is just `ALTER TABLE groups ADD COLUMN marking_ids text[]`
 — sitting **beside** `groups_markings`, not replacing it.

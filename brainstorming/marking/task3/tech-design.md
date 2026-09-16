@@ -42,6 +42,19 @@ Markings are **ordered** (1 to 10, highest last), and a clearance **expands down
 TLP:RED means cleared for RED and everything beneath it, so the same user also sees TLP:AMBER
 resources. Only the resource's own marking is ever compared against the clearance.
 
+> **Clarification — the expansion is computed, never stored.** Granting a group `TLP:RED` writes **one**
+> row into `groups_markings` — `(group_id, TLP:RED)`, and nothing else. Nobody inserts `TLP:CLEAR`,
+> `TLP:GREEN`, `TLP:AMBER`, `TLP:AMBER+STRICT` as separate grants; the grant table always mirrors exactly
+> what an admin explicitly assigned, one row per assignment.
+>
+> The "expands downward" behaviour is a **read-time** computation, not a write-time one. When a user's
+> effective clearance is resolved (`MarkingScopeResolver`, [Task 2](../task2/tech-design.md) §3.1), the
+> resolver looks at the **highest** `order` the user holds per marking type (here, `TLP:RED`, order 5) and
+> expands *that single number* into the flat id list `{TLP:CLEAR, TLP:GREEN, TLP:AMBER,
+> TLP:AMBER+STRICT, TLP:RED}` **in memory**, entirely in Java. That flat set — not the group's raw grant
+> — is what reaches the per-transaction scope channel and what the SQL `<@` predicate compares a row's
+> `marking_ids` against. `groups_markings` itself never grows past the admin's one explicit choice.
+
 Two consequences worth stating up front, because the rest of this document depends on them:
 
 - **Unmarked means visible.** Adding markings changes nothing until something is actually marked, so
@@ -157,6 +170,7 @@ sequenceDiagram
 ```
 
 **AOP order to remember**
+
 - `@AccessControl` (`AccessControlAspect`) runs at API method entry and can stop the call early with
   403 (no transaction or query work when denied).
 - `@Transactional` opens the transaction around service/repository work.
@@ -328,7 +342,7 @@ the code a developer writes.
 
 ### Direction — Option C
 
-**Decided: Option C.** Recorded in [ADR-007](../../adr/ADR-007-Marking-based-access-control.md);
+**Decided: Option C.** Recorded in [ADR-009](../../../adr/ADR-009-Marking-based-access-control.md);
 detailed design, risks and PoC plan in [tech-design-option-c.md](./tech-design-option-c.md).
 
 The deciding argument is not cost, and it is not performance — it is that **A and B are opt-in by
