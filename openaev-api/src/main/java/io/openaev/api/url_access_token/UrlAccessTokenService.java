@@ -1,6 +1,7 @@
 package io.openaev.api.url_access_token;
 
 import static io.openaev.api.users.dto.UserMapper.fromUserContract;
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
@@ -12,12 +13,8 @@ import io.openaev.service.UserService;
 import io.openaev.utils.RandomUtils;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HexFormat;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -197,17 +194,7 @@ public class UrlAccessTokenService {
   }
 
   private Optional<UrlAccessToken> findByRawToken(String rawToken) {
-    return urlAccessTokenRepository.findByTokenHash(hashToken(rawToken));
-  }
-
-  private String hashToken(String rawToken) {
-    try {
-      byte[] hash =
-          MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(hash);
-    } catch (NoSuchAlgorithmException exception) {
-      throw new IllegalStateException("SHA-256 algorithm is not available", exception);
-    }
+    return urlAccessTokenRepository.findByTokenHash(hashWithSHA256(rawToken));
   }
 
   private boolean isExpiredOrRevoked(UrlAccessToken token) {

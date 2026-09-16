@@ -1340,7 +1340,10 @@ class InjectServiceTest {
 
       assertThat(code).isNotBlank();
       verify(injectAuthorisationRepository).deleteAllByInjectId("inject-1");
-      verify(injectAuthorisationRepository).save(any(InjectAuthorisation.class));
+      ArgumentCaptor<InjectAuthorisation> authorisationCaptor =
+          ArgumentCaptor.forClass(InjectAuthorisation.class);
+      verify(injectAuthorisationRepository).save(authorisationCaptor.capture());
+      assertThat(authorisationCaptor.getValue().getCode()).isNotEqualTo(code);
     }
 
     @Test

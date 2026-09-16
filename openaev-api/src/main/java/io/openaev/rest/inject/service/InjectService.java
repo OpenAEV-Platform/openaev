@@ -7,6 +7,7 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
@@ -96,7 +97,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
-import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -1639,9 +1639,6 @@ public class InjectService {
     return null;
   }
 
-  private static final Argon2PasswordEncoder AUTHORISATION_CODE_ENCODER =
-      Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
-
   /**
    * Creates and stores a fresh authorisation code when the inject carries secret references.
    *
@@ -1655,7 +1652,7 @@ public class InjectService {
     }
     Inject inject = executableInject.getInjection().getInject();
     String rawCode = UUID.randomUUID().toString();
-    String hashedCode = AUTHORISATION_CODE_ENCODER.encode(rawCode);
+    String hashedCode = hashWithSHA256(rawCode);
 
     injectAuthorisationRepository.deleteAllByInjectId(inject.getId());
 
