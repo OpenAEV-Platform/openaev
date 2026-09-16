@@ -149,7 +149,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act & Assert
       List<BaseInjectExpectation> saved =
@@ -184,7 +184,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -228,7 +228,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -287,7 +287,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -322,7 +322,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act & Assert
       List<BaseInjectExpectation> saved =
@@ -357,7 +357,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act & Assert
       List<BaseInjectExpectation> saved =
@@ -413,6 +413,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
               List.of(),
               List.of(),
               List.of(assetGroupA, assetGroupB),
+              List.of(),
               List.of());
 
       // Act
@@ -470,7 +471,14 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(assetGroup), List.of());
+              false,
+              false,
+              inject,
+              List.of(),
+              List.of(endpoint),
+              List.of(assetGroup),
+              List.of(),
+              List.of());
 
       // Act
       List<BaseInjectExpectation> allSaved =
@@ -519,7 +527,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -588,7 +596,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -646,7 +654,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -698,7 +706,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
