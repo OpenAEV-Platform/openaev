@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { searchMarkingDefinitions } from '../../actions/markings/marking-definition-actions';
+import { searchMarkingDefinitions } from '../../actions/marking_definitions/marking-definition-actions';
 import { type MarkingDefinitionOutput } from '../api-types';
 
 /**
@@ -27,7 +27,7 @@ const useMarkingDefinitions = (): Record<string, MarkingDefinitionOutput> => {
           return;
         }
         const content = result?.data?.content ?? [];
-        setDefinitions(Object.fromEntries(content.map(marking => [marking.marking_id, marking])));
+        setDefinitions(Object.fromEntries(content.map(marking => [marking.marking_definition_id, marking])));
       })
       // A failed lookup must not break the list: ItemMarkings renders "-" for ids it cannot
       // resolve, so the column degrades rather than throwing.

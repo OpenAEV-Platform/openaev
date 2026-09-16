@@ -31,7 +31,7 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
     () => (markingIds ?? [])
       .map(id => definitions[id])
       .filter((marking): marking is MarkingDefinitionOutput => !!marking)
-      .sort((a, b) => a.marking_order - b.marking_order),
+      .sort((a, b) => a.marking_definition_order - b.marking_definition_order),
     [markingIds, definitions],
   );
 
@@ -39,7 +39,7 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
   // nullable inputs and so return nullable results, which `resolved` never is.
   const visible = resolved.slice(0, limit);
   const remaining = resolved.length - visible.length;
-  const tooltipLabel = resolved.slice(limit).map(marking => marking.marking_name).join(', ');
+  const tooltipLabel = resolved.slice(limit).map(marking => marking.marking_definition_definition).join(', ');
 
   if (resolved.length === 0) {
     return <span>-</span>;
@@ -54,16 +54,16 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
     }}
     >
       {visible.map((marking: MarkingDefinitionOutput) => (
-        <Tooltip key={marking.marking_id} title={`${marking.marking_type}:${marking.marking_name}`}>
+        <Tooltip key={marking.marking_definition_id} title={`${marking.marking_definition_type}:${marking.marking_definition_definition}`}>
           <Chip
             variant="outlined"
             sx={{
               ...chipSx,
-              color: marking.marking_color,
-              borderColor: marking.marking_color,
-              backgroundColor: marking.marking_color ? hexToRGB(marking.marking_color) : undefined,
+              color: marking.marking_definition_color,
+              borderColor: marking.marking_definition_color,
+              backgroundColor: marking.marking_definition_color ? hexToRGB(marking.marking_definition_color) : undefined,
             }}
-            label={truncate(marking.marking_name, variant === 'list' ? 15 : 20)}
+            label={truncate(marking.marking_definition_definition, variant === 'list' ? 15 : 20)}
           />
         </Tooltip>
       ))}

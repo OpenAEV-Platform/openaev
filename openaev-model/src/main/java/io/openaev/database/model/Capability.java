@@ -163,6 +163,20 @@ public enum Capability {
       pair(ResourceType.CREDENTIAL, Action.DUPLICATE)),
   DELETE_CREDENTIALS(MANAGE_CREDENTIALS, pair(ResourceType.CREDENTIAL, Action.DELETE)),
 
+  // Marking definitions
+  ACCESS_MARKING_DEFINITION(
+      null,
+      CapabilityGroup.MARKING,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.MARKING_DEFINITION, Action.READ),
+      pair(ResourceType.MARKING_DEFINITION, Action.SEARCH)),
+  MANAGE_MARKING_DEFINITION(
+      ACCESS_MARKING_DEFINITION,
+      pair(ResourceType.MARKING_DEFINITION, Action.WRITE),
+      pair(ResourceType.MARKING_DEFINITION, Action.CREATE)),
+  DELETE_MARKING_DEFINITION(
+      MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
+
   // Dashboards
   ACCESS_DASHBOARDS(
       null,

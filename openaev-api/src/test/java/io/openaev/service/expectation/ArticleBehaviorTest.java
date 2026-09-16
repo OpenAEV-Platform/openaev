@@ -26,6 +26,8 @@ class ArticleBehaviorTest extends IntegrationTest {
   @Autowired private ArticleBehavior articleBehavior;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
 
+  @Autowired private ArticleComposer articleComposer;
+  @Autowired private ChannelComposer channelComposer;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private InjectComposer injectComposer;
@@ -37,6 +39,8 @@ class ArticleBehaviorTest extends IntegrationTest {
     userComposer.reset();
     injectComposer.reset();
     injectorContractComposer.reset();
+    articleComposer.reset();
+    channelComposer.reset();
   }
 
   @Nested
@@ -100,11 +104,18 @@ class ArticleBehaviorTest extends IntegrationTest {
           new ExecutableInject(
               false, false, inject, List.of(team), List.of(), List.of(), List.of());
 
+      Article article =
+          articleComposer
+              .forArticle(ArticleFixture.getDefaultArticle())
+              .withChannel(channelComposer.forChannel(ChannelFixture.getDefaultChannel()))
+              .persist()
+              .get();
+      executableInject.cacheExpectationContext(List.of(article));
+
       ArticleInjectExpectation template = new ArticleInjectExpectation();
       template.setInject(inject);
       template.setExpectedScore(100.0);
       template.setExpirationTime(21600L);
-
       // Act
       articleBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
           executableInject, template, null);

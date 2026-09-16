@@ -225,7 +225,8 @@ public class InjectExecutionStep implements ActionStep {
               inject.getAssets(),
               inject.getAssetGroups(),
               users,
-              true);
+              true,
+              readyStep.getId());
 
       // TODO Check add documents? Executable Payloads
       // executableInject.addDirectAttachment(inject.getDocuments());

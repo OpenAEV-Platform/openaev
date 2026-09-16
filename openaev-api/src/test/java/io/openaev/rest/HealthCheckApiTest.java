@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.health_check.HealthCheckApi;
 import io.openaev.service.HealthCheckService;
 import io.openaev.service.exception.HealthCheckFailureException;
@@ -41,7 +42,7 @@ public class HealthCheckApiTest extends IntegrationTest {
   @DisplayName("Test healthCheck")
   @Test
   void test_healthCheck() throws Exception {
-    ResponseEntity<?> responseEntity = healthCheckApi.healthCheck(KEY);
+    ResponseEntity<?> responseEntity = healthCheckApi.healthCheck(TxCtx.missing(), KEY);
     verify(healthCheckService).runHealthCheck();
     assertEquals(new ResponseEntity<>("success", HttpStatus.OK), responseEntity);
   }
@@ -53,7 +54,7 @@ public class HealthCheckApiTest extends IntegrationTest {
         assertThrows(
             ResponseStatusException.class,
             () -> {
-              healthCheckApi.healthCheck("wrong key");
+              healthCheckApi.healthCheck(TxCtx.missing(), "wrong key");
             });
     assertEquals(
         HttpStatusCode.valueOf(HttpStatus.UNAUTHORIZED.value()), exceptionThrown.getStatusCode());
@@ -67,7 +68,7 @@ public class HealthCheckApiTest extends IntegrationTest {
         assertThrows(
             ResponseStatusException.class,
             () -> {
-              healthCheckApi.healthCheck(KEY);
+              healthCheckApi.healthCheck(TxCtx.missing(), KEY);
             });
     assertEquals(
         HttpStatusCode.valueOf(HttpStatus.SERVICE_UNAVAILABLE.value()),
@@ -82,7 +83,7 @@ public class HealthCheckApiTest extends IntegrationTest {
     assertThrows(
         RuntimeException.class,
         () -> {
-          healthCheckApi.healthCheck(KEY);
+          healthCheckApi.healthCheck(TxCtx.missing(), KEY);
         });
   }
 }

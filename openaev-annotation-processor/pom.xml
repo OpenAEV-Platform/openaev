@@ -5,10 +5,18 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.260831.0</version>
+        <version>3.260904.0</version>
     </parent>
 
     <artifactId>openaev-annotation-processor</artifactId>
     <name>OpenAEV annotation processor</name>
     <description>Compile-time annotation processors for OpenAEV</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

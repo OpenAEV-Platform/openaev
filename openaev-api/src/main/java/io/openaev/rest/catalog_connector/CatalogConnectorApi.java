@@ -65,7 +65,8 @@ public class CatalogConnectorApi extends RestBehavior {
   @GetMapping(value = CATALOG_CONNECTOR_LOGO_URI, produces = MediaType.IMAGE_PNG_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<byte[]> getCatalogLogo(@PathVariable String fileName) throws IOException {
+  public ResponseEntity<byte[]> getCatalogLogo(TxCtx ctx, @PathVariable String fileName)
+      throws IOException {
     Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName);
 
     if (fileStream.isPresent()) {
@@ -86,7 +87,7 @@ public class CatalogConnectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
   public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(
-      @PathVariable String catalogConnectorId) {
+      TxCtx ctx, @PathVariable String catalogConnectorId) {
     return catalogConnectorService.getCatalogConnectorConfigurations(catalogConnectorId);
   }
 }

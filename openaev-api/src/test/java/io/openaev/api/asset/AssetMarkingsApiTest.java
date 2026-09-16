@@ -2,7 +2,7 @@ package io.openaev.api.asset;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
-import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueName;
+import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -99,13 +99,13 @@ class AssetMarkingsApiTest extends IntegrationTest {
 
     asset =
         endpointComposer
-            .forEndpoint(EndpointFixture.createEndpoint("asset-markings-" + uniqueName()))
+            .forEndpoint(EndpointFixture.createEndpoint("asset-markings-" + uniqueDefinition()))
             .persist()
             .get();
 
     Group group =
         tenantGroupComposer
-            .forGroup(TenantGroupFixture.getGroup("asset-markings-" + uniqueName()))
+            .forGroup(TenantGroupFixture.getGroup("asset-markings-" + uniqueDefinition()))
             .persist()
             .get();
     group.setUsers(new ArrayList<>(List.of(user)));
@@ -247,7 +247,8 @@ class AssetMarkingsApiTest extends IntegrationTest {
   private MarkingDefinition marking(int order) {
     return markingDefinitionComposer
         .forMarkingDefinition(
-            createMarkingDefinition(MarkingDefinition.TYPE_TLP, uniqueName(), order, "#c62828"))
+            createMarkingDefinition(
+                MarkingDefinition.TYPE_TLP, uniqueDefinition(), order, "#c62828"))
         .withTenantId(tenantId)
         .persist()
         .get();

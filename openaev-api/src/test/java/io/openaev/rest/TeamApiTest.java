@@ -15,16 +15,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ExerciseTeamUserRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.ScenarioTeamUserRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.team.form.TeamBulkProcessingInput;
 import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.rest.team.form.UpdateUsersTeamInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.ExerciseTeamUserFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
@@ -32,6 +39,7 @@ import jakarta.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.DisplayName;
@@ -56,8 +64,12 @@ class TeamApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ExerciseService exerciseService;
+  @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private UserRepository userRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private EntityManager entityManager;
@@ -206,6 +218,85 @@ class TeamApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertEquals(newName, JsonPath.read(response, "$.team_name"));
+  }
+
+  @DisplayName(
+      "Given team users update, should remove users from simulation and scenario enabled audience")
+  @Test
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS})
+  void given_teamUsersUpdate_should_removeUsersFromSimulationAndScenarioEnabledAudience()
+      throws Exception {
+    // -- PREPARE --
+    User keptUser = this.userRepository.save(UserFixture.getUserWithDefaultEmail());
+    User removedUser = this.userRepository.save(UserFixture.getUserWithDefaultEmail());
+    Team team = createTeamWithName("team-audience-sync");
+    team.setUsers(new ArrayList<>(List.of(keptUser, removedUser)));
+    team = this.teamRepository.save(team);
+    this.tenantIsolationHelper.grantCapabilitiesInTenant(
+        team.getTenant().getId(),
+        Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+    Exercise exercise = ExerciseFixture.getExercise(List.of(team));
+    exercise = this.exerciseService.createExercise(exercise);
+    Scenario scenario = ScenarioFixture.getScenario(List.of(team), null);
+    scenario = this.scenarioRepository.save(scenario);
+
+    ExerciseTeamUser exerciseTeamUserKept =
+        ExerciseTeamUserFixture.createExerciseTeamUser(exercise, team, keptUser);
+    exerciseTeamUserKept.getCompositeId().setExerciseId(exercise.getId());
+    exerciseTeamUserKept.getCompositeId().setTeamId(team.getId());
+    exerciseTeamUserKept.getCompositeId().setUserId(keptUser.getId());
+    this.exerciseTeamUserRepository.save(exerciseTeamUserKept);
+    ExerciseTeamUser exerciseTeamUserRemoved =
+        ExerciseTeamUserFixture.createExerciseTeamUser(exercise, team, removedUser);
+    exerciseTeamUserRemoved.getCompositeId().setExerciseId(exercise.getId());
+    exerciseTeamUserRemoved.getCompositeId().setTeamId(team.getId());
+    exerciseTeamUserRemoved.getCompositeId().setUserId(removedUser.getId());
+    this.exerciseTeamUserRepository.save(exerciseTeamUserRemoved);
+
+    ScenarioTeamUser scenarioTeamUserKept = new ScenarioTeamUser();
+    scenarioTeamUserKept.setScenario(scenario);
+    scenarioTeamUserKept.setTeam(team);
+    scenarioTeamUserKept.setUser(keptUser);
+    scenarioTeamUserKept.getCompositeId().setScenarioId(scenario.getId());
+    scenarioTeamUserKept.getCompositeId().setTeamId(team.getId());
+    scenarioTeamUserKept.getCompositeId().setUserId(keptUser.getId());
+    this.scenarioTeamUserRepository.save(scenarioTeamUserKept);
+    ScenarioTeamUser scenarioTeamUserRemoved = new ScenarioTeamUser();
+    scenarioTeamUserRemoved.setScenario(scenario);
+    scenarioTeamUserRemoved.setTeam(team);
+    scenarioTeamUserRemoved.setUser(removedUser);
+    scenarioTeamUserRemoved.getCompositeId().setScenarioId(scenario.getId());
+    scenarioTeamUserRemoved.getCompositeId().setTeamId(team.getId());
+    scenarioTeamUserRemoved.getCompositeId().setUserId(removedUser.getId());
+    this.scenarioTeamUserRepository.save(scenarioTeamUserRemoved);
+
+    UpdateUsersTeamInput input = new UpdateUsersTeamInput();
+    input.setUserIds(List.of(keptUser.getId()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            put("/api/tenants/" + team.getTenant().getId() + "/teams/" + team.getId() + "/players")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- ASSERT --
+    assertTrue(
+        this.exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
+            exercise.getId(), team.getId(), keptUser.getId()));
+    assertFalse(
+        this.exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
+            exercise.getId(), team.getId(), removedUser.getId()));
+    assertTrue(
+        this.scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
+            scenario.getId(), team.getId(), keptUser.getId()));
+    assertFalse(
+        this.scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
+            scenario.getId(), team.getId(), removedUser.getId()));
   }
 
   @DisplayName("Given valid team ID and input, should upsert team successfully")
@@ -504,22 +595,19 @@ class TeamApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS));
 
-      TeamCreateInput input = createTeam();
-      input.setName("Isolation Test Team");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/teams")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String teamId = JsonPath.read(createResponse, "$.team_id");
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the read call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "Isolation Test Team")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
@@ -585,16 +673,18 @@ class TeamApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS));
 
-      TeamCreateInput input = createTeam();
-      input.setName("CrossTenantSearchTeam");
-
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/teams")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the search call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", UUID.randomUUID().toString())
+          .setParameter("name", "CrossTenantSearchTeam")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
@@ -632,22 +722,19 @@ class TeamApiTest extends IntegrationTest {
               "Tenant Y",
               Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
 
-      TeamCreateInput input = createTeam();
-      input.setName("Update Isolation Test Team");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/teams")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String teamId = JsonPath.read(createResponse, "$.team_id");
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the update call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "Update Isolation Test Team")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
@@ -684,22 +771,19 @@ class TeamApiTest extends IntegrationTest {
               "Tenant Y",
               Set.of(Capability.DELETE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
 
-      TeamCreateInput input = createTeam();
-      input.setName("Delete Isolation Test Team");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/teams")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String teamId = JsonPath.read(createResponse, "$.team_id");
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the delete call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "Delete Isolation Test Team")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
@@ -727,22 +811,19 @@ class TeamApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS));
 
-      TeamCreateInput input = createTeam();
-      input.setName("Players Isolation Test Team");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/teams")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String teamId = JsonPath.read(createResponse, "$.team_id");
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the read call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "Players Isolation Test Team")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
@@ -774,22 +855,19 @@ class TeamApiTest extends IntegrationTest {
               "Tenant Y",
               Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
 
-      TeamCreateInput input = createTeam();
-      input.setName("UpdatePlayers Isolation Test Team");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/teams")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String teamId = JsonPath.read(createResponse, "$.team_id");
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the update call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "UpdatePlayers Isolation Test Team")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
@@ -827,22 +905,19 @@ class TeamApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS));
 
-      TeamCreateInput input = createTeam();
-      input.setName("CrossTenantOptionsTeam");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/teams")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String teamId = JsonPath.read(createResponse, "$.team_id");
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the options call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "CrossTenantOptionsTeam")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       // Reference the team from an inject (in tenant X) so it matches the EXISTS clause
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
@@ -870,8 +945,41 @@ class TeamApiTest extends IntegrationTest {
       // Assert — the tenant X team must not leak into tenant Y options
       List<String> crossTenantIds = JsonPath.read(crossTenantResponse, "$[*].id");
       assertFalse(crossTenantIds.contains(teamId));
+    }
 
-      // Positive control — the team is returned for its own tenant
+    @Test
+    @DisplayName("Teams options with ALL_INJECTS should return the team for its own tenant")
+    void given_injectTeamInTenantX_should_appearInTenantXAllInjectsOptions() throws Exception {
+      // Arrange — same setup as the cross-tenant negative test, kept in its own transaction:
+      // the negative test's own act call already sets the tenant scope (TxCtx) to tenant Y, and a
+      // second act call for tenant X within the same transaction would conflict with it (see
+      // TenantScopeTransactionAspect).
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "SameTenantOptionsTeam")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      Team team = teamRepository.findById(teamId).orElseThrow();
+      Inject inject =
+          getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject.setTeams(new ArrayList<>(List.of(team)));
+      injectRepository.save(inject);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — fetch options with ALL_INJECTS from tenant X (positive control)
       String sameTenantResponse =
           mvc.perform(
                   get("/api/tenants/" + tenantX.getId() + "/teams/options")

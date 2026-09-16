@@ -1,16 +1,17 @@
 package io.openaev.api.credentials;
 
-import static io.openaev.api.credentials.CredentialApi.TENANT_CREDENTIALS_URI;
+import static io.openaev.api.credentials.CredentialApi.*;
+import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_SECRET;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_ENVIRONMENT;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_SUBSCRIPTION_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_TENANT_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -20,10 +21,13 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
 import io.openaev.api.credentials.form.CredentialInput;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.SecretsRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.secrets.provider.SecretConnectionResult;
+import io.openaev.secrets.provider.impl.validators.AwsCredentialConnectivityCheck;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CredentialFixture;
 import io.openaev.utils.fixtures.CredentialInputFixture;
@@ -31,17 +35,22 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -57,6 +66,10 @@ class CredentialApiTest extends IntegrationTest {
   @Autowired private CredentialSecretReferenceRepository credentialSecretReferenceRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private SecretsRepository secretRepository;
+  @Autowired private EntityManager entityManager;
+  @MockitoBean private AwsCredentialConnectivityCheck awsCredentialConnectivityCheck;
+
+  private final List<String> committedTenantIds = new ArrayList<>();
 
   @Nested
   @DisplayName("Get Credential contract")
@@ -86,7 +99,35 @@ class CredentialApiTest extends IntegrationTest {
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY.name(),
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE.name(),
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL.name(),
-              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY.name());
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY.name(),
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT.name(),
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_OAUTH2.name());
+    }
+
+    @Test
+    @DisplayName("given_gcpServiceAccountContract_should_exposeScopeDefaultAndFileField")
+    void given_gcpServiceAccountContract_should_exposeScopeDefaultAndFileField() throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-ct");
+      String uri = tenantCredentialsUri(tenant.getId()) + "/contracts";
+
+      // Act
+      String response =
+          mvc.perform(get(uri).accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String fieldPath =
+          "$[?(@.credential_auth_method == 'GCP_SERVICE_ACCOUNT')].fields[?(@.field_name == '%s')]";
+      List<String> scopeDefaults =
+          JsonPath.read(response, String.format(fieldPath, "gcp_scope") + ".default_value");
+      assertThat(scopeDefaults).containsExactly(GcpScopes.DEFAULT_CLOUD_PLATFORM);
+      List<String> keyFieldTypes =
+          JsonPath.read(response, String.format(fieldPath, "gcp_private_key_json") + ".field_type");
+      assertThat(keyFieldTypes).containsExactly("file");
     }
   }
 
@@ -250,12 +291,15 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_validInput_should_createCredentialInRequestedTenant")
     void given_validInput_should_createCredentialInRequestedTenant() throws Exception {
       // Arrange
-      Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-create-a");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-create-a");
+      String tenantId = tenant.getId();
+      String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
+      String credentialName = "cred-a-" + uniqueSuffix;
 
       // Act
       CredentialInput input =
           new CredentialInput(
-              "cred-a",
+              credentialName,
               CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD,
               "description-cred-a",
@@ -267,10 +311,8 @@ class CredentialApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(tenantCredentialsUri(tenantA.getId()))
+                  multipartCreate(tenantCredentialsUri(tenantId), input)
                       .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -282,23 +324,109 @@ class CredentialApiTest extends IntegrationTest {
           credentialSecretReferenceRepository
               .findById(JsonPath.read(response, "$.credential_id"))
               .orElseThrow();
-      assertThat(credentialSecretReference.getTenant().getId()).isEqualTo(tenantA.getId());
-      assertThat(credentialSecretReference.getName()).isEqualTo("cred-a");
+      assertThat(credentialSecretReference.getTenant().getId()).isEqualTo(tenantId);
+      assertThat(credentialSecretReference.getName()).isEqualTo(credentialName);
 
       Secret secret =
           secretRepository.findById(credentialSecretReference.getLocation()).orElseThrow();
       assertThat(secret).isInstanceOf(UsernamePasswordSecret.class);
-      assertThat(secret.getTenant().getId()).isEqualTo(tenantA.getId());
+      assertThat(secret.getTenant().getId()).isEqualTo(tenantId);
       UsernamePasswordSecret usernamePasswordSecret = (UsernamePasswordSecret) secret;
       assertThat(usernamePasswordSecret.getUsername()).isEqualTo("user-a");
+    }
+
+    @Test
+    @DisplayName(
+        "given_awsAccessKeyCredential_when_created_should_runConnectivityCheckAndReturnUpdatedStatus")
+    void
+        given_awsAccessKeyCredential_when_created_should_runConnectivityCheckAndReturnUpdatedStatus()
+            throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-create-aws-ak");
+      CredentialInput input = awsAccessKeyInput("aws-ak-create");
+      when(awsCredentialConnectivityCheck.validateAccessKey(
+              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), eq(null)))
+          .thenReturn(SecretConnectionResult.active());
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
+                      .with(csrf())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      verify(awsCredentialConnectivityCheck)
+          .validateAccessKey(AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null);
+      assertThatJson(response).node("credential_status").isEqualTo(ACTIVE.name());
+      assertThatJson(response).node("credential_last_verified_at").isPresent();
+
+      CredentialSecretReference persisted =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(persisted.getStatus()).isEqualTo(ACTIVE);
+      assertThat(persisted.getLastVerifiedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName(
+        "given_awsAssumeRoleCredential_when_created_should_runConnectivityCheckAndReturnFailureStatus")
+    void
+        given_awsAssumeRoleCredential_when_created_should_runConnectivityCheckAndReturnFailureStatus()
+            throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-create-aws-assume");
+      CredentialInput input = awsAssumeRoleInput("aws-assume-create");
+      when(awsCredentialConnectivityCheck.validateAssumeRole(
+              eq(AWS_DEFAULT_REGION),
+              eq(AWS_ROLE_ARN),
+              eq(AWS_EXTERNAL_ID),
+              eq(STATIC_ACCESS_KEY),
+              eq(AWS_SOURCE_PROFILE_ACCESS_KEY_ID),
+              eq(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY)))
+          .thenReturn(SecretConnectionResult.authFailed());
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
+                      .with(csrf())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      verify(awsCredentialConnectivityCheck)
+          .validateAssumeRole(
+              AWS_DEFAULT_REGION,
+              AWS_ROLE_ARN,
+              AWS_EXTERNAL_ID,
+              STATIC_ACCESS_KEY,
+              AWS_SOURCE_PROFILE_ACCESS_KEY_ID,
+              AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+      assertThatJson(response).node("credential_status").isEqualTo(AUTH_FAILED.name());
+      assertThatJson(response).node("credential_last_verified_at").isPresent();
+
+      CredentialSecretReference persisted =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(persisted.getStatus()).isEqualTo(AUTH_FAILED);
+      assertThat(persisted.getLastVerifiedAt()).isNotNull();
     }
 
     @Test
     @DisplayName("given_hashCredentialWithoutHash_should_failCreation")
     void given_hashCredentialWithoutHash_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-post-hash-no-hash");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-post-hash-no-hash");
       CredentialInput input =
           new CredentialInput(
               "invalid-hash-missing-hash",
@@ -313,11 +441,7 @@ class CredentialApiTest extends IntegrationTest {
 
       // Act & Assert
       String errorResponse =
-          mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
               .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
@@ -331,8 +455,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_hashCredentialWithoutHashAlgorithm_should_failCreation")
     void given_hashCredentialWithoutHashAlgorithm_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-post-hash-no-algo");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-post-hash-no-algo");
       CredentialInput input =
           new CredentialInput(
               "invalid-hash-missing-algo",
@@ -347,11 +470,7 @@ class CredentialApiTest extends IntegrationTest {
 
       // Act & Assert
       String errorResponse =
-          mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
               .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
@@ -365,8 +484,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_usernameCredentialWithoutUsername_should_failCreation")
     void given_usernameCredentialWithoutUsername_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-post-up-no-user");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-post-up-no-user");
       CredentialInput input =
           new CredentialInput(
               "invalid-up-missing-username",
@@ -381,11 +499,7 @@ class CredentialApiTest extends IntegrationTest {
 
       // Act & Assert
       String errorResponse =
-          mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
               .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
@@ -399,8 +513,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_usernameCredentialWithoutPassword_should_failCreation")
     void given_usernameCredentialWithoutPassword_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-post-up-no-pass");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-post-up-no-pass");
       CredentialInput input =
           new CredentialInput(
               "invalid-up-missing-password",
@@ -415,11 +528,7 @@ class CredentialApiTest extends IntegrationTest {
 
       // Act & Assert
       String errorResponse =
-          mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
               .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
@@ -434,16 +543,13 @@ class CredentialApiTest extends IntegrationTest {
     void given_azureServicePrincipalInput_should_createAzureServicePrincipalSecret()
         throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-sp");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-sp");
       CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-sp");
 
       // Act
       String response =
           mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -474,17 +580,14 @@ class CredentialApiTest extends IntegrationTest {
     void given_azureManagedIdentityInput_should_createAzureManagedIdentitySecret()
         throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-mi");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-mi");
       CredentialInput input =
           CredentialInputFixture.azureSystemAssignedManagedIdentityInput("azure-mi");
 
       // Act
       String response =
           mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -507,8 +610,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_azureCredentialWithoutEnvironment_should_failCreation")
     void given_azureCredentialWithoutEnvironment_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-no-env");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-no-env");
       CredentialInput input =
           CredentialInputFixture.azureInput(
               "azure-no-env",
@@ -521,11 +623,7 @@ class CredentialApiTest extends IntegrationTest {
 
       // Act & Assert
       String errorResponse =
-          mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
               .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
@@ -538,8 +636,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_azureCredentialWithUnsupportedEnvironment_should_failCreation")
     void given_azureCredentialWithUnsupportedEnvironment_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-bad-env");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-bad-env");
       CredentialInput input =
           CredentialInputFixture.azureInput(
               "azure-bad-env",
@@ -552,11 +649,7 @@ class CredentialApiTest extends IntegrationTest {
 
       // Act & Assert
       String errorResponse =
-          mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input)))
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
               .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
@@ -566,11 +659,168 @@ class CredentialApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_oversizedGcpKeyFile_should_failCreation")
+    void given_oversizedGcpKeyFile_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-big-key");
+      CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-big-key");
+      byte[] oversizedKey = new byte[(int) MAX_CREDENTIAL_FILE_SIZE_BYTES + 1];
+
+      // Act: the size guard runs before the payload ever reaches a handler
+      String errorResponse =
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input, oversizedKey))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(errorResponse).containsIgnoringCase("The provided file must not exceed");
+    }
+
+    @Test
+    @DisplayName("given_emptyGcpKeyFile_should_failCreation")
+    void given_emptyGcpKeyFile_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-empty-key");
+      CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-empty-key");
+
+      // Act: a present but empty part is a client error, never a silent "keep the stored key"
+      String errorResponse =
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input, new byte[0]))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(errorResponse).containsIgnoringCase("must not be empty");
+    }
+
+    @Test
+    @DisplayName("given_gcpServiceAccountInput_should_createGcpServiceAccountSecret")
+    void given_gcpServiceAccountInput_should_createGcpServiceAccountSecret() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-gcp-sa");
+      CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-sa");
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipartCreate(
+                          tenantCredentialsUri(tenant.getId()), input, gcpPrivateKeyJsonBytes())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(credential.getCredentialType())
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP);
+
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(secret).isInstanceOf(GcpServiceAccountSecret.class);
+      assertThat(secret.getTenant().getId()).isEqualTo(tenant.getId());
+      GcpServiceAccountSecret gcpSecret = (GcpServiceAccountSecret) secret;
+      assertThat(gcpSecret.getScope()).isEqualTo(GCP_SCOPE);
+      assertThat(gcpSecret.getProjectId()).isEqualTo(GCP_PROJECT_ID);
+      // The key file is stored encrypted, never as the uploaded bytes
+      assertThat(gcpSecret.getPrivateKeyJson()).isNotEqualTo(gcpPrivateKeyJsonBytes());
+    }
+
+    @Test
+    @DisplayName("given_gcpServiceAccountWithoutKeyFile_should_failCreation")
+    void given_gcpServiceAccountWithoutKeyFile_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-no-key");
+      CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-no-key");
+
+      // Act & Assert: no key part at all, and nothing stored to fall back on
+      String errorResponse =
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(errorResponse).containsIgnoringCase("key file");
+    }
+
+    @Test
+    @DisplayName("given_gcpOAuth2Input_should_createGcpOAuth2Secret")
+    void given_gcpOAuth2Input_should_createGcpOAuth2Secret() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-gcp-oauth");
+      CredentialInput input = CredentialInputFixture.gcpOAuth2Input("gcp-oauth");
+
+      // Act: no file part here, every OAuth field travels as plain text in the input part
+      String response =
+          mvc.perform(
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(credential.getCredentialType())
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP);
+      assertThat(credential.getCredentialAuthMethod())
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_OAUTH2);
+
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(secret).isInstanceOf(GcpOAuth2Secret.class);
+      assertThat(secret.getTenant().getId()).isEqualTo(tenant.getId());
+      GcpOAuth2Secret gcpSecret = (GcpOAuth2Secret) secret;
+      assertThat(gcpSecret.getScope()).isEqualTo(GCP_SCOPE);
+      assertThat(gcpSecret.getProjectId()).isEqualTo(GCP_PROJECT_ID);
+      assertThat(gcpSecret.getOauthClientId()).isEqualTo(GCP_OAUTH_CLIENT_ID);
+      // Both the client secret and the refresh token are stored encrypted
+      assertThat(gcpSecret.getOauthClientSecret()).isNotEqualTo(GCP_OAUTH_CLIENT_SECRET);
+      assertThat(gcpSecret.getOauthRefreshToken()).isNotEqualTo(GCP_OAUTH_REFRESH_TOKEN);
+    }
+
+    @Test
+    @DisplayName("given_gcpTypeWithAzureAuthMethod_should_failCreation")
+    void given_gcpTypeWithAzureAuthMethod_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-bad-method");
+      CredentialInput input =
+          CredentialInputFixture.gcpInput(
+              "gcp-bad-method",
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
+              GCP_SCOPE,
+              GCP_PROJECT_ID,
+              GCP_OAUTH_CLIENT_ID,
+              GCP_OAUTH_CLIENT_SECRET,
+              GCP_OAUTH_REFRESH_TOKEN);
+
+      // Act & Assert
+      mvc.perform(
+              multipartCreate(
+                  tenantCredentialsUri(tenant.getId()), input, gcpPrivateKeyJsonBytes()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("given_azureTypeWithAwsAuthMethod_should_failCreation")
     void given_azureTypeWithAwsAuthMethod_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-bad-method");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-bad-method");
       CredentialInput input =
           CredentialInputFixture.azureInput(
               "azure-bad-method",
@@ -582,11 +832,7 @@ class CredentialApiTest extends IntegrationTest {
               null);
 
       // Act & Assert
-      mvc.perform(
-              post(tenantCredentialsUri(tenant.getId()))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input)))
+      mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
           .andExpect(status().isBadRequest());
     }
   }
@@ -614,6 +860,7 @@ class CredentialApiTest extends IntegrationTest {
       initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
       CredentialSecretReference credentialReference =
           credentialSecretReferenceRepository.save(initialPasswordReference);
+      commitArrangeAndStartFreshTransaction();
 
       // Act
       String ownTenantResponse =
@@ -638,16 +885,13 @@ class CredentialApiTest extends IntegrationTest {
     @Test
     @DisplayName("given_azureCredential_should_returnNonSensitiveFieldsOnly")
     void given_azureCredential_should_returnNonSensitiveFieldsOnly() throws Exception { // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-get");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-get");
       String credentialId =
           JsonPath.read(
               mvc.perform(
-                      post(tenantCredentialsUri(tenant.getId()))
-                          .with(csrf())
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .content(
-                              asJsonString(
-                                  CredentialInputFixture.azureServicePrincipalInput("azure-get")))
+                      multipartCreate(
+                              tenantCredentialsUri(tenant.getId()),
+                              CredentialInputFixture.azureServicePrincipalInput("azure-get"))
                           .accept(MediaType.APPLICATION_JSON))
                   .andExpect(status().is2xxSuccessful())
                   .andReturn()
@@ -673,6 +917,85 @@ class CredentialApiTest extends IntegrationTest {
       // The client secret must never travel back to the client, even encrypted
       assertThat(response).doesNotContain(AZURE_CLIENT_SECRET);
     }
+
+    @Test
+    @DisplayName("given_gcpServiceAccountCredential_should_returnNonSensitiveFieldsOnly")
+    void given_gcpServiceAccountCredential_should_returnNonSensitiveFieldsOnly() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-gcp-get");
+      String credentialId =
+          JsonPath.read(
+              mvc.perform(
+                      multipartCreate(
+                              tenantCredentialsUri(tenant.getId()),
+                              CredentialInputFixture.gcpServiceAccountInput("gcp-get"),
+                              gcpPrivateKeyJsonBytes())
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
+
+      // Act
+      String response =
+          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: the scope and the project are plain settings, the form needs them to prefill
+      assertThatJson(response).node("credential_gcp_scope").isEqualTo(GCP_SCOPE);
+      assertThatJson(response).node("credential_gcp_project_id").isEqualTo(GCP_PROJECT_ID);
+      // A boolean is all the form gets about the key: enough for the placeholder, nothing more
+      assertThatJson(response).node("credential_gcp_private_key_defined").isEqualTo(true);
+      // Only the boolean flag mentions the key: the material itself never travels back
+      assertThat(response)
+          .doesNotContain(GCP_PRIVATE_KEY_JSON)
+          .doesNotContain("credential_gcp_private_key_json");
+    }
+
+    @Test
+    @DisplayName("given_gcpOAuth2Credential_should_returnNonSensitiveFieldsOnly")
+    void given_gcpOAuth2Credential_should_returnNonSensitiveFieldsOnly() throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-gcp-oauth-get");
+      String credentialId =
+          JsonPath.read(
+              mvc.perform(
+                      multipartCreate(
+                              tenantCredentialsUri(tenant.getId()),
+                              CredentialInputFixture.gcpOAuth2Input("gcp-oauth-get"))
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
+
+      // Act
+      String response =
+          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: the client id is a public application identifier, the form needs it to prefill
+      assertThatJson(response).node("credential_gcp_scope").isEqualTo(GCP_SCOPE);
+      assertThatJson(response).node("credential_gcp_project_id").isEqualTo(GCP_PROJECT_ID);
+      assertThatJson(response)
+          .node("credential_gcp_oauth_client_id")
+          .isEqualTo(GCP_OAUTH_CLIENT_ID);
+      // Booleans are all the form gets about the write-only values
+      assertThatJson(response).node("credential_gcp_oauth_client_secret_defined").isEqualTo(true);
+      assertThatJson(response).node("credential_gcp_oauth_refresh_token_defined").isEqualTo(true);
+      // A refresh token is a long-lived bearer credential: it must never travel back
+      assertThat(response)
+          .doesNotContain(GCP_OAUTH_CLIENT_SECRET)
+          .doesNotContain(GCP_OAUTH_REFRESH_TOKEN);
+    }
   }
 
   @Nested
@@ -683,7 +1006,8 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_existingCredential_should_updateMetadataAndSecret")
     void given_existingCredential_should_updateMetadataAndSecret() throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-update");
+      tenantIsolationTestHelper.switchToTenantNoFlush(tenant.getId());
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
       initialSecret.setTenant(tenant);
@@ -698,6 +1022,7 @@ class CredentialApiTest extends IntegrationTest {
       initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
       CredentialSecretReference credentialReference =
           credentialSecretReferenceRepository.save(initialPasswordReference);
+      commitArrangeAndStartFreshTransaction();
 
       CredentialInput updateInput =
           new CredentialInput(
@@ -713,10 +1038,9 @@ class CredentialApiTest extends IntegrationTest {
 
       // Act
       mvc.perform(
-              put(tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId())
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(updateInput)))
+              multipartUpdate(
+                  tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId(),
+                  updateInput))
           .andExpect(status().is2xxSuccessful());
 
       // Assert
@@ -734,11 +1058,64 @@ class CredentialApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "given_existingCredential_when_updatedToAwsAccessKey_should_runConnectivityCheckAndReturnUpdatedStatus")
+    void
+        given_existingCredential_when_updatedToAwsAccessKey_should_runConnectivityCheckAndReturnUpdatedStatus()
+            throws Exception {
+      // Arrange
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-update-aws-ak");
+
+      String credentialId =
+          JsonPath.read(
+              mvc.perform(
+                      multipartCreate(
+                              tenantCredentialsUri(tenant.getId()),
+                              validUsernamePasswordInput("before-aws-ak-update"))
+                          .with(csrf())
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
+
+      CredentialInput updateInput = awsAccessKeyInput("aws-ak-update");
+      when(awsCredentialConnectivityCheck.validateAccessKey(
+              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), eq(null)))
+          .thenReturn(SecretConnectionResult.timeout());
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipartUpdate(
+                          tenantCredentialsUri(tenant.getId()) + "/" + credentialId, updateInput)
+                      .with(csrf())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      verify(awsCredentialConnectivityCheck)
+          .validateAccessKey(AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null);
+      assertThatJson(response).node("credential_status").isEqualTo(TIMEOUT.name());
+      assertThatJson(response).node("credential_last_verified_at").isPresent();
+
+      CredentialSecretReference persisted =
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
+      assertThat(persisted.getStatus()).isEqualTo(TIMEOUT);
+      assertThat(persisted.getLastVerifiedAt()).isNotNull();
+    }
+
+    @Test
     @DisplayName("given_hashCredential_when_updatingToUsernamePassword_should_replaceHashSecret")
     void given_usernameCredential_when_updatingToHash_should_replaceUsernameSecret()
         throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-update");
+      tenantIsolationTestHelper.switchToTenantNoFlush(tenant.getId());
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
       initialSecret.setTenant(tenant);
@@ -753,6 +1130,7 @@ class CredentialApiTest extends IntegrationTest {
       initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
       CredentialSecretReference credentialReference =
           credentialSecretReferenceRepository.save(initialPasswordReference);
+      commitArrangeAndStartFreshTransaction();
 
       CredentialInput updateInput =
           new CredentialInput(
@@ -768,10 +1146,9 @@ class CredentialApiTest extends IntegrationTest {
 
       // Act
       mvc.perform(
-              put(tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId())
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(updateInput)))
+              multipartUpdate(
+                  tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId(),
+                  updateInput))
           .andExpect(status().is2xxSuccessful());
 
       CredentialSecretReference updatedCredential =
@@ -796,7 +1173,8 @@ class CredentialApiTest extends IntegrationTest {
     void given_usernameCredential_when_updatingToHashWithoutHashAlgorithm_should_throwError()
         throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-update");
+      tenantIsolationTestHelper.switchToTenantNoFlush(tenant.getId());
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
       initialSecret.setTenant(tenant);
@@ -811,6 +1189,7 @@ class CredentialApiTest extends IntegrationTest {
       initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
       CredentialSecretReference credentialReference =
           credentialSecretReferenceRepository.save(initialPasswordReference);
+      commitArrangeAndStartFreshTransaction();
 
       CredentialInput invalidUpdateInput =
           new CredentialInput(
@@ -827,10 +1206,9 @@ class CredentialApiTest extends IntegrationTest {
       // Act
       String errorResponse =
           mvc.perform(
-                  put(tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId())
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(invalidUpdateInput)))
+                  multipartUpdate(
+                      tenantCredentialsUri(tenant.getId()) + "/" + credentialReference.getId(),
+                      invalidUpdateInput))
               .andExpect(status().isBadRequest())
               .andReturn()
               .getResponse()
@@ -890,7 +1268,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_accessCredentials_should_allowSearch() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-search", Set.of(Capability.ACCESS_CREDENTIALS));
 
       // Act
@@ -915,17 +1293,14 @@ class CredentialApiTest extends IntegrationTest {
     void given_manageCredentials_should_allowCreate() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-create", Set.of(Capability.MANAGE_CREDENTIALS));
       CredentialInput input = validUsernamePasswordInput("credential-cap-create");
 
       // Act
       int responseStatus =
           mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
                       .accept(MediaType.APPLICATION_JSON))
               .andReturn()
               .getResponse()
@@ -942,17 +1317,15 @@ class CredentialApiTest extends IntegrationTest {
     void given_manageCredentials_should_allowUpdate() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-update", Set.of(Capability.MANAGE_CREDENTIALS));
       CredentialInput input = validUsernamePasswordInput("credential-cap-update");
 
       // Act
       int responseStatus =
           mvc.perform(
-                  put(tenantCredentialsUri(tenant.getId()) + "/" + UNKNOWN_CREDENTIAL_ID)
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
+                  multipartUpdate(
+                          tenantCredentialsUri(tenant.getId()) + "/" + UNKNOWN_CREDENTIAL_ID, input)
                       .accept(MediaType.APPLICATION_JSON))
               .andReturn()
               .getResponse()
@@ -968,16 +1341,14 @@ class CredentialApiTest extends IntegrationTest {
     void given_accessCredentials_should_forbidUpdate() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-forbid-update", Set.of(Capability.ACCESS_CREDENTIALS));
       CredentialInput input = validUsernamePasswordInput("credential-cap-forbid-update");
 
       // Act & Assert
       mvc.perform(
-              put(tenantCredentialsUri(tenant.getId()) + "/" + UNKNOWN_CREDENTIAL_ID)
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input))
+              multipartUpdate(
+                      tenantCredentialsUri(tenant.getId()) + "/" + UNKNOWN_CREDENTIAL_ID, input)
                   .accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isForbidden());
     }
@@ -988,7 +1359,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_deleteCredentials_should_allowDelete() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-delete", Set.of(Capability.DELETE_CREDENTIALS));
 
       // Act
@@ -1010,7 +1381,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_unrelatedCapability_should_forbidCredentialRead() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-forbid-read", Set.of(Capability.MANAGE_ASSETS));
 
       // Act & Assert
@@ -1026,16 +1397,13 @@ class CredentialApiTest extends IntegrationTest {
     void given_unrelatedCapability_should_forbidCredentialWrite() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-forbid-write", Set.of(Capability.MANAGE_ASSETS));
       CredentialInput input = validUsernamePasswordInput("credential-cap-forbid-write");
 
       // Act & Assert
       mvc.perform(
-              post(tenantCredentialsUri(tenant.getId()))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(input))
+              multipartCreate(tenantCredentialsUri(tenant.getId()), input)
                   .accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isForbidden());
     }
@@ -1046,7 +1414,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_unrelatedCapability_should_forbidCredentialDelete() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-forbid-delete", Set.of(Capability.MANAGE_ASSETS));
 
       // Act & Assert
@@ -1226,7 +1594,170 @@ class CredentialApiTest extends IntegrationTest {
     }
   }
 
+  @AfterEach
+  void cleanupCommittedTenants() {
+    if (committedTenantIds.isEmpty()) {
+      return;
+    }
+    tenantIsolationTestHelper.deleteCommittedTenants(committedTenantIds.toArray(String[]::new));
+    committedTenantIds.clear();
+  }
+
+  private void commitArrangeAndStartFreshTransaction() {
+    entityManager.flush();
+    entityManager.clear();
+    TestTransaction.flagForCommit();
+    TestTransaction.end();
+    TestTransaction.start();
+  }
+
+  private Tenant createCommittedTenantWithCurrentUser(String name) throws Exception {
+    Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser(name);
+    committedTenantIds.add(tenant.getId());
+    commitArrangeAndStartFreshTransaction();
+    return tenant;
+  }
+
+  private Tenant createCommittedTenantWithCapabilities(String name, Set<Capability> capabilities)
+      throws Exception {
+    Tenant tenant = tenantIsolationTestHelper.createTenantWithCapabilities(name, capabilities);
+    committedTenantIds.add(tenant.getId());
+    commitArrangeAndStartFreshTransaction();
+    return tenant;
+  }
+
   private record Persisted(String credentialId, String secretId) {}
+
+  private CredentialInput validUsernamePasswordInput(String name) {
+    return new CredentialInput(
+        name,
+        CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
+        CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD,
+        "description-" + name,
+        "user-" + name,
+        "pass-" + name,
+        null,
+        null,
+        List.of());
+  }
+
+  private CredentialInput awsAccessKeyInput(String name) {
+    return new CredentialInput(
+        name,
+        CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
+        CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
+        "description-" + name,
+        // IDENTITY
+        null,
+        null,
+        null,
+        null,
+        // AWS
+        AWS_DEFAULT_REGION,
+        AWS_ACCESS_KEY_ID,
+        AWS_SECRET_ACCESS_KEY,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        // AZURE
+        null,
+        null,
+        null,
+        null,
+        null,
+        // GCP
+        null,
+        null,
+        null,
+        null,
+        null,
+        List.of());
+  }
+
+  private CredentialInput awsAssumeRoleInput(String name) {
+    return new CredentialInput(
+        name,
+        CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
+        CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE,
+        "description-" + name,
+        // IDENTITY
+        null,
+        null,
+        null,
+        null,
+        // AWS
+        AWS_DEFAULT_REGION,
+        null,
+        null,
+        null,
+        AWS_ROLE_ARN,
+        AWS_EXTERNAL_ID,
+        STATIC_ACCESS_KEY,
+        AWS_SOURCE_PROFILE_ACCESS_KEY_ID,
+        AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY,
+        // AZURE
+        null,
+        null,
+        null,
+        null,
+        null,
+        // GCP
+        null,
+        null,
+        null,
+        null,
+        null,
+        List.of());
+  }
+
+  /**
+   * Builds the multipart create request: the credential payload always travels as an {@code input}
+   * JSON part, and file-backed fields (only the GCP key so far) as their own part.
+   */
+  private MockHttpServletRequestBuilder multipartCreate(
+      String uri, CredentialInput input, byte[] gcpPrivateKeyJson) {
+    MockMultipartHttpServletRequestBuilder builder = multipart(uri);
+    builder.file(inputPart(input));
+    if (gcpPrivateKeyJson != null) {
+      builder.file(
+          new MockMultipartFile(
+              GCP_PRIVATE_KEY_PART,
+              "key.json",
+              MediaType.APPLICATION_JSON_VALUE,
+              gcpPrivateKeyJson));
+    }
+    return builder.with(csrf());
+  }
+
+  private MockHttpServletRequestBuilder multipartCreate(String uri, CredentialInput input) {
+    return multipartCreate(uri, input, null);
+  }
+
+  /** Same as {@link #multipartCreate}, forced to PUT: MockMvc's multipart defaults to POST. */
+  private MockHttpServletRequestBuilder multipartUpdate(
+      String uri, CredentialInput input, byte[] gcpPrivateKeyJson) {
+    return multipartCreate(uri, input, gcpPrivateKeyJson)
+        .with(
+            request -> {
+              request.setMethod("PUT");
+              return request;
+            });
+  }
+
+  private MockHttpServletRequestBuilder multipartUpdate(String uri, CredentialInput input) {
+    return multipartUpdate(uri, input, null);
+  }
+
+  private MockMultipartFile inputPart(CredentialInput input) {
+    return new MockMultipartFile(
+        "input",
+        "",
+        MediaType.APPLICATION_JSON_VALUE,
+        asJsonString(input).getBytes(StandardCharsets.UTF_8));
+  }
 
   private Filters.Filter filter(String key, String value) {
     Filters.Filter filter = new Filters.Filter();

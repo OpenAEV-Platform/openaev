@@ -5,66 +5,73 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Outcome of a credential check. {@link #statusToPersist()} only writes ACTIVE/INACTIVE;
- * UNKNOWN/UNSUPPORTED preserve the existing status. {@code checked} tracks whether a validator
- * actually ran (independent of the outcome), so unreachable-but-probed secrets get re-timestamped
- * while never-probed ones aren't falsely marked verified. {@code detail} must stay non-sensitive.
+ * Result of a credential check.
+ *
+ * <p>{@code status} is the canonical status model persisted on {@code SecretReference}. {@code
+ * checked} tracks whether a validator actually ran, so dangling or unresolvable references stay
+ * untouched.
  */
-public record SecretConnectionResult(OUTCOME outcome, String detail, boolean checked) {
-
-  public enum OUTCOME {
-    ACTIVE,
-    INACTIVE,
-    UNKNOWN,
-    UNSUPPORTED
-  }
+public record SecretConnectionResult(SECRET_STATUS status, boolean checked) {
 
   public SecretConnectionResult {
-    Objects.requireNonNull(outcome, "outcome must not be null");
+    Objects.requireNonNull(status, "status must not be null");
   }
 
   /** The credential answered and is usable. */
   public static SecretConnectionResult active() {
-    return new SecretConnectionResult(OUTCOME.ACTIVE, null, true);
+    return new SecretConnectionResult(SECRET_STATUS.ACTIVE, true);
   }
 
-  /** The provider explicitly rejected the credential (bad secret, revoked, unauthorized). */
-  public static SecretConnectionResult inactive(String detail) {
-    return new SecretConnectionResult(OUTCOME.INACTIVE, detail, true);
+  /** The provider explicitly rejected the credential (bad secret, expired or revoked). */
+  public static SecretConnectionResult authFailed() {
+    return new SecretConnectionResult(SECRET_STATUS.AUTH_FAILED, true);
   }
 
-  /**
-   * A validator ran but could not conclude; the previously known status must be kept, and the
-   * attempt is still recorded.
-   */
-  public static SecretConnectionResult unknown(String detail) {
-    return new SecretConnectionResult(OUTCOME.UNKNOWN, detail, true);
+  /** The credential authenticated but lacks permissions for the probe. */
+  public static SecretConnectionResult permissionDenied() {
+    return new SecretConnectionResult(SECRET_STATUS.PERMISSION_DENIED, true);
+  }
+
+  /** The validator could not conclude within the timeout budget. */
+  public static SecretConnectionResult timeout() {
+    return new SecretConnectionResult(SECRET_STATUS.TIMEOUT, true);
+  }
+
+  /** The validator could not conclude due to transient network issues. */
+  public static SecretConnectionResult networkError() {
+    return new SecretConnectionResult(SECRET_STATUS.NETWORK_ERROR, true);
+  }
+
+  /** Stored secret configuration is malformed or incomplete. */
+  public static SecretConnectionResult formatError() {
+    return new SecretConnectionResult(SECRET_STATUS.FORMAT_ERROR, true);
+  }
+
+  /** A validator ran but no definitive diagnosis could be established. */
+  public static SecretConnectionResult unknown() {
+    return new SecretConnectionResult(SECRET_STATUS.UNKNOWN, true);
   }
 
   /**
    * No validator ever ran (dangling secret, no handler): inconclusive AND not verified, so the
    * reference is left completely untouched.
    */
-  public static SecretConnectionResult notChecked(String detail) {
-    return new SecretConnectionResult(OUTCOME.UNKNOWN, detail, false);
+  public static SecretConnectionResult notChecked() {
+    return new SecretConnectionResult(SECRET_STATUS.UNSET, false);
   }
 
   /** No validator implemented for this secret type: the default for every handler. */
   public static SecretConnectionResult unsupported() {
-    return new SecretConnectionResult(OUTCOME.UNSUPPORTED, null, false);
+    return new SecretConnectionResult(SECRET_STATUS.UNSUPPORTED, false);
   }
 
   /**
-   * The status to write, or empty when the previous status must be preserved.
+   * The status to write, or empty when no check actually ran.
    *
-   * @return the status to persist, empty for {@code UNKNOWN} and {@code UNSUPPORTED}
+   * @return the status to persist, empty when {@link #wasChecked()} is false
    */
   public Optional<SECRET_STATUS> statusToPersist() {
-    return switch (outcome) {
-      case ACTIVE -> Optional.of(SECRET_STATUS.ACTIVE);
-      case INACTIVE -> Optional.of(SECRET_STATUS.INACTIVE);
-      case UNKNOWN, UNSUPPORTED -> Optional.empty();
-    };
+    return checked ? Optional.of(status) : Optional.empty();
   }
 
   /**

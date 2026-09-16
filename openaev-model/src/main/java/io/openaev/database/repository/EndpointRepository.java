@@ -67,9 +67,13 @@ public interface EndpointRepository
               + " from assets e where e.asset_type = '"
               + AssetType.Values.ENDPOINT_TYPE
               + "' and LOWER(e.asset_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
-              + "and cardinality(cast(:macAddresses as text[])) > 0 "
-              + "and e.asset_mac_addresses && string_to_array("
-              + "LOWER(REPLACE(REPLACE(array_to_string(cast(:macAddresses as text[]), ','), ':', ''), '-', '')), ',')",
+              // LATERAL is a noise word for a function-call FROM item in PostgreSQL: identical
+              // semantics and identical plan. It is however the marker TenantStatementInspector /
+              // ScopeStatementInspector use to accept one (see filterFromItem). Without it,
+              // activating assets pulls this query into rewriting and it is refused fail-closed,
+              // breaking endpoint lookup by hostname and MAC, which is the agent registration path.
+              + "and exists (select 1 from LATERAL unnest(e.asset_mac_addresses) as mac "
+              + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from LATERAL unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneMacAddress(
       @Param("hostname") String hostname,

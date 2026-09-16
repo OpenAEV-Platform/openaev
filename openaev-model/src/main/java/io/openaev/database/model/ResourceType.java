@@ -21,6 +21,7 @@ public enum ResourceType {
   RESOURCE_TYPE,
   SECURITY_PLATFORM,
   CREDENTIAL,
+  MARKING_DEFINITION,
   DOCUMENT,
   CHANNEL,
   PHISHING_LANDING_PAGE,
@@ -68,6 +69,7 @@ public enum ResourceType {
   CONDITION,
   // Auth related
   SESSION,
+  TOKEN,
   PLATFORM_SESSION,
   SKIP_RBAC; // Used to skip RBAC checks.
 

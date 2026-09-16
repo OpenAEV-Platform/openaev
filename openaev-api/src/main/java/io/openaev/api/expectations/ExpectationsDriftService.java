@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.context.BulkOperationContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
@@ -236,12 +237,15 @@ public class ExpectationsDriftService {
   // -- REALIGNMENT --
 
   /** Realigns all drifted injects of a scenario onto their contract templates. */
-  public ExpectationsRealignOutput realignScenario(String scenarioId) {
+  public ExpectationsRealignOutput realignScenario(TxCtx ctx, String scenarioId) {
     ExpectationsRealignOutput output =
-        realign(chunkRunner.call(() -> List.copyOf(injectRepository.findByScenarioId(scenarioId))));
+        realign(
+            chunkRunner.call(
+                ctx, () -> List.copyOf(injectRepository.findByScenarioId(scenarioId))));
     // Realignment closes the drift episode: a future drift is a new event and must surface the
     // full warning again, not inherit a stale dismissal.
     chunkRunner.call(
+        ctx,
         () -> {
           Scenario scenario = resolveScenario(scenarioId);
           scenario.setExpectationsDriftDismissed(false);
@@ -251,10 +255,11 @@ public class ExpectationsDriftService {
   }
 
   /** Realigns all drifted injects of a simulation onto their contract templates. */
-  public ExpectationsRealignOutput realignExercise(String exerciseId) {
+  public ExpectationsRealignOutput realignExercise(TxCtx ctx, String exerciseId) {
     ExpectationsRealignOutput output =
-        realign(chunkRunner.call(() -> injectRepository.findByExerciseId(exerciseId)));
+        realign(chunkRunner.call(ctx, () -> injectRepository.findByExerciseId(exerciseId)));
     chunkRunner.call(
+        ctx,
         () -> {
           Exercise exercise = resolveExercise(exerciseId);
           exercise.setExpectationsDriftDismissed(false);
@@ -264,10 +269,11 @@ public class ExpectationsDriftService {
   }
 
   /** Realigns a single inject (atomic testing) onto its contract template. */
-  public ExpectationsRealignOutput realignInject(String injectId) {
+  public ExpectationsRealignOutput realignInject(TxCtx ctx, String injectId) {
     ExpectationsRealignOutput output =
-        realign(chunkRunner.call(() -> List.of(resolveInject(injectId))));
+        realign(chunkRunner.call(ctx, () -> List.of(resolveInject(injectId))));
     chunkRunner.call(
+        ctx,
         () -> {
           Inject inject = resolveInject(injectId);
           inject.setExpectationsDriftDismissed(false);

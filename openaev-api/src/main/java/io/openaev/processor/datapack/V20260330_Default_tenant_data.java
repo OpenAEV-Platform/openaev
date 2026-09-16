@@ -2,8 +2,8 @@ package io.openaev.processor.datapack;
 
 import static io.openaev.config.SessionHelper.currentUser;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
@@ -45,9 +45,9 @@ public class V20260330_Default_tenant_data extends DataPack {
   }
 
   @Override
-  public boolean doProcess() {
+  public boolean doProcess(Tenant tenant) {
     try {
-      if (!Tenant.DEFAULT_TENANT_UUID.equals(TenantContext.getCurrentTenant())) {
+      if (!Tenant.DEFAULT_TENANT_UUID.equals(tenant.getId())) {
         // Init vulnerabilities
         PresetTenantData.createDefaultVulnerabilityCwes()
             .forEach(
@@ -67,13 +67,12 @@ public class V20260330_Default_tenant_data extends DataPack {
                       roleName,
                       roleName,
                       capabilities,
-                      TenantContext.getCurrentTenant());
+                      tenant.getId());
               Group group = new Group();
               group.setName(roleName);
               group.setDescription(roleName);
               group.setDefaultUserAssignation(false);
-              group.setTenant(
-                  entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
+              group.setTenant(entityManager.getReference(Tenant.class, tenant.getId()));
               group.setRoles(List.of(role));
               if (PresetTenantData.ADMIN.equals(roleName)) {
                 userRepository

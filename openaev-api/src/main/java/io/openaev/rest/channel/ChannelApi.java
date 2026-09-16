@@ -8,7 +8,9 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -52,13 +54,14 @@ public class ChannelApi extends RestBehavior {
   private final UserRepository userRepository;
   private final ChannelService channelService;
   private final DocumentService documentService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CHANNELS --
 
   @GetMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHANNEL)
-  public Iterable<Channel> channels() {
+  public Iterable<Channel> channels(TxCtx ctx) {
     return channelRepository.findAll();
   }
 
@@ -68,7 +71,7 @@ public class ChannelApi extends RestBehavior {
       resourceId = "#channelId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
-  public Channel channel(@PathVariable String channelId) {
+  public Channel channel(TxCtx ctx, @PathVariable String channelId) {
     return channelService.channel(channelId);
   }
 
@@ -79,7 +82,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHANNEL)
   public Channel updateChannel(
-      @PathVariable String channelId, @Valid @RequestBody ChannelUpdateInput input) {
+      TxCtx ctx, @PathVariable String channelId, @Valid @RequestBody ChannelUpdateInput input) {
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     channel.setUpdateAttributes(input);
@@ -94,7 +97,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHANNEL)
   public Channel updateChannelLogos(
-      @PathVariable String channelId, @Valid @RequestBody ChannelUpdateLogoInput input) {
+      TxCtx ctx, @PathVariable String channelId, @Valid @RequestBody ChannelUpdateLogoInput input) {
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     if (input.getLogoDark() != null) {
@@ -113,9 +116,10 @@ public class ChannelApi extends RestBehavior {
   @PostMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHANNEL)
   @Transactional(rollbackFor = Exception.class)
-  public Channel createChannel(@Valid @RequestBody ChannelCreateInput input) {
+  public Channel createChannel(TxCtx ctx, @Valid @RequestBody ChannelCreateInput input) {
     Channel channel = new Channel();
     channel.setUpdateAttributes(input);
+    channel.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
     return channelRepository.save(channel);
   }
 
@@ -125,7 +129,7 @@ public class ChannelApi extends RestBehavior {
       resourceId = "#channelId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CHANNEL)
-  public void deleteChannel(@PathVariable String channelId) {
+  public void deleteChannel(TxCtx ctx, @PathVariable String channelId) {
     channelService.deleteChannel(channelId);
   }
 
@@ -139,7 +143,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public ChannelReader observerArticles(
-      @PathVariable String exerciseId, @PathVariable String channelId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String channelId) {
     ChannelReader channelReader;
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
@@ -174,6 +178,7 @@ public class ChannelApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public ChannelReader playerArticles(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String channelId,
       @RequestParam Optional<String> userId)
@@ -197,7 +202,7 @@ public class ChannelApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Article createArticleForExercise(
-      @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
@@ -239,6 +244,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Article updateArticleForExercise(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
@@ -293,7 +299,7 @@ public class ChannelApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteArticleForExercise(
-      @PathVariable String exerciseId, @PathVariable String articleId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String articleId) {
     articleRepository.deleteById(articleId);
   }
 
@@ -309,6 +315,7 @@ public class ChannelApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public Article createArticleForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody ArticleCreateInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
@@ -349,6 +356,7 @@ public class ChannelApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public Article updateArticleForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
@@ -400,6 +408,7 @@ public class ChannelApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public void deleteArticleForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId) {
     articleRepository.deleteById(articleId);
@@ -421,7 +430,7 @@ public class ChannelApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Documents used in the Channel")
       })
-  public List<RawDocument> documentsFromChannel(@PathVariable String channelId) {
+  public List<RawDocument> documentsFromChannel(TxCtx ctx, @PathVariable String channelId) {
     return documentService.documentsForChannel(channelId);
   }
 }

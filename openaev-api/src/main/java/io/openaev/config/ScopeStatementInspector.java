@@ -257,21 +257,56 @@ public class ScopeStatementInspector implements StatementInspector {
   private void filterContainedSelects(Statement statement) {
     PlainSelectCollector collector = new PlainSelectCollector();
     collector.getTables(statement);
-    for (PlainSelect plainSelect : collector.collected) {
-      filterTables(plainSelect);
+    // Descendants before ancestors: narrowing a primary table re-parses its select's WHERE
+    // (combineCall), rebuilding any sub-query in that WHERE from its string form. Filtering the
+    // inner select first bakes its own predicate into that string, so the rebuilt copy keeps it.
+    // The collector lists ancestors first (pre-order), so we walk it in reverse.
+    List<PlainSelect> collected = collector.collected;
+    for (int i = collected.size() - 1; i >= 0; i--) {
+      filterTables(collected.get(i));
     }
   }
 
-  /** Wraps the FROM and join scoped tables of a single select level. */
+  /**
+   * Filters the FROM and join scoped tables of a single select level. Joined tables are wrapped in
+   * a filtered sub-query. The primary FROM item, when it is a plain scoped table, is instead
+   * filtered through the select's WHERE: wrapping it in a derived table would strip the primary
+   * key's functional dependency, so a {@code GROUP BY id} projecting other columns becomes invalid
+   * SQL in PostgreSQL. Moving the predicate to the WHERE is equivalent only while the primary table
+   * is never NULL-extended, so a RIGHT or FULL join anywhere in the join list forces a fallback to
+   * wrapping (a WHERE predicate on the NULL-extended side would drop those rows and silently turn
+   * the outer join into an inner one). Every other primary shape is wrapped exactly as before.
+   */
   private void filterTables(PlainSelect select) {
-    if (select.getFromItem() != null) {
-      select.setFromItem(filterFromItem(select.getFromItem()));
+    FromItem from = select.getFromItem();
+    if (from instanceof Table table && isCovered(table) && !hasRightOrFullJoin(select.getJoins())) {
+      select.setWhere(combineScopeFilter(table, select.getWhere(), true));
+    } else if (from != null) {
+      select.setFromItem(filterFromItem(from));
     }
     if (select.getJoins() != null) {
       for (Join join : select.getJoins()) {
         join.setRightItem(filterFromItem(join.getRightItem()));
       }
     }
+  }
+
+  /**
+   * Whether the join list NULL-extends the accumulated left side, which is what makes moving the
+   * primary table's predicate into the WHERE unsafe. A RIGHT join NULL-extends the left side, a
+   * FULL join both sides; either anywhere in the list rules out the narrowing for this select
+   * level.
+   */
+  private static boolean hasRightOrFullJoin(List<Join> joins) {
+    if (joins == null) {
+      return false;
+    }
+    for (Join join : joins) {
+      if (join.isRight() || join.isFull()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

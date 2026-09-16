@@ -17,6 +17,10 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 - URI constant at class level: `public static final String FEATURE_URI = "/api/..."`
 - **Public endpoints** (`@AccessControl(skipRBAC = true)`): test WITHOUT `@WithMockUser` to verify unauthenticated access works
 - **Constant sharing**: reuse constants from the controller via package-private `static final` + `static import` in the test — never duplicate literal values between source and test
+- **Mock user has NO tenant membership by default.** `@WithMockUser` does not put the mock user in `users_tenants` unless asked to. Two ways to opt in, pick the narrower one:
+  - The test already grants a specific tenant (e.g. via `TenantIsolationTestHelper` or `tenantRepository.addUserToTenant(...)`) → nothing else to do, that membership is what the endpoint should see.
+  - The test hits an endpoint that attributes a tenant for writes (`TxCtx` + `TenantWriteScopeResolver`, typically behind `@RequireTenantSelector`) and does NOT otherwise grant any tenant → add `@WithMockUser(autoJoinDefaultTenant = true)` **on that one test method**, not at the class level.
+  - Never flip it on at the class/suite level "to be safe": it silently turns a single-tenant caller into a two-tenant caller for any test in that class that also grants its own tenant (trips the "tenant scope already set for this transaction" guard on nested `@Transactional` calls), and defeats every test asserting a 400 on an ambiguous/missing tenant selector (e.g. `createWithoutSelectorIsRejected`) since the fallback selector no longer sees an unambiguous single tenant. This exact regression shipped once across several test classes at once — see `WithMockUser.autoJoinDefaultTenant()` javadoc.
 
 ### Tenant Isolation Tests (API)
 

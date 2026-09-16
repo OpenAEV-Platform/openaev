@@ -6,6 +6,10 @@ import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static java.time.Instant.now;
 
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
@@ -25,10 +29,10 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
-import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.user_events.UserPasswordSetupRequestedEvent;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -39,18 +43,16 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -65,6 +67,8 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -104,6 +108,8 @@ public class UserService {
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   private final TenantScopedTransaction tenantTx;
+  private final ApplicationEventPublisher eventPublisher;
+  private final ObjectProvider<AuditLogger> auditLoggerProvider;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -132,9 +138,6 @@ public class UserService {
    */
   @Transactional(rollbackFor = Exception.class)
   public User createUser(UserInput input, UserCreationScope scope) {
-    if (!StringUtils.hasLength(input.plainPassword())) {
-      throw new IllegalArgumentException("Password is required when creating a user");
-    }
     ReservedKeyValidator.validateUserEmailPattern(input.email());
     if (userRepository.findByEmailIgnoreCase(input.email()).isPresent()) {
       throw new DataIntegrityViolationException(
@@ -151,11 +154,13 @@ public class UserService {
     user.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
-    // The user's id is generated on save (UUID generator), not before: evict only after
-    // persisting, using the saved user's id, or evictForUser is called with a null key.
-    User createdUser = createUser(user, input.plainPassword(), UUID.randomUUID().toString(), scope);
+    String password = input.plainPassword();
+    User createdUser = createUser(user, password, UUID.randomUUID().toString(), scope);
     if (!CollectionUtils.isEmpty(tenantIds)) {
       tenantMembershipCacheManager.evictForUser(createdUser.getId(), tenantIds);
+    }
+    if (!StringUtils.hasText(password)) {
+      requestPasswordSetup(createdUser.getEmail(), createdUser.getLang());
     }
     return createdUser;
   }
@@ -316,20 +321,33 @@ public class UserService {
   public void delete(String userId) {
     User existing = user(userId);
     ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
+    List<String> tenantIds = userRepository.findTenantIdsByUserId(userId);
     sessionManager.invalidateUserSession(userId);
     userRepository.deleteByIdNative(userId);
+    tenantMembershipCacheManager.evictForUser(userId, tenantIds);
   }
 
   // -- AUTH --
 
+  /** Publishes a password setup/reset request so the email is sent asynchronously after commit. */
+  public void requestPasswordSetup(String login, String lang) {
+    eventPublisher.publishEvent(new UserPasswordSetupRequestedEvent(login, lang));
+  }
+
   /**
-   * Creates a reset token for the specified user; also sends an email with the created token
+   * Handles password setup/reset requests after commit by generating a token and sending the
+   * localized email asynchronously.
    *
-   * @param input input object for the specific user account to reset
+   * @param event event carrying the login email and requested language
    */
   @Async
-  public void requestPasswordReset(ResetUserInput input) {
-    Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+  public void onUserPasswordSetupRequested(UserPasswordSetupRequestedEvent event) {
+    sendPasswordResetEmail(event.email(), event.lang());
+  }
+
+  private void sendPasswordResetEmail(String login, String lang) {
+    Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(login);
     // always compute a random value to reduce gap in time
     // spent between user found and user not found branches
     // note: we still spend more time in the "user found" branch
@@ -342,7 +360,7 @@ public class UserService {
       // tenant-scoped injectors table for the email notifier, and this reset flow is anonymous/
       // global (login only, no tenant selector), so it always uses the platform default tenant's
       // email integration, matching MailingService's own 3-arg overload default.
-      if ("fr".equals(input.getLang())) {
+      if ("fr".equals(lang)) {
         String subject = "Code de récupération OpenAEV: " + resetToken;
         String body =
             "Bonjour "
@@ -432,7 +450,9 @@ public class UserService {
    * @return true if the password matches
    */
   public boolean isUserPasswordValid(User user, String password) {
-    return passwordEncoder.matches(password, user.getPassword());
+    return StringUtils.hasLength(password)
+        && StringUtils.hasLength(user.getPassword())
+        && passwordEncoder.matches(password, user.getPassword());
   }
 
   /**
@@ -492,7 +512,91 @@ public class UserService {
     token.setUser(user);
     token.setCreated(now());
     token.setValue(discreteToken);
-    return tokenRepository.save(token);
+    Token createdToken = tokenRepository.save(token);
+    logTokenCreated(createdToken);
+    return createdToken;
+  }
+
+  /** Delete an existing API token */
+  public void deleteUserToken(Token token) {
+    tokenRepository.delete(token);
+    logTokenDeleted(token);
+  }
+
+  public Token renewUserToken(String tokenId) {
+    User user =
+        userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    Token token = tokenRepository.findById(tokenId).orElseThrow(ElementNotFoundException::new);
+    if (!user.equals(token.getUser())) {
+      throw new AccessDeniedException("You are not allowed to renew this token");
+    }
+    deleteUserToken(token);
+
+    return createUserToken(user, UUID.randomUUID().toString());
+  }
+
+  /**
+   * Emits an audit event for a token creation.
+   *
+   * @param createdToken the token that was created
+   */
+  private void logTokenCreated(Token createdToken) {
+    AuditLogger auditLogger = auditLoggerProvider.getIfAvailable();
+    if (auditLogger == null) {
+      return;
+    }
+    User actor = currentUserOrNull();
+    String tokenUserId = createdToken.getUser() != null ? createdToken.getUser().getId() : null;
+    Map<String, Object> contextData = new LinkedHashMap<>();
+    contextData.put("token_id", createdToken.getId());
+    contextData.put("token_user_id", tokenUserId);
+    contextData.put("actor_user_id", actor != null ? actor.getId() : null);
+    contextData.put("token_created_at", createdToken.getCreated());
+
+    auditLogger.logEvent(
+        AuditEvent.builder()
+            .eventType(EventType.MUTATION)
+            .eventScope(AuditEventScope.CREATE)
+            .eventStatus(EventStatus.SUCCESS)
+            .resourceType(ResourceType.TOKEN)
+            .resourceId(createdToken.getId())
+            .contextData(contextData)
+            .message("User token created")
+            .origin(actor != null ? AuditEventOrigin.REQUEST : AuditEventOrigin.SYSTEM)
+            .build());
+  }
+
+  /**
+   * Emits an audit event for a token deleted.
+   *
+   * @param token the token that was deleted
+   */
+  private void logTokenDeleted(Token token) {
+    AuditLogger auditLogger = auditLoggerProvider.getIfAvailable();
+    if (auditLogger == null) {
+      return;
+    }
+    User actor = currentUserOrNull();
+    String tokenUserId = token.getUser() != null ? token.getUser().getId() : null;
+    Map<String, Object> contextData = new LinkedHashMap<>();
+    contextData.put("token_id", token.getId());
+    contextData.put("token_user_id", tokenUserId);
+    contextData.put("actor_user_id", actor != null ? actor.getId() : null);
+    contextData.put("token_deleted_at", Instant.now());
+
+    auditLogger.logEvent(
+        AuditEvent.builder()
+            .eventType(EventType.MUTATION)
+            .eventScope(AuditEventScope.DELETE)
+            .eventStatus(EventStatus.SUCCESS)
+            .resourceType(ResourceType.TOKEN)
+            .resourceId(token.getId())
+            .contextData(contextData)
+            .message("User token deleted")
+            .origin(actor != null ? AuditEventOrigin.REQUEST : AuditEventOrigin.SYSTEM)
+            .build());
   }
 
   public Optional<User> findByTokenAndTenantId(

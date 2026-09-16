@@ -31,15 +31,16 @@ const TagsFilter: FunctionComponent<Props> = ({
     label: tag.tag_name,
     color: tag.tag_color,
   });
-  const tagsOptions = tags.map(tagTransform);
+  const tagsOptions = tags
+    .map(tagTransform)
+    .filter((option: Option) => !currentTags.some(currentTag => currentTag.id === option.id));
 
   return (
     <>
       <Autocomplete<Option>
         sx={{
           width: fullWidth ? '100%' : 250,
-          float: 'left',
-          marginRight: '10px',
+          flexShrink: 0,
         }}
         selectOnFocus
         openOnFocus
@@ -90,14 +91,16 @@ const TagsFilter: FunctionComponent<Props> = ({
         <Box
           component="div"
           sx={{
-            float: 'left',
-            mt: 0.5,
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 1,
+            minWidth: 0,
           }}
         >
           {currentTags.map(currentTag => (
             <Chip
               key={currentTag.id}
-              sx={{ marginRight: '10px' }}
               label={currentTag.label}
               onDelete={() => onRemoveTag?.(currentTag.id)}
             />

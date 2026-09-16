@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -18,6 +19,8 @@ import io.openaev.database.repository.CommunicationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.execution.ExecutableInject;
+import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.service.FileService;
 import jakarta.mail.Message;
 import jakarta.mail.Session;
@@ -73,7 +76,7 @@ class ImapServiceTenantScopeTest {
         throws Exception {
       // Arrange
       String tenantId = "tenant-a";
-      String injectId = "inject-a";
+      String injectId = "83075dd4-60a4-4307-aa3a-19ee673125f1";
       String messageId = "message-a";
 
       Inject inject = new Inject();
@@ -100,7 +103,7 @@ class ImapServiceTenantScopeTest {
     void given_messageForInject_should_lookupAndPersistUsersOnlyInInjectTenant() throws Exception {
       // Arrange
       String tenantId = "tenant-a";
-      String injectId = "inject-a";
+      String injectId = "9f1c2a3b-4d5e-4f60-8a71-1234567890ab";
       String messageId = "message-b";
 
       Inject inject = new Inject();
@@ -125,14 +128,56 @@ class ImapServiceTenantScopeTest {
     }
 
     @Test
+    @DisplayName("given_footerBuiltByEmailContent_should_extractInjectIdOnly")
+    void given_footerBuiltByEmailContent_should_extractInjectIdOnly() throws Exception {
+      // Arrange
+      String tenantId = "tenant-a";
+      // Inject ids are real UUIDs in production (see Inject#id); use one here so the test exercises
+      // the actual anchored UUID regex in ImapService.INJECT_ID_PATTERN, not a fake id format.
+      String injectId = "83075dd4-60a4-4307-aa3a-19ee673125f1";
+      String messageId = "message-d";
+
+      Inject inject = new Inject();
+      inject.setId(injectId);
+      inject.setTenant(new Tenant(tenantId));
+
+      // Build the footer exactly as production code does (EmailContent.buildMessage), instead of
+      // hand-writing the string, so the test catches any future change to the footer format.
+      ExecutableInject executableInject = mock(ExecutableInject.class);
+      when(executableInject.getInjection()).thenReturn(inject);
+      when(executableInject.isChainingExecution()).thenReturn(false);
+      when(executableInject.isRuntime()).thenReturn(true);
+
+      EmailContent emailContent = new EmailContent();
+      emailContent.setBody("Hello team");
+      String bodyWithFooter = emailContent.buildMessage(executableInject, "http://localhost:8080");
+
+      when(injectRepository.findById(injectId)).thenReturn(java.util.Optional.of(inject));
+      when(communicationRepository.existsByIdentifierAndInjectTenantId(messageId, tenantId))
+          .thenReturn(false);
+      when(userRepository.findAllByEmailInIgnoreCaseAndTenantId(anyList(), eq(tenantId)))
+          .thenReturn(java.util.List.of());
+
+      Message[] messages = new Message[] {buildMessage(messageId, bodyWithFooter)};
+
+      // Act
+      ReflectionTestUtils.invokeMethod(imapService, "parseMessages", messages, false);
+
+      // Assert - the id extracted from the real footer must be exactly the inject id, not
+      // polluted by the trailing "[base_url=...]" token that follows it in the same footer block
+      verify(injectRepository).findById(injectId);
+      verify(communicationRepository).existsByIdentifierAndInjectTenantId(messageId, tenantId);
+    }
+
+    @Test
     @DisplayName("given_twoInjectsFromDifferentTenantsWithSameEmail_should_linkOnlyTenantUser")
     void given_twoInjectsFromDifferentTenantsWithSameEmail_should_linkOnlyTenantUser()
         throws Exception {
       // Arrange
       String tenantA = "tenant-a";
       String tenantB = "tenant-b";
-      String injectIdA = "inject-a";
-      String injectIdB = "inject-b";
+      String injectIdA = "83075dd4-60a4-4307-aa3a-19ee673125f1";
+      String injectIdB = "9f1c2a3b-4d5e-4f60-8a71-1234567890ab";
       String messageIdA = "message-a";
       String messageIdB = "message-b";
 

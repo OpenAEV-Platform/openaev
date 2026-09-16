@@ -43,8 +43,8 @@ public class MarkingDefinitionComposer extends ComposerBase<MarkingDefinition> {
       return withTenant(entityManager.getReference(Tenant.class, tenantId));
     }
 
-    public Composer withName(String name) {
-      this.markingDefinition.setName(name);
+    public Composer withDefinition(String definition) {
+      this.markingDefinition.setDefinition(definition);
       return this;
     }
 

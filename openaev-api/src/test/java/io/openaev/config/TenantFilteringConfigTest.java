@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.openaev.architecture.BackgroundEntrypointTenantScopeArchTest;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.TenantBase;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -52,6 +53,28 @@ class TenantFilteringConfigTest {
     TenantTables tables = TenantFilteringConfig.deriveFromSchema(dataSource);
     assertEquals(TenantTables.Family.STRICT, tables.family("users_tenants"));
     assertEquals(TenantTables.Family.STRICT, tables.family("injectors_contracts_attack_patterns"));
+  }
+
+  @Test
+  @DisplayName(
+      "the background guard's '*'-activated set equals what production activates from the schema")
+  void backgroundGuardWildcardMatchesProductionSchema() {
+    // The background guard (BackgroundEntrypointTenantScopeArchTest) has no database: it derives
+    // its tables from the entity model and unions a checked-in inventory of the strict join tables
+    // an entity scan misses. Production derives the same set from the live schema. If the two ever
+    // diverge (a new tenant_id join table lands, or the inventory lists something bogus) an
+    // until-active waiver could be rejected wrongly or never expire under '*'. This assertion is
+    // the honesty check named by the inventory file; it fails the build on any divergence.
+    Set<String> fromSchema =
+        TenantFilteringConfig.deriveFromSchema(dataSource)
+            .restrictTo(List.of(TenantTables.ALL_STRICT))
+            .strict();
+    Set<String> fromGuard = BackgroundEntrypointTenantScopeArchTest.wildcardActivatedTables();
+    assertEquals(
+        fromSchema,
+        fromGuard,
+        "the background guard's '*'-activated tables must match the live schema; update"
+            + " tenant-strict-tables-missed-by-entity-scan.txt to match");
   }
 
   @Test

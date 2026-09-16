@@ -1,6 +1,6 @@
 package io.openaev.api.asset;
 
-import static io.openaev.api.markings.MarkingEscalationValidator.assertCanAssignMarkings;
+import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
 
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
@@ -27,8 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The counterpart to {@code TenantGroupService.updateGroupMarkings}: that one grants a
  * <i>clearance</i> to a group, this one puts a <i>label</i> on a row. Both go through the same
- * {@link io.openaev.api.markings.MarkingEscalationValidator}, and for the same reason — a boundary
- * you can widen for yourself is not a boundary.
+ * {@link io.openaev.service.marking.MarkingEscalationValidator}, and for the same reason — a
+ * boundary you can widen for yourself is not a boundary.
  */
 @Slf4j
 @Service

@@ -2,6 +2,7 @@ package io.openaev.api.platform.sessions;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -46,7 +47,7 @@ public class PlatformSessionApi extends RestBehavior {
   @Operation(
       summary = "List platform sessions",
       description = "List every live user session across the whole platform")
-  public List<SessionOutput> sessions() {
+  public List<SessionOutput> sessions(TxCtx ctx) {
     return sessionMapper.toSessionOutputs(sessionManager.findAllSessions());
   }
 
@@ -57,7 +58,7 @@ public class PlatformSessionApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_SESSION,
       isEnterpriseEdition = true)
   @Operation(summary = "Kill a platform session", description = "Kill a single session by id")
-  public ResponseEntity<Void> killSession(@PathVariable String sessionId) {
+  public ResponseEntity<Void> killSession(TxCtx ctx, @PathVariable String sessionId) {
     return sessionManager.invalidateSession(sessionId)
         ? ResponseEntity.ok().build()
         : ResponseEntity.notFound().build();
@@ -72,7 +73,7 @@ public class PlatformSessionApi extends RestBehavior {
   @Operation(
       summary = "Kill platform user sessions",
       description = "Kill every live session of a user across the platform")
-  public ResponseEntity<Void> killUserSessions(@PathVariable String userId) {
+  public ResponseEntity<Void> killUserSessions(TxCtx ctx, @PathVariable String userId) {
     sessionManager.invalidateUserSession(userId);
     return ResponseEntity.ok().build();
   }

@@ -6,6 +6,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.Inject;
@@ -40,7 +41,8 @@ public class ExerciseArticleApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   @Transactional(readOnly = true)
-  public Iterable<ArticleOutput> exerciseArticles(@PathVariable @NotBlank final String exerciseId) {
+  public Iterable<ArticleOutput> exerciseArticles(
+      TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     List<Inject> injects =
         this.injectRepository.findAll(
             InjectSpecification.fromSimulation(exerciseId)

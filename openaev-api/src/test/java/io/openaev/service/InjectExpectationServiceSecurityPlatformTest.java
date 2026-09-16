@@ -39,7 +39,7 @@ class InjectExpectationServiceSecurityPlatformTest {
             collectorOfType("xdr", 60, XDR));
 
     List<Collector> result =
-        InjectExpectationService.filterCollectorsForExpectation(collectors, List.of());
+        InjectExpectationUtils.filterCollectorsForExpectation(collectors, List.of());
 
     assertEquals(3, result.size());
   }
@@ -54,7 +54,7 @@ class InjectExpectationServiceSecurityPlatformTest {
             collectorOfType("xdr", 60, XDR));
 
     List<Collector> result =
-        InjectExpectationService.filterCollectorsForExpectation(collectors, List.of(EDR, XDR));
+        InjectExpectationUtils.filterCollectorsForExpectation(collectors, List.of(EDR, XDR));
 
     assertEquals(2, result.size());
     assertTrue(result.stream().allMatch(c -> List.of("edr", "xdr").contains(c.getId())));
@@ -66,7 +66,7 @@ class InjectExpectationServiceSecurityPlatformTest {
     DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setExpirationTime(30L); // shorter than the expected collector latency
 
-    InjectExpectationService.applyExpirationOrderingGuarantee(
+    InjectExpectationUtils.applyExpirationOrderingGuarantee(
         expectation, List.of(collectorOfType("edr", 300, EDR)));
 
     // floor = maxPeriod (300s) * 2 = 600s, greater than the declared 30s
@@ -79,7 +79,7 @@ class InjectExpectationServiceSecurityPlatformTest {
     DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setExpirationTime(21600L);
 
-    InjectExpectationService.applyExpirationOrderingGuarantee(
+    InjectExpectationUtils.applyExpirationOrderingGuarantee(
         expectation, List.of(collectorOfType("edr", 60, EDR)));
 
     assertEquals(21600L, expectation.getExpirationTime());
@@ -91,7 +91,7 @@ class InjectExpectationServiceSecurityPlatformTest {
     DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setExpirationTime(120L);
 
-    InjectExpectationService.applyExpirationOrderingGuarantee(expectation, List.of());
+    InjectExpectationUtils.applyExpirationOrderingGuarantee(expectation, List.of());
 
     assertEquals(120L, expectation.getExpirationTime());
   }

@@ -1,7 +1,7 @@
 package io.openaev.secrets.provider.impl;
 
-import static io.openaev.secrets.provider.SecretConnectionDetails.HANDLER_NOT_FOUND;
-import static io.openaev.secrets.provider.SecretConnectionDetails.SECRET_NOT_FOUND;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNSET;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
@@ -76,7 +76,8 @@ class LocalSecretsProviderConnectionCheckTest {
           provider.prepareConnectionCheck(referenceAt(SECRET_LOCATION)).run();
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.ACTIVE);
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(result.wasChecked()).isTrue();
     }
 
     @Test
@@ -86,7 +87,7 @@ class LocalSecretsProviderConnectionCheckTest {
       SecretConnectionResult result = provider.prepareConnectionCheck(referenceAt(null)).run();
 
       // Assert
-      assertThat(result.detail()).isEqualTo(SECRET_NOT_FOUND);
+      assertThat(result.status()).isEqualTo(UNSET);
       assertThat(result.wasChecked()).isFalse();
       verifyNoInteractions(secretService);
     }
@@ -98,7 +99,8 @@ class LocalSecretsProviderConnectionCheckTest {
       SecretConnectionResult result = provider.prepareConnectionCheck(referenceAt("  ")).run();
 
       // Assert
-      assertThat(result.detail()).isEqualTo(SECRET_NOT_FOUND);
+      assertThat(result.status()).isEqualTo(UNSET);
+      assertThat(result.wasChecked()).isFalse();
       verifyNoInteractions(secretService);
     }
 
@@ -114,7 +116,7 @@ class LocalSecretsProviderConnectionCheckTest {
           provider.prepareConnectionCheck(referenceAt(SECRET_LOCATION)).run();
 
       // Assert — one dangling reference must not abort the tenant's batch.
-      assertThat(result.detail()).isEqualTo(SECRET_NOT_FOUND);
+      assertThat(result.status()).isEqualTo(UNSET);
       assertThat(result.wasChecked()).isFalse();
     }
 
@@ -131,7 +133,7 @@ class LocalSecretsProviderConnectionCheckTest {
           provider.prepareConnectionCheck(referenceAt(SECRET_LOCATION)).run();
 
       // Assert
-      assertThat(result.detail()).isEqualTo(HANDLER_NOT_FOUND);
+      assertThat(result.status()).isEqualTo(UNSET);
       assertThat(result.wasChecked()).isFalse();
     }
   }

@@ -46,7 +46,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_valid_dashboard_input_when_creating_dashboard_should_return_created_dashboard()
       throws Exception {
     // -- PREPARE --
@@ -68,7 +68,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_dashboards_should_return_all_dashboards() throws Exception {
     // -- PREPARE --
     createCustomDashboardComposer();
@@ -82,7 +82,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_dashboard_id_when_fetching_dashboard_should_return_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
@@ -95,7 +95,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_updated_dashboard_input_when_updating_dashboard_should_return_updated_dashboard()
       throws Exception {
     // -- PREPARE --
@@ -121,7 +121,7 @@ class CustomDashboardApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Deleting Custom Dashboard")
   class Delete {
     @Test

@@ -1,10 +1,10 @@
 package io.openaev.service;
 
-import static io.openaev.api.markings.MarkingEscalationValidator.assertCanAssignMarkings;
 import static io.openaev.database.model.Role.capabilitiesOf;
 import static io.openaev.database.specification.GroupSpecification.tenantScope;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignCapabilities;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignGrant;
+import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
 
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;

@@ -22,7 +22,7 @@ const getOsPlatform = (): string => {
   }
 };
 
-test.describe('Agent implant registration', () => {
+test.describe.serial('Agent implant registration', () => {
   let hostname: string;
   const echoToken = `e2e-${Date.now()}`;
   const payloadName = `E2E Payload ${echoToken}`;

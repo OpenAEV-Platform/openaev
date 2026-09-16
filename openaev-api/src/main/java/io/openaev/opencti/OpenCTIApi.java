@@ -2,6 +2,7 @@ package io.openaev.opencti;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exercise.form.ExerciseSimple;
@@ -48,7 +49,7 @@ public class OpenCTIApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public ExerciseSimple latestExerciseByExternalReference(
-      @PathVariable @NotBlank final String externalReferenceId) {
+      TxCtx ctx, @PathVariable @NotBlank final String externalReferenceId) {
     return scenarioService.latestExerciseByExternalReference(externalReferenceId);
   }
 }

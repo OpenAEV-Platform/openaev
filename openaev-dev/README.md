@@ -57,7 +57,7 @@ docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsear
 | Service | Port | Why it's required |
 |---------|------|-------------------|
 | **PostgreSQL (dev)** | 5432 | Primary data store — all entities, users, scenarios |
-| **MinIO** | 10000 (API), 10001 (Console) | File/document storage (S3-compatible) |
+| **Silo** | 10000 (API), 10001 (Console) | File/document storage (S3-compatible, MinIO fork) |
 | **Elasticsearch (dev)** | 9200, 9300 | Full-text search & indexing engine |
 | **RabbitMQ** | 5672 (AMQP), 15672 (Management) | Async messaging between backend components |
 
@@ -79,7 +79,7 @@ This starts everything, including optional services:
 |---------|------|-------------|
 | PostgreSQL (dev) | 5432 | Main development database (persistent) |
 | PostgreSQL (test) | 5433 | Test database (ephemeral, no volume) |
-| MinIO | 10000 (API), 10001 (Console) | Object storage |
+| Silo | 10000 (API), 10001 (Console) | Object storage (S3-compatible) |
 | RabbitMQ | 5672 (AMQP), 15672 (Management) | Message queue |
 | Elasticsearch (dev) | 9200, 9300 | Search engine |
 | Elasticsearch (test) | 9201, 9301 | Test search engine |
@@ -90,7 +90,7 @@ This starts everything, including optional services:
 
 ### 4. Access services
 
-- **MinIO Console**: http://localhost:10001 (minioadmin/minioadmin)
+- **Silo Console**: http://localhost:10001 (minioadmin/minioadmin)
 - **RabbitMQ Management**: http://localhost:15672 (guest/guest)
 - **pgAdmin**: http://localhost:5050 (admin@openaev.io/admin by default, see `.env`)
 - **Kibana**: http://localhost:5601

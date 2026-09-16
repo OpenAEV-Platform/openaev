@@ -41,7 +41,7 @@ public class PhishingEmailTemplateApi extends RestBehavior {
   @AccessControl(
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
-  public Iterable<PhishingEmailTemplate> emailTemplates() {
+  public Iterable<PhishingEmailTemplate> emailTemplates(TxCtx ctx) {
     return emailTemplateService.emailTemplates();
   }
 
@@ -54,7 +54,7 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
   public Page<PhishingEmailTemplate> searchEmailTemplates(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return emailTemplateService.search(searchPaginationInput);
   }
 
@@ -64,7 +64,7 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
-  public PhishingEmailTemplate emailTemplate(@PathVariable String id) {
+  public PhishingEmailTemplate emailTemplate(TxCtx ctx, @PathVariable String id) {
     return emailTemplateService.emailTemplate(id);
   }
 

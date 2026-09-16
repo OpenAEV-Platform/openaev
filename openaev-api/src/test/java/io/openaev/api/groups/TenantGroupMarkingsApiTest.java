@@ -3,7 +3,7 @@ package io.openaev.api.groups;
 import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
-import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueName;
+import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -93,7 +93,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
     group =
         tenantGroupComposer
-            .forGroup(TenantGroupFixture.getGroup("markings-" + uniqueName()))
+            .forGroup(TenantGroupFixture.getGroup("markings-" + uniqueDefinition()))
             .persist()
             .get();
     // The caller must be a member: a clearance is what a group grants ITS MEMBERS.
@@ -195,7 +195,8 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
       MarkingDefinition foreign =
           markingDefinitionComposer
               .forMarkingDefinition(
-                  createMarkingDefinition(MarkingDefinition.TYPE_TLP, uniqueName(), 60, "#111111"))
+                  createMarkingDefinition(
+                      MarkingDefinition.TYPE_TLP, uniqueDefinition(), 60, "#111111"))
               .withTenantId(otherTenantId)
               .persist()
               .get();
@@ -255,7 +256,8 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
   private MarkingDefinition persistedMarking(int order) {
     return markingDefinitionComposer
         .forMarkingDefinition(
-            createMarkingDefinition(MarkingDefinition.TYPE_TLP, uniqueName(), order, "#c62828"))
+            createMarkingDefinition(
+                MarkingDefinition.TYPE_TLP, uniqueDefinition(), order, "#c62828"))
         .withTenantId(tenantId)
         .persist()
         .get();

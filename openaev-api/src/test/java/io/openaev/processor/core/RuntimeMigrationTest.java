@@ -7,7 +7,6 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.QueueConfig;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.DataPack;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.Tenant;
@@ -21,7 +20,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
@@ -101,17 +99,12 @@ class RuntimeMigrationTest {
       @Test
       @DisplayName("given non-default tenant should skip migration")
       void given_nonDefaultTenant_should_skipMigration() {
-        // Arrange
-        try (MockedStatic<TenantContext> ctx = mockStatic(TenantContext.class)) {
-          ctx.when(TenantContext::getCurrentTenant).thenReturn("other-tenant-id");
+        // Act
+        boolean result = migration.doMigrate(new Tenant("other-tenant-id"));
 
-          // Act
-          boolean result = migration.doMigrate();
-
-          // Assert
-          assertThat(result).isTrue();
-          verifyNoInteractions(rabbitmqService);
-        }
+        // Assert
+        assertThat(result).isTrue();
+        verifyNoInteractions(rabbitmqService);
       }
     }
 
@@ -121,18 +114,9 @@ class RuntimeMigrationTest {
     @DisplayName("Legacy openbas queues")
     class LegacyOpenbasQueues {
 
-      private MockedStatic<TenantContext> ctx;
-
       @BeforeEach
       void setUp() {
-        ctx = mockStatic(TenantContext.class);
-        ctx.when(TenantContext::getCurrentTenant).thenReturn(TENANT_ID);
         stubDefaultTenantDependencies();
-      }
-
-      @AfterEach
-      void tearDown() {
-        ctx.close();
       }
 
       @Test
@@ -145,7 +129,7 @@ class RuntimeMigrationTest {
         when(rabbitmqService.drainQueue("openbas_injector_openaev_nmap")).thenReturn(List.of());
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -165,7 +149,7 @@ class RuntimeMigrationTest {
         when(rabbitmqService.drainQueue("openbas_injector_openaev_nmap")).thenReturn(List.of(msg));
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -189,7 +173,7 @@ class RuntimeMigrationTest {
         when(rabbitmqService.drainQueue("openbas_execution_inject-trace")).thenReturn(List.of(msg));
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -211,7 +195,7 @@ class RuntimeMigrationTest {
         // Target resolution fails for unknown suffix → drainQueue is never called
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -227,18 +211,9 @@ class RuntimeMigrationTest {
     @DisplayName("Non-conforming openaev queues")
     class NonConformingQueues {
 
-      private MockedStatic<TenantContext> ctx;
-
       @BeforeEach
       void setUp() {
-        ctx = mockStatic(TenantContext.class);
-        ctx.when(TenantContext::getCurrentTenant).thenReturn(TENANT_ID);
         stubDefaultTenantDependencies();
-      }
-
-      @AfterEach
-      void tearDown() {
-        ctx.close();
       }
 
       @Test
@@ -253,7 +228,7 @@ class RuntimeMigrationTest {
         when(rabbitmqService.drainQueue("openaev_injector_openaev_nmap")).thenReturn(List.of(msg));
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -275,7 +250,7 @@ class RuntimeMigrationTest {
             .thenReturn(List.of(expectedQueue));
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -290,18 +265,9 @@ class RuntimeMigrationTest {
     @DisplayName("Exchange cleanup")
     class ExchangeCleanup {
 
-      private MockedStatic<TenantContext> ctx;
-
       @BeforeEach
       void setUp() {
-        ctx = mockStatic(TenantContext.class);
-        ctx.when(TenantContext::getCurrentTenant).thenReturn(TENANT_ID);
         stubDefaultTenantDependencies();
-      }
-
-      @AfterEach
-      void tearDown() {
-        ctx.close();
       }
 
       @Test
@@ -313,7 +279,7 @@ class RuntimeMigrationTest {
             .thenReturn(List.of("openbas_amqp.connector.exchange"));
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -329,7 +295,7 @@ class RuntimeMigrationTest {
             .thenReturn(List.of("openaev_amqp.old-stuff.exchange"));
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -346,7 +312,7 @@ class RuntimeMigrationTest {
             .thenReturn(List.of(expectedExchange));
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -360,18 +326,9 @@ class RuntimeMigrationTest {
     @DisplayName("Error handling")
     class ErrorHandling {
 
-      private MockedStatic<TenantContext> ctx;
-
       @BeforeEach
       void setUp() {
-        ctx = mockStatic(TenantContext.class);
-        ctx.when(TenantContext::getCurrentTenant).thenReturn(TENANT_ID);
         stubDefaultTenantDependencies();
-      }
-
-      @AfterEach
-      void tearDown() {
-        ctx.close();
       }
 
       @Test
@@ -386,7 +343,7 @@ class RuntimeMigrationTest {
             .thenThrow(new RuntimeException("connection refused"));
 
         // Act
-        boolean result = migration.doMigrate();
+        boolean result = migration.doMigrate(new Tenant(TENANT_ID));
 
         // Assert
         assertThat(result).isTrue();
@@ -414,7 +371,7 @@ class RuntimeMigrationTest {
       migration =
           new RuntimeMigration(dataPackService) {
             @Override
-            protected boolean doMigrate() {
+            protected boolean doMigrate(Tenant tenant) {
               return doMigrateResult;
             }
           };

@@ -26,6 +26,7 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.SimulationInjectService;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.service.BulkInjectService;
 import io.openaev.service.InjectSearchService;
 import io.openaev.utils.InjectUtils;
@@ -142,9 +143,12 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Iterable<Inject> exerciseInjects(
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
-    return injectRepository.findByExerciseId(exerciseId).stream()
-        .sorted(Inject.executionComparator)
-        .toList();
+    List<Inject> injects =
+        injectRepository.findByExerciseId(exerciseId).stream()
+            .sorted(Inject.executionComparator)
+            .toList();
+    KillChainPhaseInitializer.initializeFromInjects(injects);
+    return injects;
   }
 
   @LogExecutionTime
@@ -206,7 +210,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Iterable<Team> exerciseInjectTeams(
-      @PathVariable String exerciseId, @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findInjectTeamsForSimulation(exerciseId, injectId);
   }
 
@@ -220,7 +224,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Iterable<Communication> exerciseInjectCommunications(
-      @PathVariable String exerciseId, @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findAndAckCommunicationsForSimulation(exerciseId, injectId);
   }
 
@@ -257,15 +261,14 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> createInjectsForExercise(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (createAndSaveInjectList resolves the injector through the v2
-      // tenant-scoped injectors table) — sibling createInjectForExercise already carries this.
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
-    return this.injectService.createAndSaveInjectList(exercise, null, inputs);
+    List<Inject> created = this.injectService.createAndSaveInjectList(exercise, null, inputs);
+    KillChainPhaseInitializer.initializeFromInjects(created);
+    return created;
   }
 
   @PostMapping({
@@ -362,7 +365,8 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
-    return simulationInjectService.updateInjectActivationForSimulation(exerciseId, injectId, input);
+    return hydrateKillChainPhases(
+        simulationInjectService.updateInjectActivationForSimulation(exerciseId, injectId, input));
   }
 
   @PutMapping({
@@ -376,7 +380,8 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public Inject updateInjectTrigger(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
-    return simulationInjectService.triggerInjectForSimulation(exerciseId, injectId);
+    return hydrateKillChainPhases(
+        simulationInjectService.triggerInjectForSimulation(exerciseId, injectId));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -393,7 +398,8 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateStatusInput input) {
-    return simulationInjectService.setInjectStatusForSimulation(exerciseId, injectId, input);
+    return hydrateKillChainPhases(
+        simulationInjectService.setInjectStatusForSimulation(exerciseId, injectId, input));
   }
 
   @PutMapping({
@@ -410,7 +416,8 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectTeamsInput input) {
-    return simulationInjectService.updateInjectTeamsForSimulation(exerciseId, injectId, input);
+    return hydrateKillChainPhases(
+        simulationInjectService.updateInjectTeamsForSimulation(exerciseId, injectId, input));
   }
 
   // -- BULK UPDATE --
@@ -432,10 +439,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @LogExecutionTime
   public List<Inject> bulkUpdateInjectsForSimulation(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @RequestBody @Valid final InjectBulkUpdateInputs input) {
     input.setSimulationOrScenarioId(exerciseId);
-    return bulkInjectService.bulkUpdateWithMonitoring(input);
+    return bulkInjectService.bulkUpdateWithMonitoring(ctx, input);
   }
 
   // -- BULK DELETE --
@@ -457,10 +465,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @LogExecutionTime
   public List<Inject> bulkDeleteInjectsForSimulation(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
     input.setSimulationOrScenarioId(exerciseId);
-    return bulkInjectService.bulkDeleteWithMonitoring(input);
+    return bulkInjectService.bulkDeleteWithMonitoring(ctx, input);
   }
 
   // -- DELETE --
@@ -474,7 +483,14 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public void deleteInject(@PathVariable String exerciseId, @PathVariable String injectId) {
+  public void deleteInject(
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     this.simulationInjectService.deleteInject(exerciseId, injectId);
+  }
+
+  /** See {@link KillChainPhaseInitializer}: hydrate before open-in-view rendering. */
+  private static Inject hydrateKillChainPhases(Inject inject) {
+    KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
+    return inject;
   }
 }

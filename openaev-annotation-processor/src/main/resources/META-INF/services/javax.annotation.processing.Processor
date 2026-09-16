@@ -3,3 +3,4 @@ io.openaev.annotation.processor.NoJakartaTransactionalRule
 io.openaev.annotation.processor.NoTransactionalRule
 io.openaev.annotation.processor.NoRepositoryRule
 io.openaev.annotation.processor.NoWebLayerRule
+io.openaev.annotation.processor.EndpointTxScopeRule

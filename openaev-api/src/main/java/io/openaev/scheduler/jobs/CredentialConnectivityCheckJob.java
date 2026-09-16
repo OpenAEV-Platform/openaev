@@ -2,8 +2,8 @@ package io.openaev.scheduler.jobs;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.secrets.provider.SecretConnectionResult;
-import io.openaev.secrets.service.SecretValidationCandidate;
 import io.openaev.secrets.service.SecretValidationService;
 import io.openaev.service.tenants.TenantService;
 import java.time.Duration;
@@ -78,31 +78,33 @@ public class CredentialConnectivityCheckJob implements Job {
   }
 
   private void validateTenantCredentials(String tenantId, Duration revalidateAfter) {
-    // Phase 1 — transactional read, and provider-side preparation of every probe.
-    List<SecretValidationCandidate> candidates =
+    // Phase 1 — transactional read of credentials due for validation.
+    List<CredentialSecretReference> secretReferencesToValidate =
         tenantTx.execute(
             TxCtx.forTenant(tenantId),
-            () ->
-                secretValidationService.findDueForValidation(tenantId, maxPerRun, revalidateAfter));
+            () -> secretValidationService.findDueForValidation(maxPerRun, revalidateAfter));
 
-    if (candidates.isEmpty()) {
+    if (secretReferencesToValidate.isEmpty()) {
       return;
     }
 
-    // Phase 2 — network calls, no transaction and no DB connection held.
-    Map<String, SecretConnectionResult> results = new LinkedHashMap<>();
-    for (SecretValidationCandidate candidate : candidates) {
-      results.put(candidate.referenceId(), secretValidationService.validate(candidate));
+    // Phase 2 — network connectivity checks.
+    Map<String, SecretConnectionResult> resultsByReferenceId = new LinkedHashMap<>();
+    for (CredentialSecretReference secretReference : secretReferencesToValidate) {
+      resultsByReferenceId.put(
+          secretReference.getId(),
+          secretValidationService.validateConnectivity(tenantId, secretReference));
     }
 
-    // Phase 3 — transactional write, in a fresh scoped transaction.
+    // Phase 3 — persist results in a fresh tenant-scoped transaction.
     int updated =
         tenantTx.execute(
-            TxCtx.forTenant(tenantId), () -> secretValidationService.persistResults(results));
+            TxCtx.forTenant(tenantId),
+            () -> secretValidationService.persistResults(resultsByReferenceId));
 
     log.info(
         "Credential status validation: checked {} credential(s), updated {}, for tenant {}",
-        candidates.size(),
+        secretReferencesToValidate.size(),
         updated,
         tenantId);
   }
