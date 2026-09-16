@@ -28,7 +28,7 @@ public class InMemoryBucketStore implements Store {
     return new Limit(
         key.getSpecification().rps(),
         probe.getRemainingTokens(),
-        Math.ceilDivExact(probe.getNanosToWaitForRefill(), 1_000_000L),
+        Math.ceilDivExact(probe.getNanosToWaitForRefill(), 1_000_000_000L),
         !probe.isConsumed());
   }
 }
