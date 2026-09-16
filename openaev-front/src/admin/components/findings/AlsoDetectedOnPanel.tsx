@@ -21,7 +21,10 @@ import { FINDING_BASE_URL } from '../../../constants/BaseUrls';
 import type { FilterGroup, Finding, FindingSiblingOutput, SearchPaginationInput, TargetSimple } from '../../../utils/api-types';
 import ContractOutputElementType from './ContractOutputElementType';
 
-interface Props { finding: Pick<Finding, 'finding_id' | 'finding_type' | 'finding_value'> }
+interface Props {
+  finding: Pick<Finding, 'finding_id' | 'finding_type' | 'finding_value'>;
+  searchAlsoDetectedOn?: (input: SearchPaginationInput) => Promise<{ data: Page<FindingSiblingOutput> }>;
+}
 
 /**
  * "Also Detected On" panel (finding_triforce_design.md, Task 1): lists every OTHER Finding sharing
@@ -30,7 +33,7 @@ interface Props { finding: Pick<Finding, 'finding_id' | 'finding_type' | 'findin
  * always included (Decision #10), flagged with an "Archived" chip rather than hidden - consistent
  * with the platform's "nothing is ever silently dropped" principle for findings.
  */
-const AlsoDetectedOnPanel = ({ finding }: Props) => {
+const AlsoDetectedOnPanel = ({ finding, searchAlsoDetectedOn: searchAlsoDetectedOnOverride }: Props) => {
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
@@ -58,7 +61,10 @@ const AlsoDetectedOnPanel = ({ finding }: Props) => {
 
   const searchAlsoDetectedOn = (input: SearchPaginationInput): Promise<{ data: Page<FindingSiblingOutput> }> => {
     setLoading(true);
-    return searchFindingsAlsoDetectedOn(finding.finding_id, input).finally(() => setLoading(false));
+    const search = searchAlsoDetectedOnOverride
+      ? searchAlsoDetectedOnOverride(input)
+      : searchFindingsAlsoDetectedOn(finding.finding_id, input);
+    return search.finally(() => setLoading(false));
   };
 
   const headers: Header[] = [

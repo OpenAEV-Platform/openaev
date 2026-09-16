@@ -12,18 +12,17 @@ const CLOUD_PROVIDER_LABELS: Record<string, string> = {
 const formatCloudProvider = (cloudProvider: string) => CLOUD_PROVIDER_LABELS[cloudProvider.toLowerCase()]
   ?? (cloudProvider.charAt(0).toUpperCase() + cloudProvider.slice(1));
 
-// OCSF findings are cloud misconfigurations produced by scanners like Prowler: instead of
-// surfacing the internal contract type name ("OCSF"), show a user-facing "Cloud (AWS)" label
-// built from the provider captured on the finding (see Finding#cloudProvider). Falls back to a
-// generic "Cloud" label when the provider is unknown/missing, and to the regular type mapping
-// for every other finding type.
+// OCSF findings are security misconfigurations produced by scanners like Prowler: instead of
+// surfacing the internal contract type name ("OCSF"), show a user-facing "Misconfig (AWS)" label
+// built from the provider captured on the finding. Falls back to a generic "Misconfig" label when
+// the provider is missing, and to the regular type mapping for every other finding type.
 const getFindingTypeLabel = (
   t: (key: string) => string,
   findingType: string,
   cloudProvider?: string | null,
 ): string => {
   if (findingType === 'ocsf') {
-    return cloudProvider ? `${t('Cloud')} (${formatCloudProvider(cloudProvider)})` : t('Cloud');
+    return cloudProvider ? `${t('Misconfig')} (${formatCloudProvider(cloudProvider)})` : t('Misconfig');
   }
   return t(ContractOutputElementType[findingType as keyof typeof ContractOutputElementType] ?? findingType);
 };
