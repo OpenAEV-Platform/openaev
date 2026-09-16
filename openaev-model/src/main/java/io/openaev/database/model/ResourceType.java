@@ -36,7 +36,6 @@ public enum ResourceType {
   JOB,
   TAG,
   TAG_RULE,
-  MARKING_DEFINITION,
   KILL_CHAIN_PHASE,
   ATTACK_PATTERN,
   ASSET_GROUP,
