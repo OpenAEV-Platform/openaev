@@ -48,6 +48,7 @@ io.openaev.App  # platform-global: seeds the platform_instance / platform_instan
 io.openaev.runner.InitAdminCommandLineRunner  # platform-global: bootstraps the singleton admin User/Token (Base) and attaches them to the default tenant and the platform admin groups with an explicit DEFAULT_TENANT_UUID
 io.openaev.service.tenants.TenantQueueService  # platform-global: enumerates the Tenant registry to declare each tenant's broker queues at startup; infra setup, touches no TenantBase business row
 io.openaev.rest.inject.InjectApi  # platform-global: @PostConstruct only wires the platform inject-trace RabbitMQ queue (DEFAULT_TENANT_UUID) at startup, no TenantBase entity access
+io.openaev.ratelimit.store.StoreProvider  # platform-global: @PostConstruct sets up the rate limit bucket store to avoid concurrency with lazy loading
 
 # --- Config / debug / crypto: config properties, logging, in-memory state, no entity access -------
 io.openaev.config.AuditLogProperties  # touches-no-tenant-table: validates openaev.audit-logs config properties only, no entity access

@@ -8,7 +8,6 @@ import io.openaev.ratelimit.service.RateLimitService;
 import io.openaev.ratelimit.store.Limit;
 import io.openaev.ratelimit.store.request.LimitConsumptionRequest;
 import io.openaev.ratelimit.store.request.LimitSpecification;
-import io.openaev.service.UserService;
 import java.util.Arrays;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class RateLimitAspect {
   private final RateLimitService rateLimitService;
-  private final UserService userService;
   private final RateLimitConfig rateLimitConfig;
 
   @Before("this(io.openaev.rest.helper.RestBehavior)")
@@ -47,6 +45,8 @@ public class RateLimitAspect {
   }
 
   private void doRateLimiting(Long rps, String address) {
+    if (!rateLimitConfig.getEnabled()) return;
+
     LimitSpecification spec = new LimitSpecification(rps);
     LimitConsumptionRequest lcr =
         new LimitConsumptionRequest(
