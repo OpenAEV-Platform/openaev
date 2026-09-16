@@ -195,8 +195,6 @@ test.describe.serial('Infrastructure - chaining', () => {
   });
 
   test('runs an output-triggered action chain and displays the resulting finding', async ({ page, request }) => {
-    test.setTimeout(420_000);
-
     await waitForRegisteredAgent(page, hostname);
     const threatArsenalHelper = new ThreatArsenalHelper(page);
     await threatArsenalHelper.createCommandLinePayload({
@@ -257,13 +255,11 @@ test.describe.serial('Infrastructure - chaining', () => {
       await expect(page.getByTitle(resultToken, { exact: true })).toBeVisible({ timeout: 10_000 });
     }).toPass({
       intervals: [10_000],
-      timeout: 300_000,
+      timeout: 180_000,
     });
   });
 
   test('runs Nmap against the scoped agent endpoint and displays scan findings', async ({ page, request }) => {
-    test.setTimeout(420_000);
-
     await waitForRegisteredAgent(page, hostname);
     const nmapInjectorName = `E2E Nmap ${Date.now()}`;
     const nmapScenarioName = `E2E Nmap Chaining ${Date.now()}`;
@@ -303,7 +299,7 @@ test.describe.serial('Infrastructure - chaining', () => {
       await expect(page.getByText(/portscan|port/i).first()).toBeVisible({ timeout: 10_000 });
     }).toPass({
       intervals: [10_000],
-      timeout: 300_000,
+      timeout: 180_000,
     });
   });
 });
