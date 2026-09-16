@@ -177,12 +177,16 @@ const launchScenario = async (page: Page): Promise<string> => {
 test.describe.serial('Infrastructure - chaining', () => {
   let hostname: string;
   let platform: string;
-  const sourceToken = `chain-source-${Date.now()}`;
-  const resultToken = `chain-result-${Date.now()}`;
-  const sourcePayloadName = `E2E Chain Source ${sourceToken}`;
-  const resultPayloadName = `E2E Chain Result ${resultToken}`;
-  const scenarioName = `E2E Infra Chaining ${sourceToken}`;
-  const triggerName = `Source output received ${sourceToken}`;
+  const runId = Date.now();
+  // Kept out of the payload names: a token embedded in a name also shows up in
+  // headings, edge labels and tooltips, which would make the assertions pass
+  // without the command ever running.
+  const sourceToken = `chainsrc${runId}`;
+  const resultToken = `chainres${runId}`;
+  const sourcePayloadName = `E2E Chain Source ${runId}`;
+  const resultPayloadName = `E2E Chain Result ${runId}`;
+  const scenarioName = `E2E Infra Chaining ${runId}`;
+  const triggerName = `Source output received ${runId}`;
 
   test.beforeAll(async ({ browser }) => {
     const installedAgent = await installAgent(browser);
@@ -247,7 +251,7 @@ test.describe.serial('Infrastructure - chaining', () => {
         name: 'Terminal view',
         exact: true,
       }).click();
-      await expect(page.getByText(resultToken, { exact: false }).first()).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(resultToken).filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
 
       await target.click();
       await expect(page.getByTitle(resultToken, { exact: true })).toBeVisible({ timeout: 10_000 });
