@@ -3,7 +3,7 @@ package io.openaev.service.threat_arsenal;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.payload.PayloadImportService;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorRepository;
@@ -36,15 +36,16 @@ public class ThreatArsenalImportService {
   private final ObjectMapper objectMapper;
   private final InjectorRepository injectorRepository;
 
-  public ThreatArsenalAction importThreatArsenalAction(@NotNull MultipartFile file)
-      throws Exception {
+  public ThreatArsenalAction importThreatArsenalAction(
+      @NotNull TxCtx ctx, @NotNull MultipartFile file, @NotNull String tenantId) throws Exception {
     if (isInjectorContractExport(file)) {
-      return importFromInjectorContract(file);
+      return importFromInjectorContract(file, tenantId);
     }
-    return importFromPayload(file);
+    return importFromPayload(ctx, file);
   }
 
-  private ThreatArsenalAction importFromInjectorContract(MultipartFile file) throws Exception {
+  private ThreatArsenalAction importFromInjectorContract(MultipartFile file, String tenantId)
+      throws Exception {
     ZipJsonService.ImportOutput<InjectorContract> response =
         injectorContractZipJsonApi.handleImport(
             file,
@@ -52,7 +53,7 @@ public class ThreatArsenalImportService {
             null,
             contract -> {
               contract.setId(UUID.randomUUID().toString());
-              contract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+              contract.setTenant(new Tenant(tenantId));
               if (contract.getLabels() != null) {
                 Map<String, String> updatedLabels = new HashMap<>(contract.getLabels());
                 updatedLabels.replaceAll((key, value) -> value + " (Import)");
@@ -67,9 +68,7 @@ public class ThreatArsenalImportService {
               // disabled). Re-link payload-based contracts to the payload-supporting
               // injectors, as synchroniseInjectorContractBasedOnPayload does on creation.
               if (contract.getPayload() != null) {
-                contract.addInjectors(
-                    injectorRepository.findAllByPayloadsAndTenantId(
-                        true, TenantContext.getCurrentTenant()));
+                contract.addInjectors(injectorRepository.findAllByPayloads(true));
               }
               InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
               return contract;
@@ -84,8 +83,8 @@ public class ThreatArsenalImportService {
    * format handled by {@link #importFromInjectorContract(MultipartFile)}. This path will be removed
    * soon.
    */
-  private ThreatArsenalAction importFromPayload(MultipartFile file) throws Exception {
-    PayloadImportService.PayloadImportResult result = payloadImportService.importPayload(file);
+  private ThreatArsenalAction importFromPayload(TxCtx ctx, MultipartFile file) throws Exception {
+    PayloadImportService.PayloadImportResult result = payloadImportService.importPayload(ctx, file);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
   }
 

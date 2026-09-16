@@ -71,10 +71,13 @@ public class DomainService implements DependenciesManager {
     return domainRepository.findAllById(domainIds);
   }
 
+  public Domain upsert(final DomainBaseInput input, final String tenantId) {
+    return this.upsert(input.getName(), input.getColor(), new Tenant(tenantId));
+  }
+
   @Transactional
   public Domain upsert(final DomainBaseInput input) {
-    return this.upsert(
-        input.getName(), input.getColor(), new Tenant(TenantContext.getCurrentTenant()));
+    return this.upsert(input, TenantContext.getCurrentTenant());
   }
 
   @Transactional
@@ -118,7 +121,8 @@ public class DomainService implements DependenciesManager {
 
     Map<String, Domain> existing =
         domainRepository
-            .findByNameIn(domains.stream().map(InjectorContractDomainDTO::getName).collect(toSet()))
+            .findByNameInAndTenantId(
+                domains.stream().map(InjectorContractDomainDTO::getName).collect(toSet()), tenantId)
             .stream()
             .collect(toMap(Domain::getName, Function.identity()));
 
@@ -134,7 +138,7 @@ public class DomainService implements DependenciesManager {
   }
 
   public Domain upsert(final String name, final String color, final Tenant tenant) {
-    Optional<Domain> existingDomain = domainRepository.findByName(name);
+    Optional<Domain> existingDomain = domainRepository.findByNameAndTenantId(name, tenant.getId());
     return existingDomain.orElseGet(
         () -> domainRepository.save(buildSanityDomain(name, color, tenant)));
   }

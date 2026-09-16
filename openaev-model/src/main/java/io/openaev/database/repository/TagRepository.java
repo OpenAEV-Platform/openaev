@@ -24,6 +24,14 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
   @NotNull
   Optional<Tag> findByName(@NotNull final String name);
 
+  /**
+   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does not apply to {@code
+   * findById} (filters never apply to primary-key loads), so callers resolving an id received from
+   * user input (e.g. import files) must use this method to avoid reading another tenant's tag.
+   */
+  @NotNull
+  Optional<Tag> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   @NotNull
   Optional<Tag> findByNameAndTenantId(@NotNull String name, @NotNull String tenantId);
 

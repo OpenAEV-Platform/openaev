@@ -1,0 +1,23 @@
+{
+  "globalTerms": [
+    "ATT&CK",
+    "Caldera",
+    "Chokepoint",
+    "CVE",
+    "CWE",
+    "EDR",
+    "IMAP",
+    "ISPM",
+    "MITRE",
+    "NDR",
+    "OpenAEV",
+    "SIEM",
+    "SMTP",
+    "SOAR",
+    "SSO",
+    "URL",
+    "XDR",
+    "XTM Hub",
+    "XTM One"
+  ]
+}

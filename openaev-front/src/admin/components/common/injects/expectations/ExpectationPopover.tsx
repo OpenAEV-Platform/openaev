@@ -75,6 +75,9 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
       expectation_expiration_time: data.expiration_time_days * 3600 * 24
         + data.expiration_time_hours * 3600
         + data.expiration_time_minutes * 60,
+      // The contract-declared display order is not part of the edit form: carry it through so
+      // editing a predefined expectation (e.g. a phishing step) keeps its place in the chain.
+      expectation_order: expectation.expectation_order,
     };
     handleUpdate(values, index);
     handleCloseEdit();

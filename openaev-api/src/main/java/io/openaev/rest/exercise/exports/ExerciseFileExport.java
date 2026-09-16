@@ -43,6 +43,9 @@ public class ExerciseFileExport extends FileExportBase {
   private List<Objective> objectives;
 
   public List<Objective> getObjectives() {
+    if (!isLessonsEnabled()) {
+      return null;
+    }
     if (objectives == null) {
       return this.exercise == null
           ? new ArrayList<>()
@@ -133,6 +136,10 @@ public class ExerciseFileExport extends FileExportBase {
                           injectorContract -> {
                             if (injectorContract.getPayload() != null) {
                               allTags.addAll(injectorContract.getTags());
+                              injectorContract.getPayload().getOutputParsers().stream()
+                                  .flatMap(parser -> parser.getContractOutputElements().stream())
+                                  .flatMap(element -> element.getTags().stream())
+                                  .forEach(allTags::add);
                             }
                           });
                 });
@@ -211,6 +218,9 @@ public class ExerciseFileExport extends FileExportBase {
   private List<LessonsCategory> lessonsCategories;
 
   public List<LessonsCategory> getLessonsCategories() {
+    if (!isLessonsEnabled()) {
+      return null;
+    }
     if (lessonsCategories == null) {
       return this.exercise == null
           ? new ArrayList<>()
@@ -223,6 +233,9 @@ public class ExerciseFileExport extends FileExportBase {
   private List<LessonsQuestion> lessonsQuestions;
 
   public List<LessonsQuestion> getLessonsQuestions() {
+    if (!isLessonsEnabled()) {
+      return null;
+    }
     if (lessonsQuestions == null) {
       return this.exercise == null
           ? new ArrayList<>()
@@ -282,6 +295,10 @@ public class ExerciseFileExport extends FileExportBase {
       ChallengeService challengeService,
       ArticleService articleService) {
     return new ExerciseFileExport(exercise, objectMapper, challengeService, articleService);
+  }
+
+  private boolean isLessonsEnabled() {
+    return this.exercise != null && this.exercise.isLessonsEnabled();
   }
 
   @Override

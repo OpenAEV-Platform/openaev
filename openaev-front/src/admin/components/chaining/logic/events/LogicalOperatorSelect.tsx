@@ -9,9 +9,10 @@ import type { LogicalOperator } from './event-types';
 interface Props {
   value: LogicalOperator;
   onChange: (value: LogicalOperator) => void;
+  readOnly?: boolean;
 }
 
-const LogicalOperatorSelect: FunctionComponent<Props> = ({ value, onChange }) => {
+const LogicalOperatorSelect: FunctionComponent<Props> = ({ value, onChange, readOnly = false }) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -27,6 +28,7 @@ const LogicalOperatorSelect: FunctionComponent<Props> = ({ value, onChange }) =>
     <>
       <Button
         size="small"
+        disabled={readOnly}
         onClick={handleOpen}
         endIcon={<ArrowDropDown />}
         sx={{
@@ -57,12 +59,14 @@ const LogicalOperatorSelect: FunctionComponent<Props> = ({ value, onChange }) =>
       >
         <MenuItem
           selected={value === 'AND'}
+          disabled={readOnly}
           onClick={() => handleSelect('AND')}
         >
           {t('And')}
         </MenuItem>
         <MenuItem
           selected={value === 'OR'}
+          disabled={readOnly}
           onClick={() => handleSelect('OR')}
         >
           {t('Or')}

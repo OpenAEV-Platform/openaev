@@ -22,6 +22,14 @@ public class HealthCheck {
     NOT_READY,
     EMPTY,
     MANDATORY_CONTENT,
+    /** Asset/IP-centric steps exist but the scope allowlist has no technical entry. */
+    MISSING_TECHNICAL_TARGETS,
+    /** Audience-centric (tabletop) steps exist but the scope allowlist has no team/player entry. */
+    MISSING_AUDIENCE_TARGETS,
+    /** The scope allowlist has technical entries but no step consumes them. */
+    INEFFECTIVE_TECHNICAL_TARGETS,
+    /** The scope allowlist has team/player entries but no step consumes them. */
+    INEFFECTIVE_AUDIENCE_TARGETS,
   }
 
   public enum Type {

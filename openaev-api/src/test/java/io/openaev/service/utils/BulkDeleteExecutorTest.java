@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.BulkOperationContext;
+import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,6 +42,8 @@ class BulkDeleteExecutorTest {
     // The real runner only opens a transaction around the work: execute it directly here.
     when(chunkRunner.call(any()))
         .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(0)).get());
+    when(chunkRunner.call(any(), any()))
+        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
     when(bulkOperationMonitor.start(any(), any(), anyInt())).thenReturn("op-id");
     executor = new BulkDeleteExecutor(chunkRunner, bulkOperationMonitor, entityManager);
   }
@@ -164,6 +167,17 @@ class BulkDeleteExecutorTest {
     assertThat(calls.get(0)).hasSameSizeAs(ids);
     // Inline deletions (transactional tests) are not tracked as massive operations.
     verify(bulkOperationMonitor, never()).start(any(), any(), anyInt());
+  }
+
+  @Test
+  @DisplayName("Given a TxCtx, should open each chunk transaction with that scope")
+  void given_txCtx_shouldForwardScopeToChunkRunner() {
+    TxCtx ctx = TxCtx.forTenant("tenant-1");
+
+    executor.deleteInChunks(ctx, "things", List.of("a"), chunk -> {});
+
+    verify(chunkRunner).call(eq(ctx), any());
+    verify(chunkRunner, never()).call(any());
   }
 
   @Test

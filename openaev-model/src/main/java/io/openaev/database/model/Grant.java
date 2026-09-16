@@ -8,8 +8,10 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
@@ -132,5 +134,24 @@ public class Grant implements Base {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  // -- UTILS --
+
+  public static Optional<Grant> find(final Collection<Grant> grants, final String grantId) {
+    return grants.stream().filter(grant -> grantId.equals(grant.getId())).findFirst();
+  }
+
+  public static Grant of(
+      final GRANT_TYPE name,
+      final Group group,
+      final String resourceId,
+      final GRANT_RESOURCE_TYPE resourceType) {
+    Grant grant = new Grant();
+    grant.setName(name);
+    grant.setGroup(group);
+    grant.setResourceId(resourceId);
+    grant.setGrantResourceType(resourceType);
+    return grant;
   }
 }

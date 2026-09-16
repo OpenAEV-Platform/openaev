@@ -12,7 +12,6 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -37,6 +36,7 @@ import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
@@ -45,7 +45,6 @@ import io.openaev.service.UserService;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.targets.TargetService;
-import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.InjectMapper;
@@ -75,7 +74,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
@@ -104,7 +102,6 @@ public class InjectApi extends RestBehavior {
   private final DocumentService documentService;
   private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
   private final BatchingInjectStatusService batchingInjectStatusService;
-  private final BulkOperationMonitor bulkOperationMonitor;
 
   private final InjectMapper injectMapper;
 
@@ -141,8 +138,11 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public Inject inject(@PathVariable @NotBlank final String injectId) {
-    return this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+  public Inject inject(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
+    Inject inject =
+        this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
+    return inject;
   }
 
   @LogExecutionTime
@@ -150,12 +150,14 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
-      @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
+      TxCtx ctx,
+      @RequestBody @Valid InjectExportFromSearchRequestInput input,
+      HttpServletResponse response)
       throws IOException {
 
     // Control and format inputs
     List<Inject> injects =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.OBSERVER);
+        getInjectsAndCheckInputForBulkProcessing(ctx, input, Grant.GRANT_TYPE.OBSERVER);
 
     if (injects.isEmpty()) {
       throw new ElementNotFoundException("No injects to export");
@@ -174,6 +176,7 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExport(
+      TxCtx ctx,
       @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
       HttpServletResponse response)
       throws IOException {
@@ -221,6 +224,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public void injectsIndividualExport(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @RequestBody @Valid
           final InjectIndividualExportRequestInput injectIndividualExportRequestInput,
@@ -278,8 +282,6 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Page<InjectTarget> injectTargetSearch(
-      // ctx is unused directly: the aspect reads it to scope this transaction against the
-      // v2-active executors table (an AGENT target type reads the agent's executor).
       TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetType,
@@ -325,6 +327,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptions(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetType,
       @RequestParam(required = false) final String searchText) {
@@ -365,7 +368,7 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptionsById(
-      @PathVariable String targetType, @RequestBody final List<String> ids) {
+      TxCtx ctx, @PathVariable String targetType, @RequestBody final List<String> ids) {
     TargetType injectTargetTypeEnum;
 
     try {
@@ -386,11 +389,13 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject injectExecutionReception(
-      @PathVariable String injectId, @Valid @RequestBody InjectReceptionInput input) {
+      TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectReceptionInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
     injectStatus.setName(ExecutionStatus.PENDING);
-    return injectRepository.save(inject);
+    Inject saved = injectRepository.save(inject);
+    KillChainPhaseInitializer.initializeFromInjects(List.of(saved));
+    return saved;
   }
 
   @PostMapping({
@@ -402,10 +407,13 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
+  // TxCtx scopes the transaction so the legacy-ingestion path can reach security_coverages
+  // (v2-activated) through InjectExpectationService's vulnerability verdict / security-coverage
+  // send-job propagation, same as the agent-callback overload below.
   public void injectExecutionCallback(
-      @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
+      TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    injectExecutionCallback(null, injectId, input);
+    doInjectExecutionCallback(ctx, null, injectId, input);
   }
 
   @PostMapping({
@@ -433,12 +441,21 @@ public class InjectApi extends RestBehavior {
             description =
                 "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
       })
+  // TxCtx scopes the transaction so the legacy (non-queued) path can reach security_coverages
+  // (v2-activated), read via InjectExpectationService's vulnerability verdict propagation into
+  // SecurityCoverageSendJobService#shouldCreateCoverageSendJob (exercise.getSecurityCoverage()).
   public void injectExecutionCallback(
+      TxCtx ctx,
       @PathVariable
           String agentId, // must allow null because http injector used also this method to work.
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
+    doInjectExecutionCallback(ctx, agentId, injectId, input);
+  }
+
+  private void doInjectExecutionCallback(
+      TxCtx ctx, String agentId, String injectId, InjectExecutionInput input) throws IOException {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
         && injectTraceQueueService != null) {
       InjectExecutionCallback injectExecutionCallback =
@@ -470,7 +487,9 @@ public class InjectApi extends RestBehavior {
           "This endpoint is invoked by implants to retrieve a payload command that's pre-configured and ready for execution.")
   @Transactional
   public Payload getExecutablePayloadInject(
-      @PathVariable @NotBlank final String injectId, @PathVariable @NotBlank final String agentId)
+      TxCtx ctx,
+      @PathVariable @NotBlank final String injectId,
+      @PathVariable @NotBlank final String agentId)
       throws Exception {
     return executableInjectService.getExecutablePayloadAndUpdateInjectStatus(injectId, agentId);
   }
@@ -529,90 +548,28 @@ public class InjectApi extends RestBehavior {
   @GetMapping({INJECT_URI + "/next", TENANT_INJECT_URI + "/next"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
-  public List<Inject> nextInjectsToExecute(@RequestParam Optional<Integer> size) {
-    return injectRepository.findAll(InjectSpecification.next()).stream()
-        // Keep only injects visible by the user
-        .filter(inject -> inject.getDate().isPresent())
-        .filter(
-            inject ->
-                inject
-                    .getExercise()
-                    .isUserHasAccess(
-                        userRepository
-                            .findById(currentUser().getId())
-                            .orElseThrow(
-                                () -> new ElementNotFoundException("Current user not found"))))
-        // Order by near execution
-        .sorted(Inject.executionComparator)
-        // Keep only the expected size
-        .limit(size.orElse(MAX_NEXT_INJECTS))
-        // Collect the result
-        .toList();
-  }
-
-  @Operation(
-      description = "Bulk update of injects",
-      tags = {"Injects"})
-  // SUPPORTS (not REQUIRED) on purpose: the update itself runs in the service's own transaction,
-  // wrapped in a massive-operation scope (header progress indicator + per-entity stream event
-  // suppression) that must cover the commit-time flush.
-  @Transactional(propagation = Propagation.SUPPORTS)
-  @PutMapping({INJECT_URI, TENANT_INJECT_URI})
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
-  @LogExecutionTime
-  public List<Inject> bulkUpdateInject(@RequestBody @Valid final InjectBulkUpdateInputs input) {
-
-    // Control and format inputs
-    List<Inject> injectsToUpdate =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
-
-    // Bulk update, tracked as a massive operation
-    String operationId = bulkOperationMonitor.start("update", "injects", injectsToUpdate.size());
-    try {
-      List<Inject> updated =
-          BulkOperationContext.runSuppressed(
-              () ->
-                  this.injectService.bulkUpdateInject(
-                      injectsToUpdate, input.getUpdateOperations()));
-      bulkOperationMonitor.complete(operationId);
-      return updated;
-    } catch (RuntimeException e) {
-      bulkOperationMonitor.fail(operationId);
-      throw e;
-    }
-  }
-
-  @Operation(
-      description = "Bulk delete of injects",
-      tags = {"injects-api"})
-  // SUPPORTS (not REQUIRED) on purpose: the deletion itself runs in the service's own
-  // transaction, wrapped in a massive-operation scope (header progress indicator + per-entity
-  // stream event suppression) that must cover the commit-time flush.
-  @Transactional(propagation = Propagation.SUPPORTS)
-  @DeleteMapping({INJECT_URI, TENANT_INJECT_URI})
-  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.INJECT)
-  @LogExecutionTime
-  public List<Inject> bulkDelete(@RequestBody @Valid final InjectBulkProcessingInput input) {
-
-    // Control and format inputs
-    List<Inject> injectsToDelete =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
-
-    // Bulk delete, tracked as a massive operation
-    String operationId = bulkOperationMonitor.start("delete", "injects", injectsToDelete.size());
-    try {
-      List<String> injectIds = injectsToDelete.stream().map(Inject::getId).toList();
-      BulkOperationContext.runSuppressed(
-          () -> {
-            this.injectService.deleteAllByIds(injectIds);
-            return null;
-          });
-      bulkOperationMonitor.complete(operationId);
-    } catch (RuntimeException e) {
-      bulkOperationMonitor.fail(operationId);
-      throw e;
-    }
-    return injectsToDelete;
+  public List<Inject> nextInjectsToExecute(TxCtx ctx, @RequestParam Optional<Integer> size) {
+    List<Inject> next =
+        injectRepository.findAll(InjectSpecification.next()).stream()
+            // Keep only injects visible by the user
+            .filter(inject -> inject.getDate().isPresent())
+            .filter(
+                inject ->
+                    inject
+                        .getExercise()
+                        .isUserHasAccess(
+                            userRepository
+                                .findById(currentUser().getId())
+                                .orElseThrow(
+                                    () -> new ElementNotFoundException("Current user not found"))))
+            // Order by near execution
+            .sorted(Inject.executionComparator)
+            // Keep only the expected size
+            .limit(size.orElse(MAX_NEXT_INJECTS))
+            // Collect the result
+            .toList();
+    KillChainPhaseInitializer.initializeFromInjects(next);
+    return next;
   }
 
   // -- OPTION --
@@ -621,6 +578,7 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsByTitleLinkedToFindings(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
     return injectService.getOptionsByNameLinkedToFindings(
@@ -630,7 +588,7 @@ public class InjectApi extends RestBehavior {
   @PostMapping({INJECT_URI + "/options", TENANT_INJECT_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.injectRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getTitle()))
         .toList();
@@ -645,7 +603,7 @@ public class InjectApi extends RestBehavior {
    * @throws BadRequestException If the input is not correctly formatted
    */
   private List<Inject> getInjectsAndCheckInputForBulkProcessing(
-      InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     if ((CollectionUtils.isEmpty(input.getInjectIDsToProcess())
             && (input.getSearchPaginationInput() == null))
@@ -657,7 +615,7 @@ public class InjectApi extends RestBehavior {
 
     // Retrieve injects that match the search input and check that the user is allowed to bulk
     // process them
-    return this.injectService.getInjectsAndCheckPermission(input, requested_grant_level);
+    return this.injectService.getInjectsAndCheckPermission(ctx, input, requested_grant_level);
   }
 
   // -- Execution Traces
@@ -672,6 +630,7 @@ public class InjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public List<ExecutionTraceOutput> getInjectTracesFromInjectAndTarget(
+      TxCtx ctx,
       @RequestParam String injectId,
       @RequestParam String targetId,
       @RequestParam TargetType targetType) {
@@ -688,7 +647,7 @@ public class InjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(
-      @RequestParam String injectId) {
+      TxCtx ctx, @RequestParam String injectId) {
     return this.injectService.getInjectStatusWithGlobalExecutionTraces(injectId);
   }
 
@@ -703,7 +662,8 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   @LogExecutionTime
-  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(@RequestParam String injectId) {
+  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(
+      TxCtx ctx, @RequestParam String injectId) {
     return this.injectService.getInjectStatusWithAllExecutionTraces(injectId);
   }
 
@@ -718,7 +678,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<DetectionRemediationOutput> getPayloadDetectionRemediations(
-      @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String injectId) {
     return payloadMapper.toDetectionRemediationOutputs(
         injectService.fetchDetectionRemediationsByInjectId(injectId));
   }
@@ -734,7 +694,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
-      @PathVariable String injectId, @PathVariable String payloadId) {
+      TxCtx ctx, @PathVariable String injectId, @PathVariable String payloadId) {
     Payload payload = injectService.getPayloadByInjectId(injectId);
 
     if (!payloadId.equals(payload.getId())) {

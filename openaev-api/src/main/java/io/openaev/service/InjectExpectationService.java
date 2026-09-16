@@ -3,20 +3,14 @@ package io.openaev.service;
 import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.EXPECTATIONS_VULNERABILITY_COLLECTOR_ID;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
-import static io.openaev.expectation.ManualExpectation.manualExpectationForAssetGroup;
-import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAssetGroup;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.InjectExpectationUtils.computeScores;
-import static io.openaev.service.InjectExpectationUtils.expectationConverter;
-import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
 import static io.openaev.utils.ExpectationUtils.*;
-import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAssetGroup;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.*;
 import static java.time.Instant.now;
 
@@ -36,27 +30,21 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.DetectionExpectation;
-import io.openaev.expectation.Expectation;
-import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.expectation.ExpectationType;
-import io.openaev.expectation.ManualExpectation;
-import io.openaev.expectation.PreventionExpectation;
-import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.injectors.common.model.BaseInjectContent;
+import io.openaev.model.inject.form.Expectation;
 import io.openaev.output_processor.CVEOutputProcessor;
 import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
-import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.expectation.ExpectationBehavior;
+import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import io.openaev.utils.TargetType;
-import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -82,8 +70,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class InjectExpectationService {
 
-  public static final String SUCCESS = "Success";
-  public static final String PENDING = "Pending";
   public static final String COLLECTOR = "collector";
   public static final String SECURITY_PLATFORM = "security-platform";
 
@@ -96,77 +82,73 @@ public class InjectExpectationService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final CollectorService collectorService;
   private final SecurityPlatformRepository securityPlatformRepository;
-  @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final InjectExpectationLockService injectExpectationLockService;
-  private final AssetGroupService assetGroupService;
   private final InjectService injectService;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final Optional<AuditLogger> auditLogger;
 
   @Resource protected ObjectMapper mapper;
 
-  private final List<ExpectationBehavior> behaviors;
+  private final ExpectationBehaviorResolver expectationBehaviorResolver;
 
-  private ExpectationBehavior resolveFor(BaseInjectExpectation expectation) {
-    return behaviors.stream()
-        .filter(b -> b.supports(expectation))
-        .findFirst()
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "No behavior found for " + expectation.getClass().getSimpleName()));
-  }
-
-  // -- BEHAVIOR-BASED EXPECTATION CREATION --
+  // -- BEHAVIOR-BASED EXPECTATION CREATION/UPDATE --
 
   /**
-   * Creates and persists inject expectations for each target and for each kind of expectations
+   * Computes and saves expectations for a given executable inject, based on the expectations
+   * defined in its content and an optional implant type.
    *
-   * <p>Dead code — not wired into any executor yet. Part of the {@code InjectExpectation}
-   * refactoring (Vertical 2).
-   *
-   * @param executableInject the executable inject to process
-   * @throws JsonProcessingException if the inject content cannot be parsed
+   * @param executableInject the executable inject for which to compute expectations
+   * @param implantType the type of implant, if applicable (nullable)
+   * @throws JsonProcessingException
    */
-  @Transactional(rollbackFor = Exception.class)
-  public void computeAndSaveExpectationsUsingBehaviors(
-      ExecutableInject executableInject,
-      List<Expectation> expectationsFromInjectContent,
-      @Nullable String implantType)
+  public void computeAndSaveExpectations(
+      ExecutableInject executableInject, @Nullable String implantType)
       throws JsonProcessingException {
+    BaseInjectContent content = contentConvert(executableInject, BaseInjectContent.class);
+    computeAndSaveExpectations(
+        executableInject, content != null ? content.getExpectations() : null, implantType);
+  }
 
-    if (expectationsFromInjectContent.isEmpty()) {
+  /**
+   * Computes and saves expectations for a given executable inject, based on the provided content
+   * expectations and implant type.
+   *
+   * @param executableInject the executable inject for which to compute expectations
+   * @param contentExpectations the list of content-form expectations to process
+   * @param implantType the type of implant, if applicable (nullable)
+   */
+  public void computeAndSaveExpectations(
+      ExecutableInject executableInject,
+      List<Expectation> contentExpectations,
+      @Nullable String implantType) {
+    if (contentExpectations == null || contentExpectations.isEmpty()) {
       return;
     }
 
-    List<BaseInjectExpectation> injectExpectationsToApply =
-        expectationsFromInjectContent.stream()
-            .map(
-                expectation ->
-                    expectationConverter(
-                        executableInject, expectation, expectationPropertiesConfig))
-            .toList();
+    Exercise exercise = executableInject.getInjection().getExercise();
+    Inject inject = executableInject.getInjection().getInject();
 
-    injectExpectationsToApply.forEach(
-        expectationTemplate -> {
-          ExpectationBehavior behavior = resolveFor(expectationTemplate);
+    contentExpectations.forEach(
+        entry -> {
+          ExpectationBehavior<BaseInjectExpectation> behavior =
+              expectationBehaviorResolver.resolveForForm(entry, inject);
+          BaseInjectExpectation template =
+              behavior.convertFormExpectationToBaseInjectExpectation(entry, exercise, inject);
           behavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-              executableInject, expectationTemplate, implantType);
+              executableInject, template, implantType);
         });
   }
 
   /**
-   * Updates an inject expectation
+   * Updates an inject expectation using behavior-based logic, applying the provided input to the
+   * expectation and its related leaves and parents.
    *
-   * <p>Dead code — not wired into any executor yet. Part of the {@code InjectExpectation}
-   * refactoring (Vertical 2).
-   *
-   * @param expectationId
-   * @param input
-   * @return
+   * @param expectationId the ID of the expectation to update
+   * @param input the update input containing the new data
+   * @return the updated inject expectation
+   * @throws ElementNotFoundException if no expectation is found with the given ID
    */
-  @Transactional(rollbackFor = Exception.class)
   public BaseInjectExpectation updateInjectExpectationUsingBehaviors(
       @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
     BaseInjectExpectation injectExpectation = this.findInjectExpectation(expectationId);
@@ -174,7 +156,8 @@ public class InjectExpectationService {
       throw new ElementNotFoundException("Inject expectation not found for id: " + expectationId);
     }
 
-    ExpectationBehavior behavior = resolveFor(injectExpectation);
+    ExpectationBehavior<BaseInjectExpectation> behavior =
+        expectationBehaviorResolver.resolveFor(injectExpectation);
     List<? extends BaseInjectExpectation> updatedLeaves =
         behavior.applyResultToLeaves(injectExpectation, input);
     List<? extends BaseInjectExpectation> updatedParents =
@@ -186,6 +169,8 @@ public class InjectExpectationService {
 
     return injectExpectation;
   }
+
+  // -- END BEHAVIOR-BASED EXPECTATION CREATION/UPDATE --
 
   // -- CRUD --
 
@@ -254,32 +239,12 @@ public class InjectExpectationService {
                 // EXPECTATION_TYPE.* wildcard one, hence the qualified reference.
                 BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)
             .contains(baseInjectExpectation.getType())) {
-      // Block down computation on asset group
-      if (isAssetGroupExpectation(technicalExpectation)) {
-        throw new IllegalArgumentException("Not possible to update Asset Group directly");
-      }
-      // Allow down computation on asset. Non-endpoint assets (AI targets, ...) have no agents and
-      // are treated as agentless.
-      Asset unproxied = (Asset) Hibernate.unproxy(technicalExpectation.getAsset());
-      List<Agent> agents =
-          (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
-      boolean isAgentless = agents.isEmpty();
-      if (isAssetExpectation(technicalExpectation) && !isAgentless) {
-        List<TechnicalInjectExpectation> expectationsForAgents =
-            getAgentsExpectationsForAsset(technicalExpectation);
-        expectationsForAgents.forEach(
-            e -> computeInjectExpectationForAgentOrAssetAgentless(e, input));
-        this.injectExpectationRepository.saveAll(expectationsForAgents);
-        propagateTechnicalExpectation(technicalExpectation, isAgentless, null);
-        return technicalExpectation;
-        // Computation on agent or asset agentless
-      } else {
-        computeInjectExpectationForAgentOrAssetAgentless(technicalExpectation, input);
-        TechnicalInjectExpectation updated =
-            this.injectExpectationRepository.save(technicalExpectation);
-        propagateTechnicalExpectation(updated, isAgentless, null);
-        return updated;
-      }
+
+      BaseInjectExpectation updated = updateInjectExpectationUsingBehaviors(expectationId, input);
+      List<Exercise> exercises = new ArrayList<>();
+      exercises.add(updated.getInject().getExercise());
+      securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
+      return updated;
     }
     return baseInjectExpectation;
   }
@@ -464,25 +429,6 @@ public class InjectExpectationService {
   }
 
   // -- TECHNICAL --
-
-  /**
-   * Computes a technical expectation for an agent or agentless asset
-   *
-   * @param baseInjectExpectation the expectation to compute
-   * @param input the update input containing the score
-   */
-  private void computeInjectExpectationForAgentOrAssetAgentless(
-      @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput input) {
-    String result =
-        ExpectationType.label(
-            baseInjectExpectation.getType(),
-            baseInjectExpectation.getExpectedScore(),
-            input.getScore());
-    addResult(baseInjectExpectation, input, result);
-    final Double score = computeScore(baseInjectExpectation.getResults(), baseInjectExpectation);
-    baseInjectExpectation.setScore(score);
-  }
 
   /**
    * Propagates a technical expectation update up the hierarchy (agent to asset to asset group).
@@ -1234,8 +1180,7 @@ public class InjectExpectationService {
       return mergeExpectationResultsByExpectationType(
           switch (targetTypeEnum) {
             case TEAMS, ASSETS_GROUPS ->
-                this.findMergedExpectationsByInjectAndTargetAndTargetType(
-                    injectId, targetId, "not applicable", targetType);
+                this.findExpectationsByInjectAndTargetAndTargetType(injectId, targetId, targetType);
             case PLAYERS ->
                 injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
             case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
@@ -1255,18 +1200,19 @@ public class InjectExpectationService {
   }
 
   /**
-   * Finds expectations by inject, target, parent target, and target type.
+   * Finds expectations by inject, target, and target type, enriching asset and asset-group
+   * expectations with their agents'/children's security-platform results for display (unlike {@link
+   * #findMergedExpectationsByInjectAndTargetAndTargetType(String, String, String)}, results are NOT
+   * merged across expectations of the same type).
    *
    * @param injectId the inject ID
    * @param targetId the target ID
-   * @param parentTargetId the parent target ID (e.g., team ID for players)
    * @param targetType the type of target (TEAMS, PLAYERS, AGENT, ASSETS, ASSETS_GROUPS)
    * @return a list of matching expectations
    */
-  public List<? extends BaseInjectExpectation> findMergedExpectationsByInjectAndTargetAndTargetType(
+  public List<? extends BaseInjectExpectation> findExpectationsByInjectAndTargetAndTargetType(
       @NotBlank final String injectId,
       @NotBlank final String targetId,
-      @NotBlank final String parentTargetId,
       @NotBlank final String targetType) {
     try {
       TargetType targetTypeEnum = TargetType.valueOf(targetType);
@@ -1289,7 +1235,7 @@ public class InjectExpectationService {
             throw new RuntimeException(
                 "Target type "
                     + targetType
-                    + " not implemented for this method findMergedExpectationsByInjectAndTargetAndTargetType");
+                    + " not implemented for this method findExpectationsByInjectAndTargetAndTargetType");
       };
     } catch (IllegalArgumentException e) {
       return Collections.emptyList();
@@ -1699,8 +1645,20 @@ public class InjectExpectationService {
   /**
    * Merges expectation results by expectation type, keeping one expectation per type.
    *
-   * <p>Results from collector sources are not copied to the merged expectation. The score is set to
-   * the maximum score among all results.
+   * <p>Display-only: when several expectations share a type (e.g. the three phishing steps, all
+   * MANUAL), the merge is built on a DETACHED clone of the first expectation. The inputs are
+   * managed entities on an open session, so mutating them here would flush the merged results and
+   * score back to the database on commit - every read of a results page would then re-append the
+   * sibling rows' results into the elected row (unbounded JSONB growth, requests eventually
+   * exceeding the connection-leak threshold and exhausting the pool) and overwrite its persisted
+   * score.
+   *
+   * <p>Collector-source results of the SIBLING expectations are not copied onto the merged clone;
+   * the elected expectation's own results (collector ones included) are kept as-is. The merged
+   * score is the worst (minimum) score among the answered same-type expectations: a target
+   * validates a type only if every expectation of that type validated it, so e.g. one compromised
+   * phishing step keeps the merged human-response verdict red even when the other steps were
+   * resisted.
    *
    * @param expectations the list of expectations to merge
    * @return a list with one expectation per type containing merged results
@@ -1709,37 +1667,40 @@ public class InjectExpectationService {
       List<? extends BaseInjectExpectation> expectations) {
     List<String> notCopiedSourceTypes = List.of(COLLECTOR);
 
-    HashMap<BaseInjectExpectation.EXPECTATION_TYPE, BaseInjectExpectation> electedExpectations =
-        new HashMap<>();
+    Map<BaseInjectExpectation.EXPECTATION_TYPE, List<BaseInjectExpectation>> byType =
+        new LinkedHashMap<>();
     for (BaseInjectExpectation expectation : expectations) {
-      if (!electedExpectations.containsKey(expectation.getType())) {
-        electedExpectations.put(expectation.getType(), expectation);
+      byType.computeIfAbsent(expectation.getType(), k -> new ArrayList<>()).add(expectation);
+    }
+
+    List<BaseInjectExpectation> merged = new ArrayList<>(byType.size());
+    for (List<BaseInjectExpectation> sameType : byType.values()) {
+      BaseInjectExpectation elected = sameType.get(0);
+      if (sameType.size() == 1) {
+        merged.add(elected);
         continue;
       }
-
-      for (InjectExpectationResult expectationResult : expectation.getResults()) {
-        if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
-            && expectationResult.getResult() != null
-            && expectationResult.getScore() != null) {
-          electedExpectations
-              .get(expectation.getType())
-              .setResults(
-                  Stream.concat(
-                          electedExpectations.get(expectation.getType()).getResults().stream(),
-                          Stream.of(expectationResult))
-                      .toList());
-          electedExpectations
-              .get(expectation.getType())
-              .setScore(
-                  electedExpectations.get(expectation.getType()).getResults().stream()
-                      .map(InjectExpectationResult::getScore)
-                      .filter(Objects::nonNull)
-                      .max(Double::compareTo)
-                      .orElse(null));
+      BaseInjectExpectation clone = elected.clone();
+      List<InjectExpectationResult> combinedResults = new ArrayList<>(elected.getResults());
+      for (BaseInjectExpectation other : sameType.subList(1, sameType.size())) {
+        for (InjectExpectationResult expectationResult : other.getResults()) {
+          if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
+              && expectationResult.getResult() != null
+              && expectationResult.getScore() != null) {
+            combinedResults.add(expectationResult);
+          }
         }
       }
+      clone.setResults(combinedResults);
+      clone.setScore(
+          sameType.stream()
+              .map(BaseInjectExpectation::getScore)
+              .filter(Objects::nonNull)
+              .min(Double::compareTo)
+              .orElse(null));
+      merged.add(clone);
     }
-    return electedExpectations.values().stream().toList();
+    return merged;
   }
 
   /**
@@ -1751,284 +1712,6 @@ public class InjectExpectationService {
   public Set<String> findDistinctInjectIdsByInjectExpectationIds(Set<String> expectationIds) {
     return this.injectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(
         expectationIds);
-  }
-
-  // -- BUILD AND SAVE INJECT EXPECTATION --
-
-  /**
-   * Builds and saves inject expectations for an executable inject.
-   *
-   * <p>Creates expectations for teams, players, assets, and asset groups based on the inject
-   * configuration. For scheduled injects or atomic testing, expectations are created for all
-   * enabled players in each team.
-   *
-   * @param executableInject the inject to create expectations for
-   * @param expectations the list of expectation definitions
-   */
-  @Transactional
-  public void buildAndSaveInjectExpectations(
-      ExecutableInject executableInject, List<Expectation> expectations) {
-    doBuildAndSaveInjectExpectations(executableInject, expectations);
-  }
-
-  private void doBuildAndSaveInjectExpectations(
-      ExecutableInject executableInject, List<Expectation> expectations) {
-    if (expectations == null || expectations.isEmpty()) {
-      return;
-    }
-
-    final boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
-    final boolean isScheduledInject = !executableInject.isDirect();
-    final boolean isChainingExecution = executableInject.isChainingExecution();
-
-    if (!isScheduledInject && !isAtomicTesting && !isChainingExecution) {
-      return;
-    }
-
-    // Create the expectations
-    final List<Team> teams = executableInject.getTeams();
-    final List<Asset> assets = executableInject.getAssets();
-    final List<AssetGroup> assetGroups = executableInject.getAssetGroups();
-
-    List<BaseInjectExpectation> injectExpectations = new ArrayList<>();
-    if (!teams.isEmpty()) {
-      List<BaseInjectExpectation> injectExpectationsByUserAndTeam;
-      // If atomicTesting, We create expectation for every player and every team
-      if (isAtomicTesting) {
-        injectExpectations =
-            teams.stream()
-                .flatMap(
-                    team ->
-                        expectations.stream()
-                            .map(
-                                expectation ->
-                                    expectationConverter(
-                                        team,
-                                        executableInject,
-                                        expectation,
-                                        expectationPropertiesConfig)))
-                .collect(Collectors.toList());
-
-        injectExpectationsByUserAndTeam =
-            teams.stream()
-                .flatMap(
-                    team ->
-                        team.getUsers().stream()
-                            .flatMap(
-                                user ->
-                                    expectations.stream()
-                                        .map(
-                                            expectation ->
-                                                expectationConverter(
-                                                    team,
-                                                    user,
-                                                    executableInject,
-                                                    expectation,
-                                                    expectationPropertiesConfig))))
-                .toList();
-      } else {
-        final String exerciseId = executableInject.getInjection().getExercise().getId();
-        // Create expectations for every enabled player in every team
-        injectExpectationsByUserAndTeam =
-            teams.stream()
-                .flatMap(
-                    team ->
-                        team.getExerciseTeamUsers().stream()
-                            .filter(
-                                exerciseTeamUser ->
-                                    exerciseTeamUser.getExercise().getId().equals(exerciseId))
-                            .flatMap(
-                                exerciseTeamUser ->
-                                    expectations.stream()
-                                        .map(
-                                            expectation ->
-                                                expectationConverter(
-                                                    team,
-                                                    exerciseTeamUser.getUser(),
-                                                    executableInject,
-                                                    expectation,
-                                                    expectationPropertiesConfig))))
-                .toList();
-
-        // Create a set of teams that have at least one enabled player
-        Set<Team> teamsWithEnabledPlayers =
-            injectExpectationsByUserAndTeam.stream()
-                .map(TableTopInjectExpectation.class::cast)
-                .map(TableTopInjectExpectation::getTeam)
-                .collect(Collectors.toSet());
-
-        // Add only the expectations where the team has at least one enabled player
-        injectExpectations =
-            teamsWithEnabledPlayers.stream()
-                .flatMap(
-                    team ->
-                        expectations.stream()
-                            .map(
-                                expectation ->
-                                    expectationConverter(
-                                        team,
-                                        executableInject,
-                                        expectation,
-                                        expectationPropertiesConfig)))
-                .collect(Collectors.toList());
-      }
-      injectExpectations.addAll(injectExpectationsByUserAndTeam);
-    } else if (!assets.isEmpty()
-        || !assetGroups.isEmpty()
-        || expectations.stream().anyMatch(InjectExpectationService::carriesOwnTarget)) {
-      // Technical expectations carry their own asset / asset group (they were built from the
-      // resolved AssetToExecute list, which includes content-referenced AI targets that are NOT
-      // attached to the inject as an asset / asset group relation). Gating only on the inject's
-      // asset / group relations dropped every AI Red Team expectation on the floor - an AI target
-      // reached through content.ai_target produced zero expectation rows. Convert whenever at
-      // least one computed expectation carries a target of its own, regardless of how that target
-      // was attached - but keep skipping target-less expectations (e.g. a manual email expectation
-      // executed directly with no team), which have nothing to attach to.
-      injectExpectations =
-          expectations.stream()
-              .map(
-                  expectation ->
-                      expectationConverter(
-                          executableInject, expectation, expectationPropertiesConfig))
-              .collect(Collectors.toList());
-    }
-
-    if (!injectExpectations.isEmpty()) {
-      String tenantId = executableInject.getInjection().getInject().getTenant().getId();
-      setupDefaultExpectationResults(injectExpectations, tenantId);
-      injectExpectationRepository.saveAll(injectExpectations);
-    }
-  }
-
-  /**
-   * Whether a computed expectation carries its own validation target (asset or asset group), i.e.
-   * it can be persisted even when the inject has no asset / asset group relation - the case of
-   * content-referenced AI targets.
-   */
-  private static boolean carriesOwnTarget(Expectation expectation) {
-    return switch (expectation) {
-      case DetectionExpectation e -> e.getAsset() != null || e.getAssetGroup() != null;
-      case PreventionExpectation e -> e.getAsset() != null || e.getAssetGroup() != null;
-      case VulnerabilityExpectation e -> e.getAsset() != null || e.getAssetGroup() != null;
-      default -> false;
-    };
-  }
-
-  /**
-   * Initializes the result field for each BaseInjectExpectation in the given list.
-   *
-   * <p>Correct initialization is critical: a simulation is considered finished when all
-   * BaseInjectExpectation.results.result entries have a non-null result value.
-   *
-   * <p>For technical expectations (PREVENTION, DETECTION, VULNERABILITY), results are only set when
-   * an agent is assigned
-   *
-   * <p>So in this function for all expected result we will set
-   * BaseInjectExpectation.results[*].result = null
-   *
-   * @param injectExpectations the list of expectations to initialize
-   * @param tenantId the tenant ID to scope collector lookup
-   */
-  private void setupDefaultExpectationResults(
-      @NotNull final List<BaseInjectExpectation> injectExpectations,
-      @NotBlank final String tenantId) {
-    List<Collector> collectors = collectorService.securityPlatformCollectors(tenantId);
-
-    injectExpectations.forEach(
-        ie -> {
-          if (ie instanceof TechnicalInjectExpectation tech) {
-            if (tech.getAgent() == null) {
-              return;
-            }
-            if (ie instanceof PreventionInjectExpectation
-                || ie instanceof DetectionInjectExpectation) {
-              // Focus the pending results on the collectors of the expected security platform
-              // types only. Empty/null = every connected security platform (legacy behaviour).
-              List<Collector> expectedCollectors =
-                  filterCollectorsForExpectation(collectors, tech.getExpectedSecurityPlatforms());
-              applyExpirationOrderingGuarantee(tech, expectedCollectors);
-              ie.setResults(setUpFromCollectors(expectedCollectors));
-            } else if (ie instanceof VulnerabilityInjectExpectation) {
-              ie.setResults(List.of(buildDefaultForVulnerabilityManagerInFailed()));
-            }
-
-          } else if (ie instanceof TableTopInjectExpectation tableTop) {
-            if (tableTop.getUser() == null) {
-              return;
-            }
-            if (ie instanceof ManualInjectExpectation) {
-              ie.setResults(List.of(buildDefaultForPlayerManualValidation()));
-            } else if (ie instanceof ChallengeInjectExpectation) {
-              // TODO : The UI needs to be fixed: when the score and result are initialized to
-              // null, the user can no longer validate the flag.
-              // ie.setResults(List.of(ChallengeExpectationUtils.buildDefaultChallengeInjectExpectationResult()));
-            } else if (ie instanceof ArticleInjectExpectation) {
-              ie.setResults(List.of(buildDefaultForMediaPressure()));
-            }
-          }
-        });
-  }
-
-  /**
-   * Restricts the tenant's security-platform collectors to those matching an expectation's expected
-   * platform types. When the expectation declares no expected type, every collector is kept (legacy
-   * behaviour). Expected types that have no connected collector are logged so the misconfiguration
-   * is visible instead of the expectation silently hanging until expiration.
-   *
-   * @param collectors all connected security-platform collectors of the tenant
-   * @param expectedTypes the expectation's expected security platform types (may be null/empty)
-   * @return the collectors expected to answer this expectation
-   */
-  static List<Collector> filterCollectorsForExpectation(
-      final List<Collector> collectors,
-      final List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes) {
-    if (expectedTypes == null || expectedTypes.isEmpty()) {
-      return collectors;
-    }
-    List<Collector> matching =
-        collectors.stream()
-            .filter(
-                c ->
-                    c.getSecurityPlatform() != null
-                        && expectedTypes.contains(
-                            c.getSecurityPlatform().getSecurityPlatformType()))
-            .toList();
-    Set<SecurityPlatform.SECURITY_PLATFORM_TYPE> connectedTypes =
-        collectors.stream()
-            .map(Collector::getSecurityPlatform)
-            .filter(Objects::nonNull)
-            .map(SecurityPlatform::getSecurityPlatformType)
-            .collect(Collectors.toSet());
-    expectedTypes.stream()
-        .filter(type -> !connectedTypes.contains(type))
-        .forEach(
-            type ->
-                log.warn(
-                    "Expectation expects security platform type {} but no connected collector of that type exists; it will only be finalized by the expiration manager",
-                    type));
-    return matching;
-  }
-
-  /**
-   * Expiration ordering guarantee: when specific security platforms are expected, make sure the
-   * expectation's expiration is long enough for the real collectors to answer first (at least two
-   * of their poll cycles), so the expiration manager only ever acts as a fallback for genuinely
-   * unanswered expectations.
-   *
-   * @param expectation the technical expectation being seeded
-   * @param expectedCollectors the collectors expected to answer it
-   */
-  static void applyExpirationOrderingGuarantee(
-      final TechnicalInjectExpectation expectation, final List<Collector> expectedCollectors) {
-    if (expectedCollectors.isEmpty()) {
-      return;
-    }
-    long maxPeriodSeconds =
-        expectedCollectors.stream().mapToLong(Collector::getPeriod).max().orElse(0L);
-    long floor = maxPeriodSeconds * 2L;
-    if (expectation.getExpirationTime() == null || expectation.getExpirationTime() < floor) {
-      expectation.setExpirationTime(floor);
-    }
   }
 
   /**

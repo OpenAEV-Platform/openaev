@@ -1,4 +1,7 @@
+import { z } from 'zod';
+
 import type { ConditionCreateInput } from '../../../../../utils/api-types';
+
 export type ConditionKeyType = string;
 
 /** 'admin_username' → 'Admin username' */
@@ -19,6 +22,87 @@ export const UNARY_OPERATORS: ComparisonOperator[] = ['IS_NULL', 'IS_NOT_NULL'];
 
 // Operators where case sensitivity is relevant
 export const CASE_SENSITIVE_OPERATORS: ComparisonOperator[] = ['EQ', 'NEQ', 'IN', 'NIN'];
+
+// Operators the backend evaluates numerically (see ConditionUtils#handleNumericComparison):
+// a non-numeric expected value can never match, so it must be rejected at input time.
+export const NUMERIC_OPERATORS: ComparisonOperator[] = ['GT', 'GTE', 'LT', 'LTE'];
+
+// PrimitiveType labels (backend enum) that only ever hold numeric values
+export const NUMERIC_FIELD_TYPES: ConditionKeyType[] = ['number', 'port'];
+
+export const ORDERED_FIELD_TYPES: ConditionKeyType[] = [...NUMERIC_FIELD_TYPES, 'severity'];
+
+export const isNumericField = (field: ConditionKeyType): boolean => NUMERIC_FIELD_TYPES.includes(field);
+
+export const supportsOrdering = (field: ConditionKeyType): boolean => ORDERED_FIELD_TYPES.includes(field);
+
+/** Operators offered for a given field: ordering comparisons are hidden on non-numeric fields. */
+export const getAvailableOperators = (field: ConditionKeyType): ComparisonOperator[] =>
+  COMPARISON_OPERATORS.filter(operator => supportsOrdering(field) || !NUMERIC_OPERATORS.includes(operator));
+
+/** Falls back to the first available operator when the current one is not valid for the field. */
+export const resolveOperator = (
+  field: ConditionKeyType,
+  operator: ComparisonOperator,
+): ComparisonOperator => {
+  const available = getAvailableOperators(field);
+  return available.includes(operator) ? operator : available[0];
+};
+
+/** A value must be numeric when either the inspected field or the operator is numeric. */
+export const requiresNumericValue = (
+  field: ConditionKeyType,
+  operator: ComparisonOperator,
+): boolean => !UNARY_OPERATORS.includes(operator)
+  && (isNumericField(field) || NUMERIC_OPERATORS.includes(operator));
+
+// -- Expected value validation --
+export const CONDITION_VALUE_ERRORS = {
+  required: 'This field is required.',
+  number: 'The value should be a number',
+} as const;
+
+const NUMBER_PATTERN = /^-?\d+(?:\.\d+)?$/;
+
+/**
+ * Builds the zod schema validating the "Expected Value" of a single condition.
+ * The rules depend on the inspected field and on the selected operator.
+ */
+export const buildConditionValueSchema = (
+  field: ConditionKeyType,
+  operator: ComparisonOperator,
+) => z.string().superRefine((rawValue, ctx) => {
+  // Unary operators (IS_NULL / IS_NOT_NULL) take no value
+  if (UNARY_OPERATORS.includes(operator)) return;
+
+  const value = rawValue.trim();
+  if (!value) {
+    ctx.addIssue({
+      code: 'custom',
+      message: CONDITION_VALUE_ERRORS.required,
+    });
+    return;
+  }
+
+  if (!requiresNumericValue(field, operator)) return;
+
+  if (!NUMBER_PATTERN.test(value)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: CONDITION_VALUE_ERRORS.number,
+    });
+  }
+});
+
+/** Returns the (untranslated) error message for a condition value, or undefined when valid. */
+export const getConditionValueError = (
+  field: ConditionKeyType,
+  operator: ComparisonOperator,
+  value: string,
+): string | undefined => {
+  const result = buildConditionValueSchema(field, operator).safeParse(value);
+  return result.success ? undefined : result.error.issues[0]?.message;
+};
 
 // -- Operator labels (function form so the extractor sees static t() calls) --
 export const OPERATOR_LABELS: Record<ComparisonOperator, string> = {
@@ -65,7 +149,7 @@ export interface EventFormData {
 export const isConditionValid = (condition: EventCondition): boolean => {
   if (!condition.field) return false;
   if (!condition.operator) return false;
-  return UNARY_OPERATORS.includes(condition.operator) || !!condition.value.trim();
+  return getConditionValueError(condition.field, condition.operator, condition.value) === undefined;
 };
 
 export const isGroupValid = (group: ConditionGroup): boolean => {

@@ -83,7 +83,7 @@ const Tags = () => {
           setContent={setTags}
           exportProps={exportProps}
           createButton={(
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
               <CreateTag
                 onCreate={result => setTags([result, ...tags])}
               />

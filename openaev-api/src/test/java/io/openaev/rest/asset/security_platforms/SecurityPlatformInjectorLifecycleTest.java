@@ -28,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,8 +46,13 @@ import org.springframework.transaction.annotation.Transactional;
  * </ul>
  */
 @Transactional
-@WithMockUser(isAdmin = true)
+@WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("Injector-registered security platforms follow the managed lifecycle")
+// upsertOnAForeignTenantPlatformLinksNoInjector asserts that a foreign tenant's platform is not
+// resolved by the upsert. That isolation is v2 now, so the table has to be active in this context:
+// the test profile declares no active-tables, and without this the assertion rode on the v1 @Filter
+// the activation removed, then started resolving the foreign row.
+@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
 
   private static final String INJECTOR_TYPE = "openaev_nuclei_lifecycle_test";
@@ -91,6 +97,26 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "findBySecurityPlatformExternalReferenceByTenantId supports duplicates and returns all matches")
+  void findBySecurityPlatformExternalReferenceSupportsNonUniqueTypes() {
+    String duplicateType = "duplicate-type-" + UUID.randomUUID();
+    injectorRepository.save(
+        InjectorFixture.createInjector(UUID.randomUUID().toString(), "dup-1", duplicateType));
+    injectorRepository.save(
+        InjectorFixture.createInjector(UUID.randomUUID().toString(), "dup-2", duplicateType));
+    entityManager.flush();
+    entityManager.clear();
+
+    assertEquals(
+        2,
+        injectorRepository
+            .findBySecurityPlatformExternalReferenceByTenantId(
+                duplicateType, TenantContext.getCurrentTenant())
+            .size());
+  }
+
+  @Test
   @DisplayName("the registration upsert links the injector and locks the platform in the UI")
   void upsertKeyedOnTheInjectorTypeLinksTheInjector() throws Exception {
     String platformId = upsertPlatform(INJECTOR_TYPE);
@@ -126,7 +152,10 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
 
     Injector linked =
         injectorRepository
-            .findByTypeAndTenantId(INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .findBySecurityPlatformExternalReferenceByTenantId(
+                INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .stream()
+            .findFirst()
             .orElseThrow();
     injectorRepository.delete(linked);
     entityManager.flush();
@@ -183,7 +212,10 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
     // The caller's injector links to the caller-tenant platform, not the foreign one.
     Injector reloaded =
         injectorRepository
-            .findByTypeAndTenantId(INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .findBySecurityPlatformExternalReferenceByTenantId(
+                INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .stream()
+            .findFirst()
             .orElseThrow();
     assertEquals(platformId, reloaded.getSecurityPlatform().getId());
   }

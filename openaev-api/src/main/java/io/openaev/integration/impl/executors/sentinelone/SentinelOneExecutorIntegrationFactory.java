@@ -91,8 +91,8 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations() throws Exception {
-    sentinelOneExecutorConfigurationMigration.migrate();
+  protected void runMigrations(String tenantId) throws Exception {
+    sentinelOneExecutorConfigurationMigration.migrate(tenantId);
   }
 
   private String getLogoFilename() {

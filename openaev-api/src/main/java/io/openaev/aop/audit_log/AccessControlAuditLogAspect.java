@@ -52,10 +52,11 @@ import org.springframework.web.server.ResponseStatusException;
  * "unauthorized" audit event before being re-thrown.
  *
  * <p>The aspect order is {@code LOWEST_PRECEDENCE - 1} so it runs <b>inside</b> the transaction
- * boundary ({@code LOWEST_PRECEDENCE - 2}) and <b>outside</b> the RBAC aspect ({@code
- * LOWEST_PRECEDENCE}). When halt-on-failure is active and the audit transport fails, the thrown
- * {@link AuditLogFailureException} propagates through the transaction interceptor, which rolls back
- * the mutation.
+ * boundary ({@code LOWEST_PRECEDENCE - 4}) and the tenant scoping aspects ({@code LOWEST_PRECEDENCE
+ * - 3} / {@code - 2}), and <b>outside</b> the RBAC aspect ({@code LOWEST_PRECEDENCE}). When
+ * halt-on-failure is active and the audit transport fails, the thrown {@link
+ * AuditLogFailureException} propagates through the transaction interceptor, which rolls back the
+ * mutation.
  *
  * <p>Phase 1: delegates to {@link io.openaev.service.LogService} for console-only output.
  */

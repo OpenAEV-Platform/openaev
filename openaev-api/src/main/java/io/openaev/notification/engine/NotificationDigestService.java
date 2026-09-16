@@ -1,5 +1,7 @@
 package io.openaev.notification.engine;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTriggerType;
 import java.time.Instant;
@@ -25,6 +27,7 @@ public class NotificationDigestService {
 
   private final NotificationTriggerLoader triggerLoader;
   private final NotificationDispatchService dispatchService;
+  private final TenantScopedTransaction tenantTx;
 
   public void runDigests(Instant now) {
     List<ResolvedNotificationTrigger> digests =
@@ -76,7 +79,14 @@ public class NotificationDigestService {
           byTriggerName.entrySet().stream()
               .map(entry -> new NotificationContent.Group(entry.getKey(), entry.getValue()))
               .toList();
-      dispatchService.dispatch(digest, NotificationTriggerType.DIGEST, List.of(userId), groups);
+      // Background job (no ambient transaction, no v2 scope): dispatch reads the
+      // tenant-scoped injectors table (email notifier resolution) so it must run
+      // under an explicit per-tenant scope, never a raw @Transactional here.
+      tenantTx.execute(
+          TxCtx.forTenant(digest.tenantId()),
+          () ->
+              dispatchService.dispatch(
+                  digest, NotificationTriggerType.DIGEST, List.of(userId), groups));
     }
   }
 }

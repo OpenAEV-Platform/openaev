@@ -129,6 +129,40 @@ Available operators: `eq`, `not_eq`, `contains`, `not_contains`, `starts_with`, 
 
 For the complete filter format reference, see [Filters](../reference/apis/filters.md).
 
+### Bulk operations on Injects
+
+Bulk update and bulk delete of Injects are scoped to their parent resource. The parent identifier is part of the URL, so authorization is evaluated against the Scenario or Simulation you are working on -- users with the relevant capabilities on the parent can operate on its Injects without platform-wide privileges.
+
+| Operation | Endpoint |
+|---|---|
+| Bulk update Injects of a Scenario | `PUT /api/scenarios/{scenarioId}/injects` |
+| Bulk delete Injects of a Scenario | `DELETE /api/scenarios/{scenarioId}/injects` |
+| Bulk update Injects of a Simulation | `PUT /api/exercises/{exerciseId}/injects` |
+| Bulk delete Injects of a Simulation | `DELETE /api/exercises/{exerciseId}/injects` |
+
+Each endpoint accepts a JSON body that selects the target Injects either by explicit identifiers (`inject_ids_to_process`) or by a search query (`search_pagination_input`), but not both at the same time. Injects selected by a search can be excluded individually with `inject_ids_to_ignore`.
+
+Example -- delete two Injects of a Scenario:
+
+```http
+DELETE /api/scenarios/{scenarioId}/injects
+```
+
+```json
+{
+  "inject_ids_to_process": [
+    "5f8317eb-e19f-4234-9d34-7b65a52ea82f",
+    "9a4f9138-9163-40c2-bd21-b579d4a26428"
+  ]
+}
+```
+
+Calling one of these endpoints on a parent you are not authorized to modify returns a `403` response.
+
+!!! note
+
+    Earlier versions exposed generic `PUT /api/injects` and `DELETE /api/injects` endpoints taking a `simulation_or_scenario_id` in the body. They are replaced by the scoped endpoints above.
+
 ### Error responses
 
 The API uses standard HTTP status codes:
@@ -143,6 +177,20 @@ The API uses standard HTTP status codes:
 | `500` | Internal server error |
 
 Validation errors (400) return a structured body with per-field error messages. Other errors return a JSON body with a `message` field describing the issue.
+
+## Grant-scoped endpoints
+
+Global inventory endpoints such as `/api/endpoints`, `/api/asset_groups` or `/api/injector_contracts` require the corresponding platform capability (Assets, Threat Arsenal). A user who only holds a grant on a specific Simulation or Scenario can instead use resource-scoped counterparts that expose only the elements referenced by that resource. The chaining Workflow API follows this pattern:
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/workflows/{workflowId}/scope/endpoints` | Endpoints referenced by the workflow scope rules (allowlist and denylist) |
+| `POST /api/workflows/{workflowId}/scope/endpoints/find` | Same as above, restricted to the requested IDs |
+| `GET /api/workflows/{workflowId}/scope/asset-groups` | Asset groups referenced by the workflow scope rules |
+| `POST /api/workflows/{workflowId}/scope/asset-groups/find` | Same as above, restricted to the requested IDs |
+| `GET /api/workflows/{workflowId}/injector_contracts/{injectorContractId}` | An injector contract, returned only if one of the workflow steps references it |
+
+These endpoints check the caller's grant on the workflow's parent Simulation or Scenario instead of the global capabilities, so the chaining scope and logic screens work for grant-only users. IDs that are not referenced by the workflow are silently ignored, which prevents using these endpoints to read arbitrary platform data.
 
 ## Multi-tenant context
 

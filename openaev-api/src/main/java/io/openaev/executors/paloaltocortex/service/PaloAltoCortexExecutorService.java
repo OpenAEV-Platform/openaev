@@ -106,8 +106,10 @@ public class PaloAltoCortexExecutorService implements Runnable {
                 agentService.getAgentsByExecutorIdAndTenantId(
                     executor.getId(), executor.getTenantId()),
                 executor.getTenantId());
-        assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
-        assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
+        assetGroup.setAssets(
+            agents.stream().map(Agent::getAsset).collect(Collectors.toCollection(ArrayList::new)));
+        assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(
+            assetGroup, executor.getTenantId());
       }
     }
   }

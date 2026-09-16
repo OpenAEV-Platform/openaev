@@ -1,6 +1,8 @@
 package io.openaev.processor.datapack;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.DataPackService;
@@ -48,10 +50,11 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
   }
 
   @Override
-  public boolean doProcess() {
+  public boolean doProcess(Tenant tenant) {
     try {
-      tagService.ensureWellKnownTags();
-      Set<TagRule> presetRules = tagRuleService.ensurePresetRules();
+      TxCtx ctx = TxCtx.forTenant(tenant.getId());
+      tagService.ensureWellKnownTags(ctx);
+      Set<TagRule> presetRules = tagRuleService.ensurePresetRules(ctx);
 
       Set<Endpoint.PLATFORM_TYPE> platformsToConsider =
           Set.of(
@@ -83,7 +86,8 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
           assetGroup.setName("All %s %s".formatted(platform.toString(), arch.toString()));
           assetGroup.setDynamicFilter(filterGroup);
 
-          AssetGroup saved = this.assetGroupService.createAssetGroup(assetGroup);
+          // Tenant provisioning: doProcess runs for one tenant, carry it explicitly.
+          AssetGroup saved = this.assetGroupService.createAssetGroup(assetGroup, tenant.getId());
 
           findTagRuleForPlatform(presetRules, platform)
               .ifPresent(

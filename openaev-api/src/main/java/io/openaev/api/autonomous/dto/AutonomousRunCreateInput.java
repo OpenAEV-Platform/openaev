@@ -104,6 +104,17 @@ public class AutonomousRunCreateInput {
               + " live autonomous run).")
   private boolean planMode = false;
 
+  @JsonProperty("refine")
+  @Schema(
+      description =
+          "Refine mode (plan / build only): when true the orchestrator refines the scenario's"
+              + " EXISTING authored logic instead of rebuilding it from scratch. The authored steps"
+              + " and event/trigger conditions are kept, and a prior AI-built (plan) run is reused so"
+              + " its decision timeline (full history) is preserved and reopened. When false"
+              + " (default) a build is a rebuild: the logic map is wiped and any prior run superseded"
+              + " so the orchestrator designs the path fresh. Ignored outside build/plan mode.")
+  private boolean refine = false;
+
   @JsonProperty("timeout_seconds")
   @Schema(
       description =

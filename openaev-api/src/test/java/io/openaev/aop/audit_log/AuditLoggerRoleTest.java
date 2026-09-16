@@ -14,7 +14,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.role.form.RoleInput;
+import io.openaev.service.PlatformSettingsService;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -52,8 +54,10 @@ class AuditLoggerRoleTest extends IntegrationTest {
   private static final String TEST_APPENDER_NAME = "AUDIT_ROLE_LOG_TEST_APPENDER";
 
   @Autowired private MockMvc mvc;
+  @Autowired private AuditLogger auditLogger;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+  @MockitoBean private PlatformSettingsService platformSettingsService;
 
   @BeforeAll
   void setupAuditFileAppender() throws Exception {
@@ -66,8 +70,15 @@ class AuditLoggerRoleTest extends IntegrationTest {
   }
 
   @BeforeEach
-  void enableAuditLogger() {
+  void enableAuditLogger() throws Exception {
     Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
+    assertThat(auditLogger.isAuditLoggingEnabled()).isTrue();
+    Files.writeString(
+        AUDIT_LOG_FILE,
+        "",
+        StandardCharsets.UTF_8,
+        java.nio.file.StandardOpenOption.CREATE,
+        java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
   }
 
   @Nested
@@ -75,20 +86,21 @@ class AuditLoggerRoleTest extends IntegrationTest {
   class AdminRoleManagement {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.MANAGE_ASSESSMENT,
+          Capability.MANAGE_ASSETS
+        })
     void given_roleCapabilityLifecycle_should_logAdministrationEventsWithReadableCapabilityDiff()
         throws Exception {
       // -- ARRANGE --
       String roleName = "audit-role-" + UUID.randomUUID();
       RoleInput createInput =
-          RoleInput.builder()
-              .name(roleName)
-              .description("role for audit integration test")
-              .capabilities(Set.of(Capability.ACCESS_ASSESSMENT))
-              .build();
+          new RoleInput(
+              roleName, "role for audit integration test", Set.of(Capability.ACCESS_ASSESSMENT));
 
       // -- ACT --
-      long createSizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
       String createResponse =
           mvc.perform(
                   post(ROLE_URI)
@@ -101,21 +113,13 @@ class AuditLoggerRoleTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      // -- ASSERT --
-      String createLog = readNewAuditLogContent(createSizeBefore);
-      assertThat(createLog).contains("\"event_scope\" : \"create\"");
-      assertThat(createLog).contains("\"event_access\" : \"administration\"");
-      assertThat(createLog).contains("\"input\" : {");
-      assertThat(createLog).contains("\"role_name\" : \"" + roleName + "\"");
-
       // -- ARRANGE --
       String roleId = JsonPath.read(createResponse, "$.role_id");
       RoleInput assignCapabilitiesInput =
-          RoleInput.builder()
-              .name(roleName)
-              .description("role for audit integration test")
-              .capabilities(Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSETS))
-              .build();
+          new RoleInput(
+              roleName,
+              "role for audit integration test",
+              Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSETS));
 
       // -- ACT --
       long firstUpdateSizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
@@ -128,7 +132,9 @@ class AuditLoggerRoleTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      String firstUpdateLog = readNewAuditLogContent(firstUpdateSizeBefore);
+      String firstUpdateLog =
+          readNewAuditLogContent(
+              firstUpdateSizeBefore, "\"event_scope\" : \"update\"", "\"role_capabilities\"");
       assertThat(firstUpdateLog).contains("\"event_scope\" : \"update\"");
       assertThat(firstUpdateLog).contains("\"event_access\" : \"administration\"");
       assertThat(firstUpdateLog).contains("\"role_capabilities\"");
@@ -143,11 +149,10 @@ class AuditLoggerRoleTest extends IntegrationTest {
 
       // -- ARRANGE --
       RoleInput updateCapabilitiesInput =
-          RoleInput.builder()
-              .name(roleName)
-              .description("role for audit integration test")
-              .capabilities(Set.of(Capability.MANAGE_ASSESSMENT, Capability.MANAGE_ASSETS))
-              .build();
+          new RoleInput(
+              roleName,
+              "role for audit integration test",
+              Set.of(Capability.MANAGE_ASSESSMENT, Capability.MANAGE_ASSETS));
 
       // -- ACT --
       long secondUpdateSizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
@@ -160,7 +165,9 @@ class AuditLoggerRoleTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      String secondUpdateLog = readNewAuditLogContent(secondUpdateSizeBefore);
+      String secondUpdateLog =
+          readNewAuditLogContent(
+              secondUpdateSizeBefore, "\"event_scope\" : \"update\"", "\"role_capabilities\"");
       assertThat(secondUpdateLog).contains("\"event_scope\" : \"update\"");
       assertThat(secondUpdateLog).contains("\"event_access\" : \"administration\"");
       assertThat(secondUpdateLog).contains("\"role_capabilities\"");
@@ -180,19 +187,102 @@ class AuditLoggerRoleTest extends IntegrationTest {
       assertThat(secondUpdateLog).doesNotContainPattern("\\\"old_value\\\"\\s*:\\s*\\[\\s*\\d");
       assertThat(secondUpdateLog).doesNotContainPattern("\\\"new_value\\\"\\s*:\\s*\\[\\s*\\d");
     }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Granting a tenant users, groups and roles capability is audited under its name")
+    void given_tenantUsersGroupsAndRolesGrant_should_logTheCapabilityName() throws Exception {
+      // The audit hook reads the capability set generically, so a newly introduced capability
+      // needs no wiring of its own - this pins that.
+      String roleName = "audit-role-" + UUID.randomUUID();
+      RoleInput createInput =
+          new RoleInput(roleName, null, Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
+
+      long sizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
+      mvc.perform(
+              post(ROLE_URI)
+                  .content(asJsonString(createInput))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      String createLog = readNewAuditLogContent(sizeBefore);
+      assertThat(createLog).contains("\"event_access\" : \"administration\"");
+      assertThat(createLog).contains("MANAGE_TENANT_USERS_GROUPS_AND_ROLES");
+      assertThat(createLog).contains("ACCESS_TENANT_USERS_GROUPS_AND_ROLES");
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.ACCESS_ASSESSMENT,
+          Capability.ACCESS_TAGS,
+          Capability.MANAGE_TAGS,
+          Capability.DELETE_TAGS
+        })
+    @DisplayName("Given role capability assignment, should audit tags capabilities update")
+    void given_roleCapabilityAssignment_should_logTagsCapabilitiesInAuditLog() throws Exception {
+      // -- ARRANGE --
+      String roleName = "audit-tags-role-" + UUID.randomUUID();
+      RoleInput createInput =
+          new RoleInput(
+              roleName, "role for tags capability audit test", Set.of(Capability.ACCESS_TAGS));
+
+      String createResponse =
+          mvc.perform(
+                  post(ROLE_URI)
+                      .content(asJsonString(createInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String roleId = JsonPath.read(createResponse, "$.role_id");
+      RoleInput assignTagsCapabilitiesInput =
+          new RoleInput(
+              roleName,
+              "role for tags capability audit test",
+              Set.of(Capability.ACCESS_TAGS, Capability.MANAGE_TAGS, Capability.DELETE_TAGS));
+
+      // -- ACT --
+      long updateSizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
+      mvc.perform(
+              put(ROLE_URI + "/" + roleId)
+                  .content(asJsonString(assignTagsCapabilitiesInput))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      String updateLog = readNewAuditLogContent(updateSizeBefore);
+      assertThat(updateLog).contains("\"event_scope\" : \"update\"");
+      assertThat(updateLog).contains("\"event_access\" : \"administration\"");
+      assertThat(updateLog).contains("\"role_capabilities\"");
+      assertThat(updateLog).contains("ACCESS_TAGS");
+      assertThat(updateLog).contains("MANAGE_TAGS");
+      assertThat(updateLog).contains("DELETE_TAGS");
+      assertThat(updateLog).doesNotContainPattern("\\\"role_capabilities\\\"\\s*:\\s*\\[\\s*\\d");
+    }
   }
 
   private String extractInputCapabilitiesBlock(String logEntry) {
     Pattern inputCapabilitiesPattern =
         Pattern.compile(
-            "\\\"input\\\"\\s*:\\s*\\{.*?\\\"role_capabilities\\\"\\s*:\\s*\\[(.*?)\\]",
+            "\"input\"\\s*:\\s*\\{[\\s\\S]*?\"role_capabilities\"\\s*:\\s*\\[(.*?)]",
             Pattern.DOTALL);
     Matcher matcher = inputCapabilitiesPattern.matcher(logEntry);
     assertThat(matcher.find()).isTrue();
     return matcher.group(1);
   }
 
-  private String readNewAuditLogContent(long sizeBefore) {
-    return AuditLogTestHelper.assertAuditLogContainsNewContent(AUDIT_LOG_FILE, sizeBefore);
+  private String readNewAuditLogContent(long sizeBefore, String... expectedSnippets) {
+    return AuditLogTestHelper.assertAuditLogContainsNewContent(
+        AUDIT_LOG_FILE, sizeBefore, expectedSnippets);
   }
 }

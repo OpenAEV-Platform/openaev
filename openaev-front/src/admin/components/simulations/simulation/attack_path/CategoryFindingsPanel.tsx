@@ -6,7 +6,7 @@ import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathFindingItemDTO } from '../../../../../utils/api-types';
-import { maskFindingValue } from './attack-path-flow-helpers';
+import { displayFindingValue } from './attack-path-flow-helpers';
 
 interface Props {
   label: string;
@@ -135,11 +135,12 @@ const CategoryFindingsPanel = ({
           <Box sx={{
             flex: 1,
             minHeight: 0,
+            overflowY: 'auto',
           }}
           >
             {items.map((item, index) => {
               const endpointName = endpointNameFor(item.endpointKey);
-              const maskedValue = maskFindingValue(item.type, item.value);
+              const maskedValue = displayFindingValue(item.type, item.value);
               return (
                 <Box
                   key={`${item.endpointKey}-${item.value}-${index}`}

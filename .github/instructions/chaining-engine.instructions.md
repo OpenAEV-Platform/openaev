@@ -4,7 +4,6 @@ applyTo: |
   openaev-api/src/main/java/io/openaev/service/chaining/**,
   openaev-api/src/main/java/io/openaev/scheduler/jobs/QueueChainingJob.java,
   openaev-api/src/main/java/io/openaev/scheduler/jobs/WorkflowTimeoutJob.java,
-  openaev-api/src/main/java/io/openaev/service/InjectChainingCondition.java,
   openaev-api/src/main/java/io/openaev/aop/WorkflowUpdateEvent.java,
   openaev-api/src/main/java/io/openaev/aop/WorkflowUpdateEventAspect.java,
   openaev-api/src/main/java/io/openaev/utils/ConditionUtils.java,
@@ -47,10 +46,6 @@ applyTo: |
 
 The **Chaining Engine** enables automated, conditional execution of steps within a simulation workflow.
 It orchestrates inject sequences based on events, conditions, outputs, and time constraints.
-
-The feature is gated behind the `INJECT_CHAINING` preview feature flag (`PreviewFeature.INJECT_CHAINING`).
-At application startup, beans are conditionally loaded via `InjectChainingCondition` (Spring `@Conditional`),
-and at runtime, endpoints check `PreviewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)`.
 
 The execution flow is driven by a **Step Queue + Delay Queue + Job + Pool** architecture using RabbitMQ.
 
@@ -150,7 +145,7 @@ STEP STATUS LIFECYCLE (from diagram):
 ```
 WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
   └─> Finds expired RUN workflows (timeout from WorkflowConfiguration)
-        └─> WorkflowTimeoutService.forceCompleteWorkflow()
+        └─> WorkflowEndService.forceCompleteWorkflowByTimeout()
               └─> Sets workflow status: END
               └─> Terminates active steps (READY/RUN → END)
               └─> Deletes pending delay queue entries
@@ -162,7 +157,7 @@ WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
 
 | Diagram Element | Code Implementation |
 |---|---|
-| Creation of Simulation | `ChainingApi.createSimulation()` / `createScenarioChaining()` |
+| Creation of Scenario / Simulation | `ScenarioApi.createScenario()` / `ExerciseApi.createExercise()` |
 | Creation of Step Template | `StepService.createStepTemplate()` |
 | Creation of Workflow Template/RUN | `WorkflowService` (status TEMPLATE → RUN) |
 | Conditions Event Valid? | `ConditionUtils` evaluation against event conditions |
@@ -227,7 +222,8 @@ WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
 
 ```
 io.openaev.api.chaining/              ← API layer (controllers, mappers, DTOs)
-  ├── ChainingApi.java                ← Main REST: create simulation/scenario for chaining, findAll
+  ├── ScenarioApi.java                ← Create/duplicate scenarios
+  ├── ExerciseApi.java                ← Create/duplicate simulations
   ├── StepApi.java                    ← CRUD for step templates (scoped to workflow)
   ├── ConditionApi.java               ← CRUD for condition trees (event payload → conditions)
   ├── WorkflowApi.java                ← Workflow configuration + valid assets
@@ -267,7 +263,7 @@ io.openaev.service.chaining/          ← Business logic layer
   ├── ExternalUpdateEvent.java        ← Queue message for external updates (Queueable)
   ├── ScopeService.java               ← Asset scope resolution (allowlist/denylist)
   ├── StepDelayQueueService.java      ← DB-persisted delay queue for time conditions
-  └── WorkflowTimeoutService.java     ← Finds expired workflows, force-completes them
+  └── WorkflowEndService.java     ← Finds expired workflows, force-completes them
 
 io.openaev.aop/
   ├── WorkflowUpdateEvent.java        ← Annotation: marks methods that trigger workflow updates
@@ -276,9 +272,6 @@ io.openaev.aop/
 io.openaev.scheduler.jobs/
   ├── QueueChainingJob.java           ← Quartz job: polls StepDelayQueue for time-delayed steps
   └── WorkflowTimeoutJob.java         ← Quartz job: expires timed-out workflow runs
-
-io.openaev.service/
-  └── InjectChainingCondition.java    ← Spring @Conditional: enables chaining beans if INJECT_CHAINING feature flag is set
 
 io.openaev.utils/
   └── ConditionUtils.java             ← Condition evaluation logic (shared between services)
@@ -323,7 +316,7 @@ io.openaev.database.repository/
 
 ```
 openaev-front/src/actions/chaining/
-  ├── chaining-actions.ts             ← API calls: fetchChaining, CRUD steps/conditions
+  ├── chaining-actions.ts             ← API calls: CRUD steps/conditions
   ├── workflow-actions.ts             ← API calls: workflow configuration, valid assets
   ├── workflow-schema.ts              ← Zod schemas for workflow configuration
   └── workflow-helper.d.ts            ← TypeScript type declarations
@@ -376,8 +369,6 @@ openaev-front/src/components/common/chaining/
 
 ### Architecture
 
-- The feature is behind `PreviewFeature.INJECT_CHAINING`. All API endpoints must gate with `workflowService.isPreviewFeatureChainingEnable()` or `previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)`.
-- `InjectChainingCondition` is a Spring `@Conditional` — it controls whether chaining beans are loaded. It reads `openaev.enabled-dev-features` from environment properties.
 - `ActionStep` is the strategy interface. Currently only `InjectExecutionStep` implements it. To add a new action type, implement `ActionStep` and register in `StepService.factoryAction()`.
 
 ### Mappers & DTOs
@@ -404,7 +395,7 @@ openaev-front/src/components/common/chaining/
 ### Workflow Lifecycle
 
 - Workflow status transitions: `TEMPLATE` → `RUN` → `END` (normal) or `STOP` (manual).
-- `WorkflowTimeoutService` handles timeout expiration — it force-ends workflows, steps, delay queue entries, and injects.
+- `WorkflowEndService` handles timeout expiration — it force-ends workflows, steps, delay queue entries, and injects.
 - Default timeout: 3600 seconds (`WorkflowService.DEFAULT_TIMEOUT_SECONDS`).
 
 ### Conditions
@@ -436,7 +427,7 @@ openaev-front/src/components/common/chaining/
 ### Testing
 
 - Tests exist at multiple levels: unit tests, integration tests, repository tests.
-- Key test classes: `StepServiceTest`, `ConditionServiceTest`, `WorkflowServiceTest`, `ChainingIntegrationTest`, `StepEventServiceTest`, `WorkflowTimeoutServiceTest`, `ScopeServiceTest`, `QueueChainingServiceTest`.
+- Key test classes: `StepServiceTest`, `ConditionServiceTest`, `WorkflowServiceTest`, `ChainingIntegrationTest`, `StepEventServiceTest`, `WorkflowEndServiceTest`, `ScopeServiceTest`, `QueueChainingServiceTest`.
 - Fixtures: `WorkflowFixture`, composers: `WorkflowComposer`, `ConditionComposer`.
 - Always test timeout guards (workflow ended checks) when adding new execution paths.
 
@@ -460,9 +451,8 @@ openaev-front/src/components/common/chaining/
 
 | Controller | Base Path | Description |
 |---|---|---|
-| `ChainingApi` | `/{tenant}/chaining` | Main chaining: findAll, create simulation/scenario, duplicate |
-| `StepApi` | `/{tenant}/chaining/steps` | CRUD step templates |
-| `ConditionApi` | `/{tenant}/chaining/conditions` | CRUD condition trees |
+| `StepApi` | `/{tenant}/steps` | CRUD step templates |
+| `ConditionApi` | `/{tenant}/conditions` | CRUD condition trees |
 | `WorkflowApi` | `/{tenant}/workflows` | Workflow configuration, valid assets |
 
 All endpoints use `@AccessControl` with appropriate `Action` and `ResourceType`.
@@ -472,7 +462,6 @@ All endpoints use `@AccessControl` with appropriate `Action` and `ResourceType`.
 ## Related Cross-Cutting Files
 
 - `WorkflowUpdateEventAspect.java` — AOP bridge from inject lifecycle to chaining engine
-- `InjectChainingCondition.java` — Spring `@Conditional` for bean loading
 - `PreviewFeatureService.java` — Runtime feature flag service
 - `PlatformTriggers.java` / `PlatformJobDefinitions.java` — Quartz job registration
 - `ConditionUtils.java` — Shared condition evaluation logic

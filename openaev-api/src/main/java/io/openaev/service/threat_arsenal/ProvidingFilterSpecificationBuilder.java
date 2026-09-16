@@ -34,7 +34,7 @@ public class ProvidingFilterSpecificationBuilder {
   public ProvidingFilterContext extractProvidingFilter(SearchPaginationInput searchInput) {
     if (searchInput.getFilterGroup() == null || searchInput.getFilterGroup().getFilters() == null) {
       return new ProvidingFilterContext(
-          searchInput, Specification.where(null), Filters.FilterMode.and, false, false);
+          searchInput, Specification.unrestricted(), Filters.FilterMode.and, false, false);
     }
 
     List<Filters.Filter> allFilters = searchInput.getFilterGroup().getFilters();
@@ -44,7 +44,7 @@ public class ProvidingFilterSpecificationBuilder {
     if (providingFilters.isEmpty()) {
       return new ProvidingFilterContext(
           searchInput,
-          Specification.where(null),
+          Specification.unrestricted(),
           Filters.FilterMode.and,
           false,
           !allFilters.isEmpty());
@@ -87,7 +87,7 @@ public class ProvidingFilterSpecificationBuilder {
 
     Set<ContractOutputType> expectedOutputTypes = resolveContractOutputTypes(filter.getValues());
     if (expectedOutputTypes.isEmpty()) {
-      return Specification.where(null);
+      return Specification.unrestricted();
     }
 
     Specification<InjectorContract> hasProviding =
@@ -102,7 +102,17 @@ public class ProvidingFilterSpecificationBuilder {
   private Specification<InjectorContract> buildHasProvidingSpecification(
       Set<ContractOutputType> expectedOutputTypes) {
     return (root, query, cb) -> {
-      query.distinct(true);
+      // No DISTINCT here: this predicate only adds a correlated EXISTS subquery
+      // and content-LIKE predicates, neither of which fans out the outer query,
+      // and the threat arsenal projection GROUP BYs the selected scalar keys
+      // (contract composite id, payload id, collector type id - not the
+      // unselected injector join id), so it already yields exactly one row per
+      // contract even when a contract is linked to several injectors. Forcing
+      // DISTINCT produced "SELECT DISTINCT ... ORDER BY" SQL whose ORDER BY
+      // expands the composite id to (injector_contract_id, tenant_id) while the
+      // SELECT lists only injector_contract_id, which PostgreSQL rejects with
+      // "for SELECT DISTINCT, ORDER BY expressions must appear in select list"
+      // (HTTP 500 on every findings-scoped arsenal search).
 
       Subquery<Integer> payloadSubquery = query.subquery(Integer.class);
       var payloadRoot = payloadSubquery.correlate(root);

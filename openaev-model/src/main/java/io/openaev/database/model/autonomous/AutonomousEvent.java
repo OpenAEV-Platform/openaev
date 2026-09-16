@@ -3,7 +3,6 @@ package io.openaev.database.model.autonomous;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -20,12 +19,16 @@ import org.hibernate.type.SqlTypes;
  * A single entry on an autonomous run's decision timeline (narration, decision, tool action,
  * capability gap, question, proof...). Rows are append-only and monotonically sequenced per run so
  * the UI reads them as a delta cursor alongside the attack-path version nudge.
+ *
+ * <p>Tenant-active (multi-tenancy v2): the single INSERT point ({@code AutonomousEventService})
+ * stamps the tenant explicitly from the parent run - deliberately no {@code TenantBaseListener},
+ * whose thread-local default would silently land orchestrator-callback writes in the default
+ * tenant.
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "autonomous_events")
-@EntityListeners(TenantBaseListener.class)
 public class AutonomousEvent implements TenantBase {
 
   @Id

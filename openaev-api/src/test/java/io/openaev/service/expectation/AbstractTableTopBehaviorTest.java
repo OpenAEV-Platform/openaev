@@ -31,6 +31,8 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
   @Autowired private InjectExpectationService injectExpectationService;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
 
+  @Autowired private ArticleComposer articleComposer;
+  @Autowired private ChannelComposer channelComposer;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private InjectComposer injectComposer;
@@ -40,6 +42,8 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() {
+    articleComposer.reset();
+    channelComposer.reset();
     teamComposer.reset();
     userComposer.reset();
     injectComposer.reset();
@@ -73,6 +77,13 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
       ExecutableInject executableInject =
           new ExecutableInject(
               false, false, inject, List.of(team), List.of(), List.of(), List.of());
+      Article article =
+          articleComposer
+              .forArticle(ArticleFixture.getDefaultArticle())
+              .withChannel(channelComposer.forChannel(ChannelFixture.getDefaultChannel()))
+              .persist()
+              .get();
+      executableInject.cacheExpectationContext(List.of(article));
 
       ArticleInjectExpectation template = new ArticleInjectExpectation();
       template.setInject(inject);
@@ -194,7 +205,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given one team with one players should create result only on player lever")
+    @DisplayName("given one team with one player should create result only on player lever")
     void given_one_team_with_one_player_should_create_result_on_player_level() {
       Team team =
           teamComposer
@@ -216,6 +227,13 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
       ExecutableInject executableInject =
           new ExecutableInject(
               false, false, inject, List.of(team), List.of(), List.of(), List.of());
+      Article article =
+          articleComposer
+              .forArticle(ArticleFixture.getDefaultArticle())
+              .withChannel(channelComposer.forChannel(ChannelFixture.getDefaultChannel()))
+              .persist()
+              .get();
+      executableInject.cacheExpectationContext(List.of(article));
 
       ArticleInjectExpectation template = new ArticleInjectExpectation();
       template.setInject(inject);
@@ -249,6 +267,99 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
               .toList();
       assertThat(playerExpectations.size()).isEqualTo(1);
       assertThat(playerExpectations.getFirst().getResults().size()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "given one team with one player and two articles should create 4 expectations, 2 for each article")
+    void given_one_team_with_one_player_and_two_articles_should_create_4_expectations() {
+      Team team =
+          teamComposer
+              .forTeam(TeamFixture.getDefaultContextualTeam())
+              .withUser(userComposer.forUser(UserFixture.getUserWithDefaultEmail()))
+              .persist()
+              .get();
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(
+                  injectorContractComposer.forInjectorContract(
+                      InjectorContractFixture.createDefaultInjectorContract()))
+              .withTeam(teamComposer.forTeam(team))
+              .persist()
+              .get();
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false, false, inject, List.of(team), List.of(), List.of(), List.of());
+      Article article =
+          articleComposer
+              .forArticle(ArticleFixture.getDefaultArticle())
+              .withChannel(channelComposer.forChannel(ChannelFixture.getDefaultChannel()))
+              .persist()
+              .get();
+      Article article2 =
+          articleComposer
+              .forArticle(ArticleFixture.getDefaultArticle())
+              .withChannel(channelComposer.forChannel(ChannelFixture.getDefaultChannel()))
+              .persist()
+              .get();
+      executableInject.cacheExpectationContext(List.of(article, article2));
+
+      ArticleInjectExpectation template = new ArticleInjectExpectation();
+      template.setInject(inject);
+      template.setExpectedScore(100.0);
+      template.setExpirationTime(21600L);
+
+      articleBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, template, null);
+      entityManager.flush();
+
+      List<BaseInjectExpectation> saved =
+          injectExpectationRepository.findAllByInjectId(inject.getId());
+      assertThat(saved).hasSize(4);
+      // Should have two expectation for each article, one for team and one for player
+      long article1TeamExpectation =
+          saved.stream()
+              .map(ArticleInjectExpectation.class::cast)
+              .filter(
+                  expectation ->
+                      expectation.getTeam().getId().equals(team.getId())
+                          && expectation.getUser() == null
+                          && expectation.getArticle().getId().equals(article.getId()))
+              .count();
+      assertThat(article1TeamExpectation).isEqualTo(1);
+      long article1PlayerExpectation =
+          saved.stream()
+              .map(ArticleInjectExpectation.class::cast)
+              .filter(
+                  expectation ->
+                      expectation.getTeam().getId().equals(team.getId())
+                          && expectation.getUser() != null
+                          && expectation.getArticle().getId().equals(article.getId()))
+              .count();
+      assertThat(article1PlayerExpectation).isEqualTo(1);
+      long article2TeamExpectation =
+          saved.stream()
+              .map(ArticleInjectExpectation.class::cast)
+              .filter(
+                  expectation ->
+                      expectation.getTeam().getId().equals(team.getId())
+                          && expectation.getUser() == null
+                          && expectation.getArticle().getId().equals(article2.getId()))
+              .count();
+      assertThat(article2TeamExpectation).isEqualTo(1);
+      long article2PlayerExpectation =
+          saved.stream()
+              .map(ArticleInjectExpectation.class::cast)
+              .filter(
+                  expectation ->
+                      expectation.getTeam().getId().equals(team.getId())
+                          && expectation.getUser() != null
+                          && expectation.getArticle().getId().equals(article2.getId()))
+              .count();
+      assertThat(article2PlayerExpectation).isEqualTo(1);
     }
   }
 

@@ -1,6 +1,6 @@
 import { PersonOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import PaginatedList from '../../../../../components/common/list/PaginatedList';
@@ -12,8 +12,8 @@ import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { USER_BASE_URL } from '../../../../../constants/BaseUrls';
 import { type UserOutput } from '../../../../../utils/api-types';
-import { Can } from '../../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import CreateUser from './CreateUser';
 import useTenantUsers from './hooks/useTenantUsers';
 import {
@@ -26,6 +26,9 @@ import {
 import UserPopover from './UserPopover';
 
 const TenantUsersTab = () => {
+  const ability = useContext(AbilityContext);
+  // MANAGE is greyed out rather than hidden: the affordance stays discoverable.
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const { t } = useFormatter();
   const navigate = useNavigate();
 
@@ -37,7 +40,6 @@ const TenantUsersTab = () => {
     addUser,
     editUser,
     removeUser,
-    changeUserPassword,
   } = useTenantUsers();
 
   const {
@@ -56,9 +58,7 @@ const TenantUsersTab = () => {
         availableFilterNames={TENANT_USER_FILTERS}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-            <CreateUser onCreate={addUser} />
-          </Can>
+          <CreateUser onCreate={addUser} disabled={!canManage} disabledMessage={PERMISSION_REQUIRED} />
         )}
       />
       <List>
@@ -87,13 +87,12 @@ const TenantUsersTab = () => {
                 secondaryAction={user => (
                   <UserPopover
                     user={user}
-                    actions={['Update', 'Update password', 'Delete']}
+                    actions={['Update', 'Delete']}
                     onSubmitUpdate={data => editUser(user.user_id, data)}
                     onSubmitDelete={() => removeUser(user.user_id)}
-                    onSubmitPassword={data => changeUserPassword(user.user_id, data)}
                     permissions={{
-                      manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS],
-                      delete: [ACTIONS.DELETE, SUBJECTS.TENANT_SETTINGS],
+                      manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],
+                      delete: [ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],
                     }}
                     inList
                   />

@@ -1,13 +1,17 @@
 package io.openaev.utils.mapper;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalExpectationDetail;
 import io.openaev.database.model.*;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +25,15 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class ThreatArsenalMapper {
+
+  /**
+   * JSON keys of a contract-declared predefined expectation node, mirroring the form model {@code
+   * io.openaev.model.inject.form.Expectation} the contract content serializes.
+   */
+  private static final String NODE_EXPECTATION_NAME = "expectation_name";
+
+  private static final String NODE_EXPECTATION_DESCRIPTION = "expectation_description";
+  private static final String NODE_EXPECTATION_ORDER = "expectation_order";
 
   private final PayloadMapper payloadMapper;
   private final InjectorContractContentUtils injectorContractContentUtils;
@@ -124,7 +137,63 @@ public class ThreatArsenalMapper {
         null,
         null,
         injectorContract.getCreatedAt(),
-        injectorContract.getUpdatedAt());
+        injectorContract.getUpdatedAt(),
+        injectorContract.getProviding(),
+        toExpectationDetails(injectorContract));
+  }
+
+  /**
+   * Maps the contract-declared predefined expectations to drawer-ready details (type, name,
+   * description, order), sorted by declared order (nulls last) then name - the same precedence the
+   * results timeline uses, so the drawer and the timeline always tell the same story. Returns
+   * {@code null} when the contract declares none, so readers fall back to the bare
+   * action_expectations types.
+   */
+  private List<ThreatArsenalExpectationDetail> toExpectationDetails(
+      InjectorContract injectorContract) {
+    List<ThreatArsenalExpectationDetail> details =
+        injectorContractContentUtils.getPredefinedExpectationNodes(injectorContract).stream()
+            .map(ThreatArsenalMapper::toExpectationDetail)
+            .filter(Objects::nonNull)
+            .sorted(
+                Comparator.comparing(
+                        ThreatArsenalExpectationDetail::order,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(
+                        detail -> detail.name() == null ? "" : detail.name(),
+                        String.CASE_INSENSITIVE_ORDER))
+            .toList();
+    return details.isEmpty() ? null : details;
+  }
+
+  /** Maps one predefined expectation JSON node to its detail, or null when the type is unusable. */
+  private static ThreatArsenalExpectationDetail toExpectationDetail(JsonNode node) {
+    JsonNode typeNode = node.get(InjectExpectationMapper.NODE_EXPECTATION_TYPE);
+    if (typeNode == null || !typeNode.isTextual()) {
+      return null;
+    }
+    BaseInjectExpectation.EXPECTATION_TYPE type;
+    try {
+      type = BaseInjectExpectation.EXPECTATION_TYPE.valueOf(typeNode.asText());
+    } catch (IllegalArgumentException e) {
+      log.warn("Ignoring predefined expectation with unknown type: {}", node, e);
+      return null;
+    }
+    return new ThreatArsenalExpectationDetail(
+        type,
+        textOrNull(node, NODE_EXPECTATION_NAME),
+        textOrNull(node, NODE_EXPECTATION_DESCRIPTION),
+        intOrNull(node, NODE_EXPECTATION_ORDER));
+  }
+
+  private static String textOrNull(JsonNode node, String field) {
+    JsonNode value = node.get(field);
+    return value != null && value.isTextual() && !value.asText().isBlank() ? value.asText() : null;
+  }
+
+  private static Integer intOrNull(JsonNode node, String field) {
+    JsonNode value = node.get(field);
+    return value != null && value.canConvertToInt() ? value.asInt() : null;
   }
 
   /**
@@ -164,6 +233,15 @@ public class ThreatArsenalMapper {
       executableFile = executable.getExecutableFile().getId();
     }
 
+    // Mirrors InjectorContract#getProviding for the payload branch: the output types a payload
+    // produces are the distinct contract output element types across its output parsers.
+    List<ContractOutputType> providing =
+        payload.getOutputParsers().stream()
+            .flatMap(op -> op.getContractOutputElements().stream())
+            .map(ContractOutputElement::getType)
+            .distinct()
+            .toList();
+
     return new ThreatArsenalActionFullOutput(
         injectorContractId,
         payload.getType(),
@@ -192,6 +270,10 @@ public class ThreatArsenalMapper {
         fileDropFile,
         executableFile,
         payload.getCreatedAt(),
-        payload.getUpdatedAt());
+        payload.getUpdatedAt(),
+        providing,
+        // Payloads declare expectations by type only (no per-expectation name/description/order),
+        // so there are no details to expose - readers fall back to action_expectations.
+        null);
   }
 }

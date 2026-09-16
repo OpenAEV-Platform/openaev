@@ -36,6 +36,7 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import { splitDuration } from '../../../../utils/Time';
 import { download, isNotEmptyField } from '../../../../utils/utils';
+import PayloadDeprecatedChip from '../../payloads/PayloadDeprecatedChip';
 import { InjectContext, InjectTestContext, PermissionsContext, ViewModeContext } from '../Context';
 import ToolBar from '../ToolBar';
 import InjectIcon from './InjectIcon';
@@ -93,6 +94,7 @@ interface Props {
   articles: Article[];
   variables: Variable[];
   uriVariable: string;
+  variablesConfigurationUri?: string;
 }
 
 const Injects: FunctionComponent<Props> = ({
@@ -102,6 +104,7 @@ const Injects: FunctionComponent<Props> = ({
   articles,
   variables,
   uriVariable,
+  variablesConfigurationUri = uriVariable,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -135,7 +138,28 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_title',
       label: 'Title',
       isSortable: true,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <>{inject.inject_title}</>,
+      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => (
+        <span style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          maxWidth: '100%',
+        }}
+        >
+          {/* minWidth: 0 lets the flex item shrink below its content width so the
+              ellipsis can kick in instead of pushing the chip out of the cell */}
+          <span style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+          }}
+          >
+            {inject.inject_title}
+          </span>
+          <PayloadDeprecatedChip status={inject.inject_injector_contract?.injector_contract_payload?.payload_status} />
+        </span>
+      ),
     },
     {
       field: 'inject_contract_domains',
@@ -272,12 +296,6 @@ const Injects: FunctionComponent<Props> = ({
       const updatedResults = result.entities.injects[result.result];
       setInjects(injects.map(i => i.inject_id !== updatedResults.inject_id ? i : updatedResults as InjectOutputType));
     }
-  };
-
-  const onBulkUpdate = (updatedResults: Inject[]) => {
-    setInjects(injects.map((originalInject) => {
-      return updatedResults.find(updatedInject => updatedInject.inject_id === originalInject.inject_id) as unknown as InjectOutputType || originalInject;
-    }));
   };
 
   const onDelete = (result: string) => {
@@ -417,10 +435,8 @@ const Injects: FunctionComponent<Props> = ({
       inject_ids_to_ignore: injectIdsToIgnore(selectAll),
       simulation_or_scenario_id: contextId,
       update_operations: operationsToPerform,
-    })
-      .then((result) => {
-        if (result) onBulkUpdate(result);
-      });
+    });
+    setReloadInjectCount(prev => prev + 1);
   };
 
   const bulkDeleteInjects = () => {
@@ -700,7 +716,7 @@ const Injects: FunctionComponent<Props> = ({
               injects={injects}
               articlesFromExerciseOrScenario={articles}
               variablesFromExerciseOrScenario={variables}
-              uriVariable={uriVariable}
+              uriVariable={variablesConfigurationUri}
             />
           )}
       </>

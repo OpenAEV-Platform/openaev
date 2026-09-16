@@ -9,9 +9,13 @@ import type { Group } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import GroupForm, { type TenantGroupFormInput } from './GroupForm';
 
-interface Props { onCreate: (result: Group) => void }
+interface Props {
+  onCreate: (result: Group) => void;
+  disabled?: boolean;
+  disabledMessage?: string;
+}
 
-const CreateTenantGroup: FunctionComponent<Props> = ({ onCreate }) => {
+const CreateTenantGroup: FunctionComponent<Props> = ({ onCreate, disabled, disabledMessage }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const { open, handleOpen, handleClose } = useDialog();
@@ -30,7 +34,7 @@ const CreateTenantGroup: FunctionComponent<Props> = ({ onCreate }) => {
 
   return (
     <>
-      <ButtonCreate onClick={handleOpen} />
+      <ButtonCreate onClick={handleOpen} disabled={disabled} disabledMessage={disabledMessage} />
       <Drawer
         open={open}
         handleClose={handleClose}

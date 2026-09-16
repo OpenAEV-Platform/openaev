@@ -67,6 +67,7 @@ class LogServiceSignatureNormalizationTest {
   @Mock private UserService userService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private PlatformSettingsService platformSettingsService;
   @Mock private SystemLoadGuardUtils systemLoadGuardUtils;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -100,7 +101,8 @@ class LogServiceSignatureNormalizationTest {
             engineService,
             userService,
             enterpriseEditionService,
-            licenseCacheManager);
+            licenseCacheManager,
+            platformSettingsService);
 
     when(auditLogProperties.isEnabled()).thenReturn(true);
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);

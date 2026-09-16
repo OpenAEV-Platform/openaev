@@ -78,10 +78,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * instead, per the activate-tenant-table runbook.
  */
 @TestPropertySource(
-    properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
-      "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
-    })
+    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path Phase A: the create attributes rows to the inject's tenant")
 class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
@@ -243,6 +240,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     platform.setExternalReference("platform-trace-1");
     platform.setName("Trace platform");
     platform.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+    platform.setTenant(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
     platform = securityPlatformRepository.save(platform);
     Inject persistedInject = InjectFixture.getDefaultInject();
@@ -316,6 +314,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     platform.setExternalReference(collectorExternalReference);
     platform.setName("Ext-ref platform");
     platform.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
+    platform.setTenant(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
     platform = securityPlatformRepository.save(platform);
     Inject persistedInject = InjectFixture.getDefaultInject();

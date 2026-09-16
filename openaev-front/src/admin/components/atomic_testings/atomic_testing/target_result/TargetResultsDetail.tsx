@@ -71,6 +71,19 @@ const TargetResultsDetail = ({ inject, target, isAgentless, position, total, onS
       .toSorted((a, b) => Object.keys(ExpectationType).indexOf(a as ExpectationResultType) - Object.keys(ExpectationType).indexOf(b as ExpectationResultType))
       .forEach((key) => {
         sortedGroupedResults[key] = groupedByType[key].toSorted((a, b) => {
+          // Contract-declared order first (e.g. phishing: email -> link -> submission);
+          // unordered expectations sort after ordered ones, then by name, then by id.
+          const aOrder = a.inject_expectation_order;
+          const bOrder = b.inject_expectation_order;
+          if (aOrder != null && bOrder != null && aOrder !== bOrder) {
+            return aOrder - bOrder;
+          }
+          if (aOrder != null && bOrder == null) {
+            return -1; // ordered comes before unordered
+          }
+          if (aOrder == null && bOrder != null) {
+            return 1;
+          }
           if (a.inject_expectation_name && b.inject_expectation_name) {
             return a.inject_expectation_name.localeCompare(b.inject_expectation_name);
           }

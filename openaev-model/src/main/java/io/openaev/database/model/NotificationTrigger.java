@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -19,7 +18,6 @@ import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -41,13 +39,18 @@ import org.hibernate.annotations.UuidGenerator;
  *
  * <p>Recipients default to the owner; additional users or groups can be targeted by administrators.
  * Group recipients fan out to their users at match time.
+ *
+ * <p>Fully on multi-tenancy v2: reads are scoped by {@code TenantStatementInspector} and writes are
+ * attributed explicitly by {@code TenantWriteScopeResolver}. The v1 {@code @Filter} and {@code
+ * TenantBaseListener} must not come back - the filter would AND with the inspector's predicate and
+ * silently empty every header-route read, and the listener would re-introduce a hidden fallback to
+ * {@code TenantContext} that masks a missing write attribution.
  */
 @Entity
 @Getter
 @Setter
 @Table(name = "notification_triggers")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
 public class NotificationTrigger implements TenantBase {
 
   @Id

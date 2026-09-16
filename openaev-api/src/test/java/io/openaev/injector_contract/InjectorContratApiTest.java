@@ -198,10 +198,12 @@ class InjectorContratApiTest extends IntegrationTest {
                     .content(asJsonString(searchPaginationInput))
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
-            // "mail" matches all 5 contracts through the searchable "content" path (they all share
-            // the "E-mail Infiltration" domain), so the two email contracts sort first, in
-            // descending order: "Send multi-recipients mail" before "Send individual mails".
-            .andExpect(jsonPath("$.numberOfElements").value(5))
+            // "mail" is a free-text search: it only matches the two email contracts by their label
+            // (the raw contract "content" path is no longer searchable, so the built-in
+            // "user.email"
+            // variable in every contract's content no longer makes "mail" match all of them).
+            // Descending order: "Send multi-recipients mail" before "Send individual mails".
+            .andExpect(jsonPath("$.numberOfElements").value(2))
             .andExpect(
                 jsonPath("$.content.[0].injector_contract_labels.en")
                     .value("Send multi-recipients mail"))
@@ -230,15 +232,17 @@ class InjectorContratApiTest extends IntegrationTest {
                     .content(asJsonString(searchPaginationInput))
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
-            // "mail" matches all 5 contracts through the searchable "content" path (they all share
-            // the "E-mail Infiltration" domain), so the two email contracts sort last, in
-            // ascending order: "Send individual mails" before "Send multi-recipients mail".
-            .andExpect(jsonPath("$.numberOfElements").value(5))
+            // "mail" is a free-text search: it only matches the two email contracts by their label
+            // (the raw contract "content" path is no longer searchable, so the built-in
+            // "user.email"
+            // variable in every contract's content no longer makes "mail" match all of them).
+            // Ascending order: "Send individual mails" before "Send multi-recipients mail".
+            .andExpect(jsonPath("$.numberOfElements").value(2))
             .andExpect(
-                jsonPath("$.content.[3].injector_contract_labels.en")
+                jsonPath("$.content.[0].injector_contract_labels.en")
                     .value("Send individual mails"))
             .andExpect(
-                jsonPath("$.content.[4].injector_contract_labels.en")
+                jsonPath("$.content.[1].injector_contract_labels.en")
                     .value("Send multi-recipients mail"));
       }
     }

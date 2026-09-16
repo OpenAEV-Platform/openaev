@@ -59,8 +59,8 @@ public class DebugConfiguration {
       havingValue = "true",
       matchIfMissing = true)
   public OrmInsightFilter ormInsightFilter(
-      SensitiveDataMasker masker, DebugRuntimeState runtimeState) {
-    return new OrmInsightFilter(masker, runtimeState);
+      SensitiveDataMasker masker, DebugRuntimeState runtimeState, DebugUserSource userSource) {
+    return new OrmInsightFilter(masker, runtimeState, userSource);
   }
 
   @Bean
@@ -76,7 +76,8 @@ public class DebugConfiguration {
       havingValue = "true",
       matchIfMissing = true)
   public DebugSqlLogFileConfigurer debugSqlLogFileConfigurer(DebugProperties properties) {
-    return new DebugSqlLogFileConfigurer(properties.getOutputDir());
+    return new DebugSqlLogFileConfigurer(
+        properties.getOutputDir(), properties.getSql(), properties.getOrm().isSummaryToFile());
   }
 
   @Bean
@@ -90,9 +91,19 @@ public class DebugConfiguration {
   }
 
   @Bean
+  public DebugUserSource debugUserSource() {
+    return new DebugUserSource();
+  }
+
+  @Bean
+  public DebugUserMdcInterceptor debugUserMdcInterceptor(DebugUserSource userSource) {
+    return new DebugUserMdcInterceptor(userSource);
+  }
+
+  @Bean
   public DebugWebMvcConfigurer debugWebMvcConfigurer(
-      DebugTenantMdcInterceptor tenantMdcInterceptor) {
-    return new DebugWebMvcConfigurer(tenantMdcInterceptor);
+      DebugTenantMdcInterceptor tenantMdcInterceptor, DebugUserMdcInterceptor userMdcInterceptor) {
+    return new DebugWebMvcConfigurer(tenantMdcInterceptor, userMdcInterceptor);
   }
 
   @Bean

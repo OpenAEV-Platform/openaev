@@ -1,3 +1,14 @@
+import { type CapabilityOutput, type RoleInput } from '../api-types';
+
+/** Scope vocabulary owned by the back end (CapabilityScope), read from the generated types. */
+export type CapabilityScope = CapabilityOutput['capability_scopes'][number];
+
+/** Value form of that vocabulary, so no component spells a scope by hand. */
+export const CAPABILITY_SCOPES = {
+  TENANT: 'TENANT',
+  PLATFORM: 'PLATFORM',
+} as const satisfies Record<CapabilityScope, CapabilityScope>;
+
 export const ACTIONS = {
   ACCESS: 'ACCESS',
   MANAGE: 'MANAGE',
@@ -9,10 +20,16 @@ export const ACTIONS = {
 
 export type Actions = typeof ACTIONS[keyof typeof ACTIONS];
 
+type CapabilityName = NonNullable<RoleInput['role_capabilities']>[number];
+type SuffixOf<T> = T extends `${Actions}_${infer S}` ? S : never;
+type BackendSubject = SuffixOf<CapabilityName>;
+
 export const SUBJECTS = {
   ASSESSMENT: 'ASSESSMENT', // Scenarios, Simulations and Atomic Testings
   TEAMS_AND_PLAYERS: 'TEAMS_AND_PLAYERS',
   ASSETS: 'ASSETS',
+  CREDENTIALS: 'CREDENTIALS',
+  MARKING_DEFINITION: 'MARKING_DEFINITION',
   THREAT_ARSENALS: 'THREAT_ARSENALS',
   DASHBOARDS: 'DASHBOARDS',
   REPORTINGS: 'REPORTINGS',
@@ -25,12 +42,22 @@ export const SUBJECTS = {
   SECURITY_PLATFORMS: 'SECURITY_PLATFORMS',
   PLATFORM_SETTINGS: 'PLATFORM_SETTINGS',
   TENANT_SETTINGS: 'TENANT_SETTINGS',
+  TENANT_USERS_GROUPS_AND_ROLES: 'TENANT_USERS_GROUPS_AND_ROLES',
   RESOURCE: 'RESOURCE',
+  TAGS: 'TAGS',
   TENANTS: 'TENANTS',
   PLATFORM_USERS_GROUPS_AND_ROLES: 'PLATFORM_USERS_GROUPS_AND_ROLES',
-} as const;
+  SESSIONS: 'SESSIONS',
+  PLATFORM_SESSIONS: 'PLATFORM_SESSIONS',
+} as const satisfies Record<string, BackendSubject | 'RESOURCE'>;
 
 export type Subjects = typeof SUBJECTS[keyof typeof SUBJECTS];
+
+/**
+ * Tooltip for an affordance kept visible but disabled for lack of permission. Reading rights hide
+ * a screen; create, update and delete rights only grey out their action.
+ */
+export const PERMISSION_REQUIRED = 'Permission required';
 
 export const INHERITED_CONTEXT = {
   SCENARIO: 'SCENARIO',

@@ -24,8 +24,8 @@ import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.Constants;
 import io.openaev.opencti.errors.ConnectorError;
-import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
+import io.openaev.service.TenantRoleService;
 import io.openaev.service.UserService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.types.Identifier;
@@ -60,7 +60,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
   @MockitoBean private OpenCTIClient mockOpenCTIClient;
   @Autowired private OpenCTIService openCTIService;
   @Autowired private ObjectMapper mapper;
-  @Autowired private RoleService roleService;
+  @Autowired private TenantRoleService tenantRoleService;
   @Autowired private TenantGroupService tenantGroupService;
   @Autowired private UserService userService;
   @Autowired private EntityManager entityManager;
@@ -365,7 +365,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Role> role = roleService.findById(tenantScopedRoleId());
+        Optional<Role> role =
+            tenantRoleService.findByIdAndTenant(
+                tenantScopedRoleId(), TenantContext.getCurrentTenant());
 
         assertThat(role).isNotEmpty();
         assertThat(role.orElseThrow().getCapabilities())
@@ -400,7 +402,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Role> role = roleService.findById(tenantScopedRoleId());
+        Optional<Role> role =
+            tenantRoleService.findByIdAndTenant(
+                tenantScopedRoleId(), TenantContext.getCurrentTenant());
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
@@ -425,7 +429,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = tenantGroupService.findById(tenantScopedGroupId());
+        Optional<Group> group =
+            tenantGroupService.findByIdAndTenant(
+                tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
@@ -461,7 +467,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = tenantGroupService.findById(tenantScopedGroupId());
+        Optional<Group> group =
+            tenantGroupService.findByIdAndTenant(
+                tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
@@ -563,7 +571,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Role> role = roleService.findById(tenantScopedRoleId());
+        Optional<Role> role =
+            tenantRoleService.findByIdAndTenant(
+                tenantScopedRoleId(), TenantContext.getCurrentTenant());
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
@@ -598,7 +608,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Role> role = roleService.findById(tenantScopedRoleId());
+        Optional<Role> role =
+            tenantRoleService.findByIdAndTenant(
+                tenantScopedRoleId(), TenantContext.getCurrentTenant());
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
@@ -623,7 +635,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = tenantGroupService.findById(tenantScopedGroupId());
+        Optional<Group> group =
+            tenantGroupService.findByIdAndTenant(
+                tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
@@ -659,7 +673,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Optional<Group> group = tenantGroupService.findById(tenantScopedGroupId());
+        Optional<Group> group =
+            tenantGroupService.findByIdAndTenant(
+                tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
         assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);

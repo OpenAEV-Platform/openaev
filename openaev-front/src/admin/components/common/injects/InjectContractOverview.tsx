@@ -79,6 +79,7 @@ const InjectContractOverview: FunctionComponent<Props> = ({ injectorContract, do
       // Hide the Expectations section: expectations are already part of the
       // inject edition details.
       expectations={[]}
+      providing={injectorContract.injector_contract_providing}
       documentsMap={documentsMap ?? undefined}
       loading={false}
     />

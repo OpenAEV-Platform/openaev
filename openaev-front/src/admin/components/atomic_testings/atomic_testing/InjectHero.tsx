@@ -12,6 +12,7 @@ import handle from '../../../../utils/period/Period';
 import { truncate } from '../../../../utils/String';
 import InjectIcon from '../../common/injects/InjectIcon';
 import InjectStatus from '../../common/injects/status/InjectStatus';
+import PayloadDeprecatedChip from '../../payloads/PayloadDeprecatedChip';
 import InjectScoreTiles from './InjectScoreTiles';
 
 // Inject-level statuses whose concrete failure reason is worth surfacing on the
@@ -142,6 +143,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
       chips={(
         <>
           <InjectStatus status={statusName as InjectStatusType['status_name']} errorMessage={errorMessage} />
+          <PayloadDeprecatedChip status={payload?.payload_status} />
           {isScheduled && (
             <Tooltip title={scheduleLabel ?? ''}>
               <Chip

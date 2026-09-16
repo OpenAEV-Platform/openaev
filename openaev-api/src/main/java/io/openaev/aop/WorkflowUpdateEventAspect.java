@@ -1,7 +1,5 @@
 package io.openaev.aop;
 
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepService;
 import java.io.IOException;
@@ -40,8 +38,6 @@ public class WorkflowUpdateEventAspect {
    */
   private Set<String> unsentEventsCache = new HashSet<>();
 
-  private final PreviewFeatureService previewFeatureService;
-
   private final QueueChainingService queueChainingService;
   private final StepService stepService;
 
@@ -61,11 +57,6 @@ public class WorkflowUpdateEventAspect {
    */
   @AfterReturning("@annotation(annotation)")
   public void afterEventProcessed(JoinPoint joinPoint, WorkflowUpdateEvent annotation) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-      // No chaining enabled, does nothing
-      return;
-    }
-
     String injectIdSPEL = annotation.injectId();
     String injectIdsSPEL = annotation.injectIds();
     String expectationIdsSPEL = annotation.expectationIds();

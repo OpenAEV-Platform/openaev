@@ -19,7 +19,7 @@ import {
 } from '@mui/icons-material';
 import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type Dispatch, type ReactNode, type SetStateAction, useEffect, useMemo, useState } from 'react';
+import { type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { fetchScenarioAutonomousConfig, launchAutonomousFromScenario, planAutonomousScenario, saveScenarioAutonomousConfig } from '../../../../actions/autonomous/autonomous-actions';
@@ -64,24 +64,34 @@ import {
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
+import useAuth from '../../../../utils/hooks/useAuth';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { type Cron } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { truncate } from '../../../../utils/String';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import AutonomousRunConfigDrawer from '../../autonomous/AutonomousRunConfigDrawer';
+import { type RebuildMode } from '../../autonomous/AutonomousRunConfigFields';
 import AutonomousRunControls from '../../autonomous/AutonomousRunControls';
 import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
 import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/autonomousStatus';
 import { DEFAULT_TIMEOUT_HOURS } from '../../autonomous/useAutonomousRunConfig';
+import EEChip from '../../common/entreprise_edition/EEChip';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
+import {
+  SCENARIO_CONFIGURATION_QUERY_PARAM,
+  SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE,
+  ScenarioConfigurationTab,
+} from '../ScenarioConfigurationTab';
 import ScenarioConfiguration from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
 
@@ -114,10 +124,17 @@ const ScenarioHeader = ({
   const location = useLocation();
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
-  const [openScenarioAssistantQueryParam, openAiBuilderQueryParam, openAiLaunchQueryParam] = useQueryParameter(['openScenarioAssistant', 'openAiBuilder', 'openAiLaunch']);
-  const { canLaunch, canManage } = useScenarioPermissions(scenarioId);
+  const [openScenarioAssistantQueryParam, openAiBuilderQueryParam, openAiLaunchQueryParam, openConfigurationQueryParam] = useQueryParameter(['openScenarioAssistant', 'openAiBuilder', 'openAiLaunch', SCENARIO_CONFIGURATION_QUERY_PARAM]);
+  const { canLaunch, canManage, canDelete } = useScenarioPermissions(scenarioId);
+  const { settings } = useAuth();
+  const {
+    isValidated: isEnterpriseEdition,
+    openDialog: openEnterpriseEditionDialog,
+    setEEFeatureDetectedInfo,
+  } = useEnterpriseEdition();
 
   const [openConfiguration, setOpenConfiguration] = useState(false);
+  const [configurationInitialTab, setConfigurationInitialTab] = useState<ScenarioConfigurationTab>(ScenarioConfigurationTab.TEAMS);
   const [openScheduling, setOpenScheduling] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
@@ -132,32 +149,12 @@ const ScenarioHeader = ({
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [aiDrawerIntent, setAiDrawerIntent] = useState<'build' | 'launch'>('build');
   const [aiInitialInput, setAiInitialInput] = useState<AutonomousRunCreateInput | null>(null);
+  // When the AI builder rebuilds a scenario that already has logic, the operator chooses whether to
+  // refine (keep + continue from the existing logic and history) or rebuild from scratch (wipe).
+  // Defaults to refine (the non-destructive follow-up), reset every time the drawer opens.
+  const [rebuildMode, setRebuildMode] = useState<RebuildMode>('refine');
   const [aiSubmitting, setAiSubmitting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  // Fetch the scenario's saved AI config BEFORE opening, so the drawer's hook seeds from it on the
-  // open toggle (its agent effect reads initialInput off the first open). data is null when nothing
-  // was saved yet, which the hook treats as "use tenant defaults".
-  const openAiDrawer = async (intent: 'build' | 'launch') => {
-    setAiError(null);
-    let saved: AutonomousRunCreateInput | null = null;
-    try {
-      saved = (await fetchScenarioAutonomousConfig(scenarioId)).data;
-    } catch {
-      saved = null;
-    }
-    // A live autonomous launch always re-proposes the 24h default budget: drop only the saved
-    // timeout (a legacy builder config may carry the former 1h plan budget) so the objective,
-    // agents and scope stay prefilled while the advertised 24h default is actually applied.
-    setAiInitialInput(intent === 'launch' && saved
-      ? {
-          ...saved,
-          timeout_seconds: undefined,
-        }
-      : saved);
-    setAiDrawerIntent(intent);
-    setAiDrawerOpen(true);
-  };
-
   // Preserve the deep link that used to open the assistant drawer: it now
   // routes to the dedicated full-page assistant.
   useEffect(() => {
@@ -194,17 +191,42 @@ const ScenarioHeader = ({
   });
   const hasChallenges = challenges.length > 0;
 
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  // isFeatureEnabled reads the store through a hook, so it must stay at render scope: calling it
-  // from an event handler throws and silently aborts the handler mid-way.
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
-  const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  const isScenarioChaining = !!scenarioWorkflowId;
+  const canOpenConfiguration = canManage && !isScenarioChaining;
+
+  // "?config=variables" deep link (e.g. from the "manage custom variables" link in
+  // AvailableVariablesDialog): the query param is always stripped afterward - whether or not it
+  // was honored - so a bookmarked/shared URL never re-triggers on refresh/back. Only the `config`
+  // key is removed (not the whole search string) so it does not clobber unrelated params that may
+  // be present at the same time (e.g. openAiBuilder/openAiLaunch).
+  const clearConfigurationQueryParam = useCallback(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (!searchParams.has(SCENARIO_CONFIGURATION_QUERY_PARAM)) {
+      return;
+    }
+    searchParams.delete(SCENARIO_CONFIGURATION_QUERY_PARAM);
+    const targetSearch = searchParams.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: targetSearch ? `?${targetSearch}` : '',
+      },
+      { replace: true },
+    );
+  }, [location.pathname, location.search, navigate]);
+
   // Autonomy is a launch-time MODE now (not a scenario type) and no longer has a dedicated flag: any
   // chained scenario can be launched autonomously (orchestrator-driven) or planned by the
   // orchestrator, gated by the same chaining feature. Time-based scenarios only ever launch a normal
   // simulation.
   const isAutonomousModeEnabled = isScenarioChaining;
+  // The Autonomous launch + AI builder are XTM One-driven Enterprise features, so they are gated
+  // exactly like the top-bar AI shortcuts (hidden unless XTM One is connected, via the shared
+  // isXtmOneAvailable predicate) AND like the scenario creation drawer (a standard EE call-to-action
+  // when the platform is not Enterprise). Previously they were gated only on chaining, so they showed
+  // even with no XTM One available and led nowhere.
+  const isXtmOneReady = isXtmOneAvailable(settings);
   // A run is "active" while the orchestrator is planning or driving: the hero then shows lifecycle
   // controls (pause / resume / stop) instead of the launch actions, and the page hosts the cockpit.
   // A settled run (PLANNED / completed) leaves the launch actions available again so the operator can
@@ -214,27 +236,105 @@ const ScenarioHeader = ({
   // for a live run, results) behind: the hero CTAs then read as Rebuild (AI) / Relaunch rather than
   // the first-time Build / Launch, and Build wipes the logic map to re-plan from scratch.
   const isRunSettled = isAutonomousRunSettled(autonomousRun);
+  // The scenario already has logic to preserve when a settled AI run left an authored path behind,
+  // OR when it was authored manually (steps exist without any AI run). Either way, the AI builder
+  // "Rebuild" then offers Refine (keep + continue) vs Rebuild-from-scratch (wipe). An empty scenario
+  // (no steps, no run) has nothing to refine, so the first build stays a plain Build.
+  // A null count means the step fetch is still pending or failed - UNKNOWN, not zero. On a chained
+  // scenario that unknown must fail SAFE: assume logic exists so the builder defaults to the
+  // non-destructive refine instead of silently submitting a from-scratch rebuild (refine: false)
+  // that wipes a manually authored logic map. Refining a genuinely empty scenario is harmless (the
+  // backend keeps the empty logic and authors onto it), the reverse is data loss.
+  const hasExistingLogic = isRunSettled
+    || (isScenarioChaining && attackPathStepCount === null)
+    || (attackPathStepCount ?? 0) > 0;
+
+  // Fetch the scenario's saved AI config BEFORE opening, so the drawer's hook seeds from it on the
+  // open toggle (its agent effect reads initialInput off the first open). data is null when nothing
+  // was saved yet, which the hook treats as "use tenant defaults".
+  const openAiDrawer = async (intent: 'build' | 'launch') => {
+    setAiError(null);
+    // The refine-vs-rebuild choice (and the refine flag sent on Build) hinges on whether the
+    // scenario already has authored steps. The mount-time count fetch can still be pending (slow
+    // call) or have failed silently, leaving the count at null; opening the builder on that stale
+    // null would read as "no logic" and submit a destructive from-scratch rebuild without ever
+    // offering refine. Resolve the count here, before the drawer opens, so the choice is based on
+    // actual data; a failure keeps it null and hasExistingLogic fails SAFE (refine default).
+    if (intent === 'build' && scenarioWorkflowId && attackPathStepCount === null) {
+      try {
+        const result = await fetchSteps(scenarioWorkflowId);
+        setAttackPathStepCount(result.data?.length ?? 0);
+      } catch {
+        // Leave null: hasExistingLogic treats the unknown count as existing logic (fail safe).
+      }
+    }
+    let saved: AutonomousRunCreateInput | null = null;
+    try {
+      saved = (await fetchScenarioAutonomousConfig(scenarioId)).data;
+    } catch {
+      saved = null;
+    }
+    // A live autonomous launch always re-proposes the 24h default budget: drop only the saved
+    // timeout (a legacy builder config may carry the former 1h plan budget) so the objective,
+    // agents and scope stay prefilled while the advertised 24h default is actually applied.
+    setAiInitialInput(intent === 'launch' && saved
+      ? {
+          ...saved,
+          timeout_seconds: undefined,
+        }
+      : saved);
+    setAiDrawerIntent(intent);
+    // Every open starts on the non-destructive default: refine the existing logic rather than wipe.
+    setRebuildMode('refine');
+    setAiDrawerOpen(true);
+  };
+
+  // EE-aware entry point for both AI actions (Autonomous launch + AI builder): on a non-Enterprise
+  // platform they degrade to the standard EE call-to-action (the same dialog + feature label the
+  // creation drawer raises) instead of opening the config drawer. XTM One availability is enforced
+  // at render (the buttons are not shown without it), so this only arbitrates the EE gate.
+  const openAiDrawerOrEE = (intent: 'build' | 'launch') => {
+    if (!isEnterpriseEdition) {
+      setEEFeatureDetectedInfo(t('Autonomous attack path'));
+      openEnterpriseEditionDialog();
+      return;
+    }
+    void openAiDrawer(intent);
+  };
 
   // Deep link from scenario creation ("Generate with AI" toggle): auto-open the AI builder drawer
   // once, then strip the query param so a refresh / back does not reopen it. Only for a chained
   // scenario the operator can manage and while no run already owns it.
   useEffect(() => {
-    if (openAiBuilderQueryParam === 'true' && canManage && isAutonomousModeEnabled && !isRunActive) {
+    if (openAiBuilderQueryParam === 'true' && canManage && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && isEnterpriseEdition) {
       void openAiDrawer('build');
       navigate(location.pathname, { replace: true });
     }
-  }, [openAiBuilderQueryParam, canManage, isAutonomousModeEnabled, isRunActive, scenarioId]);
+  }, [openAiBuilderQueryParam, canManage, isAutonomousModeEnabled, isRunActive, isXtmOneReady, isEnterpriseEdition, scenarioId]);
 
   // Deep link from the overview "no run yet" banner (Autonomous button): open the launch config
   // drawer so the operator configures the objective / agents / scope, then launches the live run.
   // The header owns the drawer (single control surface), so the banner just routes here. Strip the
-  // param after so a refresh / back does not reopen it.
+  // param after so a refresh / back does not reopen it. Gated on canLaunch (not canManage) to match
+  // the two surfaces that produce this link - the overview Autonomous CTA and the hero Autonomous
+  // button - both launch-permission surfaces; the builder deep link above stays manage-gated.
   useEffect(() => {
-    if (openAiLaunchQueryParam === 'true' && canManage && isAutonomousModeEnabled && !isRunActive) {
+    if (openAiLaunchQueryParam === 'true' && canLaunch && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && isEnterpriseEdition) {
       void openAiDrawer('launch');
       navigate(location.pathname, { replace: true });
     }
-  }, [openAiLaunchQueryParam, canManage, isAutonomousModeEnabled, isRunActive, scenarioId]);
+  }, [openAiLaunchQueryParam, canLaunch, isAutonomousModeEnabled, isRunActive, isXtmOneReady, isEnterpriseEdition, scenarioId]);
+
+  useEffect(() => {
+    if (!openConfigurationQueryParam) {
+      return;
+    }
+    clearConfigurationQueryParam();
+    if (openConfigurationQueryParam === SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE && canOpenConfiguration) {
+      setConfigurationInitialTab(ScenarioConfigurationTab.VARIABLES);
+      setOpenConfiguration(true);
+    }
+  }, [openConfigurationQueryParam, canOpenConfiguration, clearConfigurationQueryParam]);
 
   const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({
     workflowConfiguration: scenarioWorkflowId
@@ -246,8 +346,10 @@ const ScenarioHeader = ({
   const scenarioPopoverActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = isScenarioChaining
     ? ['Update', 'Delete', 'Export']
     : ['Duplicate', 'Update', 'Delete', 'Export'];
-  const isScopeMissing = isScenarioChaining
-    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+  // Grant-only users without any of the manage / launch / delete permissions get no overflow menu
+  // at all instead of a popover full of disabled entries.
+  const canDisplayScenarioActions = canManage || canLaunch || canDelete;
+  const isScopeMissing = isScenarioChaining && isScopeLaunchBlocked(healthchecks);
 
   // Local
   const ended = scenario.scenario_recurrence_end && new Date(scenario.scenario_recurrence_end).getTime() < new Date().getTime();
@@ -381,12 +483,21 @@ const ScenarioHeader = ({
   const handleAiBuild = async (input: AutonomousRunCreateInput) => {
     setAiSubmitting(true);
     setAiError(null);
+    // Refine (follow-up) keeps the existing logic + history and continues from it; a from-scratch
+    // rebuild wipes and re-authors. Only meaningful once the scenario already has logic; the drawer
+    // only surfaces the choice then, and the default is the non-destructive refine.
+    const refine = hasExistingLogic && rebuildMode === 'refine';
     try {
       await saveScenarioAutonomousConfig(scenarioId, input);
-      const { data } = await planAutonomousScenario(scenarioId, input);
+      const { data } = await planAutonomousScenario(scenarioId, {
+        ...input,
+        refine,
+      });
       onAutonomousRunUpdate?.(data);
       setAiDrawerOpen(false);
-      MESSAGING$.notifySuccess(t('The orchestrator is building the logic for this scenario'));
+      MESSAGING$.notifySuccess(refine
+        ? t('The orchestrator is refining the logic for this scenario')
+        : t('The orchestrator is building the logic for this scenario'));
       navigate(`/admin/scenarios/${scenarioId}/logic`);
     } catch {
       setAiError(t('Failed to start the build'));
@@ -433,22 +544,34 @@ const ScenarioHeader = ({
   }
 
   // AI config drawer title + primary action label: "launch" intent is always a live Autonomous
-  // launch; "build" reads as Rebuild once a settled run left an authored attack path behind.
+  // launch; "build" acts on the scenario's LOGIC. Once logic already exists, the build reads as
+  // Refine (keep + continue) or Rebuild (wipe + re-author) per the operator's choice - and the
+  // title names the LOGIC (what it authors), not "the attack path" (which is the runtime view).
   let aiDrawerTitle: string;
   if (aiDrawerIntent !== 'build') {
     aiDrawerTitle = t('Launch in autonomous mode');
-  } else if (isRunSettled) {
-    aiDrawerTitle = t('Rebuild the attack path');
+  } else if (hasExistingLogic) {
+    aiDrawerTitle = rebuildMode === 'refine' ? t('Refine the logic') : t('Rebuild the logic');
   } else {
     aiDrawerTitle = t('AI builder');
   }
   let aiLaunchLabel: string;
   if (aiDrawerIntent !== 'build') {
     aiLaunchLabel = t('Launch now');
-  } else if (isRunSettled) {
-    aiLaunchLabel = t('Rebuild');
+  } else if (hasExistingLogic) {
+    aiLaunchLabel = rebuildMode === 'refine' ? t('Refine') : t('Rebuild');
   } else {
     aiLaunchLabel = t('Build');
+  }
+  // Builder info banner, adapted to what the action will do: refine keeps + continues the existing
+  // logic, rebuild wipes it, and a first build authors from scratch.
+  let aiBuildInfoText: string;
+  if (hasExistingLogic && rebuildMode === 'refine') {
+    aiBuildInfoText = t('Refine this scenario\'s existing logic: the orchestrator keeps the current attack path and continues from it, applying your new instruction below - adding, adjusting or removing only what is needed. An AI-built scenario reopens its full reasoning history so you can follow up. Nothing runs while building.');
+  } else if (hasExistingLogic) {
+    aiBuildInfoText = t('Rebuild this scenario\'s logic from scratch: the current attack path is wiped and the orchestrator re-authors it from the objective, agents and scope below. Nothing runs while building; you launch the scenario afterwards, in normal or autonomous mode.');
+  } else {
+    aiBuildInfoText = t('Let the AI build this scenario\'s logic for you - set the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario. Nothing runs while building; you launch the scenario afterwards, in normal or autonomous mode.');
   }
 
   // Autonomous-launch objective UX depends on how defined the scenario already is:
@@ -534,28 +657,41 @@ const ScenarioHeader = ({
             </Button>
           </Box>
         </Tooltip>
-        <Tooltip title={isRunSettled
-          ? t('Relaunch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')
-          : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}
-        >
-          <Box component="span" sx={{ display: 'inline-flex' }}>
-            <Button
-              startIcon={<AutoAwesome />}
-              variant="contained"
-              size="small"
-              onClick={() => openAiDrawer('launch')}
-              data-testid="scenario-launch-autonomous-button"
+        {/* Autonomous is an XTM One-driven EE feature: hidden entirely when XTM One is unavailable
+            (only Normal remains), and shown as an EE call-to-action when the platform is not
+            Enterprise (the EE chip + the dialog raised by openAiDrawerOrEE). */}
+        {isXtmOneReady && (
+          <Tooltip title={isRunSettled
+            ? t('Relaunch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')
+            : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}
+          >
+            <Box
+              component="span"
               sx={{
-                'whiteSpace': 'nowrap',
-                'backgroundColor': theme.palette.ai.main,
-                'color': theme.palette.ai.contrastText,
-                '&:hover': { backgroundColor: theme.palette.ai.dark },
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
               }}
             >
-              {t('Autonomous')}
-            </Button>
-          </Box>
-        </Tooltip>
+              <Button
+                startIcon={<AutoAwesome />}
+                variant="contained"
+                size="small"
+                onClick={() => openAiDrawerOrEE('launch')}
+                data-testid="scenario-launch-autonomous-button"
+                sx={{
+                  'whiteSpace': 'nowrap',
+                  'backgroundColor': theme.palette.ai.main,
+                  'color': theme.palette.ai.contrastText,
+                  '&:hover': { backgroundColor: theme.palette.ai.dark },
+                }}
+              >
+                {t('Autonomous')}
+              </Button>
+              {!isEnterpriseEdition && <EEChip />}
+            </Box>
+          </Tooltip>
+        )}
       </>
     );
   } else {
@@ -644,14 +780,17 @@ const ScenarioHeader = ({
               {/* Configuration promoted to a first-class button (not buried in the
                   overflow) so teams/players setup is discoverable, with an
                   explicit tooltip describing what it configures. */}
-              {canManage && !isScenarioChaining && (
+              {canOpenConfiguration && (
                 <Tooltip title={t('Configure the teams, players and audience targeted by this scenario')}>
                   <Button
                     variant="outlined"
                     color="primary"
                     size="small"
                     startIcon={<TuneOutlined />}
-                    onClick={() => setOpenConfiguration(true)}
+                    onClick={() => {
+                      setConfigurationInitialTab(ScenarioConfigurationTab.TEAMS);
+                      setOpenConfiguration(true);
+                    }}
                     data-testid="scenario-configuration-button"
                   >
                     {t('Configuration')}
@@ -725,7 +864,8 @@ const ScenarioHeader = ({
                   run's lifecycle controls (pause / resume / stop) - the same single control
                   surface the simulation defers to. Once the run settles (planned / completed /
                   failed / canceled) the standard actions return: rebuild through the AI builder
-                  (Build wipes the logic map and re-plans) or relaunch Normal / Autonomous. */}
+                  (refine the existing logic or rebuild it from scratch) or relaunch Normal /
+                  Autonomous. */}
               {isRunActive && autonomousRun && (
                 <AutonomousRunControls run={autonomousRun} onRunUpdate={onAutonomousRunUpdate} />
               )}
@@ -734,16 +874,26 @@ const ScenarioHeader = ({
                   Saves it for later or Builds it now (the orchestrator authors the attack path onto
                   this scenario, nothing executed). Hidden while a run is active (its lifecycle
                   controls own the hero then). */}
-              {canManage && isAutonomousModeEnabled && !isRunActive && (
-                <Tooltip title={isRunSettled
-                  ? t('Rebuild with AI - re-author this scenario\'s logic (this wipes the current logic map and starts fresh)')
+              {/* AI builder: an XTM One-driven EE feature, gated like the Autonomous button - hidden
+                  unless XTM One is available, and an EE call-to-action (EE chip + EE dialog via
+                  openAiDrawerOrEE) when the platform is not Enterprise. */}
+              {canManage && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && (
+                <Tooltip title={hasExistingLogic
+                  ? t('Rebuild with AI - refine this scenario\'s existing logic (keep it and continue) or rebuild it from scratch')
                   : t('AI builder - let the orchestrator author this scenario\'s logic; save it for later or build it now (nothing runs while building)')}
                 >
-                  <Box component="span" sx={{ display: 'inline-flex' }}>
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                    }}
+                  >
                     <IconButton
                       size="small"
-                      onClick={() => openAiDrawer('build')}
-                      aria-label={isRunSettled ? t('Rebuild with AI') : t('AI builder')}
+                      onClick={() => openAiDrawerOrEE('build')}
+                      aria-label={hasExistingLogic ? t('Rebuild with AI') : t('AI builder')}
                       data-testid="scenario-plan-with-ai-button"
                       sx={{
                         'color': theme.palette.ai.main,
@@ -755,18 +905,22 @@ const ScenarioHeader = ({
                     >
                       <AutoFixHigh fontSize="small" />
                     </IconButton>
+                    {!isEnterpriseEdition && <EEChip />}
                   </Box>
                 </Tooltip>
               )}
               {/* Launch actions (suppressed while a run is active - the lifecycle controls own the
                   hero then). Resolved into `launchActions` above to avoid nested ternaries here. */}
               {!isRunActive && canLaunch && launchActions}
-              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. */}
-              <ScenarioPopover
-                scenario={scenario}
-                actions={scenarioPopoverActions}
-                onDelete={() => navigate('/admin/scenarios')}
-              />
+              {/* Everything else - analyze, setup, and CRUD - in one overflow menu. Hidden entirely
+                  for grant-only users without any manage / launch / delete permission. */}
+              {canDisplayScenarioActions && (
+                <ScenarioPopover
+                  scenario={scenario}
+                  actions={scenarioPopoverActions}
+                  onDelete={() => navigate('/admin/scenarios')}
+                />
+              )}
             </>
           )}
           stats={(
@@ -782,9 +936,7 @@ const ScenarioHeader = ({
                       label={t('Attack path steps')}
                       value={attackPathStepCount ?? 0}
                       color={theme.palette.warning.main}
-                      to={isAttackPathEnabled
-                        ? `/admin/scenarios/${scenarioId}/attack-path`
-                        : `/admin/scenarios/${scenarioId}/execution`}
+                      to={`/admin/scenarios/${scenarioId}/attack-path`}
                     />
                   )
                 : (
@@ -899,7 +1051,7 @@ const ScenarioHeader = ({
               // lands on the simulation's Attack path tab (the live execution view), a time-based
               // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
               // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
-              if (isScenarioChaining && isAttackPathEnabled) {
+              if (isScenarioChaining) {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
               } else {
                 navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
@@ -916,7 +1068,7 @@ const ScenarioHeader = ({
         handleClose={() => setOpenConfiguration(false)}
         title={t('Scenario configuration')}
       >
-        <ScenarioConfiguration />
+        <ScenarioConfiguration initialTab={configurationInitialTab} />
       </Drawer>
       {/* Shared AI-run configuration drawer, scoped to the action that opened it. "build" (AI
           builder) offers Save (persist the config, nothing runs) + Build (plan now, author the
@@ -938,8 +1090,13 @@ const ScenarioHeader = ({
         planMode={aiDrawerIntent === 'build'}
         timeBudgetNote={aiTimeBudgetNote}
         title={aiDrawerTitle}
+        // The Refine / Rebuild-from-scratch choice is only shown for the AI builder once the
+        // scenario already has logic to preserve (AI-built or manual); a first build has nothing
+        // to refine, and a live launch never authors logic.
+        rebuildMode={aiDrawerIntent === 'build' && hasExistingLogic ? rebuildMode : undefined}
+        onRebuildModeChange={setRebuildMode}
         infoText={aiDrawerIntent === 'build'
-          ? t('Let the AI build this scenario\'s logic for you - set the objective, the specialist agents the orchestrator may consult, and the scope. Save it to build or launch later, or Build now to have the orchestrator author the steps onto the scenario. Nothing runs while building; you launch the scenario afterwards, in normal or autonomous mode.')
+          ? aiBuildInfoText
           : t('Launch this scenario in autonomous mode: the orchestrator seeds a live run from the objective, agents and scope below, then drives it and adapts in real time - reacting to findings, adding steps and consulting agents to pursue the objective within scope. (Normal mode instead runs only the scenario\'s predefined steps.)')}
         submitting={aiSubmitting}
         error={aiError}

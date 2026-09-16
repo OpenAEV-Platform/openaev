@@ -16,7 +16,6 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.User;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
@@ -72,11 +71,8 @@ class AttackPathApiRbacTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() {
-    // Store and restore the dev-feature flag around the test (the Spring context is shared), so
-    // this
-    // class never wipes another test's configured dev features.
+    // Store and restore platform settings around the test (the Spring context is shared).
     originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
-    setDevFeatures(PreviewFeature.ATTACK_PATH.getValue());
     Exercise simulation =
         exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
     simulationId = simulation.getId();

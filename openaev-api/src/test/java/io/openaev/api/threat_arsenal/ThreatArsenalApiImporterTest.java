@@ -29,6 +29,7 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -73,6 +74,13 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     domainComposer.reset();
     injectorContractComposer.reset();
+    // The import endpoint resolves a single write tenant from the request scope (injectors /
+    // connector_instances v2 activation). The mock user from @WithMockUser has no tenant
+    // membership row, so without this grant the resolved scope is empty and tenantForWrite
+    // refuses the write with a 400. Skipped for tests that manage their own users.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 
   @Nested

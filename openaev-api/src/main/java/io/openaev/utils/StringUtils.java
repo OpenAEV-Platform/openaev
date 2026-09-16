@@ -54,6 +54,13 @@ public class StringUtils {
    * @return {@code true} if the regex compiles successfully, {@code false} otherwise
    */
   public static boolean isValidRegex(String regex) {
+    // A null/blank rule is invalid input, not a server fault: returning false lets the caller
+    // raise a 400. Without this guard regex.length() threw a raw NullPointerException that
+    // surfaced as a 500 whenever a contract output element reached this method with no rule
+    // (e.g. a malformed output parser slipping past bean validation).
+    if (regex == null || regex.isBlank()) {
+      return false;
+    }
     if (regex.length() > 100) {
       throw new IllegalArgumentException("Regex too long");
     }

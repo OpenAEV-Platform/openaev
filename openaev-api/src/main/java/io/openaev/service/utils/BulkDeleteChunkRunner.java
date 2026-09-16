@@ -1,5 +1,6 @@
 package io.openaev.service.utils;
 
+import io.openaev.context.TxCtx;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,16 @@ public class BulkDeleteChunkRunner {
 
   @Transactional(rollbackFor = Exception.class)
   public <T> T call(Supplier<T> work) {
+    return work.get();
+  }
+
+  /**
+   * Same as {@link #call(Supplier)} with an explicit tenant scope. The {@code TxCtx} parameter is
+   * how the transaction aspect sets {@code app.current_tenants} for this chunk, so tenant-active
+   * tables (e.g. {@code autonomous_runs}) are visible to the deleter.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public <T> T call(TxCtx ctx, Supplier<T> work) {
     return work.get();
   }
 }

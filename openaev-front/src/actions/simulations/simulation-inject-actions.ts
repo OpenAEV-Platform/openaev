@@ -1,7 +1,7 @@
 import type { Dispatch } from 'redux';
 
-import { getReferential, postReferential, simplePostCall } from '../../utils/Action';
-import type { Exercise, InjectInput, SearchPaginationInput } from '../../utils/api-types';
+import { getReferential, postReferential, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
+import type { Exercise, InjectBulkProcessingInput, InjectBulkUpdateInputs, InjectInput, SearchPaginationInput } from '../../utils/api-types';
 import { MESSAGING$ } from '../../utils/Environment';
 import * as schema from '../Schema';
 
@@ -18,6 +18,16 @@ export const fetchExerciseInjectsSimple = (exerciseId: Exercise['exercise_id']) 
 export const searchExerciseInjectsSimple = (exerciseId: Exercise['exercise_id'], input: SearchPaginationInput) => {
   const uri = `/api/exercises/${exerciseId}/injects/simple`;
   return simplePostCall(uri, input);
+};
+
+export const bulkDeleteInjectsForSimulation = (exerciseId: Exercise['exercise_id'], data: InjectBulkProcessingInput) => {
+  const uri = `/api/exercises/${exerciseId}/injects`;
+  return simpleDelCall(uri, { data });
+};
+
+export const bulkUpdateInjectForSimulation = (exerciseId: Exercise['exercise_id'], data: InjectBulkUpdateInputs) => {
+  const uri = `/api/exercises/${exerciseId}/injects`;
+  return simplePutCall(uri, data);
 };
 
 export const importInjectsForSimulation = (simulationId: Exercise['exercise_id'], file: File) => {

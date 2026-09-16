@@ -32,7 +32,7 @@ public class Manager {
   private void initialise() throws Exception {
     for (IntegrationFactory factory : factories) {
       try {
-        factory.initialise();
+        factory.initialise(tenantId);
       } catch (Exception e) {
         log.error("Initialisation of integration factory {} failed.", factory.getClassName(), e);
         throw e;

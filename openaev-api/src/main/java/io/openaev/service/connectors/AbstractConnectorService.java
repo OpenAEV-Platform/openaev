@@ -19,11 +19,10 @@ public abstract class AbstractConnectorService<
     T extends BaseConnectorEntity & TenantIdBase, Output> {
 
   /**
-   * An external connector that pinged within this window is considered running. Mirrors the
-   * frontend liveliness threshold (LIVELINESS_THRESHOLD_MS): external connectors re-register every
-   * ~40s, so two minutes without a heartbeat means the process is down.
+   * An external connector that pinged within this window is considered running. Managed connectors
+   * refine it from their declared run period; see {@link HeartbeatWindow}.
    */
-  public static final Duration ACTIVE_HEARTBEAT_WINDOW = Duration.ofMinutes(2);
+  public static final Duration ACTIVE_HEARTBEAT_WINDOW = HeartbeatWindow.DEFAULT;
 
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
@@ -294,20 +293,61 @@ public abstract class AbstractConnectorService<
   }
 
   /**
+   * Tenant-scoped variant of {@link #getConnectorRelationsId(String)}.
+   *
+   * <p>Tenant safety: {@code connector_instances}/{@code connector_instance_configurations} are now
+   * on v2 isolation (activated #6408). This variant still passes {@code tenantId} explicitly to the
+   * lookup on purpose, not as a leftover v1 workaround: this method is also called with a specific
+   * connector's OWN tenant while iterating a broader ambient scope (see {@code
+   * CalderaSettingsService#getCalderaSettings}, which loops over {@code executors()} and resolves
+   * each executor's tenant independently) - the automatic inspector scoping alone would not narrow
+   * to that one tenant in that case.
+   *
+   * @param connectorId the connector identifier
+   * @param tenantId the requesting tenant, resolved by the caller from the request's single-tenant
+   *     scope, or from the specific connector when iterating a broader scope
+   * @return connector instance ID and catalog connector ID if available, null values if not found
+   * @throws ElementNotFoundException if the connector is not visible in the requesting tenant's
+   *     scope (wrong tenant, or the id does not exist at all)
+   */
+  public ConnectorIds getConnectorRelationsId(String connectorId, String tenantId) {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            this.connectorType.getIdKeyName(), connectorId, tenantId);
+    T connector = getConnectorById(connectorId);
+    if (relatedIds != null) {
+      boolean registered = connector != null;
+      return catalogConnectorMapper.toConnectorIds(
+          relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId(), registered);
+    }
+
+    if (connector == null) {
+      // Not visible in the requesting tenant's scope (wrong tenant, or the id does not exist at
+      // all): 404, so the API does not leak whether the id exists in another tenant. The frontend
+      // (ConnectorLayout) relies on this 404 to notify and redirect.
+      throw new ElementNotFoundException("Connector not found with id: " + connectorId);
+    }
+
+    // Connector already deployed without catalog, we will try to search matching catalog comparing
+    // connectorType and catalogSlug
+    CatalogConnector catalogConnector =
+        catalogConnectorService.findBySlug(connector.getType()).orElse(null);
+    if (catalogConnector != null) {
+      return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null, true);
+    }
+
+    // If nothing match this connector is manually deployed
+    return catalogConnectorMapper.toConnectorIds(null, null, true);
+  }
+
+  /**
    * Rejects the deletion of a connector that is still running (OpenCTI parity: a started connector
    * can never be deleted, it must be stopped first).
    *
-   * <p>Two cases, mirroring the frontend gating:
-   *
-   * <ul>
-   *   <li>deployed through the Integration Manager: the owning instance decides - deletion is only
-   *       allowed once a stop has been requested ({@code requestedStatus == stopping}) or is
-   *       effective ({@code currentStatus == stopped});
-   *   <li>unmanaged external connector: the registration heartbeat decides - a ping within {@link
-   *       #ACTIVE_HEARTBEAT_WINDOW} means the container is alive and must be stopped (externally)
-   *       before the row can be removed. Deleting an active row is futile anyway: the connector
-   *       re-registers on its next heartbeat.
-   * </ul>
+   * <p>A managed connector (owned by an Integration Manager instance) must clear both the instance
+   * status and the heartbeat: on status alone it was deleted on the mere intention to stop it, and
+   * its still-live container put the row back, orphaned. Unmanaged connectors have no owning
+   * instance and are therefore gated by heartbeat only.
    *
    * @param connector the connector entity being deleted
    * @param lastHeartbeat the connector's last registration heartbeat ({@code updatedAt})
@@ -317,12 +357,15 @@ public abstract class AbstractConnectorService<
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
             this.connectorType.getIdKeyName(), connector.getId(), connector.getTenantId());
+    Duration heartbeatWindow = ACTIVE_HEARTBEAT_WINDOW;
     if (relatedIds != null && relatedIds.getConnectorInstanceId() != null) {
       connectorInstanceService.throwIfInstanceRunning(relatedIds.getConnectorInstanceId());
-      return;
+      heartbeatWindow =
+          HeartbeatWindow.forInstance(
+              connectorInstanceService.connectorInstanceById(relatedIds.getConnectorInstanceId()),
+              this.connectorType);
     }
-    if (lastHeartbeat != null
-        && lastHeartbeat.isAfter(Instant.now().minus(ACTIVE_HEARTBEAT_WINDOW))) {
+    if (lastHeartbeat != null && lastHeartbeat.isAfter(Instant.now().minus(heartbeatWindow))) {
       throw new BadRequestException(
           "The "
               + this.connectorType.name().toLowerCase(Locale.ROOT)

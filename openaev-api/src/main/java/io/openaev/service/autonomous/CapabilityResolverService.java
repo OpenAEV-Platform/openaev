@@ -18,7 +18,6 @@ import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.AgentHelper;
-import io.openaev.service.PreviewFeatureService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,10 +30,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Answers "can this platform do X, and if not, what should be installed?" for the autonomous
@@ -62,7 +59,6 @@ public class CapabilityResolverService {
   private final CatalogConnectorRepository catalogConnectorRepository;
   private final InjectorRepository injectorRepository;
   private final AgentRepository agentRepository;
-  private final PreviewFeatureService previewFeatureService;
 
   /**
    * External injectors must heartbeat (they bump {@code updatedAt} on registration/ping); we treat
@@ -110,12 +106,6 @@ public class CapabilityResolverService {
 
   private static final int MAX_SUGGESTIONS = 5;
 
-  private void requireFeature() {
-    if (!previewFeatureService.isAutonomousAttackPathEnabled()) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-    }
-  }
-
   /**
    * Resolves every technique and output type in the query against the installed threat arsenal.
    * Loads the tenant's contracts once and builds in-memory indexes; this is an on-demand advisory
@@ -124,7 +114,6 @@ public class CapabilityResolverService {
    */
   @Transactional(readOnly = true)
   public CapabilityReport resolve(CapabilityQueryInput input) {
-    requireFeature();
 
     ContractIndex index = buildIndex();
     Set<Endpoint.PLATFORM_TYPE> platformFilter = parsePlatforms(input.getPlatforms());

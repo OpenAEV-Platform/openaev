@@ -9,6 +9,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.rest.inject.service.ExecutableInjectService.formatMultilineCommand;
 import static io.openaev.rest.inject.service.ExecutableInjectService.replaceCmdVariables;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -26,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -139,9 +139,17 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    emailInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
     managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
+    // The manager bootstrap above joins this test's transaction and pins its scope to the default
+    // tenant (ManagerCreator.setScopeOnCurrentTransaction). Inject endpoints carrying a TxCtx then
+    // re-resolve the caller's scope; the mock user from @WithMockUser has no tenant membership
+    // row, so without this grant the resolved scope is empty and conflicts with the already-set
+    // default tenant scope. Skipped for tests that manage their own users.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
@@ -221,11 +229,10 @@ class InjectApiTest extends IntegrationTest {
     // -- PREPARE --
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of(createdInject.getId()));
-    input.setSimulationOrScenarioId(SCENARIO.getId());
 
     // -- EXECUTE --
     mvc.perform(
-            delete(INJECT_URI)
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
@@ -249,6 +256,116 @@ class InjectApiTest extends IntegrationTest {
             .findAllByInjectAndTeam(createdInject.getId(), TEAM.getId())
             .isEmpty(),
         "There should be no expectations related to the inject in the database");
+  }
+
+  @DisplayName("Non-admin user with assessment capabilities can bulk-delete injects for scenario")
+  @Test
+  @WithMockUser(
+      withCapabilities = {
+        Capability.ACCESS_ASSESSMENT,
+        Capability.MANAGE_ASSESSMENT,
+        Capability.DELETE_ASSESSMENT
+      })
+  void deleteInjectsForScenarioAsNonAdminWithCapabilityTest() throws Exception {
+    // -- PREPARE --
+    Inject injectForScenario =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    injectForScenario.setScenario(SCENARIO);
+    Inject createdInject = injectRepository.save(injectForScenario);
+
+    assertTrue(
+        injectRepository.existsByIdWithoutLoading(createdInject.getId()),
+        "The inject should exist in the database");
+
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(createdInject.getId()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- ASSERT --
+    assertFalse(
+        injectRepository.existsById(createdInject.getId()),
+        "The inject should be deleted from the database");
+    assertTrue(
+        scenarioRepository.existsById(SCENARIO.getId()),
+        "The scenario should still exist in the database");
+  }
+
+  @DisplayName("Non-admin user without capabilities cannot bulk-delete injects for scenario")
+  @Test
+  @WithMockUser
+  void deleteInjectsForScenarioWithoutCapabilityIsForbiddenTest() throws Exception {
+    // -- PREPARE --
+    Inject injectForScenario =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    injectForScenario.setScenario(SCENARIO);
+    Inject createdInject = injectRepository.save(injectForScenario);
+
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(createdInject.getId()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isForbidden());
+
+    // -- ASSERT --
+    assertTrue(
+        injectRepository.existsByIdWithoutLoading(createdInject.getId()),
+        "The inject should still exist in the database");
+  }
+
+  @DisplayName("Bulk-delete with a nonexistent inject id returns not found")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void deleteInjectsForScenarioWithUnknownIdReturnsNotFoundTest() throws Exception {
+    // -- PREPARE --
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(UUID.randomUUID().toString()));
+
+    // -- EXECUTE + ASSERT --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isNotFound());
+  }
+
+  @DisplayName("Bulk-delete with mixed valid and invalid inject ids deletes nothing")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void deleteInjectsForScenarioWithMixedIdsIsAtomicTest() throws Exception {
+    // -- PREPARE --
+    Inject injectForScenario =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    injectForScenario.setScenario(SCENARIO);
+    Inject createdInject = injectRepository.save(injectForScenario);
+
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(createdInject.getId(), UUID.randomUUID().toString()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isNotFound());
+
+    // -- ASSERT --
+    assertTrue(
+        injectRepository.existsByIdWithoutLoading(createdInject.getId()),
+        "The valid inject should not be deleted when the request contains an invalid id");
   }
 
   // -- EXERCISES --
@@ -591,11 +708,10 @@ class InjectApiTest extends IntegrationTest {
     // -- PREPARE --
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of(createdInject1.getId(), createdInject2.getId()));
-    input.setSimulationOrScenarioId(EXERCISE.getId());
 
     // -- EXECUTE --
     mvc.perform(
-            delete(INJECT_URI)
+            delete(EXERCISE_URI + "/" + EXERCISE.getId() + "/injects")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
@@ -930,9 +1046,12 @@ class InjectApiTest extends IntegrationTest {
           .satisfies(
               expectation ->
                   assertThat(
-                          expectation.getSignatures().stream()
-                              .filter(
-                                  s -> EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(s.getType())))
+                          ((TechnicalInjectExpectation) expectation)
+                              .getSignatures().stream()
+                                  .filter(
+                                      s ->
+                                          EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(
+                                              s.getType())))
                       .hasSize(1));
     }
 
@@ -1375,9 +1494,10 @@ class InjectApiTest extends IntegrationTest {
             injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
         List<InjectExpectationSignature> endDatesignatures =
-            injectExpectationSaved.getFirst().getSignatures().stream()
-                .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
-                .toList();
+            ((TechnicalInjectExpectation) injectExpectationSaved.getFirst())
+                .getSignatures().stream()
+                    .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
+                    .toList();
         assertEquals(1, endDatesignatures.size());
       }
 
@@ -1979,6 +2099,38 @@ class InjectApiTest extends IntegrationTest {
         assertTrue(injectTestHelper.findFindingsByInjectId(portScanInject.getId()).isEmpty());
       }
 
+      @Test
+      @DisplayName("Should not create PortScan findings when extracted port is invalid")
+      void shouldNotCreatePortScanFindingsWhenExtractedPortIsInvalid() throws Exception {
+        // -- PREPARE --
+        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$1");
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$2");
+        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$3");
+        ContractOutputElement portScanElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.PortsScan,
+                "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):([A-Za-z0-9-]+)\\s+\\S+\\s+(LISTENING)",
+                Set.of(hostGroup, portGroup, serviceGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portScanElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portScanInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(
+            "{\"stdout\":\"192.168.1.10:70000 0.0.0.0:0 LISTENING\\n"
+                + "10.0.0.5:abc 0.0.0.0:0 LISTENING\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portScanInject.getId(), input);
+
+        // -- ASSERT --
+        assertTrue(injectTestHelper.findFindingsByInjectId(portScanInject.getId()).isEmpty());
+      }
+
       // Port
 
       @Test
@@ -2040,6 +2192,34 @@ class InjectApiTest extends IntegrationTest {
         String agentId = (String) setup[1];
 
         InjectExecutionInput input = buildStdoutInput("no ports here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portInject.getId(), input);
+
+        // -- ASSERT --
+        assertTrue(injectTestHelper.findFindingsByInjectId(portInject.getId()).isEmpty());
+      }
+
+      @Test
+      @DisplayName("Should not create Port findings when extracted port is invalid")
+      void shouldNotCreatePortFindingsWhenExtractedPortIsInvalid() throws Exception {
+        // -- PREPARE --
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$1");
+        ContractOutputElement portElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Port,
+                "(?:TCP|UDP)\\s+[\\d\\.]+:([A-Za-z0-9-]+)",
+                Set.of(portGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            "  TCP    192.168.1.10:abc            0.0.0.0:0              LISTENING\\n"
+                + "  TCP    192.168.1.10:99999            0.0.0.0:0              LISTENING\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
 
         // -- EXECUTE --
         performCallbackRequest(agentId, portInject.getId(), input);
@@ -3212,10 +3392,10 @@ class InjectApiTest extends IntegrationTest {
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetA", Tenant.DEFAULT_TENANT_UUID);
         List<Endpoint> endpointsB =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetB", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetB", Tenant.DEFAULT_TENANT_UUID);
         assertEquals(1, endpointsA.size());
         assertEquals(1, endpointsB.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
@@ -3306,7 +3486,7 @@ class InjectApiTest extends IntegrationTest {
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetA", Tenant.DEFAULT_TENANT_UUID);
         assertEquals(1, endpointsA.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
       }
@@ -3437,7 +3617,7 @@ class InjectApiTest extends IntegrationTest {
                 () -> {
                   List<Endpoint> endpointsA =
                       endpointRepository.findByExternalReference(
-                          "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
+                          "https://shodan.io/.../assetA", Tenant.DEFAULT_TENANT_UUID);
                   return endpointsA.isEmpty();
                 });
       }
@@ -3510,7 +3690,7 @@ class InjectApiTest extends IntegrationTest {
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetC", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetC", Tenant.DEFAULT_TENANT_UUID);
         assertEquals(1, endpointsA.size());
         assertEquals("", endpointsA.getFirst().getHostname());
         assertEquals(Endpoint.PLATFORM_TYPE.Unknown, endpointsA.getFirst().getPlatform());

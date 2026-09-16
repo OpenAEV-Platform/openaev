@@ -29,6 +29,9 @@ public class Endpoint extends Asset implements AuditStateCapturable {
       new HashSet<>(Arrays.asList("127.0.0.1", "::1", "169.254.0.0"));
   public static final String REGEX_MAC_ADDRESS = "[^a-z0-9]";
 
+  /** Length of a normalized Ethernet MAC address: 6 bytes rendered as hexadecimal. */
+  public static final int MAC_ADDRESS_LENGTH = 12;
+
   public enum PLATFORM_ARCH {
     @JsonProperty("x86_64")
     x86_64,

@@ -46,10 +46,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * transaction, so the rows must outlive any test transaction (explicit cleanup instead).
  */
 @TestPropertySource(
-    properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
-      "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
-    })
+    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path: copyFindings copies findings onto the snapshot per endpoint")
 class AttackPathFindingIngestionServiceTest extends IntegrationTest {

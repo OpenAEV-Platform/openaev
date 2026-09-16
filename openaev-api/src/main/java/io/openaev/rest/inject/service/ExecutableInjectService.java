@@ -1,6 +1,9 @@
 package io.openaev.rest.inject.service;
 
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_ASSET_SEPARATOR;
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_MANDATORY;
+import static io.openaev.database.model.InjectorContract.DEFAULT_VALUE_FIELD;
 import static io.openaev.executors.Executor.CMD;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
@@ -106,24 +109,43 @@ public class ExecutableInjectService {
       CommandArgumentBinder binder,
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
-      ObjectNode injectContent) {
+      ObjectNode injectContent,
+      boolean enforceMandatory) {
 
     Set<String> argumentKeys = getArgumentsFromCommandLines(command);
+    List<PayloadArgument> payloadArguments =
+        defaultPayloadArguments != null ? defaultPayloadArguments : List.of();
+    List<ObjectNode> contractFields =
+        injectorContractContentFields != null ? injectorContractContentFields : List.of();
+    ObjectNode safeInjectContent =
+        injectContent != null ? injectContent : mapper.createObjectNode();
 
     for (String argumentKey : argumentKeys) {
       if (RESERVED_PLACEHOLDERS.contains(argumentKey)) {
         continue;
       }
 
-      PayloadArgument defaultPayloadArgument =
-          defaultPayloadArguments.stream()
-              .filter(a -> a.getKey().equals(argumentKey))
-              .findFirst()
-              .orElse(null);
-      binder.bind(
-          argumentKey,
+      PayloadArgument defaultPayloadArgument = findPayloadArgument(argumentKey, payloadArguments);
+      boolean mandatory = isMandatoryField(argumentKey, contractFields);
+      String defaultValue =
+          resolveDefaultValue(argumentKey, defaultPayloadArgument, contractFields);
+      ResolvedArgument resolvedArgument =
           resolveArgumentValue(
-              argumentKey, defaultPayloadArgument, injectorContractContentFields, injectContent));
+              argumentKey,
+              defaultPayloadArgument,
+              defaultValue,
+              mandatory,
+              contractFields,
+              safeInjectContent);
+
+      if (resolvedArgument.missing() && enforceMandatory && resolvedArgument.mandatory()) {
+        log.error(
+            "[Inject execution] Missing mandatory input '{}' -> step run can not be created/executed",
+            argumentKey);
+        throw new IllegalArgumentException(
+            "Missing mandatory input '%s' for inject execution".formatted(argumentKey));
+      }
+      binder.bind(argumentKey, resolvedArgument.value());
     }
     return binder.render(command);
   }
@@ -134,9 +156,9 @@ public class ExecutableInjectService {
    * raw template.
    *
    * <p>This performs a plain, verbatim substitution and the result <b>must never be executed</b>:
-   * only {@link #replaceArgumentsByValue(String, CommandArgumentBinder, List, List, ObjectNode)}
-   * with a shell-aware binder is safe for dispatch. The two paths intentionally share the same
-   * value-resolution rule ({@link #resolveArgumentValue}) so display and execution stay in sync.
+   * only {@link #replaceArgumentsByValue} with a shell-aware binder is safe for dispatch. The two
+   * paths intentionally share the same value-resolution rule ({@link #resolveArgumentValue}) so
+   * display and execution stay in sync.
    */
   public String resolveArgumentsForDisplay(
       String command,
@@ -148,28 +170,36 @@ public class ExecutableInjectService {
         CommandArgumentBinder.literal(),
         defaultPayloadArguments,
         injectorContractContentFields,
-        injectContent);
+        injectContent,
+        false);
   }
 
   /** Resolves the effective value of a single argument, before any shell escaping. */
-  private String resolveArgumentValue(
+  private ResolvedArgument resolveArgumentValue(
       String argumentKey,
       PayloadArgument defaultPayloadArgument,
+      String defaultValue,
+      boolean mandatory,
       List<ObjectNode> injectorContractContentFields,
       ObjectNode injectContent) {
     PrimitiveType type = defaultPayloadArgument != null ? defaultPayloadArgument.getType() : null;
+    String value = "";
+    boolean missing = true;
 
     // If the argument is a targeted asset, we need to fetch the asset details
     if (PrimitiveType.TargetedAsset == type) {
-      return getTargetedAssetArgumentValue(
-          argumentKey, injectContent, defaultPayloadArgument, injectorContractContentFields);
+      value =
+          getTargetedAssetArgumentValue(
+              argumentKey, injectContent, defaultPayloadArgument, injectorContractContentFields);
+      missing = !hasText(value);
+    } else if (injectContent.get(argumentKey) != null
+        && !injectContent.get(argumentKey).asText().isEmpty()) {
+      value = injectContent.get(argumentKey).asText();
+      missing = false;
+    } else if (hasText(defaultValue)) {
+      value = defaultValue;
+      missing = false;
     }
-
-    String value =
-        getArgumentValueOrDefault(
-            argumentKey,
-            injectContent,
-            defaultPayloadArgument != null ? defaultPayloadArgument.getDefaultValue() : "");
 
     // If arg is a doc, specific handling
     // We need to resolve the doc name and add special prefix #{location} that will be resolved
@@ -177,12 +207,13 @@ public class ExecutableInjectService {
     if (PrimitiveType.Document == type && !value.isEmpty()) {
       try {
         Document doc = documentService.document(value);
-        return "#{location}/" + doc.getName();
+        value = "#{location}/" + doc.getName();
+        missing = false;
       } catch (ElementNotFoundException e) {
         log.error("Payload argument target unexisting document", e);
       }
     }
-    return value;
+    return new ResolvedArgument(value, missing, mandatory);
   }
 
   public static String replaceCmdVariables(String cmd) {
@@ -247,7 +278,8 @@ public class ExecutableInjectService {
             CommandArgumentBinder.forExecutor(executor),
             defaultPayloadArguments,
             injectorContractContentFields,
-            injectContent);
+            injectContent,
+            true);
 
     computedCommand = obfuscationMap.executeObfuscation(obfuscator, computedCommand, executor);
 
@@ -427,7 +459,49 @@ public class ExecutableInjectService {
             CommandArgumentBinder.literal(),
             dnsResolution.getArguments(),
             null,
-            inject.getContent()));
+            inject.getContent(),
+            false));
     return dnsResolution;
   }
+
+  private PayloadArgument findPayloadArgument(
+      String argumentKey, List<PayloadArgument> payloadArguments) {
+    return payloadArguments.stream()
+        .filter(arg -> argumentKey.equals(arg.getKey()))
+        .findFirst()
+        .orElse(null);
+  }
+
+  private ObjectNode findFieldByKey(
+      String argumentKey, List<ObjectNode> injectorContractContentFields) {
+    return injectorContractContentFields.stream()
+        .filter(field -> field.has(CONTRACT_ELEMENT_CONTENT_KEY))
+        .filter(field -> argumentKey.equals(field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()))
+        .findFirst()
+        .orElse(null);
+  }
+
+  private boolean isMandatoryField(
+      String argumentKey, List<ObjectNode> injectorContractContentFields) {
+    ObjectNode field = findFieldByKey(argumentKey, injectorContractContentFields);
+    return field != null
+        && field.has(CONTRACT_ELEMENT_CONTENT_MANDATORY)
+        && field.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean(false);
+  }
+
+  private String resolveDefaultValue(
+      String argumentKey,
+      PayloadArgument defaultPayloadArgument,
+      List<ObjectNode> injectorContractContentFields) {
+    if (defaultPayloadArgument != null && hasText(defaultPayloadArgument.getDefaultValue())) {
+      return defaultPayloadArgument.getDefaultValue();
+    }
+    ObjectNode field = findFieldByKey(argumentKey, injectorContractContentFields);
+    if (field != null && field.has(DEFAULT_VALUE_FIELD)) {
+      return field.get(DEFAULT_VALUE_FIELD).asText("");
+    }
+    return defaultPayloadArgument != null ? defaultPayloadArgument.getDefaultValue() : "";
+  }
+
+  private record ResolvedArgument(String value, boolean missing, boolean mandatory) {}
 }

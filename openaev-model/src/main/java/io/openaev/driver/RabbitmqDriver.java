@@ -26,6 +26,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class RabbitmqDriver {
 
+  private static final int CONNECTION_TIMEOUT_MS = 10_000;
+
   private final RabbitmqConfig rabbitmqConfig;
   private final RabbitMQSslConfiguration rabbitMQSslConfiguration;
 
@@ -42,6 +44,7 @@ public class RabbitmqDriver {
     factory.setUsername(rabbitmqConfig.getUser());
     factory.setPassword(rabbitmqConfig.getPass());
     factory.setVirtualHost(rabbitmqConfig.getVhost());
+    factory.setConnectionTimeout(CONNECTION_TIMEOUT_MS);
 
     if (rabbitmqConfig.isSsl()) {
       try {

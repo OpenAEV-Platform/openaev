@@ -14,7 +14,9 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReaderBuilder;
 import io.openaev.IntegrationTest;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.ImportMapper;
@@ -54,6 +56,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestExecutionListeners;
 
@@ -69,6 +72,7 @@ public class MapperServiceTest extends IntegrationTest {
   @Mock private EndpointRepository endpointRepository;
   @Mock private ObjectMapper objectMapper;
   @Mock private EndpointService endpointService;
+  @Mock private TenantWriteScopeResolver writeScopeResolver;
   @Mock private TagService tagService;
 
   private MapperService mapperService;
@@ -82,6 +86,7 @@ public class MapperServiceTest extends IntegrationTest {
             injectorContractRepository,
             endpointRepository,
             endpointService,
+            writeScopeResolver,
             tagService,
             objectMapper);
   }
@@ -374,7 +379,9 @@ public class MapperServiceTest extends IntegrationTest {
 
     // Act / Assert
     assertThrows(
-        BadRequestException.class, () -> mapperService.importMappersCsv(csvFile, CsvType.AGENT));
+        BadRequestException.class,
+        () ->
+            mapperService.importMappersCsv(TxCtx.forTenant("tenant-test"), csvFile, CsvType.AGENT));
   }
 
   @DisplayName("given_mappersInput_should_appendImportedSuffix_whenImportMappers")
@@ -520,7 +527,8 @@ public class MapperServiceTest extends IntegrationTest {
     org.springframework.mock.web.MockHttpServletResponse response =
         new org.springframework.mock.web.MockHttpServletResponse();
 
-    when(injectorContractRepository.findAll(any())).thenReturn(List.of(injectorContract));
+    when(injectorContractRepository.findAll(any(Specification.class)))
+        .thenReturn(List.of(injectorContract));
 
     // Act
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
@@ -570,7 +578,8 @@ public class MapperServiceTest extends IntegrationTest {
     org.springframework.mock.web.MockHttpServletResponse response =
         new org.springframework.mock.web.MockHttpServletResponse();
 
-    when(injectorContractRepository.findAll(any())).thenReturn(List.of(injectorContract));
+    when(injectorContractRepository.findAll(any(Specification.class)))
+        .thenReturn(List.of(injectorContract));
 
     // Act
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
@@ -602,7 +611,7 @@ public class MapperServiceTest extends IntegrationTest {
     SearchPaginationInput input = new SearchPaginationInput();
     org.springframework.mock.web.MockHttpServletResponse response =
         new org.springframework.mock.web.MockHttpServletResponse();
-    when(endpointRepository.findAll(any())).thenReturn(List.of());
+    when(endpointRepository.findAll(any(Specification.class))).thenReturn(List.of());
 
     // Act
     mapperService.exportMappersCsv(CsvType.ENDPOINTS, input, response);
@@ -621,7 +630,8 @@ public class MapperServiceTest extends IntegrationTest {
         new org.springframework.mock.web.MockHttpServletResponse();
     RuntimeException repositoryException = new RuntimeException("boom");
 
-    when(injectorContractRepository.findAll(any())).thenThrow(repositoryException);
+    when(injectorContractRepository.findAll(any(Specification.class)))
+        .thenThrow(repositoryException);
 
     // Act
     RuntimeException thrown =

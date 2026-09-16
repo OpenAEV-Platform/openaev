@@ -49,6 +49,13 @@ public record InjectExpectationOutput(
     @Schema(description = "Whether this expectation is a group expectation")
         @JsonProperty("inject_expectation_group")
         boolean expectationGroup,
+    @Schema(
+            description =
+                "Display order of the expectation within its inject, ascending. Declared by the"
+                    + " injector contract (e.g. phishing orders its steps email -> link ->"
+                    + " submission); null means unordered and readers fall back to name / id.")
+        @JsonProperty("inject_expectation_order")
+        Integer order,
     @Schema(description = "Computed status of the inject expectation")
         @JsonProperty("inject_expectation_status")
         EXPECTATION_STATUS status,
@@ -102,4 +109,11 @@ public record InjectExpectationOutput(
                 "Security platform types expected to fulfil this technical expectation. Empty means"
                     + " any security platform.")
         @JsonProperty("inject_expectation_expected_security_platforms")
-        List<SECURITY_PLATFORM_TYPE> expectedSecurityPlatforms) {}
+        List<SECURITY_PLATFORM_TYPE> expectedSecurityPlatforms,
+    @Schema(
+            description =
+                "True when this technical detection/prevention expectation required a security"
+                    + " platform collector to be fulfilled but none was connected at initialization,"
+                    + " so it was resolved as a definitive failure instead of staying pending.")
+        @JsonProperty("inject_expectation_collector_missing_at_init")
+        boolean collectorMissingAtInit) {}

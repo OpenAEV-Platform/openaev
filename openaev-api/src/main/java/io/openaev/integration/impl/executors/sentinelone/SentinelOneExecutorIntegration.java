@@ -18,6 +18,7 @@ import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorService;
+import io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.annotation.QualifiedComponent;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.scheduling.support.CronTrigger;
 
 @Slf4j
 public class SentinelOneExecutorIntegration extends Integration {
@@ -48,6 +50,7 @@ public class SentinelOneExecutorIntegration extends Integration {
   private SentinelOneExecutorContextService sentinelOneExecutorContextService;
 
   private SentinelOneExecutorService sentinelOneExecutorService;
+  private SentinelOneGarbageCollectorService sentinelOneGarbageCollectorService;
 
   private SentinelOneExecutorConfig config;
   private SentinelOneExecutorClient client;
@@ -149,9 +152,37 @@ public class SentinelOneExecutorIntegration extends Integration {
         new SentinelOneExecutorService(
             executor, client, endpointService, agentService, assetGroupService, tenantTx);
 
+    sentinelOneGarbageCollectorService =
+        new SentinelOneGarbageCollectorService(
+            config, sentinelOneExecutorContextService, agentService, executor, tenantTx);
+
     timers.add(
         taskScheduler.scheduleAtFixedRate(
             sentinelOneExecutorService, Duration.ofSeconds(this.config.getApiRegisterInterval())));
+    // schedule() returns null if the scheduler is already shut down
+    ofNullable(
+            taskScheduler.schedule(
+                sentinelOneGarbageCollectorService, resolveCleanImplantTrigger(executorName)))
+        .ifPresent(timers::add);
+  }
+
+  /** Cron rather than fixed rate: a cleanup task competing with injects makes them time out. */
+  private CronTrigger resolveCleanImplantTrigger(String executorName) {
+    String cron = this.config.getCleanImplantCron();
+    if (cron != null && !cron.isBlank()) {
+      try {
+        return new CronTrigger(cron);
+      } catch (IllegalArgumentException e) {
+        log.warn(
+            "Invalid EXECUTOR_SENTINELONE_CLEAN_IMPLANT_CRON '{}' for executor {}, falling back to"
+                + " default '{}'",
+            cron,
+            executorName,
+            SentinelOneExecutorConfig.DEFAULT_CLEAN_IMPLANT_CRON,
+            e);
+      }
+    }
+    return new CronTrigger(SentinelOneExecutorConfig.DEFAULT_CLEAN_IMPLANT_CRON);
   }
 
   @Override

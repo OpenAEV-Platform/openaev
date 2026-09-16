@@ -1,5 +1,5 @@
 import { BoltOutlined, GpsFixedOutlined, MoreVert, OutputOutlined } from '@mui/icons-material';
-import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type MouseEvent, type ReactNode, useState } from 'react';
 
@@ -8,7 +8,7 @@ import ActionTypeIcon from '../ActionTypeIcon';
 import NodePopover from '../chaining_flow/nodes/NodePopover';
 import LogicNodeTooltip, { type TooltipRow } from '../chaining_flow/NodeTooltip';
 import { formatConditionKeyLabel } from '../events/event-types';
-import graphTooltipSlotProps from './graphTooltipSlotProps';
+import GraphCardTooltip from './GraphCardTooltip';
 
 export interface GraphActionCardProps {
   id: string;
@@ -33,6 +33,8 @@ export interface GraphActionCardProps {
   /** 1-based badge index in the selected trigger's data-flow path. */
   pathIndex?: number;
   readOnly?: boolean;
+  /** Force-closes the rich tooltip when it changes (graph structural relayout). */
+  tooltipDismissKey?: unknown;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 }
@@ -79,6 +81,7 @@ const GraphActionCard = ({
   dimmed = false,
   pathIndex,
   readOnly = false,
+  tooltipDismissKey,
   onEdit,
   onDelete,
 }: GraphActionCardProps) => {
@@ -131,7 +134,7 @@ const GraphActionCard = ({
   );
 
   return (
-    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300} slotProps={graphTooltipSlotProps}>
+    <GraphCardTooltip title={tooltip} dismissKey={tooltipDismissKey}>
       <Box
         sx={{
           'position': 'relative',
@@ -202,9 +205,23 @@ const GraphActionCard = ({
             'lineHeight': 0,
             'color': 'transparent',
             'backgroundColor': theme.palette.action.hover,
-            '& img': {
-              maxWidth: '100%',
-              maxHeight: '100%',
+            // The glyph arrives wrapped in CustomTooltip's inline <span> (which carries its own
+            // inline line-height) and with a fixed 20px inline size; both leave it floating
+            // off-center in the square. Flatten the wrapper into a centering flex layer and force
+            // the glyph to fill the padded square so every logo is centered horizontally and
+            // vertically, whatever its intrinsic shape.
+            'padding': '3px',
+            '& > span': {
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+            },
+            '& img, & svg': {
+              display: 'block',
+              width: '100% !important',
+              height: '100% !important',
               objectFit: 'contain',
             },
           }}
@@ -311,7 +328,7 @@ const GraphActionCard = ({
           />
         )}
       </Box>
-    </Tooltip>
+    </GraphCardTooltip>
   );
 };
 

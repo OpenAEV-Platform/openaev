@@ -28,11 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(
-    properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
-      "openaev.attackpath.delta-max-rows=2"
-    })
+@TestPropertySource(properties = {"openaev.attackpath.delta-max-rows=2"})
 @DisplayName("attack path: a far-behind cursor is answered with a resync, not a huge delta")
 class AttackPathDeltaThresholdTest extends IntegrationTest {
 

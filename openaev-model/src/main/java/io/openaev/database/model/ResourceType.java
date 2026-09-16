@@ -20,7 +20,8 @@ public enum ResourceType {
   THREAT_ARSENAL,
   RESOURCE_TYPE,
   SECURITY_PLATFORM,
-  CREDENTIAL_ASSET,
+  CREDENTIAL,
+  MARKING_DEFINITION,
   DOCUMENT,
   CHANNEL,
   PHISHING_LANDING_PAGE,
@@ -41,6 +42,7 @@ public enum ResourceType {
   VULNERABILITY,
   USER_GROUP,
   INJECTOR,
+  INJECT_SECRET,
   INJECTOR_CONTRACT,
   MAPPER,
   GROUP_ROLE,
@@ -65,6 +67,10 @@ public enum ResourceType {
   WORKFLOW,
   STEP,
   CONDITION,
+  // Auth related
+  SESSION,
+  TOKEN,
+  PLATFORM_SESSION,
   SKIP_RBAC; // Used to skip RBAC checks.
 
   public static ResourceType fromString(@NotNull String name) {

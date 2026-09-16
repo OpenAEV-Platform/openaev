@@ -7,6 +7,8 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
 import io.openaev.database.raw.RawDocument;
@@ -44,11 +46,12 @@ public class ChallengeApi extends RestBehavior {
   private final DocumentRepository documentRepository;
   private final ChallengeService challengeService;
   private final DocumentService documentService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
-  public Iterable<Challenge> challenges() {
+  public Iterable<Challenge> challenges(TxCtx ctx) {
     return fromIterable(challengeRepository.findAll()).stream()
         .map(challengeService::enrichChallengeWithExercisesOrScenarios)
         .toList();
@@ -59,7 +62,7 @@ public class ChallengeApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHALLENGE)
   @Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
-      @RequestBody @Valid @NotNull final List<String> challengeIds) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final List<String> challengeIds) {
     return this.challengeRepository.findAll(fromIds(challengeIds));
   }
 
@@ -70,7 +73,9 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public Challenge updateChallenge(
-      @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input) {
+      TxCtx ctx, @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input)
+      throws InputValidationException {
+    challengeService.validateFlags(input.flags());
     Challenge challenge =
         challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
@@ -99,8 +104,12 @@ public class ChallengeApi extends RestBehavior {
   @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input) {
+  public Challenge createChallenge(TxCtx ctx, @Valid @RequestBody ChallengeInput input)
+      throws InputValidationException {
+    challengeService.validateFlags(input.flags());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Challenge challenge = new Challenge();
+    challenge.setTenant(new Tenant(tenantId));
     challenge.setUpdateAttributes(input);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
@@ -126,7 +135,7 @@ public class ChallengeApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteChallenge(@PathVariable String challengeId) {
+  public void deleteChallenge(TxCtx ctx, @PathVariable String challengeId) {
     Challenge challenge =
         challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
     challengeRepository.delete(challenge);
@@ -139,7 +148,9 @@ public class ChallengeApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHALLENGE)
   public ChallengeResult tryChallenge(
-      @PathVariable String challengeId, @Valid @RequestBody ChallengeTryInput input)
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction.
+      TxCtx ctx, @PathVariable String challengeId, @Valid @RequestBody ChallengeTryInput input)
       throws InputValidationException {
     validateUUID(challengeId);
     return challengeService.tryChallenge(challengeId, input);
@@ -161,7 +172,7 @@ public class ChallengeApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Documents used in the Challenge")
       })
-  public List<RawDocument> documentsFromChallenge(@PathVariable String challengeId) {
+  public List<RawDocument> documentsFromChallenge(TxCtx ctx, @PathVariable String challengeId) {
     return documentService.documentsForChallenge(challengeId);
   }
 }

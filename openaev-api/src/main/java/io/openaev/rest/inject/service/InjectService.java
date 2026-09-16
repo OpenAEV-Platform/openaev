@@ -2,6 +2,8 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
 import static io.openaev.database.model.ExecutionStatus.*;
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
@@ -22,6 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
@@ -50,6 +53,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
@@ -319,7 +323,7 @@ public class InjectService {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public void deleteAllByIds(List<String> injectIds) {
+  public void deleteAllByIds(TxCtx ctx, List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
       // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
@@ -682,7 +686,9 @@ public class InjectService {
    */
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> bulkUpdateInject(
-      final List<Inject> injectsToUpdate, final List<InjectBulkUpdateOperation> operations) {
+      final TxCtx ctx,
+      final List<Inject> injectsToUpdate,
+      final List<InjectBulkUpdateOperation> operations) {
     // We aggregate the different field values in distinct sets in order to avoid retrieving the
     // same data multiple times
     Set<String> teamsIDs = new HashSet<>();
@@ -721,7 +727,9 @@ public class InjectService {
         });
 
     // Save updated injects and return them
-    return this.injectRepository.saveAll(injectsToUpdate);
+    List<Inject> updated = this.injectRepository.saveAll(injectsToUpdate);
+    KillChainPhaseInitializer.initializeFromInjects(updated);
+    return updated;
   }
 
   /**
@@ -731,8 +739,9 @@ public class InjectService {
    * @return the injects to update/delete
    * @throws AccessDeniedException if the user is not allowed to update/delete the injects
    */
+  @Transactional(readOnly = true)
   public List<Inject> getInjectsAndCheckPermission(
-      InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =
@@ -928,6 +937,18 @@ public class InjectService {
       return;
     }
 
+    // Assets and asset groups are only relevant for injects whose contract declares the matching
+    // targeting field in its content: skip these operations for other injects (e.g. email, SMS,
+    // manual) so that irrelevant data is never persisted (#2165). The contract content is the
+    // discriminator - not needs_executor - because agentless technical contracts (Nmap, Nuclei,
+    // HTTP query...) do not need an executor agent yet legitimately target assets. Teams stay
+    // unrestricted as human response expectations can be added to technical injects.
+    InjectorContract contract = injectToUpdate.getInjectorContract().orElse(null);
+    boolean supportsAssets =
+        injectorContractContentUtils.hasField(contract, CONTRACT_ELEMENT_CONTENT_KEY_ASSETS);
+    boolean supportsAssetGroups =
+        injectorContractContentUtils.hasField(contract, CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS);
+
     for (var operation : operations) {
       switch (operation.getField()) {
         case TEAMS ->
@@ -936,18 +957,38 @@ public class InjectService {
                 operation.getValues(),
                 teamsFromDB,
                 operation.getOperation());
-        case ASSETS ->
+        case ASSETS -> {
+          if (supportsAssets) {
             updateInjectEntities(
                 injectToUpdate.getAssets(),
                 operation.getValues(),
                 assetsFromDB,
                 operation.getOperation());
-        case ASSET_GROUPS ->
+          } else {
+            log.debug(
+                "Skipping ASSETS bulk update operation for inject {}: {}",
+                injectToUpdate.getId(),
+                contract == null
+                    ? "it has no injector contract"
+                    : "its contract has no assets field");
+          }
+        }
+        case ASSET_GROUPS -> {
+          if (supportsAssetGroups) {
             updateInjectEntities(
                 injectToUpdate.getAssetGroups(),
                 operation.getValues(),
                 assetGroupsFromDB,
                 operation.getOperation());
+          } else {
+            log.debug(
+                "Skipping ASSET_GROUPS bulk update operation for inject {}: {}",
+                injectToUpdate.getId(),
+                contract == null
+                    ? "it has no injector contract"
+                    : "its contract has no asset_groups field");
+          }
+        }
         default ->
             throw new BadRequestException("Invalid field to update: " + operation.getField());
       }

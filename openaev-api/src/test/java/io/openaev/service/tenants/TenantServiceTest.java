@@ -27,7 +27,7 @@ import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.service.RoleService;
+import io.openaev.service.TenantRoleService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -61,7 +61,7 @@ class TenantServiceTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private VulnerabilityRepository vulnerabilityRepository;
   @Autowired private CweRepository cweRepository;
-  @Autowired private RoleService roleService;
+  @Autowired private TenantRoleService tenantRoleService;
   @Autowired private GroupRepository groupRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
@@ -104,17 +104,18 @@ class TenantServiceTest extends IntegrationTest {
     boolean pathExists = results.iterator().hasNext();
     assertThat(pathExists).isTrue();
 
-    // Verify the 10 domains from PresetDomain are created for this tenant
+    // domains and vulnerabilities are on v2 isolation: assert by explicit tenant attribution.
+    assertThat(domainRepository.findAll())
+        .filteredOn(domain -> created.getId().equals(domain.getTenant().getId()))
+        .hasSize(10);
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
-    assertThat(domainRepository.findAll()).hasSize(10);
-    // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).hasSize(7);
     // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
     assertThat(cweRepository.findAll())
         .filteredOn(cwe -> created.getId().equals(cwe.getTenant().getId()))
         .hasSize(7);
-    List<Role> roles = roleService.findAll(created.getId());
+    List<Role> roles = tenantRoleService.findAll(created.getId());
     assertThat(roles).extracting(Role::getName).contains("Admin", "Manager", "Observer");
     assertThat(roles).hasSizeGreaterThanOrEqualTo(3);
     List<Group> groups = groupRepository.findAllByTenantId(created.getId());
@@ -158,12 +159,16 @@ class TenantServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
     TenantContext.setCurrentTenant(created.getId());
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
 
+    // injectors is on v2 isolation (no v1 @Filter anymore) but this test's context does not
+    // activate it (application-test.properties keeps active-tables empty), so a bare findByType
+    // would return every tenant's row unfiltered: assert by explicit tenant attribution instead,
+    // using the tenant-scoped repository method kept for exactly this purpose.
     Injector emailInjector =
-        injectorRepository
-            .findByTypeAndTenantId(EmailContract.TYPE, created.getId())
+        injectorRepository.findAll().stream()
+            .filter(i -> EmailContract.TYPE.equals(i.getType()))
+            .filter(i -> created.getId().equals(i.getTenantId()))
+            .findFirst()
             .orElseThrow(
                 () -> new AssertionError("the email injector was not provisioned for the tenant"));
     assertThat(emailInjector.getContracts())
@@ -175,11 +180,11 @@ class TenantServiceTest extends IntegrationTest {
     // to EMAIL_DEFAULT (the broken re-tenant/clear variants stole or deleted the source link).
     entityManager.clear();
     TenantContext.setCurrentTenant(DEFAULT_TENANT_UUID);
-    session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", DEFAULT_TENANT_UUID);
     Injector defaultEmailInjector =
-        injectorRepository
-            .findByTypeAndTenantId(EmailContract.TYPE, DEFAULT_TENANT_UUID)
+        injectorRepository.findAll().stream()
+            .filter(i -> EmailContract.TYPE.equals(i.getType()))
+            .filter(i -> DEFAULT_TENANT_UUID.equals(i.getTenantId()))
+            .findFirst()
             .orElseThrow(() -> new AssertionError("the default tenant lost its email injector"));
     assertThat(defaultEmailInjector.getContracts())
         .as("the default tenant's link must be untouched by the new-tenant copy")
@@ -304,6 +309,27 @@ class TenantServiceTest extends IntegrationTest {
   }
 
   @Test
+  void should_evict_membership_cache_of_tenant_members_on_soft_delete() {
+    // -- ARRANGE --
+    Tenant tenant = getTenant("Tenant A");
+    Tenant created = tenantComposer.forTenant(tenant).persist().get();
+    String userId = testUserHolder.get().getId();
+    tenantRepository.addUserToTenant(userId, created.getId());
+    // Populate the cache while the tenant is still active.
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isTrue();
+
+    // -- ACT --
+    tenantService.softDelete(created.getId());
+
+    // -- ASSERT --
+    // TenantMembershipCacheManager filters on t.tenant_deleted_at IS NULL: without an eviction,
+    // the membership would incorrectly still read as active until the cache's TTL expires.
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isFalse();
+  }
+
+  @Test
   void should_reactivate_soft_deleted_tenant() {
     // -- ARRANGE --
     Tenant tenant = getTenant("Tenant A");
@@ -315,6 +341,28 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertThat(reactivated.getDeletedAt()).isNull();
+  }
+
+  @Test
+  void should_evict_membership_cache_of_tenant_members_on_reactivate() {
+    // -- ARRANGE --
+    Tenant tenant = getTenant("Tenant A");
+    Tenant created = tenantComposer.forTenant(tenant).persist().get();
+    String userId = testUserHolder.get().getId();
+    tenantRepository.addUserToTenant(userId, created.getId());
+    tenantService.softDelete(created.getId());
+    // Populate the cache while the tenant is soft-deleted (membership reads as inactive).
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isFalse();
+
+    // -- ACT --
+    tenantService.reactivate(created.getId());
+
+    // -- ASSERT --
+    // Without an eviction here, the member would incorrectly stay denied until the cache's TTL
+    // expires, even though the tenant is active again.
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isTrue();
   }
 
   @Test
@@ -339,17 +387,18 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
     assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
 
-    // Verify no domain anymore for the deleted tenant
+    // domains and vulnerabilities are on v2 isolation: assert by explicit tenant attribution.
+    assertThat(domainRepository.findAll())
+        .filteredOn(domain -> tenantExpired.getId().equals(domain.getTenant().getId()))
+        .isEmpty();
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
-    assertThat(domainRepository.findAll()).isEmpty();
-    // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).isEmpty();
     // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
     assertThat(cweRepository.findAll())
         .filteredOn(cwe -> tenantExpired.getId().equals(cwe.getTenant().getId()))
         .isEmpty();
-    assertThat(roleService.findAll(tenantExpired.getId())).isEmpty();
+    assertThat(tenantRoleService.findAll(tenantExpired.getId())).isEmpty();
     assertThat(groupRepository.findAllByTenantId(tenantExpired.getId())).isEmpty();
   }
 

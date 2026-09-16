@@ -24,6 +24,10 @@ const useStyles = makeStyles<{ topPagination?: boolean }>()((theme, props) => ({
   topbar: {
     display: 'flex',
     alignItems: 'center',
+    // The primary actions (pagination + create button) must never be the part
+    // that gives way when the toolbar runs out of width (#7340): the filter
+    // row on the left is the one that compresses.
+    flexShrink: 0,
   },
   topPagination: { display: 'block' },
   parameters: {
@@ -232,6 +236,11 @@ const PaginationComponentV2 = <T extends object>({
         <div style={{
           display: 'flex',
           alignItems: 'center',
+          // Single-row toolbar contract (#7340): when width runs out this
+          // filter section is the one that compresses (its items may shrink),
+          // never the actions on the right, and nothing wraps to a second row.
+          minWidth: 0,
+          flexShrink: 1,
         }}
         >
           {leftSlot}

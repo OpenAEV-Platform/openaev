@@ -24,13 +24,19 @@ export interface ExpectationInput {
   // Security platform types expected to fulfil this expectation (empty = any platform).
   expectation_expected_security_platform_types?: string[];
   expectation_is_predefined: boolean;
+  // Display order within the inject, declared by the injector contract (e.g. phishing orders its
+  // steps email -> link -> submission). Not user-editable: carried through edits so the results
+  // timeline keeps its logical order. Null/undefined means unordered.
+  expectation_order?: number | null;
 }
 
 // Derived from the canonical type map so a platform type added server-side
 // (e.g. VULNERABILITY_SCANNER) always shows up in the expectation forms.
 export const SECURITY_PLATFORM_TYPES = Object.keys(SECURITY_PLATFORM_TYPE_LABELS) as SecurityPlatformType[];
 
-export interface ExpectationInputForm extends Omit<ExpectationInput, 'expectation_expiration_time' | 'expectation_is_multi_selectable'> {
+// expectation_order is deliberately not part of the form: it is contract-declared, not
+// user-editable, and ExpectationPopover carries it through on submit.
+export interface ExpectationInputForm extends Omit<ExpectationInput, 'expectation_expiration_time' | 'expectation_is_multi_selectable' | 'expectation_order'> {
   expiration_time_days: number;
   expiration_time_hours: number;
   expiration_time_minutes: number;

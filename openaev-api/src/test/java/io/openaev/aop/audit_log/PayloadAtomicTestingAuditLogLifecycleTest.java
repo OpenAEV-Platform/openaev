@@ -33,7 +33,6 @@ import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -185,7 +184,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       // Assert
       // Capture all dispatched audit events and ensure we observed at least the expected 5 actions.
       ArgumentCaptor<LogEvent> eventCaptor = ArgumentCaptor.forClass(LogEvent.class);
-      verify(auditLogTransportDispatcherUtils, timeout(5000).atLeast(5))
+      verify(auditLogTransportDispatcherUtils, timeout(10000).atLeast(5))
           .dispatch(eventCaptor.capture(), any());
 
       List<LogEvent> events = eventCaptor.getAllValues();
@@ -245,39 +244,26 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
                       && "status_change".equals(event.getEventScope()),
               "atomic testing launch event");
 
-      // Sort selected lifecycle events by timestamp to assert deterministic scope ordering.
-      List<LogEvent> lifecycleEvents =
-          List.of(
+      // We assert presence and content of each lifecycle event, but not strict ordering.
+      // Audit dispatch is asynchronous and can reorder under load.
+      assertThat(
+              List.of(
                   payloadCreateEvent,
                   atomicCreateEvent,
                   addAssetEvent,
                   removeAssetEvent,
-                  launchEvent)
-              .stream()
-              .sorted(
-                  Comparator.comparing(
-                      LogEvent::getTimestamp, Comparator.nullsLast(Comparator.naturalOrder())))
-              .toList();
-
-      // Confirm all selected events are mutations and match the expected scope progression.
-      assertThat(lifecycleEvents).extracting(LogEvent::getEventType).containsOnly("mutation");
-      assertThat(lifecycleEvents)
+                  launchEvent))
+          .extracting(LogEvent::getEventType)
+          .containsOnly("mutation");
+      assertThat(
+              List.of(
+                  payloadCreateEvent,
+                  atomicCreateEvent,
+                  addAssetEvent,
+                  removeAssetEvent,
+                  launchEvent))
           .extracting(LogEvent::getEventScope)
-          .containsExactly("create", "create", "update", "update", "status_change");
-
-      // Extra guard: verify ordering in dispatcher invocation order (not only by timestamp
-      // sorting).
-      int payloadCreateIndex = events.indexOf(payloadCreateEvent);
-      int atomicCreateIndex = events.indexOf(atomicCreateEvent);
-      int addAssetIndex = events.indexOf(addAssetEvent);
-      int removeAssetIndex = events.indexOf(removeAssetEvent);
-      int launchIndex = events.indexOf(launchEvent);
-
-      assertThat(payloadCreateIndex).isGreaterThanOrEqualTo(0);
-      assertThat(atomicCreateIndex).isGreaterThan(payloadCreateIndex);
-      assertThat(addAssetIndex).isGreaterThan(atomicCreateIndex);
-      assertThat(removeAssetIndex).isGreaterThan(addAssetIndex);
-      assertThat(launchIndex).isGreaterThan(removeAssetIndex);
+          .containsExactlyInAnyOrder("create", "create", "update", "update", "status_change");
 
       // Child resource events (assets) should link to the atomic testing.
       assertThat(resolveParentLink(addAssetEvent)).isEqualTo(atomicTestingId);

@@ -9,6 +9,8 @@ import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionSer
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.Manager;
@@ -19,14 +21,18 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.connectors.HeartbeatWindow;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -51,6 +57,7 @@ public class ConnectorInstanceService {
   private final ManagerFactory managerFactory;
   private final EntityManager entityManager;
   private final EndpointService endpointService;
+  private final TenantScopedTransaction tenantTx;
 
   public ConnectorInstanceService(
       ObjectMapper objectMapper,
@@ -64,6 +71,7 @@ public class ConnectorInstanceService {
       InjectorRepository injectorRepository,
       EntityManager entityManager,
       EndpointService endpointService,
+      TenantScopedTransaction tenantTx,
       // Use lazy injection to break a circular dependency
       @Lazy ManagerFactory managerFactory) {
     this.objectMapper = objectMapper;
@@ -77,15 +85,23 @@ public class ConnectorInstanceService {
     this.injectorRepository = injectorRepository;
     this.entityManager = entityManager;
     this.endpointService = endpointService;
+    this.tenantTx = tenantTx;
     this.managerFactory = managerFactory;
   }
 
   /**
    * Retrieves all connector instances managed by XtmComposer with their configurations.
    *
+   * <p>Deliberately cross-tenant: one XTM Composer instance manages connector instances across
+   * every tenant, so this joins the caller's already-open transaction (XtmComposerApi's
+   * {@code @Transactional}, which carries no {@code TxCtx} of its own) and widens it to every
+   * tenant rather than opening a nested transaction — there is no narrower scope to isolate from
+   * here.
+   *
    * @return the list of connector instances managed by XtmComposer
    */
   public List<ConnectorInstancePersisted> connectorInstancesManagedByXtmComposer() {
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.allTenants());
     return connectorInstanceRepository.findAllManagedByXtmComposerAndConfiguration();
   }
 
@@ -179,9 +195,11 @@ public class ConnectorInstanceService {
    * Resolves the persisted {@link ConnectorInstancePersisted} that owns the given connector
    * (collector / injector / executor), scoped to the connector's tenant.
    *
-   * <p>The lookup relies on a native query which bypasses the Hibernate tenant filter, and the same
-   * connector ID can exist in several tenants (collectors use a composite PK), so the tenant
-   * predicate must be carried explicitly to avoid resolving another tenant's instance.
+   * <p>{@code connector_instances}/{@code connector_instance_configurations} are now on v2
+   * isolation (activated #6408). The lookup below still carries {@code tenantId} explicitly, not as
+   * a leftover v1 workaround: it is a native query (bypasses the Hibernate {@code @Filter} either
+   * way), and the same connector ID can exist in several tenants (collectors use a composite PK),
+   * so the caller-resolved tenant must be carried explicitly to select the one matching row.
    *
    * @param connectorType the connector type whose ID key is matched in the instance configuration
    * @param connectorId the connector entity ID
@@ -254,11 +272,15 @@ public class ConnectorInstanceService {
   }
 
   /**
-   * Finds a connector instance by ID, bypassing the Hibernate tenant filter.
+   * Finds a connector instance by ID, bypassing tenant isolation.
    *
    * <p>Use only for platform-level operations (e.g. XtmComposer callbacks) where the request is not
    * scoped to a specific tenant and the instance must be found regardless of the current tenant
-   * context. Native queries bypass the Hibernate {@code tenantFilter}.
+   * context. Widens the caller's already-open transaction to every tenant via {@code
+   * TenantScopedTransaction#setScopeOnCurrentTransaction}, which covers both the v1 {@code @Filter}
+   * (disabled below, for as long as it exists) and the v2 statement inspector (once {@code
+   * connector_instances} is added to {@code openaev.tenant.active-tables}) — so this stays correct
+   * across the go-live cutover instead of silently starting to see zero rows.
    *
    * @param id the connector instance ID to search for
    * @return the connector instance matching the ID
@@ -266,6 +288,7 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted connectorInstanceByIdIgnoringTenantFilter(String id)
       throws EntityNotFoundException {
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.allTenants());
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     return connectorInstanceRepository
         .findWithGraphById(id)
@@ -346,7 +369,15 @@ public class ConnectorInstanceService {
   public ConnectorInstancePersisted updateRequestedStatus(
       ConnectorInstance instance, ConnectorInstance.REQUESTED_STATUS_TYPE newRequestedStatus) {
     instance.setRequestedStatus(newRequestedStatus);
-    return (ConnectorInstancePersisted) this.save(instance);
+    ConnectorInstancePersisted saved = (ConnectorInstancePersisted) this.save(instance);
+    // ConnectorInstanceApi#updateRequestedStatus returns this entity directly, and its "logs"
+    // collection is not @JsonIgnore. It is not part of findWithGraphById's entity graph, so it
+    // stays a lazy proxy here. Jackson serializes the response after this @Transactional method
+    // returns, i.e. outside the scope set_config('app.current_tenants', ...) applies to (that GUC
+    // is transaction-local). Once connector_instances is v2-active, a lazy load at that point
+    // would fail closed and silently serialize an empty array. Force it now, inside the scope.
+    Hibernate.initialize(saved.getLogs());
+    return saved;
   }
 
   /**
@@ -403,6 +434,9 @@ public class ConnectorInstanceService {
 
     throwIfInstanceRunning(connectorInstance);
 
+    String connectorId = resolveConnectorId(connectorInstance);
+    throwIfConnectorStillPinging(connectorInstance, connectorId);
+
     if (managerFactory
             .getManager(connectorInstance.getTenant().getId())
             .getSpawnedIntegrations()
@@ -425,19 +459,6 @@ public class ConnectorInstanceService {
       }
     }
 
-    String connectorId =
-        connectorInstance.getConfigurations().stream()
-            .filter(
-                c ->
-                    connectorInstance
-                        .getCatalogConnector()
-                        .getContainerType()
-                        .getIdKeyName()
-                        .equals(c.getKey()))
-            .map(c -> c.getValue().asText())
-            .findFirst()
-            .orElse(null);
-
     if (connectorId != null) {
       String tenantId = connectorInstance.getTenant().getId();
       switch (connectorInstance.getCatalogConnector().getContainerType()) {
@@ -450,12 +471,59 @@ public class ConnectorInstanceService {
           endpointService.removeSourceTagsForExecutor(connectorId, tenantId);
           executorRepository.deleteByExecutorId(connectorId);
         }
-        case INJECTOR -> injectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
+        case INJECTOR -> injectorRepository.deleteByInjectorId(connectorId);
         case COLLECTOR -> collectorRepository.deleteByCollectorId(connectorId);
       }
     }
 
     connectorInstanceRepository.deleteById(id);
+  }
+
+  /** The collector / injector / executor id this instance deploys. */
+  private String resolveConnectorId(ConnectorInstancePersisted instance) {
+    return instance.getConfigurations().stream()
+        .filter(
+            c ->
+                instance.getCatalogConnector().getContainerType().getIdKeyName().equals(c.getKey()))
+        .map(c -> c.getValue().asText())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * Mirrors {@code AbstractConnectorService#throwIfConnectorRunning} for this entry point: a stop
+   * is only ever requested, so a still-live container would put the connector row back, orphaned.
+   */
+  private void throwIfConnectorStillPinging(
+      ConnectorInstancePersisted instance, String connectorId) {
+    if (connectorId == null) {
+      return;
+    }
+    ConnectorCompositeId compositeId =
+        ConnectorCompositeId.of(connectorId, instance.getTenant().getId());
+    Instant lastHeartbeat =
+        switch (instance.getCatalogConnector().getContainerType()) {
+          case INJECTOR ->
+              injectorRepository.findById(compositeId).map(Injector::getUpdatedAt).orElse(null);
+          case COLLECTOR ->
+              collectorRepository.findById(compositeId).map(Collector::getUpdatedAt).orElse(null);
+          case EXECUTOR ->
+              executorRepository.findById(compositeId).map(Executor::getUpdatedAt).orElse(null);
+          default -> null;
+        };
+    Duration heartbeatWindow =
+        HeartbeatWindow.forInstance(instance, instance.getCatalogConnector().getContainerType());
+    if (lastHeartbeat != null && lastHeartbeat.isAfter(Instant.now().minus(heartbeatWindow))) {
+      throw new BadRequestException(
+          "The "
+              + instance.getCatalogConnector().getContainerType().name().toLowerCase(Locale.ROOT)
+              + " "
+              + connectorId
+              + " is still running (last heartbeat "
+              + lastHeartbeat
+              + "): stop it before deleting its instance "
+              + instance.getId());
+    }
   }
 
   /**
@@ -627,6 +695,12 @@ public class ConnectorInstanceService {
       String tenantId) {
     ConnectorInstancePersisted newInstance =
         buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
+    // Explicit write attribution: today TenantBaseListener's @PrePersist stamps tenant_id from
+    // TenantContext as a fallback, but that listener is removed once connector_instances goes
+    // fully v2 (it is a v1 pattern with no place in the v2 model). Stamp it here so creation stays
+    // correct after that removal; tenantId was already resolved and validated by the caller via
+    // TenantWriteScopeResolver#tenantForWrite.
+    newInstance.setTenant(new Tenant(tenantId));
     List<ConnectorInstanceConfiguration> configurations =
         getConnectorInstanceConfigurationsFromInput(
             catalogConnectorWithConfigMap.configurationsMap(), newInstance, input);

@@ -50,4 +50,4 @@ You are preparing a phishing awareness Simulation with a custom email template:
 
 - [Expectations](../expectations/expectations.md) -- Define what a successful test looks like
 - [Inject status](inject-status.md) -- Interpret execution results
-- [Notifications](../../notifications.md) -- How OpenAEV alerts participants
+- [Notifications & Triggers](../../notifications/overview.md) -- How OpenAEV alerts you of platform events

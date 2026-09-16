@@ -530,10 +530,13 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         .toList();
   }
 
+  // NOT searchable: one of the paths is the raw contract content JSON, and free-text search ORs an
+  // ILIKE over every searchable path. Every contract content embeds the built-in variable
+  // definitions ("user.email", "Email of the user", ...), so a search like "mail" or "team" would
+  // match ALL contracts. Filtering by providing (chaining action suggestion) is unaffected.
   @JsonProperty(value = "injector_contract_providing", access = JsonProperty.Access.READ_ONLY)
   @Queryable(
       filterable = true,
-      searchable = true,
       clazz = String.class,
       refEnumClazz = ContractOutputType.class,
       paths = {"payload.outputParsers.contractOutputElements.type", "content"})

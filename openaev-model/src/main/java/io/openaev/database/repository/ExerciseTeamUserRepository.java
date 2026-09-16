@@ -43,6 +43,25 @@ public interface ExerciseTeamUserRepository
       @Param("teamId") String teamId,
       @Param("userId") String userId);
 
+  /**
+   * Idempotent, DB-atomic variant of {@link #addExerciseTeamUser}: inserts the composite link only
+   * when it does not already exist, relying on the table's (exercise_id, team_id, user_id) primary
+   * key to no-op the conflict. This replaces the check-then-insert (exists...then create) pattern,
+   * which two concurrent callbacks in one autonomous decision cycle could both pass, then
+   * double-insert and violate the PK - poisoning the enclosing transaction. {@code ON CONFLICT DO
+   * NOTHING} makes the enablement safe to run in parallel.
+   */
+  @Modifying
+  @Query(
+      value =
+          "insert into exercises_teams_users (exercise_id, team_id, user_id) "
+              + "values (:exerciseId, :teamId, :userId) on conflict do nothing",
+      nativeQuery = true)
+  void insertIfAbsent(
+      @Param("exerciseId") String exerciseId,
+      @Param("teamId") String teamId,
+      @Param("userId") String userId);
+
   @Query(
       value = "SELECT * FROM exercises_teams_users WHERE exercise_id IN :ids ;",
       nativeQuery = true)
@@ -57,6 +76,16 @@ public interface ExerciseTeamUserRepository
   @Transactional
   void deleteByExerciseIdAndTeamIds(
       @Param("exerciseId") String exerciseId, @Param("teamIds") Collection<String> teamIds);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          "delete from exercises_teams_users "
+              + "where team_id = :teamId and user_id in (:userIds)",
+      nativeQuery = true)
+  @Transactional
+  void deleteByTeamIdAndUserIds(
+      @Param("teamId") String teamId, @Param("userIds") Collection<String> userIds);
 
   boolean existsByExerciseIdAndTeamIdAndUserId(String exerciseId, String teamId, String userId);
 }

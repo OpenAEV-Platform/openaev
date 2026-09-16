@@ -4,11 +4,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
@@ -39,7 +42,16 @@ class NotificationDigestServiceTest {
   void setUp() {
     triggerLoader = mock(NotificationTriggerLoader.class);
     dispatchService = mock(NotificationDispatchService.class);
-    digestService = new NotificationDigestService(triggerLoader, dispatchService);
+    TenantScopedTransaction tenantTx = mock(TenantScopedTransaction.class);
+    // Stand in for the real primitive: just run the work on this thread.
+    doAnswer(
+            invocation -> {
+              invocation.getArgument(1, Runnable.class).run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
+    digestService = new NotificationDigestService(triggerLoader, dispatchService, tenantTx);
   }
 
   private ResolvedNotificationTrigger digest(List<String> childIds, List<String> userIds) {

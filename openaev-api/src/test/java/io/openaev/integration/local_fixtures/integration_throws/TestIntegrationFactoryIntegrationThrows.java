@@ -29,7 +29,7 @@ public class TestIntegrationFactoryIntegrationThrows extends IntegrationFactory 
   }
 
   @Override
-  protected void runMigrations() throws Exception {}
+  protected void runMigrations(String tenantId) throws Exception {}
 
   @Override
   protected void insertCatalogEntry() throws Exception {}

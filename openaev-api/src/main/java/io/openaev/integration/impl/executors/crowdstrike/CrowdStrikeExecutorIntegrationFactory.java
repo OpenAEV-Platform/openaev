@@ -90,8 +90,8 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations() throws Exception {
-    crowdStrikeExecutorConfigurationMigration.migrate();
+  protected void runMigrations(String tenantId) throws Exception {
+    crowdStrikeExecutorConfigurationMigration.migrate(tenantId);
   }
 
   private String getLogoFilename() {

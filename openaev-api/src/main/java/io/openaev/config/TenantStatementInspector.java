@@ -35,9 +35,12 @@ import org.hibernate.resource.jdbc.spi.StatementInspector;
  * can_access_tenant}, keeping a transaction limited to the tenants in its {@code
  * app.current_tenants} scope.
  *
- * <p>Security principle: <b>every</b> reference to a tenant-aware table must be filtered. SELECT
- * tables (FROM, joins, sub-queries, CTEs) are wrapped in a filtered sub-query; the target of an
- * UPDATE or DELETE gets the filter added to its WHERE (a written table cannot be wrapped).
+ * <p>Security principle: <b>every</b> reference to a tenant-aware table must be filtered. A joined
+ * SELECT table (and any sub-query or CTE) is wrapped in a filtered sub-query; the primary FROM
+ * table of a select, when it is a plain tenant table not NULL-extended by a RIGHT/FULL join, is
+ * filtered through the select's WHERE instead of being wrapped, so it stays a base table and keeps
+ * the primary key's functional dependency (wrapping it breaks {@code GROUP BY id}). The target of
+ * an UPDATE or DELETE also gets the filter added to its WHERE (a written table cannot be wrapped).
  * Completeness comes from visiting every select; a statement, FROM or join shape that is not
  * understood is rejected (fail-closed) rather than passed through unfiltered, which would leak rows
  * across tenants.
@@ -233,25 +236,62 @@ public class TenantStatementInspector implements StatementInspector {
     }
   }
 
-  /** Wraps the FROM and join tables of every select contained in the statement. */
+  /** Filters the FROM and join tables of every select contained in the statement. */
   private void filterContainedSelects(Statement statement) {
     PlainSelectCollector collector = new PlainSelectCollector();
     collector.getTables(statement);
-    for (PlainSelect plainSelect : collector.collected) {
-      filterTables(plainSelect);
+    // Descendants before ancestors: narrowing a primary table re-parses its select's WHERE
+    // (combineCall), rebuilding any sub-query in that WHERE from its string form. Filtering the
+    // inner select first bakes its own predicate into that string, so the rebuilt copy keeps it.
+    // The collector lists ancestors first (pre-order), so we walk it in reverse.
+    List<PlainSelect> collected = collector.collected;
+    for (int i = collected.size() - 1; i >= 0; i--) {
+      filterTables(collected.get(i));
     }
   }
 
-  /** Wraps the FROM and join tenant tables of a single select level. */
+  /**
+   * Filters the FROM and join tenant tables of a single select level. Joined tables are wrapped in
+   * a filtered sub-query. The primary FROM item, when it is a plain tenant table, is instead
+   * filtered through the select's WHERE: wrapping it in a derived table would strip the primary
+   * key's functional dependency, so a {@code GROUP BY id} projecting other columns becomes invalid
+   * SQL in PostgreSQL. Moving the predicate to the WHERE is equivalent only while the primary table
+   * is never NULL-extended, so a RIGHT or FULL join anywhere in the join list forces a fallback to
+   * wrapping (a WHERE predicate on the NULL-extended side would drop those rows and silently turn
+   * the outer join into an inner one). Every other primary shape is wrapped exactly as before.
+   */
   private void filterTables(PlainSelect select) {
-    if (select.getFromItem() != null) {
-      select.setFromItem(filterFromItem(select.getFromItem()));
+    FromItem from = select.getFromItem();
+    if (from instanceof Table table
+        && tables.family(table.getName()) != TenantTables.Family.NONE
+        && !hasRightOrFullJoin(select.getJoins())) {
+      select.setWhere(combineTenantFilter(table, select.getWhere(), true));
+    } else if (from != null) {
+      select.setFromItem(filterFromItem(from));
     }
     if (select.getJoins() != null) {
       for (Join join : select.getJoins()) {
         join.setRightItem(filterFromItem(join.getRightItem()));
       }
     }
+  }
+
+  /**
+   * Whether the join list NULL-extends the accumulated left side, which is what makes moving the
+   * primary table's predicate into the WHERE unsafe. A RIGHT join NULL-extends the left side, a
+   * FULL join both sides; either anywhere in the list rules out the narrowing for this select
+   * level.
+   */
+  private static boolean hasRightOrFullJoin(List<Join> joins) {
+    if (joins == null) {
+      return false;
+    }
+    for (Join join : joins) {
+      if (join.isRight() || join.isFull()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

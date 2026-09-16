@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
+import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -24,6 +25,7 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
@@ -43,6 +45,7 @@ import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ChainingOperationNotSupportedException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExerciseBulkProcessingInput;
 import io.openaev.rest.exercise.form.ExerciseSimple;
@@ -52,10 +55,10 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -65,6 +68,7 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.TeamOutputVisibilityUtils;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
@@ -93,6 +97,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -118,6 +123,7 @@ public class ExerciseService {
   private final UserService userService;
   private final GrantService grantService;
   private final ExerciseTeamUserService exerciseTeamUserService;
+  private final ScopeService scopeService;
 
   private final ExerciseMapper exerciseMapper;
   private final InjectMapper injectMapper;
@@ -148,7 +154,6 @@ public class ExerciseService {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   private final WorkflowService workflowService;
-  private final PreviewFeatureService previewFeatureService;
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
@@ -206,8 +211,6 @@ public class ExerciseService {
   public Exercise createSimulationChaining(@NotNull final Exercise simulation)
       throws ChainingException {
 
-    workflowService.isPreviewFeatureChainingEnable();
-
     Exercise savedSimulation = createExercise(simulation);
     workflowService.creationWorkflow(savedSimulation);
 
@@ -249,6 +252,26 @@ public class ExerciseService {
     return exerciseMapper.getExerciseSimples(exercises);
   }
 
+  @Transactional(readOnly = true)
+  public List<TeamOutput> getExerciseTeams(@NotBlank final String exerciseId) {
+    String workflowId = rawSimulation(exerciseId).getExercise_workflow_id();
+    return StringUtils.hasText(workflowId)
+        ? getWorkflowExerciseTeams(exerciseId, workflowId)
+        : getTimeBasedExerciseTeams(exerciseId);
+  }
+
+  private List<TeamOutput> getWorkflowExerciseTeams(
+      final String exerciseId, final String workflowId) {
+    List<TeamOutput> teams =
+        teamService.find(
+            fromIds(scopeService.getValidTeams(workflowId).stream().map(Team::getId).toList()));
+    return TeamOutputVisibilityUtils.markExerciseVisibility(teams, exerciseId);
+  }
+
+  private List<TeamOutput> getTimeBasedExerciseTeams(final String exerciseId) {
+    return this.teamService.find(fromExercise(exerciseId));
+  }
+
   // -- UPDATE --
   public Exercise updateExercise(@NotNull final Exercise exercise) {
     exercise.setUpdatedAt(now());
@@ -268,8 +291,10 @@ public class ExerciseService {
     duplicateTeamUsers(exerciseDuplicate, exerciseOrigin, contextualTeams);
     getListOfArticles(exerciseDuplicate, exerciseOrigin);
     getListOfVariables(exerciseDuplicate, exerciseOrigin);
-    getObjectives(exerciseDuplicate, exerciseOrigin);
-    getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    if (exerciseOrigin.isLessonsEnabled()) {
+      getObjectives(exerciseDuplicate, exerciseOrigin);
+      getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    }
     return exerciseRepository.save(exerciseDuplicate);
   }
 
@@ -289,6 +314,7 @@ public class ExerciseService {
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
+    exerciseDuplicate.setLessonsEnabled(exerciseOrigin.isLessonsEnabled());
     exerciseDuplicate.setTags(new HashSet<>(exerciseOrigin.getTags()));
     exerciseDuplicate.setReplyTos(new ArrayList<>(exerciseOrigin.getReplyTos()));
     exerciseDuplicate.setDocuments(new ArrayList<>(exerciseOrigin.getDocuments()));
@@ -600,7 +626,8 @@ public class ExerciseService {
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the list of deleted simulation ids
    */
-  public List<String> bulkDelete(@NotNull final ExerciseBulkProcessingInput input) {
+  public List<String> bulkDelete(
+      final TxCtx ctx, @NotNull final ExerciseBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
@@ -611,6 +638,7 @@ public class ExerciseService {
     User user = userService.currentUser();
     List<String> exerciseIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Exercise> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -642,9 +670,13 @@ public class ExerciseService {
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
+        ctx, "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
   }
 
+  // Still declares ChainingException: startWorkflowBySimulationId (chaining engine start)
+  // propagates that checked exception. The pause refusal no longer travels through it - it is now
+  // the unchecked ChainingOperationNotSupportedException, mapped to a 400 by RestBehavior instead
+  // of bubbling up unhandled as a 500.
   @Transactional(rollbackFor = Exception.class)
   public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
       throws ChainingException {
@@ -659,8 +691,7 @@ public class ExerciseService {
     boolean isCloseState =
         ExerciseStatus.CANCELED.equals(exercise.getStatus())
             || ExerciseStatus.FINISHED.equals(exercise.getStatus());
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && workflowService.isSimulationChaining(exercise.getId())) {
+    if (workflowService.isSimulationChaining(exercise.getId())) {
       if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
           && ExerciseStatus.RUNNING.equals(status)) {
         workflowService.startWorkflowBySimulationId(exercise.getId());
@@ -719,8 +750,7 @@ public class ExerciseService {
               }
             }
           });
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())) {
+      if (workflowService.isSimulationChaining(exercise.getId())) {
         // DELETE workflow states
         workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
         // DELETE injects
@@ -729,6 +759,8 @@ public class ExerciseService {
         // Delete attack path execution
         this.attackPathExecutionService.deleteAllBySimulationId(
             exercise.getId(), exercise.getTenant().getId());
+        // Clean scope rules of the simulation
+        workflowService.cleanScopeRulesSimulation(exercise.getId());
       }
       urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
@@ -744,15 +776,10 @@ public class ExerciseService {
     // we log the pause date to be able to recompute inject dates.
     if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
-      // Pause/resume of a chained simulation is still blocked in general, but autonomous
-      // (AI-driven) runs need first-class steering, so we lift the block for them: the
-      // orchestrator relies on being able to pause and resume the underlying chained simulation.
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())
-          && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
-        throw new ChainingException(
-            "Pausing a chained simulation is not allowed yet, please contact support");
-      }
+      // Resume is deliberately NOT blocked for a chained simulation (issue #307): only pausing is
+      // unsupported by the queue-based chaining engine. A chained simulation already sitting in
+      // PAUSED (created before that block, or from a historical state) must remain resumable -
+      // the UI keeps offering its Resume button - otherwise it would be stuck forever.
       Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
       exercise.setCurrentPause(null);
       Pause pause = new Pause();
@@ -764,10 +791,13 @@ public class ExerciseService {
     // If pause is asked, just set the pause date.
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())
+      // Pausing a chained simulation is unsupported (issue #307): the chaining engine is
+      // queue-based and has no pause semantics. Autonomous (AI-driven) runs need first-class
+      // steering though, so the block is lifted for them: the orchestrator relies on being able
+      // to pause and resume the underlying chained simulation.
+      if (workflowService.isSimulationChaining(exercise.getId())
           && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
-        throw new ChainingException(
+        throw new ChainingOperationNotSupportedException(
             "Pausing a chained simulation is not allowed yet, please contact support");
       }
       exercise.setCurrentPause(Instant.now());
@@ -776,36 +806,25 @@ public class ExerciseService {
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-        // End WORKFLOW + STEP + delete workflow states
-        List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
-        if (!run.isEmpty()) {
-          List<Step> stepsToUpdate = new ArrayList<>();
-          run.forEach(
-              workflow -> {
-                workflow.setStatus(WorkflowStatus.END);
-                List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
-                steps.forEach(step -> step.setStatus(StepStatus.END));
-                stepsToUpdate.addAll(steps);
-              });
-          stepService.saveSteps(stepsToUpdate);
-          workflowService.saveAll(run);
-          workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
-          // Stopping is not resetting: it ends the run and keeps its record. A manual chained
-          // simulation used to drop ALL its injects here, which emptied the Execution screen while
-          // the attack path (whose rows are only cleared on reset) still showed the same run - the
-          // simulation looked half-erased. Clearing the executed record is the explicit Reset
-          // action's job (RUNNING/FINISHED -> SCHEDULED above), not a side effect of stopping.
-          //
-          // An autonomous (AI-driven) run additionally drops the injects the orchestrator had
-          // queued but never started: they are where the duplicate-inject storms pile up, and a
-          // never-started inject is not part of the deliverable.
-          if (autonomousRunRepository.existsBySimulationId(exercise.getId())) {
-            this.injectRepository.deleteAll(
-                this.injectRepository.findByExerciseId(exerciseId).stream()
-                    .filter(Inject::isNotExecuted)
-                    .toList());
-          }
+      // End WORKFLOW + STEP + delete workflow states
+      List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
+      if (!run.isEmpty()) {
+        workflowService.cancelSimulationEndWorkflowRun(run);
+
+        // Stopping is not resetting: it ends the run and keeps its record. A manual chained
+        // simulation used to drop ALL its injects here, which emptied the Execution screen while
+        // the attack path (whose rows are only cleared on reset) still showed the same run - the
+        // simulation looked half-erased. Clearing the executed record is the explicit Reset
+        // action's job (RUNNING/FINISHED -> SCHEDULED above), not a side effect of stopping.
+        //
+        // An autonomous (AI-driven) run additionally drops the injects the orchestrator had
+        // queued but never started: they are where the duplicate-inject storms pile up, and a
+        // never-started inject is not part of the deliverable.
+        if (autonomousRunRepository.existsBySimulationId(exercise.getId())) {
+          this.injectRepository.deleteAll(
+              this.injectRepository.findByExerciseId(exerciseId).stream()
+                  .filter(Inject::isNotExecuted)
+                  .toList());
         }
       }
     }
@@ -1262,6 +1281,23 @@ public class ExerciseService {
    * @param teamIds the ids of the teams targeted by a chained/authored step
    */
   public void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
+    this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #enableTargetedTeamMembers} for the autonomous
+   * orchestrator's scope callback. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW})
+   * so that a repository-level failure while enabling players (e.g. the check-then-insert on {@code
+   * exercise_teams_users} racing a concurrent callback, or a team deleted mid-flight) rolls back
+   * only this enablement and can NEVER mark the caller's transaction rollback-only - a poisoned
+   * callback transaction would fail its commit and lose the run's recorded scope, which is exactly
+   * the failure class the scope callback must not have. Only for callers whose simulation already
+   * exists in committed state (the callback path); creation flows must keep using {@link
+   * #enableTargetedTeamMembers}, which joins the surrounding transaction and therefore sees a
+   * simulation created in it. See {@code AutonomousRunService#setRunScope}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void enableTargetedTeamMembersIsolated(String simulationId, List<String> teamIds) {
     this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
   }
 

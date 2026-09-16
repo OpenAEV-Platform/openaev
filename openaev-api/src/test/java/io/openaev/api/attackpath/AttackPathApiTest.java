@@ -22,14 +22,12 @@ import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-/** The POC graph endpoint returns the {@code AttackPathDTO} when the POC preview feature is on. */
+/** Integration tests for Attack Path API endpoints exposed without preview-feature gating. */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH")
 class AttackPathApiTest extends IntegrationTest {
 
   private static final String SIM = "SIM-API";

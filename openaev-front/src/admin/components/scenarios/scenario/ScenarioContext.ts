@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 
-import { addInjectForScenario, bulkDeleteInjectsSimple, bulkUpdateInjectSimple, deleteInjectScenario, fetchScenarioInjects, updateInjectActivationForScenario, updateInjectForScenario } from '../../../../actions/Inject';
+import { addInjectForScenario, deleteInjectScenario, fetchScenarioInjects, updateInjectActivationForScenario, updateInjectForScenario } from '../../../../actions/Inject';
 import { bulkTestInjects } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { dryImportXlsForScenario, fetchScenario, fetchScenarioTeams, importXlsForScenario } from '../../../../actions/scenarios/scenario-actions';
-import { createInjectsForScenario, importInjectsForScenario, searchScenarioInjectsSimple } from '../../../../actions/scenarios/scenario-inject-actions';
+import { bulkDeleteInjectsForScenario, bulkUpdateInjectForScenario, createInjectsForScenario, importInjectsForScenario, searchScenarioInjectsSimple } from '../../../../actions/scenarios/scenario-inject-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
 import { type ImportTestSummary, type Inject, type InjectBulkProcessingInput, type InjectBulkUpdateInputs, type InjectInput, type InjectsImportInput, type InjectTestStatusOutput, type Scenario, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -35,7 +35,7 @@ const injectContextForScenario = (scenario: Scenario) => {
       return dispatch(createInjectsForScenario(scenario.scenario_id, inputs));
     },
     onBulkUpdateInject(param: InjectBulkUpdateInputs): Promise<Inject[] | void> {
-      return bulkUpdateInjectSimple(param).then((result: { data: Inject[] }) => result?.data);
+      return bulkUpdateInjectForScenario(scenario.scenario_id, param).then((result: { data: Inject[] }) => result?.data);
     },
     onUpdateInject(injectId: Inject['inject_id'], inject: Inject): Promise<{
       result: string;
@@ -72,7 +72,7 @@ const injectContextForScenario = (scenario: Scenario) => {
       return dryImportXlsForScenario(scenario.scenario_id, importId, input).then(result => result.data);
     },
     onBulkDeleteInjects(param: InjectBulkProcessingInput): Promise<Inject[]> {
-      return bulkDeleteInjectsSimple(param).then((result: { data: Inject[] }) => result?.data);
+      return bulkDeleteInjectsForScenario(scenario.scenario_id, param).then((result: { data: Inject[] }) => result?.data);
     },
     bulkTestInjects(param: InjectBulkProcessingInput): Promise<{
       uri: string;

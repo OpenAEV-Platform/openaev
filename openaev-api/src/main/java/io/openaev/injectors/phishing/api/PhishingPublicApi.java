@@ -2,6 +2,7 @@ package io.openaev.injectors.phishing.api;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.injectors.phishing.form.PhishingSubmitInput;
@@ -11,6 +12,7 @@ import io.openaev.rest.helper.RestBehavior;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +50,10 @@ public class PhishingPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public ResponseEntity<byte[]> open(
-      @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @PathVariable String token,
+      HttpServletRequest request) {
     TenantContext.setCurrentTenant(tenantId);
     phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
     return ResponseEntity.ok()
@@ -61,7 +66,10 @@ public class PhishingPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Void> click(
-      @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @PathVariable String token,
+      HttpServletRequest request) {
     TenantContext.setCurrentTenant(tenantId);
     phishingTrackingService.markClicked(token, clientIp(request), request.getHeader("User-Agent"));
     // Hand off to the themed public SPA renderer, which fetches the page content and posts creds.
@@ -74,9 +82,12 @@ public class PhishingPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public PhishingLandingPageReader page(
-      @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @PathVariable String token,
+      HttpServletRequest request) {
     TenantContext.setCurrentTenant(tenantId);
-    PhishingResult result = phishingTrackingService.resolveByToken(token).orElse(null);
+    PhishingResult result = phishingTrackingService.resolveAndBackfillByToken(token).orElse(null);
     if (result == null || result.getLandingPage() == null) {
       return null;
     }
@@ -90,6 +101,7 @@ public class PhishingPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public Map<String, String> submit(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable String token,
       @RequestBody PhishingSubmitInput input,
@@ -97,11 +109,7 @@ public class PhishingPublicApi extends RestBehavior {
     TenantContext.setCurrentTenant(tenantId);
     Optional<PhishingResult> result =
         phishingTrackingService.markSubmitted(
-            token,
-            resolveUsername(input),
-            resolvePassword(input),
-            clientIp(request),
-            request.getHeader("User-Agent"));
+            token, submittedFields(input), clientIp(request), request.getHeader("User-Agent"));
     String redirectUrl =
         result
             .map(PhishingResult::getLandingPage)
@@ -110,34 +118,32 @@ public class PhishingPublicApi extends RestBehavior {
     return java.util.Collections.singletonMap("redirect_url", redirectUrl);
   }
 
-  private String resolveUsername(PhishingSubmitInput input) {
+  /**
+   * Flattens the submitted payload into a single field map: the free-form {@code data} map plus the
+   * explicit {@code username} / {@code password} fields (when present). The tracking service
+   * resolves the credential out of this map and keeps every field as the completeness record. Blank
+   * {@code data} values are dropped so an empty {@code data.username} / {@code data.password} never
+   * blocks the non-blank dedicated fields from being captured.
+   */
+  private Map<String, String> submittedFields(PhishingSubmitInput input) {
+    Map<String, String> fields = new LinkedHashMap<>();
+    if (input.getData() != null) {
+      input
+          .getData()
+          .forEach(
+              (key, value) -> {
+                if (value != null && !value.isBlank()) {
+                  fields.put(key, value);
+                }
+              });
+    }
     if (input.getUsername() != null && !input.getUsername().isBlank()) {
-      return input.getUsername();
+      fields.putIfAbsent("username", input.getUsername());
     }
-    if (input.getData() != null) {
-      for (String key : new String[] {"username", "email", "user", "login"}) {
-        String value = input.getData().get(key);
-        if (value != null && !value.isBlank()) {
-          return value;
-        }
-      }
-    }
-    return null;
-  }
-
-  private String resolvePassword(PhishingSubmitInput input) {
     if (input.getPassword() != null && !input.getPassword().isBlank()) {
-      return input.getPassword();
+      fields.putIfAbsent("password", input.getPassword());
     }
-    if (input.getData() != null) {
-      for (String key : new String[] {"password", "passwd", "pass"}) {
-        String value = input.getData().get(key);
-        if (value != null && !value.isBlank()) {
-          return value;
-        }
-      }
-    }
-    return null;
+    return fields;
   }
 
   /** Best-effort client IP, honoring a single X-Forwarded-For hop. */

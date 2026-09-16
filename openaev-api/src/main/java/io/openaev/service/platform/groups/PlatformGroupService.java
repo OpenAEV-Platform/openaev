@@ -1,6 +1,9 @@
 package io.openaev.service.platform.groups;
 
+import static io.openaev.database.model.CapabilityScope.PLATFORM;
+import static io.openaev.database.model.Role.capabilitiesOf;
 import static io.openaev.database.specification.GroupSpecification.platformScope;
+import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignCapabilities;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.database.model.Group;
@@ -9,11 +12,14 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.UserService;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +36,7 @@ public class PlatformGroupService {
   private final GroupRepository groupRepository;
   private final RoleRepository roleRepository;
   private final UserRepository userRepository;
+  private final UserService userService;
   private final ReferenceResolver referenceResolver;
 
   // -- CREATE --
@@ -64,7 +71,7 @@ public class PlatformGroupService {
     group.setName(name);
     group.setDescription(description);
     group.setDefaultUserAssignation(false);
-    group.setRoles(new java.util.ArrayList<>(roles));
+    group.setRoles(new ArrayList<>(roles));
     return groupRepository.save(group);
   }
 
@@ -104,35 +111,44 @@ public class PlatformGroupService {
       final String description,
       boolean defaultUserAssignation) {
     Group group = findById(groupId);
+    if (defaultUserAssignation && !group.isDefaultUserAssignation()) {
+      assertCanAssignCapabilities(
+          userService.currentUser(), capabilitiesOf(group.getRoles()), PLATFORM);
+    }
     group.setName(name);
     group.setDescription(description);
     group.setDefaultUserAssignation(defaultUserAssignation);
     return groupRepository.save(group);
   }
 
-  public List<String> updatePlatformGroupUsers(
-      @NotBlank final String groupId, List<String> userIds) {
+  public Set<String> updateGroupRoles(@NotBlank final String groupId, List<String> roleIds) {
     Group group = findById(groupId);
-    group.setUsers(
-        new java.util.ArrayList<>(
-            referenceResolver.resolve(userIds, User.class, userRepository::countByIdIn)));
-    groupRepository.save(group);
-    return groupRepository.findUserIdsByGroupId(groupId);
-  }
-
-  public Set<String> updatePlatformGroupRoles(
-      @NotBlank final String groupId, List<String> roleIds) {
-    Group group = findById(groupId);
-    group.setRoles(
-        new java.util.ArrayList<>(
-            referenceResolver.resolve(roleIds, Role.class, roleRepository::countByIdIn)));
+    Set<String> uniqueRoleIds = new LinkedHashSet<>(roleIds);
+    List<Role> roles = roleRepository.findAllById(uniqueRoleIds);
+    if (roles.size() != uniqueRoleIds.size()) {
+      throw new EntityNotFoundException("One or more Role not found in: " + uniqueRoleIds);
+    }
+    assertCanAssignCapabilities(userService.currentUser(), capabilitiesOf(roles), PLATFORM);
+    group.setRoles(new ArrayList<>(roles));
     groupRepository.save(group);
     return groupRepository.findRoleIdsByGroupId(groupId);
   }
 
+  public List<String> updateGroupUsers(@NotBlank final String groupId, List<String> userIds) {
+    Group group = findById(groupId);
+    assertCanAssignCapabilities(
+        userService.currentUser(), capabilitiesOf(group.getRoles()), PLATFORM);
+    Set<String> uniqueUserIds = new LinkedHashSet<>(userIds);
+    group.setUsers(
+        new ArrayList<>(
+            referenceResolver.resolve(uniqueUserIds, User.class, userRepository::countByIdIn)));
+    groupRepository.save(group);
+    return groupRepository.findUserIdsByGroupId(groupId);
+  }
+
   // -- DELETE --
 
-  public void deletePlatformGroup(@NotBlank final String groupId) {
+  public void delete(@NotBlank final String groupId) {
     Group group = findById(groupId);
     // Clear bidirectional associations before delete to avoid TransientObjectException
     // (User entities in the persistence context would otherwise still reference the removed Group)

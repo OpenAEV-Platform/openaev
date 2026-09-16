@@ -1,8 +1,8 @@
 package io.openaev.injectors.email.service;
 
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
+import static io.openaev.database.model.ExecutionTrace.getNewWarningTrace;
 import static io.openaev.helper.TemplateHelper.buildContextualContent;
 import static java.util.stream.Collectors.joining;
 import static org.springframework.util.StringUtils.hasText;
@@ -218,9 +218,13 @@ public class EmailService {
           Thread.sleep(2000);
         }
       }
+      // The mail was already sent successfully; storing a copy in the IMAP sent folder is a
+      // best-effort side step (it commonly fails when IMAP is not connected/configured). A failure
+      // here must NOT fail the inject, so it is a WARNING (counted as success by the status
+      // aggregation) rather than an ERROR that would flip the whole inject to "Error".
       execution.addTrace(
-          getNewErrorTrace(
-              "Fail to store mail in IMAP after 3 attempts",
+          getNewWarningTrace(
+              "Mail sent, but failed to store a copy in the IMAP sent folder after 3 attempts",
               ExecutionTraceAction.COMPLETE,
               userIds));
     }

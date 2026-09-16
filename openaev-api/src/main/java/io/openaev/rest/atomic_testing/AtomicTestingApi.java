@@ -59,7 +59,7 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> findAllAtomicTestings(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return atomicTestingService.searchAtomicTestingsForCurrentUser(searchPaginationInput);
   }
 
@@ -72,7 +72,13 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public InjectResultOverviewOutput findAtomicTesting(@PathVariable String injectId) {
+  public InjectResultOverviewOutput findAtomicTesting(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this read. InjectResultOverviewOutput serializes Inject#getType(), which
+      // resolves the inject's injector through the contract's (eager) injector link on the
+      // v2-scoped injectors table. Without the scope the read fails closed and inject_type comes
+      // back null, which changes how the frontend renders the atomic-testing result panel.
+      TxCtx ctx, @PathVariable String injectId) {
     return atomicTestingService.findById(injectId);
   }
 
@@ -83,7 +89,10 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public StatusPayloadOutput findAtomicTestingPayload(@PathVariable String injectId) {
+  public StatusPayloadOutput findAtomicTestingPayload(
+      // Signals the transaction aspect to set the tenant scope: resolving the payload output reads
+      // the inject's injector contract / injector on the v2-scoped injectors table.
+      TxCtx ctx, @PathVariable String injectId) {
     return atomicTestingService.findPayloadOutputByInjectId(injectId);
   }
 
@@ -91,7 +100,10 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput createAtomicTesting(
-      @Valid @RequestBody AtomicTestingInput input) {
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this write (createOrUpdate resolves the Injector via
+      // InjectUtils#resolveInjector, which reads the v2-scoped injectors table).
+      TxCtx ctx, @Valid @RequestBody AtomicTestingInput input) {
     return this.atomicTestingService.createOrUpdate(input, null);
   }
 
@@ -102,6 +114,10 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTesting(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this write (createOrUpdate resolves the Injector via
+      // InjectUtils#resolveInjector, which reads the v2-scoped injectors table).
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingInput input) {
     return atomicTestingService.createOrUpdate(input, injectId);
@@ -113,7 +129,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECT)
-  public void deleteAtomicTesting(@PathVariable @NotBlank final String injectId) {
+  public void deleteAtomicTesting(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
     atomicTestingService.deleteAtomicTesting(injectId);
   }
 
@@ -127,8 +143,8 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ATOMIC_TESTING)
   public List<String> bulkDeleteAtomicTestings(
-      @RequestBody @Valid final InjectBulkProcessingInput input) {
-    return atomicTestingService.bulkDelete(input);
+      TxCtx ctx, @RequestBody @Valid final InjectBulkProcessingInput input) {
+    return atomicTestingService.bulkDelete(ctx, input);
   }
 
   @PostMapping("/{atomicTestingId}/duplicate")
@@ -138,7 +154,10 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.ATOMIC_TESTING)
   public InjectResultOverviewOutput duplicateAtomicTesting(
-      @PathVariable @NotBlank final String atomicTestingId) {
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this read (duplicate reads Inject#getInjector(), a lazy association on
+      // the v2-scoped injectors table).
+      TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.duplicate(atomicTestingId);
   }
 
@@ -154,7 +173,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public ExpectationsDriftOutput atomicTestingExpectationsDrift(
-      @PathVariable @NotBlank final String injectId) {
+      TxCtx ctx, @PathVariable @NotBlank final String injectId) {
     return expectationsDriftService.injectDrift(injectId);
   }
 
@@ -172,8 +191,8 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public ExpectationsRealignOutput realignAtomicTestingExpectations(
-      @PathVariable @NotBlank final String injectId) {
-    return expectationsDriftService.realignInject(injectId);
+      TxCtx ctx, @PathVariable @NotBlank final String injectId) {
+    return expectationsDriftService.realignInject(ctx, injectId);
   }
 
   @Operation(
@@ -189,6 +208,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public ExpectationsDriftOutput dismissAtomicTestingExpectationsDrift(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final ExpectationsDriftDismissInput input) {
     return expectationsDriftService.dismissInjectDrift(injectId, input.dismissed());
@@ -216,6 +236,9 @@ public class AtomicTestingApi extends RestBehavior {
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (the Enterprise executor gate reads each targeted agent's executor).
   public InjectResultOverviewOutput relaunchAtomicTesting(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this read (relaunch duplicates the inject, reading Inject#getInjector(),
+      // a lazy association on the v2-scoped injectors table).
       TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
     return atomicTestingService.relaunch(atomicTestingId);
   }
@@ -246,13 +269,13 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<InjectExpectationOutput> findTargetResult(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
-      @PathVariable String targetType,
-      @RequestParam(required = false) String parentTargetId) {
+      @PathVariable String targetType) {
     return toOutputs(
-        injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-            injectId, targetId, parentTargetId, targetType));
+        injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+            injectId, targetId, targetType));
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/asset_with_agents")
@@ -270,6 +293,7 @@ public class AtomicTestingApi extends RestBehavior {
             description = "The list of the agents injects expectations")
       })
   public List<InjectExpectationAgentOutput> findTargetResultAssetWithAgents(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
       @RequestParam @NotBlank String expectationType) {
@@ -302,6 +326,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<InjectExpectationOutput> findTargetResultMerged(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType) {
@@ -320,6 +345,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTestingTags(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingUpdateTagsInput input) {
     return atomicTestingService.updateAtomicTestingTags(injectId, input);
@@ -339,7 +365,7 @@ public class AtomicTestingApi extends RestBehavior {
             description = "The list of Security platforms used in an atomic testing remediation")
       })
   public List<SecurityPlatformSimpleOutput> securityPlatformsFromAtomicTesting(
-      @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String injectId) {
     return SecurityPlatformMapper.toSimpleOutputs(
         detectionRemediationService.securityPlatformsForInject(injectId));
   }
@@ -350,11 +376,15 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
-      @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this read/write (the import reads InjectorContract#getFirstInjector()).
+      // The handler does not use it directly.
+      TxCtx ctx, @RequestPart("file") MultipartFile file, HttpServletResponse response)
+      throws Exception {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
 
-    this.injectImportService.importInjectsForAtomicTestings(file);
+    this.injectImportService.importInjectsForAtomicTestings(ctx, file);
   }
 }

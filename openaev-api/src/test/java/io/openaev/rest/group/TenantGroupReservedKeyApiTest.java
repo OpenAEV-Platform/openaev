@@ -86,7 +86,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
   class ServiceAccountGroup {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("editing information should return 400")
     void given_reservedGroupId_should_returnBadRequest_onUpdateInformation() throws Exception {
       // -------- Arrange --------
@@ -106,7 +106,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("adding a grant should return 400")
     void given_reservedGroupId_should_returnBadRequest_onAddGrant() throws Exception {
       // -------- Arrange --------
@@ -127,7 +127,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("removing a grant should return 400")
     void given_reservedGroupId_should_returnBadRequest_onRemoveGrant() throws Exception {
       // -------- Arrange --------
@@ -143,7 +143,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("updating users should return 400")
     void given_reservedGroupId_should_returnBadRequest_onUpdateUsers() throws Exception {
       // -------- Arrange --------
@@ -162,7 +162,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("updating roles should return 400")
     void given_reservedGroupId_should_returnBadRequest_onUpdateRoles() throws Exception {
       // -------- Arrange --------
@@ -180,7 +180,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("deleting (SERVICE) should return 400")
     void given_reservedServiceGroupId_should_returnBadRequest_onDelete() throws Exception {
       // -------- Arrange --------
@@ -195,7 +195,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("deleting (PROCESS_STIX) should return 400")
     void given_reservedStixGroupId_should_returnBadRequest_onDelete() throws Exception {
       // -------- Arrange --------
@@ -219,7 +219,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
   class NormalGroupRejectReserved {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("should reject adding a user with a reserved service-account email")
     void given_reservedEmailUserInPayload_should_returnBadRequest_onUpdateUsers() throws Exception {
       // -------- Arrange --------
@@ -257,7 +257,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("should reject adding a reserved-id role into a normal group")
     void given_reservedRoleIdInPayload_should_returnBadRequest_onUpdateRoles() throws Exception {
       // -------- Arrange --------

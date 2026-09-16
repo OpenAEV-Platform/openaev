@@ -906,6 +906,109 @@ public class ConditionServiceTest {
               .collect(java.util.stream.Collectors.toSet());
       assertEquals(Set.of("pool-a", "pool-b"), values);
     }
+
+    @Test
+    void given_portMapperWithLeadingZeroScopeValue_should_preserveDistinctCandidatesAndDefault() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-port-leading-zero-defined-value");
+
+      Condition portMapper = mapper(MappingType.LOCAL, PrimitiveType.Port, "22");
+      portMapper.setKey("portValue");
+      List<Condition> mappers = List.of(portMapper);
+
+      WorkflowStateEntries localEntries = entries(List.of(input("Port", "05", "445")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-port-leading-zero-defined-value"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(3, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("05", "445", "22"), values);
+    }
+
+    @Test
+    void given_defaultMapperAndMissingLinkedMapper_should_generateSingleBatchWithDefaultOnly() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-default-plus-missing-linked");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
+              mapper(MappingType.LOCAL, PrimitiveType.Host, null));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-default-plus-missing-linked"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("admin", json.get("Text").getAsString());
+      assertFalse(json.has("Host"));
+
+      Condition textMapper =
+          batches.getFirst().usedMappers().stream()
+              .filter(mapper -> "Text".equals(mapper.getKey()))
+              .findFirst()
+              .orElseThrow();
+      Condition hostMapper =
+          batches.getFirst().usedMappers().stream()
+              .filter(mapper -> "Host".equals(mapper.getKey()))
+              .findFirst()
+              .orElseThrow();
+      assertEquals("admin", textMapper.getValue());
+      assertNull(hostMapper.getValue());
+    }
+
+    @Test
+    void given_allLinkedMappersMissingValues_should_generateSingleEmptyInputBatch() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-all-linked-missing");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-all-linked-missing"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals(0, json.size());
+      assertEquals(2, batches.getFirst().usedMappers().size());
+      assertTrue(
+          batches.getFirst().usedMappers().stream().allMatch(mapper -> mapper.getValue() == null));
+    }
   }
 
   /* ============================================================

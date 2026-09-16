@@ -666,8 +666,8 @@ class WorkflowStateServiceTest {
           .thenReturn(localState);
 
       // conditionUtils.matchesAnyLeafCondition: return true when val == "10.0.0.1"
-      when(conditionUtils.matchesAnyLeafCondition(eq("10.0.0.1"), any())).thenReturn(true);
-      when(conditionUtils.matchesAnyLeafCondition(eq("22"), any())).thenReturn(false);
+      when(conditionUtils.matchesAnyLeafCondition(eq("10.0.0.1"), any(), any())).thenReturn(true);
+      when(conditionUtils.matchesAnyLeafCondition(eq("22"), any(), any())).thenReturn(false);
 
       // Complex output: PortScan {host, port}
       JsonObject dataToSync =
@@ -745,7 +745,7 @@ class WorkflowStateServiceTest {
           .thenReturn(List.of(rootCondition));
 
       // no matchesAnyLeafCondition returns true
-      when(conditionUtils.matchesAnyLeafCondition(anyString(), any())).thenReturn(false);
+      when(conditionUtils.matchesAnyLeafCondition(anyString(), any(), any())).thenReturn(false);
 
       JsonObject dataToSync =
           JsonParser.parseString(
@@ -836,8 +836,8 @@ class WorkflowStateServiceTest {
       when(workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
               stepTemplateId, workflowId))
           .thenReturn(localState);
-      when(conditionUtils.matchesAnyLeafCondition(eq("10.0.0.1"), any())).thenReturn(true);
-      when(conditionUtils.matchesAnyLeafCondition(eq("22"), any())).thenReturn(false);
+      when(conditionUtils.matchesAnyLeafCondition(eq("10.0.0.1"), any(), any())).thenReturn(true);
+      when(conditionUtils.matchesAnyLeafCondition(eq("22"), any(), any())).thenReturn(false);
 
       JsonObject dataToSync =
           JsonParser.parseString(

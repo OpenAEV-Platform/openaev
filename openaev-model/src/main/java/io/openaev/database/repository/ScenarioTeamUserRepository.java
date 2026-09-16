@@ -41,5 +41,15 @@ public interface ScenarioTeamUserRepository
   void deleteByScenarioIdAndTeamIds(
       @Param("scenarioId") String scenarioId, @Param("teamIds") Collection<String> teamIds);
 
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          "delete from scenarios_teams_users "
+              + "where team_id = :teamId and user_id in (:userIds)",
+      nativeQuery = true)
+  @Transactional
+  void deleteByTeamIdAndUserIds(
+      @Param("teamId") String teamId, @Param("userIds") Collection<String> userIds);
+
   boolean existsByScenarioIdAndTeamIdAndUserId(String scenarioId, String teamId, String userId);
 }

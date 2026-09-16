@@ -6,10 +6,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.service.AbstractPrivilegeService;
-import io.openaev.service.RoleService;
-import io.openaev.service.TenantGroupService;
-import io.openaev.service.UserService;
+import io.openaev.service.*;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,12 +29,12 @@ public class PrivilegeService extends AbstractPrivilegeService {
 
   @Autowired
   public PrivilegeService(
-      RoleService roleService,
+      TenantRoleService tenantRoleService,
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
       LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration) {
-    super(roleService, tenantGroupService, userService, tenantUserService);
+    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
     this.legacyOpenCTIConnectorMigration = legacyOpenCTIConnectorMigration;
   }
 

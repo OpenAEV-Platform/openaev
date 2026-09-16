@@ -9,6 +9,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Token;
@@ -29,10 +30,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,7 +52,7 @@ public class MeApi extends RestBehavior {
   @GetMapping("/api/logout")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<Object> logout(HttpServletRequest request) {
+  public ResponseEntity<Object> logout(TxCtx ctx, HttpServletRequest request) {
     HttpSession session = request.getSession(false);
     if (session != null) {
       session.setAttribute(SessionManager.EXPLICIT_LOGOUT, Boolean.TRUE);
@@ -64,7 +63,7 @@ public class MeApi extends RestBehavior {
   @GetMapping({ME_URI, TENANT_ME_URI})
   @Transactional
   @AccessControl(skipRBAC = true)
-  public User me() {
+  public User me(TxCtx ctx) {
     return userRepository
         .findById(currentUser().getId())
         .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
@@ -74,7 +73,7 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public User updateProfile(@Valid @RequestBody UpdateProfileInput input) {
+  public User updateProfile(TxCtx ctx, @Valid @RequestBody UpdateProfileInput input) {
     User user =
         userRepository
             .findById(currentUser().getId())
@@ -91,7 +90,7 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public User updateInformation(@Valid @RequestBody UpdateUserInfoInput input) {
+  public User updateInformation(TxCtx ctx, @Valid @RequestBody UpdateUserInfoInput input) {
     User user =
         userRepository
             .findById(currentUser().getId())
@@ -107,7 +106,7 @@ public class MeApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updatePassword(
-      @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
+      TxCtx ctx, @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
     User user =
         userRepository
@@ -129,24 +128,14 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
-  public Token renewToken(@Valid @RequestBody RenewTokenInput input) {
-    User user =
-        userRepository
-            .findById(currentUser().getId())
-            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-    Token token =
-        tokenRepository.findById(input.getTokenId()).orElseThrow(ElementNotFoundException::new);
-    if (!user.equals(token.getUser())) {
-      throw new AccessDeniedException("You are not allowed to renew this token");
-    }
-    token.setValue(UUID.randomUUID().toString());
-    return tokenRepository.save(token);
+  public Token renewToken(TxCtx ctx, @Valid @RequestBody RenewTokenInput input) {
+    return userService.renewUserToken(input.getTokenId());
   }
 
   @GetMapping(ME_URI + "/tenants")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public List<TenantOutput> myTenants() {
+  public List<TenantOutput> myTenants(TxCtx ctx) {
     return tenantService.findTenantsByUserId(currentUser().getId()).stream()
         .map(TenantMapper::toOutput)
         .toList();
@@ -155,7 +144,7 @@ public class MeApi extends RestBehavior {
   @GetMapping(ME_URI + "/tokens")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public List<Token> tokens() {
+  public List<Token> tokens(TxCtx ctx) {
     return tokenRepository.findAll(fromUser(currentUser().getId()));
   }
 }

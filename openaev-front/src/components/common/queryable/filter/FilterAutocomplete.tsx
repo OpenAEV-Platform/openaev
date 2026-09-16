@@ -13,6 +13,11 @@ const useStyles = makeStyles()(() => ({
   container: {
     display: 'flex',
     gap: 10,
+    // In a width-constrained toolbar the autocomplete is allowed to shrink
+    // (see minWidth on the input below) instead of pushing the actions on the
+    // right out of view (#7340).
+    minWidth: 0,
+    flexShrink: 1,
   },
 }));
 
@@ -58,7 +63,13 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
     <div className={classes.container}>
       <MuiAutocomplete
         options={options}
-        sx={{ width: domains ? '95%' : 200 }}
+        sx={{
+          // 200px when space allows, shrinkable down to 120px in a tight
+          // toolbar (the label truncates but the control stays usable).
+          width: domains ? '95%' : 200,
+          minWidth: domains ? undefined : 120,
+          flexShrink: 1,
+        }}
         value={null}
         onChange={(_, selectOptionValue) => {
           if (selectOptionValue) {

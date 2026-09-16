@@ -26,6 +26,7 @@ import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
@@ -46,7 +47,7 @@ import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingVerdictsDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.service.attackpath.dto.ConsumedFindingKeyDTO;
-import io.openaev.utils.PrimitiveValueMaskingUtils;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.mapper.PayloadMapper;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -106,7 +107,6 @@ public class AttackPathGraphService {
   private static final String RED = "RED";
 
   private static final String CATEGORY_CREDENTIALS = "credentials";
-  private static final String CREDENTIAL_MASK = "••••";
 
   /**
    * Maps a redacted command-line flag to the inject content field it was resolved from, for {@link
@@ -152,6 +152,7 @@ public class AttackPathGraphService {
   private final AssetRepository assetRepository;
   private final InjectStatusRepository injectStatusRepository;
   private final InjectRepository injectRepository;
+  private final PayloadRepository payloadRepository;
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
@@ -236,7 +237,9 @@ public class AttackPathGraphService {
                 r ->
                     new AttackPathFindingItemDTO(
                         r.type(),
-                        maskValue ? maskCredential(r.value()) : r.value(),
+                        maskValue
+                            ? SensitiveValueMaskingUtils.maskIfNeeded(r.type(), r.value())
+                            : r.value(),
                         r.endpointKey(),
                         AttackPathIds.endpointNode(r.endpointKey()),
                         links.executionIds().getOrDefault(r.id(), List.of()),
@@ -271,7 +274,9 @@ public class AttackPathGraphService {
       boolean credential = CATEGORY_CREDENTIALS.equals(f.type());
       findings.add(
           new AttackPathExecutionFindingItemDTO(
-              f.type(), credential ? maskCredential(f.value()) : f.value(), executionVerdicts));
+              f.type(),
+              credential ? SensitiveValueMaskingUtils.maskIfNeeded(f.type(), f.value()) : f.value(),
+              executionVerdicts));
     }
     // Mask, in the free-text command and output, the secrets of every credential discovered on this
     // endpoint: an execution's command references its endpoint's credentials, not only the ones it
@@ -406,7 +411,7 @@ public class AttackPathGraphService {
 
   /**
    * Replaces each redacted "-&lt;flag&gt; ***" in the injector's own trace with the real value,
-   * partially revealed by {@link PrimitiveValueMaskingUtils} for the fields we mask, in full for
+   * partially revealed by {@link SensitiveValueMaskingUtils} for the fields we mask, in full for
    * every other recognized field (e.g. username). Any unrecognized flag, or a recognized flag we
    * have no resolved value for, is left exactly as the injector logged it.
    */
@@ -427,7 +432,7 @@ public class AttackPathGraphService {
         String displayValue =
             maskedType == null
                 ? fieldValue
-                : PrimitiveValueMaskingUtils.maskForDisplay(maskedType, fieldValue);
+                : SensitiveValueMaskingUtils.maskIfNeeded(maskedType, fieldValue);
         replacement = flag + whitespace + displayValue;
       }
       matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
@@ -445,7 +450,13 @@ public class AttackPathGraphService {
     return separator >= 0 ? value.substring(separator + 1) : null;
   }
 
-  /** Replaces each known credential secret with the fixed mask wherever it appears in free text. */
+  /**
+   * Replaces each known credential secret with {@link SensitiveValueMaskingUtils#MASK} wherever it
+   * appears in free text. Structured values go through {@link
+   * SensitiveValueMaskingUtils#maskIfNeeded(String, String)} instead, which knows their composition
+   * and masks only their secret segment; here there is no structure to read, so the secret
+   * substrings are substituted one by one, with the same mask so the rendering stays consistent.
+   */
   private static String maskSecrets(String text, Set<String> secrets) {
     if (text == null || secrets.isEmpty()) {
       return text;
@@ -455,7 +466,7 @@ public class AttackPathGraphService {
     // one before it is masked (e.g. "pass" must not break "password").
     for (String secret :
         secrets.stream().sorted(Comparator.comparingInt(String::length).reversed()).toList()) {
-      masked = masked.replace(secret, CREDENTIAL_MASK);
+      masked = masked.replace(secret, SensitiveValueMaskingUtils.MASK);
     }
     return masked;
   }
@@ -512,22 +523,6 @@ public class AttackPathGraphService {
       // so the "Text fields"/etc. cards open a populated drawer instead of an empty one.
       default -> Set.of(category.toLowerCase(Locale.ROOT));
     };
-  }
-
-  /**
-   * Masks a credential for the drawer: for a {@code username:password} pair, keep the username and
-   * mask only the secret; otherwise mask the whole value. The mask is fixed-length so it never
-   * reveals the secret's length, and the clear secret never leaves the server.
-   */
-  private static String maskCredential(String value) {
-    if (value == null || value.isEmpty()) {
-      return value;
-    }
-    int separator = value.indexOf(':');
-    if (separator >= 0) {
-      return value.substring(0, separator + 1) + CREDENTIAL_MASK;
-    }
-    return CREDENTIAL_MASK;
   }
 
   private List<DetectionRemediationOutput> toDetectionRemediationOutputsFromSnapshot(
@@ -645,6 +640,8 @@ public class AttackPathGraphService {
     }
     applyContractNames(page, feedByExecutionId);
     applyExecutionStatuses(page, feedByExecutionId);
+    applyPayloadIconMetadata(page, feedByExecutionId);
+    applyFeedAttackPatterns(page, feedByExecutionId, loadPatternsByContract(feedContractIds(page)));
     return new AttackPathEndpointRelationsDTO(
         new ArrayList<>(feedByExecutionId.values()),
         new ArrayList<>(edges.values()),
@@ -697,6 +694,13 @@ public class AttackPathGraphService {
     applyEventDependencies(executions, findings, feedByExecutionId);
     Map<String, String> contractNames = applyContractNames(executions, feedByExecutionId);
     applyExecutionStatuses(executions, feedByExecutionId);
+    applyPayloadIconMetadata(executions, feedByExecutionId);
+    // ONE batched technique read serves both the feed nodes (here) and the injector nodes
+    // (resolveInjectorAttackPatterns below): the feed's contract set is a superset of the
+    // injector-node one, so the full pass keeps its constant query count.
+    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract =
+        loadPatternsByContract(feedContractIds(executions));
+    applyFeedAttackPatterns(executions, feedByExecutionId, patternsByContract);
     applyInjectorNodeLabels(nodes, contractsByInjectorNode, contractNames);
 
     // Endpoint (ASSET) nodes, with attributes and colour from the executions targeting them.
@@ -799,7 +803,7 @@ public class AttackPathGraphService {
           }
         });
 
-    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode, patternsByContract);
     applyEndpointCriticality(nodes);
 
     AttackPathCounters counters =
@@ -846,32 +850,23 @@ public class AttackPathGraphService {
       }
     }
     applyInjectorNodeLabels(nodes, contractsByInjectorNode, resolveContractNames(externalIds));
-    resolveInjectorAttackPatterns(nodes, contractsByInjectorNode);
+    resolveInjectorAttackPatterns(
+        nodes, contractsByInjectorNode, loadPatternsByContract(externalIds));
   }
 
   /**
-   * Sets each injector node's ATT&CK techniques from its contracts, in ONE batched query for the
-   * whole graph. A node's techniques are the union across every contract that injector ran, deduped
-   * by technique id, since one injector can run several contracts in a simulation. No injector
-   * contract in scope means no query at all, so a graph without injectors stays at its two reads.
+   * Sets each injector node's ATT&CK techniques from its contracts, out of the caller-supplied
+   * {@code patternsByContract} batch. A node's techniques are the union across every contract that
+   * injector ran, deduped by technique id, since one injector can run several contracts in a
+   * simulation. An empty batch means no injector contract resolved a technique, so nothing to set.
    */
   private void resolveInjectorAttackPatterns(
-      Map<String, AttackPathNodeDTO> nodes, Map<String, Set<String>> contractsByInjectorNode) {
-    Set<String> externalIds = new HashSet<>();
-    contractsByInjectorNode.values().forEach(externalIds::addAll);
-    if (externalIds.isEmpty()) {
+      Map<String, AttackPathNodeDTO> nodes,
+      Map<String, Set<String>> contractsByInjectorNode,
+      Map<String, List<AttackPathAttackPatternDTO>> patternsByContract) {
+    if (patternsByContract.isEmpty()) {
       return;
     }
-    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract = new HashMap<>();
-    injectorContractRepository
-        .findInjectorAttackPatternsByExternalIdIn(externalIds)
-        .forEach(
-            row ->
-                patternsByContract
-                    .computeIfAbsent(row.contractExternalId(), k -> new ArrayList<>())
-                    .add(
-                        new AttackPathAttackPatternDTO(
-                            row.patternExternalId(), row.patternName())));
     contractsByInjectorNode.forEach(
         (nodeId, contractIds) -> {
           Map<String, AttackPathAttackPatternDTO> deduped = new LinkedHashMap<>();
@@ -884,6 +879,29 @@ public class AttackPathGraphService {
             nodes.get(nodeId).setAttackPatterns(new ArrayList<>(deduped.values()));
           }
         });
+  }
+
+  /**
+   * The {@code contract external id -> ATT&CK techniques} map for a set of contracts, in one
+   * batched read. Shared by the injector-node and feed-node technique resolutions so each graph
+   * pass pays for at most one such query per consumer. Empty input means no query at all.
+   */
+  private Map<String, List<AttackPathAttackPatternDTO>> loadPatternsByContract(
+      Set<String> externalIds) {
+    Map<String, List<AttackPathAttackPatternDTO>> patternsByContract = new HashMap<>();
+    if (externalIds.isEmpty()) {
+      return patternsByContract;
+    }
+    injectorContractRepository
+        .findInjectorAttackPatternsByExternalIdIn(externalIds)
+        .forEach(
+            row ->
+                patternsByContract
+                    .computeIfAbsent(row.contractExternalId(), k -> new ArrayList<>())
+                    .add(
+                        new AttackPathAttackPatternDTO(
+                            row.patternExternalId(), row.patternName())));
+    return patternsByContract;
   }
 
   /**
@@ -1423,6 +1441,80 @@ public class AttackPathGraphService {
   }
 
   /**
+   * Resolves each feed node's payload icon metadata (payload type + collector type name) from its
+   * frozen payload id, in ONE batched read for the whole feed. An agent-executed action's
+   * injectorType is always the implant, so without this the map can only draw the generic agent
+   * icon; the collector type name (e.g. openaev_netexec) is what the catalog icon is keyed by. Rows
+   * with no payload (network executions) or a deleted payload simply keep null fields.
+   */
+  private void applyPayloadIconMetadata(
+      List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
+    Set<String> payloadIds =
+        executions.stream()
+            .map(AttackPathExecutionRow::payloadId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    if (payloadIds.isEmpty()) {
+      return;
+    }
+    Map<String, String> typeByPayload = new HashMap<>();
+    Map<String, String> collectorTypeByPayload = new HashMap<>();
+    for (Object[] row : payloadRepository.findIconMetadataByIds(payloadIds)) {
+      if (row[0] instanceof String payloadId) {
+        if (row[1] instanceof String payloadType) {
+          typeByPayload.put(payloadId, payloadType);
+        }
+        if (row[2] instanceof String collectorType) {
+          collectorTypeByPayload.put(payloadId, collectorType);
+        }
+      }
+    }
+    for (AttackPathExecutionRow e : executions) {
+      AttackPathNodeDTO node = feedByExecutionId.get(e.id());
+      if (node == null || e.payloadId() == null) {
+        continue;
+      }
+      node.setPayloadType(typeByPayload.get(e.payloadId()));
+      node.setPayloadCollectorType(collectorTypeByPayload.get(e.payloadId()));
+    }
+  }
+
+  /** The distinct contract external ids of a set of execution rows (the feed's technique keys). */
+  private static Set<String> feedContractIds(List<AttackPathExecutionRow> executions) {
+    return executions.stream()
+        .map(AttackPathExecutionRow::contractExternalId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Sets each feed node's ATT&CK techniques from its own frozen contract, out of the
+   * caller-supplied {@code patternsByContract} batch. An endpoint-local action promoted to its own
+   * map node has no injector node to read techniques from (its source is the endpoint itself), so
+   * the feed entry must carry them for the ACTION card to render the same technique chips as a real
+   * injector node.
+   */
+  private void applyFeedAttackPatterns(
+      List<AttackPathExecutionRow> executions,
+      Map<String, AttackPathNodeDTO> feedByExecutionId,
+      Map<String, List<AttackPathAttackPatternDTO>> patternsByContract) {
+    if (patternsByContract.isEmpty()) {
+      return;
+    }
+    for (AttackPathExecutionRow e : executions) {
+      AttackPathNodeDTO node =
+          e.contractExternalId() == null ? null : feedByExecutionId.get(e.id());
+      if (node == null) {
+        continue;
+      }
+      List<AttackPathAttackPatternDTO> patterns = patternsByContract.get(e.contractExternalId());
+      if (patterns != null && !patterns.isEmpty()) {
+        node.setAttackPatterns(new ArrayList<>(patterns));
+      }
+    }
+  }
+
+  /**
    * Labels each per-contract injector node with its contract's name, so two nodes of the same
    * injector are distinguishable on the map. Reuses the names already resolved for the feed nodes,
    * so no extra query; a node whose contract name did not resolve keeps its injector-name label.
@@ -1535,6 +1627,9 @@ public class AttackPathGraphService {
     node.setAgentName(e.agentName());
     node.setPrivilege(e.agentPrivilege());
     node.setStepTemplateId(e.stepTemplateId());
+    // The injector type frozen on the row (the implant for an agent-executed payload), so a feed
+    // entry promoted to its own ACTION node on the map can at least fall back to the injector icon.
+    node.setInjectorType(e.injectorType());
     return node;
   }
 
@@ -1548,8 +1643,16 @@ public class AttackPathGraphService {
     return node;
   }
 
+  /**
+   * The graph node of a single finding. The value of a sensitive type is masked here, at the only
+   * place finding nodes are built, so no graph payload ever carries a secret in the clear - the
+   * front used to mask on render, which any network inspection defeated. The node id is masked
+   * separately by {@link AttackPathIds#findingNode} (it hashes the value), since an id encoding the
+   * raw value would leak just as much.
+   */
   private AttackPathNodeDTO findingNode(
-      String id, String type, String value, String typeNodeId, String assetNodeId) {
+      String id, String type, String rawValue, String typeNodeId, String assetNodeId) {
+    String value = SensitiveValueMaskingUtils.maskIfNeeded(type, rawValue);
     AttackPathNodeDTO node = new AttackPathNodeDTO();
     node.setId(id);
     node.setType(TYPE_FINDING);

@@ -38,6 +38,11 @@ public class ExternalUpdateEvent implements Queueable {
   @JsonProperty("event_emission_date")
   private long emissionDate;
 
+  /** Number of times this event has been re-queued after an update()/end() failure. */
+  @JsonProperty("retry_count")
+  @Builder.Default
+  private int retryCount = 0;
+
   /**
    * Compares this step event to another object for equality based on ID.
    *

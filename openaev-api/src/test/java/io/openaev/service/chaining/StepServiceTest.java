@@ -11,7 +11,13 @@ import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.StepDelayQueue;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -20,9 +26,11 @@ import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.scheduler.jobs.QueueChainingJob;
 import java.io.IOException;
 import java.util.*;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +39,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -42,6 +51,7 @@ class StepServiceTest {
   @Mock private ActionStep actionStep;
   @Mock private WorkflowService workflowService;
   @Mock private ConditionService conditionService;
+  @Mock private StepTargetingService stepTargetingService;
   @Mock private StepAutoLinkService stepAutoLinkService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
@@ -60,26 +70,26 @@ class StepServiceTest {
   @Captor private ArgumentCaptor<Workflow> workflowCaptor;
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Captor private ArgumentCaptor<String> stepIdCaptor;
+  private TenantScopedTransaction tenantTx;
 
   @BeforeEach
   void setUp() {
-    transactionTemplate = mock(TransactionTemplate.class);
+    tenantTx = mock(TenantScopedTransaction.class);
     lenient()
         .doAnswer(
             invocation -> {
-              ((java.util.function.Consumer<Object>) invocation.getArgument(0)).accept(null);
+              ((Runnable) invocation.getArgument(1)).run();
               return null;
             })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
     queueChainingJob =
-        new QueueChainingJob(
-            stepDelayQueueService, stepService, workflowService, transactionTemplate);
+        new QueueChainingJob(stepDelayQueueService, stepService, workflowService, tenantTx);
     workflow = mock(Workflow.class);
   }
 
   /* ============================================================
-   * createStepsTemplate — ActionStep resolution
+   * createStepsTemplate - ActionStep resolution
    * ============================================================ */
   @Nested
   class ActionStepResolution {
@@ -99,7 +109,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * stepCondition — no conditions
+   * stepCondition - no conditions
    * ============================================================ */
   @Nested
   class NoConditions {
@@ -121,7 +131,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * stepCondition — parameterized condition trees
+   * stepCondition - parameterized condition trees
    * ============================================================ */
   @Nested
   class ConditionTrees {
@@ -241,7 +251,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * stepCondition — invalid trees
+   * stepCondition - invalid trees
    * ============================================================ */
   @Nested
   class InvalidConditionTrees {
@@ -310,7 +320,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * ready — Execution step creation and queue chaining
+   * ready - Execution step creation and queue chaining
    * ============================================================ */
   @Nested
   class Ready {
@@ -515,7 +525,7 @@ class StepServiceTest {
       /**
        * Regression test for a bug where a payload-based step with no condition mapper (e.g. a root
        * step, or a step gated only by a non-mapper condition such as DEPEND_ON) would only ever
-       * execute once — for a single scope asset — and be silently skipped for every other in-scope
+       * execute once - for a single scope asset - and be silently skipped for every other in-scope
        * asset on subsequent scheduling cycles. Injector-contract steps (hasPayload() == false) were
        * unaffected, which is exactly what was reported: contract steps correctly expanded per asset
        * while sibling payload steps did not.
@@ -550,12 +560,12 @@ class StepServiceTest {
         // NOTE: this step is a payload step with no condition mapper that has already produced a
         // READY step for a previous asset in an earlier scheduling cycle (i.e. exactly the
         // combination that used to be permanently short-circuited by the removed
-        // "!hasConditionMapper && isStepAlreadyExecutedOnce && hasPayload" guard). These are
-        // stubbed leniently because the fixed createReadySteps no longer consults them at all —
-        // reverting the fix would make this test start invoking them (and start failing, since the
-        // old guard would then return an empty list instead of expanding the remaining assets).
+        // "!hasConditionMapper && isStepAlreadyExecutedOnce && hasPayload" guard, whose payload
+        // classification now lives in StepTargetingService). These are stubbed leniently because
+        // the fixed createReadySteps no longer consults them at all - reverting the fix would make
+        // this test start invoking them (and start failing, since the old guard would then return
+        // an empty list instead of expanding the remaining assets).
         lenient().when(conditionService.hasConditionMapper(persistedTemplate)).thenReturn(false);
-        lenient().when(injectExecutionStep.hasPayload(persistedTemplate)).thenReturn(true);
         lenient()
             .when(stepRepository.existsByStepTemplateIdAndWorkflowId(stepId, workflowId))
             .thenReturn(true);
@@ -585,7 +595,7 @@ class StepServiceTest {
         List<Step> result =
             stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
 
-        // Assert: the step must not be silently skipped — the remaining assets still get a READY
+        // Assert: the step must not be silently skipped - the remaining assets still get a READY
         // step each.
         assertEquals(2, result.size());
         assertTrue(result.containsAll(List.of(stepReadyTwo, stepReadyThree)));
@@ -608,7 +618,7 @@ class StepServiceTest {
        * Regression test for the duplicate-inject STORM: a no-mapper INJECT_EXECUTION step (any step
        * the orchestrator chains via a DEPEND_ON parent) whose scope resolves to no asset (a
        * team-targeted human step, or an inject that bakes its own asset) produces a single batch
-       * with a NULL hash — expandTargetBatches returns it untouched. Before the fix that null hash
+       * with a NULL hash - expandTargetBatches returns it untouched. Before the fix that null hash
        * was never committed, so the step re-readied and re-executed on EVERY scheduling cycle,
        * spawning hundreds of duplicate injects. The fix stamps a deterministic fallback hash so the
        * step readies exactly once per (template, run) and is skipped on the next cycle.
@@ -680,7 +690,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * queueReadySteps — Queue pushing and exception handling
+   * queueReadySteps - Queue pushing and exception handling
    * ============================================================ */
   @Nested
   class QueueReadySteps {
@@ -722,7 +732,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * countExecutedStep — Repository delegation
+   * countExecutedStep - Repository delegation
    * ============================================================ */
   @Nested
   class CountExecutedStep {
@@ -750,7 +760,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * factoryAction — ActionStep resolution
+   * factoryAction - ActionStep resolution
    * ============================================================ */
   @Nested
   class FactoryAction {
@@ -766,7 +776,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * saveSteps / saveStep — Repository delegation
+   * saveSteps / saveStep - Repository delegation
    * ============================================================ */
   @Nested
   class SaveStepsAndSaveStep {
@@ -810,7 +820,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * Find step(s) — Repository delegation
+   * Find step(s) - Repository delegation
    * ============================================================ */
   @Nested
   class FindSteps {
@@ -959,7 +969,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * Queue events handling — processDelayStep
+   * Queue events handling - processDelayStep
    * ============================================================ */
   @Nested
   class QueueEventsHandling {
@@ -1108,6 +1118,79 @@ class StepServiceTest {
       assertSame(created, result);
       verify(conditionService).linkExistingConditionsToStep(created, conditionIds);
       verify(stepRepository).save(created);
+    }
+
+    @Test
+    @DisplayName(
+        "Idempotent author reusing a DIFFERENT event does not collapse onto a same-inject /"
+            + " same-parent pending twin - it mints a new step linked to the requested event")
+    void given_sameInjectDifferentEvent_should_notCollapse_andLinkRequestedEvent()
+        throws ChainingException {
+      // Arrange - a pending twin (same inject data, no DEPEND_ON parent) already gated by event A.
+      Workflow wf = mock(Workflow.class);
+      when(wf.getId()).thenReturn("wf-1");
+      Step existing = mock(Step.class);
+      when(existing.getId()).thenReturn("existing-1");
+      when(existing.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(existing.getData()).thenReturn("DATA");
+      // existing-1 is linked to event root A and has no DEPEND_ON parent.
+      Condition eventA = Condition.builder().id("evt-A").type(ConditionType.AND).build();
+      when(conditionService.findAllConditionsByStepId("existing-1")).thenReturn(List.of(eventA));
+      doReturn(List.of(existing)).when(stepService).findAllStepTemplateByWorkflow("wf-1");
+
+      // This author reuses a DIFFERENT event, B, for the same inject + parent.
+      StepsCreateInput.StepInput stepInput = mock(StepsCreateInput.StepInput.class);
+      when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepInput.getConditions()).thenReturn(Collections.emptyList());
+      when(stepInput.getConditionIds()).thenReturn(List.of("evt-B"));
+      Step candidate = mock(Step.class);
+      when(candidate.getData()).thenReturn("DATA");
+      doReturn(actionStep).when(stepService).factoryAction(StepActionClass.INJECT_EXECUTION, null);
+      when(actionStep.create(stepInput, wf)).thenReturn(Optional.of(candidate));
+      when(stepRepository.save(candidate)).thenReturn(candidate);
+
+      // Act
+      Step result = stepService.createInjectStepTemplateIdempotent(wf, stepInput, null);
+
+      // Assert - a NEW step is minted (not the event-A twin) and linked to the requested event B.
+      assertSame(candidate, result);
+      assertNotSame(existing, result);
+      verify(stepRepository).save(candidate);
+      verify(conditionService).linkExistingConditionsToStep(candidate, List.of("evt-B"));
+    }
+
+    @Test
+    @DisplayName(
+        "Idempotent author reusing the SAME event still collapses onto the pending twin (the storm"
+            + " guard is unchanged for a genuine replay)")
+    void given_sameInjectSameEvent_should_collapseOntoPendingTwin() throws ChainingException {
+      Workflow wf = mock(Workflow.class);
+      when(wf.getId()).thenReturn("wf-1");
+      Step existing = mock(Step.class);
+      when(existing.getId()).thenReturn("existing-1");
+      when(existing.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(existing.getData()).thenReturn("DATA");
+      Condition eventA = Condition.builder().id("evt-A").type(ConditionType.AND).build();
+      when(conditionService.findAllConditionsByStepId("existing-1")).thenReturn(List.of(eventA));
+      doReturn(List.of(existing)).when(stepService).findAllStepTemplateByWorkflow("wf-1");
+      // Still pending (no run step yet), so the storm guard may collapse.
+      when(stepRepository.existsByStepTemplateId("existing-1")).thenReturn(false);
+
+      StepsCreateInput.StepInput stepInput = mock(StepsCreateInput.StepInput.class);
+      when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepInput.getConditionIds()).thenReturn(List.of("evt-A"));
+      Step candidate = mock(Step.class);
+      when(candidate.getData()).thenReturn("DATA");
+      doReturn(actionStep).when(stepService).factoryAction(StepActionClass.INJECT_EXECUTION, null);
+      when(actionStep.create(stepInput, wf)).thenReturn(Optional.of(candidate));
+
+      // Act
+      Step result = stepService.createInjectStepTemplateIdempotent(wf, stepInput, null);
+
+      // Assert - same inject + same parent + SAME event + still pending -> reuse the pending twin.
+      assertSame(existing, result);
+      verify(stepRepository, never()).save(candidate);
+      verify(conditionService, never()).linkExistingConditionsToStep(eq(candidate), any());
     }
 
     @Test
@@ -1293,7 +1376,7 @@ class StepServiceTest {
   }
 
   /* ============================================================
-   * copyStepConditionTemplate — field preservation
+   * copyStepConditionTemplate - field preservation
    * ============================================================ */
   @Nested
   class CopyStepConditionTemplateFields {
@@ -1363,7 +1446,7 @@ class StepServiceTest {
       // Act
       stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
-      // Assert — root condition fields
+      // Assert - root condition fields
       assertEquals(2, savedConditions.size());
       Condition copiedRoot = savedConditions.get(0);
       assertEquals(rootCondition.getKey(), copiedRoot.getKey());
@@ -1373,7 +1456,7 @@ class StepServiceTest {
       assertEquals(rootCondition.isCaseSensitive(), copiedRoot.isCaseSensitive());
       assertEquals(rootCondition.getMappingType(), copiedRoot.getMappingType());
 
-      // Assert — child condition fields
+      // Assert - child condition fields
       Condition copiedChild = savedConditions.get(1);
       assertEquals(childCondition.getKey(), copiedChild.getKey());
       assertEquals(childCondition.getKeyTypes(), copiedChild.getKeyTypes());
@@ -1382,7 +1465,7 @@ class StepServiceTest {
       assertEquals(childCondition.isCaseSensitive(), copiedChild.isCaseSensitive());
       assertEquals(childCondition.getMappingType(), copiedChild.getMappingType());
 
-      // Assert — structural link: child's parent is the copied root
+      // Assert - structural link: child's parent is the copied root
       assertSame(copiedRoot, copiedChild.getConditionParent());
     }
 
@@ -1637,7 +1720,7 @@ class StepServiceTest {
       // Act
       stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
-      // Assert — both root and child are copied
+      // Assert - both root and child are copied
       assertEquals(2, savedConditions.size());
       Condition copiedRoot = savedConditions.get(0);
       Condition copiedChild = savedConditions.get(1);
@@ -1711,7 +1794,7 @@ class StepServiceTest {
       // Act
       stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>());
 
-      // Assert — all 3 levels copied
+      // Assert - all 3 levels copied
       assertEquals(3, savedConditions.size());
       Condition copiedRoot = savedConditions.get(0);
       Condition copiedGroup = savedConditions.get(1);
@@ -1797,6 +1880,175 @@ class StepServiceTest {
       assertEquals(ConditionType.AND, savedConditions.get(0).getType());
       assertEquals(ConditionType.MAPPER, savedConditions.get(1).getType());
       assertEquals("leaf", savedConditions.get(2).getValue());
+    }
+  }
+
+  @Nested
+  @DisplayName("syncScopeAssetsOnStepTemplates")
+  class SyncScopeAssetsOnStepTemplates {
+
+    private Step injectStepTemplate(String id, String data) {
+      Step step = new Step();
+      step.setId(id);
+      step.setStepAction(StepActionClass.INJECT_EXECUTION);
+      step.setData(data);
+      return step;
+    }
+
+    @Test
+    @DisplayName(
+        "given an asset-centric step template, should rewrite inject_assets with the scope")
+    void given_assetCentricStepTemplate_should_rewriteInjectAssetsWithScope() {
+      // Arrange — action authored while the allowlist was still empty
+      when(workflow.getId()).thenReturn("wf-1");
+      Step template =
+          injectStepTemplate("step-1", "{\"inject_title\":\"nmap\",\"inject_assets\":[]}");
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
+          .thenReturn(List.of(template));
+      when(stepTargetingService.isAssetCentric(template)).thenReturn(true);
+
+      // Act — an asset is added to the allowlist afterwards
+      int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
+
+      // Assert
+      assertEquals(1, updated);
+      assertEquals(
+          "{\"inject_title\":\"nmap\",\"inject_assets\":[\"asset-1\"]}", template.getData());
+      verify(stepRepository).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given an audience-centric step template, should leave its data untouched")
+    void given_audienceCentricStepTemplate_should_leaveDataUntouched() {
+      // Arrange — an email action targets teams, never the scope assets
+      when(workflow.getId()).thenReturn("wf-1");
+      String data = "{\"inject_title\":\"email\",\"inject_assets\":[]}";
+      Step template = injectStepTemplate("step-1", data);
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
+          .thenReturn(List.of(template));
+      when(stepTargetingService.isAssetCentric(template)).thenReturn(false);
+
+      // Act
+      int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
+
+      // Assert
+      assertEquals(0, updated);
+      assertEquals(data, template.getData());
+      verify(stepRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given step data already aligned on the scope, should not write anything")
+    void given_alreadyAlignedStepData_should_notWriteAnything() {
+      // Arrange
+      when(workflow.getId()).thenReturn("wf-1");
+      String data = "{\"inject_assets\":[\"asset-1\"]}";
+      Step template = injectStepTemplate("step-1", data);
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
+          .thenReturn(List.of(template));
+      when(stepTargetingService.isAssetCentric(template)).thenReturn(true);
+
+      // Act
+      int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
+
+      // Assert
+      assertEquals(0, updated);
+      assertEquals(data, template.getData());
+      verify(stepRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given a step template without inject action, should be ignored")
+    void given_stepTemplateWithoutInjectAction_should_beIgnored() {
+      // Arrange
+      when(workflow.getId()).thenReturn("wf-1");
+      Step template = injectStepTemplate("step-1", "{\"inject_assets\":[]}");
+      template.setStepAction(null);
+      when(stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId("wf-1"))
+          .thenReturn(List.of(template));
+
+      // Act
+      int updated = stepService.syncScopeAssetsOnStepTemplates(workflow, List.of("asset-1"));
+
+      // Assert
+      assertEquals(0, updated);
+      verify(stepTargetingService, never()).isAssetCentric(any());
+      verify(stepRepository, never()).saveAll(anyList());
+    }
+  }
+
+  /* ============================================================
+   * QueueChainingJob - tenant scope
+   * ============================================================ */
+  @Nested
+  class DelayedStepTenantScope {
+
+    @Test
+    @DisplayName("each delayed step is processed under its own simulation's tenant scope")
+    void given_aDelayedStep_should_scopeTheTransactionToItsTenant() throws Exception {
+      // The job runs ONE transaction so a processing failure rolls the DELETE back, and
+      // popNextPerWorkflowRun spans tenants. Without a per-entry scope the whole transaction has
+      // none, and createReadySteps reaches assets - activated - through ScopeService, reads empty,
+      // and the delayed inject fires with no per-asset target. Silently.
+      String tenantId = UUID.randomUUID().toString();
+      Exercise simulation = mock(Exercise.class);
+      when(simulation.getTenant()).thenReturn(new Tenant(tenantId));
+      Workflow run = mock(Workflow.class);
+      when(run.getSimulation()).thenReturn(simulation);
+      when(run.getId()).thenReturn(UUID.randomUUID().toString());
+      StepDelayQueue entry = mock(StepDelayQueue.class);
+      when(entry.getWorkflowRun()).thenReturn(run);
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(entry));
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      verify(tenantTx).setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    }
+
+    @Test
+    @DisplayName("a scenario-backed run is scoped to its scenario's tenant")
+    void given_aScenarioBackedRun_should_scopeToTheScenarioTenant() throws Exception {
+      // chk_workflow_simulation_or_scenario allows exactly one of the two, so a workflow with no
+      // simulation still has a tenant, through its scenario. Reading only the simulation left every
+      // scenario-backed run unscoped.
+      String tenantId = UUID.randomUUID().toString();
+      Scenario scenario = mock(Scenario.class);
+      when(scenario.getTenant()).thenReturn(new Tenant(tenantId));
+      Workflow run = mock(Workflow.class);
+      when(run.getSimulation()).thenReturn(null);
+      when(run.getScenario()).thenReturn(scenario);
+      when(run.getId()).thenReturn(UUID.randomUUID().toString());
+      StepDelayQueue entry = mock(StepDelayQueue.class);
+      when(entry.getWorkflowRun()).thenReturn(run);
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(entry));
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      verify(tenantTx).setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    }
+
+    @Test
+    @DisplayName("a delayed step whose run has no simulation tenant gets no invented scope")
+    void given_noTenant_should_processWithoutInventingAScope() throws Exception {
+      Workflow run = mock(Workflow.class);
+      when(run.getSimulation()).thenReturn(null);
+      when(run.getScenario()).thenReturn(null);
+      StepDelayQueue entry = mock(StepDelayQueue.class);
+      when(entry.getWorkflowRun()).thenReturn(run);
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(entry));
+      // Ended, so the loop short-circuits before createReadySteps: this test is about the scope
+      // decision, not about step creation.
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+      when(run.getId()).thenReturn(UUID.randomUUID().toString());
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      // Processed, not skipped: dropping the step would be the same silent loss the scoping
+      // exists to prevent. What must not happen is a scope being invented for it.
+      verify(tenantTx, never()).setScopeOnCurrentTransaction(any());
+      verify(workflowService).isWorkflowEnded(any());
     }
   }
 }

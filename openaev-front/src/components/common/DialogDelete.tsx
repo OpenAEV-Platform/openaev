@@ -10,6 +10,7 @@ interface DialogDeleteProps {
   handleSubmit: (() => void) | (() => Promise<void>) | null | undefined;
   text: string;
   richContent?: React.ReactNode;
+  extraContent?: React.ReactNode;
 }
 
 const DialogDelete: FunctionComponent<DialogDeleteProps> = (props) => {

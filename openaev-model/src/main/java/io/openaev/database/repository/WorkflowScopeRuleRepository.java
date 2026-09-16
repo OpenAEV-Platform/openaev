@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.ScopeRuleValueType;
 import io.openaev.database.model.WorkflowScopeRule;
+import io.openaev.database.model.WorkflowStatus;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -27,15 +28,21 @@ public interface WorkflowScopeRuleRepository extends JpaRepository<WorkflowScope
    * IPs, subnets or domains). This bulk delete is the cascade cleanup invoked when such an entity
    * is removed, so allow-list and deny-list rules pointing at the now-deleted entity do not linger
    * as unresolvable "ghost" scope entries. The value type guard prevents removing an unrelated IP
-   * or domain rule that happens to share the same string value.
+   * or domain rule that happens to share the same string value. Only TEMPLATE rules are removed:
+   * RUN rules carry the immutable execution snapshots and must survive the referenced entity's
+   * deletion so the DELETED_* change statuses can be derived (see ADR-006).
    *
    * @param ruleValue the deleted entity id
    * @param valueType the value type identifying which kind of entity the id refers to
+   * @param workflowStatus the workflow lifecycle stage whose rules may be removed (TEMPLATE)
    * @return the number of scope rules removed
    */
   @Modifying
   @Query(
-      "delete from WorkflowScopeRule rule where rule.ruleValue = :ruleValue and rule.valueType = :valueType")
-  int deleteByRuleValueAndValueType(
-      @Param("ruleValue") String ruleValue, @Param("valueType") ScopeRuleValueType valueType);
+      "delete from WorkflowScopeRule rule where rule.ruleValue = :ruleValue and rule.valueType = :valueType"
+          + " and rule.workflow.status = :workflowStatus")
+  int deleteByRuleValueAndValueTypeAndWorkflowStatus(
+      @Param("ruleValue") String ruleValue,
+      @Param("valueType") ScopeRuleValueType valueType,
+      @Param("workflowStatus") WorkflowStatus workflowStatus);
 }

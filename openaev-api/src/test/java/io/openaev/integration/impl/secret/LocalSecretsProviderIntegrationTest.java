@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
+import io.openaev.database.model.Tenant;
 import io.openaev.integration.ComponentRequest;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
@@ -13,7 +14,7 @@ import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration
 import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegrationFactory;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
-import io.openaev.secrets.provider.impl.handlers.SecretHandler;
+import io.openaev.secrets.provider.impl.handlers.SecretHandlerResolver;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.FileService;
@@ -47,7 +48,7 @@ public class LocalSecretsProviderIntegrationTest {
   @Autowired private SecretReferenceService secretReferenceService;
   @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private FileService fileService;
-  @Autowired private List<SecretHandler> secretHandlers;
+  @Autowired private SecretHandlerResolver secretHandlerResolver;
 
   private LocalSecretsProviderIntegrationFactory getFactory() {
     return new LocalSecretsProviderIntegrationFactory(
@@ -59,7 +60,7 @@ public class LocalSecretsProviderIntegrationTest {
         secretReferenceService,
         previewFeatureService,
         fileService,
-        secretHandlers);
+        secretHandlerResolver);
   }
 
   @Nested
@@ -71,7 +72,7 @@ public class LocalSecretsProviderIntegrationTest {
     void given_initializedFactory_should_reportAutostartInstance() throws Exception {
       // Arrange
       IntegrationFactory factory = getFactory();
-      factory.initialise();
+      factory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
       List<ConnectorInstance> instances = factory.findRelatedInstances("test-tenant");
@@ -95,7 +96,7 @@ public class LocalSecretsProviderIntegrationTest {
         throws Exception {
       // Arrange
       IntegrationFactory factory = getFactory();
-      factory.initialise();
+      factory.initialise(Tenant.DEFAULT_TENANT_UUID);
 
       // Act
       List<Integration> integrations = factory.sync(factory.findRelatedInstances("test-tenant"));
@@ -112,7 +113,7 @@ public class LocalSecretsProviderIntegrationTest {
     void given_startedIntegration_should_exposeLocalSecretsProviderComponent() throws Exception {
       // Arrange
       IntegrationFactory factory = getFactory();
-      factory.initialise();
+      factory.initialise(Tenant.DEFAULT_TENANT_UUID);
       List<Integration> integrations = factory.sync(factory.findRelatedInstances("test-tenant"));
       Integration integration = integrations.getFirst();
 

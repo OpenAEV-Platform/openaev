@@ -1,6 +1,7 @@
+import { PlayCircleOutlineOutlined, RouteOutlined } from '@mui/icons-material';
 import { Box, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { Binoculars, MovieOpenOutline, Radar, Target } from 'mdi-material-ui';
+import { Binoculars, Target } from 'mdi-material-ui';
 import { type FunctionComponent, memo, type ReactElement, useContext, useMemo } from 'react';
 import { Link } from 'react-router';
 
@@ -230,7 +231,8 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
     });
   };
 
-  // Icons mirror the left navigation bar for consistency.
+  // Icons AND order mirror the left navigation bar (the source of truth):
+  // Scenarios, Simulations, Atomic testings, Findings - see LeftBar.tsx.
   const ctas: {
     label: string;
     caption: string;
@@ -239,18 +241,18 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
     to: string;
   }[] = [
     {
-      label: t('Launch a simulation'),
-      caption: t('Validate your defenses now'),
-      icon: <Radar />,
-      color: theme.palette.primary.main,
-      to: '/admin/simulations',
-    },
-    {
       label: t('Design a scenario'),
       caption: t('Emulate real-world adversaries'),
-      icon: <MovieOpenOutline />,
+      icon: <RouteOutlined />,
       color: theme.palette.secondary.main,
       to: '/admin/scenarios',
+    },
+    {
+      label: t('Launch a simulation'),
+      caption: t('Validate your defenses now'),
+      icon: <PlayCircleOutlineOutlined />,
+      color: theme.palette.primary.main,
+      to: '/admin/simulations',
     },
     {
       label: t('Run an atomic test'),

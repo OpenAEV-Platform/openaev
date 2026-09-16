@@ -6,7 +6,6 @@ import {
 import {
   Box,
   Checkbox,
-  FormControlLabel,
   IconButton,
   List,
   ListItem,
@@ -16,7 +15,6 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
-  Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
@@ -246,6 +244,16 @@ const ThreatArsenal = () => {
     // swallowed here to avoid an unhandled rejection on this detached call.
     bulkDeleteThreatArsenalActions(input).catch(() => {});
   };
+
+  // Former visible caption of the select-all control, now carried by its
+  // tooltip and accessible name (the toolbar shows the bare checkbox only).
+  // String() narrows the formatter's `string | ReactNode[]` return type for
+  // the aria-label: with a numeric placeholder the result is always a string.
+  const selectAllLabel = (() => {
+    if (numberOfSelectedElements === 0) return t('Select all');
+    if (numberOfSelectedElements === 1) return t('1 action selected');
+    return String(t('{count} actions selected', { count: numberOfSelectedElements }));
+  })();
 
   const hasActiveFilters = !!(
     (searchPaginationInput.filterGroup?.filters?.length ?? 0) > 0
@@ -538,28 +546,19 @@ const ThreatArsenal = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 0.5,
-                    marginRight: 2,
+                    marginRight: 1,
+                    flexShrink: 0,
                   }}
                   >
-                    <FormControlLabel
-                      label={(
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: 'text.secondary',
-                            fontWeight: 500,
-                            fontSize: 12.5,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {(() => {
-                            if (numberOfSelectedElements === 0) return t('Select all');
-                            if (numberOfSelectedElements === 1) return t('1 action selected');
-                            return t('{count} actions selected', { count: numberOfSelectedElements });
-                          })()}
-                        </Typography>
-                      )}
-                      control={(
+                    {/* Checkbox only, no text label (#7340): the toolbar must fit
+                        on one row at ~1512px, so the former "Select all" /
+                        "N selected" caption moves into the tooltip and the
+                        accessible name. The selection count stays visible in the
+                        floating selection bar once something is selected. This
+                        single control drives select-all for BOTH the grid and
+                        the list view (the toolbar is shared by the two). */}
+                    <Tooltip title={selectAllLabel}>
+                      <span>
                         <Checkbox
                           size="small"
                           checked={selectAll}
@@ -569,14 +568,10 @@ const ThreatArsenal = () => {
                           }
                           onChange={handleToggleSelectAll}
                           disabled={threatArsenalActions.length === 0}
+                          inputProps={{ 'aria-label': selectAllLabel }}
                         />
-                      )}
-                      sx={{
-                        'marginLeft': -0.5,
-                        'marginRight': 1,
-                        '& .MuiFormControlLabel-label': { marginLeft: 0.5 },
-                      }}
-                    />
+                      </span>
+                    </Tooltip>
                     {canDeleteThreatArsenal && (
                       <Tooltip title={t('Select orphaned actions (no injector, no payload) to purge them at once')}>
                         <IconButton

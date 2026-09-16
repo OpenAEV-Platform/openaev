@@ -5,11 +5,13 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperation;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,8 +43,14 @@ public class BulkOperationApi {
   // Scoped to the caller's own operations and exposes only aggregate counts and entity labels,
   // never entity data: no per-resource RBAC applies.
   @AccessControl(skipRBAC = true)
-  public List<BulkOperation> bulkOperations() {
-    return bulkOperationMonitor.findForUser(
-        currentUser().getId(), TenantContext.getCurrentTenant());
+  public List<BulkOperation> bulkOperations(TxCtx ctx) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    // Fail-closed: no resolved tenant scope means no access, same convention as every other
+    // TxCtx-scoped read. This bypasses the tenant statement inspector (raw JDBC, see
+    // BulkOperationMonitor's @AllowRawJdbc), so the scope must be enforced by hand here.
+    if (tenantIds.isEmpty()) {
+      return List.of();
+    }
+    return bulkOperationMonitor.findForUser(currentUser().getId(), tenantIds);
   }
 }

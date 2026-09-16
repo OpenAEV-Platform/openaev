@@ -10,9 +10,11 @@ import { type AgentOption, fetchAgentsForIntent } from '../../../../utils/ai/age
 import AgentSelector from '../../../../utils/ai/AgentSelector';
 import useAgentStream from '../../../../utils/ai/useAgentStream';
 import useAI from '../../../../utils/hooks/useAI';
+import useAuth from '../../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { isNotEmptyField } from '../../../../utils/utils';
 import FiligranAiCguDialog from '../../ariane/FiligranAiCguDialog';
+import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import EETooltip from '../../common/entreprise_edition/EETooltip';
 
@@ -65,6 +67,7 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
   const { enabled, isCguPending, configured, xtmOneConfigured } = useAI();
+  const { settings } = useAuth();
 
   const [open, setOpen] = useState(false);
   const [openValidateTermsOfUse, setOpenValidateTermsOfUse] = useState(false);
@@ -99,8 +102,12 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
       : t('Describe what you want to generate');
   }, [promptPlaceholder, isRefine, t]);
 
-  // Hide entirely when AI is explicitly disabled.
-  if (enabled === false) {
+  // Gate the button on the presence of XTM One, exactly like the top-bar
+  // Ask Ariane / CTEM entry points (single source of truth): no XTM One
+  // connection means no agentic generation is reachable, so the button must
+  // not appear at all. Enterprise Edition gating still applies below (EE chip
+  // + dialog) when XTM One is connected on a non-EE platform.
+  if (!isXtmOneAvailable(settings)) {
     return null;
   }
 

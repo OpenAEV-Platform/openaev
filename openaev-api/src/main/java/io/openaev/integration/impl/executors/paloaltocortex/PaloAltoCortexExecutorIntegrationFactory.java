@@ -93,11 +93,11 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   }
 
   @Override
-  protected void runMigrations() throws Exception {
+  protected void runMigrations(String tenantId) throws Exception {
     // Seed the built-in Palo Alto Cortex executor instance like the other
     // built-in executors (Caldera, SentinelOne, CrowdStrike, Tanium) so its
     // catalog card behaves consistently (a deployed instance to configure and start).
-    paloAltoCortexExecutorConfigurationMigration.migrate();
+    paloAltoCortexExecutorConfigurationMigration.migrate(tenantId);
   }
 
   private String getLogoFilename() {

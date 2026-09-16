@@ -18,9 +18,6 @@ import lombok.Data;
  * <p>This is a data transfer object (DTO) that is deserialized from JSON form submissions and then
  * used to construct domain expectation objects.
  *
- * @see io.openaev.model.Expectation
- * @see io.openaev.model.expectation.DetectionExpectation
- * @see io.openaev.model.expectation.PreventionExpectation
  * @see io.openaev.expectation.ExpectationBuilderService
  */
 @Data
@@ -65,6 +62,16 @@ public class Expectation {
 
   @JsonProperty("expectation_is_predefined")
   private boolean predefined;
+
+  /**
+   * Optional display order of this expectation within its inject, ascending. Lets a contract
+   * declare the logical sequence of its expectations (e.g. a phishing action orders its human steps
+   * email {@literal ->} link {@literal ->} submission) instead of relying on an incidental
+   * alphabetical sort. {@code null} means unordered - the reader then falls back to name / id, so
+   * every other contract is unaffected.
+   */
+  @JsonProperty("expectation_order")
+  private Integer order;
 
   /**
    * Security platform types expected to fulfil this expectation.

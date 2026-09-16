@@ -6,6 +6,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -63,7 +64,7 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
                   CrowdStrikeExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      crowdStrikeExecutorConfigurationMigration.migrate();
+      crowdStrikeExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -87,7 +88,7 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
                   CrowdStrikeExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      crowdStrikeExecutorConfigurationMigration.migrate();
+      crowdStrikeExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -157,7 +158,7 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
                   CrowdStrikeExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      crowdStrikeExecutorConfigurationMigration.migrate();
+      crowdStrikeExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(

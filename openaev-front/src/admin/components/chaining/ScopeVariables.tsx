@@ -200,6 +200,10 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
         open={open}
         onClose={() => setOpen(false)}
         onSubmit={handleCreate}
+        existingVariables={variables.map(variable => ({
+          scope_variable_key: variable.scope_variable_key ?? '',
+          scope_variable_type: variable.scope_variable_type ?? 'text',
+        }))}
       />
     </Paper>
   );

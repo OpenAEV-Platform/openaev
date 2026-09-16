@@ -7,6 +7,7 @@ import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -36,6 +37,11 @@ public class XtmComposerApi extends RestBehavior {
   private final XtmComposerService xtmComposerService;
   private final ConnectorOrchestrationService orchestrationService;
 
+  // Tenant URI needed for RBAC only, NOT because the underlying data is tenant-scoped.
+  // Without the tenant path here, a user whose only CATALOG-capable group lives on a
+  // non-default tenant would resolve zero capabilities and get a 403, even though registration
+  // itself is not scoped to any tenant (issue #6485).
+  // TODO v2: #7248
   @PostMapping(value = {XTMCOMPOSER_URI + "/register", TENANT_XTMCOMPOSER_URI + "/register"})
   @Operation(
       summary = "Register XtmComposer",
@@ -43,10 +49,11 @@ public class XtmComposerApi extends RestBehavior {
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @Transactional(rollbackFor = Exception.class)
-  public XtmComposerOutput register(@Valid @RequestBody XtmComposerRegisterInput input) {
+  public XtmComposerOutput register(TxCtx ctx, @Valid @RequestBody XtmComposerRegisterInput input) {
     return this.xtmComposerService.register(input);
   }
 
+  // TODO v2: #7248.
   @PutMapping(
       value = {
         XTMCOMPOSER_URI + "/{xtmComposerId}/refresh-connectivity",
@@ -58,23 +65,30 @@ public class XtmComposerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful refresh")})
   @Transactional(rollbackFor = Exception.class)
-  public XtmComposerOutput refreshConnectivity(@PathVariable @NotBlank final String xtmComposerId) {
+  public XtmComposerOutput refreshConnectivity(
+      TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
     return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now());
   }
 
+  // The ONLY XtmComposerApi endpoint actually called from the frontend
+  // (isXtmComposerIsReachable() in catalog-actions.ts, used by Integrations/CatalogLayout/
+  // ConnectorLayout to gate deploy/migrate/update buttons). It is NOT tenant-scoped data
+  // TODO v2: #7248.
   @GetMapping(value = {XTMCOMPOSER_URI + "/reachable", TENANT_XTMCOMPOSER_URI + "/reachable"})
   @Operation(
       summary = "Check if XtmComposer is reachable and registered in OpenAEV",
       description = "Returns true if XtmComposer is reachable, false otherwise")
   @Transactional(readOnly = true, noRollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
-  public boolean isXtmComposerReachable() {
+  public boolean isXtmComposerReachable(TxCtx ctx) {
     // Use the non-throwing probe: throwing (and catching) a BadRequestException here would mark the
     // shared transaction rollback-only and make the surrounding commit fail with
     // UnexpectedRollbackException (500), even though we intend to just return false.
     return this.xtmComposerService.isXtmComposerReachable();
   }
 
+  // Deliberately NOT tenant-scoped, one composer instance manages connector instances across
+  // every tenant.
   @GetMapping(
       value = {
         XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances",
@@ -87,7 +101,7 @@ public class XtmComposerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful retrieval")})
   public List<XtmComposerInstanceOutput> getAllConnectorInstances(
-      @PathVariable @NotBlank final String xtmComposerId) {
+      TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
     return orchestrationService.findConnectorInstancesManagedByComposer(xtmComposerId);
   }
 
@@ -103,6 +117,7 @@ public class XtmComposerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful update")})
   public XtmComposerInstanceOutput updateConnectorInstanceStatus(
+      TxCtx ctx,
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody XtmComposerUpdateStatusInput input) {
@@ -122,6 +137,7 @@ public class XtmComposerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful reception")})
   public void receiveConnectorInstanceLogs(
+      TxCtx ctx,
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody ConnectorInstanceLogsInput input) {
@@ -145,6 +161,7 @@ public class XtmComposerApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Successful health check reception")
       })
   public XtmComposerInstanceOutput receiveConnectorInstanceHealthCheck(
+      TxCtx ctx,
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody ConnectorInstanceHealthInput input) {

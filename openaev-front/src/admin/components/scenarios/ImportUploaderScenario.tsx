@@ -1,18 +1,21 @@
-import { useNavigate } from 'react-router';
-
 import { importScenario } from '../../../actions/scenarios/scenario-actions';
 import ImportUploader from '../../../components/common/ImportUploader';
+import { useFormatter } from '../../../components/i18n';
+import { type ImportResult } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
+import { notifyPartialImport } from '../../../utils/importResultNotifier';
 
-const ImportUploaderScenario = () => {
+const ImportUploaderScenario = ({ refresh }: { refresh: () => void }) => {
   // Standard hooks
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
+  const { t } = useFormatter();
 
   const handleUpload = async (formData: FormData) => {
-    await dispatch(importScenario(formData)).then((result: { [x: string]: string }) => {
+    await dispatch(importScenario(formData)).then((result: ImportResult) => {
       if (!Object.prototype.hasOwnProperty.call(result, 'FINAL_FORM/form-error')) {
-        navigate(0);
+        // A partial import shows a sticky toast; skip the full page reload that would discard it.
+        notifyPartialImport(result, t);
+        refresh();
       }
     });
   };

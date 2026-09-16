@@ -347,7 +347,6 @@ class ExerciseServiceUnitTest {
       doReturn(saved).when(mockedExerciseService).createExercise(exercise);
       Exercise result;
       if (chaining) {
-        doNothing().when(workflowService).isPreviewFeatureChainingEnable();
         result = mockedExerciseService.createSimulationChaining(exercise);
       } else {
         result = mockedExerciseService.createExercise(exercise);

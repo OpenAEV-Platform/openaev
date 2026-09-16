@@ -7,8 +7,10 @@ import static io.openaev.database.model.CapabilityScope.TENANT;
 import static org.assertj.core.api.Assertions.*;
 
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.CapabilityGroup;
 import io.openaev.database.model.CapabilityScope;
 import io.openaev.service.account.Constants;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -62,11 +64,11 @@ class CapabilityTreeBuilderTest {
     // -- ASSERT --
     CapabilityOutput assessments =
         tree.stream().filter(n -> ASSESSMENT.name().equals(n.value())).findFirst().orElseThrow();
-    assertThat(assessments.scopes()).containsExactly(TENANT.name());
+    assertThat(assessments.scopes()).containsExactly(TENANT);
 
     CapabilityOutput tenants =
         tree.stream().filter(n -> TENANTS.name().equals(n.value())).findFirst().orElseThrow();
-    assertThat(tenants.scopes()).containsExactly(PLATFORM.name());
+    assertThat(tenants.scopes()).containsExactly(PLATFORM);
   }
 
   @Test
@@ -76,7 +78,7 @@ class CapabilityTreeBuilderTest {
 
     // -- ASSERT --
     assertThat(tree).anyMatch(n -> TENANTS.name().equals(n.value()));
-    assertThat(tree).anyMatch(n -> PLATFORM_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
+    assertThat(tree).anyMatch(n -> SECURITY.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> ASSESSMENT.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> THREAT_ARSENALS.name().equals(n.value()));
   }
@@ -90,8 +92,8 @@ class CapabilityTreeBuilderTest {
     assertThat(tree).anyMatch(n -> ASSESSMENT.name().equals(n.value()));
     assertThat(tree).anyMatch(n -> TARGETS.name().equals(n.value()));
     assertThat(tree).anyMatch(n -> TENANT_SETTINGS.name().equals(n.value()));
+    assertThat(tree).anyMatch(n -> SECURITY.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> TENANTS.name().equals(n.value()));
-    assertThat(tree).noneMatch(n -> PLATFORM_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
   }
 
   @Test
@@ -107,7 +109,7 @@ class CapabilityTreeBuilderTest {
             .findFirst()
             .orElseThrow();
     assertThat(tenantSettingCategory.checkable()).isFalse();
-    assertThat(tenantSettingCategory.scopes()).containsExactly(TENANT.name());
+    assertThat(tenantSettingCategory.scopes()).containsExactly(TENANT);
 
     // ACCESS_TENANT_SETTINGS is a checkable child of the category
     CapabilityOutput accessTenantSettings =
@@ -128,6 +130,41 @@ class CapabilityTreeBuilderTest {
     // DELETE_TENANT_SETTINGS is a checkable child of MANAGE
     assertThat(manageTenantSettings.children())
         .anyMatch(n -> DELETE_TENANT_SETTINGS.name().equals(n.value()) && n.checkable());
+  }
+
+  @Test
+  @DisplayName("Tenant tree nests the users, groups and roles triad under the Security category")
+  void should_build_correct_hierarchy_for_tenant_users_groups_and_roles() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
+
+    // -- ASSERT --
+    CapabilityOutput category =
+        tree.stream().filter(n -> SECURITY.name().equals(n.value())).findFirst().orElseThrow();
+    assertThat(category.checkable()).isFalse();
+    assertThat(category.scopes()).containsExactly(TENANT);
+
+    // Reaching these at all proves they are not hidden: computeTree filters hidden capabilities
+    // out.
+    CapabilityOutput access =
+        category.children().stream()
+            .filter(n -> ACCESS_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(access.checkable()).isTrue();
+    CapabilityOutput manage =
+        access.children().stream()
+            .filter(n -> MANAGE_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(manage.checkable()).isTrue();
+    assertThat(manage.children())
+        .anyMatch(
+            n -> DELETE_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()) && n.checkable());
+
+    // Tenant-scoped only: the shared Security category must not carry it into the platform tree.
+    assertThat(flattenValues(CapabilityTreeBuilder.buildTree(PLATFORM)))
+        .doesNotContain(ACCESS_TENANT_USERS_GROUPS_AND_ROLES.name());
   }
 
   @Test
@@ -220,5 +257,40 @@ class CapabilityTreeBuilderTest {
     // -- ASSERT --
     assertThat(Constants.SERVICE_GROUP_NAME).isEqualTo("Service integration");
     assertThat(Constants.SERVICE_GROUP_DESCRIPTION).isNotBlank();
+  }
+
+  @Test
+  @DisplayName("Root nodes should follow the CapabilityGroup declaration order")
+  void given_anyScope_should_orderRootNodesByCapabilityGroupDeclarationOrder() {
+    for (CapabilityScope scope : CapabilityScope.values()) {
+      // -- ACT --
+      List<String> values =
+          CapabilityTreeBuilder.buildTree(scope).stream().map(CapabilityOutput::value).toList();
+
+      // -- ASSERT --
+      // SUPERUSER has no category wrapper: BYPASS itself is the root node.
+      List<String> expected =
+          Arrays.stream(CapabilityGroup.values())
+              .map(group -> group == CapabilityGroup.SUPERUSER ? BYPASS.name() : group.name())
+              .filter(values::contains)
+              .toList();
+      assertThat(values).as("scope %s", scope).containsExactlyElementsOf(expected);
+    }
+  }
+
+  @Test
+  @DisplayName("Tenant tree should start with bypass then the analytics groups")
+  void given_tenantScope_should_startTreeWithBypassThenAnalyticsGroups() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
+
+    // -- ASSERT --
+    assertThat(tree.stream().map(CapabilityOutput::value))
+        .startsWith(
+            BYPASS.name(),
+            DASHBOARDS.name(),
+            REPORTINGS.name(),
+            FINDINGS.name(),
+            ASSESSMENT.name());
   }
 }

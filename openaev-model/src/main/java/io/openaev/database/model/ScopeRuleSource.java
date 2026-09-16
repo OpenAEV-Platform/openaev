@@ -6,5 +6,7 @@ public enum ScopeRuleSource {
   TEAM,
   PLAYER,
   MANUAL,
-  CSV
+  CSV,
+  // Connected tenant security platform frozen at launch (not an allow/deny target). See ADR-006.
+  SECURITY_PLATFORM
 }

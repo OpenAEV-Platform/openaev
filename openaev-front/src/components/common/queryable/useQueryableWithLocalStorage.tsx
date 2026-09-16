@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { type FilterGroup, type SearchPaginationInput, type SortField } from '../../../utils/api-types';
+import { getCurrentTenantId } from '../../../utils/url-helper';
 import useFiltersState from './filter/useFiltersState';
 import usePaginationState from './pagination/usePaginationState';
 import { type QueryableHelpers } from './QueryableHelpers';
@@ -137,8 +138,9 @@ export const useQueryableWithLocalStorage = (localStorageKey: string, initSearch
   const finalSearchPaginationInput: SearchPaginationInput = buildSearchPagination(initSearchPaginationInput);
   const searchPaginationInputFromUri = retrieveFromUri(localStorageKey, searchParams);
 
+  const tenantScopedStorageKey = `${getCurrentTenantId()}:${localStorageKey}`;
   const [searchPaginationInputFromLocalStorage, setSearchPaginationInputFromLocalStorage] = useLocalStorage<SearchPaginationInput>(
-    localStorageKey,
+    tenantScopedStorageKey,
     sanitizeForStorage(searchPaginationInputFromUri ?? finalSearchPaginationInput),
   );
 

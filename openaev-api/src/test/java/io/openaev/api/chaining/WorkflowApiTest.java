@@ -20,7 +20,6 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
@@ -57,7 +56,6 @@ class WorkflowApiTest extends IntegrationTest {
   @BeforeEach
   void enableChainingFeature() {
     originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
-    openAEVConfig.setEnabledDevFeatures(PreviewFeature.INJECT_CHAINING.getValue());
     when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     clearFeatureCache();
@@ -120,59 +118,6 @@ class WorkflowApiTest extends IntegrationTest {
     // -- ASSERT --
     assertEquals(
         "Element not found: Workflow TEMPLATE not found. Workflow ID : " + workflowId,
-        JsonPath.read(response, "$.message"));
-  }
-
-  @Test
-  @DisplayName(
-      "Fetch Workflow Configuration should return 404 when INJECT_CHAINING feature is disabled")
-  void getWorkflowConfiguration_shouldReturnNotFoundWhenFeatureDisabled() throws Exception {
-    // -- PREPARE --
-    openAEVConfig.setEnabledDevFeatures("");
-    clearFeatureCache();
-    Workflow workflow = createTemplateWorkflow();
-
-    // -- EXECUTE & ASSERT --
-    String response =
-        mockMvc
-            .perform(get(workflowConfigurationUri(workflow.getId())).with(csrf()))
-            .andExpect(status().isNotFound())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-
-    assertEquals(
-        "Element not found: INJECT_CHAINING feature is not enabled",
-        JsonPath.read(response, "$.message"));
-  }
-
-  @Test
-  @DisplayName(
-      "Update Workflow Configuration should return 404 when INJECT_CHAINING feature is disabled")
-  void updateWorkflowConfiguration_shouldReturnNotFoundWhenFeatureDisabled() throws Exception {
-    // -- PREPARE --
-    openAEVConfig.setEnabledDevFeatures("");
-    clearFeatureCache();
-    Workflow workflow = createTemplateWorkflow();
-    WorkflowConfigurationInput input =
-        WorkflowConfigurationInput.builder().rateLimitEnabled(false).safeModeEnabled(true).build();
-
-    // -- EXECUTE & ASSERT --
-    String response =
-        mockMvc
-            .perform(
-                put(workflowConfigurationUri(workflow.getId()))
-                    .with(csrf())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(input))
-                    .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isNotFound())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-
-    assertEquals(
-        "Element not found: INJECT_CHAINING feature is not enabled",
         JsonPath.read(response, "$.message"));
   }
 

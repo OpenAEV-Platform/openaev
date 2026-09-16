@@ -103,7 +103,7 @@ const TextFieldController = ({
                   ? {
                       endAdornment: (
                         <IconButton
-                          disabled={writeOnly && isOriginalValue}
+                          disabled={disabled || (writeOnly && isOriginalValue)}
                           aria-label={
                             showPassword ? 'Hide the password' : 'Display the password'
                           }

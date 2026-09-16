@@ -21,16 +21,22 @@ public final class InjectExpectationMapper {
         expectation.getExpectedScore(),
         expectation.getExpirationTime(),
         expectation.isExpectationGroup(),
+        expectation.getOrder(),
         expectation.getResponse(),
         expectation.getCreatedAt(),
         expectation.getUpdatedAt(),
         // Signatures are a LAZY collection since they moved to a dedicated table: copy it while
         // the session is still open, otherwise Hibernate6Module serializes the uninitialized
-        // PersistentBag as null and collectors can never match any expectation.
-        List.copyOf(expectation.getSignatures()),
+        // PersistentBag as null and collectors can never match any expectation. Only technical
+        // expectations carry signatures.
+        expectation instanceof TechnicalInjectExpectation technicalExpectationSignatures
+            ? List.copyOf(technicalExpectationSignatures.getSignatures())
+            : List.of(),
         // The results JSONB column can be SQL NULL on legacy rows: normalize to an empty list.
         expectation.getResults() != null ? expectation.getResults() : List.of(),
-        expectation.getTraces(),
+        expectation instanceof TechnicalInjectExpectation technicalExpectationTraces
+            ? technicalExpectationTraces.getTraces()
+            : List.of(),
         expectation.getExercise() != null ? expectation.getExercise().getId() : null,
         expectation.getInject() != null ? expectation.getInject().getId() : null,
         expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
@@ -62,7 +68,13 @@ public final class InjectExpectationMapper {
             ? challengeInjectExpectation.getChallenge().getId()
             : null,
         resolveTargetId(expectation),
-        expectation.getExpectedSecurityPlatforms());
+        expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
+            ? technicalInjectExpectation.getExpectedSecurityPlatforms()
+            : List.of(),
+        // Frozen at initialization and persisted on the expectation, so reading it directly is
+        // authoritative: a collector connected after creation must not clear the verdict.
+        expectation instanceof TechnicalInjectExpectation technicalCollectorMissing
+            && technicalCollectorMissing.isCollectorMissingAtInit());
   }
 
   public static List<InjectExpectationOutput> toOutputs(

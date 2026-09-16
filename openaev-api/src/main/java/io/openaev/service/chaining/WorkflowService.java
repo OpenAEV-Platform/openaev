@@ -10,29 +10,29 @@ import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.AssetGroupRepository;
-import io.openaev.database.repository.AssetRepository;
-import io.openaev.database.repository.ScopeVariableRepository;
-import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.database.repository.*;
+import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
-import io.openaev.utils.PrimitiveValueMaskingUtils;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
@@ -43,20 +43,31 @@ public class WorkflowService {
 
   public static final long DEFAULT_TIMEOUT_SECONDS = 3600L;
 
+  static final String DUPLICATE_SCOPE_VARIABLE_MESSAGE =
+      "A variable with this key and type already exists. Please change the name or the type.";
+
+  /** Unique constraint on (key, type, workflow) */
+  static final String UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW = "uk_scope_variable_key_type_workflow";
+
   private static final Gson GSON = new Gson();
 
   private final StepService stepService;
   private final ConditionService conditionService;
-  private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
-  private final SimulationRateLimitService simulationRateLimitService;
+  private final ScopeSnapshotService scopeSnapshotService;
+  private final ScopeService scopeService;
+  private final LessonsService lessonsService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
   private final AssetRepository assetRepository;
+  private final AssetAgentJobRepository assetAgentJobRepository;
   private final AssetGroupRepository assetGroupRepository;
+  private final TeamRepository teamRepository;
+  private final UserRepository userRepository;
+  private final WorkflowEndService workflowEndService;
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -103,10 +114,30 @@ public class WorkflowService {
    */
   @Transactional(readOnly = true)
   public Workflow getWorkflowConfiguration(@NotBlank String workflowId) {
-    Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
-    Hibernate.initialize(workflow.getWorkflowScopeRules());
-    Hibernate.initialize(workflow.getWorkflowScopeVariables());
-    return workflow;
+    Workflow template = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
+    // A launched simulation is read from its RUN, which carries the frozen snapshots; draft
+    // simulations and scenarios keep reading the (live-resolved) template. See ADR-006.
+    Workflow source = resolveConfigurationSource(template);
+    Hibernate.initialize(source.getWorkflowScopeRules());
+    Hibernate.initialize(source.getWorkflowScopeVariables());
+    return source;
+  }
+
+  /**
+   * Returns the workflow whose scope rules should be displayed: the RUN (frozen snapshots) for a
+   * launched simulation, otherwise the TEMPLATE (draft simulation or scenario, resolved live).
+   */
+  private Workflow resolveConfigurationSource(Workflow template) {
+    Exercise simulation = template.getSimulation();
+    if (simulation == null || ExerciseStatus.SCHEDULED.equals(simulation.getStatus())) {
+      return template;
+    }
+    // Latest RUN: a simulation may own several RUN rows across reset/relaunch cycles. See ADR-006.
+    return workflowRepository
+        .findFirstBySimulation_IdAndStatusInOrderByWorkflowCreatedAtDesc(
+            simulation.getId(),
+            List.of(WorkflowStatus.RUN, WorkflowStatus.END, WorkflowStatus.STOP))
+        .orElse(template);
   }
 
   // -- WRITE --
@@ -167,11 +198,15 @@ public class WorkflowService {
       @NotBlank String workflowId, WorkflowConfigurationInput input) {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     WorkflowEditability.assertLogicMapEditable(workflow);
-    boolean changed = applyConfigurationInput(input, workflow);
-    if (changed) {
+    ConfigurationChange change = applyConfigurationInput(input, workflow);
+    if (change.changed()) {
       boolean workflowExecutedNotEmpty = !workflow.getWorkflowsExecuted().isEmpty();
       workflow.setEdited(workflowExecutedNotEmpty);
-      workflowRepository.save(workflow);
+      saveConfiguration(workflow);
+    }
+    if (change.scopeRulesChanged()) {
+      realignTemplateActionTargets(workflow);
+      pruneLessonTargets(workflow);
     }
     return workflow;
   }
@@ -195,7 +230,7 @@ public class WorkflowService {
       @NotBlank String simulationId, WorkflowConfigurationInput input) {
     List<Workflow> runs = findWorkflowRunBySimulationId(simulationId);
     for (Workflow run : runs) {
-      if (applyConfigurationInput(input, run)) {
+      if (applyConfigurationInput(input, run).changed()) {
         workflowRepository.save(run);
       }
     }
@@ -225,6 +260,49 @@ public class WorkflowService {
       String simulationId,
       List<WorkflowScopeRuleInput> allowlistRules,
       boolean replaceExisting) {
+    doWriteAllowlistScope(scenarioId, simulationId, allowlistRules, replaceExisting);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #writeAllowlistScope} for the autonomous orchestrator's
+   * scope callback. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW}) so that a
+   * failure while mirroring the resolved scope onto the scenario template / live simulation
+   * workflow(s) rolls back only this mirror and can NEVER mark the caller's transaction
+   * rollback-only. The caller records the resolved scope on the run authoritatively first and
+   * treats this workflow mirror as a secondary projection - a mirror failure must not fail (500)
+   * the callback and stall the run. See {@code AutonomousRunService#setRunScope}.
+   *
+   * <p>Both public entry points delegate to the same private, non-transactional body: a same-class
+   * call to the {@code @Transactional} sibling would bypass the Spring proxy (see {@code
+   * TenantBackgroundTransactionArchTest#no_transactional_self_invocation}).
+   */
+  /**
+   * The {@code ctx} argument is load-bearing even though this body never reads it: {@code
+   * REQUIRES_NEW} suspends the caller's transaction, so the caller's scope does not travel with it
+   * and the new transaction would start with {@code app.current_tenants} unset. The tenant aspect
+   * sets it from this parameter.
+   *
+   * <p>Without it the realignment below reads {@code ScopeService.getValidAssets}, which resolves
+   * an ASSET_ID allowlist through the activated {@code assets} table, gets nothing, and then
+   * PERSISTS {@code inject_assets: []} onto every asset-centric step template of the workflow. A
+   * fail-closed read driving a destructive write is the worst shape this migration can produce, so
+   * the scope is not optional here.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void writeAllowlistScopeIsolated(
+      TxCtx ctx,
+      String scenarioId,
+      String simulationId,
+      List<WorkflowScopeRuleInput> allowlistRules,
+      boolean replaceExisting) {
+    doWriteAllowlistScope(scenarioId, simulationId, allowlistRules, replaceExisting);
+  }
+
+  private void doWriteAllowlistScope(
+      String scenarioId,
+      String simulationId,
+      List<WorkflowScopeRuleInput> allowlistRules,
+      boolean replaceExisting) {
     if (!replaceExisting && (allowlistRules == null || allowlistRules.isEmpty())) {
       return;
     }
@@ -232,7 +310,13 @@ public class WorkflowService {
     if (hasText(scenarioId)) {
       try {
         findWorkflowTemplateByScenarioId(scenarioId)
-            .ifPresent(w -> writeAllowlistRules(w, rules, replaceExisting));
+            .ifPresent(
+                w -> {
+                  if (writeAllowlistRules(w, rules, replaceExisting)) {
+                    realignTemplateActionTargets(w);
+                    pruneLessonTargets(w);
+                  }
+                });
       } catch (ChainingException e) {
         log.warn(
             "[Chaining] Could not write scope on scenario {} template workflow", scenarioId, e);
@@ -240,7 +324,41 @@ public class WorkflowService {
     }
     if (hasText(simulationId)) {
       findWorkflowRunBySimulationId(simulationId)
-          .forEach(w -> writeAllowlistRules(w, rules, replaceExisting));
+          .forEach(
+              w -> {
+                if (writeAllowlistRules(w, rules, replaceExisting)) {
+                  pruneLessonTargets(w);
+                }
+              });
+    }
+  }
+
+  /**
+   * Removes ghost ASSET / ASSET_GROUP rules (referencing a deleted entity) from a simulation's
+   * TEMPLATE workflow, so a reset simulation does not relaunch with unresolvable scope entries.
+   * Only allow/deny rules are considered; the referenced entity is probed with the same current
+   * resolution used by the snapshot diff (null = no longer exists).
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void cleanScopeRulesSimulation(@NotBlank String simulationId) {
+    Workflow template =
+        workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
+    if (template != null) {
+
+      List<WorkflowScopeRule> rulesToRemove = new ArrayList<>();
+      for (WorkflowScopeRule rule : template.getWorkflowScopeRules()) {
+        if (rule.getSelectedMode() != null
+            && (ScopeRuleSource.ASSET.equals(rule.getRuleSource())
+                || ScopeRuleSource.ASSET_GROUP.equals(rule.getRuleSource()))) {
+          ScopeRuleSnapshot current = scopeSnapshotService.buildCurrentSnapshot(rule);
+          if (current == null) rulesToRemove.add(rule);
+        }
+      }
+      if (!rulesToRemove.isEmpty()) {
+        template.getWorkflowScopeRules().removeAll(rulesToRemove);
+        workflowRepository.save(template);
+        realignTemplateActionTargets(template);
+      }
     }
   }
 
@@ -259,7 +377,13 @@ public class WorkflowService {
     }
     if (hasText(scenarioId)) {
       try {
-        findWorkflowTemplateByScenarioId(scenarioId).ifPresent(w -> appendScopeRules(w, rules));
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .ifPresent(
+                w -> {
+                  if (appendScopeRules(w, rules)) {
+                    realignTemplateActionTargets(w);
+                  }
+                });
       } catch (ChainingException e) {
         log.warn("[Chaining] Could not seed scope on scenario {} template workflow", scenarioId, e);
       }
@@ -269,7 +393,7 @@ public class WorkflowService {
     }
   }
 
-  private void appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
+  private boolean appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     Set<String> existingKeys =
         existing.stream()
@@ -289,9 +413,10 @@ public class WorkflowService {
     if (changed) {
       workflowRepository.save(workflow);
     }
+    return changed;
   }
 
-  private void writeAllowlistRules(
+  private boolean writeAllowlistRules(
       Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs, boolean replaceExisting) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     boolean changed = false;
@@ -312,6 +437,52 @@ public class WorkflowService {
     }
     if (changed) {
       workflowRepository.save(workflow);
+    }
+    return changed;
+  }
+
+  /**
+   * Re-aligns all asset-centric step templates with the workflow's current scope assets.
+   *
+   * <p>ScopeService resolves from persisted rules, so pending workflow updates must be flushed
+   * first.
+   */
+  private void realignTemplateActionTargets(Workflow workflow) {
+    if (workflow == null || !WorkflowStatus.TEMPLATE.equals(workflow.getStatus())) {
+      return;
+    }
+    workflowRepository.flush();
+    List<String> scopedAssetIds =
+        Optional.ofNullable(scopeService.getValidAssets(workflow.getId()))
+            .orElse(List.of())
+            .stream()
+            .map(Asset::getId)
+            .toList();
+    stepService.syncScopeAssetsOnStepTemplates(workflow, scopedAssetIds);
+  }
+
+  /**
+   * Removes lesson-target teams that are no longer part of the workflow scope.
+   *
+   * <p>Lesson categories store their own team links, so scope edits must prune them explicitly or
+   * stale targets remain selectable even after the scope author removed them.
+   */
+  private void pruneLessonTargets(Workflow workflow) {
+    if (workflow == null) {
+      return;
+    }
+    List<String> scopedTeamIds =
+        Optional.ofNullable(scopeService.getValidTeams(workflow.getId())).orElse(List.of()).stream()
+            .map(Team::getId)
+            .toList();
+    Exercise simulation = workflow.getSimulation();
+    if (simulation != null) {
+      lessonsService.pruneTeamsForSimulation(simulation.getId(), scopedTeamIds);
+      return;
+    }
+    Scenario scenario = workflow.getScenario();
+    if (scenario != null) {
+      lessonsService.pruneTeamsForScenario(scenario.getId(), scopedTeamIds);
     }
   }
 
@@ -338,25 +509,6 @@ public class WorkflowService {
     workflowTemplate = updateEditedWorkflow(workflowTemplate);
 
     Workflow run = copyWorkflowTemplateToRun(workflowTemplate);
-
-    return saveWorkflowRun(run);
-  }
-
-  /**
-   * Launches a workflow for a scenario by creating a simulation-level template and a run from it.
-   *
-   * @param workflowTemplateScenario the scenario's workflow template
-   * @param simulation the simulation to attach the run to
-   * @return the created workflow run
-   */
-  public Workflow launchWorkflowScenario(Workflow workflowTemplateScenario, Exercise simulation) {
-    // Copy workflow TEMPLATE (scenario) to a new workflow TEMPLATE (simulation)
-    Workflow workflowTemplateSimulation =
-        copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation);
-    workflowTemplateSimulation = saveWorkflowRun(workflowTemplateSimulation);
-
-    // Copy workflow TEMPLATE (simulation) to a new workflow execution RUN (simulation)
-    Workflow run = copyWorkflowTemplateToRun(workflowTemplateSimulation);
 
     return saveWorkflowRun(run);
   }
@@ -391,6 +543,11 @@ public class WorkflowService {
             .build();
     copyScopeRules(workflowTemplateFrom, workflowRunTo);
     copyScopeVariables(workflowTemplateFrom, workflowRunTo);
+    // Freeze the launch snapshot only on the RUN copy (never on TEMPLATE copies). See ADR-006.
+    Exercise simulation = workflowTemplateFrom.getSimulation();
+    if (simulation != null && simulation.getTenant() != null) {
+      scopeSnapshotService.freezeLaunch(workflowRunTo, simulation.getTenant().getId());
+    }
     return workflowRunTo;
   }
 
@@ -519,6 +676,31 @@ public class WorkflowService {
     return changed;
   }
 
+  /**
+   * Persists the configuration and translates the scope-variable uniqueness breach reported by the
+   * database into an actionable business error.
+   *
+   * <p>The write is flushed explicitly: with the default deferred flush the {@code
+   * uk_scope_variable_key_type_workflow} violation would only be raised at commit, outside this
+   * method, and would reach the client as a raw integrity violation naming the constraint - which
+   * is neither actionable nor safe to display.
+   *
+   * @param workflow the workflow carrying the new configuration
+   * @throws AlreadyExistingException if two scope variables share the same key and type
+   */
+  private void saveConfiguration(Workflow workflow) {
+    try {
+      workflowRepository.save(workflow);
+      workflowRepository.flush();
+    } catch (DataIntegrityViolationException e) {
+      if (e.getCause() instanceof ConstraintViolationException violation
+          && UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW.equalsIgnoreCase(violation.getConstraintName())) {
+        throw new AlreadyExistingException(DUPLICATE_SCOPE_VARIABLE_MESSAGE);
+      }
+      throw e;
+    }
+  }
+
   private boolean hasVariableChanged(ScopeVariable existing, ScopeVariableInput input) {
     String resolvedValue = resolveScopeVariableValueForPersistence(existing, input);
     return !Objects.equals(existing.getKey(), input.getKey())
@@ -544,7 +726,7 @@ public class WorkflowService {
    */
   private String resolveScopeVariableValueForPersistence(
       ScopeVariable existing, ScopeVariableInput input) {
-    if (PrimitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
+    if (SensitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
         existing.getType(), existing.getValue(), input.getValue())) {
       return existing.getValue();
     }
@@ -570,6 +752,10 @@ public class WorkflowService {
   public boolean isSimulationChaining(String simulationId) {
     List<Workflow> workflows = this.workflowRepository.findAllBySimulation_Id(simulationId);
     return !workflows.isEmpty();
+  }
+
+  public boolean existsBySimulationId(String simulationId) {
+    return this.workflowRepository.existsBySimulationId(simulationId);
   }
 
   /**
@@ -802,6 +988,47 @@ public class WorkflowService {
     return copy;
   }
 
+  @Transactional(rollbackFor = Exception.class)
+  public void cancelSimulationEndWorkflowRun(List<Workflow> workflows) {
+    List<Step> stepsToUpdate = new ArrayList<>();
+    List<String> injectsIds = new ArrayList<>();
+    workflows.forEach(
+        workflow -> {
+          // Workflow -> END transition (also freezes the end scope snapshot - ADR-006):
+          endWorkflow(workflow, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+
+          // Step delay queue -> DELETE
+          stepDelayQueueService.deleteAllByWorkflowRun(workflow);
+
+          // Steps active -> END  active and get inject ids for remove asset agent jobs
+          List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
+          steps.forEach(
+              step -> {
+                String injectId =
+                    step.getData() != null
+                        ? StepService.getField(step.getData(), "inject_id")
+                        : null;
+                if (injectId != null) injectsIds.add(injectId);
+                step.setStatus(StepStatus.END);
+              });
+
+          stepsToUpdate.addAll(steps);
+
+          // Workflow States -> DELETE  (only use for execution)
+          deleteWorkflowStatesBySimulationId(workflow.getSimulation().getId());
+        });
+
+    // Asset agent jobs -> DELETE all by inject id
+    deleteAllAssetAgentJobs(injectsIds, TenantContext.getCurrentTenant());
+
+    stepService.saveSteps(stepsToUpdate);
+  }
+
+  private void deleteAllAssetAgentJobs(List<String> injectsIds, String tenantId) {
+    if (CollectionUtils.isEmpty(injectsIds)) return;
+    assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(injectsIds, tenantId);
+  }
+
   /**
    * Deletes all workflow states associated with workflows of the given simulation.
    *
@@ -814,10 +1041,10 @@ public class WorkflowService {
   // -- Configuration Update --
 
   /**
-   * Copies all fields from {@code input} onto {@code workflow} and returns {@code true} when at
-   * least one value changed.
+   * Copies all fields from {@code input} onto {@code workflow} and reports what actually changed.
    */
-  private boolean applyConfigurationInput(WorkflowConfigurationInput input, Workflow workflow) {
+  private ConfigurationChange applyConfigurationInput(
+      WorkflowConfigurationInput input, Workflow workflow) {
     boolean changed = false;
     boolean rateLimitChanged = false;
     boolean timeoutChanged = false;
@@ -867,8 +1094,14 @@ public class WorkflowService {
           attempts, seconds, !input.isRateLimitEnabled());
     }
 
-    return rulesChanged || variablesChanged || changed;
+    return new ConfigurationChange(rulesChanged || variablesChanged || changed, rulesChanged);
   }
+
+  /**
+   * Outcome of a configuration update: whether anything changed at all, and whether the scope rules
+   * specifically changed (which requires realigning the step templates' asset perimeter).
+   */
+  private record ConfigurationChange(boolean changed, boolean scopeRulesChanged) {}
 
   /**
    * Reconciles the workflow's scope-rule collection against the provided inputs: removes rules not
@@ -882,12 +1115,20 @@ public class WorkflowService {
     if (CollectionUtils.isEmpty(ruleInputs) && CollectionUtils.isEmpty(existing)) {
       return false;
     }
+    // SECURITY_PLATFORM rows are engine-written snapshot rows (frozen at launch, see ADR-006),
+    // never a legitimate configuration input, so the reconciliation below must neither remove nor
+    // create nor mutate them: a live-steering update (updateRunWorkflowConfiguration) or an
+    // emptied scope would otherwise silently destroy the frozen security-platform photos of a RUN
+    // workflow, and a crafted input could mint or overwrite protected rows.
     if (CollectionUtils.isEmpty(ruleInputs)) {
-      existing.clear();
-      return true;
+      return existing.removeIf(r -> r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM);
     }
 
-    List<WorkflowScopeRuleInput> deduplicated = deduplicateRules(ruleInputs);
+    List<WorkflowScopeRuleInput> deduplicated =
+        deduplicateRules(
+            ruleInputs.stream()
+                .filter(r -> r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM)
+                .toList());
 
     Set<String> inputIds =
         deduplicated.stream()
@@ -898,7 +1139,11 @@ public class WorkflowService {
     Map<String, WorkflowScopeRule> existingById =
         existing.stream().collect(Collectors.toMap(WorkflowScopeRule::getId, r -> r));
 
-    boolean changed = existing.removeIf(r -> !inputIds.contains(r.getId()));
+    boolean changed =
+        existing.removeIf(
+            r ->
+                r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
+                    && !inputIds.contains(r.getId()));
 
     // Build new rules from inputs without an ID
     List<WorkflowScopeRule> newRules =
@@ -914,13 +1159,16 @@ public class WorkflowService {
       trackScopeMetrics(workflow, newRules);
     }
 
-    // Update existing rules that have changed
+    // Update existing rules that have changed (never an engine-written SECURITY_PLATFORM row,
+    // even when an input smuggles its id).
     Set<String> processedIds = new HashSet<>();
     for (WorkflowScopeRuleInput ruleInput : deduplicated) {
       String ruleId = ruleInput.getId();
       if (ruleId != null && processedIds.add(ruleId)) {
         WorkflowScopeRule existingRule = existingById.get(ruleId);
-        if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
+        if (existingRule != null
+            && existingRule.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
+            && hasRuleChanged(existingRule, ruleInput)) {
           updateScopeRule(existingRule, ruleInput);
           changed = true;
         }
@@ -961,7 +1209,7 @@ public class WorkflowService {
           scopeMetricCollector.recordEntryAdded(parts[0], parts[1], count);
         });
 
-    // KPI. Record Source Usage (CSV vs Manual only — ignore asset-based sources)
+    // KPI. Record Source Usage (CSV vs Manual only - ignore asset-based sources)
     uniqueSources.stream()
         .filter(
             source ->
@@ -1023,14 +1271,14 @@ public class WorkflowService {
   }
 
   /**
-   * Snapshots the display name of the asset / asset group referenced by an ASSET / ASSET_GROUP
-   * scope rule, so a past run's scope stays readable after the referenced inventory object is
-   * deleted.
+   * Snapshots the display name of the entity referenced by an ASSET / ASSET_GROUP / TEAM / PLAYER
+   * scope rule (asset / group name, team name, or player name-or-email), so a past run's scope
+   * stays readable after the referenced object is deleted.
    *
    * <p>The lookup is tenant-scoped on purpose: Hibernate's {@code tenantFilter} does not apply to
    * primary-key loads, so a plain {@code findById} on a user-supplied id could snapshot (and later
-   * expose) another tenant's asset name. Ids that do not resolve within the caller's tenant - or
-   * non-asset rules (MANUAL / CSV / TEAM / PLAYER) - stay {@code null}.
+   * expose) another tenant's name. Ids that do not resolve within the caller's tenant - or MANUAL /
+   * CSV rules - stay {@code null}.
    */
   private String resolveValueLabel(WorkflowScopeRuleInput input) {
     if (input.getRuleSource() == null || !hasText(input.getRuleValue())) {
@@ -1051,6 +1299,16 @@ public class WorkflowService {
               .findByIdAndTenantId(input.getRuleValue(), tenantId)
               .map(AssetGroup::getName)
               .orElse(null);
+      case TEAM ->
+          teamRepository
+              .findByIdAndTenantId(input.getRuleValue(), tenantId)
+              .map(Team::getName)
+              .orElse(null);
+      case PLAYER ->
+          userRepository.findAllByIdInAndTenantId(List.of(input.getRuleValue()), tenantId).stream()
+              .findFirst()
+              .map(User::getNameOrEmail)
+              .orElse(null);
       default -> null;
     };
   }
@@ -1062,6 +1320,9 @@ public class WorkflowService {
         case ASSET_GROUP -> ScopeRuleValueType.ASSET_GROUP_ID;
         case TEAM -> ScopeRuleValueType.TEAM_ID;
         case PLAYER -> ScopeRuleValueType.PLAYER_ID;
+        // Engine-written rows only (rejected from configuration inputs by applyScopeRules); the
+        // explicit mapping keeps internal writers from ever mislabeling one as IP / domain.
+        case SECURITY_PLATFORM -> ScopeRuleValueType.SECURITY_PLATFORM_ID;
         default -> resolveValueTypeFromString(input.getRuleValue());
       };
     }
@@ -1127,17 +1388,6 @@ public class WorkflowService {
   }
 
   /**
-   * Throws if the chaining preview feature is not enabled.
-   *
-   * @throws ChainingException when the feature flag is disabled
-   */
-  public void isPreviewFeatureChainingEnable() throws ChainingException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-      throw new ChainingException("Feature chaining is not enabled");
-    }
-  }
-
-  /**
    * Start workflow for given simulation
    *
    * @param simulationId id of the simulation to start
@@ -1150,8 +1400,24 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
-    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
-    startWorkflow(workflowRun);
+    doStartWorkflowBySimulationId(workflowTemplate);
+  }
+
+  /**
+   * Starts a workflow run for a simulation only when a simulation TEMPLATE workflow exists.
+   *
+   * <p>This is the scheduled-execution counterpart of the manual start flow: manual launches always
+   * create the simulation TEMPLATE first, while scheduled chained simulations create that template
+   * earlier and only need the run started once the simulation becomes runnable.
+   *
+   * @param simulationId id of the simulation to start if chained
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowBySimulationIdIfPresent(String simulationId) throws ChainingException {
+    Optional<Workflow> workflowTemplate = findWorkflowTemplateBySimulationId(simulationId);
+    if (workflowTemplate.isPresent()) {
+      doStartWorkflowBySimulationId(workflowTemplate.get());
+    }
   }
 
   /**
@@ -1168,11 +1434,15 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-
-    Workflow workflowRun = launchWorkflowScenario(workflowTemplateScenario, simulation);
-    Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
+    Workflow workflowTemplateSimulation =
+        saveWorkflowRun(copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation));
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
+    doStartWorkflowBySimulationId(workflowTemplateSimulation);
+  }
+
+  private void doStartWorkflowBySimulationId(Workflow workflowTemplate) throws ChainingException {
+    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
     startWorkflow(workflowRun);
   }
 
@@ -1212,7 +1482,6 @@ public class WorkflowService {
    *
    * @param workflowRun the workflow run to start
    */
-  @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
     // Telemetry: one chaining workflow run started.
     resultsMetricCollector.recordWorkflowRun();
@@ -1313,7 +1582,7 @@ public class WorkflowService {
    * @return list of expired workflows
    */
   public List<Workflow> findAllExpiredRunWorkflows() {
-    return workflowRepository.findAllExpiredRunWorkflows();
+    return workflowEndService.findAllExpiredRunWorkflows();
   }
 
   /**
@@ -1321,9 +1590,8 @@ public class WorkflowService {
    *
    * @param workflowRun the running workflow to end
    */
-  public void endWorkflow(Workflow workflowRun) {
-    workflowRun.setStatus(WorkflowStatus.END);
-    workflowRepository.save(workflowRun);
+  public void endWorkflow(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
+    workflowEndService.endWorkflow(workflowRun, cause);
   }
 
   /**
@@ -1352,10 +1620,15 @@ public class WorkflowService {
     }
     String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
 
-    // Guard: ignore if workflow run has already ended (e.g. timeout).
+    // Guard: ignore if workflow run has already ended (e.g. timeout). The early return is load-
+    // bearing: without it an ended workflow still fell through to
+    // createReadySteps/enqueueReadySteps
+    // below, re-readying and re-enqueuing steps on a terminated run (churn, and a possible re-fire
+    // after a timeout settle).
     if (this.isWorkflowEnded(workflowRun.getId())) {
       log.info(
           "[Chaining] Ignoring evaluation because workflow run {} has ended.", workflowRun.getId());
+      return workflowRun;
     }
 
     // Get all step template
@@ -1378,7 +1651,8 @@ public class WorkflowService {
           "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
           workflowRun.getId());
-      workflowRun.setStatus(WorkflowStatus.END);
+      workflowEndService.markWorkflowEnded(
+          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
       return workflowRun;
     }
 
@@ -1401,7 +1675,8 @@ public class WorkflowService {
     if (!hasActiveSteps
         && !workflowRun.isKeepAlive()
         && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
-      workflowRun.setStatus(WorkflowStatus.END);
+      workflowEndService.markWorkflowEnded(
+          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
     }
 
     return workflowRun;
@@ -1448,6 +1723,10 @@ public class WorkflowService {
       boolean dirty = false;
       if (workflow.getStatus() == WorkflowStatus.END) {
         workflow.setStatus(WorkflowStatus.RUN);
+        // The launch evaluation provisionally ended this empty run and froze its end scope
+        // snapshot; reopening it must clear that photo or the live autonomous run would
+        // misclassify every later drift as after-execution. See ADR-006.
+        scopeSnapshotService.clearEnd(workflow);
         dirty = true;
       }
       if (!workflow.isKeepAlive() || workflow.isTimeoutEnabled()) {
@@ -1482,7 +1761,8 @@ public class WorkflowService {
   public String appendChainedStep(
       String simulationId, InjectInput injectInput, String parentStepTemplateId)
       throws ChainingException {
-    return doAppendChainedStep(simulationId, injectInput, parentStepTemplateId, List.of());
+    return doAppendChainedStep(
+        simulationId, injectInput, parentStepTemplateId, List.of(), List.of());
   }
 
   /**
@@ -1503,10 +1783,39 @@ public class WorkflowService {
       String parentStepTemplateId,
       List<ConditionCreateInput> triggerConditions)
       throws ChainingException {
-    return doAppendChainedStep(simulationId, injectInput, parentStepTemplateId, triggerConditions);
+    return doAppendChainedStep(
+        simulationId, injectInput, parentStepTemplateId, triggerConditions, List.of());
   }
 
-  // Shared body for both appendChainedStep overloads. Private and non-transactional on purpose: the
+  /**
+   * Existing-event overload of {@link #appendChainedStep(String, InjectInput, String, List)}. In
+   * addition to any inline {@code triggerConditions} (typically just MAPPER bindings), the step is
+   * LINKED to one or more EXISTING event roots by id ({@code existingEventConditionIds}) instead of
+   * minting a fresh finding-trigger tree - so several actions can fire off the SAME event rather
+   * than each duplicating it. The engine's step-create already re-links existing condition roots
+   * via {@code condition_ids}, exactly like the manual UI does. An empty list behaves like the
+   * plain finding-driven overload.
+   *
+   * @param existingEventConditionIds ids of existing event roots (finding-trigger roots) to attach
+   *     this step to; empty to create a new event from {@code triggerConditions}
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStep(
+      String simulationId,
+      InjectInput injectInput,
+      String parentStepTemplateId,
+      List<ConditionCreateInput> triggerConditions,
+      List<String> existingEventConditionIds)
+      throws ChainingException {
+    return doAppendChainedStep(
+        simulationId,
+        injectInput,
+        parentStepTemplateId,
+        triggerConditions,
+        existingEventConditionIds);
+  }
+
+  // Shared body for the appendChainedStep overloads. Private and non-transactional on purpose: the
   // public overloads are the @Transactional entry points, and each simply widens its arguments and
   // delegates here. Delegating to a plain helper (instead of one overload self-invoking the other)
   // keeps the transactional boundary on the proxied public method - an intra-class call to a
@@ -1515,7 +1824,8 @@ public class WorkflowService {
       String simulationId,
       InjectInput injectInput,
       String parentStepTemplateId,
-      List<ConditionCreateInput> triggerConditions)
+      List<ConditionCreateInput> triggerConditions,
+      List<String> existingEventConditionIds)
       throws ChainingException {
     Workflow simulationTemplate =
         findWorkflowTemplateBySimulationId(simulationId)
@@ -1523,6 +1833,12 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+    // Defence in depth: the link channel below (stepInput.conditionIds -> findConditionRootById)
+    // only checks root-ness, so enforce the FULL event invariant at this service boundary - each
+    // reused id must be an AND/OR finding-event root on THIS simulation's own workflow - instead of
+    // trusting the caller's earlier validation. A no-op for the validated autonomous caller; it
+    // closes the boundary against a cross-workflow or non-event link from any other caller.
+    assertEventRootsOnWorkflow(simulationTemplate.getId(), existingEventConditionIds);
 
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
@@ -1539,6 +1855,12 @@ public class WorkflowService {
     }
     if (!conditions.isEmpty()) {
       stepInput.setConditions(conditions);
+    }
+    // Link EXISTING event roots (finding-trigger roots the orchestrator chose to reuse) by id, the
+    // same condition_ids channel the manual UI uses, so multiple actions share one event instead of
+    // duplicating it. Never a fresh event tree - that is what triggerConditions above is for.
+    if (existingEventConditionIds != null && !existingEventConditionIds.isEmpty()) {
+      stepInput.setConditionIds(existingEventConditionIds);
     }
 
     // Idempotent authoring: a retried/replayed orchestrator call for the SAME inject + same parent
@@ -1572,7 +1894,7 @@ public class WorkflowService {
       String scenarioId, InjectInput injectInput, String parentScenarioStepTemplateId)
       throws ChainingException {
     return doAppendChainedStepToScenario(
-        scenarioId, injectInput, parentScenarioStepTemplateId, List.of());
+        scenarioId, injectInput, parentScenarioStepTemplateId, List.of(), List.of());
   }
 
   /**
@@ -1592,17 +1914,89 @@ public class WorkflowService {
       List<ConditionCreateInput> triggerConditions)
       throws ChainingException {
     return doAppendChainedStepToScenario(
-        scenarioId, injectInput, parentScenarioStepTemplateId, triggerConditions);
+        scenarioId, injectInput, parentScenarioStepTemplateId, triggerConditions, List.of());
   }
 
-  // Shared body for both appendChainedStepToScenario overloads. See doAppendChainedStep for why
-  // this
+  /**
+   * Existing-event overload of {@link #appendChainedStepToScenario(String, InjectInput, String,
+   * List)}: links the scenario step to EXISTING scenario event roots by id instead of minting a new
+   * event tree, the scenario-side twin of {@link #appendChainedStep(String, InjectInput, String,
+   * List, List)}. Used when the orchestrator authors a step directly onto the scenario (no
+   * simulation) and reuses an event it already authored there.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public String appendChainedStepToScenario(
+      String scenarioId,
+      InjectInput injectInput,
+      String parentScenarioStepTemplateId,
+      List<ConditionCreateInput> triggerConditions,
+      List<String> existingEventConditionIds)
+      throws ChainingException {
+    return doAppendChainedStepToScenario(
+        scenarioId,
+        injectInput,
+        parentScenarioStepTemplateId,
+        triggerConditions,
+        existingEventConditionIds);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #appendChainedStepToScenario(String, InjectInput,
+   * String, List)} for the autonomous orchestrator's step-authoring callback. Runs in its OWN
+   * transaction ({@link Propagation#REQUIRES_NEW}) so a scenario-mirror failure (the scenario
+   * template invisible under the callback thread's tenant, or a concurrent author racing the same
+   * scenario workflow) rolls back only this twin and can NEVER mark the caller's authoring
+   * transaction rollback-only. The executing simulation step is authored authoritatively first and
+   * this scenario mirror is a secondary projection - a mirror failure must not fail (500) the
+   * author callback and lose the executing step at commit. See {@code
+   * AutonomousRunService#mirrorStepOntoScenario}.
+   *
+   * <p>Both public entry points delegate to the same private, non-transactional body: a same-class
+   * call to a {@code @Transactional} sibling would bypass the Spring proxy (see {@code
+   * TenantBackgroundTransactionArchTest#no_transactional_self_invocation}).
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public String appendChainedStepToScenarioIsolated(
+      String scenarioId,
+      InjectInput injectInput,
+      String parentScenarioStepTemplateId,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    return doAppendChainedStepToScenario(
+        scenarioId, injectInput, parentScenarioStepTemplateId, triggerConditions, List.of());
+  }
+
+  /**
+   * Existing-event variant of {@link #appendChainedStepToScenarioIsolated(String, InjectInput,
+   * String, List)}: links the mirrored scenario twin to an EXISTING scenario event root by id
+   * (resolved by the caller from its sim-&gt;scenario event mapping) so the exported scenario
+   * shares one event across the actions that reuse it, exactly like the executing simulation side.
+   * Still REQUIRES_NEW and best-effort - the mirror must never fail the author callback.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public String appendChainedStepToScenarioIsolated(
+      String scenarioId,
+      InjectInput injectInput,
+      String parentScenarioStepTemplateId,
+      List<ConditionCreateInput> triggerConditions,
+      List<String> existingEventConditionIds)
+      throws ChainingException {
+    return doAppendChainedStepToScenario(
+        scenarioId,
+        injectInput,
+        parentScenarioStepTemplateId,
+        triggerConditions,
+        existingEventConditionIds);
+  }
+
+  // Shared body for the appendChainedStepToScenario overloads. See doAppendChainedStep for why this
   // is a private, non-transactional helper the public @Transactional overloads delegate to.
   private String doAppendChainedStepToScenario(
       String scenarioId,
       InjectInput injectInput,
       String parentScenarioStepTemplateId,
-      List<ConditionCreateInput> triggerConditions)
+      List<ConditionCreateInput> triggerConditions,
+      List<String> existingEventConditionIds)
       throws ChainingException {
     Workflow scenarioTemplate =
         findWorkflowTemplateByScenarioId(scenarioId)
@@ -1610,6 +2004,12 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+    // Defence in depth (same as doAppendChainedStep): validate each reused id is an AND/OR
+    // finding-event root on THIS scenario's own workflow before linking, so the isolated mirror
+    // path - which links a recorded eventMirror twin without re-validating - can never cross-link
+    // workflows on a stale or incorrect entry. A no-op for a valid twin; a stale entry throws and
+    // is swallowed by the best-effort mirror exactly like a missing id already was.
+    assertEventRootsOnWorkflow(scenarioTemplate.getId(), existingEventConditionIds);
 
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
@@ -1627,6 +2027,12 @@ public class WorkflowService {
     if (!conditions.isEmpty()) {
       stepInput.setConditions(conditions);
     }
+    // Link an EXISTING scenario event root by id (the scenario twin of a reused simulation event)
+    // so the exported scenario shares the event instead of duplicating it, mirroring the executing
+    // simulation side. Empty means a fresh event copy, the historical mirror behaviour.
+    if (existingEventConditionIds != null && !existingEventConditionIds.isEmpty()) {
+      stepInput.setConditionIds(existingEventConditionIds);
+    }
 
     // Idempotent mirror: keep the scenario twin in lock-step with the (now idempotent) simulation
     // side so a replayed author call never doubles the exported attack path either.
@@ -1634,6 +2040,199 @@ public class WorkflowService {
         stepService.createInjectStepTemplateIdempotent(
             scenarioTemplate, stepInput, parentScenarioStepTemplateId);
     return created.getId();
+  }
+
+  /** The event-root condition types: an AND / OR node is a finding EVENT the engine fires on. */
+  private static final Set<ConditionType> EVENT_ROOT_TYPES =
+      EnumSet.of(ConditionType.AND, ConditionType.OR);
+
+  /**
+   * Validates that a caller-supplied {@code eventId} is an EXISTING finding-event root on the
+   * simulation's template workflow, so a step can be linked to it instead of minting a duplicate
+   * event. Throws {@link ChainingException} (surfaced as a 400) with a precise reason when the id
+   * is unknown, is a child condition rather than a root, is not an AND/OR event, or belongs to a
+   * different workflow - never a silent mislink.
+   *
+   * @param simulationId the run's live simulation
+   * @param eventId the event root id the orchestrator asked to reuse
+   */
+  @Transactional(readOnly = true)
+  public void assertEventRootOnSimulationWorkflow(String simulationId, String eventId)
+      throws ChainingException {
+    Workflow template =
+        findWorkflowTemplateBySimulationId(simulationId)
+            .orElseThrow(
+                () ->
+                    new ChainingException(
+                        "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
+    assertEventRootOnWorkflow(template.getId(), eventId);
+  }
+
+  /**
+   * Scenario-side twin of {@link #assertEventRootOnSimulationWorkflow}: validates {@code eventId}
+   * is an existing finding-event root on the scenario's template workflow (author-scenario mode).
+   */
+  @Transactional(readOnly = true)
+  public void assertEventRootOnScenarioWorkflow(String scenarioId, String eventId)
+      throws ChainingException {
+    Workflow template =
+        findWorkflowTemplateByScenarioId(scenarioId)
+            .orElseThrow(
+                () ->
+                    new ChainingException(
+                        "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
+    assertEventRootOnWorkflow(template.getId(), eventId);
+  }
+
+  /**
+   * Validates every non-blank id in {@code eventConditionIds} is an AND/OR finding-event root on
+   * {@code workflowId}. The service-boundary guard for the reused-event link channel (which itself
+   * only checks root-ness): callers pass the reused ids straight to {@code
+   * stepInput.setConditionIds}, so this is what keeps a cross-workflow or non-event id from being
+   * linked. No-op for a null/empty list.
+   */
+  private void assertEventRootsOnWorkflow(String workflowId, List<String> eventConditionIds)
+      throws ChainingException {
+    if (eventConditionIds == null) {
+      return;
+    }
+    for (String eventConditionId : eventConditionIds) {
+      if (hasText(eventConditionId)) {
+        assertEventRootOnWorkflow(workflowId, eventConditionId);
+      }
+    }
+  }
+
+  private void assertEventRootOnWorkflow(String workflowId, String eventId)
+      throws ChainingException {
+    Condition condition = conditionService.findConditionByIdOrNull(eventId);
+    if (condition == null) {
+      throw new ChainingException(
+          "event_id '"
+              + eventId
+              + "' does not exist. Read a step's event_id from the attack-path state and pass"
+              + " exactly that, or omit event_id to create a new event.");
+    }
+    if (condition.getConditionParent() != null) {
+      throw new ChainingException(
+          "event_id '"
+              + eventId
+              + "' is not an event root (it is a child condition). Pass the event's root id from a"
+              + " step's event_id.");
+    }
+    if (!EVENT_ROOT_TYPES.contains(condition.getType())) {
+      throw new ChainingException(
+          "event_id '"
+              + eventId
+              + "' is not a finding EVENT (type "
+              + condition.getType()
+              + ", expected AND/OR). Only finding events can be shared across steps.");
+    }
+    if (!Objects.equals(condition.getWorkflowId(), workflowId)) {
+      throw new ChainingException(
+          "event_id '"
+              + eventId
+              + "' belongs to a different workflow. An event can only be reused within the same"
+              + " run's attack path.");
+    }
+  }
+
+  /**
+   * The AND/OR finding-event ROOT id currently linked to a step template, or {@code null} when the
+   * step has no finding event (a seed, standalone, or pure DEPEND_ON step). This is the id the
+   * attack-path state surfaces as {@code event_id} and the caller records in the run's sim-&gt;
+   * scenario event mapping so a reused event mirrors to the same scenario event.
+   *
+   * <p>Filters on both the AND/OR type AND root-ness ({@code conditionParent == null}): a step's
+   * linked conditions include an event's leaf children (they carry the step link too), and a
+   * manually authored event MAY nest AND/OR groups, so a type-only match could return a nested
+   * child group instead of the root. The returned id must be a true root because {@link
+   * #assertEventRootOnWorkflow} rejects non-roots when the caller reuses it, and the sim-&gt;
+   * scenario event mirror is keyed on root ids. Autonomous events are flat (one AND/OR root + leaf
+   * filters), so this only hardens the read against manually edited or future nested trees.
+   *
+   * @param stepTemplateId the step template to inspect
+   * @return the linked event root id, or {@code null}
+   */
+  @Transactional(readOnly = true)
+  public String findStepTriggerEventRootId(String stepTemplateId) {
+    return conditionService.findAllConditionsByStepId(stepTemplateId).stream()
+        .filter(condition -> condition.getConditionParent() == null)
+        .filter(condition -> EVENT_ROOT_TYPES.contains(condition.getType()))
+        .map(Condition::getId)
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * Resolves an existing finding-event root into a fresh set of {@link ConditionCreateInput}s (the
+   * AND/OR root plus its WHOLE non-MAPPER subtree) so a faithful COPY of the event can be created
+   * on another workflow. Used by the scenario mirror as a fallback: when the run has no recorded
+   * sim-&gt;scenario twin for a reused simulation event, the mirror re-creates the event on the
+   * scenario so the exported step is never left event-less. MAPPER children are excluded - the
+   * caller supplies the step's own mappers. Returns an empty list when {@code eventId} is not a
+   * resolvable event root.
+   *
+   * <p>Copies the subtree to FULL depth (not just the root's direct children): an event authored in
+   * the manual logic map MAY nest AND/OR condition groups, and a shallow copy would silently drop
+   * grandchildren, mirroring a structurally incorrect / partial event onto the scenario. The walk
+   * mirrors {@link StepService#copyStepConditionTemplate} - group children by parent id, then BFS
+   * from the root re-parenting each copied node by temporary id. Autonomous events are flat, so
+   * this only hardens the fallback against manually edited or future nested trees.
+   *
+   * @param eventId the existing event root id to copy
+   * @return the root + full-subtree inputs, or an empty list
+   */
+  @Transactional(readOnly = true)
+  public List<ConditionCreateInput> resolveEventRootAsInputs(String eventId) {
+    Condition root = conditionService.findConditionByIdOrNull(eventId);
+    if (root == null
+        || root.getConditionParent() != null
+        || !EVENT_ROOT_TYPES.contains(root.getType())) {
+      return List.of();
+    }
+    // Index the event's whole subtree by parent id so nested groups are copied to full depth.
+    Map<String, List<Condition>> childrenByParentId =
+        conditionService.findAllNonMapperConditionsByWorkflowId(root.getWorkflowId()).stream()
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
+
+    List<ConditionCreateInput> inputs = new ArrayList<>();
+    String rootTmpId = UUID.randomUUID().toString();
+    inputs.add(
+        ConditionCreateInput.builder()
+            .temporaryId(rootTmpId)
+            .type(root.getType())
+            .name(root.getName())
+            .build());
+    // BFS from the root carrying each source node's assigned temporary id so children re-parent
+    // onto their copied parent. The visited set guards against a corrupted parent chain cycling
+    // (same guard as ConditionService#isPreserved).
+    Set<String> visited = new HashSet<>();
+    visited.add(root.getId());
+    Queue<Map.Entry<String, String>> queue = new LinkedList<>();
+    queue.add(Map.entry(root.getId(), rootTmpId));
+    while (!queue.isEmpty()) {
+      Map.Entry<String, String> current = queue.poll();
+      for (Condition child : childrenByParentId.getOrDefault(current.getKey(), List.of())) {
+        if (child.getId() == null || !visited.add(child.getId())) {
+          continue;
+        }
+        String childTmpId = UUID.randomUUID().toString();
+        inputs.add(
+            ConditionCreateInput.builder()
+                .temporaryId(childTmpId)
+                .temporaryIdConditionParent(current.getValue())
+                .type(child.getType())
+                .keyTypes(child.getKeyTypes())
+                .value(child.getValue())
+                .caseSensitive(child.isCaseSensitive())
+                .name(child.getName())
+                .build());
+        queue.add(Map.entry(child.getId(), childTmpId));
+      }
+    }
+    return inputs;
   }
 
   /**
@@ -1671,13 +2270,29 @@ public class WorkflowService {
     if (template.isEmpty()) {
       return List.of();
     }
+    Workflow workflow = template.get();
     List<Step> steps =
-        stepService.findAllStepTemplateByWorkflow(template.get().getId()).stream()
+        stepService.findAllStepTemplateByWorkflow(workflow.getId()).stream()
             .filter(s -> StepActionClass.INJECT_EXECUTION.equals(s.getStepAction()))
             .sorted(
                 Comparator.comparing(
                     Step::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
             .toList();
+    if (steps.isEmpty()) {
+      return List.of();
+    }
+    // Batch every step's LINKED root conditions in one query - a step links only its condition
+    // ROOTS (the DEPEND_ON parent, the finding-trigger event root, and any MAPPER roots) - and the
+    // workflow's leaf filter conditions once, grouped by parent id. This replaces a per-step
+    // condition read (the old dependOnParentTemplateId call) plus a per-step trigger walk with two
+    // batched reads, so the orchestrator's per-cycle attack-path poll stays flat instead of N+1 in
+    // the step count.
+    Set<String> stepIds = steps.stream().map(Step::getId).collect(Collectors.toSet());
+    Map<String, List<Condition>> rootsByStep = conditionService.findAllConditionsByStepIds(stepIds);
+    Map<String, List<Condition>> filterLeavesByParentId =
+        conditionService.findAllNonMapperConditionsByWorkflowId(workflow.getId()).stream()
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
     List<AuthoredAttackStep> authored = new ArrayList<>();
     for (Step step : steps) {
       List<String> runInjectIds =
@@ -1686,14 +2301,125 @@ public class WorkflowService {
               .filter(id -> id != null && !id.isBlank())
               .distinct()
               .toList();
+      List<Condition> roots = rootsByStep.getOrDefault(step.getId(), List.of());
       authored.add(
           new AuthoredAttackStep(
               step.getId(),
-              stepService.dependOnParentTemplateId(step.getId()),
+              dependOnParentFromRoots(roots),
               step.getData(),
-              runInjectIds));
+              runInjectIds,
+              triggerRootId(roots),
+              triggerEventName(roots),
+              triggerFilters(roots, filterLeavesByParentId),
+              triggerMappings(roots)));
     }
     return authored;
+  }
+
+  /** The DEPEND_ON parent step template id among a step's linked root conditions, or null. */
+  private static String dependOnParentFromRoots(List<Condition> roots) {
+    return roots.stream()
+        .filter(condition -> condition.getType() == ConditionType.DEPEND_ON)
+        .map(Condition::getValue)
+        .filter(value -> value != null && !value.isBlank())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * The finding-trigger event ROOT (an AND / OR node with no parent) among a step's linked
+   * conditions, or null. Filters on root-ness (conditionParent == null) as well as the AND/OR type:
+   * a step links its event's leaf children too, and an event may nest AND/OR groups, so a type-only
+   * match could return a nested child group. This value is surfaced to the orchestrator as {@code
+   * event_id} and passed back to reuse the event, where {@link #assertEventRootOnWorkflow} rejects
+   * anything that is not a true root - so it must be the root here.
+   */
+  private static Condition triggerRoot(List<Condition> roots) {
+    return roots.stream()
+        .filter(condition -> condition.getConditionParent() == null)
+        .filter(
+            condition ->
+                condition.getType() == ConditionType.AND || condition.getType() == ConditionType.OR)
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * Stable id of the step's finding EVENT (the trigger root), or null when it has none. This is the
+   * handle the orchestrator passes back as a trigger's {@code event_id} to attach another step to
+   * the SAME event instead of duplicating it.
+   */
+  private static String triggerRootId(List<Condition> roots) {
+    Condition root = triggerRoot(roots);
+    return root != null ? root.getId() : null;
+  }
+
+  /** Human name of the step's finding EVENT (the trigger root's name), or null when it has none. */
+  private static String triggerEventName(List<Condition> roots) {
+    Condition root = triggerRoot(roots);
+    return root != null && hasText(root.getName()) ? root.getName().trim() : null;
+  }
+
+  /**
+   * The step's finding predicates rendered as "&lt;key&gt; &lt;operator&gt; &lt;value&gt;" (value
+   * omitted for a valueless operator such as IS_NOT_NULL), read back from the trigger root's leaf
+   * children so the caller sees exactly what the step fires on - the finding-driven wiring, not an
+   * inferred linear chain.
+   */
+  private static List<String> triggerFilters(
+      List<Condition> roots, Map<String, List<Condition>> filterLeavesByParentId) {
+    Condition root = triggerRoot(roots);
+    if (root == null) {
+      return List.of();
+    }
+    return filterLeavesByParentId.getOrDefault(root.getId(), List.of()).stream()
+        .map(WorkflowService::formatTriggerFilter)
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  /**
+   * The step's finding-value bindings rendered as "&lt;key&gt; -&gt; &lt;input&gt;", from MAPPERs.
+   */
+  private static List<String> triggerMappings(List<Condition> roots) {
+    return roots.stream()
+        .filter(condition -> condition.getType() == ConditionType.MAPPER)
+        .map(WorkflowService::formatTriggerMapping)
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  private static String formatTriggerFilter(Condition condition) {
+    String key = keyTypeLabels(condition.getKeyTypes());
+    if (key == null) {
+      return null;
+    }
+    String operator = condition.getType() != null ? condition.getType().name() : "";
+    String value = condition.getValue();
+    String base = hasText(operator) ? key + " " + operator : key;
+    return hasText(value) ? base + " " + value.trim() : base;
+  }
+
+  private static String formatTriggerMapping(Condition condition) {
+    String key = keyTypeLabels(condition.getKeyTypes());
+    String input = condition.getKey();
+    if (key == null || !hasText(input)) {
+      return null;
+    }
+    return key + " -> " + input.trim();
+  }
+
+  /** Joins a condition's key types by their primitive label (e.g. "port", "ipv4"), or null. */
+  private static String keyTypeLabels(List<PrimitiveType> keyTypes) {
+    if (keyTypes == null || keyTypes.isEmpty()) {
+      return null;
+    }
+    String joined =
+        keyTypes.stream()
+            .filter(Objects::nonNull)
+            .map(keyType -> keyType.label)
+            .collect(Collectors.joining("/"));
+    return hasText(joined) ? joined : null;
   }
 
   /**
@@ -1708,9 +2434,159 @@ public class WorkflowService {
   @Transactional(rollbackFor = Exception.class)
   public void updateChainedStep(String stepTemplateId, InjectInput injectInput)
       throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput, null);
+  }
+
+  /**
+   * Trigger-aware overload of {@link #updateChainedStep(String, InjectInput)}: in addition to the
+   * inject data, it replaces the step's finding-trigger conditions with {@code triggerConditions}
+   * (preserving any DEPEND_ON ordering parent), so the orchestrator can CORRECT a mis-wired
+   * finding-driven step in place. A {@code null} {@code triggerConditions} keeps the existing
+   * conditions untouched (data-only), exactly like the two-argument overload; an empty list clears
+   * the trigger while keeping the DEPEND_ON parent.
+   *
+   * @param triggerConditions the finding-trigger + mapper conditions to install, or {@code null} to
+   *     leave the step's conditions untouched
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void updateChainedStep(
+      String stepTemplateId, InjectInput injectInput, List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput, triggerConditions);
+  }
+
+  /**
+   * Existing-event overload of {@link #updateChainedStep(String, InjectInput, List)}: rebuilds the
+   * step's finding trigger from {@code triggerConditions} (typically MAPPERs only) AND links it to
+   * EXISTING event roots by id, so the orchestrator can CORRECT a step to fire on an event that
+   * already exists instead of minting a duplicate. Preserves the DEPEND_ON ordering parent and the
+   * reused event subtree across the rebuild.
+   *
+   * @param existingEventConditionIds ids of existing event roots to attach this step to (empty to
+   *     rebuild a fresh trigger with no reuse)
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void updateChainedStep(
+      String stepTemplateId,
+      InjectInput injectInput,
+      List<ConditionCreateInput> triggerConditions,
+      List<String> existingEventConditionIds)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput, triggerConditions, existingEventConditionIds);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #updateChainedStep} for the autonomous orchestrator's
+   * step-update callback, used to keep the scenario mirror twin in lock-step. Runs in its OWN
+   * transaction ({@link Propagation#REQUIRES_NEW}) so a twin-update failure rolls back only itself
+   * and can NEVER mark the caller's update transaction rollback-only. The executing simulation step
+   * is updated authoritatively first; the scenario mirror is a secondary projection - a twin
+   * failure must not fail (500) the update callback. See {@code
+   * AutonomousRunService#updateAttackPathStep}.
+   *
+   * <p>Delegates to the same private, non-transactional body as {@link #updateChainedStep}: a
+   * same-class call to a {@code @Transactional} sibling would bypass the Spring proxy (see {@code
+   * TenantBackgroundTransactionArchTest#no_transactional_self_invocation}).
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void updateChainedStepIsolated(String stepTemplateId, InjectInput injectInput)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput, null);
+  }
+
+  /**
+   * Trigger-aware, transaction-isolated variant of {@link #updateChainedStepIsolated(String,
+   * InjectInput)} used to keep the scenario mirror twin's finding trigger in lock-step with the
+   * corrected simulation step. Same {@link Propagation#REQUIRES_NEW} best-effort isolation.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void updateChainedStepIsolated(
+      String stepTemplateId, InjectInput injectInput, List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput, triggerConditions);
+  }
+
+  /**
+   * Existing-event, transaction-isolated variant used to keep the scenario mirror twin's event
+   * linkage in lock-step when the corrected simulation step reuses an existing event. Same {@link
+   * Propagation#REQUIRES_NEW} best-effort isolation as the other isolated update overloads.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void updateChainedStepIsolated(
+      String stepTemplateId,
+      InjectInput injectInput,
+      List<ConditionCreateInput> triggerConditions,
+      List<String> existingEventConditionIds)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput, triggerConditions, existingEventConditionIds);
+  }
+
+  /**
+   * Deletes a chained step template (and its conditions) on behalf of the autonomous orchestrator,
+   * so it can PRUNE a mis-authored finding-driven step. Bypasses the manual editability guard for
+   * the same reason the author path does (the orchestrator owns the run's workflow).
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteChainedStep(String stepTemplateId) throws ChainingException {
+    stepService.deleteInjectStepTemplate(stepTemplateId);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #deleteChainedStep} for pruning the scenario mirror twin
+   * in lock-step. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW}) so a twin-delete
+   * failure rolls back only itself and can NEVER mark the caller's delete transaction
+   * rollback-only.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void deleteChainedStepIsolated(String stepTemplateId) throws ChainingException {
+    stepService.deleteInjectStepTemplate(stepTemplateId);
+  }
+
+  // Shared body for the update overloads. Private and non-transactional: the public overloads are
+  // the @Transactional proxy entry points and each delegates here (an intra-class call to a
+  // @Transactional sibling would bypass the proxy). A null triggerConditions means "data-only,
+  // keep the existing conditions"; a non-null list rebuilds the finding trigger while preserving
+  // the DEPEND_ON ordering parent.
+  private void doUpdateChainedStep(
+      String stepTemplateId, InjectInput injectInput, List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    doUpdateChainedStep(stepTemplateId, injectInput, triggerConditions, List.of());
+  }
+
+  // Existing-event variant of the update body: in addition to rebuilding the trigger it can LINK
+  // the step to EXISTING event roots by id ({@code existingEventConditionIds}), so a corrected step
+  // attaches to an event that already exists instead of duplicating it - the update-side twin of
+  // doAppendChainedStep's condition_ids channel. Reused ids are validated at this service boundary
+  // exactly like the append paths. The step service preserves those roots (subtree included)
+  // across the condition rebuild so a shared event is never dropped, then links them.
+  private void doUpdateChainedStep(
+      String stepTemplateId,
+      InjectInput injectInput,
+      List<ConditionCreateInput> triggerConditions,
+      List<String> existingEventConditionIds)
+      throws ChainingException {
+    // Defence in depth (same boundary as the append paths): the link channel below only checks
+    // root-ness, so validate every reused id is an AND/OR finding-event root on the step's OWN
+    // workflow before the rebuild links it. Resolved lazily - the step lookup only happens when a
+    // reused id is actually present, so the common no-reuse update pays nothing. A no-op for the
+    // validated autonomous caller; a stale scenario-mirror twin id throws and is swallowed by the
+    // best-effort mirror exactly like on the append side.
+    if (existingEventConditionIds != null
+        && existingEventConditionIds.stream().anyMatch(id -> hasText(id))) {
+      Workflow stepWorkflow = stepService.findStepTemplateById(stepTemplateId).getWorkflow();
+      assertEventRootsOnWorkflow(
+          stepWorkflow == null ? null : stepWorkflow.getId(), existingEventConditionIds);
+    }
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-    Step updated = stepService.updateInjectStepTemplateData(stepTemplateId, stepInput);
+    if (existingEventConditionIds != null && !existingEventConditionIds.isEmpty()) {
+      stepInput.setConditionIds(existingEventConditionIds);
+    }
+    Step updated =
+        triggerConditions == null
+            ? stepService.updateInjectStepTemplateData(stepTemplateId, stepInput)
+            : stepService.updateInjectStepTemplateDataAndTrigger(
+                stepTemplateId, stepInput, triggerConditions);
     rearmStepForReExecution(updated);
   }
 
@@ -1718,12 +2594,12 @@ public class WorkflowService {
    * Re-arms an in-place-updated step so its corrected definition re-executes on the next {@link
    * #evaluateWorkflowProgress}. The data swap alone never re-runs an already-executed step: its
    * committed execution hashes still mark it fired, so the engine skips it. Clearing those hashes
-   * on the step's live RUN workflow(s) lets it ready again — this is what makes the autonomous
+   * on the step's live RUN workflow(s) lets it ready again - this is what makes the autonomous
    * "update a step, evaluate, re-run the corrected version" loop actually re-fire.
    *
    * <p>Simulation-scoped by construction: re-fire state lives only on RUN workflows, which exist
    * only on the simulation. A scenario-owned template (e.g. the autonomous scenario mirror twin,
-   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it —
+   * updated in lock-step) has no simulation and no RUN workflow, so this is a no-op for it -
    * exactly right, since the mirror never executes.
    */
   private void rearmStepForReExecution(Step stepTemplate) {
@@ -1737,12 +2613,19 @@ public class WorkflowService {
   }
 
   /**
-   * One authored attack-path step: its stable template id, its DEPEND_ON parent (null for a root),
-   * the baked inject JSON ({@code step_data}), and the inject ids of every run step it has spawned.
+   * One authored attack-path step: its stable template id, its DEPEND_ON ordering parent (null when
+   * it is a seed or wired finding-driven), the baked inject JSON ({@code step_data}), the inject
+   * ids of every run step it has spawned, and the read-back of its finding TRIGGER - the event
+   * name, the filter predicates it fires on, and the finding-value input bindings it consumes - so
+   * a reader reconstructs the finding-driven wiring rather than inferring a linear DEPEND_ON chain.
    */
   public record AuthoredAttackStep(
       String stepTemplateId,
       String parentStepTemplateId,
       String injectDataJson,
-      List<String> runInjectIds) {}
+      List<String> runInjectIds,
+      String eventId,
+      String eventName,
+      List<String> triggerFilters,
+      List<String> triggerMappings) {}
 }

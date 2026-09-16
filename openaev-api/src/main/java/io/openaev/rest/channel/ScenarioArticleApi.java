@@ -6,6 +6,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.Inject;
@@ -40,7 +41,8 @@ public class ScenarioArticleApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   @Transactional(readOnly = true)
-  public Iterable<ArticleOutput> scenarioArticles(@PathVariable @NotBlank final String scenarioId) {
+  public Iterable<ArticleOutput> scenarioArticles(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     List<Inject> injects =
         this.injectRepository.findAll(
             InjectSpecification.fromScenario(scenarioId)

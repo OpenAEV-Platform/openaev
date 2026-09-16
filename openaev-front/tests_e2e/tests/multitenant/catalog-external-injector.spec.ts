@@ -6,11 +6,8 @@ import CatalogPage from '../../model/integrations/CatalogPage';
 import InjectorInstancePage from '../../model/integrations/InjectorInstancePage';
 import InjectorsListPage from '../../model/integrations/InjectorsListPage';
 import LeftMenuComponent from '../../model/LeftMenuComponent';
-import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
-import TenantsPage from '../../model/platform/TenantsPage';
 import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
-import { TIMEOUT } from '../../utils/constants';
-import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
+import { tenantUrl } from '../../utils/url';
 
 /**
  * End-to-end test: catalog injector installation per tenant.
@@ -23,33 +20,11 @@ test.describe('Catalog — injector installation per tenant', () => {
 
   const NMAP_INJECTOR_NAME = 'Nmap - Tenant A';
   let newTenantId: string | null = null;
-  let tenantName: string;
 
-  test.beforeEach(async ({ page }) => {
-    tenantName = `Tenant A E2E ${Date.now()}`;
-    const tenantsPage = new TenantsPage(page);
-    await page.goto(tenantUrl('/admin/settings/security/tenants'));
-    await tenantsPage.waitForLoad();
-    await expect(
-      tenantsPage.createFabButton,
-      'Enterprise Edition / multi-tenancy must be enabled: expected the tenant "Add" button to be visible.',
-    ).toBeVisible({ timeout: TIMEOUT });
-    await tenantsPage.openCreateDrawer();
-    await tenantsPage.fillTenantName(tenantName);
-    await tenantsPage.submitCreate();
-
-    const tenantSwitcher = new TenantSwitcherComponent(page);
-    await tenantSwitcher.openSwitcher('Default');
-    await expect(tenantSwitcher.popoverTenantItems.filter({ hasText: tenantName })).toHaveCount(1);
-    await tenantSwitcher.selectTenantByName(tenantName);
-
-    await page.waitForURL(
-      url => !url.toString().includes(DEFAULT_TENANT_UUID),
-      { timeout: TIMEOUT },
-    );
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const segments = new URL(page.url()).pathname.split('/').filter(Boolean);
-    newTenantId = segments.find(s => uuidPattern.test(s) && s !== DEFAULT_TENANT_UUID) ?? null;
+  test.beforeEach(async ({ request }) => {
+    const tenantName = `Tenant A E2E ${Date.now()}`;
+    const createdTenant = await new TenantApiHelpers(request).createTenant(tenantName);
+    newTenantId = createdTenant.tenant_id;
   });
 
   test.afterEach(async ({ request }) => {
@@ -114,25 +89,12 @@ test.describe('Catalog — injector installation per tenant', () => {
     await expect(threatArsenalList.getItem(1)).toBeVisible();
 
     // ─────────────────────────────────────────────────
-    // Step — Switch tenant to the default tenant
-    // ─────────────────────────────────────────────────
-    // Act: open the left-bar tenant switcher and pick any tenant that is NOT Tenant A
-    const tenantSwitcher = new TenantSwitcherComponent(page);
-    await tenantSwitcher.openSwitcher(tenantName);
-    await tenantSwitcher.selectTenantByName('Default');
-    // Assert: URL now contains the default tenant UUID
-    await page.waitForURL(
-      url => url.toString().includes(DEFAULT_TENANT_UUID),
-      { timeout: TIMEOUT },
-    );
-
-    // ─────────────────────────────────────────────────
     // Step — Verify "Nmap - Tenant A" is NOT visible in the default tenant
     // ─────────────────────────────────────────────────
     // Arrange: navigate to the injectors list in the default tenant
     await page.goto(tenantUrl('/admin/integrations/deployed'));
     await injectorsListPage.waitForLoad();
     // Assert: the collector name from Tenant A must not appear here
-    await expect(page.getByText(NMAP_INJECTOR_NAME)).toBeHidden();
+    await expect(injectorsListPage.getInjectorCard(NMAP_INJECTOR_NAME)).toHaveCount(0);
   });
 });

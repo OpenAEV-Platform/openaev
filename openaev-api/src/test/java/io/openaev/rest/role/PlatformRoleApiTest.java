@@ -1,6 +1,7 @@
 package io.openaev.rest.role;
 
 import static io.openaev.api.platform.roles.PlatformRoleApi.PLATFORM_ROLES_URI;
+import static io.openaev.rest.exception.PrivilegeGrantException.UNHELD_CAPABILITIES;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -10,15 +11,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.api.platform.roles.PlatformRoleInput;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
+import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.role.form.RoleInput;
 import io.openaev.utils.fixtures.PlatformRoleFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
 import io.openaev.utils.fixtures.composers.TenantRoleComposer;
+import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
+import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.*;
@@ -36,7 +41,9 @@ public class PlatformRoleApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private RoleRepository roleRepository;
+  @Autowired private GroupRepository groupRepository;
   @Autowired private PlatformRoleComposer platformRoleComposer;
+  @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
@@ -49,9 +56,11 @@ public class PlatformRoleApiTest extends IntegrationTest {
     @DisplayName("Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should create a platform role")
     void given_managePlatform_should_createRole() throws Exception {
       // -------- Arrange --------
-      PlatformRoleInput input =
-          new PlatformRoleInput(
-              "NewPlatformRole", "A description", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+      RoleInput input =
+          new RoleInput(
+              "NewPlatformRole",
+              "A description",
+              Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES));
 
       // -------- Act --------
       String response =
@@ -67,9 +76,9 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -------- Assert --------
-      assertNotNull(JsonPath.read(response, "$.platform_role_id"));
-      assertEquals("NewPlatformRole", JsonPath.read(response, "$.platform_role_name"));
-      assertEquals("A description", JsonPath.read(response, "$.platform_role_description"));
+      assertNotNull(JsonPath.read(response, "$.role_id"));
+      assertEquals("NewPlatformRole", JsonPath.read(response, "$.role_name"));
+      assertEquals("A description", JsonPath.read(response, "$.role_description"));
     }
 
     @Test
@@ -77,8 +86,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
     @DisplayName("Given ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES only, should be forbidden to create")
     void given_accessPlatform_should_forbidCreate() throws Exception {
       // -------- Arrange --------
-      PlatformRoleInput input =
-          new PlatformRoleInput("Forbidden", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+      RoleInput input =
+          new RoleInput("Forbidden", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -88,6 +97,58 @@ public class PlatformRoleApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should be forbidden to assign unowned capabilities")
+    void given_managePlatform_should_forbidCreateWithUnownedCapabilities() throws Exception {
+      // -------- Arrange --------
+      RoleInput input =
+          new RoleInput("Forbidden", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              post(PLATFORM_ROLES_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, Capability.BYPASS})
+    @DisplayName(
+        "Given a platform manager whose BYPASS only comes from a tenant, should refuse to grant it platform-wide")
+    void given_platformManagerHoldingTenantBypass_should_forbidGrantingBypassPlatformWide()
+        throws Exception {
+      // The mock user puts platform-only capabilities in a platform group and BYPASS — which is
+      // tenant-scoped too — in a tenant group. The caller therefore clears the endpoint's access
+      // check while holding BYPASS in one tenant only.
+      RoleInput input = new RoleInput("Escalated", "desc", Set.of(Capability.BYPASS));
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  post(PLATFORM_ROLES_URI)
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      // Naming BYPASS proves the escalation guard refused it, not the access-control aspect,
+      // which would have produced a 403 with no body.
+      assertEquals(UNHELD_CAPABILITIES, JsonPath.read(response, "$.message"));
+      List<String> refused = JsonPath.read(response, "$.errors.children.message.errors");
+      assertTrue(refused.contains(Capability.BYPASS.name()));
     }
   }
 
@@ -118,13 +179,14 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -------- Assert --------
-      assertEquals(role.getId(), JsonPath.read(response, "$.platform_role_id"));
-      assertEquals("FindMeRole", JsonPath.read(response, "$.platform_role_name"));
+      assertEquals(role.getId(), JsonPath.read(response, "$.role_id"));
+      assertEquals("FindMeRole", JsonPath.read(response, "$.role_name"));
     }
 
     @Test
     @WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES})
-    @DisplayName("Given ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES, should return capabilities")
+    @DisplayName(
+        "Given ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES, should expose capabilities in the output")
     void given_accessPlatform_should_returnCapabilities() throws Exception {
       // -------- Arrange --------
       Role role =
@@ -136,7 +198,7 @@ public class PlatformRoleApiTest extends IntegrationTest {
       // -------- Act --------
       String response =
           mvc.perform(
-                  get(PLATFORM_ROLES_URI + "/" + role.getId() + "/capabilities")
+                  get(PLATFORM_ROLES_URI + "/" + role.getId())
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().isOk())
@@ -145,7 +207,7 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -------- Assert --------
-      List<String> caps = JsonPath.read(response, "$");
+      List<String> caps = JsonPath.read(response, "$.role_capabilities");
       assertTrue(caps.contains(Capability.ACCESS_PLATFORM_SETTINGS.name()));
     }
 
@@ -253,9 +315,11 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      PlatformRoleInput input =
-          new PlatformRoleInput(
-              "UpdatedRoleName", "Updated desc", Set.of(Capability.MANAGE_PLATFORM_SETTINGS));
+      RoleInput input =
+          new RoleInput(
+              "UpdatedRoleName",
+              "Updated desc",
+              Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES));
 
       // -------- Act --------
       String response =
@@ -271,8 +335,52 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -------- Assert --------
-      assertEquals("UpdatedRoleName", JsonPath.read(response, "$.platform_role_name"));
-      assertEquals("Updated desc", JsonPath.read(response, "$.platform_role_description"));
+      assertEquals("UpdatedRoleName", JsonPath.read(response, "$.role_name"));
+      assertEquals("Updated desc", JsonPath.read(response, "$.role_description"));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given a platform role polluted with a tenant-only capability, update should drop it"
+            + " instead of rejecting the payload")
+    void given_pollutedPlatformRole_should_dropOutOfScopeCapabilityOnUpdate() throws Exception {
+      // -------- Arrange --------
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(
+                  PlatformRoleFixture.getPlatformRole(
+                      "Polluted",
+                      Set.of(
+                          Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES,
+                          Capability.ACCESS_ASSETS)))
+              .persist()
+              .get();
+
+      RoleInput input =
+          new RoleInput(
+              "Healed",
+              "healed",
+              Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, Capability.ACCESS_ASSETS));
+
+      // -------- Act --------
+      mvc.perform(
+              put(PLATFORM_ROLES_URI + "/" + role.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // -------- Assert --------
+      entityManager.flush();
+      entityManager.clear();
+      Role reloaded = roleRepository.findById(role.getId()).orElseThrow();
+      assertFalse(
+          reloaded.getCapabilities().contains(Capability.ACCESS_ASSETS),
+          "the tenant-only capability should have been dropped");
+      assertTrue(
+          reloaded.getCapabilities().contains(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES));
     }
 
     @Test
@@ -286,9 +394,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      PlatformRoleInput input =
-          new PlatformRoleInput(
-              "Forbidden", "forbidden", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+      RoleInput input =
+          new RoleInput("Forbidden", "forbidden", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -298,6 +405,31 @@ public class PlatformRoleApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should be forbidden to update with unowned capabilities")
+    void given_managePlatform_should_forbidUpdateWithUnownedCapabilities() throws Exception {
+      // -------- Arrange --------
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(PlatformRoleFixture.getPlatformRole("NotUpdatable"))
+              .persist()
+              .get();
+
+      RoleInput input =
+          new RoleInput("Forbidden", "forbidden", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(PLATFORM_ROLES_URI + "/" + role.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
     }
   }
 
@@ -329,6 +461,42 @@ public class PlatformRoleApiTest extends IntegrationTest {
       entityManager.clear();
       assertFalse(
           roleRepository.findById(role.getId()).filter(r -> r.getTenant() == null).isPresent());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.DELETE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName(
+        "Given DELETE_PLATFORM_USERS_GROUPS_AND_ROLES, should delete a role still attached to a group")
+    void given_deletePlatform_should_deleteRoleAttachedToGroup() throws Exception {
+      // -------- Arrange --------
+      // Role is the unmapped inverse side of groups_roles, so nothing detaches the join row on its
+      // own and the delete would break on the foreign key.
+      Role role =
+          platformRoleComposer
+              .forPlatformRole(PlatformRoleFixture.getPlatformRole("AttachedToDeleteRole"))
+              .persist()
+              .get();
+      Group group =
+          platformGroupComposer
+              .forPlatformGroup(PlatformGroupFixture.getPlatformGroup("GroupHoldingDeletedRole"))
+              .persist()
+              .get();
+      group.setRoles(new ArrayList<>(List.of(role)));
+      groupRepository.save(group);
+      entityManager.flush();
+
+      // -------- Act --------
+      mvc.perform(
+              delete(PLATFORM_ROLES_URI + "/" + role.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNoContent());
+
+      // -------- Assert --------
+      entityManager.flush();
+      entityManager.clear();
+      assertFalse(roleRepository.findById(role.getId()).isPresent());
+      assertTrue(groupRepository.findById(group.getId()).orElseThrow().getRoles().isEmpty());
     }
 
     @Test

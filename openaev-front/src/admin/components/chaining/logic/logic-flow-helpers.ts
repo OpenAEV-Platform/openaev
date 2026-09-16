@@ -1,6 +1,6 @@
 import { type Edge, MarkerType } from '@xyflow/react';
 
-import { directFetchInjectorContract } from '../../../../actions/InjectorContracts';
+import { directFetchWorkflowInjectorContract } from '../../../../actions/chaining/workflow-actions';
 import type { ConditionOutput, EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
 import {
@@ -324,9 +324,14 @@ export const buildEventData = (events: EventOutput[]): { eventMetas: Record<stri
 /**
  * Fetch injector contract fields for each action that has a contract.
  * Mutates the input actionMetas in place for performance.
+ *
+ * Contracts are read through the workflow-scoped endpoint so a user who only holds a read grant
+ * on the parent simulation/scenario — and none of the threat arsenal capabilities — still gets
+ * the fields of the contracts already used by the graph.
  */
 export const enrichActionMetasWithContracts = async (
   actionMetas: Record<string, ActionMeta>,
+  workflowId: string,
 ): Promise<Record<string, ActionMeta>> => {
   const contractIds = Array.from(new Set(
     Object.values(actionMetas)
@@ -338,7 +343,7 @@ export const enrichActionMetasWithContracts = async (
 
   await Promise.all(contractIds.map(async (cid) => {
     try {
-      const res = await directFetchInjectorContract(cid) as { data: { injector_contract_content?: string } };
+      const res = await directFetchWorkflowInjectorContract(workflowId, cid) as { data: { injector_contract_content?: string } };
       if (res.data?.injector_contract_content) {
         const parsed = JSON.parse(res.data.injector_contract_content);
         contractFieldsMap[cid] = (parsed.fields ?? []) as ContractElement[];

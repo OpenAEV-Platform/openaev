@@ -9,18 +9,30 @@ To create a user, click on the `+` button:
 ![Create user](assets/user-creation.png)
 ![Create user](assets/user-creation-input.png)
 
+- If the user does not exist yet, OpenAEV creates the account and automatically sends a reset code
+  by email so the user can choose their own password.
+- If the user already exists, OpenAEV attaches that user to your tenant and keeps their current
+  password unchanged.
+
+The user can complete onboarding from the login reset screen in two ways:
+1. Request a new code with **Send reset code**.
+2. If they already received one, click **I already have a code** and enter it directly.
+
 To update a user, click on the ellipsis menu:
 
 ![User manage](assets/user-update.png)
 
-Here, you can modify parameters such as the organization, phone number, password, and even your GPG public key:
+Here, you can modify parameters such as the organization, phone number, and even your GPG public key:
 
 ![User manage](assets/user-update-input.png)
-![User manage](assets/user-update-pwd.png)
 
 To delete a user:
 
 ![User manage](assets/user-delete.png)
+
+The platform administrator account cannot be deleted, and neither can your own account. In both
+cases the delete action stays visible but disabled, and hovering it explains why. Administrator
+accounts are also flagged in the list so the restriction is visible without opening the menu.
 
 
 # User permissions
@@ -84,7 +96,11 @@ Below is a full list of capabilities in OpenAEV:
 | `Access threat arsenal actions` | Read-only access to the threat arsenal action library (attack scripts, tools, and techniques used in Simulations).                        |
 | &nbsp;&nbsp;`Manage threat arsenal actions` | Create and update threat arsenal actions in the library. Requires *Access threat arsenal actions*.                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete threat arsenal actions` | Permanently delete threat arsenal actions from the library. Requires *Manage threat arsenal actions*.                                     |
-| **Dashboards** |                                                                                                                                           |
+|  **Reporting** |                                                                                                                                           |
+| `Access reporting` | Read-only access to tenant reporting and generated reports.                                                                               |
+| &nbsp;&nbsp;`Manage reporting` | Create, update, and configure reporting content. Requires *Access reporting*.                                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete reporting` | Permanently delete reporting content. Requires *Manage reporting*.                                                                        |
+**Dashboards** |                                                                                                                                           |
 | `Access Dashboards` | Read-only access to platform Dashboards and their visualizations.                                                                         |
 | &nbsp;&nbsp;`Manage Dashboards` | Create, update, and configure Dashboards. Requires *Access Dashboards*.                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete Dashboards` | Permanently delete Dashboards. Requires *Manage Dashboards*.                                                                              |
@@ -97,15 +113,34 @@ Below is a full list of capabilities in OpenAEV:
 | `Access channels` | Read-only access to communication channels used to deliver exercise Injects to Players.                                                   |
 | &nbsp;&nbsp;`Manage channels` | Create and update channels. Requires *Access channels*.                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete channels` | Permanently delete channels. Requires *Manage channels*.                                                                                  |
+| `Access phishing` | Read-only access to phishing Landing Pages and Email Templates.                                                                           |
+| &nbsp;&nbsp;`Manage phishing` | Create, update, and duplicate phishing Landing Pages and Email Templates. Requires *Access phishing*.                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete phishing` | Permanently delete phishing Landing Pages and Email Templates. Requires *Manage phishing*.                                                |
 | `Access challenges` | Read-only access to challenges (CTF-style tasks or objectives assigned to Players during exercises).                                      |
 | &nbsp;&nbsp;`Manage challenges` | Create and update challenges. Requires *Access challenges*.                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete challenges` | Permanently delete challenges. Requires *Manage challenges*.                                                                              |
 | `Access lessons learned` | Read-only access to lessons learned records captured after assessments or exercises.                                                      |
 | &nbsp;&nbsp;`Manage lessons learned` | Create and update lessons learned entries. Requires *Access lessons learned*.                                                             |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete lessons learned` | Permanently delete lessons learned entries. Requires *Manage lessons learned*.                                                            |
+ **Tenant Settings** |                                                                                                                                           |
+| `Access tenant settings` | Read-only access to tenant-level configuration and administration settings.                                                               |
+| &nbsp;&nbsp;`Manage tenant settings` | Create, update, and configure tenant-level settings. Requires *Access tenant settings*.                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant settings` | Permanently delete tenant-level settings. Requires *Manage tenant settings*.                                                              |
+| **Tags** |                                                                                                                                           |
+| `Access tags` | Read-only access to the tags page.                                                                                                        |
+| &nbsp;&nbsp;`Manage tags` | Create, update, and configure tags. Requires *Access tags*.                                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tags` | Permanently delete tags. Requires *Manage tags*.                                                                                          |
 | **Platform settings** |                                                                                                                                           |
 | `Access platform settings` | Read-only access to platform-wide configuration and administration settings.                                                              |
 | &nbsp;&nbsp;`Manage platform settings` | Modify platform-wide settings including security configuration, integrations, and system parameters. Requires *Access platform settings*. |
+| **Tenant settings** |                                                                                                                                           |
+| `Access tenant settings` | Read-only access to the tenant administration surface: tags, tag rules, attack patterns, organizations, collectors, injectors, notifiers. |
+| &nbsp;&nbsp;`Manage tenant settings` | Create and update them. Requires *Access tenant settings*.                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant settings` | Permanently delete them. Requires *Manage tenant settings*.                                                                               |
+| **Security** |                                                                                                                                           |
+| `Access tenant users, groups and roles` | Read-only access to the tenant's users, groups and roles.                                                                                 |
+| &nbsp;&nbsp;`Manage tenant users, groups and roles` | Create and update the tenant's users, groups and roles. Requires *Access tenant users, groups and roles*.                                 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant users, groups and roles` | Permanently delete them. Requires *Manage tenant users, groups and roles*.                                                                |
 
 
 
@@ -125,6 +160,43 @@ Below is a full list of capabilities in OpenAEV:
     This capability combines Scenarios, Simulations and Atomic Tests.
 
 Once the role is created, it can be assigned to a **group**. All users in that group will automatically inherit the role's permissions.
+
+
+## Delegating capabilities
+
+A user can only grant what they hold themselves. This prevents privilege escalation: no one can widen their own reach, or someone else's, beyond their own capabilities. The rule is enforced by the API, and the interface shows it before anything is submitted.
+
+Users with the `Bypass (user has all rights)` capability hold everything, so they never see these restrictions.
+
+### In a role
+
+When creating or updating a role, capabilities you do not hold are shown in grey with a padlock, and their checkbox is disabled. A capability group whose entire content is locked is greyed as a whole.
+
+![Locked capabilities in a role](assets/capability-lock-role.png)
+
+A locked capability that the role **already carries** stays removable: you can narrow an existing role even where you could not have created it. What you cannot do is add such a capability back. If a restricted capability is still selected when you save, the form refuses and lists the capabilities to remove.
+
+!!! warning "Narrowing is possible, widening is not"
+
+    Removing a capability you do not hold is allowed, and it is a one-way door: once removed and saved, you will not be able to put it back.
+
+### In a group's roles
+
+The same rule applies when attaching roles to a group. A role carrying at least one capability you do not hold is locked in the picker, and the **Update** button stays disabled while such a role is selected.
+
+![Locked roles in a group](assets/capability-lock-group-roles.png)
+
+Here too, a restricted role already attached to the group can be detached, but not re-attached.
+
+### In a group's members
+
+Group membership is governed by the capabilities the group's own roles carry. If those roles include capabilities you do not hold, adding or removing a member would indirectly grant or revoke them, so the whole member list is frozen and a message names the missing capabilities.
+
+![Locked group membership](assets/capability-lock-group-users.png)
+
+!!! tip "Getting access"
+
+    These restrictions follow your own capabilities, not your seniority. To manage a role or a group you are locked out of, ask an administrator to grant you the missing capabilities listed in the message.
 
 
 

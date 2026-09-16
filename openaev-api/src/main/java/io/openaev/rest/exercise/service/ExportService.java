@@ -96,6 +96,11 @@ public class ExportService {
     workflowOpt.ifPresent(
         workflow -> {
           workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          if (isChaining) {
+            ArrayList<Tag> workflowAndExerciseTags = new ArrayList<>(importExport.getTags());
+            workflowAndExerciseTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
+            importExport.setTags(workflowAndExerciseTags.stream().distinct().toList());
+          }
           importExport.setWorkflow(workflow);
         });
 

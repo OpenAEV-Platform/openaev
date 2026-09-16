@@ -119,8 +119,12 @@ public class TaniumExecutorService implements Runnable {
                   toAgentEndpoint(nodeEndpoints),
                   agentService.getAgentsByExecutorIdAndTenantId(executor.getId(), tenantId),
                   tenantId);
-          assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
-          assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
+          assetGroup.setAssets(
+              agents.stream()
+                  .map(Agent::getAsset)
+                  .collect(Collectors.toCollection(ArrayList::new)));
+          assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(
+              assetGroup, executor.getTenantId());
         }
       }
     } catch (Exception e) {

@@ -1,12 +1,21 @@
 # Lessons
 
-Lessons let you create customizable surveys that collect qualitative feedback from Players after a Simulation. Each survey is composed of categories and questions that you define.
+Lessons let you create customizable surveys that collect qualitative feedback from Players after a Scenario or Simulation. Each survey is composed of categories and questions that you define.
 
 ## Why use Lessons?
 
-- Capture qualitative feedback that complements the quantitative results of a Simulation.
+- Capture qualitative feedback that complements the quantitative results of a Scenario or Simulation.
 - Identify gaps in processes, communication, or awareness that technical metrics alone cannot reveal.
 - Automate the lessons-learned step that is often overlooked in Breach and Attack Simulations.
+
+## Use Lessons with Scenarios and Simulations
+
+Enable Lessons on the Scenario or Simulation details page to expose the Lessons learned tab.
+
+- **Time-based Scenarios and Simulations** use the Teams already configured on the Scenario or Simulation.
+- **Chained Scenarios and Simulations** use the teams defined in the run scope, so the Lessons target picker shows the same audience you selected for the chain.
+
+The rest of the workflow is the same: create categories and questions, apply a template, and send the survey to the selected Teams.
 
 ## Create a lesson template
 
@@ -39,7 +48,7 @@ To create a new question, follow these steps:
 
 ## Use a lesson template
 
-Use Lesson templates in the **Lesson Learned** tab of a Simulation:
+Use lesson templates in the **Lessons learned** tab:
 
 1. Apply a new template.
 2. Add relevant teams to the most pertinent categories.

@@ -4,8 +4,6 @@ import { fetchExercise, fetchExerciseTeams } from '../../../../actions/Exercise'
 import { dryImportXlsForExercise, importXlsForExercise } from '../../../../actions/exercises/exercise-action';
 import {
   addInjectForExercise,
-  bulkDeleteInjectsSimple,
-  bulkUpdateInjectSimple,
   deleteInjectForExercise,
   fetchExerciseInjects,
   injectDone,
@@ -15,7 +13,7 @@ import {
 } from '../../../../actions/Inject';
 import { bulkTestInjects } from '../../../../actions/inject_test/simulation-inject-test-actions';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
-import { createInjectsForSimulation, importInjectsForSimulation, searchExerciseInjectsSimple } from '../../../../actions/simulations/simulation-inject-actions';
+import { bulkDeleteInjectsForSimulation, bulkUpdateInjectForSimulation, createInjectsForSimulation, importInjectsForSimulation, searchExerciseInjectsSimple } from '../../../../actions/simulations/simulation-inject-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
 import {
   type Exercise,
@@ -54,7 +52,7 @@ const injectContextForExercise = (exercise: Exercise) => {
       return dispatch(createInjectsForSimulation(exercise.exercise_id, inputs));
     },
     onBulkUpdateInject(param: InjectBulkUpdateInputs): Promise<Inject[] | void> {
-      return bulkUpdateInjectSimple(param).then((result: { data: Inject[] }) => result?.data);
+      return bulkUpdateInjectForSimulation(exercise.exercise_id, param).then((result: { data: Inject[] }) => result?.data);
     },
     onUpdateInject(injectId: Inject['inject_id'], inject: Inject): Promise<{
       result: string;
@@ -103,7 +101,7 @@ const injectContextForExercise = (exercise: Exercise) => {
       return dryImportXlsForExercise(exercise.exercise_id, importId, input).then(result => result.data);
     },
     onBulkDeleteInjects(param: InjectBulkProcessingInput): Promise<Inject[]> {
-      return bulkDeleteInjectsSimple(param).then((result: { data: Inject[] }) => result?.data);
+      return bulkDeleteInjectsForSimulation(exercise.exercise_id, param).then((result: { data: Inject[] }) => result?.data);
     },
     bulkTestInjects(param: InjectBulkProcessingInput): Promise<{
       uri: string;

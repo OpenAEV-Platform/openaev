@@ -6,6 +6,8 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -41,6 +43,7 @@ public class SecurityPlatformApi {
   @Value("${info.app.version:unknown}")
   String version;
 
+  private final TenantWriteScopeResolver writeScopeResolver;
   private final SecurityPlatformRepository securityPlatformRepository;
   private final DocumentRepository documentRepository;
   private final TagRepository tagRepository;
@@ -87,8 +90,14 @@ public class SecurityPlatformApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform createSecurityPlatform(
-      @Valid @RequestBody final SecurityPlatformInput input) {
+      TxCtx ctx, @Valid @RequestBody final SecurityPlatformInput input) {
+    // A security platform is a row of the assets table: resolve the single tenant this write
+    // belongs to and refuse an unscoped or ambiguous request with a 400, rather than letting the
+    // v1 listener pick one from the thread-local. Unlike the upsert below, this route is UI-driven
+    // and stays strict: it carries no @RequireTenantSelector fallback (D9).
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     SecurityPlatform securityPlatform = new SecurityPlatform();
+    securityPlatform.setTenant(new Tenant(tenantId));
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
     if (input.getLogoDark() != null) {
@@ -109,7 +118,7 @@ public class SecurityPlatformApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform upsertSecurityPlatform(
-      @Valid @RequestBody SecurityPlatformUpsertInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody SecurityPlatformUpsertInput input) {
     // A collector redeployed through the Integration Manager registers with a freshly
     // generated collector id (the external reference), while the platform row created by
     // the previous deployment still exists: fall back to the unique (name, type) pair so
@@ -123,6 +132,12 @@ public class SecurityPlatformApi {
                     securityPlatformRepository.findByNameIgnoreCaseAndSecurityPlatformType(
                         input.getName(), input.getSecurityPlatformType()))
             .orElseGet(SecurityPlatform::new);
+    if (securityPlatform.getId() == null) {
+      // Only a brand-new row needs attribution. A row found above was read through the
+      // tenant-scoped statement inspector, so it already belongs to the caller's scope and
+      // re-stamping it would move an existing platform between tenants.
+      securityPlatform.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
+    }
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
     if (input.getLogoDark() != null) {
@@ -160,9 +175,11 @@ public class SecurityPlatformApi {
       return;
     }
     injectorRepository
-        .findByTypeAndTenantId(externalReference, securityPlatform.getTenant().getId())
+        .findBySecurityPlatformExternalReferenceByTenantId(
+            externalReference, securityPlatform.getTenant().getId())
+        .stream()
         .filter(injector -> injector.getSecurityPlatform() == null)
-        .ifPresent(
+        .forEach(
             injector -> {
               injector.setSecurityPlatform(securityPlatform);
               injectorRepository.save(injector);
@@ -241,7 +258,8 @@ public class SecurityPlatformApi {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteSecurityPlatform(@PathVariable @NotBlank final String securityPlatformId) {
+  public void deleteSecurityPlatform(
+      TxCtx ctx, @PathVariable @NotBlank final String securityPlatformId) {
     this.securityPlatformRepository.deleteById(securityPlatformId);
   }
 
@@ -261,7 +279,8 @@ public class SecurityPlatformApi {
             responseCode = "200",
             description = "The list of Documents used in the security platform")
       })
-  public List<RawDocument> documentsFromSecurityPlatform(@PathVariable String securityPlatformId) {
+  public List<RawDocument> documentsFromSecurityPlatform(
+      TxCtx ctx, @PathVariable String securityPlatformId) {
     return documentService.documentsForSecurityPlatform(securityPlatformId);
   }
 
@@ -269,7 +288,7 @@ public class SecurityPlatformApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return securityPlatformRepository.findAllByName(StringUtils.trimToNull(searchText)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
@@ -278,7 +297,7 @@ public class SecurityPlatformApi {
   @PostMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.securityPlatformRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

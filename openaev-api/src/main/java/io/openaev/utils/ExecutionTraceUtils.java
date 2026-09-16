@@ -76,6 +76,14 @@ public class ExecutionTraceUtils {
         null);
   }
 
+  public static void addSimulationInterruptedTrace(InjectStatus status) {
+    status.addTrace(
+        ExecutionTraceStatus.INTERRUPTED,
+        "Inject stopped due to simulation interruption.",
+        ExecutionTraceAction.COMPLETE,
+        null);
+  }
+
   /**
    * Adds an agentless COMPLETE/TIMEOUT trace for an inject that has no agent to attribute a timeout
    * to (network scanners such as Nuclei target assets without an agent). Without it, a

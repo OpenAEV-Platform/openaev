@@ -10,7 +10,6 @@ import TextFieldController from '../../../../components/fields/TextFieldControll
 import { useFormatter } from '../../../../components/i18n';
 import type { PayloadArgument } from '../../../../utils/api-types';
 import { formatPrimitiveTypeLabel } from '../../../../utils/String';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import useArgumentTypes from './useArgumentTypes';
 
 interface Props {
@@ -24,8 +23,6 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
   const theme = useTheme();
   const { watch, control } = useFormContext();
   const argumentType: PayloadArgument['type'] = watch(`${argumentName}.type`);
-  /** Types that require the INJECT_CHAINING feature flag to be selectable. */
-  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
   const { argumentTypes, argumentWithDefaultValueTypes } = useArgumentTypes();
 
   /** Always-available types */
@@ -57,12 +54,10 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
           label: t('Targeted assets'),
         }]
       : [],
-    ...(isChainingEnabled
-      ? argumentTypes
-          .filter(at => !alwaysAvailableTypes.has(at)
-            && at !== 'targeted-asset')
-          .map(at => toItem(at))
-      : []),
+    ...argumentTypes
+      .filter(at => !alwaysAvailableTypes.has(at)
+        && at !== 'targeted-asset')
+      .map(at => toItem(at)),
   ];
   const targetPropertyItems = [
     {

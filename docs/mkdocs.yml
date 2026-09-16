@@ -148,6 +148,7 @@ nav:
         - CSRF token enforcement for frontend API calls: deployment/breaking-changes/2.3.4-csrf-token-enforcement.md
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
+        - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:
@@ -168,8 +169,21 @@ nav:
         - Custom Dashboards: usage/evaluate/dashboards/custom-dashboards.md
         - Widgets: usage/evaluate/dashboards/widgets.md
       - Reporting: usage/evaluate/reporting/reporting.md
-      - Autonomous attack path (AI): usage/autonomous-attack-path.md
       - Security Coverage enrichment (XTM Suite): usage/evaluate/xtm-suite-connector.md
+      - Notifications & Triggers:
+        - Overview: usage/notifications/overview.md
+        - Triggers: usage/notifications/triggers.md
+        - Notification Center: usage/notifications/notification-center.md
+    - Attack Chaining:
+      - Overview: usage/attack-chaining/overview.md
+      - Scope Definition: usage/attack-chaining/scope-definition.md
+      - Action Selection: usage/attack-chaining/action-selection.md
+      - Logic Creation: usage/attack-chaining/logic-creation.md
+      - Attack Path Map: usage/attack-chaining/attack-path-map.md
+    - Autonomous Attack Chaining (AI Penetration Testing):
+      - Overview: usage/autonomous-attack-chaining/overview.md
+      - Scenario Creation: usage/autonomous-attack-chaining/scenario-creation.md
+      - Configuration: usage/autonomous-attack-chaining/configuration.md
     - Build your own Threat Scenario:
       - Scenario: usage/build/scenario/scenario.md
       - Scenario Generation from OpenCTI Security Coverage: usage/build/scenario/security-coverage.md
@@ -181,13 +195,20 @@ nav:
         - Custom variables: usage/build/components/variables.md
         - Channels: usage/build/components/channels.md
         - Media pressure: usage/build/components/media-pressure.md
-        - Phishing: usage/build/components/phishing.md
+        - Phishing:
+          - Overview: usage/build/components/phishing/overview.md
+          - Landing pages: usage/build/components/phishing/landing-pages.md
+          - Email templates: usage/build/components/phishing/email-templates.md
+          - Run a phishing exercise: usage/build/components/phishing/run-a-campaign.md
+          - Results and scoring: usage/build/components/phishing/results.md
+          - Custom domains: usage/build/components/phishing/custom-domains.md
         - Challenges: usage/build/components/challenges.md
         - Lessons: usage/build/components/lessons.md
       - Threat Arsenal:
         - Actions: usage/build/threat-arsenals/threat-arsenals.md
+        - Action properties: usage/build/threat-arsenals/action-properties.md
+        - Output parsers: usage/build/threat-arsenals/output-parsers.md
         - Domains: usage/build/threat-arsenals/domains.md
-    - Notifications: usage/notifications.md
     - Interact with your environment:
       - Injectors:
         - Overview: usage/environment/injectors.md

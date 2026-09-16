@@ -141,7 +141,7 @@ const TagField: FunctionComponent<Props> = ({
                 ...params.InputProps,
                 endAdornment: (
                   <>
-                    <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+                    <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
                       <IconButton
                         style={{
                           position: 'absolute',
@@ -162,7 +162,7 @@ const TagField: FunctionComponent<Props> = ({
         )}
         classes={{ clearIndicator: classes.autoCompleteIndicator }}
       />
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
         <Dialog
           open={tagCreation}
           onClose={handleCloseTagCreation}

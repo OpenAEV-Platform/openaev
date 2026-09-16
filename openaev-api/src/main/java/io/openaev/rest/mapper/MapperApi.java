@@ -6,6 +6,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -142,6 +143,7 @@ public class MapperApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   @LogExecutionTime
   public void exportMappersCsv(
+      TxCtx ctx,
       @RequestParam CsvType csvType,
       @RequestBody @Valid final SearchPaginationInput input,
       HttpServletResponse response) {
@@ -209,7 +211,8 @@ public class MapperApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Import injects into an xls file")
-  public ImportPostSummary importXLSFile(@RequestPart("file") @NotNull MultipartFile file) {
+  public ImportPostSummary importXLSFile(
+      TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) {
     validateUploadedFile(file);
     return injectImportService.storeXlsFileForImport(file);
   }
@@ -222,6 +225,10 @@ public class MapperApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary testImportXLSFile(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this read (importInjectIntoScenarioFromXLS reads InjectorContract#
+      // getFirstInjector() to attach an injector to each previewed inject).
+      TxCtx ctx,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportTestInput input) {
     ImportMapper importMapper = mapperService.createImportMapper(input.getImportMapper());
@@ -248,9 +255,11 @@ public class MapperApi extends RestBehavior {
   @LogExecutionTime
   @Transactional(rollbackFor = Exception.class)
   public void importEndpoints(
-      @RequestParam CsvType csvType, @RequestPart("file") @NotNull MultipartFile file)
+      @RequireTenantSelector TxCtx ctx,
+      @RequestParam CsvType csvType,
+      @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
-    mapperService.importMappersCsv(file, csvType);
+    mapperService.importMappersCsv(ctx, file, csvType);
   }
 
   private void validateUploadedFile(MultipartFile file) {

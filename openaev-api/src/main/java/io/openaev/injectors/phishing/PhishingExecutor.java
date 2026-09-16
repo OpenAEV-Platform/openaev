@@ -13,15 +13,14 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
+import io.openaev.database.model.Team;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
-import io.openaev.expectation.Expectation;
-import io.openaev.expectation.ManualExpectation;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.injectors.phishing.api.HostedPublicApi;
 import io.openaev.injectors.phishing.model.PhishingContent;
@@ -30,7 +29,8 @@ import io.openaev.model.ExecutionProcess;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -117,26 +117,27 @@ public class PhishingExecutor extends Injector {
     // per-recipient tracking token before its email is sent, so an early recipient can open/click
     // while the loop is still sending. If the expectations did not exist yet, that open/click would
     // find nothing to fulfill and would never be retried.
-    List<Expectation> expectations =
-        content.getExpectations().stream()
-            .flatMap(
-                entry ->
-                    switch (entry.getType()) {
-                      case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
-                      default -> Stream.of();
-                    })
-            .toList();
-    injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
+    injectExpectationService.computeAndSaveExpectations(injection, content.getExpectations(), null);
+
+    // The execution context carries each recipient's team NAME (see InjectHelper), but
+    // phishing_result_team is an FK to teams.team_id. Map the name back to the real id from the
+    // inject's target teams; otherwise createResult inserts the name ("CEO") as the team id and
+    // fails the phishing_results_team_fk constraint. Duplicate names keep the first (any is right).
+    Map<String, String> teamIdByName =
+        injection.getTeams().stream()
+            .collect(Collectors.toMap(Team::getName, Team::getId, (first, ignored) -> first));
 
     for (ExecutionContext userContext : users) {
       try {
-        ProtectUser targetUser = userContext.getUser();
-        String teamId =
+        UserContract targetUser = userContext.getUser();
+        String teamName =
             userContext.getTeams() != null && !userContext.getTeams().isEmpty()
                 ? userContext.getTeams().getFirst()
                 : null;
+        String teamId = teamName != null ? teamIdByName.get(teamName) : null;
         PhishingResult result =
-            phishingTrackingService.createResult(inject, landingPage, targetUser.getId(), teamId);
+            phishingTrackingService.createResult(
+                inject, landingPage, targetUser.getId(), teamId, injection.getStepId());
         // Victim-facing landing URL: e.g. https://security.acme.com/auth/<token> - benign path, no
         // tenant id, resolved back to its tenant from the globally-unique token server-side.
         String landingUrl =

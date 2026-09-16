@@ -1,6 +1,8 @@
 package io.openaev.api.custom_dashboard;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -32,6 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class CustomDashboardApiImporter extends RestBehavior {
 
   private final ZipJsonApi<CustomDashboard> zipJsonApi;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @Operation(
       description =
@@ -43,10 +46,16 @@ public class CustomDashboardApiImporter extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<JsonApiDocument<ResourceObject>> importJson(
-      @RequestPart("file") @NotNull MultipartFile file) throws IOException {
+      TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) throws IOException {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return ResponseEntity.ok(
         zipJsonApi
-            .handleImport(file, "custom_dashboard_name", null, CustomDashboardService::sanityCheck)
+            .handleImport(
+                file,
+                "custom_dashboard_name",
+                null,
+                customDashboard ->
+                    CustomDashboardService.prepareForTenantWrite(customDashboard, tenantId))
             .jsonApiDocument());
   }
 }

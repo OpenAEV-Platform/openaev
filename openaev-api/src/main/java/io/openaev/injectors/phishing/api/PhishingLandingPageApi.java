@@ -3,6 +3,7 @@ package io.openaev.injectors.phishing.api;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.ResourceType;
@@ -39,7 +40,7 @@ public class PhishingLandingPageApi extends RestBehavior {
   @GetMapping({PHISHING_LANDING_PAGE_URI, TENANT_PHISHING_LANDING_PAGE_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PHISHING_LANDING_PAGE)
-  public Iterable<PhishingLandingPage> landingPages() {
+  public Iterable<PhishingLandingPage> landingPages(TxCtx ctx) {
     return landingPageService.landingPages();
   }
 
@@ -50,7 +51,7 @@ public class PhishingLandingPageApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public Page<PhishingLandingPage> searchLandingPages(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return landingPageService.search(searchPaginationInput);
   }
 
@@ -60,14 +61,19 @@ public class PhishingLandingPageApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PHISHING_LANDING_PAGE)
-  public PhishingLandingPage landingPage(@PathVariable String id) {
+  public PhishingLandingPage landingPage(TxCtx ctx, @PathVariable String id) {
     return landingPageService.landingPage(id);
   }
 
   @PostMapping({PHISHING_LANDING_PAGE_URI, TENANT_PHISHING_LANDING_PAGE_URI})
   @Transactional(rollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PHISHING_LANDING_PAGE)
-  public PhishingLandingPage createLandingPage(@Valid @RequestBody PhishingLandingPageInput input) {
+  public PhishingLandingPage createLandingPage(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (upsert -> synchroniseInjectorContract reads the tenant's phishing
+      // injector, v2 tenant-scoped through the injectors table; without a scope the injector is
+      // never found and the landing page's Threat Arsenal action is silently never created).
+      TxCtx ctx, @Valid @RequestBody PhishingLandingPageInput input) {
     PhishingLandingPage landingPage = new PhishingLandingPage();
     applyInput(landingPage, input);
     return landingPageService.upsert(landingPage);
@@ -80,7 +86,9 @@ public class PhishingLandingPageApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public PhishingLandingPage updateLandingPage(
-      @PathVariable String id, @Valid @RequestBody PhishingLandingPageInput input) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (same reason as createLandingPage above).
+      TxCtx ctx, @PathVariable String id, @Valid @RequestBody PhishingLandingPageInput input) {
     PhishingLandingPage landingPage = landingPageService.landingPage(id);
     applyInput(landingPage, input);
     return landingPageService.upsert(landingPage);
@@ -96,7 +104,10 @@ public class PhishingLandingPageApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public PhishingLandingPage updateLandingPageLogos(
-      @PathVariable String id, @Valid @RequestBody PhishingLandingPageLogoInput input) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (updateLogos calls upsert -> synchroniseInjectorContract, same reason
+      // as createLandingPage above).
+      TxCtx ctx, @PathVariable String id, @Valid @RequestBody PhishingLandingPageLogoInput input) {
     return landingPageService.updateLogos(id, input.getLogoDark(), input.getLogoLight());
   }
 
@@ -109,7 +120,11 @@ public class PhishingLandingPageApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.PHISHING_LANDING_PAGE)
-  public PhishingLandingPage duplicateLandingPage(@PathVariable String id) {
+  public PhishingLandingPage duplicateLandingPage(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (upsert -> synchroniseInjectorContract, same reason as
+      // createLandingPage above).
+      TxCtx ctx, @PathVariable String id) {
     PhishingLandingPage source = landingPageService.landingPage(id);
     PhishingLandingPage copy = new PhishingLandingPage();
     copy.setName(source.getName() + " (copy)");
@@ -133,7 +148,7 @@ public class PhishingLandingPageApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PHISHING_LANDING_PAGE)
-  public void deleteLandingPage(@PathVariable String id) {
+  public void deleteLandingPage(TxCtx ctx, @PathVariable String id) {
     landingPageService.delete(id);
   }
 
@@ -141,7 +156,7 @@ public class PhishingLandingPageApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public List<String> bulkDeleteLandingPages(
-      @RequestBody @Valid final PhishingLandingPageBulkProcessingInput input) {
+      TxCtx ctx, @RequestBody @Valid final PhishingLandingPageBulkProcessingInput input) {
     return landingPageService.bulkDelete(input);
   }
 

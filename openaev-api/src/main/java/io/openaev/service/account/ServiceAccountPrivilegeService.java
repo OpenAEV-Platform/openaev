@@ -5,10 +5,7 @@ import static io.openaev.service.account.Constants.*;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
-import io.openaev.service.AbstractPrivilegeService;
-import io.openaev.service.RoleService;
-import io.openaev.service.TenantGroupService;
-import io.openaev.service.UserService;
+import io.openaev.service.*;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
@@ -24,11 +21,11 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
 
   @Autowired
   public ServiceAccountPrivilegeService(
-      RoleService roleService,
+      TenantRoleService tenantRoleService,
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService) {
-    super(roleService, tenantGroupService, userService, tenantUserService);
+    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
   }
 
   @Override

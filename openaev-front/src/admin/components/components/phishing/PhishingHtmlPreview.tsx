@@ -32,42 +32,60 @@ const PhishingHtmlPreview = ({ title, iframeTitle, srcDoc, chrome, height = 560 
   const openFullscreen = useCallback(() => setFullscreen(true), []);
   const closeFullscreen = useCallback(() => setFullscreen(false), []);
 
-  const frame = (frameHeight: number | string) => (
-    <Box sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: typeof frameHeight === 'number' ? undefined : '100%',
-      minHeight: 0,
-      flex: typeof frameHeight === 'number' ? undefined : 1,
-    }}
-    >
-      {chrome}
-      <Box
-        sx={{
-          // Fixed light surface on purpose: phishing pages and lure emails are
-          // authored for recipient browsers (almost always a light canvas).
-          // Letting the app's dark paper bleed through made dark text illegible.
-          backgroundColor: '#ffffff',
-          flex: typeof frameHeight === 'number' ? undefined : 1,
-          minHeight: 0,
-          display: 'flex',
-        }}
+  const frame = (frameHeight: number | string) => {
+    const fixed = typeof frameHeight === 'number';
+    return (
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: fixed ? undefined : '100%',
+        minHeight: 0,
+        flex: fixed ? undefined : 1,
+      }}
       >
-        <iframe
-          title={iframeTitle}
-          srcDoc={srcDoc}
-          sandbox=""
-          style={{
-            width: '100%',
-            height: frameHeight,
-            border: 0,
-            display: 'block',
+        {chrome}
+        <Box
+          sx={{
+            // Fixed light surface on purpose: phishing pages and lure emails are
+            // authored for recipient browsers (almost always a light canvas).
+            // Letting the app's dark paper bleed through made dark text illegible.
             backgroundColor: '#ffffff',
+            flex: fixed ? undefined : 1,
+            minHeight: 0,
+            display: 'flex',
+            // Positioned context so the fill iframe can size off this box via
+            // inset instead of a percentage height: chained percentage heights
+            // through the flex layout collapse to the iframe default, which left
+            // the inline preview blank while fullscreen (definite height) worked.
+            position: fixed ? undefined : 'relative',
           }}
-        />
+        >
+          <iframe
+            title={iframeTitle}
+            srcDoc={srcDoc}
+            sandbox=""
+            style={fixed
+              ? {
+                  width: '100%',
+                  height: frameHeight,
+                  border: 0,
+                  display: 'block',
+                  backgroundColor: '#ffffff',
+                }
+              : {
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  border: 0,
+                  display: 'block',
+                  backgroundColor: '#ffffff',
+                }}
+          />
+        </Box>
       </Box>
-    </Box>
-  );
+    );
+  };
 
   return (
     <>

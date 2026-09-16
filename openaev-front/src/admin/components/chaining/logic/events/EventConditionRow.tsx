@@ -15,7 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, useMemo } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
@@ -23,12 +23,15 @@ import ActionTypeIcon from '../ActionTypeIcon';
 import { useOutputProviders } from '../useOutputProviders';
 import {
   CASE_SENSITIVE_OPERATORS,
-  COMPARISON_OPERATORS,
   type ComparisonOperator,
   type ConditionKeyType,
   type EventCondition,
   formatConditionKeyLabel,
+  getAvailableOperators,
+  getConditionValueError,
+  isNumericField,
   OPERATOR_LABELS,
+  resolveOperator,
   UNARY_OPERATORS,
 } from './event-types';
 
@@ -38,7 +41,18 @@ interface Props {
   onUpdate: (updated: EventCondition) => void;
   onDelete: () => void;
   canDelete: boolean;
+  readOnly?: boolean;
 }
+
+// Helper texts are floated below their control so they never grow the row: otherwise the
+// centred flex layout would drift the input upwards, out of line with the other fields.
+const floatingHelperTextSx = {
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  right: 0,
+  marginTop: '2px',
+} as const;
 
 const EventConditionRow: FunctionComponent<Props> = ({
   condition,
@@ -46,6 +60,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
   onUpdate,
   onDelete,
   canDelete,
+  readOnly = false,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -87,22 +102,25 @@ const EventConditionRow: FunctionComponent<Props> = ({
   };
 
   const handleFieldChange = (e: SelectChangeEvent<ConditionKeyType>) => {
+    const newField = e.target.value;
+    // The new field may not support the current operator (e.g. "greater than" on a text field)
+    const newOperator = resolveOperator(newField, condition.operator);
     onUpdate({
       ...condition,
-      field: e.target.value,
+      field: newField,
+      operator: newOperator,
+      // Unary operators (IS_NULL / IS_NOT_NULL) take no value
+      value: UNARY_OPERATORS.includes(newOperator) ? '' : condition.value,
     });
   };
 
   const handleOperatorChange = (e: SelectChangeEvent<ComparisonOperator>) => {
     const newOp = e.target.value;
-    const updated: EventCondition = {
+    onUpdate({
       ...condition,
       operator: newOp,
-    };
-    if (UNARY_OPERATORS.includes(newOp)) {
-      updated.value = '';
-    }
-    onUpdate(updated);
+      value: UNARY_OPERATORS.includes(newOp) ? '' : condition.value,
+    });
   };
 
   const handleValueChange = (value: string) => {
@@ -120,7 +138,18 @@ const EventConditionRow: FunctionComponent<Props> = ({
   };
 
   const showValue = !UNARY_OPERATORS.includes(condition.operator);
-  const showCaseSensitive = CASE_SENSITIVE_OPERATORS.includes(condition.operator);
+  const showCaseSensitive = CASE_SENSITIVE_OPERATORS.includes(condition.operator)
+    && !isNumericField(condition.field);
+  // Only surface format errors: an untouched (empty) value already disables the submit button.
+  const valueError = showValue && condition.value.trim() !== ''
+    ? getConditionValueError(condition.field, condition.operator, condition.value)
+    : undefined;
+  const operatorOptions = useMemo(() => {
+    const available = getAvailableOperators(condition.field);
+    // Events stored before the field/operator restriction may carry an operator that is no longer
+    // offered: keep it listed so the row renders its actual configuration instead of an empty select.
+    return available.includes(condition.operator) ? available : [...available, condition.operator];
+  }, [condition.field, condition.operator]);
 
   return (
     <Box sx={{
@@ -139,7 +168,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          cursor: 'grab',
+          cursor: readOnly ? 'default' : 'grab',
         }}
       >
         <DragHandleOutlined sx={{
@@ -156,7 +185,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
           label={t('Field to Check')}
           value={condition.field}
           onChange={handleFieldChange}
-          disabled={isArgumentTypesUnavailable}
+          disabled={readOnly || isArgumentTypesUnavailable}
           renderValue={val => formatConditionKeyLabel(val)}
         >
           {isLoadingArgumentTypes && (
@@ -196,10 +225,10 @@ const EventConditionRow: FunctionComponent<Props> = ({
           })}
         </Select>
         {isLoadingArgumentTypes && (
-          <FormHelperText>{t('Loading argument types...')}</FormHelperText>
+          <FormHelperText sx={floatingHelperTextSx}>{t('Loading argument types...')}</FormHelperText>
         )}
         {!isLoadingArgumentTypes && argumentTypesError && (
-          <FormHelperText error>{t('Failed to load argument types')}</FormHelperText>
+          <FormHelperText error sx={floatingHelperTextSx}>{t('Failed to load argument types')}</FormHelperText>
         )}
       </FormControl>
 
@@ -210,8 +239,9 @@ const EventConditionRow: FunctionComponent<Props> = ({
           label={t('Operator')}
           value={condition.operator}
           onChange={handleOperatorChange}
+          disabled={readOnly}
         >
-          {COMPARISON_OPERATORS.map(op => (
+          {operatorOptions.map(op => (
             <MenuItem key={op} value={op}>
               {t(OPERATOR_LABELS[op])}
             </MenuItem>
@@ -226,7 +256,14 @@ const EventConditionRow: FunctionComponent<Props> = ({
           size="small"
           value={condition.value}
           onChange={e => handleValueChange(e.target.value)}
-          sx={{ flex: 1 }}
+          disabled={readOnly}
+          error={!!valueError}
+          helperText={valueError ? t(valueError) : undefined}
+          slotProps={{ formHelperText: { sx: floatingHelperTextSx } }}
+          sx={{
+            flex: 1,
+            position: 'relative',
+          }}
         />
       )}
       {!showValue && <Box sx={{ flex: 1 }} />}
@@ -251,6 +288,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
                 checked={condition.caseSensitive}
                 onChange={handleCaseSensitiveToggle}
                 color="primary"
+                disabled={readOnly}
               />
               <Typography
                 variant="caption"
@@ -270,6 +308,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
           <IconButton
             size="small"
             onClick={onDelete}
+            disabled={readOnly}
             sx={{
               'color': 'error.main',
               'border': '1px solid',

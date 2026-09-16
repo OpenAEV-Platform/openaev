@@ -6,6 +6,7 @@ import { searchExerciseHealthchecks } from '../../../../../actions/Exercise';
 import type { ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
 import { useHelper } from '../../../../../store';
 import { type Exercise, type HealthCheck } from '../../../../../utils/api-types';
+import useSimulationPermissions from '../../../../../utils/permissions/useSimulationPermissions';
 import ScopeDefinition from '../../../chaining/ScopeDefinition';
 import Healthchecks from '../../../common/healthchecks/Healthchecks';
 
@@ -20,6 +21,7 @@ const SimulationScope = ({ readOnly = false, autonomousTimeoutSeconds }: Props) 
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
+  const permissions = useSimulationPermissions(exerciseId, exercise);
   const { workflowConfiguration } = useHelper(
     (helper: WorkflowConfigurationHelper) => ({
       workflowConfiguration: exercise?.exercise_workflow_id
@@ -44,7 +46,7 @@ const SimulationScope = ({ readOnly = false, autonomousTimeoutSeconds }: Props) 
   // Read-only for two independent reasons: an autonomous run (router-provided) OR a launched
   // simulation - the scope is editable only while SCHEDULED (see ADR-005).
   const launched = exercise.exercise_status !== 'SCHEDULED';
-  const effectiveReadOnly = readOnly || launched;
+  const effectiveReadOnly = readOnly || launched || !permissions.canManage;
 
   return (
     <div>

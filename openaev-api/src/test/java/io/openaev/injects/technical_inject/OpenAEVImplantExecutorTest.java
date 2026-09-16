@@ -69,6 +69,15 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     collectorComposer.reset();
   }
 
+  // An OAEV implant runs through the agent, so its contract needs an executor: this is what makes
+  // ExpectationUtils build the per-agent detection/prevention rows this test asserts on.
+  private static InjectorContract oaevImplantContract() {
+    InjectorContract contract =
+        InjectorContractFixture.createDefaultInjectorContractWithExternalId("external-id");
+    contract.setNeedsExecutor(true);
+    return contract;
+  }
+
   private Inject createTechnicalInjectHelper(List<Expectation> expectationList) {
     Inject inject = InjectFixture.getDefaultInject();
     OpenAEVImplantInjectContent content = new OpenAEVImplantInjectContent();
@@ -97,9 +106,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
                             agentComposer.forAgent(AgentFixture.createDefaultAgentService()))))
         .withInjectorContract(
             injectorContractComposer
-                .forInjectorContract(
-                    InjectorContractFixture.createDefaultInjectorContractWithExternalId(
-                        "external-id"))
+                .forInjectorContract(oaevImplantContract())
                 .withInjector(injectorFixture.getWellKnownOaevImplantInjector()))
         .persist()
         .get();

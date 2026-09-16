@@ -7,9 +7,7 @@ import io.openaev.database.model.ContractOutputType;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.service.PreviewFeatureService;
 import java.util.*;
 import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
@@ -29,14 +27,10 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
   private static final String SIGNATURE_VALUE = "signature_value";
 
   private final InjectExpectationService injectExpectationService;
-  private final PreviewFeatureService previewFeatureService;
 
-  public SignatureOutputProcessor(
-      InjectExpectationService injectExpectationService,
-      PreviewFeatureService previewFeatureService) {
+  public SignatureOutputProcessor(InjectExpectationService injectExpectationService) {
     super(ContractOutputType.ExpectationSignature, ContractOutputTechnicalType.Object, List.of());
     this.injectExpectationService = injectExpectationService;
-    this.previewFeatureService = previewFeatureService;
   }
 
   @Override
@@ -44,11 +38,6 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
       ExecutionProcessingContext ctx,
       ContractOutputContext contractOutputContext,
       JsonNode structuredOutputNode) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR)) {
-      log.debug("Signature processing disabled");
-      return;
-    }
-
     JsonNode targetsNode = structuredOutputNode.path(TARGETS);
     if (!targetsNode.isArray()) {
       return;

@@ -448,7 +448,7 @@ public class PlatformSettingsService {
     }
     settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_ENTERPRISE_LICENSE.key(), certPem));
     settingRepository.saveAll(settingsToSave);
-    licenseCacheManager.refreshLicense();
+    licenseCacheManager.refreshAndNotify();
     return findSettings();
   }
 

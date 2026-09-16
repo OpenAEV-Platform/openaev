@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorRepository;
@@ -15,15 +17,21 @@ import jakarta.persistence.EntityManager;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 
-@Transactional
+/**
+ * Deliberately NOT {@code @Transactional}: {@link V20260708_Dynamic_injectors_base_url} no longer
+ * opens its own transaction/scope — it runs inside whatever the caller opens (in production, {@code
+ * MigrationProcessor}). Every DB interaction here goes through {@link #inScope} to reproduce that
+ * same tenant-scoped transaction; writes are committed and cleaned up explicitly.
+ */
 @WithMockUser(isAdmin = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("DataPack V20260708 Dynamic Injectors Base URL Integration Tests")
@@ -33,10 +41,36 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private DataPackService dataPackService;
   @Autowired private EntityManager entityManager;
+  @Autowired private TenantScopedTransaction tenantTx;
+
+  private String createdInjectorId;
 
   @BeforeEach
   void setUp() {
     clearDatapackRegistration();
+  }
+
+  @AfterEach
+  void tearDown() {
+    if (createdInjectorId != null) {
+      inScope(
+          () -> {
+            entityManager
+                .createNativeQuery("DELETE FROM injectors WHERE injector_id = ?1")
+                .setParameter(1, createdInjectorId)
+                .executeUpdate();
+            return null;
+          });
+      createdInjectorId = null;
+    }
+    clearDatapackRegistration();
+  }
+
+  /**
+   * Runs {@code work} inside the same kind of tenant-scoped transaction MigrationProcessor opens.
+   */
+  private <T> T inScope(Supplier<T> work) {
+    return tenantTx.execute(TxCtx.forTenant(TenantContext.getCurrentTenant()), work);
   }
 
   @Nested
@@ -279,7 +313,7 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
   }
 
   private MigrationProcessingResult processForCurrentTenant() {
-    return dataPack.process(new Tenant(TenantContext.getCurrentTenant()));
+    return inScope(() -> dataPack.process(new Tenant(TenantContext.getCurrentTenant())));
   }
 
   private Injector persistInjectorWithCommands(
@@ -292,26 +326,40 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
     injector.setExecutorCommands(executorCommands == null ? null : new HashMap<>(executorCommands));
     injector.setExecutorClearCommands(
         executorClearCommands == null ? null : new HashMap<>(executorClearCommands));
+    // Write attribution is explicit since injectors went fully v2 (no more TenantIdBaseListener).
+    injector.setTenantId(TenantContext.getCurrentTenant());
 
-    Injector saved = injectorRepository.save(injector);
-    entityManager.flush();
-    entityManager.clear();
+    Injector saved =
+        inScope(
+            () -> {
+              Injector persisted = injectorRepository.save(injector);
+              entityManager.flush();
+              entityManager.clear();
+              return persisted;
+            });
+    createdInjectorId = saved.getId();
     return saved;
   }
 
   private Injector findInjector(String injectorId) {
-    return injectorRepository
-        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-        .orElseThrow();
+    return inScope(
+        () ->
+            injectorRepository
+                .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+                .orElseThrow());
   }
 
   private void clearDatapackRegistration() {
-    entityManager
-        .createNativeQuery("DELETE FROM datapacks WHERE datapack_id = ?1 AND tenant_id = ?2")
-        .setParameter(1, dataPack.getPackId())
-        .setParameter(2, TenantContext.getCurrentTenant())
-        .executeUpdate();
-    entityManager.flush();
-    entityManager.clear();
+    inScope(
+        () -> {
+          entityManager
+              .createNativeQuery("DELETE FROM datapacks WHERE datapack_id = ?1 AND tenant_id = ?2")
+              .setParameter(1, dataPack.getPackId())
+              .setParameter(2, TenantContext.getCurrentTenant())
+              .executeUpdate();
+          entityManager.flush();
+          entityManager.clear();
+          return null;
+        });
   }
 }

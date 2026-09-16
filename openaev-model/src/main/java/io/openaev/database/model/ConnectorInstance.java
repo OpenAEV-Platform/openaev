@@ -1,7 +1,7 @@
 package io.openaev.database.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.Id;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Optional;
 import java.util.Set;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -11,10 +11,6 @@ import lombok.Setter;
 @Setter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public abstract class ConnectorInstance {
-
-  @Id
-  @JsonProperty("connector_instance_id")
-  private String id;
 
   public enum CURRENT_STATUS_TYPE {
     started,
@@ -35,6 +31,8 @@ public abstract class ConnectorInstance {
   @EqualsAndHashCode.Include
   public abstract String getId();
 
+  public abstract void setId(String newId);
+
   public abstract CURRENT_STATUS_TYPE getCurrentStatus();
 
   public abstract void setCurrentStatus(CURRENT_STATUS_TYPE newStatus);
@@ -50,4 +48,17 @@ public abstract class ConnectorInstance {
   public abstract String getClassName();
 
   public abstract String getHashIdentity();
+
+  public Optional<String> configurationValue(String key) {
+    Set<ConnectorInstanceConfiguration> configurations = getConfigurations();
+    if (configurations == null) {
+      return Optional.empty();
+    }
+    return configurations.stream()
+        .filter(configuration -> key.equals(configuration.getKey()))
+        .map(ConnectorInstanceConfiguration::getValue)
+        .filter(value -> value != null && value.isTextual())
+        .map(JsonNode::asText)
+        .findFirst();
+  }
 }

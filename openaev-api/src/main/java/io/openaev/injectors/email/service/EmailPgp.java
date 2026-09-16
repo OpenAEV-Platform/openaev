@@ -3,7 +3,7 @@ package io.openaev.injectors.email.service;
 import static java.util.Spliterators.spliteratorUnknownSize;
 import static org.springframework.util.StringUtils.hasLength;
 
-import io.openaev.execution.ProtectUser;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class EmailPgp {
 
-  public PGPPublicKey getUserPgpKey(ProtectUser user) throws IOException {
+  public PGPPublicKey getUserPgpKey(UserContract user) throws IOException {
     String userPgpKey = user.getPgpKey();
     if (!hasLength(user.getPgpKey())) {
       throw new IllegalArgumentException(user.getEmail() + " has no PGP public key");

@@ -46,8 +46,8 @@ public class TestIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations() throws Exception {
-    testIntegrationConfigurationMigration.migrate();
+  protected void runMigrations(String tenantId) throws Exception {
+    testIntegrationConfigurationMigration.migrate(tenantId);
   }
 
   private String getLogoFilename() {

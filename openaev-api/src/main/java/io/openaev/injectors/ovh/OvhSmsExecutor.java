@@ -9,11 +9,9 @@ import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Inject;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
-import io.openaev.expectation.Expectation;
-import io.openaev.expectation.ManualExpectation;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.ovh.model.OvhSmsContent;
 import io.openaev.injectors.ovh.service.OvhSmsService;
 import io.openaev.model.ExecutionProcess;
@@ -23,7 +21,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import org.springframework.util.StringUtils;
 
 public class OvhSmsExecutor extends Injector {
@@ -59,7 +56,7 @@ public class OvhSmsExecutor extends Injector {
         .parallel()
         .forEach(
             context -> {
-              ProtectUser user = context.getUser();
+              UserContract user = context.getUser();
               String phone = user.getPhone();
               String email = user.getEmail();
               if (!StringUtils.hasLength(phone)) {
@@ -102,17 +99,8 @@ public class OvhSmsExecutor extends Injector {
               }
             });
     if (isSmsSent.get()) {
-      List<Expectation> expectations =
-          content.getExpectations().stream()
-              .flatMap(
-                  entry ->
-                      switch (entry.getType()) {
-                        case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
-                        default -> Stream.of();
-                      })
-              .toList();
-
-      injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
+      injectExpectationService.computeAndSaveExpectations(
+          injection, content.getExpectations(), null);
     }
     return new ExecutionProcess(false);
   }

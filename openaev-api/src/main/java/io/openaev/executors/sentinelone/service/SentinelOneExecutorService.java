@@ -133,8 +133,9 @@ public class SentinelOneExecutorService implements Runnable {
             agents.stream()
                 .filter(agent -> agentIds.contains(agent.getId()))
                 .map(Agent::getAsset)
-                .toList());
-        assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
+                .collect(Collectors.toCollection(ArrayList::new)));
+        assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(
+            assetGroup, executor.getTenantId());
       }
     }
   }

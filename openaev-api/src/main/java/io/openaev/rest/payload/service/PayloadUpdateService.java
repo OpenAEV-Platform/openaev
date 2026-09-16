@@ -3,6 +3,7 @@ package io.openaev.rest.payload.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -49,8 +50,12 @@ public class PayloadUpdateService {
 
     Payload payload =
         this.payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
+    // Same guard as PayloadCreationService: callers converting action inputs (threat arsenal
+    // update) can carry null id collections, which findAllById rejects with "Ids must not be
+    // null". An absent collection means "no associations".
     List<AttackPattern> attackPatterns =
-        fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds()));
+        fromIterable(
+            attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
     return update(input, payload, attackPatterns);
   }
 
@@ -79,8 +84,8 @@ public class PayloadUpdateService {
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved,
             attackPatterns,
-            iterableToSet(domainRepository.findAllById(input.getDomainIds())),
-            iterableToSet(tagRepository.findAllById(input.getTagIds())));
+            iterableToSet(domainRepository.findAllById(emptyIfNull(input.getDomainIds()))),
+            iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
     return new PayloadCreationService.PayloadInjectorContractCreationResult(
         saved, injectorContract);
   }

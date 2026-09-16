@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { InjectTarget } from '../../../../utils/api-types';
-import { getTargetOverviewUrl, isAssetGroups } from '../../../../utils/target/TargetUtils';
+import { getTargetOverviewLabel, getTargetOverviewUrl } from '../../../../utils/target/TargetUtils';
 import NewAtomicTestingResult from './NewAtomicTestingResult';
 import TargetIcon from './TargetIcon';
 
@@ -23,7 +23,7 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
   };
 
   const overviewUrl = getTargetOverviewUrl(target);
-  const overviewLabel = isAssetGroups(target) ? t('Open asset group overview') : t('Open asset overview');
+  const overviewLabel = t(getTargetOverviewLabel(target));
 
   return (
     <ListItemButton

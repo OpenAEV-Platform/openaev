@@ -27,9 +27,12 @@ import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -449,13 +452,13 @@ public class AttackPathExecutionIngestionService {
                 (io.openaev.database.model.Endpoint)
                     org.hibernate.Hibernate.unproxy(agent.getAsset());
             AttackPathExecution attackPathExecution = new AttackPathExecution();
+            String hostname = resolveArgumentDnsResolution(inject, dnsResolution);
             attackPathExecution.setId(
-                AttackPathIds.executionNode(
-                    inject.getId(), dnsResolution.getHostname(), agent.getId()));
+                AttackPathIds.executionNode(inject.getId(), hostname, agent.getId()));
             attackPathExecution.setGlobalInformation(step, inject);
             attackPathExecution.setSourceAgentInformation(agent, endpoint);
-            attackPathExecution.setTargetDiscoveredInformation(dnsResolution.getHostname());
-            attackPathExecution.setTargetHostname(dnsResolution.getHostname());
+            attackPathExecution.setTargetDiscoveredInformation(hostname);
+            attackPathExecution.setTargetHostname(hostname);
             attackPathExecutions.add(attackPathExecution);
           }
         }
@@ -675,7 +678,8 @@ public class AttackPathExecutionIngestionService {
         }
         case DNS_RESOLUTION -> { // AGENT -> DISCOVERED
           DnsResolution dnsResolution = (DnsResolution) inject.getPayload().get();
-          return AttackPathIds.executionNode(inject.getId(), dnsResolution.getHostname(), target);
+          String hostname = resolveArgumentDnsResolution(inject, dnsResolution);
+          return AttackPathIds.executionNode(inject.getId(), hostname, target);
         }
         case NETWORK_TRAFFIC -> { // AGENT -> DISCOVERED (the destination it reached)
           NetworkTraffic networkTraffic = (NetworkTraffic) inject.getPayload().get();
@@ -1053,5 +1057,30 @@ public class AttackPathExecutionIngestionService {
     } catch (IllegalArgumentException e) {
       return false;
     }
+  }
+
+  private String resolveArgumentDnsResolution(Inject inject, DnsResolution resolution) {
+    Pattern pattern = Pattern.compile("#\\{(.*?)}");
+    Matcher matcher = pattern.matcher(resolution.getHostname());
+
+    String arg;
+    String hostname = resolution.getHostname();
+    while (matcher.find()) {
+      arg = matcher.group(1);
+      JsonNode argument = inject.getContent().get(arg);
+
+      if (argument == null) {
+        continue;
+      }
+
+      if (argument.isTextual()) {
+        Pair<String, String> hostnameVar = Pair.of(arg, argument.asText());
+        hostname =
+            hostnameVar == null
+                ? hostname
+                : hostname.replace("#{" + hostnameVar.getLeft() + "}", hostnameVar.getRight());
+      }
+    }
+    return hostname.isEmpty() ? resolution.getHostname() : hostname;
   }
 }

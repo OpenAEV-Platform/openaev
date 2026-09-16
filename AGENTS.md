@@ -38,6 +38,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | **Database** (migrations, schema, indexes)                        | [database.instructions.md](.github/instructions/database.instructions.md) | `**/db/migration/**`, `**/model/**` |
 | **Security** (auth, RBAC, tenant isolation)                       | [security.instructions.md](.github/instructions/security.instructions.md) | All Java & TypeScript files |
 | **Performance** (queries, caching, patterns)                      | [performance.instructions.md](.github/instructions/performance.instructions.md) | All Java files |
+| **ORM** (write correctness, native-query justification, test methodology) | [orm.instructions.md](.github/instructions/orm.instructions.md) | `openaev-api/**`, `openaev-model/**`, `*Test.java` |
 | **Multi-Tenancy** (isolation, filters, context)                   | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Entities, repositories, migrations |
 | **Testing** (unit, integration, coverage)                         | [testing.instructions.md](.github/instructions/testing.instructions.md) | `**/*Test.java`, `**/*.test.tsx` |
 | **Code Review** (review checklist)                                | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
@@ -71,6 +72,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [Migration Reviewer](.github/agents/migration-reviewer.agent.md) | Audit Flyway migration safety, idempotency, tenant isolation, rollout risk | `AGENTS.md` → `copilot-instructions.md` → `migration.instructions.md` | `review-migration` skill |
 | [Multi-Tenancy Reviewer](.github/agents/multi-tenancy-reviewer.agent.md) | Audit tenant isolation, cross-tenant leaks, filter bypasses, migration safety | `AGENTS.md` → `copilot-instructions.md` → `multi-tenancy.instructions.md` | `review-multi-tenancy` skill |
 | [Performance Reviewer](.github/agents/performance-reviewer.agent.md) | Audit N+1, lazy loading, query efficiency, pagination | `AGENTS.md` → `copilot-instructions.md` → `performance.instructions.md` | `review-performance` skill |
+| [ORM Reviewer](.github/agents/orm-reviewer.agent.md) | Audit ORM doctrine: write correctness (listener chain), native-query justification, composite keys, test methodology | `AGENTS.md` → `copilot-instructions.md` → `orm.instructions.md` | n/a |
 | [Security Reviewer](.github/agents/security-reviewer.agent.md) | Audit auth, RBAC, data exposure, secrets | `AGENTS.md` → `copilot-instructions.md` → `security.instructions.md` | `review-security` skill |
 | [Test Specialist](.github/agents/test-specialist.agent.md) | Write/improve tests, check coverage | `AGENTS.md` → `copilot-instructions.md` → `testing.instructions.md` | `add-test` skill |
 | [Chaining Engine Reviewer](.github/agents/chaining-engine-reviewer.agent.md) | Audit chaining engine: steps, conditions, queues, state, scope, timeout | `AGENTS.md` → `chaining-engine.instructions.md` | `review-chaining-engine` skill |
@@ -130,6 +132,21 @@ These apply to **all agents**. Do not flag these — they are intentional patter
 - Test files using hardcoded credentials for mock setup → test-only context
 - Legacy `io.openaev.rest` controllers passing tenant to services → acceptable (legacy package)
 
+## Opening a Pull Request
+
+> **The PR description MUST follow [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md).**
+> Read the template before writing the body — never invent your own headings.
+
+Sections, verbatim and in this order: `### Proposed changes`, `### Testing Instructions`,
+`### Related issues`, `### Checklist`, `### Further comments`.
+
+- `Related issues` is mandatory (`* Related #1234`) — every PR is linked to an issue.
+- Keep all checklist lines **unchecked** — never tick a box, the human author does that.
+- Drop the template's HTML comments from the final body.
+- Title follows Conventional Commits and ends with the issue reference.
+
+Full rules: [copilot-instructions.md → PR description format](.github/copilot-instructions.md#pr-description-format).
+
 ## Agent Maintenance Rule
 
 > **When you modify a `.github/instructions/*.md` file, you must update the corresponding
@@ -143,6 +160,7 @@ The mapping is:
 | `database.instructions.md` | `migration-reviewer.agent.md` |
 | `security.instructions.md` | `security-reviewer.agent.md` |
 | `performance.instructions.md` | `performance-reviewer.agent.md` |
+| `orm.instructions.md` | `orm-reviewer.agent.md` |
 | `multi-tenancy.instructions.md` | `multi-tenancy-reviewer.agent.md` |
 | `migration.instructions.md` | `migration-reviewer.agent.md` |
 | `testing.instructions.md` | `test-specialist.agent.md` |

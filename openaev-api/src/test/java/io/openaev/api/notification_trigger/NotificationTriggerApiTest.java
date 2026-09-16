@@ -13,14 +13,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
 import io.openaev.database.model.NotificationTriggerType;
+import io.openaev.database.model.NotifierType;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationTriggerRepository;
+import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.notification.NotifierService;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -50,6 +52,7 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private NotificationTriggerRepository notificationTriggerRepository;
   @Autowired private NotifierService notifierService;
+  @Autowired private NotifierRepository notifierRepository;
   @Autowired private UserRepository userRepository;
 
   @AfterEach
@@ -57,17 +60,18 @@ public class NotificationTriggerApiTest extends IntegrationTest {
     notificationTriggerRepository.deleteAll();
   }
 
+  // Explicit tenant rather than TenantContext: notifiers is v2-active, so the built-ins are
+  // provisioned and read for a named tenant, not for whatever the thread-local happens to hold.
   private String uiNotifierId() {
-    notifierService.ensureBuiltInNotifiers(TenantContext.getCurrentTenant());
-    return notifierService.findAll().stream()
-        .filter(notifier -> notifier.getType() == io.openaev.database.model.NotifierType.UI)
-        .findFirst()
+    notifierService.ensureBuiltInNotifiers(Tenant.DEFAULT_TENANT_UUID);
+    return notifierRepository
+        .findFirstByTenantIdAndTypeAndBuiltInTrue(Tenant.DEFAULT_TENANT_UUID, NotifierType.UI)
         .orElseThrow()
         .getId();
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("A live trigger can be created, updated and deleted")
   void liveTriggerLifecycle() throws Exception {
     NotificationTriggerInput input =
@@ -125,7 +129,7 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("A live trigger without event types is rejected")
   void liveTriggerRequiresEventTypes() throws Exception {
     NotificationTriggerInput input =
@@ -147,7 +151,7 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("A digest trigger requires composed triggers and a valid trigger time")
   void digestTriggerValidation() throws Exception {
     // No composed triggers -> rejected
@@ -233,7 +237,7 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName(
       "Triggers are strictly per-user: another user's trigger is invisible, even to admins")
   void triggersAreScopedToTheirOwner() throws Exception {
@@ -245,6 +249,9 @@ public class NotificationTriggerApiTest extends IntegrationTest {
     otherTrigger.setWatchedResourceType(ResourceType.SCENARIO);
     otherTrigger.setEventTypes(List.of(NotificationTriggerEventType.CREATE));
     otherTrigger.setOwner(otherUser);
+    // Attributed explicitly: TenantBaseListener no longer stamps notification_triggers, and the
+    // mock user of this test belongs to the default tenant (autoJoinDefaultTenant).
+    otherTrigger.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     String otherTriggerId = notificationTriggerRepository.save(otherTrigger).getId();
 
     // Search: the admin's self-service view never lists it
@@ -269,7 +276,7 @@ public class NotificationTriggerApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser
+  @WithMockUser(autoJoinDefaultTenant = true)
   @DisplayName("A non-admin user cannot target other recipients")
   void nonAdminCannotTargetOthers() throws Exception {
     NotificationTriggerInput input =

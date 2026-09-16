@@ -12,6 +12,8 @@ import lombok.*;
 
 @RequiredArgsConstructor
 public class RegisterConnector implements Mutation {
+  private static final ObjectMapper mapper = new ObjectMapper();
+
   @Getter private final ConnectorBase connector;
   @Getter private Boolean withJwks = false;
 
@@ -54,7 +56,6 @@ public class RegisterConnector implements Mutation {
 
   @Override
   public JsonNode getVariables() throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
     ObjectNode node = mapper.createObjectNode();
     node.set("input", mapper.valueToTree(toInput(connector)));
     return node;

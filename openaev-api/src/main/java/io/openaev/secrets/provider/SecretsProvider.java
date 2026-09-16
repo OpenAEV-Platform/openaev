@@ -61,6 +61,24 @@ public abstract class SecretsProvider extends BaseConnectorEntity implements Ten
         "This secret backend does not support deleting secrets.");
   }
 
+  /**
+   * Prepares a liveness check for one credential, to be run outside any transaction.
+   *
+   * <p>Opt-in, like {@code SecretHandler#validateConnection}: a backend with nothing to probe needs
+   * no change and reports {@link SecretConnectionResult#unsupported()}, which the run then leaves
+   * completely untouched in database.
+   *
+   * <p>Called INSIDE the background job's transactional phase, so an implementation may read what
+   * it needs here — but the {@link SecretConnectionProbe} it returns must be detached, since it
+   * runs with no session (see {@link SecretConnectionProbe}).
+   *
+   * @param secretReference the reference to check
+   * @return the probe to run, never null
+   */
+  public SecretConnectionProbe prepareConnectionCheck(@NotNull SecretReference secretReference) {
+    return SecretConnectionProbe.of(SecretConnectionResult.unsupported());
+  }
+
   public static class Placeholder extends SecretsProvider {
     public Placeholder() {
       super("placeholder", "Placeholder", SecretsProviderType.PLACEHOLDER.type);

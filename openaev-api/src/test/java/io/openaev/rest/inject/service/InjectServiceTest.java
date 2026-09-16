@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -18,6 +19,7 @@ import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.collector.service.CollectorService;
@@ -33,6 +35,8 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.TagRuleService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -130,7 +134,13 @@ class InjectServiceTest {
 
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
 
-  @Spy private InjectorContractContentUtils injectorContractContentUtils;
+  @Mock private StepTargetingService stepTargetingService;
+
+  @Mock private ConditionService conditionService;
+
+  @Spy
+  private InjectorContractContentUtils injectorContractContentUtils =
+      new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper());
 
   @Mock private ApplicationEventPublisher eventPublisher;
 
@@ -150,7 +160,8 @@ class InjectServiceTest {
     ReflectionTestUtils.setField(
         injectService,
         "healthCheckUtils",
-        new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository)));
+        new HealthCheckUtils(
+            new ExecutorUtils(assetAgentJobRepository), stepTargetingService, conditionService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -159,7 +170,10 @@ class InjectServiceTest {
             payloadMapper,
             injectExpectationMapper,
             injectUtils,
-            new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository))));
+            new HealthCheckUtils(
+                new ExecutorUtils(assetAgentJobRepository),
+                stepTargetingService,
+                conditionService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -295,10 +309,14 @@ class InjectServiceTest {
     t0.setId("team0");
     Asset a0 = new Asset();
     a0.setId("asset0");
+    InjectorContract technicalContract =
+        buildContractWithContentFields("teams", "assets", "asset_groups");
     Inject i1 = new Inject();
     i1.setId("inject1");
+    i1.setInjectorContract(technicalContract);
     Inject i2 = new Inject();
     i2.setId("inject2");
+    i2.setInjectorContract(technicalContract);
     i1.setTeams(new ArrayList<>(List.of(t0)));
     i1.setAssets(new ArrayList<>(List.of(a0)));
 
@@ -346,7 +364,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(expectedUpdatedInjects)).thenReturn(expectedUpdatedInjects);
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -360,6 +379,125 @@ class InjectServiceTest {
     assertTrue(updatedInjects.get(1).getAssets().containsAll(aList));
   }
 
+  @DisplayName(
+      "Test bulk update injects with mixed contract types only applies asset operations to contracts declaring asset fields")
+  @Test
+  void given_injects_with_mixed_contract_types_should_apply_asset_operations_per_contract_fields() {
+    // Arrange
+    Team t1 = new Team();
+    t1.setId("team1");
+    Asset a0 = new Asset();
+    a0.setId("asset0");
+    Asset a1 = new Asset();
+    a1.setId("asset1");
+    AssetGroup ag0 = new AssetGroup();
+    ag0.setId("assetGroup0");
+    AssetGroup ag1 = new AssetGroup();
+    ag1.setId("assetGroup1");
+
+    // (a) Executor-backed payload contract declaring assets and asset_groups fields
+    InjectorContract payloadContract =
+        buildContractWithContentFields("assets", "asset_groups", "expectations");
+    payloadContract.setNeedsExecutor(true);
+    Inject payloadInject = buildInjectForBulkUpdate("payloadInject", payloadContract, a0, ag0);
+
+    // (b) Agentless technical contract (Nmap/Nuclei-like): needs_executor is false but the
+    // contract content declares assets and asset_groups fields, so asset operations MUST apply
+    InjectorContract agentlessContract =
+        buildContractWithContentFields("assets", "asset_groups", "expectations");
+    agentlessContract.setNeedsExecutor(false);
+    Inject agentlessInject =
+        buildInjectForBulkUpdate("agentlessInject", agentlessContract, a0, ag0);
+
+    // (c) Email-like contract without any asset field: asset operations must be skipped
+    InjectorContract emailContract =
+        buildContractWithContentFields("teams", "subject", "body", "expectations");
+    emailContract.setNeedsExecutor(false);
+    Inject emailInject = buildInjectForBulkUpdate("emailInject", emailContract, a0, ag0);
+
+    // (d) Inject without any contract: asset operations must be skipped
+    Inject contractlessInject = buildInjectForBulkUpdate("contractlessInject", null, a0, ag0);
+
+    List<Inject> injectsToUpdate =
+        List.of(payloadInject, agentlessInject, emailInject, contractlessInject);
+
+    InjectBulkUpdateOperation teamsOp = new InjectBulkUpdateOperation();
+    teamsOp.setField(InjectBulkUpdateSupportedFields.TEAMS);
+    teamsOp.setOperation(InjectBulkUpdateSupportedOperations.ADD);
+    teamsOp.setValues(List.of("team1"));
+    InjectBulkUpdateOperation assetsOp = new InjectBulkUpdateOperation();
+    assetsOp.setField(InjectBulkUpdateSupportedFields.ASSETS);
+    assetsOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetsOp.setValues(List.of("asset1"));
+    InjectBulkUpdateOperation assetGroupsOp = new InjectBulkUpdateOperation();
+    assetGroupsOp.setField(InjectBulkUpdateSupportedFields.ASSET_GROUPS);
+    assetGroupsOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetGroupsOp.setValues(List.of("assetGroup1"));
+
+    List<InjectBulkUpdateOperation> operations = List.of(teamsOp, assetsOp, assetGroupsOp);
+
+    when(teamRepository.findAllById(any())).thenReturn(List.of(t1));
+    when(assetService.assets(anyList())).thenReturn(List.of(a1));
+    when(assetGroupService.assetGroups(anyList())).thenReturn(List.of(ag1));
+    when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Act
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
+
+    // Assert
+    assertNotNull(updatedInjects);
+    assertEquals(4, updatedInjects.size());
+
+    Inject updatedPayload = updatedInjects.getFirst();
+    Inject updatedAgentless = updatedInjects.get(1);
+    Inject updatedEmail = updatedInjects.get(2);
+    Inject updatedContractless = updatedInjects.get(3);
+
+    // Teams are applied to every inject, whatever the contract type
+    assertEquals(List.of(t1), updatedPayload.getTeams());
+    assertEquals(List.of(t1), updatedAgentless.getTeams());
+    assertEquals(List.of(t1), updatedEmail.getTeams());
+    assertEquals(List.of(t1), updatedContractless.getTeams());
+
+    // Assets and asset groups are applied to the executor-backed payload inject...
+    assertEquals(List.of(a1), updatedPayload.getAssets());
+    assertEquals(List.of(ag1), updatedPayload.getAssetGroups());
+
+    // ... AND to the agentless technical inject, since its contract declares asset fields
+    assertEquals(List.of(a1), updatedAgentless.getAssets());
+    assertEquals(List.of(ag1), updatedAgentless.getAssetGroups());
+
+    // ... but skipped for the email inject (no asset fields) and the contract-less inject
+    assertEquals(List.of(a0), updatedEmail.getAssets());
+    assertEquals(List.of(ag0), updatedEmail.getAssetGroups());
+    assertEquals(List.of(a0), updatedContractless.getAssets());
+    assertEquals(List.of(ag0), updatedContractless.getAssetGroups());
+  }
+
+  /** Builds an injector contract whose content declares the given field keys. */
+  private InjectorContract buildContractWithContentFields(String... fieldKeys) {
+    InjectorContract contract = new InjectorContract();
+    String fields =
+        Arrays.stream(fieldKeys)
+            .map(key -> "{\"key\":\"" + key + "\",\"type\":\"text\"}")
+            .collect(java.util.stream.Collectors.joining(","));
+    contract.setContent("{\"fields\":[" + fields + "]}");
+    return contract;
+  }
+
+  /** Builds an inject pre-populated with one asset and one asset group for bulk update tests. */
+  private Inject buildInjectForBulkUpdate(
+      String id, InjectorContract contract, Asset initialAsset, AssetGroup initialAssetGroup) {
+    Inject inject = new Inject();
+    inject.setId(id);
+    inject.setInjectorContract(contract);
+    inject.setTeams(new ArrayList<>());
+    inject.setAssets(new ArrayList<>(List.of(initialAsset)));
+    inject.setAssetGroups(new ArrayList<>(List.of(initialAssetGroup)));
+    return inject;
+  }
+
   @DisplayName("Test bulk update injects with empty operations")
   @Test
   void bulkUpdateInjectsWithEmptyOperations() {
@@ -370,7 +508,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(injectsToUpdate)).thenReturn(injectsToUpdate);
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -410,7 +549,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(expectedUpdatedInjects)).thenReturn(expectedUpdatedInjects);
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -436,7 +576,8 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(
+            TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -459,7 +600,8 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(
+            TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -483,7 +625,8 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(
+            TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -500,7 +643,9 @@ class InjectServiceTest {
     BadRequestException exception =
         assertThrows(
             BadRequestException.class,
-            () -> injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER));
+            () ->
+                injectService.getInjectsAndCheckPermission(
+                    TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER));
 
     // Assert
     assertEquals(
@@ -517,7 +662,7 @@ class InjectServiceTest {
     doNothing().when(injectRepository).deleteByAllIdsNative(injectIds);
 
     // Act
-    injectService.deleteAllByIds(injectIds);
+    injectService.deleteAllByIds(TxCtx.missing(), injectIds);
 
     // Assert
     verify(injectRepository, times(1)).deleteByAllIdsNative(injectIds);
@@ -530,7 +675,7 @@ class InjectServiceTest {
     List<String> injectIds = List.of();
 
     // Act
-    injectService.deleteAllByIds(injectIds);
+    injectService.deleteAllByIds(TxCtx.missing(), injectIds);
 
     // Assert
     verify(injectRepository, never()).deleteByAllIdsNative(any());
@@ -543,7 +688,7 @@ class InjectServiceTest {
     List<String> injectIds = null;
 
     // Act
-    injectService.deleteAllByIds(injectIds);
+    injectService.deleteAllByIds(TxCtx.missing(), injectIds);
 
     // Assert
     verify(injectRepository, never()).deleteByAllIdsNative(any());
@@ -719,7 +864,7 @@ class InjectServiceTest {
     InjectInput injectInput = new InjectInput();
     injectInput.setTitle("Test inject");
     injectInput.setInjectorContract(injectorContractId);
-    // injectorId is NOT set — auto-resolve from contract
+    // injectorId is NOT set - auto-resolve from contract
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();

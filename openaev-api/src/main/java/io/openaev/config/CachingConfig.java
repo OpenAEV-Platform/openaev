@@ -1,6 +1,7 @@
 package io.openaev.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.openaev.config.cache.CommitAwareCacheManager;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
@@ -26,7 +27,8 @@ public class CachingConfig {
      * everytime helps for the RBAC
      */
     CaffeineCacheManager cacheManager =
-        new CaffeineCacheManager("license", "global", "adminUsers", "tenantMembership");
+        new CaffeineCacheManager(
+            "license", "global", "adminUsers", "tenantMembership", "userTenantIds");
 
     cacheManager.setCaffeine(
         Caffeine.newBuilder().expireAfterWrite(Duration.ofDays(1)).maximumSize(100));
@@ -36,7 +38,12 @@ public class CachingConfig {
         "tenantMembership",
         Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
 
-    return cacheManager;
+    // User tenant-id list: same TTL/capacity as membership (keyed by userId)
+    cacheManager.registerCustomCache(
+        "userTenantIds",
+        Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
+
+    return new CommitAwareCacheManager(cacheManager);
   }
 
   /** Emptying the cache every second to avoid old data on the admin users being persisted */

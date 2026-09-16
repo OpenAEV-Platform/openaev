@@ -12,10 +12,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
-import io.openaev.service.AbstractPrivilegeService;
-import io.openaev.service.RoleService;
-import io.openaev.service.TenantGroupService;
-import io.openaev.service.UserService;
+import io.openaev.service.*;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("Service Account Privilege Service tests")
 public class ServiceAccountPrivilegeServiceTest {
 
-  @Mock private RoleService roleService;
+  @Mock private TenantRoleService tenantRoleService;
   @Mock private TenantGroupService tenantGroupService;
   @Mock private UserService userService;
   @Mock private TenantUserService tenantUserService;
@@ -67,12 +64,15 @@ public class ServiceAccountPrivilegeServiceTest {
   @DisplayName("Should create new user when no existing user found")
   void shouldCreateNewUserWhenNoExistingUserFound() {
     // prepare
-    when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(
+    when(tenantRoleService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockRole));
+    when(tenantRoleService.updateRoleInternal(
             anyString(), anyString(), anyString(), anySet(), anyString()))
         .thenReturn(mockRole);
-    when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
-    when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
+    when(tenantGroupService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockGroup));
+    when(tenantGroupService.updateInternalGroupWithRoles(any(), any(), any()))
+        .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
     when(userService.createInternalUser(anyString(), anyString(), any(), anyBoolean(), anyString()))
         .thenReturn(mockUser);
@@ -93,12 +93,15 @@ public class ServiceAccountPrivilegeServiceTest {
     // prepare
     mockUser.setTokens(null);
 
-    when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(
+    when(tenantRoleService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockRole));
+    when(tenantRoleService.updateRoleInternal(
             anyString(), anyString(), anyString(), anySet(), anyString()))
         .thenReturn(mockRole);
-    when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
-    when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
+    when(tenantGroupService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockGroup));
+    when(tenantGroupService.updateInternalGroupWithRoles(any(), any(), any()))
+        .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
     when(userService.userHasToken(any())).thenReturn(false);
 
@@ -118,12 +121,15 @@ public class ServiceAccountPrivilegeServiceTest {
     // prepare
     mockUser.setTokens(new ArrayList<>(List.of(new Token())));
 
-    when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(
+    when(tenantRoleService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockRole));
+    when(tenantRoleService.updateRoleInternal(
             anyString(), anyString(), anyString(), anySet(), anyString()))
         .thenReturn(mockRole);
-    when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
-    when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
+    when(tenantGroupService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockGroup));
+    when(tenantGroupService.updateInternalGroupWithRoles(any(), any(), any()))
+        .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
     when(userService.userHasToken(any())).thenReturn(true);
 
@@ -145,11 +151,13 @@ public class ServiceAccountPrivilegeServiceTest {
   @DisplayName("Should create new group when no existing group found")
   void shouldCreateNewGroupWhenNoExistingGroupFound() {
     // prepare
-    when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(
+    when(tenantRoleService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockRole));
+    when(tenantRoleService.updateRoleInternal(
             anyString(), anyString(), anyString(), anySet(), anyString()))
         .thenReturn(mockRole);
-    when(tenantGroupService.findById(anyString())).thenReturn(Optional.empty());
+    when(tenantGroupService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.empty());
     when(tenantGroupService.createInternalGroupWithRole(any(), any(), any(), any()))
         .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
@@ -162,19 +170,22 @@ public class ServiceAccountPrivilegeServiceTest {
     // assert
     verify(tenantGroupService)
         .createInternalGroupWithRole(anyString(), any(), any(), eq(TENANT_ID));
-    verify(tenantGroupService, never()).updateGroupInfoWithRoles(any(), any(), any());
+    verify(tenantGroupService, never()).updateInternalGroupWithRoles(any(), any(), any());
   }
 
   @Test
   @DisplayName("Should update existing group when one matching group found")
   void shouldUpdateExistingGroupWhenOneMatchingGroupFound() {
     // prepare
-    when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(
+    when(tenantRoleService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockRole));
+    when(tenantRoleService.updateRoleInternal(
             anyString(), anyString(), anyString(), anySet(), anyString()))
         .thenReturn(mockRole);
-    when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
-    when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
+    when(tenantGroupService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockGroup));
+    when(tenantGroupService.updateInternalGroupWithRoles(any(), any(), any()))
+        .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
     when(userService.createInternalUser(any(), any(), any(), anyBoolean(), any()))
         .thenReturn(mockUser);
@@ -183,7 +194,7 @@ public class ServiceAccountPrivilegeServiceTest {
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
 
     // assert
-    verify(tenantGroupService).updateGroupInfoWithRoles(eq(mockGroup), any(), any());
+    verify(tenantGroupService).updateInternalGroupWithRoles(eq(mockGroup), any(), any());
     verify(tenantGroupService, never()).createInternalGroupWithRole(any(), any(), any(), any());
   }
 
@@ -195,10 +206,14 @@ public class ServiceAccountPrivilegeServiceTest {
   @DisplayName("Should create new role when no existing role found")
   void shouldCreateNewRoleWhenNoExistingRoleFound() {
     // prepare
-    when(roleService.findById(anyString())).thenReturn(Optional.empty());
-    when(roleService.createRoleInternal(any(), any(), any(), any(), any())).thenReturn(mockRole);
-    when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
-    when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
+    when(tenantRoleService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.empty());
+    when(tenantRoleService.createRoleInternal(any(), any(), any(), any(), any()))
+        .thenReturn(mockRole);
+    when(tenantGroupService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockGroup));
+    when(tenantGroupService.updateInternalGroupWithRoles(any(), any(), any()))
+        .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
     when(userService.createInternalUser(any(), any(), any(), anyBoolean(), any()))
         .thenReturn(mockUser);
@@ -207,26 +222,29 @@ public class ServiceAccountPrivilegeServiceTest {
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
 
     // assert
-    verify(roleService)
+    verify(tenantRoleService)
         .createRoleInternal(
             anyString(),
             eq(SERVICE_ROLE_NAME),
             eq(SERVICE_ROLE_DESCRIPTION),
             eq(SERVICE_ROLE_CAPABILITIES),
             eq(TENANT_ID));
-    verify(roleService, never()).updateRoleInternal(any(), any(), any(), any(), any());
+    verify(tenantRoleService, never()).updateRoleInternal(any(), any(), any(), any(), any());
   }
 
   @Test
   @DisplayName("Should reuse existing role when matching role found")
   void shouldReuseExistingRoleWhenMatchingRoleFound() {
     // prepare
-    when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(
+    when(tenantRoleService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockRole));
+    when(tenantRoleService.updateRoleInternal(
             anyString(), anyString(), anyString(), anySet(), anyString()))
         .thenReturn(mockRole);
-    when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
-    when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
+    when(tenantGroupService.findByIdAndTenant(anyString(), anyString()))
+        .thenReturn(Optional.of(mockGroup));
+    when(tenantGroupService.updateInternalGroupWithRoles(any(), any(), any()))
+        .thenReturn(mockGroup);
     when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
     when(userService.createInternalUser(any(), any(), any(), anyBoolean(), any()))
         .thenReturn(mockUser);
@@ -235,8 +253,8 @@ public class ServiceAccountPrivilegeServiceTest {
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
 
     // assert
-    verify(roleService, never()).createRoleInternal(any(), any(), any(), any(), any());
-    verify(roleService)
+    verify(tenantRoleService, never()).createRoleInternal(any(), any(), any(), any(), any());
+    verify(tenantRoleService)
         .updateRoleInternal(
             eq(mockRole.getId()),
             eq(SERVICE_ROLE_NAME),

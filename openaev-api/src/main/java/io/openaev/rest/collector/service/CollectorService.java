@@ -166,14 +166,21 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   /**
    * Retrieves IDs of resources associated with a collector, using the full composite key.
    *
+   * <p>Tenant safety: {@code connector_instances}/{@code connector_instance_configurations} are now
+   * on v2 isolation (activated #6408). This lookup still carries {@code tenantId} explicitly, not
+   * as a leftover v1 workaround, but because it is a native query (bypasses the Hibernate
+   * {@code @Filter} either way) called with one specific collector's tenant - {@code tenantId} is
+   * also reused below for the composite-PK {@code registered} check, which the automatic inspector
+   * scoping cannot substitute for.
+   *
    * @param collectorId collector identifier
    * @param tenantId tenant for the composite PK lookup
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
   public ConnectorIds getCollectorRelationsId(String collectorId, String tenantId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
-        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            ConnectorType.COLLECTOR.getIdKeyName(), collectorId);
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            ConnectorType.COLLECTOR.getIdKeyName(), collectorId, tenantId);
     if (relatedIds != null) {
       boolean registered =
           collectorRepository.findById(ConnectorCompositeId.of(collectorId, tenantId)).isPresent();

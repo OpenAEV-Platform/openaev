@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { type AutonomousRunCreateInput } from '../../../actions/autonomous/autonomous-types';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
-import { AutonomousRunConfigPanel } from './AutonomousRunConfigFields';
+import { AutonomousRunConfigPanel, type RebuildMode } from './AutonomousRunConfigFields';
 import { useAutonomousRunConfig } from './useAutonomousRunConfig';
 
 interface AutonomousRunConfigDrawerProps {
@@ -37,6 +37,10 @@ interface AutonomousRunConfigDrawerProps {
    * time budget is hidden (plan mode).
    */
   timeBudgetNote?: string;
+  /** When set, renders a Refine / Rebuild-from-scratch choice at the top (the AI builder "Rebuild"
+   *  case, where the scenario already has authored logic). Omit to hide it (first build / launch). */
+  rebuildMode?: RebuildMode;
+  onRebuildModeChange?: (mode: RebuildMode) => void;
   submitting?: boolean;
   error?: string | null;
   /** Show the "Save for later" action (persist config, start nothing). Defaults to false. */
@@ -67,6 +71,8 @@ const AutonomousRunConfigDrawer = ({
   defaultTimeoutHours,
   planMode,
   timeBudgetNote,
+  rebuildMode,
+  onRebuildModeChange,
   submitting = false,
   error,
   showSave = false,
@@ -107,6 +113,8 @@ const AutonomousRunConfigDrawer = ({
           // rather than shown with a meaningless default.
           hideTimeBudget={planMode}
           timeBudgetNote={planMode ? undefined : timeBudgetNote}
+          rebuildMode={rebuildMode}
+          onRebuildModeChange={onRebuildModeChange}
           infoText={infoText
             ?? t('In autonomous mode an AI orchestrator drives the run live and adapts in real time - reacting to findings, adding steps and consulting specialist agents to pursue the objective. Set an objective, pick the specialist agents it may consult, and optionally scope the perimeter with the allow / deny lists - or skip scoping and the AI will ask you which targets are in scope.')}
           showSave={showSave}
