@@ -166,14 +166,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     void given_expiredAgentExpectations_should_emitAutomaticExpectationResultAuditEvents() {
       // Arrange
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              EXPIRATION_TIME_1_s);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
 
       em.flush();
       em.clear();
@@ -222,15 +220,11 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // Arrange
       ExecutableInject executableInject = newExecutableInjectWithTargets();
       Expectation expectation =
-          vulnerabilityExpectationForAsset(
-              100.0,
-              "Vulnerability",
-              "Vulnerability Expectation",
-              savedEndpoint,
-              null,
-              EXPIRATION_TIME_1_s);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, List.of(expectation));
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Vulnerability Expectation");
+      expectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(expectation), "implantType");
 
       em.flush();
       em.clear();
@@ -264,14 +258,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     void given_recomputedExpiredParents_should_emitAutomaticExpectationResultAuditEvents() {
       // Arrange
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              EXPIRATION_TIME_1_s);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
 
       em.flush();
       em.clear();

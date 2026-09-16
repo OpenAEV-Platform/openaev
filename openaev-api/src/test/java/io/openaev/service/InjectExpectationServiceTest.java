@@ -22,12 +22,15 @@ import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -121,44 +124,6 @@ class InjectExpectationServiceTest {
         ExpectationFixture.createExpectation(type, "test-" + type.name().toLowerCase());
     expectation.setExpectationGroup(false);
     return expectation;
-  }
-
-  private void invokeComputeExpectationsForAssetAndAgents(
-      List<Expectation> expectations,
-      BaseInjectContent content,
-      AssetToExecute assetToExecute,
-      Inject currentInject,
-      String implantType)
-      throws Exception {
-    Method method =
-        InjectExpectationService.class.getDeclaredMethod(
-            "computeExpectationsForAssetAndAgents",
-            List.class,
-            BaseInjectContent.class,
-            AssetToExecute.class,
-            Inject.class,
-            String.class);
-    method.setAccessible(true);
-    method.invoke(
-        injectExpectationService,
-        expectations,
-        content,
-        assetToExecute,
-        currentInject,
-        implantType);
-  }
-
-  private void invokeComputeExpectationsForAssetGroup(
-      List<Expectation> expectations, BaseInjectContent content, AssetGroup assetGroup)
-      throws Exception {
-    Method method =
-        InjectExpectationService.class.getDeclaredMethod(
-            "computeExpectationsForAssetGroup",
-            List.class,
-            BaseInjectContent.class,
-            AssetGroup.class);
-    method.setAccessible(true);
-    method.invoke(injectExpectationService, expectations, content, assetGroup);
   }
 
   private AuditEvent invokeExpectationResultAudit(

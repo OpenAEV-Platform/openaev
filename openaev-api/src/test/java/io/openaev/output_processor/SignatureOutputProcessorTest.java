@@ -14,6 +14,7 @@ import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
 import io.openaev.service.expectation.ExpectationBehaviorResolver;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +32,8 @@ class SignatureOutputProcessorTest {
   private final SecurityCoverageSendJobService securityCoverageSendJobService =
       mock(SecurityCoverageSendJobService.class);
   private final InjectService injectService = mock(InjectService.class);
+  private final InjectorContractContentUtils injectorContractContentUtils =
+      mock(InjectorContractContentUtils.class);
   private final ExpectationBehaviorResolver expectationBehaviorResolver =
       mock(ExpectationBehaviorResolver.class);
 
@@ -47,7 +50,6 @@ class SignatureOutputProcessorTest {
           injectService,
           injectorContractContentUtils,
           Optional.empty(),
-          new ArrayList<>(List.of()),
           expectationBehaviorResolver);
   private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
   private final SignatureOutputProcessor processor =
