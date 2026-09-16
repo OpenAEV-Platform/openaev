@@ -480,7 +480,6 @@ public enum Capability {
       pair(ResourceType.PLATFORM_ROLE, Action.DELETE),
       pair(ResourceType.PLATFORM_USER, Action.DELETE)),
 
-
   MANAGE_PLATFORM_SESSIONS(
       null,
       CapabilityGroup.SECURITY,
