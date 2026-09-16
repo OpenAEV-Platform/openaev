@@ -58,7 +58,7 @@ public class UrlAccessTokenService {
     String tokenSecret = generateRawToken();
 
     UrlAccessToken token = new UrlAccessToken();
-    token.setTokenHash(hashToken(tokenSecret));
+    token.setTokenHash(hashWithSHA256(tokenSecret));
     token.setUrl(url);
     token.setExercise(exercise);
     token.setUser(user);
