@@ -289,13 +289,14 @@ test.describe.serial('Infrastructure - chaining', () => {
       // The tab is labelled after its content: a reconstructed command renders a
       // terminal, otherwise the injector's raw execution traces.
       await page.getByRole('tab', { name: /^(Terminal view|Execution details)$/ }).click();
-      await expect(page.getByText(/nmap\s+-Pn\s+-sT/i)).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(/nmap\s+-Pn\s+-sT/i).first()).toBeVisible({ timeout: 10_000 });
 
       await page.getByRole('tab', {
         name: 'Findings',
         exact: true,
       }).click();
-      await expect(page.getByText(/portscan|port/i).first()).toBeVisible({ timeout: 10_000 });
+      // Matches the "Portscan" finding type label; a bare /port/ would also hit "Report".
+      await expect(page.getByText(/port\s?scan/i).first()).toBeVisible({ timeout: 10_000 });
     }).toPass({
       intervals: [10_000],
       timeout: 180_000,
