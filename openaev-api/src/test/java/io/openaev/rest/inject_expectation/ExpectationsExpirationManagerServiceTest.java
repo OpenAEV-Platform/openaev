@@ -59,6 +59,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
   @Autowired private EntityManager em;
   @Autowired private AssetGroupRepository assetGroupRepository;
+  @Autowired private AssetRepository assetRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private AgentRepository agentRepository;
   @Autowired private InjectRepository injectRepository;
@@ -217,8 +218,27 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     @Test
     @DisplayName("Directly answerable expired leaf emits automatic expectation-result audit event")
     void given_expiredDirectLeaf_should_emitAutomaticExpectationResultAuditEvent() {
-      // Arrange
-      ExecutableInject executableInject = newExecutableInjectWithTargets();
+      // Arrange: a plain (non-endpoint) asset never has agent children, so its expectation IS
+      // the leaf and is answered directly by the expiration manager, with no parent-recompute
+      // involved. Endpoints can't be used here: as soon as they carry active agents (as
+      // savedEndpoint does), their asset-level expectation becomes a parent of those agent
+      // expectations instead of a leaf.
+      Asset leafAsset = assetRepository.save(AssetFixture.createDefaultAsset("leaf asset"));
+      AssetGroup leafAssetGroup =
+          assetGroupRepository.save(
+              AssetGroupFixture.createAssetGroupWithAssets("leaf asset group", List.of(leafAsset)));
+      savedInject.setAssetGroups(List.of(leafAssetGroup));
+      injectRepository.save(savedInject);
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false,
+              true,
+              savedInject,
+              emptyList(),
+              emptyList(),
+              List.of(leafAssetGroup),
+              emptyList());
       Expectation expectation =
           createExpectation(
               BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Vulnerability Expectation");
@@ -231,7 +251,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       String assetExpectationId =
           injectExpectationRepository
-              .findAllByInjectAndAsset(savedInject.getId(), savedEndpoint.getId())
+              .findAllByInjectAndAsset(savedInject.getId(), leafAsset.getId())
               .getFirst()
               .getId();
 
