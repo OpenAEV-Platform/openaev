@@ -291,12 +291,14 @@ test.describe.serial('Infrastructure - chaining', () => {
       await page.getByRole('tab', { name: /^(Terminal view|Execution details)$/ }).click();
       await expect(page.getByText(/nmap\s+-Pn\s+-sT/i).first()).toBeVisible({ timeout: 10_000 });
 
-      await page.getByRole('tab', {
-        name: 'Findings',
-        exact: true,
-      }).click();
-      // Matches the "Portscan" finding type label; a bare /port/ would also hit "Report".
-      await expect(page.getByText(/port\s?scan/i).first()).toBeVisible({ timeout: 10_000 });
+      // "Findings" names two tabs: the simulation's nav link and the execution
+      // panel's own tab, which is the one holding this action's results.
+      await page.locator('button[role="tab"]').filter({ hasText: /^Findings$/ }).click();
+      // Scoped to the row so it cannot pass on the "port" inside "Report";
+      // the type renders as "Ports scan" (ContractOutputElementType.portscan).
+      const findingRow = page.getByTestId('finding-row').first();
+      await expect(findingRow).toBeVisible({ timeout: 10_000 });
+      await expect(findingRow).toContainText(/port/i);
     }).toPass({
       intervals: [10_000],
       timeout: 180_000,
