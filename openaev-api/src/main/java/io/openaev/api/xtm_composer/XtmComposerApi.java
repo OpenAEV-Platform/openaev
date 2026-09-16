@@ -7,8 +7,8 @@ import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
-import io.openaev.database.audit.AuditLogContext;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -66,7 +66,6 @@ public class XtmComposerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful refresh")})
   @Transactional(rollbackFor = Exception.class)
-
   public XtmComposerOutput refreshConnectivity(
       TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
     AuditLogContext.setEnabled(false);
