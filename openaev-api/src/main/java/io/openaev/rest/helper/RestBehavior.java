@@ -14,6 +14,7 @@ import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ratelimit.aop.RateLimitAspect;
 import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.rest.exception.*;
 import io.openaev.security.error.AuthenticationError;
@@ -51,6 +52,10 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
+/**
+ * Base class for all REST controllers in the app. Note controllers inheriting are globally rate
+ * limited ({@link RateLimitAspect}).
+ */
 @RestControllerAdvice
 @Slf4j
 public class RestBehavior {
