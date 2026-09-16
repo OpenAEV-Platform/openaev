@@ -96,6 +96,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
             add(tagSaved);
           }
         });
+    scenario.setLessonsEnabled(true);
 
     Scenario scenarioSaved = this.scenarioService.createScenario(scenario);
 
@@ -138,6 +139,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     Document documentArticleSaved = this.documentRepository.save(documentArticle);
     Channel channel = new Channel();
     channel.setName("A channel");
+    channel.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Channel channelSaved = this.channelRepository.save(channel);
     Article article = getArticle(channelSaved);
     article.setDocuments(
@@ -212,6 +214,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     // Default Simulation dashboard
     CustomDashboard defaultDashboard = new CustomDashboard();
     defaultDashboard.setName("Default scenario dashboard");
+    defaultDashboard.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
     settingRepository.save(
         settingRepository
@@ -240,6 +243,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertNotNull(exerciseSaved);
     assertEquals(name, exerciseSaved.getName());
+    assertTrue(exerciseSaved.isLessonsEnabled());
     // Telemetry
     verify(actionMetricCollector).addSimulationCreatedCount();
     // User & Teams

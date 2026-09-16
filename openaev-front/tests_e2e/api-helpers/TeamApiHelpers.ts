@@ -1,7 +1,10 @@
 import type { APIRequestContext } from '@playwright/test';
 
+import { tenantApiPath } from '../utils/url';
+
 class TeamApiHelpers {
-  readonly teamUri = '/api/teams';
+  readonly teamUri = tenantApiPath('/api/teams');
+  readonly playerUri = tenantApiPath('/api/players');
   constructor(private request: APIRequestContext) {}
 
   async createTeam(name?: string) {
@@ -23,7 +26,7 @@ class TeamApiHelpers {
   }
 
   async createPlayer(email?: string) {
-    const response = await this.request.post('/api/players', {
+    const response = await this.request.post(this.playerUri, {
       data: {
         user_tags: [],
         user_email: email || `test${Date.now()}@test.io`,
@@ -34,7 +37,7 @@ class TeamApiHelpers {
   }
 
   async deletePlayer(id: string) {
-    await this.request.delete(`/api/players/${id}`);
+    await this.request.delete(`${this.playerUri}/${id}`);
   }
 }
 

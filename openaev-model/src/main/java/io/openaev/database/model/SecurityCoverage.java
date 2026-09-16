@@ -19,13 +19,13 @@ import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "security_coverages")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class SecurityCoverage implements Base {
+public class SecurityCoverage implements TenantBase {
 
   private Set<String> getDefaultPlatformsAffinity() {
     return new HashSet<>(
@@ -114,7 +114,6 @@ public class SecurityCoverage implements Base {
   @Column(
       name = "security_coverage_bundle_hash_md5",
       nullable = false,
-      unique = true,
       length = 32 // MD5 produces a 32-character hex string
       )
   @JsonIgnore
@@ -139,6 +138,11 @@ public class SecurityCoverage implements Base {
   @JoinColumn(name = "security_coverage_scenario")
   @JsonIgnore
   private Scenario scenario;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   @CreationTimestamp
   @Column(name = "security_coverage_created_at", updatable = false)

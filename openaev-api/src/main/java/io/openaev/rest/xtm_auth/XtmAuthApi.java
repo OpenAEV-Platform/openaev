@@ -2,6 +2,7 @@ package io.openaev.rest.xtm_auth;
 
 import io.jsonwebtoken.security.Jwks;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.xtm_auth.XtmAuthKeyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +37,7 @@ public class XtmAuthApi extends RestBehavior {
   @Transactional
   @ApiResponse(responseCode = "200", description = "JWKS payload")
   @LogExecutionTime
-  public JwksOutput jwks() {
+  public JwksOutput jwks(TxCtx ctx) {
     var jwk =
         Jwks.builder()
             .key(keyService.getKeyPair().getPublic())

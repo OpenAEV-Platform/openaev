@@ -3,6 +3,7 @@ import { SettingsOutlined } from '@mui/icons-material';
 import { type LeftMenuItem } from '../../../../components/common/menu/leftmenu/leftmenu-model';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { ACTIONS, type Actions, SUBJECTS, type Subjects } from '../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 
 export const SETTINGS_LABEL = 'Settings';
 
@@ -36,6 +37,10 @@ export const SETTINGS_ACCESS_CHECKS: {
     subject: SUBJECTS.TENANTS,
   },
   {
+    action: ACTIONS.ACCESS,
+    subject: SUBJECTS.MARKING_DEFINITION,
+  },
+  {
     // Lessons learned templates live under Settings > Customization.
     action: ACTIONS.ACCESS,
     subject: SUBJECTS.LESSONS_LEARNED,
@@ -43,6 +48,14 @@ export const SETTINGS_ACCESS_CHECKS: {
   {
     action: ACTIONS.ACCESS,
     subject: SUBJECTS.TAGS,
+  },
+  {
+    action: ACTIONS.MANAGE,
+    subject: SUBJECTS.SESSIONS,
+  },
+  {
+    action: ACTIONS.MANAGE,
+    subject: SUBJECTS.PLATFORM_SESSIONS,
   },
 ];
 
@@ -60,8 +73,12 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
   const canAccessPlatformSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
   const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
+  const canAccessMarkingDefinitions = isFeatureEnabled('MARKING')
+    && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   const canAccessLessonsLearned = ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED);
   const hasTagsAccess = canAccessTags(ability);
+  const canManageAnySessions = ability.can(ACTIONS.MANAGE, SUBJECTS.SESSIONS)
+    || ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SESSIONS);
 
   const subItems = [
     {
@@ -72,7 +89,8 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
     {
       link: '/admin/settings/security',
       label: 'Security',
-      userRight: hasTenantSettingsAccess || canAccessTenantUsers || canAccessPlatformUGR || canAccessTenants,
+      userRight: hasTenantSettingsAccess || canAccessTenantUsers || canAccessPlatformUGR || canAccessTenants
+        || canManageAnySessions || canAccessMarkingDefinitions,
     },
     {
       // Section root: redirects to asset_rules; Notifiers and Lessons learned

@@ -231,7 +231,7 @@ export interface AggregatedFindingOutput {
    */
   finding_updated_at: string;
   /**
-   * Finding Value
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
    */
   finding_value: string;
@@ -327,28 +327,28 @@ export interface AiGenericTextInput {
 }
 
 export interface AiMediaInput {
-  ai_author?: string;
-  ai_context?: string;
+  ai_author?: string | null;
+  ai_context?: string | null;
   /** @minLength 1 */
-  ai_format: string;
+  ai_format: string | null;
   /** @minLength 1 */
   ai_input: string;
   /** @format int32 */
-  ai_paragraphs?: number;
-  ai_tone?: string;
+  ai_paragraphs?: number | null;
+  ai_tone?: string | null;
 }
 
 export interface AiMessageInput {
-  ai_context?: string;
+  ai_context?: string | null;
   /** @minLength 1 */
   ai_format: string;
   /** @minLength 1 */
   ai_input: string;
   /** @format int32 */
-  ai_paragraphs?: number;
-  ai_recipient?: string;
-  ai_sender?: string;
-  ai_tone?: string;
+  ai_paragraphs?: number | null;
+  ai_recipient?: string | null;
+  ai_sender?: string | null;
+  ai_tone?: string | null;
 }
 
 export interface AiResult {
@@ -1254,6 +1254,35 @@ export interface AttackPatternCreateInput {
   attack_pattern_stix_id?: string;
 }
 
+/** Attack pattern as returned by the read endpoints */
+export interface AttackPatternOutput {
+  /**
+   * Creation date
+   * @format date-time
+   */
+  attack_pattern_created_at?: string;
+  /** Description of the attack pattern */
+  attack_pattern_description?: string;
+  /** External id, e.g. the MITRE technique id */
+  attack_pattern_external_id?: string;
+  /** Id of the attack pattern */
+  attack_pattern_id?: string;
+  attack_pattern_kill_chain_phases?: string[];
+  /** Name of the attack pattern */
+  attack_pattern_name?: string;
+  /** Id of the parent attack pattern */
+  attack_pattern_parent?: string;
+  attack_pattern_permissions_required?: string[];
+  attack_pattern_platforms?: string[];
+  /** STIX id */
+  attack_pattern_stix_id?: string;
+  /**
+   * Last update date
+   * @format date-time
+   */
+  attack_pattern_updated_at?: string;
+}
+
 export interface AttackPatternSimple {
   /** @minLength 1 */
   attack_pattern_external_id: string;
@@ -1326,6 +1355,12 @@ export interface AutonomousAttackPathStepState {
 export interface AutonomousConvertToManualInput {
   /** DUPLICATE creates a new manual chained scenario from a copy and leaves the AI run untouched; IN_PLACE turns this scenario manual for good (irreversible). */
   mode: "DUPLICATE" | "IN_PLACE";
+}
+
+/** Identifier of the scenario resulting from the conversion */
+export interface AutonomousConvertToManualOutput {
+  /** Id of the resulting manual scenario. */
+  scenario_id?: string;
 }
 
 /** Tenant default additional agents for autonomous runs */
@@ -2094,7 +2129,7 @@ export interface CapabilityOutput {
    * Scopes where this capability applies (PLATFORM, TENANT)
    * @uniqueItems true
    */
-  capability_scopes: string[];
+  capability_scopes: ("PLATFORM" | "TENANT")[];
   /**
    * Enum key of the capability or group
    * @minLength 1
@@ -3064,11 +3099,12 @@ export interface CreateConnectorInstanceInput {
 }
 
 export interface CreateExerciseInput {
-  exercise_category?: string;
+  exercise_category?: string | null;
   exercise_custom_dashboard?: string;
-  exercise_default_kill_chain?: string;
-  exercise_description?: string;
+  exercise_default_kill_chain?: string | null;
+  exercise_description?: string | null;
   exercise_is_chaining?: boolean;
+  exercise_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -3076,7 +3112,7 @@ export interface CreateExerciseInput {
    */
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
-  exercise_main_focus?: string;
+  exercise_main_focus?: string | null;
   exercise_message_footer?: string;
   exercise_message_header?: string;
   /**
@@ -3084,7 +3120,7 @@ export interface CreateExerciseInput {
    * @maxLength 255
    */
   exercise_name: string;
-  exercise_severity?: string;
+  exercise_severity?: string | null;
   /** @format date-time */
   exercise_start_date?: string | null;
   exercise_subtitle?: string;
@@ -3099,14 +3135,27 @@ export interface CredentialBulkProcessingInput {
 
 export interface CredentialContractField {
   choices?: string[];
-  field_name?: string;
-  field_type?: "text" | "password" | "select" | "number" | "checkbox";
+  default_value?: string;
+  field_name: string;
+  field_type?: "text" | "password" | "select" | "number" | "checkbox" | "file";
+  mandatory_condition_field?: string;
+  mandatory_condition_value?: string;
   required?: boolean;
+  visible_condition_field?: string;
+  visible_condition_value?: string;
 }
 
 export interface CredentialContractOutput {
-  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
-  credential_type: "IDENTITY";
+  credential_auth_method:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   fields?: CredentialContractField[];
 }
 
@@ -3119,7 +3168,73 @@ export interface CredentialCreatedByOutput {
 
 export interface CredentialFullOutput {
   /** Credential authentication method */
-  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  credential_auth_method:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
+  /** AWS access key ID */
+  credential_aws_access_key_id?: string;
+  /** Secret AWS default region */
+  credential_aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  /** AWS role ARN */
+  credential_aws_role_arn?: string;
+  /** AWS session token present */
+  credential_aws_session_token_present?: boolean;
+  /** AWS source identity type */
+  credential_aws_source_identity_type?:
+    | "STATIC_ACCESS_KEY"
+    | "INSTANCE_DEFAULT";
+  /** AWS source profile access key id */
+  credential_aws_source_profile_access_key_id?: string;
+  /** Azure client id */
+  credential_azure_client_id?: string;
+  /** Azure environment */
+  credential_azure_environment?: string;
+  /** Azure subscription id */
+  credential_azure_subscription_id?: string;
+  /** Azure tenant id */
+  credential_azure_tenant_id?: string;
   /**
    * Credential creation timestamp
    * @format date-time
@@ -3129,7 +3244,19 @@ export interface CredentialFullOutput {
   credential_created_by: CredentialCreatedByOutput;
   /** Credential description */
   credential_description?: string;
-  /** Credential description */
+  /** GCP OAuth client id */
+  credential_gcp_oauth_client_id?: string;
+  /** Whether a GCP OAuth client secret is stored; the secret itself is never returned */
+  credential_gcp_oauth_client_secret_defined?: boolean;
+  /** Whether a GCP OAuth refresh token is stored; the token itself is never returned */
+  credential_gcp_oauth_refresh_token_defined?: boolean;
+  /** Whether a GCP service account key file is stored; the key itself is never returned */
+  credential_gcp_private_key_defined?: boolean;
+  /** GCP project id */
+  credential_gcp_project_id?: string;
+  /** GCP OAuth scope */
+  credential_gcp_scope?: string;
+  /** Secret hash algorithm */
   credential_hash_algorithm?: "SHA" | "NTLM";
   /** Credential ID */
   credential_id: string;
@@ -3141,20 +3268,87 @@ export interface CredentialFullOutput {
   /** Credential name */
   credential_name: string;
   /** Credential status */
-  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  credential_status?:
+    | "ACTIVE"
+    | "AUTH_FAILED"
+    | "PERMISSION_DENIED"
+    | "TIMEOUT"
+    | "NETWORK_ERROR"
+    | "UNSUPPORTED"
+    | "FORMAT_ERROR"
+    | "UNKNOWN"
+    | "UNSET";
   /**
    * Tag IDs linked to the credential
    * @uniqueItems true
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type: "IDENTITY";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   /** Secret username */
   credential_username?: string;
 }
 
 export interface CredentialInput {
-  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  aws_access_key_id?: string;
+  aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  aws_external_id?: string;
+  aws_role_arn?: string;
+  aws_secret_access_key?: string;
+  aws_session_token?: string;
+  aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
+  aws_source_profile_access_key_id?: string;
+  aws_source_profile_secret_access_key?: string;
+  azure_client_id?: string;
+  azure_client_secret?: string;
+  azure_environment?: string;
+  azure_subscription_id?: string;
+  azure_tenant_id?: string;
+  credential_auth_method:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
   credential_description?: string;
   credential_hash?: string;
   credential_hash_algorithm?: "SHA" | "NTLM";
@@ -3162,13 +3356,26 @@ export interface CredentialInput {
   credential_name: string;
   credential_password?: string;
   credential_tags?: string[];
-  credential_type: "IDENTITY";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   credential_username?: string;
+  gcp_oauth_client_id?: string;
+  gcp_oauth_client_secret?: string;
+  gcp_oauth_refresh_token?: string;
+  gcp_project_id?: string;
+  gcp_scope?: string;
 }
 
 export interface CredentialOutput {
   /** Credential authentication method */
-  credential_auth_method?: "USERNAME_PASSWORD" | "HASH";
+  credential_auth_method?:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
   /**
    * Credential creation timestamp
    * @format date-time
@@ -3186,14 +3393,23 @@ export interface CredentialOutput {
   /** Credential name */
   credential_name?: string;
   /** Credential status */
-  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  credential_status?:
+    | "ACTIVE"
+    | "AUTH_FAILED"
+    | "PERMISSION_DENIED"
+    | "TIMEOUT"
+    | "NETWORK_ERROR"
+    | "UNSUPPORTED"
+    | "FORMAT_ERROR"
+    | "UNKNOWN"
+    | "UNSET";
   /**
    * Tag IDs linked to the credential
    * @uniqueItems true
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type?: "IDENTITY";
+  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
 }
 
 export interface CustomDashboard {
@@ -3294,7 +3510,7 @@ export interface CveCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example "7.5"
+   * @example 7.5
    */
   cve_cvss_v31: number;
   /**
@@ -4515,7 +4731,7 @@ export interface EngineSortField {
 
 export interface EntitiesPaginationInput {
   /** Pagination to set (optional) */
-  pagination?: Pagination;
+  pagination?: null;
   /** Parameters to set */
   parameters?: Record<string, string>;
 }
@@ -5545,57 +5761,6 @@ export interface FilterGroup {
   mode: "and" | "or";
 }
 
-export interface Finding {
-  /** @uniqueItems true */
-  finding_asset_groups?: AssetGroup[];
-  finding_assets?: string[];
-  /** @format date-time */
-  finding_created_at: string;
-  /** @minLength 1 */
-  finding_field: string;
-  /** @minLength 1 */
-  finding_id: string;
-  finding_inject_id?: string;
-  /** @deprecated */
-  finding_labels?: string[];
-  finding_name?: string;
-  finding_scenario?: Scenario;
-  finding_simulation?: Exercise;
-  finding_tags?: string[];
-  finding_teams?: string[];
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /** @format date-time */
-  finding_updated_at: string;
-  finding_users?: string[];
-  /** @minLength 1 */
-  finding_value: string;
-  listened?: boolean;
-}
-
 export interface FindingInput {
   /** @minLength 1 */
   finding_field: string;
@@ -5627,6 +5792,92 @@ export interface FindingInput {
     | "kerberoastable_account"
     | "expectation_signature";
   /** @minLength 1 */
+  finding_value: string;
+}
+
+export interface FindingOutput {
+  /**
+   * Asset groups targeted by the inject that produced the finding
+   * @uniqueItems true
+   */
+  finding_asset_groups?: AssetGroupSimple[];
+  /** Asset ids linked to the finding */
+  finding_assets?: string[];
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
+  finding_created_at: string;
+  /**
+   * Contract output field the finding was extracted from
+   * @minLength 1
+   */
+  finding_field: string;
+  /**
+   * Finding Id
+   * @minLength 1
+   */
+  finding_id: string;
+  /** Inject that produced the finding */
+  finding_inject_id?: string;
+  /**
+   * Deprecated, kept for backward compatibility
+   * @deprecated
+   */
+  finding_labels?: string[];
+  /** Finding name */
+  finding_name?: string;
+  /** Scenario the finding was produced in */
+  finding_scenario?: ScenarioSimple;
+  /** Simulation the finding was produced in */
+  finding_simulation?: ExerciseSimple;
+  /**
+   * Tag ids linked to the finding
+   * @uniqueItems true
+   */
+  finding_tags?: string[];
+  /** Team ids linked to the finding */
+  finding_teams?: string[];
+  /**
+   * Represents the data type being extracted.
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
+   */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at: string;
+  /** User ids linked to the finding */
+  finding_users?: string[];
+  /**
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
+   * @minLength 1
+   */
   finding_value: string;
 }
 
@@ -5694,7 +5945,7 @@ export interface FindingSummaryOutput {
    * @format int64
    */
   finding_users_count?: number;
-  /** Finding value */
+  /** Finding value, masked when the finding type holds secret material */
   finding_value?: string;
 }
 
@@ -5909,6 +6160,7 @@ export interface Inject {
   inject_asset_groups?: string[];
   inject_assets?: string[];
   inject_attack_patterns?: AttackPattern[];
+  inject_authorisation?: InjectAuthorisation;
   inject_city?: string;
   inject_collect_status?: "COLLECTING" | "COMPLETED";
   inject_communications?: string[];
@@ -5947,6 +6199,7 @@ export interface Inject {
   /** @format date-time */
   inject_recurrence_start?: string;
   inject_scenario?: string;
+  inject_secret_references?: string[];
   /** @format date-time */
   inject_sent_at?: string;
   inject_status?: InjectStatus;
@@ -5982,6 +6235,13 @@ export interface InjectAssistantInput {
    * @format int32
    */
   inject_by_ttp_number: number;
+}
+
+export interface InjectAuthorisation {
+  inject_authorisation_id?: string;
+  /** @format date-time */
+  inject_authorisation_issued_at?: string;
+  inject_id?: string;
 }
 
 export interface InjectBulkProcessingInput {
@@ -6116,6 +6376,8 @@ export interface InjectExpectationOutput {
   inject_expectation_asset_group?: string;
   /** Challenge ID associated with the inject expectation */
   inject_expectation_challenge?: string;
+  /** True when this technical detection/prevention expectation required a security platform collector to be fulfilled but none was connected at initialization, so it was resolved as a definitive failure instead of staying pending. */
+  inject_expectation_collector_missing_at_init?: boolean;
   /**
    * Creation date of the inject expectation
    * @format date-time
@@ -6674,7 +6936,7 @@ export interface InjectorContract {
   injector_contract_created_at: string;
   injector_contract_custom?: boolean;
   injector_contract_domains?: string[];
-  injector_contract_external_id?: string;
+  injector_contract_external_id?: string | null;
   /** @minLength 1 */
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
@@ -7489,6 +7751,35 @@ export interface MapperConditionOutput {
   condition_value?: string;
 }
 
+export interface MarkingDefinitionInput {
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  marking_definition_color?: string;
+  /** @minLength 1 */
+  marking_definition_definition: string;
+  /**
+   * @format int32
+   * @min 0
+   */
+  marking_definition_order: number;
+  /** @minLength 1 */
+  marking_definition_type: string;
+}
+
+export interface MarkingDefinitionOutput {
+  marking_definition_color?: string;
+  /** @format date-time */
+  marking_definition_created_at: string;
+  /** @minLength 1 */
+  marking_definition_definition: string;
+  /** @minLength 1 */
+  marking_definition_id: string;
+  /** @format int32 */
+  marking_definition_order: number;
+  marking_definition_protected: boolean;
+  /** @minLength 1 */
+  marking_definition_type: string;
+}
+
 export interface MissingImportedAction {
   name?: string;
   type?: string;
@@ -7696,6 +7987,7 @@ export interface NotificationTriggerInput {
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
+    | "MARKING_DEFINITION"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -7716,6 +8008,7 @@ export interface NotificationTriggerInput {
     | "VULNERABILITY"
     | "USER_GROUP"
     | "INJECTOR"
+    | "INJECT_SECRET"
     | "INJECTOR_CONTRACT"
     | "MAPPER"
     | "GROUP_ROLE"
@@ -7740,6 +8033,8 @@ export interface NotificationTriggerInput {
     | "STEP"
     | "CONDITION"
     | "SESSION"
+    | "TOKEN"
+    | "PLATFORM_SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
   notification_trigger_time?: string;
@@ -7800,6 +8095,7 @@ export interface NotificationTriggerOutput {
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
+    | "MARKING_DEFINITION"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -7820,6 +8116,7 @@ export interface NotificationTriggerOutput {
     | "VULNERABILITY"
     | "USER_GROUP"
     | "INJECTOR"
+    | "INJECT_SECRET"
     | "INJECTOR_CONTRACT"
     | "MAPPER"
     | "GROUP_ROLE"
@@ -7844,6 +8141,8 @@ export interface NotificationTriggerOutput {
     | "STEP"
     | "CONDITION"
     | "SESSION"
+    | "TOKEN"
+    | "PLATFORM_SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC) */
   notification_trigger_time?: string;
@@ -8085,8 +8384,8 @@ export interface PageAssetOutput {
   totalPages?: number;
 }
 
-export interface PageAttackPattern {
-  content?: AttackPattern[];
+export interface PageAttackPatternOutput {
+  content?: AttackPatternOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -8389,6 +8688,25 @@ export interface PageLessonsTemplate {
   totalPages?: number;
 }
 
+export interface PageMarkingDefinitionOutput {
+  content?: MarkingDefinitionOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageMitigation {
   content?: Mitigation[];
   empty?: boolean;
@@ -8543,25 +8861,6 @@ export interface PagePhishingLandingPage {
 
 export interface PagePlatformGroupOutput {
   content?: PlatformGroupOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PagePlatformRoleOutput {
-  content?: PlatformRoleOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -9399,90 +9698,6 @@ export interface PlatformGroupUpdateUsersInput {
   platform_group_users?: string[];
 }
 
-export interface PlatformRoleInput {
-  /** @uniqueItems true */
-  platform_role_capabilities?: (
-    | "BYPASS"
-    | "ACCESS_ASSESSMENT"
-    | "MANAGE_ASSESSMENT"
-    | "DELETE_ASSESSMENT"
-    | "LAUNCH_ASSESSMENT"
-    | "ACCESS_TEAMS_AND_PLAYERS"
-    | "MANAGE_TEAMS_AND_PLAYERS"
-    | "DELETE_TEAMS_AND_PLAYERS"
-    | "ACCESS_ASSETS"
-    | "MANAGE_ASSETS"
-    | "DELETE_ASSETS"
-    | "ACCESS_PAYLOADS"
-    | "MANAGE_PAYLOADS"
-    | "DELETE_PAYLOADS"
-    | "ACCESS_THREAT_ARSENALS"
-    | "MANAGE_THREAT_ARSENALS"
-    | "DELETE_THREAT_ARSENALS"
-    | "ACCESS_CREDENTIALS"
-    | "MANAGE_CREDENTIALS"
-    | "DELETE_CREDENTIALS"
-    | "ACCESS_DASHBOARDS"
-    | "MANAGE_DASHBOARDS"
-    | "DELETE_DASHBOARDS"
-    | "ACCESS_REPORTINGS"
-    | "MANAGE_REPORTINGS"
-    | "DELETE_REPORTINGS"
-    | "ACCESS_FINDINGS"
-    | "MANAGE_FINDINGS"
-    | "DELETE_FINDINGS"
-    | "ACCESS_DOCUMENTS"
-    | "MANAGE_DOCUMENTS"
-    | "DELETE_DOCUMENTS"
-    | "ACCESS_CHANNELS"
-    | "MANAGE_CHANNELS"
-    | "DELETE_CHANNELS"
-    | "ACCESS_PHISHING"
-    | "MANAGE_PHISHING"
-    | "DELETE_PHISHING"
-    | "ACCESS_CHALLENGES"
-    | "MANAGE_CHALLENGES"
-    | "DELETE_CHALLENGES"
-    | "ACCESS_LESSONS_LEARNED"
-    | "MANAGE_LESSONS_LEARNED"
-    | "DELETE_LESSONS_LEARNED"
-    | "ACCESS_SECURITY_PLATFORMS"
-    | "MANAGE_SECURITY_PLATFORMS"
-    | "DELETE_SECURITY_PLATFORMS"
-    | "ACCESS_PLATFORM_SETTINGS"
-    | "MANAGE_PLATFORM_SETTINGS"
-    | "ACCESS_TENANTS"
-    | "MANAGE_TENANTS"
-    | "DELETE_TENANTS"
-    | "ACCESS_TENANT_SETTINGS"
-    | "ACCESS_TAGS"
-    | "MANAGE_TAGS"
-    | "DELETE_TAGS"
-    | "MANAGE_TENANT_SETTINGS"
-    | "DELETE_TENANT_SETTINGS"
-    | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
-    | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
-    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_STIX_BUNDLE"
-    | "AGENT_RUNTIME_ACCESS"
-    | "MANAGE_SESSIONS"
-  )[];
-  platform_role_description?: string;
-  /** @minLength 1 */
-  platform_role_name: string;
-}
-
-export interface PlatformRoleOutput {
-  platform_role_description?: string;
-  /** @minLength 1 */
-  platform_role_id: string;
-  /** @minLength 1 */
-  platform_role_name: string;
-}
-
 export interface PlatformSettings {
   /** True if Saml2 is enabled */
   auth_saml2_enable?: boolean;
@@ -9513,7 +9728,7 @@ export interface PlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
-    | "SIGNATURE_OUTPUT_PROCESSOR"
+    | "MARKING"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -9809,7 +10024,7 @@ export interface PublicPlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
-    | "SIGNATURE_OUTPUT_PROCESSOR"
+    | "MARKING"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10045,7 +10260,7 @@ export interface RelatedFindingOutput {
    */
   finding_users?: TargetSimple[];
   /**
-   * Finding Value
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
    */
   finding_value: string;
@@ -10253,6 +10468,10 @@ export interface RoleInput {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "RESOLVE_INJECT_SECRET"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10297,9 +10516,10 @@ export interface RoleInput {
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
-    | "MANAGE_SESSIONS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -10308,14 +10528,85 @@ export interface RoleInput {
 
 export interface RoleOutput {
   /** @uniqueItems true */
-  role_capabilities?: string[];
-  role_created_at?: string;
+  role_capabilities?: (
+    | "BYPASS"
+    | "ACCESS_ASSESSMENT"
+    | "MANAGE_ASSESSMENT"
+    | "DELETE_ASSESSMENT"
+    | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
+    | "MANAGE_TEAMS_AND_PLAYERS"
+    | "DELETE_TEAMS_AND_PLAYERS"
+    | "ACCESS_ASSETS"
+    | "MANAGE_ASSETS"
+    | "DELETE_ASSETS"
+    | "ACCESS_PAYLOADS"
+    | "MANAGE_PAYLOADS"
+    | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
+    | "ACCESS_CREDENTIALS"
+    | "MANAGE_CREDENTIALS"
+    | "DELETE_CREDENTIALS"
+    | "RESOLVE_INJECT_SECRET"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
+    | "ACCESS_DASHBOARDS"
+    | "MANAGE_DASHBOARDS"
+    | "DELETE_DASHBOARDS"
+    | "ACCESS_REPORTINGS"
+    | "MANAGE_REPORTINGS"
+    | "DELETE_REPORTINGS"
+    | "ACCESS_FINDINGS"
+    | "MANAGE_FINDINGS"
+    | "DELETE_FINDINGS"
+    | "ACCESS_DOCUMENTS"
+    | "MANAGE_DOCUMENTS"
+    | "DELETE_DOCUMENTS"
+    | "ACCESS_CHANNELS"
+    | "MANAGE_CHANNELS"
+    | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
+    | "ACCESS_CHALLENGES"
+    | "MANAGE_CHALLENGES"
+    | "DELETE_CHALLENGES"
+    | "ACCESS_LESSONS_LEARNED"
+    | "MANAGE_LESSONS_LEARNED"
+    | "DELETE_LESSONS_LEARNED"
+    | "ACCESS_SECURITY_PLATFORMS"
+    | "MANAGE_SECURITY_PLATFORMS"
+    | "DELETE_SECURITY_PLATFORMS"
+    | "ACCESS_PLATFORM_SETTINGS"
+    | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_TENANT_SETTINGS"
+    | "ACCESS_TAGS"
+    | "MANAGE_TAGS"
+    | "DELETE_TAGS"
+    | "MANAGE_TENANT_SETTINGS"
+    | "DELETE_TENANT_SETTINGS"
+    | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "MANAGE_PLATFORM_SESSIONS"
+    | "MANAGE_STIX_BUNDLE"
+    | "AGENT_RUNTIME_ACCESS"
+  )[];
   role_description?: string;
   /** @minLength 1 */
   role_id: string;
   /** @minLength 1 */
   role_name: string;
-  role_updated_at?: string;
 }
 
 export interface RuleAttribute {
@@ -10455,13 +10746,14 @@ export interface ScenarioIdsAndInjectorContractsInputs {
 }
 
 export interface ScenarioInput {
-  scenario_category?: string;
+  scenario_category?: string | null;
   scenario_custom_dashboard?: string;
-  scenario_default_kill_chain?: string;
+  scenario_default_kill_chain?: string | null;
   scenario_description?: string;
-  scenario_external_reference?: string;
-  scenario_external_url?: string;
+  scenario_external_reference?: string | null;
+  scenario_external_url?: string | null;
   scenario_is_chaining?: boolean;
+  scenario_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -10469,7 +10761,7 @@ export interface ScenarioInput {
    */
   scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string;
+  scenario_main_focus?: string | null;
   scenario_message_footer?: string;
   scenario_message_header?: string;
   /** @minLength 1 */
@@ -10524,6 +10816,8 @@ export interface ScenarioOutput {
   scenario_mail_from: string;
   /** Sender display name of the scenario */
   scenario_mail_from_name?: string;
+  /** @uniqueItems true */
+  scenario_mails_reply_to?: string[];
   /** Main focus value of the scenario */
   scenario_main_focus?: string;
   /** Footer of the scenario */
@@ -11126,6 +11420,8 @@ export interface SessionOutput {
   session_last_access_at?: string;
   /** Identifier of the user owning the session */
   session_user_id?: string;
+  /** Display name of the user owning the session, or their email */
+  session_user_name?: string;
 }
 
 export interface SettingsChatbotAiCguUpdateInput {
@@ -11231,7 +11527,7 @@ export interface SimulationsResultsLatest {
 }
 
 export interface SortField {
-  direction?: string;
+  direction?: string | null;
   nullHandling?: "NATIVE" | "NULLS_FIRST" | "NULLS_LAST";
   property?: string;
 }
@@ -12270,11 +12566,12 @@ export interface UpdateConnectorInstanceRequestedStatus {
 
 export interface UpdateExerciseInput {
   apply_tag_rule?: boolean;
-  exercise_category?: string;
+  exercise_category?: string | null;
   exercise_custom_dashboard?: string;
-  exercise_default_kill_chain?: string;
-  exercise_description?: string;
+  exercise_default_kill_chain?: string | null;
+  exercise_description?: string | null;
   exercise_is_chaining?: boolean;
+  exercise_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -12282,7 +12579,7 @@ export interface UpdateExerciseInput {
    */
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
-  exercise_main_focus?: string;
+  exercise_main_focus?: string | null;
   exercise_message_footer?: string;
   exercise_message_header?: string;
   /**
@@ -12290,7 +12587,7 @@ export interface UpdateExerciseInput {
    * @maxLength 255
    */
   exercise_name: string;
-  exercise_severity?: string;
+  exercise_severity?: string | null;
   exercise_subtitle?: string;
   exercise_tags?: string[];
 }
@@ -12323,13 +12620,14 @@ export interface UpdateProfileInput {
 
 export interface UpdateScenarioInput {
   apply_tag_rule?: boolean;
-  scenario_category?: string;
+  scenario_category?: string | null;
   scenario_custom_dashboard?: string;
-  scenario_default_kill_chain?: string;
+  scenario_default_kill_chain?: string | null;
   scenario_description?: string;
-  scenario_external_reference?: string;
-  scenario_external_url?: string;
+  scenario_external_reference?: string | null;
+  scenario_external_url?: string | null;
   scenario_is_chaining?: boolean;
+  scenario_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -12337,7 +12635,7 @@ export interface UpdateScenarioInput {
    */
   scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string;
+  scenario_main_focus?: string | null;
   scenario_message_footer?: string;
   scenario_message_header?: string;
   /** @minLength 1 */
@@ -12388,6 +12686,10 @@ export interface User {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "RESOLVE_INJECT_SECRET"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -12432,9 +12734,10 @@ export interface User {
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
-    | "MANAGE_SESSIONS"
   )[];
   /** City of the user */
   user_city?: string;
@@ -12619,7 +12922,7 @@ export interface VulnerabilityCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example "7.5"
+   * @example 7.5
    */
   vulnerability_cvss_v31: number;
   /**
@@ -12671,7 +12974,7 @@ export interface VulnerabilityCreateInput {
 export interface VulnerabilityOutput {
   /**
    * CVSS score
-   * @example "7.8"
+   * @example 7.8
    */
   vulnerability_cvss_v31: number;
   /**
@@ -12722,7 +13025,7 @@ export interface VulnerabilityOutput {
 export interface VulnerabilitySimple {
   /**
    * CVSS score
-   * @example "7.8"
+   * @example 7.8
    */
   vulnerability_cvss_v31: number;
   /**

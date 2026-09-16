@@ -4,11 +4,16 @@
 <p align="center">
   <a href="https://openaev.io" alt="Website"><img src="https://img.shields.io/badge/website-openaev.io-blue.svg" /></a>
   <a href="https://docs.openaev.io" alt="Documentation"><img src="https://img.shields.io/badge/documentation-latest-orange.svg" /></a>
-  <a href="https://community.filigran.io" alt="Slack"><img src="https://img.shields.io/badge/slack-3K%2B%20members-4A154B" /></a>
+  <a href="https://community.filigran.io" alt="Slack"><img src="https://img.shields.io/badge/slack-6K%2B%20members-4A154B" /></a>
   <a href="https://codecov.io/gh/OpenAEV-Platform/openaev"><img src="https://codecov.io/gh/OpenAEV-Platform/openaev/graph/badge.svg" /></a>
   <a href="https://deepscan.io/dashboard#view=project&tid=11710&pid=14631&bid=276803"><img src="https://deepscan.io/api/teams/11710/projects/14631/branches/276803/badge/grade.svg" alt="DeepScan grade"></a>
   <a href="https://hub.docker.com/u/openaev" alt="Docker pulls"><img src="https://img.shields.io/docker/pulls/openaev/platform" /></a>
 </p>
+
+> [!NOTE]
+> **THREAD 2026 — 15 October, Paris.** Our community conference for threat
+> intelligence and cyber defense practitioners. Talks, labs, workshops, and an
+> evening social. [Join us →](https://thread.filigran.io)
 
 ## Introduction
 

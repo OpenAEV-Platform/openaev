@@ -21,6 +21,7 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { TEAM_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type SearchPaginationInput, type Team } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -53,6 +54,7 @@ const Teams = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
+  const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
@@ -153,11 +155,11 @@ const Teams = () => {
   } = useEntityToggle<Team>('team', teams, queryableHelpers.paginationHelpers.getTotalElements());
 
   const bulkDelete = () => {
-    bulkDeleteTeams({
+    dispatch(bulkDeleteTeams({
       search_pagination_input: selectAll ? searchPaginationInput : undefined,
       team_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
       team_ids_to_ignore: Object.keys(deSelectedElements),
-    }).then((result) => {
+    })).then((result: { data: string[] }) => {
       const deletedIds: string[] = result.data ?? [];
       const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
       setTeams(teams.filter(team => !deletedIds.includes(team.team_id)));
@@ -186,7 +188,13 @@ const Teams = () => {
           <Box display="flex" gap={1} alignItems="center">
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-              <CreateTeam onCreate={result => setTeams([result, ...teams])} />
+              <CreateTeam onCreate={(result) => {
+                setTeams([result, ...teams]);
+                queryableHelpers.paginationHelpers.handleChangeTotalElements(
+                  queryableHelpers.paginationHelpers.getTotalElements() + 1,
+                );
+              }}
+              />
             </Can>
           </Box>
         )}
@@ -255,7 +263,12 @@ const Teams = () => {
                     team={team}
                     managePlayers={() => setSelectedTeam(team.team_id)}
                     onUpdate={result => onTeamUpdated(result)}
-                    onDelete={result => setTeams(teams.filter(v => (v.team_id !== result)))}
+                    onDelete={(result) => {
+                      setTeams(teams.filter(v => (v.team_id !== result)));
+                      queryableHelpers.paginationHelpers.handleChangeTotalElements(
+                        Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - 1),
+                      );
+                    }}
                     openEditOnInit={team.team_id === searchId}
                   />
                 )}

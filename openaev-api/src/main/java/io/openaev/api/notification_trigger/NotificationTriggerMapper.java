@@ -1,6 +1,5 @@
 package io.openaev.api.notification_trigger;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.NotificationTrigger;
@@ -29,7 +28,14 @@ public class NotificationTriggerMapper {
   private final UserRepository userRepository;
   private final GroupRepository groupRepository;
 
-  public NotificationTrigger toNotificationTrigger(final NotificationTriggerInput input) {
+  /**
+   * @param tenantId the tenant the trigger is written into, resolved from the request scope by
+   *     {@code TenantWriteScopeResolver}. Child triggers are looked up inside it rather than under
+   *     the request's read scope: the scope can hold several tenants while the row belongs to one,
+   *     and composing a digest with another tenant's trigger would replay that tenant's outbox.
+   */
+  public NotificationTrigger toNotificationTrigger(
+      final String tenantId, final NotificationTriggerInput input) {
     NotificationTrigger trigger = new NotificationTrigger();
     trigger.setName(input.getName());
     trigger.setType(input.getType());
@@ -40,12 +46,11 @@ public class NotificationTriggerMapper {
     trigger.setInstanceId(input.getInstanceId());
     trigger.setPeriod(input.getPeriod());
     trigger.setTriggerTime(input.getTriggerTime());
-    String tenantId = TenantContext.getCurrentTenant();
+    // notifiers is v2-active since #7864, so the inspector scopes this lookup. The endpoint
+    // resolves tenantForWrite first and refuses a multi-tenant scope with a 400, so the scope
+    // reaching here always names exactly the tenant the trigger is written into.
     trigger.setNotifiers(
-        resolveAll(
-            input.getNotifierIds(),
-            ids -> notifierRepository.findAllByIdInAndTenantId(ids, tenantId),
-            "Notifier"));
+        resolveAll(input.getNotifierIds(), notifierRepository::findAllById, "Notifier"));
     trigger.setChildTriggers(
         resolveAll(
             input.getChildTriggerIds(),

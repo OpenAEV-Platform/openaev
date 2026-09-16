@@ -14,12 +14,12 @@ apt-get update && apt-get install git openjdk-21-jdk maven
 apt-get update && apt-get install yarnpkg
 ```
 
-* Node.js >= 20 via `nvm`
+* Node.js >= 24 via `nvm`
 
 Install `nvm` via its install script: [Installing and updating nvm](https://github.com/nvm-sh/nvm/blob/master/README.md#installing-and-updating).
 
-Then install and set as default Node.js 22 (you should be able to use any version from 20 onwards though):
+Then install and set as default Node.js 24 (the version used by the CI and the Docker images):
 ```shell
-nvm install 22
-nvm use 22
+nvm install 24
+nvm use 24
 ```

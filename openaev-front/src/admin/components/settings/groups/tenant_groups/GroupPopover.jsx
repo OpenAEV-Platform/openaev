@@ -11,10 +11,11 @@ import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
+import RoleScopeProvider from '../../roles/RoleScopeProvider';
+import GroupManageRoles from '../GroupManageRoles';
+import GroupManageUsers from '../GroupManageUsers';
 import GroupManageGrants from './grants/GroupManageGrants.tsx';
 import GroupForm from './GroupForm';
-import GroupManageRoles from './GroupManageRoles';
-import GroupManageUsers from './GroupManageUsers';
 
 class GroupPopoverComponent extends Component {
   static contextType = AbilityContext;
@@ -210,20 +211,23 @@ class GroupPopoverComponent extends Component {
             onCancel={this.handleCloseEdit.bind(this)}
           />
         </Drawer>
-        <GroupManageUsers
-          initialState={this.state.usersIds}
-          groupName={group.group_name}
-          open={this.state.openUsers}
-          onClose={this.handleCloseUsers.bind(this)}
-          onSubmit={this.submitUpdateUsers.bind(this)}
-        />
-        <GroupManageRoles
-          initialState={this.state.rolesIds}
-          groupName={group.group_name}
-          open={this.state.openRoles}
-          onClose={this.handleCloseRoles.bind(this)}
-          onSubmit={this.submitUpdateRoles.bind(this)}
-        />
+        <RoleScopeProvider scope="TENANT">
+          <GroupManageUsers
+            initialState={this.state.usersIds}
+            groupRoleIds={this.state.rolesIds}
+            groupName={group.group_name}
+            open={this.state.openUsers}
+            onClose={this.handleCloseUsers.bind(this)}
+            onSubmit={this.submitUpdateUsers.bind(this)}
+          />
+          <GroupManageRoles
+            initialState={this.state.rolesIds}
+            groupName={group.group_name}
+            open={this.state.openRoles}
+            onClose={this.handleCloseRoles.bind(this)}
+            onSubmit={this.submitUpdateRoles.bind(this)}
+          />
+        </RoleScopeProvider>
         <GroupManageGrants
           group={group}
           openGrants={this.state.openGrants}

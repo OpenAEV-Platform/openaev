@@ -1,16 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
+import { Button, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
+import { type BaseSyntheticEvent, type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import {
   FormProvider,
-  type SubmitHandler,
   useForm,
   useWatch,
 } from 'react-hook-form';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { fetchCredentialContracts } from '../../../../actions/assets/credential-actions';
+import FileFieldController from '../../../../components/fields/FileFieldController';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import TagFieldController from '../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
@@ -25,11 +25,13 @@ import InjectContentFieldComponent from '../../common/injects/form/InjectContent
 import { humanizeEnum } from '../asset-categories';
 
 interface Props {
-  onSubmit: SubmitHandler<CredentialInput>;
+  /** Receives the multipart payload: an `input` JSON part plus one part per uploaded file. */
+  onSubmit: (formData: FormData, event?: BaseSyntheticEvent) => Promise<unknown> | void;
   handleClose: () => void;
   editing?: boolean;
   initialValues?: Partial<CredentialInput>;
 }
+
 const CredentialForm: FunctionComponent<Props> = ({
   onSubmit,
   handleClose,
@@ -41,20 +43,60 @@ const CredentialForm: FunctionComponent<Props> = ({
   const [contracts, setContracts] = useState<CredentialContractOutput[]>([]);
   const [isLoadingContracts, setIsLoadingContracts] = useState(true);
 
+  const dynamicFieldValueSchema = z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.array(z.string()),
+    z.instanceof(File),
+    z.null(),
+    z.undefined(),
+  ]);
+  type CredentialDynamicValue = z.infer<typeof dynamicFieldValueSchema>;
+  type CredentialFormValues = CredentialInput & Record<string, CredentialDynamicValue>;
+
+  const matchesCondition = (
+    values: CredentialFormValues,
+    conditionField?: string,
+    conditionValue?: string,
+  ): boolean => {
+    if (!conditionField || !conditionValue) {
+      return false;
+    }
+    return values[conditionField] === conditionValue;
+  };
+
+  // Accepted enum values are derived from the fetched contracts: adding a provider backend-side
+  // is enough, nothing has to be hardcoded here anymore.
+  const acceptedTypes = useMemo(
+    () => new Set(contracts.map(contract => contract.credential_type)),
+    [contracts],
+  );
+  const acceptedAuthMethods = useMemo(
+    () => new Set(contracts.map(contract => contract.credential_auth_method)),
+    [contracts],
+  );
+
   const schema = useMemo(
     () => z
       .object({
         credential_name: z.string().min(1, { message: t('Should not be empty') }),
         credential_description: z.string().optional(),
-        credential_type: z.literal('IDENTITY'),
-        credential_auth_method: z.enum(['USERNAME_PASSWORD', 'HASH']),
-        credential_username: z.string().optional(),
-        credential_password: z.string().optional(),
-        credential_hash: z.string().optional(),
-        credential_hash_algorithm: z.enum(['SHA', 'NTLM']).optional(),
+        credential_type: z.custom<CredentialInput['credential_type']>(
+          value => acceptedTypes.size === 0
+            || acceptedTypes.has(value as CredentialInput['credential_type']),
+          { message: t('Should not be empty') },
+        ),
+        credential_auth_method: z.custom<CredentialInput['credential_auth_method']>(
+          value => acceptedAuthMethods.size === 0
+            || acceptedAuthMethods.has(value as CredentialInput['credential_auth_method']),
+          { message: t('Should not be empty') },
+        ),
         credential_tags: z.array(z.string()).optional(),
       })
-      .superRefine((values, ctx) => {
+      .catchall(dynamicFieldValueSchema)
+      .check(({ value, issues }) => {
+        const values = value;
         const contract = contracts.find(
           c => c.credential_type === values.credential_type
             && c.credential_auth_method === values.credential_auth_method,
@@ -65,37 +107,52 @@ const CredentialForm: FunctionComponent<Props> = ({
         }
 
         (contract.fields || [])
-          .filter(field => field.required)
+          .filter((field: CredentialContractField) => {
+            const isVisible = !field.visible_condition_field || matchesCondition(
+              values,
+              field.visible_condition_field,
+              field.visible_condition_value,
+            );
+            const isRequired = field.required || matchesCondition(
+              values,
+              field.mandatory_condition_field,
+              field.mandatory_condition_value,
+            );
+            return isVisible && isRequired;
+          })
           .forEach((field: CredentialContractField) => {
             const fieldName = field.field_name;
-            if (!fieldName) {
+            if (!fieldName || !(fieldName in values)) {
               return;
             }
-            const dynamicValues = values as Record<string, unknown>;
-            const fieldValue = dynamicValues[fieldName];
+
+            const fieldValue = values[fieldName as keyof typeof values];
             const isEmptyString = typeof fieldValue === 'string' && fieldValue.trim().length === 0;
             const isMissing = fieldValue === undefined || fieldValue === null || isEmptyString;
 
             if (isMissing) {
-              ctx.addIssue({
+              issues.push({
                 code: 'custom',
+                input: values,
                 path: [fieldName],
                 message: t('Should not be empty'),
               });
             }
           });
       }),
-    [contracts, t],
+    [acceptedAuthMethods, acceptedTypes, contracts, t],
   );
 
-  const methods = useForm<CredentialInput>({
+  const methods = useForm<CredentialFormValues>({
     mode: 'onTouched',
     resolver: zodResolver(schema),
-    defaultValues: initialValues,
+    defaultValues: initialValues as CredentialFormValues | undefined,
   });
 
   const {
     handleSubmit,
+    getValues,
+    setValue,
     formState: { isDirty, isSubmitting },
   } = methods;
 
@@ -144,6 +201,54 @@ const CredentialForm: FunctionComponent<Props> = ({
     [contracts, selectedAuthMethod, selectedType],
   );
 
+  const fileFieldNames = useMemo(
+    () => new Set(
+      (selectedContract?.fields ?? [])
+        .filter((field: CredentialContractField) => field.field_type === 'file')
+        .map((field: CredentialContractField) => field.field_name)
+        .filter((name): name is string => !!name),
+    ),
+    [selectedContract],
+  );
+
+  // Contract-declared defaults are applied once, and only on fields the user has not filled yet,
+  // so switching auth method never overwrites a value that was typed in.
+  useEffect(() => {
+    (selectedContract?.fields ?? []).forEach((field: CredentialContractField) => {
+      const fieldName = field.field_name;
+      if (!fieldName || field.default_value === undefined || field.default_value === null) {
+        return;
+      }
+      const currentValue = getValues()[fieldName];
+      if (currentValue === undefined || currentValue === null || currentValue === '') {
+        setValue(fieldName, field.default_value, { shouldDirty: false });
+      }
+    });
+  }, [getValues, selectedContract, setValue]);
+
+  const fieldsToSubscribe = useMemo(() => {
+    const names = new Set<string>();
+    (selectedContract?.fields ?? []).forEach((field: CredentialContractField) => {
+      if (field.mandatory_condition_field) {
+        names.add(field.mandatory_condition_field);
+      }
+      if (field.visible_condition_field) {
+        names.add(field.visible_condition_field);
+      }
+    });
+    return Array.from(names);
+  }, [selectedContract]);
+
+  const watchedConditionValues = useWatch({
+    control: methods.control,
+    name: fieldsToSubscribe as (keyof CredentialInput)[],
+  });
+
+  const currentFormValues = useMemo(
+    () => getValues(),
+    [getValues, watchedConditionValues],
+  );
+
   const formatFieldType = (type: CredentialContractField['field_type'],
   ): ContractType => {
     const supportedType = ['select', 'text', 'number', 'checkbox', 'password'];
@@ -157,29 +262,41 @@ const CredentialForm: FunctionComponent<Props> = ({
   };
 
   const formatField = (field: CredentialContractField): EnhancedContractElement => {
+    const isRequired = !!field.required
+      || matchesCondition(
+        currentFormValues,
+        field.mandatory_condition_field,
+        field.mandatory_condition_value,
+      );
+
     return {
       originalKey: `${field.field_name}`,
       isInjectContentType: false,
-      isVisible: true,
       isInMandatoryGroup: false,
       mandatoryGroupContractElementLabels: '',
+      isVisible: true,
+      readOnly: false,
       key: `${field.field_name}`,
       type: formatFieldType(field.field_type),
-      mandatory: !!field.required,
+      mandatory: isRequired,
       label: t(`${field.field_name}`) ?? '',
-      readOnly: false,
       choices: field.choices?.map((value: string) => ({
-        label: value,
+        label: t(`${value}`),
         value,
       })),
       cardinality: '1',
-      defaultValue: undefined,
-      settings: { required: field.required },
-      writeOnly: editing && field.field_type === 'password',
+      defaultValue: field.default_value ?? undefined,
+      settings: { required: isRequired },
+      // A stored secret is never echoed back: passwords and uploaded key files are both rendered
+      // as a placeholder in edit mode and only sent when the user provides a new value.
+      writeOnly: editing && (field.field_type === 'password' || field.field_type === 'file'),
     };
   };
 
-  const handleSubmitSanitized: SubmitHandler<CredentialInput> = async (values, event) => {
+  const handleSubmitSanitized = async (
+    values: CredentialFormValues,
+    event?: BaseSyntheticEvent,
+  ) => {
     const allowedKeys = new Set<string>([
       'credential_name',
       'credential_type',
@@ -188,13 +305,31 @@ const CredentialForm: FunctionComponent<Props> = ({
       'credential_description',
       ...((selectedContract?.fields ?? [])
         .map(field => field.field_name)
-        .filter((name): name is string => typeof name === 'string' && name.length > 0)),
+        .filter((name): name is string => name.length > 0)),
     ]);
 
+    // File fields never travel inside the JSON part: each one gets its own multipart part.
     const sanitizedEntries = Object.entries(values)
-      .filter(([key, value]) => allowedKeys.has(key) && value != DOTS);
+      .filter(([key, value]) => allowedKeys.has(key) && value != DOTS && !fileFieldNames.has(key));
 
-    await onSubmit(Object.fromEntries(sanitizedEntries) as CredentialInput, event);
+    const sanitizedValues = Object.fromEntries(sanitizedEntries) as Partial<CredentialInput>;
+    const payload: CredentialInput = {
+      ...sanitizedValues,
+      credential_name: values.credential_name,
+      credential_type: values.credential_type,
+      credential_auth_method: values.credential_auth_method,
+    };
+
+    const formData = new FormData();
+    formData.append('input', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+    fileFieldNames.forEach((fieldName) => {
+      const fileValue = values[fieldName];
+      if (fileValue instanceof File) {
+        formData.append(fieldName, fileValue);
+      }
+    });
+
+    await onSubmit(formData, event);
   };
 
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
@@ -219,6 +354,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           name="credential_name"
           label={t('Name')}
           required
+          disabled={isSubmitting}
         />
 
         <TextFieldController
@@ -226,9 +362,10 @@ const CredentialForm: FunctionComponent<Props> = ({
           name="credential_description"
           label={t('Description')}
           multiline
+          disabled={isSubmitting}
         />
 
-        <TagFieldController name="credential_tags" label={t('Tags')} />
+        <TagFieldController name="credential_tags" label={t('Tags')} disabled={isSubmitting} />
 
         <SelectFieldController
           name="credential_type"
@@ -238,7 +375,7 @@ const CredentialForm: FunctionComponent<Props> = ({
             value: type,
             label: t(`${type}`),
           }))}
-          disabled={isLoadingContracts || availableTypes.length < 2}
+          disabled={isSubmitting || isLoadingContracts || availableTypes.length < 2}
         />
 
         <SelectFieldController
@@ -249,15 +386,34 @@ const CredentialForm: FunctionComponent<Props> = ({
             value: method,
             label: t(`${humanizeEnum(method)}`),
           }))}
-          disabled={isLoadingContracts || availableAuthMethods.length === 0}
+          disabled={isSubmitting || isLoadingContracts || availableAuthMethods.length === 0}
         />
 
-        {(selectedContract?.fields ?? []).map(field => (
-          <InjectContentFieldComponent
-            key={field.field_name}
-            field={formatField(field)}
-          />
-        ))}
+        {(selectedContract?.fields ?? [])
+          .filter((field: CredentialContractField) => field.visible_condition_field
+            ? matchesCondition(
+                currentFormValues,
+                field.visible_condition_field,
+                field.visible_condition_value,
+              )
+            : true)
+          .map((field: CredentialContractField) => (field.field_type === 'file'
+            ? (
+                <FileFieldController
+                  key={field.field_name}
+                  name={field.field_name}
+                  label={field.field_name}
+                  acceptMimeTypes="application/json"
+                  required={!!field.required}
+                  disabled={isSubmitting}
+                />
+              )
+            : (
+                <InjectContentFieldComponent
+                  key={field.field_name}
+                  field={formatField(field)}
+                />
+              )))}
 
         <div
           style={{
@@ -281,6 +437,13 @@ const CredentialForm: FunctionComponent<Props> = ({
             type="submit"
             disabled={isSubmitting || !isDirty}
           >
+            {isSubmitting && (
+              <CircularProgress
+                size={16}
+                color="inherit"
+                sx={{ marginRight: theme.spacing(1) }}
+              />
+            )}
             {editing ? t('Update') : t('Create')}
           </Button>
         </div>

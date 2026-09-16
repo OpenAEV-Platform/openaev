@@ -1,6 +1,7 @@
 package io.openaev.service.catalog_connectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.service.FileService;
@@ -13,11 +14,9 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class CatalogConnectorIngestionService {
   public static final Set<String> PROTECTED_KEYS =
@@ -29,6 +28,7 @@ public class CatalogConnectorIngestionService {
   private final FileService fileService;
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   public List<CatalogConnector> extractCatalog(JsonNode rootNode) {
     JsonNode contracts = rootNode.get("contracts");
@@ -45,8 +45,21 @@ public class CatalogConnectorIngestionService {
 
     List<CatalogConnector> saved = catalogConnectorService.saveAll(catalogConnectorList);
 
-    for (CatalogConnector connector : saved) {
-      cleanupInstanceConfigurations(connector);
+    // The cleanup reads connector_instances, which is tenant-scoped, so it runs once per tenant
+    // within that tenant's own scope; read without a scope the query returns no row and the
+    // cleanup silently does nothing. The connector_instance_configurations it then deletes are
+    // reached through those in-scope instances (that table is not itself tenant-scoped).
+    // Best effort: the cleanup must not abort platform startup, so a tenant whose cleanup fails
+    // is logged and skipped while the others still run. The ingestion itself (saveAll above)
+    // keeps its fail-fast behaviour and is not wrapped here.
+    try {
+      tenantScopedTransaction.forEachTenant(
+          ignoredTenantId -> saved.forEach(this::cleanupInstanceConfigurations));
+    } catch (RuntimeException cleanupFailure) {
+      log.error(
+          "Catalog startup cleanup failed for one or more tenants; continuing platform startup."
+              + " See the per-tenant warnings above for the failing tenant id(s).",
+          cleanupFailure);
     }
 
     return saved;

@@ -7,6 +7,7 @@ import io.openaev.api.autonomous.dto.AutonomousAttackPathStepInput;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepResult;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepState;
 import io.openaev.api.autonomous.dto.AutonomousConvertToManualInput;
+import io.openaev.api.autonomous.dto.AutonomousConvertToManualOutput;
 import io.openaev.api.autonomous.dto.AutonomousDefaultAgentsInput;
 import io.openaev.api.autonomous.dto.AutonomousDefaultAgentsOutput;
 import io.openaev.api.autonomous.dto.AutonomousDirectiveInput;
@@ -92,7 +93,7 @@ public class AutonomousRunApi extends RestBehavior {
   @GetMapping("/objective-templates")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public List<AutonomousObjectiveTemplate> objectiveTemplates() {
+  public List<AutonomousObjectiveTemplate> objectiveTemplates(TxCtx ctx) {
     return autonomousRunService.objectiveTemplates();
   }
 
@@ -105,7 +106,7 @@ public class AutonomousRunApi extends RestBehavior {
   @GetMapping("/available-agents")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public List<ChatbotAgentOutput> availableAgents() {
+  public List<ChatbotAgentOutput> availableAgents(TxCtx ctx) {
     return autonomousRunService.availableAdditionalAgents();
   }
 
@@ -117,7 +118,7 @@ public class AutonomousRunApi extends RestBehavior {
   @GetMapping("/default-agents")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public AutonomousDefaultAgentsOutput defaultAgents() {
+  public AutonomousDefaultAgentsOutput defaultAgents(TxCtx ctx) {
     return new AutonomousDefaultAgentsOutput(
         autonomousRunService.defaultAdditionalAgentIds(),
         autonomousRunService.defaultAdditionalAgentModes());
@@ -130,7 +131,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousDefaultAgentsOutput setDefaultAgents(
-      @RequestBody AutonomousDefaultAgentsInput input) {
+      TxCtx ctx, @RequestBody AutonomousDefaultAgentsInput input) {
     List<String> ids =
         autonomousRunService.updateDefaultAdditionalAgentIds(
             input != null ? input.getAgentIds() : null);
@@ -149,7 +150,12 @@ public class AutonomousRunApi extends RestBehavior {
   @PostMapping("/capabilities/resolve")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public CapabilityReport resolveCapabilities(@Valid @RequestBody CapabilityQueryInput input) {
+  public CapabilityReport resolveCapabilities(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (buildArsenalInventory reads injectorRepository.findAll(), which is
+      // v2 tenant-scoped through the injectors table; without a scope the arsenal is reported
+      // empty and every technique/output looks like a capability gap).
+      TxCtx ctx, @Valid @RequestBody CapabilityQueryInput input) {
     return capabilityResolverService.resolve(input);
   }
 
@@ -252,7 +258,7 @@ public class AutonomousRunApi extends RestBehavior {
   @GetMapping("/scenario-config/{scenarioId}")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public AutonomousRunCreateInput getScenarioConfig(@PathVariable String scenarioId) {
+  public AutonomousRunCreateInput getScenarioConfig(TxCtx ctx, @PathVariable String scenarioId) {
     return autonomousRunService.getScenarioAutonomousConfig(scenarioId);
   }
 
@@ -266,6 +272,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRunCreateInput saveScenarioConfig(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @RequestBody(required = false) AutonomousRunCreateInput input) {
     return autonomousRunService.saveScenarioAutonomousConfig(scenarioId, input);
@@ -339,16 +346,17 @@ public class AutonomousRunApi extends RestBehavior {
               + " manual for good: it halts the orchestration, drops the autonomous run and its"
               + " timeline, and keeps the scenario + its simulation as a normal chained"
               + " scenario/simulation the operator can edit and delete. IN_PLACE is irreversible."
-              + " Works whether the run is a built plan or has already executed. Returns the"
-              + " resulting manual scenario.")
+              + " Works whether the run is a built plan or has already executed. Returns the id of"
+              + " the resulting manual scenario; read it back through the scenario endpoint.")
   @PostMapping("/{runId}/convert-to-manual")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public Scenario convertToManual(
+  public AutonomousConvertToManualOutput convertToManual(
       TxCtx ctx,
       @PathVariable String runId,
       @Valid @RequestBody AutonomousConvertToManualInput input) {
-    return autonomousRunService.convertToManual(runId, input.getMode());
+    Scenario scenario = autonomousRunService.convertToManual(runId, input.getMode());
+    return new AutonomousConvertToManualOutput(scenario.getId());
   }
 
   @Operation(summary = "Run decision timeline, optionally since a sequence cursor")

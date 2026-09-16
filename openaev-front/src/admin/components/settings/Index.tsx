@@ -3,9 +3,11 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
+import NoAccess from '../../../utils/permissions/NoAccess';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import LessonsTemplateIndex from '../components/lessons/Index';
 import LessonsTemplates from '../components/lessons/LessonsTemplates';
 import Tenants from '../platform/tenants/Tenants';
@@ -16,6 +18,7 @@ import XlsMappers from './data_ingestion/XlsMappers';
 import Experience from './experience/Experience';
 import Groups from './groups/Groups';
 import KillChainPhases from './kill_chain_phases/KillChainPhases';
+import MarkingDefinitions from './marking_definitions/MarkingDefinitions';
 import Notifiers from './notifiers/Notifiers';
 import Organizations from './organizations/Organizations';
 import Policies from './policies/Policies';
@@ -49,9 +52,20 @@ const TENANT_SETTINGS_CHECKS = [{
 }];
 
 const SecurityLanding = () => {
-  const { canAccessTenantSettings, canAccessTenantUsers, canAccessPlatform } = useSecurityScope();
+  const {
+    canAccessTenantSettings,
+    canAccessTenantUsers,
+    canAccessPlatformUsers,
+    canAccessSession,
+  } = useSecurityScope();
   const ability = useContext(AbilityContext);
-  if (canAccessTenantUsers || canAccessPlatform) {
+  const canAccessMarkingDefinitions
+    = isFeatureEnabled('MARKING')
+      && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
+  // The landing arbitrates between both scopes, so each one is named explicitly.
+  const canManageSessions = canAccessSession('TENANT');
+  const canManagePlatformSessions = canAccessSession('PLATFORM');
+  if (canAccessTenantUsers || canAccessPlatformUsers) {
     return <Navigate to="users" replace={true} />;
   }
   if (canAccessTenantSettings) {
@@ -60,11 +74,18 @@ const SecurityLanding = () => {
   if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS)) {
     return <Navigate to="tenants" replace={true} />;
   }
+  if (canAccessMarkingDefinitions) {
+    return <Navigate to="marking_definitions" replace={true} />;
+  }
+  if (canManageSessions || canManagePlatformSessions) {
+    return <Navigate to={canManageSessions ? 'sessions' : 'sessions?scope=platform'} replace={true} />;
+  }
   // Nothing reachable: let the users route answer with its own NoAccess.
   return <Navigate to="users" replace={true} />;
 };
 
 const Index = () => {
+  const isMarkingEnabled = isFeatureEnabled('MARKING');
   return (
     <Routes>
       <Route path="" element={<Navigate to="parameters" replace={true} />} />
@@ -125,6 +146,22 @@ const Index = () => {
         )}
       />
       <Route
+        path="security/marking_definitions"
+        element={(
+          isMarkingEnabled ? (
+            <ProtectedRoute
+              checks={[
+                {
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.MARKING_DEFINITION,
+                },
+              ]}
+              Component={errorWrapper(MarkingDefinitions)()}
+            />
+          ) : <NoAccess />
+        )}
+      />
+      <Route
         path="security/organizations"
         element={(
           <ProtectedRoute
@@ -148,12 +185,12 @@ const Index = () => {
           <ProtectedRoute
             checks={[
               {
-                action: ACTIONS.ACCESS,
-                subject: SUBJECTS.TENANT_SETTINGS,
+                action: ACTIONS.MANAGE,
+                subject: SUBJECTS.SESSIONS,
               },
               {
-                action: ACTIONS.ACCESS,
-                subject: SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES,
+                action: ACTIONS.MANAGE,
+                subject: SUBJECTS.PLATFORM_SESSIONS,
               },
             ]}
             Component={errorWrapper(Sessions)()}

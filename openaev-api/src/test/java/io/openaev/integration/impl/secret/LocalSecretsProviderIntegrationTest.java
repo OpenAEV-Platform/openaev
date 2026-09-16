@@ -14,7 +14,7 @@ import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration
 import io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegrationFactory;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
-import io.openaev.secrets.provider.impl.handlers.SecretHandler;
+import io.openaev.secrets.provider.impl.handlers.SecretHandlerResolver;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.FileService;
@@ -48,7 +48,7 @@ public class LocalSecretsProviderIntegrationTest {
   @Autowired private SecretReferenceService secretReferenceService;
   @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private FileService fileService;
-  @Autowired private List<SecretHandler> secretHandlers;
+  @Autowired private SecretHandlerResolver secretHandlerResolver;
 
   private LocalSecretsProviderIntegrationFactory getFactory() {
     return new LocalSecretsProviderIntegrationFactory(
@@ -60,7 +60,7 @@ public class LocalSecretsProviderIntegrationTest {
         secretReferenceService,
         previewFeatureService,
         fileService,
-        secretHandlers);
+        secretHandlerResolver);
   }
 
   @Nested

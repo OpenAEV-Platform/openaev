@@ -54,6 +54,6 @@ public class ThreatArsenalApiImporter {
       @RequireTenantSelector TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return threatArsenalImportService.importThreatArsenalAction(file, tenantId);
+    return threatArsenalImportService.importThreatArsenalAction(ctx, file, tenantId);
   }
 }

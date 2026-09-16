@@ -86,6 +86,12 @@ public class UserFixture {
         email, firstName, lastName, password, null, phone, null, null, null, false, null);
   }
 
+  public static UserInput getUserInputWithTenants(
+      String email, String firstName, String lastName, String password, List<String> tenantIds) {
+    return new UserInput(
+        email, firstName, lastName, password, null, null, null, null, null, false, tenantIds);
+  }
+
   public static UserInput getUserInputWithPgpKey(
       String email, String firstName, String lastName, String pgpKey) {
     return new UserInput(

@@ -33,6 +33,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 
+/**
+ * Notifier CRUD through the API. Methods that create a notifier, or that rely on the list endpoint
+ * lazily provisioning the built-ins, carry {@code autoJoinDefaultTenant = true}: since notifiers
+ * went v2-active those endpoints attribute the row from the request scope, and a mock user with no
+ * tenant membership resolves no single tenant. Per-method on purpose - a class-level membership
+ * would defeat the ambiguous-selector assertions elsewhere.
+ */
 @SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
@@ -51,7 +58,7 @@ public class NotifierApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Listing notifiers seeds and returns the built-in UI and email notifiers")
   void listNotifiersSeedsBuiltIns() throws Exception {
     String response =
@@ -113,7 +120,7 @@ public class NotifierApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("A webhook notifier can be created, updated and deleted")
   void webhookNotifierLifecycle() throws Exception {
     NotifierInput input =
@@ -168,7 +175,7 @@ public class NotifierApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("A webhook notifier without a valid http(s) url is rejected")
   void webhookNotifierRequiresValidUrl() throws Exception {
     NotifierInput input =
@@ -188,7 +195,7 @@ public class NotifierApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("A UI notifier cannot be created: the user interface notifier is built-in only")
   void uiNotifierCannotBeCreated() throws Exception {
     NotifierInput input = NotifierInput.builder().name("Custom UI").type(NotifierType.UI).build();
@@ -203,7 +210,7 @@ public class NotifierApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Built-in notifiers cannot be modified or deleted")
   void builtInNotifiersAreReadOnly() throws Exception {
     // Seed built-ins through the list endpoint

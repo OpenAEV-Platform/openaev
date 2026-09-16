@@ -8,6 +8,7 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Injection;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Variable;
+import io.openaev.injector_contract.variables.contract.SimulationContract;
 import io.openaev.service.VariableService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
@@ -47,7 +48,7 @@ public class ExecutionContextService {
               injection.getExercise(),
               user,
               baseUrl + "/lessons/simulation/" + exerciseId + queryParams));
-      executionContext.put(EXERCISE, injection.getExercise());
+      executionContext.put(EXERCISE, SimulationContract.fromSimulation(injection.getExercise()));
       fillDynamicSimulationVariable(executionContext, exerciseId);
     } else if (injection.getScenario() != null) {
       fillDynamicScenarioVariable(executionContext, injection.getScenario().getId());

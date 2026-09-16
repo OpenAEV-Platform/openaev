@@ -72,6 +72,17 @@ Classify each touched table as one of:
   - a native `@Query` that `JOIN`s a v2-active table anywhere in the codebase
     (not just its own repository) is pulled into the fail-closed rewrite —
     check its FROM/JOIN shape against `TenantStatementInspectorTest` (#7007)
+  - a new endpoint (in ANY controller) whose response type serializes a
+    computed value derived from a v2-active table needs `TxCtx` too, even
+    though nothing in the file names the table: `Inject#getType()`
+    (`@JsonProperty("inject_type")`) resolves `injectors`, so every endpoint
+    returning `Inject`, `InjectOutput`, `InjectResultOutput`,
+    `InjectResultOverviewOutput` or `InjectTestStatusOutput` reads it. Missing
+    `TxCtx` here is 🔴 CRITICAL and completely silent: 200 OK with the scalar
+    `null` (#7605/#7621 — missing injector icons across the Execution screen).
+    Sweep by RESPONSE TYPE, not by API package.
+  - `@Transactional(propagation = SUPPORTS)` + `TxCtx` is a false fix: with no
+    inbound transaction the aspect never fires. Flag it 🟠 HIGH.
 - **v1 (still `@Filter`-based)** — not in `active-tables`. Isolation is
   Hibernate `@Filter` + `TenantBaseListener`, ambient via
   `TenantContext.getCurrentTenant()`. For these tables, Steps 2-7 below
@@ -89,6 +100,44 @@ If the PR adds a `TxCtx` parameter but the table is NOT in `active-tables`,
 that's a no-op today (the aspect sets an inert GUC) — not wrong, but flag it
 as premature/dead code unless it's part of a deliberate pre-wiring pass, so it
 doesn't get mistaken for the table having gone live.
+
+## Step 2c — Enforce TxCtx argument position
+
+For every method signature changed by the PR that carries `TxCtx`, verify that
+`TxCtx` is the FIRST parameter (annotation allowed, e.g.
+`@RequireTenantSelector TxCtx ctx`).
+
+```bash
+# PR-focused search for non-first TxCtx in signatures/calls
+git diff -U0 HEAD~1 -- '*.java' | grep -n ',\s*[@A-Za-z0-9_ ]*TxCtx\b'
+```
+
+- Non-first `TxCtx` in a modified signature = 🟠 HIGH (review blocker for v2 scope consistency)
+- Non-first `TxCtx` callsite for a modified API/service method = 🟡 MEDIUM (style drift; fix in same PR)
+
+## Step 2d — Repository base interface for strict tenant-scoped tables
+
+```bash
+# List repos for strict tenant-scoped entities (TenantBase, not DualScopeBase)
+# extending JpaRepository instead of CrudRepository
+grep -rln "extends JpaRepository" --include="*.java" openaev-model/src/main/java/io/openaev/database/repository/
+```
+
+For each repository backing a v2-active or strict tenant-scoped entity, check
+which base interface it extends:
+- `CrudRepository` (the convention used across the codebase, e.g.
+  `TagRuleRepository`, `DomainRepository`, `NotificationRepository`) exposes
+  `findAll()` as `Iterable<T>` and has no `findAll(Sort)` or JPA batch/flush
+  extras.
+- `JpaRepository` additionally exposes `findAll(Sort)` (returns every row
+  across every tenant, unbounded and unpaginated) plus `saveAndFlush`,
+  `deleteInBatch`, `deleteAllInBatch`, `getReferenceById` — none of these take
+  a tenant argument, so they are easy to call by accident and bypass the
+  tenant scope entirely.
+- Extending `JpaRepository` on a tenant-scoped repository = 🟡 MEDIUM
+  (nitpick, non-blocking) unless the diff actually calls one of the
+  JpaRepository-only methods without a tenant-scoped specification, in which
+  case it is 🟠 HIGH (real bypass, not just an exposed footgun).
 
 ## Step 3 — Audit native queries
 
@@ -139,6 +188,19 @@ First check whether the job opens its transaction with `@Transactional` (v1-styl
 For a job NOT yet converted to `TenantScopedTransaction` (still async/`@Scheduled` raw):
 - Is `TenantContext.setCurrentTenant()` called before any DB access?
 - Is the tenant ID passed explicitly to the async method?
+
+## Step 5b — Test code hygiene for v2
+
+In API v2 activation tests and integration tests, do not add v1 scoping idioms.
+
+```bash
+# changed tests should not introduce v1 tenant context/filter primitives
+git diff -U0 HEAD~1 -- 'openaev-api/src/test/java/**/*.java' \
+  | grep -n 'TenantContext.getCurrentTenant\|TenantContext.setCurrentTenant\|enableFilter("tenantFilter")'
+```
+
+- Added/modified usage in v2/integration tests = 🟠 HIGH
+- Preferred pattern: explicit tenant ids + `TxCtx` / `TenantScopedTransaction`
 
 ## Step 6 — Audit API responses
 

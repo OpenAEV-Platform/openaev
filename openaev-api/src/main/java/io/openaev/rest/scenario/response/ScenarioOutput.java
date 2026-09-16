@@ -88,6 +88,10 @@ public class ScenarioOutput {
   @Schema(description = "Sender display name of the scenario")
   private String fromName;
 
+  @JsonProperty("scenario_mails_reply_to")
+  @ArraySchema(schema = @Schema(description = "Reply-to email addresses of the scenario"))
+  private Set<String> replyTos;
+
   @JsonProperty("scenario_created_at")
   @NotNull
   @Schema(description = "Creation date of the scenario")

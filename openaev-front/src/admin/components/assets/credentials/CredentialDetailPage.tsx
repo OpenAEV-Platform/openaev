@@ -14,12 +14,12 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
-import { type CredentialFullOutput, type CredentialInput, type CredentialOutput } from '../../../../utils/api-types';
+import { type CredentialFullOutput, type CredentialOutput } from '../../../../utils/api-types';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
-import AssetStatus from '../AssetStatus';
 import CredentialPopover from './CredentialPopover';
-import convertCredentialFullOutputToCredentialInput from './credentialUtils';
+import CredentialStatusChip from './CredentialStatusChip';
+import convertCredentialFullOutputToCredentialInput, { type CredentialFormInitialValues } from './credentialUtils';
 
 const CredentialDetailPage = () => {
   const { t, fldt } = useFormatter();
@@ -29,7 +29,7 @@ const CredentialDetailPage = () => {
   const [credential, setCredential] = useState<CredentialFullOutput | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const resolveCredentialInitialValues = async (): Promise<CredentialInput> => {
+  const resolveCredentialInitialValues = async (): Promise<CredentialFormInitialValues> => {
     if (!credential) {
       throw new Error('Credential details are not loaded');
     }
@@ -136,13 +136,7 @@ const CredentialDetailPage = () => {
           }}
           >
             <Field label={t('Status')}>
-              {(credential.credential_status == 'ACTIVE' || credential.credential_status == 'INACTIVE')
-                ? (
-                    <AssetStatus
-                      variant="list"
-                      status={credential?.credential_status?.toUpperCase() == 'ACTIVE' ? 'Active' : 'Inactive'}
-                    />
-                  ) : '-'}
+              <CredentialStatusChip status={credential.credential_status} variant="list" />
             </Field>
             <Field label={t('Created by')}>{credential.credential_created_by?.user_name || '-'}</Field>
             <Field label={t('Creation date')}>{fldt(credential?.credential_created_at)}</Field>
