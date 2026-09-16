@@ -9,6 +9,7 @@ import type { TenantOutput } from '../../../../utils/api-types';
 import useAuth from '../../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { isProtectedResource } from '../../../../utils/protected-resource';
 import TenantUpdate from './tenant/TenantUpdate';
 
 type ActionType = 'Update' | 'Delete' | 'Reactivate';
@@ -33,7 +34,7 @@ const TenantPopover: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
-  const { reloadUserTenants, settings } = useAuth();
+  const { reloadUserTenants } = useAuth();
 
   // Edition
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -83,7 +84,7 @@ const TenantPopover: FunctionComponent<Props> = ({
   }, [tenant.tenant_id, onReactivate, handleCloseReactivate, reloadUserTenants]);
 
   // Button Popover
-  const isDefaultTenant = tenant.tenant_id === settings.default_tenant_id;
+  const isDefaultTenant = isProtectedResource(tenant);
 
   const entries = useMemo(() => {
     const result = [];

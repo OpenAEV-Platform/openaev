@@ -7776,6 +7776,7 @@ export interface MarkingDefinitionOutput {
   /** @format int32 */
   marking_definition_order: number;
   marking_definition_protected: boolean;
+  protected_resource: boolean;
   /** @minLength 1 */
   marking_definition_type: string;
 }
@@ -8183,6 +8184,7 @@ export interface NotifierOutput {
   notifier_description?: string;
   /** ID of the notifier */
   notifier_id: string;
+  protected_resource: boolean;
   /** Name of the notifier */
   notifier_name?: string;
   /** Type of the notifier (UI, EMAIL, WEBHOOK) */
@@ -12083,6 +12085,7 @@ export interface TenantOutput {
   tenant_id: string;
   /** @minLength 1 */
   tenant_name: string;
+  protected_resource: boolean;
 }
 
 export interface TenantSettingsOutput {

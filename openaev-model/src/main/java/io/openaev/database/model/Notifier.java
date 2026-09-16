@@ -37,7 +37,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Table(name = "notifiers")
 @EntityListeners(ModelBaseListener.class)
-public class Notifier implements TenantBase {
+public class Notifier implements TenantBase, ProtectedResource {
 
   @Id
   @GeneratedValue(generator = "UUID")
@@ -94,4 +94,9 @@ public class Notifier implements TenantBase {
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.NOTIFIER;
+
+  @Override
+  public boolean isProtectedResource() {
+    return builtIn;
+  }
 }

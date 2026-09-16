@@ -16,6 +16,7 @@ import {
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { isProtectedResource } from '../../../../utils/protected-resource';
 import MarkingDefinitionForm from './MarkingDefinitionForm';
 import {
   extractMarkingDefinitionFromStoreResult,
@@ -44,7 +45,7 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
   const [openOrderConfirm, setOpenOrderConfirm] = useState(false);
   const [pendingUpdateInput, setPendingUpdateInput] = useState<MarkingDefinitionInput | null>(null);
 
-  const isProtected = markingDefinition.marking_definition_protected;
+  const isProtected = isProtectedResource(markingDefinition);
 
   const updateInputFromDefinition
     = (value: MarkingDefinitionOutput): MarkingDefinitionInput => ({
@@ -98,14 +99,16 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
 
   const entries: PopoverEntry[] = [
     {
-      label: 'Update',
+      label: t('Update'),
       action: () => setOpenUpdate(true),
-      userRight: canManage && !isProtected,
+      disabled: isProtected,
+      userRight: canManage,
     },
     {
-      label: 'Delete',
+      label: t('Delete'),
       action: () => setOpenDelete(true),
-      userRight: canDelete && !isProtected,
+      disabled: isProtected,
+      userRight: canDelete,
     },
   ];
 

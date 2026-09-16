@@ -9,6 +9,7 @@ import { type NotifierInput, type NotifierOutput } from '../../../../utils/api-t
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { isProtectedResource } from '../../../../utils/protected-resource';
 import NotifierForm from './NotifierForm';
 
 interface Props {
@@ -55,20 +56,20 @@ const NotifierPopover: FunctionComponent<Props> = ({
 
   const entries: PopoverEntry[] = [
     {
-      label: 'Test',
+      label: t('Test'),
       action: submitTest,
       userRight: canManage,
     },
   ];
-  if (!notifier.notifier_built_in) {
+  if (!isProtectedResource(notifier)) {
     entries.push(
       {
-        label: 'Update',
+        label: t('Update'),
         action: () => setOpenEdit(true),
         userRight: canManage,
       },
       {
-        label: 'Delete',
+        label: t('Delete'),
         action: () => setOpenDelete(true),
         userRight: canManage,
       },

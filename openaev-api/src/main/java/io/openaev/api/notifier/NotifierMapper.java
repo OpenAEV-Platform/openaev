@@ -32,6 +32,7 @@ public class NotifierMapper {
         .type(notifier.getType())
         .configuration(includeConfiguration ? notifier.getConfiguration() : null)
         .builtIn(notifier.isBuiltIn())
+        .protectedResource(notifier.isProtectedResource())
         .createdAt(notifier.getCreatedAt())
         .updatedAt(notifier.getUpdatedAt())
         .build();

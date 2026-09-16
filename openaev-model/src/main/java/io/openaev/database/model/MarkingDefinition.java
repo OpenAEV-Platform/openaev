@@ -32,7 +32,7 @@ import lombok.Setter;
 @EntityListeners({ModelBaseListener.class, AuditableListener.class})
 // marking_definitions is a tenant-v2 active table (inspector + can_access_tenant), so no v1
 // @Filter.
-public class MarkingDefinition implements TenantBase, Auditable {
+public class MarkingDefinition implements TenantBase, Auditable, ProtectedResource {
 
   @Id
   @ControlledUuidGeneration
@@ -89,6 +89,12 @@ public class MarkingDefinition implements TenantBase, Auditable {
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.MARKING_DEFINITION;
+
+  @Override
+  @JsonIgnore
+  public boolean isProtectedResource() {
+    return Boolean.TRUE.equals(protectedDefinition);
+  }
 
   @Override
   public boolean equals(Object o) {

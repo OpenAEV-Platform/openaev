@@ -16,6 +16,7 @@ public final class MarkingDefinitionMapper {
         entity.getColor(),
         entity.getOrder(),
         entity.getProtectedDefinition(),
+        entity.isProtectedResource(),
         entity.getCreatedAt());
   }
 

@@ -1,4 +1,4 @@
-import { LensOutlined, SecurityOutlined } from '@mui/icons-material';
+import { CenterFocusStrongOutlined, Lens } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -16,6 +16,7 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../components/common/SortHeadersList';
+import DangerZone from '../../../../components/common/tag/DangerZone';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type MarkingDefinitionInput,
@@ -24,6 +25,7 @@ import {
 import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { isProtectedResource } from '../../../../utils/protected-resource';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
 import MarkingDefinitionForm from './MarkingDefinitionForm';
@@ -85,7 +87,22 @@ const MarkingDefinitions = () => {
         field: 'marking_definition_definition',
         label: 'Definition',
         isSortable: true,
-        value: (item: MarkingDefinitionOutput) => item.marking_definition_definition,
+        value: (item: MarkingDefinitionOutput) => (
+          <div
+            style={{
+              alignItems: 'center',
+              display: 'flex',
+              gap: 8,
+            }}
+          >
+            <span>{item.marking_definition_definition}</span>
+            {isProtectedResource(item) ? (
+              <DangerZone
+                tooltip={t('This marking definition is protected. It cannot be updated or deleted.')}
+              />
+            ) : null}
+          </div>
+        ),
       },
       {
         field: 'marking_definition_color',
@@ -99,7 +116,7 @@ const MarkingDefinitions = () => {
           }}
           >
             {item.marking_definition_color ? (
-              <LensOutlined sx={{
+              <Lens sx={{
                 color: item.marking_definition_color,
                 fontSize: 14,
               }}
@@ -122,7 +139,7 @@ const MarkingDefinitions = () => {
         value: (item: MarkingDefinitionOutput) => fldt(item.marking_definition_created_at),
       },
     ],
-    [fldt],
+    [fldt, t],
   );
 
   const submitCreate = (input: MarkingDefinitionInput) => {
@@ -198,7 +215,7 @@ const MarkingDefinitions = () => {
               divider
             >
               <ListItemIcon>
-                <SecurityOutlined color="primary" />
+                <CenterFocusStrongOutlined sx={{ color: item.marking_definition_color }} />
               </ListItemIcon>
               <ListItemText
                 primary={(

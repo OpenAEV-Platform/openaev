@@ -8,6 +8,7 @@ import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.Notifier;
 import io.openaev.database.model.NotifierType;
+import io.openaev.database.model.ProtectedResource;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.NotifierRepository;
@@ -39,6 +40,7 @@ public class NotifierService {
 
   public static final String BUILT_IN_UI_NAME = "User interface";
   public static final String BUILT_IN_EMAIL_NAME = "Default mailer";
+  private static final String NOTIFIER_NOT_FOUND_MESSAGE = "Notifier not found: ";
 
   private final NotifierRepository notifierRepository;
   private final NotificationDispatchService notificationDispatchService;
@@ -81,10 +83,9 @@ public class NotifierService {
   @Transactional
   public Notifier update(@NotBlank final String id, @NotNull final Notifier input) {
     Notifier notifier =
-        findById(id).orElseThrow(() -> new ElementNotFoundException("Notifier not found: " + id));
-    if (notifier.isBuiltIn()) {
-      throw new IllegalArgumentException("Built-in notifiers cannot be modified");
-    }
+        findById(id)
+            .orElseThrow(() -> new ElementNotFoundException(NOTIFIER_NOT_FOUND_MESSAGE + id));
+    throwIfProtected(notifier, "Built-in notifiers cannot be modified");
     requireCustomizableType(input.getType());
     validateConfiguration(input.getType(), input.getConfiguration());
     notifier.setName(input.getName());
@@ -100,10 +101,9 @@ public class NotifierService {
   @Transactional
   public void delete(@NotBlank final String id) {
     Notifier notifier =
-        findById(id).orElseThrow(() -> new ElementNotFoundException("Notifier not found: " + id));
-    if (notifier.isBuiltIn()) {
-      throw new IllegalArgumentException("Built-in notifiers cannot be deleted");
-    }
+        findById(id)
+            .orElseThrow(() -> new ElementNotFoundException(NOTIFIER_NOT_FOUND_MESSAGE + id));
+    throwIfProtected(notifier, "Built-in notifiers cannot be deleted");
     notifierRepository.deleteById(id);
     triggerCacheService.invalidateAfterCommit();
   }
@@ -115,7 +115,8 @@ public class NotifierService {
    */
   public void test(@NotNull final TxCtx ctx, @NotBlank final String id) {
     Notifier notifier =
-        findById(id).orElseThrow(() -> new ElementNotFoundException("Notifier not found: " + id));
+        findById(id)
+            .orElseThrow(() -> new ElementNotFoundException(NOTIFIER_NOT_FOUND_MESSAGE + id));
     String userId = userService.currentUser().getId();
     ResolvedNotificationTrigger sampleTrigger =
         new ResolvedNotificationTrigger(
@@ -211,6 +212,13 @@ public class NotifierService {
       if (verb instanceof String verbValue) {
         webhookTargetValidator.validateVerb(verbValue);
       }
+    }
+  }
+
+  private void throwIfProtected(
+      @NotNull ProtectedResource resource, @NotNull String protectedResourceErrorMessage) {
+    if (resource.isProtectedResource()) {
+      throw new IllegalArgumentException(protectedResourceErrorMessage);
     }
   }
 }
