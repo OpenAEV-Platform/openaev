@@ -6237,7 +6237,6 @@ export interface InjectAssistantInput {
 }
 
 export interface InjectAuthorisation {
-  inject_authorisation_code?: string;
   inject_authorisation_id?: string;
   /** @format date-time */
   inject_authorisation_issued_at?: string;
