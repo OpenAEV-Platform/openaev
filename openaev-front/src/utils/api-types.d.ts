@@ -7776,9 +7776,9 @@ export interface MarkingDefinitionOutput {
   /** @format int32 */
   marking_definition_order: number;
   marking_definition_protected: boolean;
-  protected_resource: boolean;
   /** @minLength 1 */
   marking_definition_type: string;
+  protected_resource: boolean;
 }
 
 export interface MissingImportedAction {
@@ -8184,7 +8184,6 @@ export interface NotifierOutput {
   notifier_description?: string;
   /** ID of the notifier */
   notifier_id: string;
-  protected_resource: boolean;
   /** Name of the notifier */
   notifier_name?: string;
   /** Type of the notifier (UI, EMAIL, WEBHOOK) */
@@ -8194,6 +8193,8 @@ export interface NotifierOutput {
    * @format date-time
    */
   notifier_updated_at?: string;
+  /** Whether the notifier is protected from user-driven mutations */
+  protected_resource: boolean;
 }
 
 export interface OAuthProvider {
@@ -12078,6 +12079,7 @@ export interface TenantInput {
 }
 
 export interface TenantOutput {
+  protected_resource: boolean;
   /** @format date-time */
   tenant_deleted_at?: string;
   tenant_description?: string;
@@ -12085,7 +12087,6 @@ export interface TenantOutput {
   tenant_id: string;
   /** @minLength 1 */
   tenant_name: string;
-  protected_resource: boolean;
 }
 
 export interface TenantSettingsOutput {

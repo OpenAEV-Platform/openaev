@@ -41,18 +41,21 @@ const TENANT_ALPHA: TenantOutput = {
   tenant_id: 'tenant-alpha-id',
   tenant_name: 'Alpha Corp',
   tenant_description: 'Primary tenant',
+  protected_resource: false,
 };
 
 const TENANT_BETA: TenantOutput = {
   tenant_id: 'tenant-beta-id',
   tenant_name: 'Beta Industries',
   tenant_description: 'Secondary tenant',
+  protected_resource: false,
 };
 
 const TENANT_GAMMA: TenantOutput = {
   tenant_id: 'tenant-gamma-id',
   tenant_name: 'Gamma Labs',
   tenant_description: 'Third tenant',
+  protected_resource: false,
 };
 
 const MOCK_USER: User = {
