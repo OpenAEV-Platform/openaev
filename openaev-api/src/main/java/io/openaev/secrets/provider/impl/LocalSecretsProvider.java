@@ -5,6 +5,7 @@ import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretConnectionProbe;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.SecretsProviderType;
@@ -44,6 +45,16 @@ public class LocalSecretsProvider extends SecretsProvider {
 
     Secret secret = secretService.findByIdOrThrow(secretId);
     return secretHandlerResolver.resolveFor(secret).toMetadata(secret);
+  }
+
+  @Override
+  public SecretResolvedValue getResolvedSecret(@NotNull SecretReference secretReference) {
+    String secretId =
+        Objects.requireNonNull(
+            secretReference.getLocation(), "secretReference location must not be null");
+
+    Secret secret = secretService.findByIdOrThrow(secretId);
+    return secretHandlerResolver.resolveFor(secret).toResolvedValue(secret);
   }
 
   @Override

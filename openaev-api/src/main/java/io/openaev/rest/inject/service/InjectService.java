@@ -48,6 +48,7 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
@@ -105,6 +106,8 @@ import org.springframework.util.CollectionUtils;
 @Service
 @Slf4j
 public class InjectService {
+  private static final String CREDENTIAL_ACCESS_DENIED = "CREDENTIAL_ACCESS_DENIED";
+  private static final String CREDENTIAL_INACTIVE = "CREDENTIAL_INACTIVE";
 
   private final TeamRepository teamRepository;
   private final ExecutionTraceRepository executionTraceRepository;
@@ -1663,5 +1666,80 @@ public class InjectService {
     injectAuthorisationRepository.save(authorisation);
 
     return rawCode;
+  }
+
+  private boolean verifyAuthorisationCode(String injectId, String code) {
+    Optional<InjectAuthorisation> authorisationOpt =
+        injectAuthorisationRepository.findByInjectId(injectId);
+    if (authorisationOpt.isEmpty()) {
+      return false;
+    }
+
+    InjectAuthorisation authorisation = authorisationOpt.get();
+    return hashWithSHA256(code).equals(authorisation.getCode());
+  }
+
+  private boolean isCredentialAccessDeniedStatus(SecretReference.SECRET_STATUS status) {
+    return status == SecretReference.SECRET_STATUS.AUTH_FAILED
+        || status == SecretReference.SECRET_STATUS.PERMISSION_DENIED;
+  }
+
+  private boolean isCredentialInactiveStatus(SecretReference.SECRET_STATUS status) {
+    return status == SecretReference.SECRET_STATUS.TIMEOUT
+        || status == SecretReference.SECRET_STATUS.NETWORK_ERROR
+        || status == SecretReference.SECRET_STATUS.UNSUPPORTED
+        || status == SecretReference.SECRET_STATUS.FORMAT_ERROR
+        || status == SecretReference.SECRET_STATUS.UNKNOWN;
+  }
+
+  private SecretReference getResolvableInjectSecretReferenceOrThrow(
+      Inject inject, String attachmentId) {
+    SecretReference secretReference =
+        inject.getSecretReferences().stream()
+            .filter(ref -> ref.getId().equals(attachmentId))
+            .findFirst()
+            .orElseThrow(() -> new ElementNotFoundException("CREDENTIAL_NOT_FOUND"));
+
+    SecretReference.SECRET_STATUS status = secretReference.getStatus();
+    if (isCredentialAccessDeniedStatus(status)) {
+      throw new ForbiddenException(CREDENTIAL_ACCESS_DENIED);
+    }
+    if (isCredentialInactiveStatus(status)) {
+      throw new BadRequestException(CREDENTIAL_INACTIVE);
+    }
+    return secretReference;
+  }
+
+  /**
+   * Resolves and validates the credential reference targeted by an inject attachment request.
+   *
+   * <p>This method validates the inject-scoped authorisation and ensures the attachment belongs to
+   * the inject and is in a resolvable state. The actual plaintext secret resolution is delegated to
+   * {@code CredentialService}.
+   *
+   * @param injectId the identifier of the owning inject
+   * @param input the attachment identifier and authorisation code supplied by the injector
+   * @return the validated credential reference to resolve
+   * @throws ElementNotFoundException when the inject or credential cannot be found in this scope
+   * @throws ForbiddenException when the authorisation is invalid or the credential is access denied
+   * @throws BadRequestException when the credential exists but is currently inactive
+   */
+  @Transactional(readOnly = true)
+  public CredentialSecretReference getSecretReferenceOrThrow(
+      String injectId, InjectAttachmentInput input) {
+    Inject inject =
+        injectRepository
+            .findById(injectId)
+            .orElseThrow(
+                () -> new ElementNotFoundException("Inject not found with id: " + injectId));
+
+    if (!verifyAuthorisationCode(injectId, input.getAuthorisation())) {
+      throw new ForbiddenException(CREDENTIAL_ACCESS_DENIED);
+    }
+
+    SecretReference secretReference =
+        getResolvableInjectSecretReferenceOrThrow(inject, input.getAttachmentId());
+
+    return (CredentialSecretReference) secretReference;
   }
 }
