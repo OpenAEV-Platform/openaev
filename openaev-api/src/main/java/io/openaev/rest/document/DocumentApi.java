@@ -199,12 +199,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public Document document(TxCtx ctx, @PathVariable String documentId) {
-    Document document =
-        documentRepository
-            .findById(documentId)
-            .orElseThrow(() -> new ElementNotFoundException("Document not found"));
-    assertDocumentInRequestScope(ctx, document);
-    return document;
+    return findDocumentInRequestScope(ctx, documentId);
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -214,12 +209,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public Set<Tag> documentTags(TxCtx ctx, @PathVariable String documentId) {
-    Document document =
-        documentRepository
-            .findById(documentId)
-            .orElseThrow(() -> new ElementNotFoundException("Document not found"));
-    assertDocumentInRequestScope(ctx, document);
-    return document.getTags();
+    return findDocumentInRequestScope(ctx, documentId).getTags();
   }
 
   @PutMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -230,11 +220,7 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document documentTags(
       TxCtx ctx, @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
-    Document document =
-        documentRepository
-            .findById(documentId)
-            .orElseThrow(() -> new ElementNotFoundException("Document not found"));
-    assertDocumentInRequestScope(ctx, document);
+    Document document = findDocumentInRequestScope(ctx, documentId);
     // Report generation outputs are read-only here (owned by the Reporting module). Checked after
     // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
     // ordinary document, not the 400 that discloses the id is a report output.
@@ -251,11 +237,7 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document updateDocumentInformation(
       TxCtx ctx, @PathVariable String documentId, @Valid @RequestBody DocumentUpdateInput input) {
-    Document document =
-        documentRepository
-            .findById(documentId)
-            .orElseThrow(() -> new ElementNotFoundException("Document not found"));
-    assertDocumentInRequestScope(ctx, document);
+    Document document = findDocumentInRequestScope(ctx, documentId);
     // Report generation outputs are read-only here (owned by the Reporting module). Checked after
     // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
     // ordinary document, not the 400 that discloses the id is a report output.
@@ -319,9 +301,7 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public ResponseEntity<InputStreamResource> downloadDocument(
       TxCtx ctx, @PathVariable String documentId) {
-    Document document = documentService.document(documentId);
-    assertDocumentInRequestScope(ctx, document);
-    return buildDocumentDownloadResponse(document);
+    return buildDocumentDownloadResponse(findDocumentInRequestScope(ctx, documentId));
   }
 
   private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(String documentId) {
@@ -462,9 +442,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public DocumentRelationsOutput getDocumentRelations(TxCtx ctx, @PathVariable String documentId) {
-    Document document = documentService.document(documentId);
-    assertDocumentInRequestScope(ctx, document);
-    return toDocumentRelationsOutput(document);
+    return toDocumentRelationsOutput(findDocumentInRequestScope(ctx, documentId));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -474,16 +452,33 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
   public void deleteDocument(TxCtx ctx, @PathVariable String documentId) {
-    assertDocumentInRequestScope(ctx, documentService.document(documentId));
+    findDocumentInRequestScope(ctx, documentId);
     documentService.deleteDocument(documentId);
   }
 
   /**
+   * Resolves a document by id and then applies the request-scope guard.
+   *
+   * <p>We cannot rely on {@code @Transactional} + {@link TxCtx} alone here the way we do on v2
+   * active tables: {@code documents} has not been migrated to {@code openaev.tenant.active-tables}
+   * yet, so the SQL inspector does not rewrite this read. The legacy Hibernate tenant filter does
+   * not apply to a primary-key {@code findById}, so a by-id load must perform an explicit tenant
+   * compare before returning the row.
+   */
+  private Document findDocumentInRequestScope(TxCtx ctx, String documentId) {
+    Document document =
+        documentRepository
+            .findById(documentId)
+            .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
+    return document;
+  }
+
+  /**
    * Refuses access to a document whose tenant is outside the request scope, with the same 404 as a
-   * missing document. The row is loaded through a primary-key {@code findById}, which is exempt
-   * from the Hibernate tenant filter, and {@code @AccessControl(DOCUMENT, ...)} is a capability
-   * check, not a tenant compare: without this guard a caller scoped to one tenant could reach or
-   * modify another tenant's document by id.
+   * missing document. {@code @AccessControl(DOCUMENT, ...)} is a capability check, not a tenant
+   * compare: without this guard a caller scoped to one tenant could reach or modify another
+   * tenant's document by id.
    *
    * <p>A request that narrows to an explicit tenant set (a path tenant, or an {@code X-Tenant-Ids}
    * selector) is held to it. A request with no scope at all (an empty {@code TxCtx}, which on the
