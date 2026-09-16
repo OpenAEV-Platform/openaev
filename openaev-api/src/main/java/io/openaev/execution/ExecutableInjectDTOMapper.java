@@ -1,8 +1,10 @@
 package io.openaev.execution;
 
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.SecretReference;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import io.openaev.utils.mapper.EndpointMapper;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +18,15 @@ public class ExecutableInjectDTOMapper {
   final EndpointMapper endpointMapper;
   final AssetGroupMapper assetGroupMapper;
 
-  public ExecutableInjectDTO toExecutableInjectDTO(ExecutableInject executableInject) {
+  public ExecutableInjectDTO toExecutableInjectDTO(
+      ExecutableInject executableInject, String authorisationCode) {
+    List<String> credentialReferences =
+        executableInject.getInjection().getInject().getSecretReferences().stream()
+            .filter(Objects::nonNull)
+            .map(SecretReference::getId)
+            .filter(Objects::nonNull)
+            .toList();
+
     return ExecutableInjectDTO.builder()
         .injection(executableInject.getInjection())
         .assets(
@@ -36,6 +46,11 @@ public class ExecutableInjectDTOMapper {
             executableInject.getAssetGroups().stream()
                 .map(assetGroupMapper::toAssetGroupSimple)
                 .collect(Collectors.toSet()))
+        .attachments(
+            ExecutableInjectDTO.Attachments.builder()
+                .credentialReferences(credentialReferences)
+                .authorisationCode(authorisationCode)
+                .build())
         .build();
   }
 }

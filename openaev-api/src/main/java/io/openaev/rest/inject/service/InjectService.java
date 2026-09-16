@@ -46,6 +46,7 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
@@ -95,6 +96,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -113,7 +115,7 @@ public class InjectService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
-  private final InjectDependenciesRepository injectDependenciesRepository;
+  private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
@@ -1635,5 +1637,33 @@ public class InjectService {
       log.warn("Invalid JSON in inject content", e);
     }
     return null;
+  }
+
+  private static final Argon2PasswordEncoder AUTHORISATION_CODE_ENCODER =
+      Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
+
+  /**
+   * Creates and stores a fresh authorisation code when the inject carries secret references.
+   *
+   * @param inject the inject for which an authorisation may be required
+   * @return the raw authorisation code, or {@code null} when the inject has no secret references
+   */
+  public String getAuthorisationCodeIfNeeded(Inject inject) {
+    if (inject.getSecretReferences() == null || inject.getSecretReferences().isEmpty()) {
+      return null;
+    }
+
+    String rawCode = UUID.randomUUID().toString();
+    String hashedCode = AUTHORISATION_CODE_ENCODER.encode(rawCode);
+
+    injectAuthorisationRepository.deleteAllByInjectId(inject.getId());
+
+    InjectAuthorisation authorisation = new InjectAuthorisation();
+    authorisation.setInject(inject);
+    authorisation.setCode(hashedCode);
+    authorisation.setIssuedAt(Instant.now());
+    injectAuthorisationRepository.save(authorisation);
+
+    return rawCode;
   }
 }

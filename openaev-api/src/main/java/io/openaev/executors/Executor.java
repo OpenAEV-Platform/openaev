@@ -51,9 +51,10 @@ public class Executor {
   private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
       throws Exception {
     Inject inject = executableInject.getInjection().getInject();
+    String authorisationCode = injectService.getAuthorisationCodeIfNeeded(inject);
     String jsonInject =
         mapper.writeValueAsString(
-            executableInjectDTOMapper.toExecutableInjectDTO(executableInject));
+            executableInjectDTOMapper.toExecutableInjectDTO(executableInject, authorisationCode));
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
