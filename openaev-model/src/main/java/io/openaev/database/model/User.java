@@ -242,7 +242,7 @@ public class User implements Base {
       inverseJoinColumns = @JoinColumn(name = "team_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("user_teams")
-  @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "teams.id")
+  @Queryable(dynamicValues = true, filterable = true, path = "teams.id")
   private List<Team> teams = new ArrayList<>();
 
   @ArraySchema(schema = @Schema(description = "Tag IDs of the user", implementation = String.class))
@@ -254,7 +254,7 @@ public class User implements Base {
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("user_tags")
-  @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "tags.id")
+  @Queryable(dynamicValues = true, filterable = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
   @ArraySchema(

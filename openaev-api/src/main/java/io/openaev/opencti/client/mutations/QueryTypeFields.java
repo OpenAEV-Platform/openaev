@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class QueryTypeFields implements Mutation {
+  private static final ObjectMapper mapper = new ObjectMapper();
+
   @Getter private final ConnectorBase connector;
   @Getter private final String typeName;
 
@@ -31,7 +33,6 @@ public class QueryTypeFields implements Mutation {
 
   @Override
   public JsonNode getVariables() throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
     ObjectNode node = mapper.createObjectNode();
     node.set("typeName", mapper.valueToTree(typeName));
     return node;

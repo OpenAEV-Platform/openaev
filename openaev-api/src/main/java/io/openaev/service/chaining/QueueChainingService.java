@@ -160,6 +160,22 @@ public class QueueChainingService {
   }
 
   /**
+   * Re-publish an existing update event back into the update queue (e.g. after an end()
+   * completion-check failure). The caller is responsible for incrementing the retry count before
+   * calling this method.
+   *
+   * @param event the event to re-publish
+   * @throws IOException in case there is an error while sending the event
+   */
+  public void republishUpdateEvent(ExternalUpdateEvent event) throws IOException {
+    log.info(
+        "[Chaining] RE-PUBLISH STEP UPDATE (retry {}): {}",
+        event.getRetryCount(),
+        event.getStepId());
+    updateQueueService.publish(event);
+  }
+
+  /**
    * Dynamically set a callback function for the ready queue
    *
    * @param callback function to call when receiving an event

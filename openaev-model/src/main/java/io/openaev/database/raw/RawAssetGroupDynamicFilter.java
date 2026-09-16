@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Filters;
 
 public interface RawAssetGroupDynamicFilter {
+  ObjectMapper objectMapper = new ObjectMapper();
 
   default Filters.FilterGroup getAssetGroupDynamicFilter() {
-    ObjectMapper objectMapper = new ObjectMapper();
     try {
       return objectMapper.readValue(getAsset_group_dynamic_filter(), Filters.FilterGroup.class);
     } catch (JsonProcessingException e) {

@@ -7,6 +7,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
@@ -39,7 +40,7 @@ public class TenantGroupApi extends RestBehavior {
   @PostMapping
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
-  public Group createGroup(@Valid @RequestBody TenantGroupCreateInput input) {
+  public Group createGroup(TxCtx ctx, @Valid @RequestBody TenantGroupCreateInput input) {
     return tenantGroupService.createGroup(input);
   }
 
@@ -49,7 +50,8 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group groupGrant(@PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
+  public Group groupGrant(
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
     return tenantGroupService.addGrant(groupId, input);
   }
 
@@ -61,7 +63,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER_GROUP)
-  public Group group(@PathVariable String groupId) {
+  public Group group(TxCtx ctx, @PathVariable String groupId) {
     return tenantGroupService.findByIdInTenant(groupId);
   }
 
@@ -69,7 +71,8 @@ public class TenantGroupApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
-  public Page<Group> groups(@RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+  public Page<Group> groups(
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantGroupService.search(searchPaginationInput);
   }
 
@@ -83,7 +86,7 @@ public class TenantGroupApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
   public Group updateGroupUsers(
-      @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
     return tenantGroupService.updateGroupUsers(groupId, input);
   }
 
@@ -103,7 +106,7 @@ public class TenantGroupApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role or Group not found")
       })
   public Group updateGroupRoles(
-      @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
     return tenantGroupService.updateGroupRoles(groupId, input);
   }
 
@@ -115,7 +118,7 @@ public class TenantGroupApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
   public Group updateGroupInformation(
-      @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
     return tenantGroupService.updateGroup(groupId, input);
   }
 
@@ -128,7 +131,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group deleteGrant(@PathVariable String groupId, @PathVariable String grantId) {
+  public Group deleteGrant(TxCtx ctx, @PathVariable String groupId, @PathVariable String grantId) {
     return tenantGroupService.removeGrant(groupId, grantId);
   }
 
@@ -138,7 +141,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.USER_GROUP)
-  public void delete(@PathVariable String groupId) {
+  public void delete(TxCtx ctx, @PathVariable String groupId) {
     tenantGroupService.delete(groupId);
   }
 }

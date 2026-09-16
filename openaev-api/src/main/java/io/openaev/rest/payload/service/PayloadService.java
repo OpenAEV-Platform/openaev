@@ -22,7 +22,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPayloadRelatedIds;
 import io.openaev.database.repository.*;
@@ -88,6 +89,7 @@ public class PayloadService {
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final InjectorContractService injectorContractService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   private final PayloadMapper payloadMapper;
 
@@ -493,11 +495,11 @@ public class PayloadService {
    * @param scenario to add to document if file drop is created
    * @return retrieved or created FileDrop
    */
-  public FileDrop getFileDropPayloadByDocument(String documentId, Scenario scenario) {
+  public FileDrop getFileDropPayloadByDocument(TxCtx ctx, String documentId, Scenario scenario) {
     FileDrop fileDrop =
         payloadRepository
             .findByDocumentId(documentId)
-            .orElseGet(() -> this.createFileDropPayload(documentId));
+            .orElseGet(() -> this.createFileDropPayload(ctx, documentId));
     fileDrop.getFileDropFile().getScenarios().add(scenario);
     this.documentService.save(fileDrop.getFileDropFile());
     return fileDrop;
@@ -509,7 +511,7 @@ public class PayloadService {
    * @param documentId to link to FileDrop Payload
    * @return created file drop payload
    */
-  public FileDrop createFileDropPayload(String documentId) {
+  public FileDrop createFileDropPayload(TxCtx ctx, String documentId) {
     Document document = this.documentService.document(documentId);
 
     FileDrop fileDrop = new FileDrop();
@@ -534,8 +536,8 @@ public class PayloadService {
         List.of(),
         domainService.upserts(
             Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())),
-            TenantContext.getCurrentTenant()),
-        tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+            writeScopeResolver.tenantForWrite(ctx, null)),
+        tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
 
@@ -545,11 +547,11 @@ public class PayloadService {
    *
    * @return the Dynamic DNS Resolution payload
    */
-  public DnsResolution getDynamicDnsResolutionPayload() {
+  public DnsResolution getDynamicDnsResolutionPayload(TxCtx ctx) {
     return payloadRepository
         .findById(DYNAMIC_DNS_RESOLUTION_UUID)
         .map(DnsResolution.class::cast)
-        .orElseGet(this::createDynamicDnsResolutionPayload);
+        .orElseGet(() -> createDynamicDnsResolutionPayload(ctx));
   }
 
   /**
@@ -559,7 +561,7 @@ public class PayloadService {
    * @return the created Dynamic DNS Resolution payload
    */
   @Lock(type = LockResourceType.PAYLOAD, key = DYNAMIC_DNS_RESOLUTION_UUID)
-  private DnsResolution createDynamicDnsResolutionPayload() {
+  private DnsResolution createDynamicDnsResolutionPayload(TxCtx ctx) {
     DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
     dynamicDnsResolutionPayload.setId(DYNAMIC_DNS_RESOLUTION_UUID);
     dynamicDnsResolutionPayload.setHostname(DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
@@ -592,8 +594,8 @@ public class PayloadService {
                 PresetDomain.getEndpoint(),
                 PresetDomain.getNetwork(),
                 PresetDomain.getUrlFiltering()),
-            TenantContext.getCurrentTenant()),
-        tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+            writeScopeResolver.tenantForWrite(ctx, null)),
+        tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
 

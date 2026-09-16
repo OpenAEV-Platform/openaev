@@ -144,7 +144,7 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 | `StepEventServiceTest` | Queue event handling |
 | `QueueChainingServiceTest` | Queue management |
 | `ScopeServiceTest` | Scope resolution |
-| `WorkflowTimeoutServiceTest` / `WorkflowTimeoutIntegrationTest` | Timeout handling |
+| `WorkflowEndServiceTest` / `WorkflowTimeoutIntegrationTest` | Timeout handling |
 | `StepDelayQueueServiceTest` / `StepDelayQueueIntegrationTest` | Delay queue |
 | `StepApiTest` / `ConditionApiTest` / `WorkflowApiTest` | API layer |
 

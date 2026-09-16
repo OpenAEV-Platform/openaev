@@ -28,6 +28,22 @@ public final class CredentialMapper {
         .description(credentialSecretReference.getDescription())
         .username(secretMetadata.username())
         .hashAlgorithm(secretMetadata.hashAlgorithm())
+        .awsDefaultRegion(secretMetadata.awsDefaultRegion())
+        .awsAccessKeyId(secretMetadata.awsAccessKeyId())
+        .awsSessionTokenPresent(secretMetadata.awsSessionTokenPresent())
+        .awsRoleArn(secretMetadata.awsRoleArn())
+        .awsSourceIdentityType(secretMetadata.awsSourceIdentityType())
+        .awsSourceProfileAccessKeyId(secretMetadata.awsSourceProfileAccessKeyId())
+        .azureEnvironment(secretMetadata.azureEnvironment())
+        .azureClientId(secretMetadata.azureClientId())
+        .azureTenantId(secretMetadata.azureTenantId())
+        .azureSubscriptionId(secretMetadata.azureSubscriptionId())
+        .gcpScope(secretMetadata.gcpScope())
+        .gcpProjectId(secretMetadata.gcpProjectId())
+        .gcpPrivateKeyDefined(secretMetadata.gcpPrivateKeyDefined())
+        .gcpOauthClientId(secretMetadata.gcpOauthClientId())
+        .gcpOauthClientSecretDefined(secretMetadata.gcpOauthClientSecretDefined())
+        .gcpOauthRefreshTokenDefined(secretMetadata.gcpOauthRefreshTokenDefined())
         .build();
   }
 

@@ -2,6 +2,7 @@ package io.openaev.api.threat_arsenal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ChainingTypeRegistry;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
@@ -25,7 +26,7 @@ class ThreatArsenalArgumentTypesApiTest {
   @DisplayName("Should return all argument types")
   void shouldReturnAllTypes() {
 
-    List<PrimitiveType> types = threatArsenalApi.getArgumentTypes();
+    List<PrimitiveType> types = threatArsenalApi.getArgumentTypes(TxCtx.missing());
 
     assertThat(types).containsExactlyElementsOf(ChainingTypeRegistry.getPrimitiveTypes());
     assertThat(types).contains(PrimitiveType.AssetId, PrimitiveType.AssetGroupId);

@@ -14,7 +14,6 @@ import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -31,7 +30,6 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -53,9 +51,30 @@ import org.hibernate.annotations.UuidGenerator;
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "asset_type", discriminatorType = STRING)
 @DiscriminatorValue(AssetType.Values.ASSET_TYPE)
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
 public class Asset implements TenantBase {
+
+  // assets is on multi-tenancy v2 (#6438 / #6422).
+  //
+  // The v1 @Filter is GONE and must not come back: reads are scoped by TenantStatementInspector
+  // from app.current_tenants, and re-adding the filter would AND a thread-local predicate onto the
+  // rewritten one, silently emptying every result reached without TenantContext.
+  //
+  // TenantBaseListener is GONE, as it is on asset_groups. It stamped tenant_id from the v1
+  // thread-local on any insert that left the tenant null, and TenantContext.getCurrentTenant()
+  // never returns null: it falls back to DEFAULT_TENANT_UUID. An unattributed asset insert
+  // therefore landed silently in the default tenant instead of failing. Without the listener it is
+  // a NOT NULL violation on assets.tenant_id, which is what we want.
+  //
+  // Nothing relies on it: every production create path resolves the tenant explicitly.
+  // EndpointService.createEndpoint takes it as a required parameter, the security platform and AI
+  // target endpoints resolve it through TenantWriteScopeResolver, and background callers pass the
+  // tenant their own scope was opened for. The fixtures and composers stamp it too. The removal
+  // cost four test files where an Endpoint or a SecurityPlatform was built by hand and persisted
+  // straight through a repository.
+  //
+  // The table is SINGLE_TABLE with three discriminators (Endpoint, SecurityPlatform, and the bare
+  // Asset an AI target is), so anything reasoning about "assets" has to cover all three.
 
   /** Provider of an AI target ({@code category = AI_TARGET}). */
   public enum AI_TARGET_PROVIDER {
@@ -320,7 +339,7 @@ public class Asset implements TenantBase {
   // -- TAG --
 
   @Schema(implementation = String[].class)
-  @Queryable(filterable = true, sortable = true, dynamicValues = true, path = "tags.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "assets_tags",

@@ -40,4 +40,29 @@ public enum ExecutorShell {
   public boolean supportsBinding() {
     return this != NONE;
   }
+
+  /**
+   * Whether this shell's declaration syntax can carry the given value in full.
+   *
+   * <p>{@link #CMD} declares with {@code set "VAR=value"}. That quoted region ends at the next
+   * {@code "} and offers no escape for one inside it: {@code ^} is literal there. A value carrying
+   * a double quote therefore cannot be declared, and is refused rather than rendered into something
+   * other than what the template describes.
+   *
+   * <p>The other families quote with {@code '}, which they do know how to escape, so every value is
+   * representable for them.
+   */
+  public boolean canRepresent(String value) {
+    return this != CMD || !value.contains("\"");
+  }
+
+  /**
+   * Why {@link #canRepresent(String)} turned a value away, phrased for the caller who supplied it.
+   * Kept next to the rule so the two cannot drift apart.
+   */
+  public String unrepresentableValueReason() {
+    return this == CMD
+        ? "a double quote is not supported in a cmd command value"
+        : "the value cannot be represented in this shell";
+  }
 }

@@ -7,6 +7,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.*;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,6 +39,7 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.connector_instances.XtmComposerEncryptionService;
+import io.openaev.service.connectors.HeartbeatWindow;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
@@ -55,6 +57,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -215,7 +218,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
 
       CatalogConnectorConfiguration confDef1 =
           createCatalogConfiguration(
@@ -288,7 +291,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
 
       CatalogConnectorConfiguration confDef1 =
           createCatalogConfiguration(
@@ -426,7 +429,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
 
       Set<String> enumList = Set.of("info", "debug", "warn");
       CatalogConnectorConfiguration confDef1 =
@@ -526,6 +529,13 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @DisplayName("Delete connector instance")
   class DeleteConnectorInstanceTests {
 
+    /**
+     * The deletion is refused while the deployed connector still registers, so these fixtures date
+     * the last heartbeat well outside {@link HeartbeatWindow#MAX}: their subject is the teardown of
+     * the instance, not the guard (covered on its own below).
+     */
+    private static final Instant STOPPED_PINGING = Instant.now().minus(1, ChronoUnit.HOURS);
+
     @Test
     @DisplayName(
         "Given a collector connector instance with a spawned integration, deleting should stop the integration and remove the instance")
@@ -534,6 +544,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       CatalogConnector catalogConnector = getCatalogConnector();
 
       Collector collector = CollectorFixture.createDefaultCollector(catalogConnector.getSlug());
+      collector.setUpdatedAt(STOPPED_PINGING);
       collectorComposer.forCollector(collector).persist();
 
       ConnectorInstanceConfiguration collectorIdConfig =
@@ -576,7 +587,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       executor.setName("Test Executor");
       executor.setType(catalogConnector.getSlug());
       executor.setCreatedAt(Instant.now());
-      executor.setUpdatedAt(Instant.now());
+      executor.setUpdatedAt(STOPPED_PINGING);
       executor.setTenantId(TenantContext.getCurrentTenant());
       executorComposer.forExecutor(executor).persist();
 
@@ -619,6 +630,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Injector injector =
           InjectorFixture.createInjector(
               UUID.randomUUID().toString(), "Test Injector", catalogConnector.getSlug());
+      injector.setUpdatedAt(STOPPED_PINGING);
       injectorRepository.save(injector);
 
       ConnectorInstanceConfiguration injectorIdConfig =
@@ -644,6 +656,31 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           injectorRepository
               .findByIdAndTenantId(injector.getId(), TenantContext.getCurrentTenant())
               .isPresent());
+    }
+
+    @Test
+    @DisplayName("Deleting an instance whose collector still registers should be refused")
+    void given_stillPingingCollector_should_refuseInstanceDeletion() throws Exception {
+      // Arrange: the container outlives the stop request, and its next heartbeat would put the
+      // collector row back — orphaned, since the owning instance would be gone.
+      CatalogConnector catalogConnector = getCatalogConnector();
+
+      Collector collector = CollectorFixture.createDefaultCollector(catalogConnector.getSlug());
+      collector.setUpdatedAt(Instant.now());
+      collectorComposer.forCollector(collector).persist();
+
+      ConnectorInstanceConfiguration collectorIdConfig =
+          createConnectorInstanceConfiguration("COLLECTOR_ID", collector.getId());
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, Set.of(collectorIdConfig));
+
+      // Act
+      mvc.perform(delete(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId()).with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(containsString("still running")));
+
+      // Assert
+      assertTrue(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
     }
 
     @Test

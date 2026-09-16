@@ -3,12 +3,14 @@ package io.openaev.rest.user;
 import static io.openaev.rest.user.TenantUserApi.TENANT_USER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -16,6 +18,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -42,6 +47,9 @@ public class TenantUserApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private io.openaev.service.UserService userService;
+  @Autowired private UserRepository userRepository;
+  @Autowired private TenantRepository tenantRepository;
 
   private static UserInput userInput() {
     return new UserInput(
@@ -123,6 +131,97 @@ public class TenantUserApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("No credential operation")
+  class NoCredentialOperation {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("A profile update carries neither a password nor an address")
+    void given_credentialFieldsInUpdate_should_beIgnored() throws Exception {
+      String userId = createUser();
+      String originalEmail = userService.user(userId).getEmail();
+      String newPassword = "smuggled24!@";
+      UserInput withCredentials =
+          new UserInput(
+              "smuggle-" + UUID.randomUUID() + "@filigran.io",
+              "Smuggle",
+              "Test",
+              newPassword,
+              null,
+              null,
+              null,
+              null,
+              List.of(),
+              false,
+              List.of());
+
+      mvc.perform(
+              put(tenantUri(TENANT_USER_URI) + "/" + userId)
+                  .content(asJsonString(withCredentials))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      assertFalse(
+          userService.isUserPasswordValid(userService.user(userId), newPassword),
+          "A profile update set the user's password");
+      assertEquals(originalEmail, userService.user(userId).getEmail());
+    }
+  }
+
+  @Nested
+  @DisplayName("Privilege boundary")
+  class PrivilegeBoundary {
+
+    private UserInput adminInput() {
+      return new UserInput(
+          "promoted-" + UUID.randomUUID() + "@filigran.io",
+          "Promoted",
+          "Test",
+          UserFixture.RAW_PASSWORD,
+          null,
+          null,
+          null,
+          null,
+          List.of(),
+          true,
+          List.of());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Managing users does not allow minting a platform administrator")
+    void given_adminFlagRequested_should_beForbidden() throws Exception {
+      mvc.perform(
+              post(tenantUri(TENANT_USER_URI))
+                  .content(asJsonString(adminInput()))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Managing users does not allow promoting an existing member")
+    void given_adminFlagOnUpdate_should_beForbidden() throws Exception {
+      String userId = createUser();
+
+      mvc.perform(
+              put(tenantUri(TENANT_USER_URI) + "/" + userId)
+                  .content(asJsonString(adminInput()))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      assertFalse(
+          userService.user(userId).isAdmin(), "A tenant update promoted a platform administrator");
+    }
+  }
+
+  @Nested
   @DisplayName("Split from tenant settings")
   class SplitFromTenantSettings {
 
@@ -149,6 +248,12 @@ public class TenantUserApiTest extends IntegrationTest {
   @DisplayName("Cross-tenant isolation")
   class CrossTenantIsolation {
 
+    private String seedUserInTenant(String tenantId) {
+      User user = userRepository.save(UserFixture.getUserWithDefaultEmail());
+      tenantRepository.addUserToTenant(user.getId(), tenantId);
+      return user.getId();
+    }
+
     @Test
     @WithMockUser
     @DisplayName("A user created in tenant X is not readable from tenant Y")
@@ -164,18 +269,7 @@ public class TenantUserApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", java.util.Set.of(Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
 
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/users")
-                      .content(asJsonString(userInput()))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String userId = JsonPath.read(createResponse, "$.user_id");
+      String userId = seedUserInTenant(tenantX.getId());
 
       int status =
           mvc.perform(
@@ -205,18 +299,17 @@ public class TenantUserApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", java.util.Set.of(Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
 
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/users")
-                      .content(asJsonString(userInput()))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String userId = JsonPath.read(createResponse, "$.user_id");
+      // Seeded directly (JPA save + tenant-join insert), not through the create endpoint:
+      // creating under tenant X's path would set the tenant scope (TxCtx) to X on this test's
+      // wrapping transaction, and the list call below sets it to Y - the aspect refuses a scope
+      // change within one transaction (see TenantScopeTransactionAspect). Seeding bypasses that
+      // entirely.
+      User user = userRepository.save(UserFixture.getUserWithDefaultEmail());
+      tenantRepository.addUserToTenant(user.getId(), tenantX.getId());
+      String userId = user.getId();
+
+      entityManager.flush();
+      entityManager.clear();
 
       String listResponse =
           mvc.perform(

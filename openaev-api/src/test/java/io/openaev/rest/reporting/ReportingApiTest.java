@@ -764,10 +764,11 @@ class ReportingApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_REPORTINGS));
 
-      String reportingId = createReportingInTenant(tenantX, "Isolation Read Reporting");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the read call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String reportingId = seedReportingInTenant(tenantX, "Isolation Read Reporting");
 
       // Act - read from tenant Y (expect 404)
       int responseStatus =
@@ -813,10 +814,11 @@ class ReportingApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_REPORTINGS));
 
-      createReportingInTenant(tenantX, "CrossTenantReportingSearch");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the search call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      seedReportingInTenant(tenantX, "CrossTenantReportingSearch");
 
       // Act - search from tenant Y
       SearchPaginationInput searchInput =
@@ -849,10 +851,11 @@ class ReportingApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.MANAGE_REPORTINGS, Capability.ACCESS_REPORTINGS));
 
-      String reportingId = createReportingInTenant(tenantX, "Update Isolation Reporting");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert): creating under tenant X's path via the API would set the
+      // tenant scope (TxCtx) to X on this test's wrapping transaction, and the update call below
+      // sets it to Y - the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String reportingId = seedReportingInTenant(tenantX, "Update Isolation Reporting");
 
       // Act - update from tenant Y
       ReportingInput hijack =
@@ -883,10 +886,11 @@ class ReportingApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.DELETE_REPORTINGS, Capability.ACCESS_REPORTINGS));
 
-      String reportingId = createReportingInTenant(tenantX, "Delete Isolation Reporting");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert): creating under tenant X's path via the API would set the
+      // tenant scope (TxCtx) to X on this test's wrapping transaction, and the delete call below
+      // sets it to Y - the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String reportingId = seedReportingInTenant(tenantX, "Delete Isolation Reporting");
 
       // Act - delete from tenant Y
       int responseStatus =
@@ -901,6 +905,28 @@ class ReportingApiTest extends IntegrationTest {
 
     private String tenantReportingsUri(Tenant tenant) {
       return TENANT_REPORTINGS_URI.replace("{tenantId}", tenant.getId());
+    }
+
+    /**
+     * Seeds a reporting directly via native insert instead of the create endpoint: creating through
+     * the API sets the tenant scope (TxCtx) on this test's wrapping transaction, which conflicts
+     * with a subsequent call scoped to a different tenant within the same test (see
+     * TenantScopeTransactionAspect).
+     */
+    private String seedReportingInTenant(Tenant tenant, String name) {
+      String reportingId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO reportings (reporting_id, reporting_name, reporting_context_type, tenant_id)"
+                  + " VALUES (CAST(:id AS uuid), :name, :contextType, CAST(:tenant AS uuid))")
+          .setParameter("id", reportingId)
+          .setParameter("name", name)
+          .setParameter("contextType", ReportingContextType.PLATFORM.name())
+          .setParameter("tenant", tenant.getId())
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+      return reportingId;
     }
 
     private String createReportingInTenant(Tenant tenant, String name) throws Exception {

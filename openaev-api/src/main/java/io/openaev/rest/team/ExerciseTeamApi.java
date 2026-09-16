@@ -7,6 +7,7 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
@@ -40,6 +41,7 @@ public class ExerciseTeamApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(readOnly = true)
   public Page<TeamOutput> searchTeams(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput,
       @RequestParam

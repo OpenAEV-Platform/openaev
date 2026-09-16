@@ -21,7 +21,6 @@ import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -38,27 +37,17 @@ public class BaseInjectExpectation implements Base, Cloneable {
   /**
    * Creates a shallow clone of this InjectExpectation with deep-copied collections.
    *
-   * <p>The following collections are deep-copied to prevent shared mutable state:
+   * <p>The {@code results} collection is deep-copied to prevent shared mutable state. Technical
+   * specific collections (signatures, traces, expected security platforms) are handled by {@link
+   * TechnicalInjectExpectation#clone()}.
    *
-   * <ul>
-   *   <li>{@code signatures} - copied to new ArrayList
-   *   <li>{@code results} - copied to new ArrayList
-   * </ul>
-   *
-   * <p><strong>Important:</strong> The {@code traces} collection is intentionally NOT copied and
-   * will be empty in the clone. Traces represent execution history that belongs to the original
-   * expectation instance and should not be duplicated when cloning for a new execution context.
-   *
-   * @return a new InjectExpectation with copied signatures and results, but empty traces
+   * @return a new InjectExpectation with copied results
    */
   @Override
   public BaseInjectExpectation clone() {
     try {
       BaseInjectExpectation clone = (BaseInjectExpectation) super.clone();
-      clone.signatures =
-          this.signatures != null ? new ArrayList<>(this.signatures) : new ArrayList<>();
       clone.results = this.results != null ? new ArrayList<>(this.results) : new ArrayList<>();
-      clone.traces = new ArrayList<>();
       return clone;
     } catch (CloneNotSupportedException e) {
       throw new AssertionError("Clone should be supported for Cloneable objects", e);
@@ -136,20 +125,6 @@ public class BaseInjectExpectation implements Base, Cloneable {
   private String description;
 
   @Setter
-  @OneToMany(
-      mappedBy = "injectExpectation",
-      cascade = CascadeType.ALL,
-      orphanRemoval = true,
-      fetch = FetchType.LAZY)
-  // Batch fetching instead of @Fetch(SUBSELECT): the collector polling endpoints load up to 10k
-  // expectations with a NATIVE query (subselect fetching does not apply to those owners) and then
-  // initialize this collection for serialization. Batching keeps that to one IN-clause query per
-  // 1000 expectations instead of one query per expectation.
-  @BatchSize(size = 1000)
-  @JsonProperty("inject_expectation_signatures")
-  private List<InjectExpectationSignature> signatures = new ArrayList<>();
-
-  @Setter
   @Type(JsonType.class)
   @Column(name = "inject_expectation_results")
   @JsonProperty("inject_expectation_results")
@@ -209,23 +184,6 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @JsonProperty("inject_expectation_order")
   private Integer order;
 
-  /**
-   * Security platform types expected to fulfil this (technical) expectation. When non-empty, only
-   * collectors of those types are pre-seeded as pending results and considered for scoring. Empty
-   * or null means "any security platform" (legacy behaviour).
-   */
-  @Setter
-  @Type(JsonType.class)
-  @Column(name = "inject_expectation_expected_security_platforms", columnDefinition = "jsonb")
-  @JsonProperty("inject_expectation_expected_security_platforms")
-  private List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatforms =
-      new ArrayList<>();
-
-  @Setter
-  @Column(name = "inject_expectation_signatures_initialized")
-  @JsonIgnore
-  private boolean signaturesInitialized = false;
-
   // endregion
 
   // region contextual relations
@@ -246,14 +204,6 @@ public class BaseInjectExpectation implements Base, Cloneable {
   private Inject inject;
 
   // endregion
-
-  @OneToMany(
-      mappedBy = "injectExpectation",
-      cascade = CascadeType.ALL,
-      orphanRemoval = true,
-      fetch = FetchType.LAZY)
-  @JsonProperty("inject_expectation_traces")
-  private List<InjectExpectationTrace> traces = new ArrayList<>();
 
   @Setter(AccessLevel.PROTECTED)
   @Transient

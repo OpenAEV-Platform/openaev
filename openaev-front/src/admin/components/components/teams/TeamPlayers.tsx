@@ -238,7 +238,9 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
             sx={{
               display: 'flex',
               alignItems: 'center',
+              flexWrap: 'wrap',
               gap: 1.5,
+              minWidth: 0,
             }}
           >
             <SearchFilter
@@ -256,14 +258,19 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                 setTags(tags.filter((t: Option) => t.id !== value));
               }}
               currentTags={tags}
-              thin={true}
             />
           </Box>
           {canManage && (
-            <TeamAddPlayers
-              teamId={teamId}
-              addedUsersIds={users.filter(u => !!u).map(u => u.user_id)}
-            />
+            <Box sx={{
+              alignSelf: 'flex-start',
+              flexShrink: 0,
+            }}
+            >
+              <TeamAddPlayers
+                teamId={teamId}
+                addedUsersIds={users.filter(u => !!u).map(u => u.user_id)}
+              />
+            </Box>
           )}
         </Box>
         <List classes={{ root: classes.container }}>

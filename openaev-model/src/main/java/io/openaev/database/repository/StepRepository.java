@@ -233,6 +233,8 @@ public interface StepRepository extends JpaRepository<Step, String> {
 
   List<Step> findAllStepByWorkflow_IdAndStatusIn(String id, List<StepStatus> run);
 
+  void deleteAllStepByWorkflow_IdAndStatusIn(String id, List<StepStatus> run);
+
   /**
    * Returns {@code true} if at least one executed step references the given step template within
    * the given workflow run.

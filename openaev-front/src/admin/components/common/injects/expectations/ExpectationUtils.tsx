@@ -3,6 +3,7 @@ import expectationIconByType from '../../ExpectationIconByType';
 import { ExpectationType, type InjectExpectationsStore } from './Expectation';
 
 export const FAILED = 'Failed';
+export const SUCCESS = 'Successful';
 
 export const HUMAN_EXPECTATION = ['MANUAL', 'CHALLENGE', 'ARTICLE'];
 

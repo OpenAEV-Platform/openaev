@@ -4,6 +4,7 @@ import static io.openaev.engine.api.WidgetType.*;
 
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Filters;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.WidgetLayout;
 import io.openaev.engine.api.*;
@@ -15,8 +16,14 @@ public class WidgetFixture {
 
   public static final String NAME = "Widget 1";
 
-  public static Widget createDefaultWidget() {
+  private static Widget createWidgetWithDefaultTenant() {
     Widget widget = new Widget();
+    widget.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    return widget;
+  }
+
+  public static Widget createDefaultWidget() {
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(VERTICAL_BAR_CHART);
     DateHistogramWidget widgetConfig = new DateHistogramWidget();
     widgetConfig.setTitle(NAME);
@@ -37,7 +44,7 @@ public class WidgetFixture {
       String dateAttribute,
       HistogramInterval interval,
       String entityName) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(VERTICAL_BAR_CHART);
     // series
     DateHistogramWidget widgetConfig = new DateHistogramWidget();
@@ -104,7 +111,7 @@ public class WidgetFixture {
       CustomDashboardTimeRange timeRange,
       String dateAttribute,
       BaseInjectExpectation.EXPECTATION_TYPE type) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(SECURITY_COVERAGE_CHART);
     // series
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
@@ -127,7 +134,7 @@ public class WidgetFixture {
 
   public static Widget createSecurityDomainWidget(
       CustomDashboardTimeRange timeRange, String dateAttribute) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(AVERAGE);
     // series
     AverageConfiguration widgetConfig = new AverageConfiguration();
@@ -167,7 +174,7 @@ public class WidgetFixture {
       CustomDashboardTimeRange timeRange,
       String dateAttribute,
       List<BaseInjectExpectation.EXPECTATION_STATUS> statuses) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(DONUT);
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
     widgetConfig.setSeries(
@@ -213,7 +220,7 @@ public class WidgetFixture {
    */
   public static Widget createDivergentSeriesWidget(
       CustomDashboardTimeRange timeRange, String dateAttribute) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(DONUT);
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
     widgetConfig.setSeries(
@@ -249,7 +256,7 @@ public class WidgetFixture {
       List<String> firstValues,
       Filters.FilterOperator secondOperator,
       List<String> secondValues) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(DONUT);
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
     widgetConfig.setSeries(
@@ -315,7 +322,7 @@ public class WidgetFixture {
 
   public static Widget createStructuralWidgetWithTimeRange(
       CustomDashboardTimeRange timeRange, String dateAttribute, String field, String entityName) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(DONUT);
     // series
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
@@ -342,7 +349,7 @@ public class WidgetFixture {
   }
 
   public static Widget createNumberWidgetWithEntity(String entityName) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(WidgetType.NUMBER);
     // series
     WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
@@ -367,7 +374,7 @@ public class WidgetFixture {
   }
 
   public static Widget createNumberWidgetWithEndpointAndFilter() {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(WidgetType.NUMBER);
     // series
     WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
@@ -400,7 +407,7 @@ public class WidgetFixture {
 
   public static Widget createNumberWidgetWithEntityAndTimeRange(
       String entityName, CustomDashboardTimeRange timeRange, String dateAttribute) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(WidgetType.NUMBER);
     // series
     WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
@@ -425,7 +432,7 @@ public class WidgetFixture {
   }
 
   public static Widget createListWidgetWithEntity(String entityName) {
-    Widget widget = new Widget();
+    Widget widget = createWidgetWithDefaultTenant();
     widget.setType(WidgetType.LIST);
     // series
     ListConfiguration.ListPerspective series = new ListConfiguration.ListPerspective();

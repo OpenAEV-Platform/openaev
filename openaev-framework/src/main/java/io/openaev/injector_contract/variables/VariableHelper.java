@@ -6,6 +6,10 @@ import static io.openaev.injector_contract.ContractVariable.variable;
 
 import io.openaev.database.model.Variable.VariableType;
 import io.openaev.injector_contract.ContractVariable;
+import io.openaev.injector_contract.variables.contract.SimulationContract;
+import io.openaev.injector_contract.variables.contract.UserContract;
+import io.openaev.injector_contract.variables.contract.VariableContract;
+import io.openaev.utils.reflection.FieldUtils;
 import java.util.List;
 
 /**
@@ -77,16 +81,11 @@ public final class VariableHelper {
    */
   public static final ContractVariable userVariable =
       variable(
-          USER,
+          UserContract.VARIABLE_FAMILY,
           "User that will receive the injection",
-          VariableType.String,
+          VariableType.Object,
           One,
-          List.of(
-              variable(USER + ".id", "Id of the user in the platform", VariableType.String, One),
-              variable(USER + ".email", "Email of the user", VariableType.String, One),
-              variable(USER + ".firstname", "First name of the user", VariableType.String, One),
-              variable(USER + ".lastname", "Last name of the user", VariableType.String, One),
-              variable(USER + ".lang", "Language of the user", VariableType.String, One)));
+          getVariablesFromContract(UserContract.class));
 
   /**
    * Exercise variable containing information about the current exercise or scenario.
@@ -101,19 +100,11 @@ public final class VariableHelper {
    */
   public static final ContractVariable exerciseVariable =
       variable(
-          EXERCISE,
+          SimulationContract.VARIABLE_FAMILY,
           "Exercise of the current injection",
           VariableType.Object,
           One,
-          List.of(
-              variable(
-                  EXERCISE + ".id", "Id of the exercise in the platform", VariableType.String, One),
-              variable(EXERCISE + ".name", "Name of the exercise", VariableType.String, One),
-              variable(
-                  EXERCISE + ".description",
-                  "Description of the exercise",
-                  VariableType.String,
-                  One)));
+          getVariablesFromContract(SimulationContract.class));
 
   /** Team variable containing the list of team names participating in the injection. */
   public static final ContractVariable teamVariable =
@@ -138,4 +129,18 @@ public final class VariableHelper {
           variable(SCOREBOARD_URI, "Scoreboard interface platform link", VariableType.String, One),
           variable(
               LESSONS_URI, "Lessons learned interface platform link", VariableType.String, One));
+
+  private static List<ContractVariable> getVariablesFromContract(Class<?> contractClass) {
+    return FieldUtils.getAllDeclaredAnnotatedFields(contractClass, VariableContract.class).stream()
+        .map(
+            field -> {
+              VariableContract annotation = field.getAnnotation(VariableContract.class);
+              return variable(
+                  annotation.name(),
+                  annotation.description(),
+                  annotation.type(),
+                  annotation.cardinality());
+            })
+        .toList();
+  }
 }

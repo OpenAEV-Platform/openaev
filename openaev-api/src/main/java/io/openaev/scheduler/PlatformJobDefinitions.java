@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIAL_CONNECTIVITY_CHECK_JOB;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_JOB;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_JOB;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
@@ -28,6 +29,14 @@ public class PlatformJobDefinitions {
     return JobBuilder.newJob(InjectsExecutionJob.class)
         .storeDurably()
         .withIdentity(jobKey("InjectsExecutionJob"))
+        .build();
+  }
+
+  @Bean
+  public JobDetail getInjectsFinalization() {
+    return JobBuilder.newJob(InjectsFinalizationJob.class)
+        .storeDurably()
+        .withIdentity(jobKey("InjectsFinalizationJob"))
         .build();
   }
 
@@ -168,6 +177,14 @@ public class PlatformJobDefinitions {
   public JobDetail urlAccessTokenPurgeJobDetail() {
     return JobBuilder.newJob(UrlAccessTokenPurgeJob.class)
         .withIdentity(URL_ACCESS_TOKEN_PURGE_JOB)
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail credentialsConnectivityCheckJobDetail() {
+    return JobBuilder.newJob(CredentialConnectivityCheckJob.class)
+        .withIdentity(CREDENTIAL_CONNECTIVITY_CHECK_JOB)
         .storeDurably()
         .build();
   }

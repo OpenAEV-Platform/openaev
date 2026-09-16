@@ -73,6 +73,58 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.mitigation.MitigationApi#updateMitigation",
           "io.openaev.rest.mitigation.MitigationApi#upsertMitigation",
           "io.openaev.rest.mitigation.MitigationApi#deleteMitigation",
+          // tags (v2)
+          "io.openaev.rest.tag.TagApi#createTag",
+          "io.openaev.rest.tag.TagApi#upsertTag",
+          "io.openaev.rest.tag.TagApi#tags",
+          "io.openaev.rest.tag.TagApi#updateTag",
+          "io.openaev.rest.tag.TagApi#deleteTag",
+          "io.openaev.rest.tag.TagApi#optionsByName",
+          "io.openaev.rest.tag.TagApi#optionsById",
+          // domains (v2)
+          "io.openaev.rest.domain.DomainApi#domains",
+          "io.openaev.rest.domain.DomainApi#getDomain",
+          "io.openaev.rest.domain.DomainApi#upsertDomain",
+          "io.openaev.rest.domain.DomainApi#findAllAsOptionsByName",
+          "io.openaev.rest.domain.DomainApi#findAllAsOptionsById",
+          // notification_triggers (v2), which also reach notifiers through the trigger's
+          // association in NotificationTriggerMapper
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#notificationTrigger",
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#searchNotificationTriggers",
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#createNotificationTrigger",
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#updateNotificationTrigger",
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#deleteNotificationTrigger",
+          // notifications (v2)
+          "io.openaev.api.notification.NotificationApi#searchMyNotifications",
+          "io.openaev.api.notification.NotificationApi#unreadNotificationsCount",
+          "io.openaev.api.notification.NotificationApi#markNotificationRead",
+          "io.openaev.api.notification.NotificationApi#markAllNotificationsRead",
+          "io.openaev.api.notification.NotificationApi#bulkDeleteNotifications",
+          "io.openaev.api.notification.NotificationApi#bulkMarkNotificationsRead",
+          "io.openaev.api.notification.NotificationApi#deleteNotification",
+          // notifications write-through from the notifier test endpoint
+          "io.openaev.api.notifier.NotifierApi#testNotifier",
+          // notifiers (v2)
+          "io.openaev.api.notifier.NotifierApi#notifiers",
+          "io.openaev.api.notifier.NotifierApi#notifier",
+          "io.openaev.api.notifier.NotifierApi#searchNotifiers",
+          "io.openaev.api.notifier.NotifierApi#createNotifier",
+          "io.openaev.api.notifier.NotifierApi#updateNotifier",
+          "io.openaev.api.notifier.NotifierApi#deleteNotifier",
+          // channels (v2)
+          "io.openaev.rest.channel.ChannelApi#channels",
+          "io.openaev.rest.channel.ChannelApi#channel",
+          "io.openaev.rest.channel.ChannelApi#updateChannel",
+          "io.openaev.rest.channel.ChannelApi#updateChannelLogos",
+          "io.openaev.rest.channel.ChannelApi#createChannel",
+          "io.openaev.rest.channel.ChannelApi#deleteChannel",
+          "io.openaev.rest.channel.ChannelApi#observerArticles",
+          "io.openaev.rest.channel.ChannelApi#playerArticles",
+          "io.openaev.rest.channel.ChannelApi#documentsFromChannel",
+          "io.openaev.rest.scenario.ScenarioApi#channels",
+          "io.openaev.rest.exercise.ExerciseApi#channels",
+          "io.openaev.rest.document.DocumentApi#getChannelImageFromId",
+          "io.openaev.rest.document.DocumentApi#getDocumentRelations",
           // attackpath_execution / attackpath_finding (v2): every read of the projection, including
           // the delta cursor added with the real-time updates (#6647, spec 002). Losing the TxCtx
           // on
@@ -81,6 +133,12 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.attackpath.AttackPathApi#graphDelta",
           "io.openaev.api.attackpath.AttackPathApi#simulations",
           "io.openaev.api.attackpath.AttackPathApi#expandEndpointFindings",
+          // marking_definitions (v2)
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#list",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#search",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#create",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#update",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#delete",
           "io.openaev.api.attackpath.AttackPathApi#relations",
           "io.openaev.api.attackpath.AttackPathApi#findings",
           "io.openaev.api.attackpath.AttackPathApi#executionDetail",
@@ -214,11 +272,86 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.payload.PayloadApi#createPayload",
           "io.openaev.rest.payload.PayloadApi#updatePayload",
           "io.openaev.rest.payload.PayloadApi#duplicatePayload",
+          // tenant_xtmhub_registrations (v2): singleton registration endpoints and the explicit
+          // default-tenant contact-us lookup
+          "io.openaev.api.xtmhub.XtmHubApi#getRegistration",
+          "io.openaev.api.xtmhub.XtmHubApi#register",
+          "io.openaev.api.xtmhub.XtmHubApi#unregister",
+          "io.openaev.api.xtmhub.XtmHubApi#refreshConnectivity",
+          "io.openaev.api.xtmhub.XtmHubApi#autoRegister",
+          "io.openaev.api.xtmhub.XtmHubApi#contactUs",
           // threat arsenal: create/update/duplicate go through PayloadCreationService/
           // PayloadUpdateService into the same synchroniseInjectorContractBasedOnPayload path
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#createAction",
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#updateAction",
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#duplicateAction",
+          // threat arsenal reads: same InjectorContractService projection/association as
+          // InjectorContractApi#injectorContracts (already listed above), reached through a
+          // separate sibling controller - resolves injector_contract_injector_type via the v2
+          // tenant-scoped injectors table. Missed on the original injectors activation (#6410)
+          // because the inventory stopped at the expected InjectorContractApi caller and never
+          // re-ran the caller-search on the shared InjectorContractService search/association
+          // methods themselves (regression fixed here).
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#threatArsenal",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#threatArsenals",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#threatArsenalsNonTabletop",
+          // threat arsenal delete/bulk-delete: isEligibleForDeletion resolves
+          // InjectorContract#getInjectorType() (delete) and InjectorContractService#getSinglePage
+          // (bulkDelete), both v2 tenant-scoped through the injectors table. Missed by the same
+          // #6410 re-inventory gap as the reads above (Phase 1 re-run, see the skill's hardened
+          // caller-search procedure).
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#deleteAction",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#bulkDeleteActions",
+          // scenario "add threat arsenal to scenario(s)": InjectService#buildInject resolves the
+          // injector via InjectUtils#resolveInjector, v2 tenant-scoped through injectors. Same
+          // #6410 re-inventory gap: InjectUtils#resolveInjector was never re-walked as a shared
+          // symbol once one caller (SimulationInjectApi#createInjectForExercise) was already wired.
+          "io.openaev.rest.scenario.ScenarioApi#createScenarioWithInjectorContracts",
+          "io.openaev.rest.scenario.ScenarioApi#updateScenariosWithInjectorContracts",
+          // scenario/exercise ZIP-JSON import: V1_DataImporter resolves
+          // InjectorContract#getFirstInjector() and InjectorService#injectorTypeExists(...), both
+          // v2 tenant-scoped through injectors. Sibling XLS injectsImport endpoints
+          // (ScenarioImportApi/ExerciseImportApi, already listed above) were wired; these ZIP/JSON
+          // import endpoints were not (#6410 re-inventory gap).
+          "io.openaev.rest.scenario.ScenarioApi#importScenario",
+          "io.openaev.rest.exercise.ExerciseApi#exerciseImport",
+          // bulk inject creation from a threat-arsenal search: createAndSaveInjectList resolves the
+          // injector via InjectUtils#resolveInjector; sibling single-inject creation endpoints
+          // (createInjectForExercise/createInjectForScenario, already listed above) were wired,
+          // these bulk endpoints were not (#6410 re-inventory gap).
+          "io.openaev.rest.inject.SimulationInjectApi#createInjectsForExercise",
+          "io.openaev.rest.inject.ScenarioInjectApi#createInjectsForScenario",
+          "io.openaev.rest.inject.ScenarioInjectApi#generateInjectsForScenario",
+          // direct inject execution (mass-run "launch" action): resolveInjector then
+          // executor.directExecute both resolve the injector through the v2 tenant-scoped
+          // injectors table (#6410 re-inventory gap).
+          "io.openaev.rest.inject.SimulationInjectApi#executeInject",
+          // autonomous-run capability resolution: buildArsenalInventory reads
+          // injectorRepository.findAll() directly, v2 tenant-scoped through injectors. Every other
+          // AutonomousRunApi endpoint already carries TxCtx; this one was the odd one out (#6410
+          // re-inventory gap).
+          "io.openaev.api.autonomous.AutonomousRunApi#resolveCapabilities",
+          // exercise lessons-learned "send" action: MailingService#sendEmail resolves the email
+          // injector contract's linked injector, v2 tenant-scoped through injectors (#6410
+          // re-inventory gap).
+          "io.openaev.rest.lessons.ExerciseLessonsApi#sendExerciseLessons",
+          // phishing landing pages: create/update/logos/duplicate all resolve to
+          // PhishingLandingPageService#upsert -> synchroniseInjectorContract, which reads the
+          // tenant's phishing injector via injectorRepository, v2 tenant-scoped through injectors.
+          // No endpoint in this controller carried TxCtx before this fix (#6410 re-inventory gap).
+          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#createLandingPage",
+          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#updateLandingPage",
+          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#updateLandingPageLogos",
+          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#duplicateLandingPage",
+          // phishing email templates: create/update/duplicate/delete/bulk-delete all resync every
+          // landing page's contract (PhishingEmailTemplateService#resyncLandingPageContracts ->
+          // PhishingLandingPageService#resyncAllContracts -> synchroniseInjectorContract), same
+          // injectors-table read as the landing page endpoints above (#6410 re-inventory gap).
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#createEmailTemplate",
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#updateEmailTemplate",
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#duplicateEmailTemplate",
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#deleteEmailTemplate",
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#bulkDeleteEmailTemplates",
           // stix: security-coverage processing creates DNS-resolution/drop-file payloads via
           // PayloadService#getDynamicDnsResolutionPayload / getFileDropPayloadByDocument, which
           // lazily create the payload's injector contract through the same
@@ -236,6 +369,18 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.inject.ScenarioInjectApi#createInjectForScenario",
           "io.openaev.rest.inject.ScenarioInjectApi#duplicateInjectForScenario",
           "io.openaev.rest.inject.ScenarioInjectApi#updateInjectForScenario",
+          "io.openaev.rest.inject.SimulationInjectApi#exerciseInjects",
+          "io.openaev.rest.inject.SimulationInjectApi#exerciseInjectsSimple",
+          "io.openaev.rest.inject.SimulationInjectApi#searchExerciseInjects",
+          "io.openaev.rest.inject.SimulationInjectApi#exerciseInjectsResults",
+          "io.openaev.rest.inject.SimulationInjectApi#updateInjectActivationForExercise",
+          "io.openaev.rest.inject.SimulationInjectApi#updateInjectTrigger",
+          "io.openaev.rest.inject.SimulationInjectApi#setInjectStatus",
+          "io.openaev.rest.inject.SimulationInjectApi#updateInjectTeams",
+          "io.openaev.rest.inject.ScenarioInjectApi#scenarioInjects",
+          "io.openaev.rest.inject.ScenarioInjectApi#scenarioInjectsSimple",
+          "io.openaev.rest.inject.ScenarioInjectApi#scenarioInject",
+          "io.openaev.rest.inject.ScenarioInjectApi#updateInjectActivationForScenario",
           // health-check streams: runChecks -> securityPlatformCollectors
           "io.openaev.rest.scenario.ScenarioApi#streamHealthChecks",
           "io.openaev.rest.exercise.ExerciseApi#streamHealthChecks",
@@ -244,6 +389,18 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // of updateInjectExpectation are covered by the single name entry.
           "io.openaev.rest.expectation.ExpectationApi#getAiDefenseExpectationsNotFilledForSource",
           "io.openaev.rest.expectation.ExpectationApi#updateInjectExpectation",
+          "io.openaev.rest.expectation.ExpectationApi#deleteInjectExpectationResult",
+          // challenge flows update inject expectations; missing TxCtx here silently de-scopes
+          // security_coverages reads in the propagation path.
+          "io.openaev.rest.challenge.ChallengeApi#tryChallenge",
+          "io.openaev.rest.challenge.SimulationChallengeApi#validateChallenge",
+          // inject execution callback (legacy, non-queued path): the vulnerability-verdict
+          // propagation chain (matchesVulnerabilityExpectations -> ... ->
+          // propagateTechnicalExpectation)
+          // reads security_coverages via
+          // SecurityCoverageSendJobService#shouldCreateCoverageSendJob.
+          // Both overloads (with/without agentId) are covered by the single name entry.
+          "io.openaev.rest.inject.InjectApi#injectExecutionCallback",
           // security platforms: serialize the collectors association (tenant-active table) so the
           // UI can keep collector-managed platforms read-only (#7025). Both overloads of
           // securityPlatforms (GET list and POST search) are covered by the single name entry.
@@ -284,7 +441,164 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.autonomous.AutonomousRunApi#promoteFindingToAsset",
           "io.openaev.api.autonomous.AutonomousRunApi#ensureTargetTeam",
           "io.openaev.rest.scenario.ScenarioApi#deleteScenario",
-          "io.openaev.rest.scenario.ScenarioApi#bulkDeleteScenarios");
+          "io.openaev.rest.scenario.ScenarioApi#bulkDeleteScenarios",
+          // kill_chain_phases (v2, #6402): the table's own API, plus every path that reads it
+          // through AttackPattern's LAZY @ManyToMany or through a native query that JOINs it.
+          // Losing a TxCtx here fails silently: the phase list comes back EMPTY, it is not an
+          // error.
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#killChainPhases",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#killChainPhase",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#createKillChainPhase",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#updateKillChainPhase",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#upsertKillChainPhases",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#deleteKillChainPhase",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#optionsByName",
+          "io.openaev.rest.kill_chain_phase.KillChainPhaseApi#optionsById",
+          // attack patterns: read the phases by id on write, serialize them on read
+          "io.openaev.rest.attack_pattern.AttackPatternApi#attackPatterns",
+          "io.openaev.rest.attack_pattern.AttackPatternApi#attackPattern",
+          "io.openaev.rest.attack_pattern.AttackPatternApi#createAttackPattern",
+          "io.openaev.rest.attack_pattern.AttackPatternApi#updateAttackPattern",
+          "io.openaev.rest.attack_pattern.AttackPatternApi#upsertAttackPatterns",
+          "io.openaev.api.attack_pattern.AttackPatternCoverageApi#attackPatternsCoverage",
+          // scenario: the raw projection JOINs kill_chain_phases; the entity-returning handlers
+          // serialize scenario_kill_chain_phases; import writes phases
+          "io.openaev.rest.scenario.ScenarioApi#scenario",
+          "io.openaev.rest.scenario.ScenarioApi#duplicateScenario",
+          "io.openaev.rest.scenario.ScenarioApi#updateScenario",
+          "io.openaev.rest.scenario.ScenarioApi#updateScenarioTags",
+          "io.openaev.rest.scenario.ScenarioApi#updateScenarioLessons",
+          "io.openaev.rest.scenario.ScenarioApi#enableScenarioTeamPlayers",
+          "io.openaev.rest.scenario.ScenarioApi#disableScenarioTeamPlayers",
+          "io.openaev.rest.scenario.ScenarioApi#addScenarioTeamPlayers",
+          "io.openaev.rest.scenario.ScenarioApi#removeScenarioTeamPlayers",
+          "io.openaev.rest.scenario.ScenarioApi#exportScenario",
+          // simulation: findDistinctByExerciseId, exercise_kill_chain_phases, import/export
+          "io.openaev.rest.exercise.ExerciseApi#exercise",
+          "io.openaev.rest.exercise.ExerciseApi#duplicateExercise",
+          "io.openaev.rest.exercise.ExerciseApi#updateExerciseInformation",
+          "io.openaev.rest.exercise.ExerciseApi#updateExerciseTags",
+          "io.openaev.rest.exercise.ExerciseApi#updateExerciseLogos",
+          "io.openaev.rest.exercise.ExerciseApi#updateExerciseLessons",
+          "io.openaev.rest.exercise.ExerciseApi#enableExerciseTeamPlayers",
+          "io.openaev.rest.exercise.ExerciseApi#disableExerciseTeamPlayers",
+          "io.openaev.rest.exercise.ExerciseApi#addExerciseTeamPlayers",
+          "io.openaev.rest.exercise.ExerciseApi#removeExerciseTeamPlayers",
+          "io.openaev.rest.exercise.ExerciseApi#deleteDocument",
+          "io.openaev.rest.exercise.ExerciseApi#exerciseExport",
+          "io.openaev.rest.exercise.ExerciseApi#scenarioFromSimulation",
+          // injects: inject_kill_chain_phases on the entity-returning handlers
+          "io.openaev.rest.inject.InjectApi#inject",
+          "io.openaev.rest.inject.InjectApi#injectExecutionReception",
+          "io.openaev.rest.inject.InjectApi#nextInjectsToExecute",
+          // atomic testing: InjectMapper maps inject_kill_chain_phases inside the transaction
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#findAtomicTesting",
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#updateAtomicTestingTags",
+          // contract picker facet: INNER JOINs kill_chain_phases to count per phase
+          "io.openaev.rest.injector_contract.InjectorContractApi#getFacetCounts",
+          // custom dashboards / widgets (v2): CRUD, import/export, linked dashboard endpoints,
+          // and every sink returning CustomDashboard with its LAZY widget list.
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#createCustomDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboards",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#updateCustomDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#deleteCustomDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByName",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsById",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByResourceId",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#createWidget",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#widgets",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#widget",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#updateWidget",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#updateWidgetLayout",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#deleteWidget",
+          "io.openaev.api.custom_dashboard.CustomDashboardApiExporter#export",
+          "io.openaev.api.custom_dashboard.CustomDashboardApiImporter#importJson",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboard",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardCount",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardAverage",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardSeries",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardEntities",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#widgetToEntitiesRuntime",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardAttackPaths",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboard",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardCount",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardAverage",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardSeries",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardEntities",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#widgetToEntitiesRuntime",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardAttackPaths",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboard",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardCount",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardAverage",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardSeries",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardEntities",
+          "io.openaev.rest.settings.TenantSettingsApi#homeWidgetToEntitiesRuntime",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardAttackPaths",
+          "io.openaev.rest.dashboard.DashboardApi#count",
+          "io.openaev.rest.dashboard.DashboardApi#average",
+          "io.openaev.rest.dashboard.DashboardApi#series",
+          "io.openaev.rest.dashboard.DashboardApi#entities",
+          "io.openaev.rest.dashboard.DashboardApi#widgetToEntitiesRuntime",
+          "io.openaev.rest.dashboard.DashboardApi#attackPaths",
+          "io.openaev.rest.exercise.ExerciseApi#createExercise",
+          "io.openaev.rest.scenario.ScenarioApi#createScenario",
+          "io.openaev.api.chaining.ChainingApi#createSimulation",
+          "io.openaev.api.chaining.ChainingApi#createScenarioChaining",
+          // chaining duplications copy injects, so they serialize the phase lists
+          // Propagation.SUPPORTS handlers: they hold no transaction, so the TxCtx here exists only
+          // to be threaded into the service method that opens one (same shape as
+          // ScenarioApi#bulkDeleteScenarios). Dropping it would silently empty the phase lists.
+          "io.openaev.rest.inject.SimulationInjectApi#bulkUpdateInjectsForSimulation",
+          "io.openaev.rest.inject.ScenarioInjectApi#bulkUpdateInjectsForScenario",
+          // challenges (v2, #6416): the table's own API, plus every path that reads or writes it.
+          "io.openaev.rest.challenge.ChallengeApi#challenges",
+          "io.openaev.rest.challenge.ChallengeApi#findEndpoints",
+          "io.openaev.rest.challenge.ChallengeApi#updateChallenge",
+          "io.openaev.rest.challenge.ChallengeApi#createChallenge",
+          "io.openaev.rest.challenge.ChallengeApi#deleteChallenge",
+          "io.openaev.rest.challenge.ChallengeApi#documentsFromChallenge",
+          "io.openaev.rest.challenge.ScenarioChallengeApi#scenarioChallenges",
+          "io.openaev.rest.challenge.SimulationChallengeApi#exerciseChallenges",
+          "io.openaev.rest.challenge.SimulationChallengeApi#observerChallenges",
+          "io.openaev.rest.challenge.SimulationChallengeApi#playerChallenges",
+          // asset_groups activation (#6435). Every endpoint the Phase 1 inventory found
+          // reading the table, whether it returns asset groups or merely consumes them.
+          // The wiring itself came with #7781; listing them here is what stops a future
+          // change from removing a TxCtx that the activation depends on.
+          "io.openaev.api.chaining.WorkflowApi#findScopeAssetGroups",
+          "io.openaev.api.chaining.WorkflowApi#getScopeAssetGroups",
+          "io.openaev.rest.asset_group.AssetGroupApi#assetGroup",
+          "io.openaev.rest.asset_group.AssetGroupApi#assetGroups",
+          "io.openaev.rest.asset_group.AssetGroupApi#assetsFromAssetGroup",
+          "io.openaev.rest.asset_group.AssetGroupApi#bulkDeleteAssetGroups",
+          "io.openaev.rest.asset_group.AssetGroupApi#createAssetGroup",
+          "io.openaev.rest.asset_group.AssetGroupApi#deleteAssetGroup",
+          "io.openaev.rest.asset_group.AssetGroupApi#findAssetGroups",
+          "io.openaev.rest.asset_group.AssetGroupApi#optionsById",
+          "io.openaev.rest.asset_group.AssetGroupApi#optionsByName",
+          "io.openaev.rest.asset_group.AssetGroupApi#optionsByNameLinkedToFindings",
+          "io.openaev.rest.asset_group.AssetGroupApi#searchInjectsForAssetGroup",
+          "io.openaev.rest.asset_group.AssetGroupApi#updateAssetGroup",
+          "io.openaev.rest.asset_group.AssetGroupApi#updateAssetsOnAssetGroup",
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#findAllAtomicTestings",
+          "io.openaev.rest.exercise.ExerciseApi#assetGroupsByIds",
+          "io.openaev.rest.finding.FindingApi#findingSummary",
+          "io.openaev.rest.finding.FindingSearchApi#findings",
+          "io.openaev.rest.finding.FindingSearchApi#findingsByEndpoint",
+          "io.openaev.rest.finding.FindingSearchApi#findingsByInject",
+          "io.openaev.rest.finding.FindingSearchApi#findingsByScenario",
+          "io.openaev.rest.finding.FindingSearchApi#findingsBySimulation",
+          "io.openaev.rest.organization.OrganizationApi#searchInjectsForOrganization",
+          "io.openaev.rest.scenario.ScenarioApi#assetGroupsByIds",
+          "io.openaev.rest.tag_rule.TagRuleApi#createTagRule",
+          "io.openaev.rest.tag_rule.TagRuleApi#deleteTagRule",
+          "io.openaev.rest.tag_rule.TagRuleApi#findTagRule",
+          "io.openaev.rest.tag_rule.TagRuleApi#searchTagRules",
+          "io.openaev.rest.tag_rule.TagRuleApi#tags",
+          "io.openaev.rest.tag_rule.TagRuleApi#updateTagRule",
+          "io.openaev.rest.team.TeamApi#searchInjectsForTeam",
+          "io.openaev.rest.user.PlayerApi#searchInjectsForPlayer");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

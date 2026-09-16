@@ -40,7 +40,6 @@ const TenantUsersTab = () => {
     addUser,
     editUser,
     removeUser,
-    changeUserPassword,
   } = useTenantUsers();
 
   const {
@@ -88,10 +87,9 @@ const TenantUsersTab = () => {
                 secondaryAction={user => (
                   <UserPopover
                     user={user}
-                    actions={['Update', 'Update password', 'Delete']}
+                    actions={['Update', 'Delete']}
                     onSubmitUpdate={data => editUser(user.user_id, data)}
                     onSubmitDelete={() => removeUser(user.user_id)}
-                    onSubmitPassword={data => changeUserPassword(user.user_id, data)}
                     permissions={{
                       manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],
                       delete: [ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],

@@ -6,7 +6,6 @@ import io.openaev.database.model.ResourceType;
 import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -17,12 +16,13 @@ public interface NotificationTriggerRepository
     extends CrudRepository<NotificationTrigger, String>,
         JpaSpecificationExecutor<NotificationTrigger> {
 
-  Optional<NotificationTrigger> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
-
+  /**
+   * Deliberately keeps the tenant predicate although the table is v2-active: this resolves the
+   * child triggers of a digest, which must belong to the tenant the parent row is written into, not
+   * to whichever tenants the request scope happens to hold.
+   */
   List<NotificationTrigger> findAllByIdInAndTenantId(
       @NotNull Collection<String> ids, @NotNull String tenantId);
-
-  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   @Query(
       "select t from NotificationTrigger t "

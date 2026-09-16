@@ -9,6 +9,7 @@ import io.openaev.service.utils.BulkOperationMonitor.BulkOperation;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperationEvent;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperationStatus;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -70,7 +71,7 @@ class BulkOperationMonitorTest {
     String operationId = monitor.start("delete", "players", 10);
     List<BulkOperation> visible = monitor.findForUser(null, null);
     assertThat(visible).extracting(BulkOperation::id).contains(operationId);
-    assertThat(monitor.findForUser(null, "another-tenant"))
+    assertThat(monitor.findForUser(null, Set.of("another-tenant")))
         .extracting(BulkOperation::id)
         .doesNotContain(operationId);
   }

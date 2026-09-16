@@ -55,7 +55,7 @@ public class UsernamePasswordHandler implements SecretHandler {
   @Override
   public SecretMetadata toMetadata(Secret secret) {
     if (secret instanceof UsernamePasswordSecret usernamePasswordSecret) {
-      return new SecretMetadata(usernamePasswordSecret.getUsername(), null);
+      return SecretMetadata.forUsername(usernamePasswordSecret.getUsername());
     }
     throw new IllegalArgumentException("Secret type mismatch: expected USERNAME_PASSWORD secret");
   }

@@ -1,6 +1,9 @@
 package io.openaev.xtmhub;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.helper.TemplateHelper;
@@ -27,6 +30,7 @@ public class XtmHubEmailService {
   private final MailingService mailingService;
   private final PlatformSettingsService platformSettingsService;
   private final ResourceLoader resourceLoader;
+  private final TenantScopedTransaction tenantTx;
 
   public void sendLostConnectivityEmail() {
     List<User> administrators = findPlatformAdmins();
@@ -38,7 +42,12 @@ public class XtmHubEmailService {
 
     try {
       String emailBody = buildEmailBody();
-      mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators);
+      // Background scheduled path (no ambient transaction, no v2 scope): sendEmail resolves the
+      // tenant-scoped injectors table for the email notifier. This notification is platform-wide
+      // (sent to platform admins), so it uses the platform default tenant's email integration.
+      tenantTx.execute(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators));
       log.info(
           "XTM Hub lost connectivity email sent to {} platform administrators",
           administrators.size());
@@ -60,7 +69,13 @@ public class XtmHubEmailService {
 
     try {
       String emailBody = buildEmailBody(tenantUrl);
-      mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators);
+      // Background scheduled path (no ambient transaction, no v2 scope): sendEmail resolves the
+      // tenant-scoped injectors table for the email notifier, and must use THIS tenant's email
+      // integration, not the platform default (the tenantId was previously computed but never
+      // passed to sendEmail, so it always used the default tenant's config; fixed here).
+      tenantTx.execute(
+          TxCtx.forTenant(tenantId),
+          () -> mailingService.sendEmail(EMAIL_SUBJECT, emailBody, administrators, tenantId));
       log.info(
           "XTM Hub lost connectivity email sent to {} tenant administrators for tenant {}",
           administrators.size(),

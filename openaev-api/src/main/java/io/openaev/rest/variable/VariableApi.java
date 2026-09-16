@@ -6,10 +6,9 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.variable.form.VariableInput;
 import io.openaev.service.VariableService;
@@ -26,7 +25,7 @@ public class VariableApi extends RestBehavior {
 
   private final VariableService variableService;
   private final ScenarioService scenarioService;
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
 
   // -- EXERCISES --
 
@@ -40,14 +39,12 @@ public class VariableApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Variable createVariableForExercise(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestBody final VariableInput input) {
     Variable variable = new Variable();
     variable.setUpdateAttributes(input);
-    Exercise exercise =
-        this.exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = this.exerciseService.exercise(exerciseId);
     variable.setExercise(exercise);
     return this.variableService.createVariable(variable);
   }
@@ -61,7 +58,8 @@ public class VariableApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<Variable> variablesFromExercise(@PathVariable @NotBlank final String exerciseId) {
+  public Iterable<Variable> variablesFromExercise(
+      TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     return this.variableService.variablesFromExercise(exerciseId);
   }
 
@@ -75,6 +73,7 @@ public class VariableApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Variable updateVariableForExercise(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String variableId,
       @Valid @RequestBody final VariableInput input) {
@@ -93,6 +92,7 @@ public class VariableApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public void deleteVariableForExercise(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String variableId) {
     this.variableService.variableForExercise(variableId, exerciseId);
@@ -111,6 +111,7 @@ public class VariableApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Variable createVariableForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final VariableInput input) {
     Variable variable = new Variable();
@@ -129,7 +130,8 @@ public class VariableApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public Iterable<Variable> variablesFromScenario(@PathVariable @NotBlank final String scenarioId) {
+  public Iterable<Variable> variablesFromScenario(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return this.variableService.variablesFromScenario(scenarioId);
   }
 
@@ -143,6 +145,7 @@ public class VariableApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Variable updateVariableForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String variableId,
       @Valid @RequestBody final VariableInput input) {
@@ -161,6 +164,7 @@ public class VariableApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public void deleteVariableForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String variableId) {
     this.variableService.variableForScenario(variableId, scenarioId);

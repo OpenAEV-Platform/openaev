@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class Ping implements Mutation {
+  private static final ObjectMapper mapper = new ObjectMapper();
+
   @Getter private final ConnectorBase connector;
   @Getter private Boolean withJwks = false;
 
@@ -46,7 +48,6 @@ public class Ping implements Mutation {
 
   @Override
   public JsonNode getVariables() throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
     ObjectNode node = mapper.createObjectNode();
     node.set("id", mapper.valueToTree(connector.getId()));
     node.set("state", null);

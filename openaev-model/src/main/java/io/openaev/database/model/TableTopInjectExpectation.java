@@ -36,4 +36,9 @@ public abstract class TableTopInjectExpectation extends BaseInjectExpectation {
     }
     return user.isAdmin();
   }
+
+  @Override
+  public TableTopInjectExpectation clone() {
+    return (TableTopInjectExpectation) super.clone();
+  }
 }

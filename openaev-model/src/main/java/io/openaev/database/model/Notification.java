@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -19,7 +18,6 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -31,13 +29,15 @@ import org.hibernate.annotations.UuidGenerator;
  * notifications carry one group with one event; digests carry one group per composed trigger.
  *
  * <p>Implements {@link UserScoped} so SSE delivery is restricted to the owning user.
+ *
+ * <p>v2-active table: tenant read isolation is enforced by TenantStatementInspector
+ * (openaev.tenant.active-tables), and write attribution is explicit in application code.
  */
 @Entity
 @Getter
 @Setter
 @Table(name = "notifications")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 public class Notification implements TenantBase, UserScoped {
 
   @Id

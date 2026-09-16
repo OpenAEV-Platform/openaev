@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -24,10 +25,13 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>cmd — {@code set "OAEV_ARG_TARGET=a; whoami" & echo "!OAEV_ARG_TARGET!"}
  * </ul>
  *
- * <p><b>Template authoring rule</b>: do not wrap a placeholder in quotes yourself ({@code
- * "#{arg}"}). The binder owns the quoting; directly adjacent quotes around a placeholder are
- * detected and removed, but a placeholder embedded in a wider single-quoted literal cannot be
- * resolved (it stays literal — safe, but not substituted).
+ * <p><b>Template authoring rule</b>: do not quote a placeholder yourself ({@code "#{arg}"}), and do
+ * not put one inside a wider quoted string. The binder owns the quoting. Quotes directly wrapping a
+ * placeholder are detected and removed, but a placeholder sitting inside a wider quoted string is
+ * still substituted, and the reference then lands inside quotes the binder does not control. The
+ * command stays structurally safe, yet it does not do what the template says: under {@code sh} the
+ * reference is single-quoted and never expands, so the command handles the variable name instead of
+ * the value.
  *
  * <p>Not thread-safe: create one instance per rendered command.
  */
@@ -40,8 +44,15 @@ public class CommandArgumentBinder {
   private static final String VARIABLE_PREFIX = "OAEV_ARG_";
 
   private static final Pattern NON_IDENTIFIER_CHARS = Pattern.compile("[^A-Za-z0-9_]");
+
+  /**
+   * Characters no legitimate argument value needs: NUL and the other C0 controls, DEL, and every
+   * character a consumer may read as the end of a line. Line separators are removed for all engines
+   * so a value is the single token the template describes, whatever reads it afterwards. Tab is
+   * deliberately kept: it separates nothing in any of the supported shells.
+   */
   private static final Pattern NUL_AND_CONTROL_CHARS =
-      Pattern.compile("[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]");
+      Pattern.compile("[\\u0000-\\u0008\\u000A-\\u001F\\u007F\\u0085\\u2028\\u2029]");
 
   private final ExecutorShell shell;
 
@@ -99,6 +110,18 @@ public class CommandArgumentBinder {
       return;
     }
     String sanitized = sanitize(value == null ? "" : value);
+    if (!shell.canRepresent(sanitized)) {
+      // Fail closed rather than render a declaration the shell would read differently than the
+      // template describes. Logged so a refusal is visible in operation, not only to the caller.
+      log.error(
+          "Refusing to bind argument '{}' for executor '{}': the value cannot be represented in "
+              + "this shell's declaration syntax.",
+          argumentKey,
+          executor);
+      throw new CommandBindingException(
+          "Argument '%s' cannot be represented for executor '%s': %s."
+              .formatted(argumentKey, executor, shell.unrepresentableValueReason()));
+    }
     if (!shell.supportsBinding()) {
       // Literal mode: keep the value, no variable is declared.
       variablesByKey.put(argumentKey, null);
@@ -132,14 +155,7 @@ public class CommandArgumentBinder {
           "Unsupported executor '%s' for argument binding: refusing to render a command with placeholders."
               .formatted(executor));
     }
-    String rendered = template;
-    for (Map.Entry<String, String> entry : variablesByKey.entrySet()) {
-      String argumentKey = entry.getKey();
-      String variable = entry.getValue();
-      String replacement =
-          shell.supportsBinding() ? reference(variable) : valuesByVariable.get(argumentKey);
-      rendered = replacePlaceholder(rendered, argumentKey, replacement);
-    }
+    String rendered = substitutePlaceholders(template);
     if (!shell.supportsBinding() || valuesByVariable.isEmpty()) {
       return rendered;
     }
@@ -149,28 +165,55 @@ public class CommandArgumentBinder {
   // -- PLACEHOLDER SUBSTITUTION --
 
   /**
-   * Replaces {@code #{key}} — and, in binding mode only, a pair of quotes directly wrapping it,
-   * since the binder owns the quoting — by the given replacement.
+   * Replaces every bound {@code #{key}} in a single pass over the template, so a substituted value
+   * is never re-examined. Reading the template more than once would let the value of one argument
+   * be interpreted as a placeholder naming another, which would make the result depend on the order
+   * the arguments happened to be bound.
    *
-   * <p>In literal mode the template is left structurally untouched: it backs the read-only display
-   * path, where {@code echo "#{host}"} must render as {@code echo "localhost"}.
+   * <p>In binding mode a pair of quotes directly wrapping a placeholder is dropped, since the
+   * binder owns the quoting. In literal mode the template is left structurally untouched: it backs
+   * the read-only display path, where {@code echo "#{host}"} must render as {@code echo
+   * "localhost"}.
    */
-  private String replacePlaceholder(String command, String argumentKey, String replacement) {
-    if (!shell.supportsBinding()) {
-      return command.replace("#{" + argumentKey + "}", replacement);
+  private String substitutePlaceholders(String template) {
+    if (variablesByKey.isEmpty()) {
+      return template;
     }
-    Pattern placeholder = Pattern.compile("(['\"])?#\\{" + Pattern.quote(argumentKey) + "}\\1?");
-    Matcher matcher = placeholder.matcher(command);
+    Matcher matcher = placeholderPattern().matcher(template);
     StringBuilder result = new StringBuilder();
     while (matcher.find()) {
-      String openingQuote = matcher.group(1);
-      // Only drop the quotes when they actually form a pair around the placeholder.
-      boolean quotedPair = openingQuote != null && matcher.group().endsWith(openingQuote);
-      String value = quotedPair || openingQuote == null ? replacement : openingQuote + replacement;
-      matcher.appendReplacement(result, Matcher.quoteReplacement(value));
+      matcher.appendReplacement(result, Matcher.quoteReplacement(substitutionFor(matcher)));
     }
     matcher.appendTail(result);
     return result.toString();
+  }
+
+  /**
+   * Matches any bound placeholder, and in binding mode the quotes directly wrapping it. Groups are
+   * named rather than numbered: the two alternatives do not hold the same groups, and a numbering
+   * that only lined up by accident would break silently the day one of them changes.
+   */
+  private Pattern placeholderPattern() {
+    String keys =
+        variablesByKey.keySet().stream().map(Pattern::quote).collect(Collectors.joining("|"));
+    return shell.supportsBinding()
+        ? Pattern.compile("(?<quote>['\"])?#\\{(?<key>" + keys + ")}\\k<quote>?")
+        : Pattern.compile("#\\{(?<key>" + keys + ")}");
+  }
+
+  private String substitutionFor(Matcher matcher) {
+    String argumentKey = matcher.group("key");
+    if (!shell.supportsBinding()) {
+      return valuesByVariable.get(argumentKey);
+    }
+    String replacement = reference(variablesByKey.get(argumentKey));
+    // The quote group is optional, so it is absent rather than empty when the placeholder is bare.
+    String openingQuote = matcher.group("quote");
+    if (openingQuote == null || openingQuote.isEmpty()) {
+      return replacement;
+    }
+    // Only drop the quotes when they actually form a pair around the placeholder.
+    return matcher.group().endsWith(openingQuote) ? replacement : openingQuote + replacement;
   }
 
   // -- DECLARATIONS --
@@ -223,19 +266,16 @@ public class CommandArgumentBinder {
 
   /**
    * Escapes a value for {@code set "VAR=value"}. Inside the quoted form {@code & | < > ^ ( )} are
-   * already literal; only percent expansion and delayed expansion need neutralising. Newlines are
-   * not representable on a cmd line and are downgraded to spaces.
+   * already literal; only percent expansion and delayed expansion need neutralising. A value that
+   * cannot be carried by this form at all is refused earlier, see {@link
+   * ExecutorShell#canRepresent(String)}. Line separators are already gone by then, removed for
+   * every engine by {@link #sanitize(String)}.
    */
   private static String escapeCmd(String value) {
-    return value
-        .replace("\r\n", " ")
-        .replace('\r', ' ')
-        .replace('\n', ' ')
-        .replace("%", "%%")
-        .replace("!", "^^!");
+    return value.replace("%", "%%").replace("!", "^^!");
   }
 
-  /** Drops NUL and other control characters, which no legitimate argument value needs. */
+  /** Drops the characters listed on {@link #NUL_AND_CONTROL_CHARS}. */
   private static String sanitize(String value) {
     return NUL_AND_CONTROL_CHARS.matcher(value).replaceAll("");
   }

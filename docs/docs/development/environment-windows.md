@@ -34,7 +34,7 @@ mvn -version
 
 ### Docker Desktop
 
-Docker Desktop is required to run the development services (PostgreSQL, Elasticsearch, RabbitMQ, MinIO).
+Docker Desktop is required to run the development services (PostgreSQL, Elasticsearch, RabbitMQ, Silo).
 
 1. Download and install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/).
 2. Enable the WSL 2 backend for better performance (recommended).
@@ -57,14 +57,14 @@ winget install Git.Git
 
 ### Node.js
 
-Install Node.js 22 or later. Use [nvm-windows](https://github.com/coreybutler/nvm-windows) to manage versions:
+Install Node.js 24 or later. Use [nvm-windows](https://github.com/coreybutler/nvm-windows) to manage versions:
 
 1. Download and install nvm-windows from the [releases page](https://github.com/coreybutler/nvm-windows/releases).
-2. Install and activate Node.js 22:
+2. Install and activate Node.js 24:
 
 ```bash
-nvm install 22
-nvm use 22
+nvm install 24
+nvm use 24
 ```
 
 ### Yarn
@@ -91,7 +91,7 @@ This starts:
 | Service | Port | Description |
 |---|---|---|
 | PostgreSQL 17 | 5432 | Database |
-| MinIO | 10000, 10001 | S3-compatible object storage |
+| Silo | 10000, 10001 | S3-compatible object storage (MinIO fork) |
 | Elasticsearch 8 | 9200 | Analytics engine |
 | RabbitMQ 4 | 5672, 15672 | Message broker |
 

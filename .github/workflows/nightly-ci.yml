@@ -19,6 +19,14 @@ jobs:
   pipeline:
     uses: ./.github/workflows/_ci-pipeline.yml
     with:
+      # ── Multi-tenancy v2 shadow runs (epic #6393), Elasticsearch only ──
+      # Same suite, different activation. "shadow-prod" runs under the active-tables list
+      # main ships, so a regression on a table that is already live surfaces the night it
+      # lands, whoever wrote it. "shadow-all" runs with every strict tenant table active,
+      # which is the exhaustive list of what activating the rest would break, obtained
+      # without changing anything on main. Both turn the fail-closed detector on.
+      # Reports, not gates: continue_on_error keeps a red one from failing the workflow.
+      # Retire both when the migration is done; shadow-prod may then become a core gate.
       # ── API Tests: 7 balanced shards + catch-all, × Elasticsearch and OpenSearch ──
       # Patterns live in .github/shards/api-<n>.txt.
       api-matrix: >
@@ -38,7 +46,24 @@ jobs:
           {"shard":"5","shard_name":"5-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"6","shard_name":"6-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"7","shard_name":"7-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
-          {"shard":"8","shard_name":"remaining-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""}
+          {"shard":"8","shard_name":"remaining-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""},
+
+          {"shard":"1","shard_name":"1-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"2","shard_name":"2-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"3","shard_name":"3-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"4","shard_name":"4-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"5","shard_name":"5-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"6","shard_name":"6-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"7","shard_name":"7-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"8","shard_name":"remaining-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"catchall","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"1","shard_name":"1-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
+          {"shard":"2","shard_name":"2-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
+          {"shard":"3","shard_name":"3-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
+          {"shard":"4","shard_name":"4-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
+          {"shard":"5","shard_name":"5-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
+          {"shard":"6","shard_name":"6-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
+          {"shard":"7","shard_name":"7-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
+          {"shard":"8","shard_name":"remaining-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"catchall","excludes":"","tenant_mode":"all","continue_on_error":true}
         ]
       # ── E2E: OpenSearch (Chrome/WebKit/Chromium) + ES Firefox/Edge + expanded infra ──
       # artifact_suffix must be unique per cell: the report artifact is named

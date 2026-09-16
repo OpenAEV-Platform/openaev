@@ -24,12 +24,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  # MinIO object storage (S3-compatible)
+  # Silo object storage (S3-compatible, community-maintained MinIO fork)
   # API: http://localhost:10000, Console: http://localhost:10001
   # Credentials: minioadmin/minioadmin
   openaev-dev-minio:
     container_name: openaev-dev-minio
-    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    image: pgsty/silo:latest
     ports:
       - "10000:9000"
       - "10001:9001"
@@ -110,10 +110,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  # Test MinIO object storage (S3-compatible)
+  # Test Silo object storage (S3-compatible)
   openaev-test-minio:
     container_name: openaev-test-minio
-    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    image: pgsty/silo:latest
     ports:
       - "11000:9000"
       - "11001:9001"
@@ -226,7 +226,7 @@ services:
   # RSA key generator & XTM Composer (needed only for injector integration testing)
   rsa-key-generator:
     container_name: rsa-key-generator
-    image: alpine/openssl:3.5.7
+    image: alpine/openssl:3.5.8
     volumes:
       - rsakeys:/keys
     entrypoint: [ "/bin/ash" ]
