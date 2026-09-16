@@ -492,6 +492,10 @@ public class DocumentApi extends RestBehavior {
    * this guard. A document with no tenant is a platform asset with no boundary and is always
    * allowed.
    */
+  // TODO v2: once documents get v2 activated
+  // https://github.com/OpenAEV-Platform/openaev/issues/7904,
+  // remove this check and its call sites: the statement inspector scopes the primary-key load
+  // itself, and the empty-scope case becomes the fail-closed behaviour of an unscoped request.
   private void assertDocumentInRequestScope(TxCtx ctx, Document document) {
     Tenant tenant = document.getTenant();
     if (tenant == null || tenant.getId() == null) {
