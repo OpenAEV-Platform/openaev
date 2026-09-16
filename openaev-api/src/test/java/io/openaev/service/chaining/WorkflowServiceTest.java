@@ -26,7 +26,7 @@ import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
-import io.openaev.utils.PrimitiveValueMaskingUtils;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.sql.SQLException;
 import java.util.*;
@@ -1578,8 +1578,7 @@ class WorkflowServiceTest {
       org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
       workflow.getWorkflowScopeVariables().add(existing);
 
-      String maskedEcho =
-          PrimitiveValueMaskingUtils.maskForDisplay(PrimitiveType.Password, address);
+      String maskedEcho = SensitiveValueMaskingUtils.maskIfNeeded(PrimitiveType.Password, address);
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(
           List.of(

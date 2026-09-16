@@ -241,10 +241,16 @@ export const isEventFormValid = (
 // -- Conversion helpers --
 /**
  * Converts the form's condition tree into the flat array expected by the API.
+ *
+ * The descriptors are required rather than optional: case sensitivity is re-resolved here, on the
+ * last gate before the payload leaves the browser. A condition stored before its type became
+ * caseless still loads with the flag on, and the toggle is then hidden, so editing anything else
+ * in the event would otherwise write that stale value back untouched.
  */
 export const conditionGroupsToApi = (
   groups: ConditionGroup[],
-  groupOperators: LogicalOperator[] = [],
+  groupOperators: LogicalOperator[],
+  descriptorsByType: DescriptorsByPrimitiveType,
 ): ConditionCreateInput[] => {
   // Local counter: resets each call so IDs stay predictable
   let tempIdCounter = 0;
@@ -270,7 +276,11 @@ export const conditionGroupsToApi = (
         condition_key_types: [cond.field] as ConditionCreateInput['condition_key_types'],
         // Unary operators (IS_NULL / IS_NOT_NULL) need no value
         condition_value: UNARY_OPERATORS.includes(cond.operator) ? undefined : cond.value,
-        condition_case_sensitive: cond.caseSensitive,
+        condition_case_sensitive: resolveCaseSensitive(
+          cond.field,
+          cond.caseSensitive,
+          descriptorsByType,
+        ),
       }),
     );
 

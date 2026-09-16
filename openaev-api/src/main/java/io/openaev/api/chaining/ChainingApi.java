@@ -99,11 +99,7 @@ public class ChainingApi extends RestBehavior {
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Primitive type descriptors retrieved")
   })
-  // Static, tenant-independent, non-sensitive metadata: it describes the shape of a value, never
-  // any tenant data. Gating it behind a resource permission would make the condition editor and
-  // the scope page depend on an unrelated grant (the existing /argument-types/ endpoint requires
-  // SEARCH on THREAT_ARSENAL, which neither page has any reason to hold).
-  @AccessControl(skipRBAC = true)
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Transactional(readOnly = true)
   @GetMapping(PRIMITIVE_TYPES_URI)
   public List<PrimitiveTypeDescriptorOutput> primitiveTypeDescriptors(TxCtx ctx) {

@@ -28,12 +28,12 @@ class PrimitiveTypeDescriptorMapperTest {
   }
 
   @Nested
-  @DisplayName("Catalogue completeness")
-  class CatalogueCompleteness {
+  @DisplayName("Descriptor completeness")
+  class DescriptorCompleteness {
 
     @Test
     @DisplayName("should expose one descriptor per primitive type")
-    void given_catalogue_should_coverEveryPrimitiveType() {
+    void given_descriptors_should_coverEveryPrimitiveType() {
       // Act
       List<PrimitiveTypeDescriptorOutput> descriptors = PrimitiveTypeDescriptorMapper.toOutputs();
 
@@ -58,7 +58,7 @@ class PrimitiveTypeDescriptorMapperTest {
 
     @Test
     @DisplayName("should order descriptors by label so the UI can render them as received")
-    void given_catalogue_should_beOrderedByLabel() {
+    void given_descriptors_should_beOrderedByLabel() {
       // Act
       List<String> labels =
           PrimitiveTypeDescriptorMapper.toOutputs().stream()
@@ -76,7 +76,7 @@ class PrimitiveTypeDescriptorMapperTest {
 
     @Test
     @DisplayName("should mark only the numeric types as numeric")
-    void given_catalogue_should_restrictNumericToNumericTypes() {
+    void given_descriptors_should_restrictNumericToNumericTypes() {
       // Act
       Map<PrimitiveType, PrimitiveTypeDescriptorOutput> descriptors = descriptorsByType();
       List<PrimitiveType> numeric =
@@ -144,7 +144,7 @@ class PrimitiveTypeDescriptorMapperTest {
 
     @Test
     @DisplayName("should keep case sensitivity independent from the numeric capability")
-    void given_catalogue_should_notDeriveOneCapabilityFromAnother() {
+    void given_descriptors_should_notDeriveOneCapabilityFromAnother() {
       // Act
       Map<PrimitiveType, PrimitiveTypeDescriptorOutput> descriptors = descriptorsByType();
 

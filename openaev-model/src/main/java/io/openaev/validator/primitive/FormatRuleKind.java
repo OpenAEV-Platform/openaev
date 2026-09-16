@@ -6,8 +6,8 @@ import java.util.regex.Pattern;
 import org.apache.commons.validator.routines.EmailValidator;
 
 /**
- * Catalogue of the atomic format rules a {@link io.openaev.database.model.PrimitiveType} can be
- * validated against.
+ * Every atomic format rule a {@link io.openaev.database.model.PrimitiveType} can be validated
+ * against.
  *
  * <p>A kind is either:
  *

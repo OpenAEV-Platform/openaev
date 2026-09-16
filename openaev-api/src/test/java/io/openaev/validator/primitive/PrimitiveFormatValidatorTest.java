@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.PrimitiveType;
-import io.openaev.utils.PrimitiveValueMaskingUtils;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.validator.primitive.PrimitiveTypePolicy.FormatEnforcement;
 import io.openaev.validator.primitive.PrimitiveTypePolicy.TypePolicy;
 import java.io.IOException;
@@ -28,15 +28,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 class PrimitiveFormatValidatorTest {
 
   private static final String VECTORS_FILE = "/primitive-format-vectors.json";
-
-  /**
-   * Whether a type is partially hidden in API responses, detected through the masking utility
-   * itself rather than restated here: a newly masked type is then automatically covered.
-   */
-  private static boolean isMaskedForDisplay(PrimitiveType type) {
-    String probe = "abcdefghijklmnopqrst";
-    return !probe.equals(PrimitiveValueMaskingUtils.maskForDisplay(type, probe));
-  }
 
   private static JsonNode vectors() {
     try (InputStream stream =
@@ -85,8 +76,8 @@ class PrimitiveFormatValidatorTest {
   }
 
   @Nested
-  @DisplayName("Policy catalogue")
-  class PolicyCatalogue {
+  @DisplayName("Policy coverage")
+  class PolicyCoverage {
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(PrimitiveType.class)
@@ -127,7 +118,7 @@ class PrimitiveFormatValidatorTest {
 
     @Test
     @DisplayName("should enforce at runtime only the types that were already validated at runtime")
-    void given_policyCatalogue_should_restrictRuntimeEnforcementToHistoricalTypes() {
+    void given_policies_should_restrictRuntimeEnforcementToHistoricalTypes() {
       // Arrange - promoting a type here changes ingestion behaviour and must stay deliberate
       List<PrimitiveType> runtimeEnforced =
           PrimitiveTypePolicy.all().entrySet().stream()
@@ -154,7 +145,7 @@ class PrimitiveFormatValidatorTest {
       // Assert - a masked value is echoed back by the client in its masked form ("d41***27e"), so
       // a rule here would reject a stored value that is perfectly valid. Hash belongs to this set:
       // it carries credential material (NTLM, LM:NT pairs, Kerberos roasting blobs), not a digest.
-      if (isMaskedForDisplay(type)) {
+      if (SensitiveValueMaskingUtils.isSensitive(type)) {
         assertThat(PrimitiveTypePolicy.of(type).hasRules())
             .as("%s is masked for display and must not constrain its format", type)
             .isFalse();

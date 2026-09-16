@@ -176,7 +176,7 @@ public final class PrimitiveTypePolicy {
     return POLICIES.get(type);
   }
 
-  /** Immutable view of the whole catalogue, for the API descriptor and for tests. */
+  /** Immutable view of every policy, keyed by type, for the API descriptor and for tests. */
   public static Map<PrimitiveType, TypePolicy> all() {
     return Map.copyOf(POLICIES);
   }
