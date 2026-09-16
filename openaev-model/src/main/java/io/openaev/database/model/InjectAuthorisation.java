@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -37,7 +38,7 @@ public class InjectAuthorisation {
   private Inject inject;
 
   @Column(name = "inject_authorisation_code", nullable = false)
-  @JsonProperty("inject_authorisation_code")
+  @JsonIgnore
   private String code;
 
   @Column(name = "inject_authorisation_issued_at")

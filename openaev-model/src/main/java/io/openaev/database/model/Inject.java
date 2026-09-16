@@ -344,6 +344,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.LAZY)
+  @Fetch(FetchMode.SUBSELECT)
   @JoinTable(
       name = "injects_secret_references",
       joinColumns = @JoinColumn(name = "inject_id"),
@@ -415,8 +416,6 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @JsonProperty("inject_authorisation")
-  @JsonSerialize(using = MultiModelSerializer.class)
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   private InjectAuthorisation authorisation;
 
   @ManyToOne
