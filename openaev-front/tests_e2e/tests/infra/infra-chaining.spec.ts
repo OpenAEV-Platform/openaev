@@ -286,10 +286,9 @@ test.describe.serial('Infrastructure - chaining', () => {
       const execution = page.getByRole('button', { name: new RegExp(NMAP_TCP_CONNECT_SCAN, 'i') }).last();
       await expect(execution).toBeVisible({ timeout: 10_000 });
       await execution.click();
-      await page.getByRole('tab', {
-        name: 'Execution details',
-        exact: true,
-      }).click();
+      // The tab is labelled after its content: a reconstructed command renders a
+      // terminal, otherwise the injector's raw execution traces.
+      await page.getByRole('tab', { name: /^(Terminal view|Execution details)$/ }).click();
       await expect(page.getByText(/nmap\s+-Pn\s+-sT/i)).toBeVisible({ timeout: 10_000 });
 
       await page.getByRole('tab', {
