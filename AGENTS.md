@@ -61,6 +61,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [review-security](.github/skills/review-security/SKILL.md) | Auditing security of a PR or module |
 | [review-chaining-engine](.github/skills/review-chaining-engine/SKILL.md) | Reviewing or modifying the Chaining Engine |
 | [review-docs](.github/skills/review-docs/SKILL.md) | Detecting missing documentation updates in a PR |
+| [smoke-test-injector-with-composer](.github/skills/smoke-test-injector-with-composer/SKILL.md) | Live end-to-end testing an injector PR via Docker (OpenAEV + XTM Composer) |
 
 ## Specialized Agents
 
