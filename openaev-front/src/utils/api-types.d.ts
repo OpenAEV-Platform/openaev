@@ -83,6 +83,7 @@ export interface Agent {
   agent_updated_at: string;
   agent_version?: string;
   listened?: boolean;
+  status?: "ACTIVE" | "INACTIVE";
 }
 
 export interface AgentCallInput {
