@@ -399,7 +399,7 @@ public class ExecutorApiTest extends IntegrationTest {
     @ParameterizedTest(
         name = "GET package for platform \"{0}\" arch \"{1}\" install type \"{2}\" should fail ")
     @MethodSource("platformArchCombinationsFailure")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.INSTALL_AGENT})
     public void given_platformAndArch_then_downloadOutcomeFailure(
         String platform,
         String arch,
@@ -451,7 +451,7 @@ public class ExecutorApiTest extends IntegrationTest {
     @ParameterizedTest(
         name = "GET package for platform \"{0}\" arch \"{1}\" install type \"{2}\" should succeed ")
     @MethodSource("platformArchCombinationsSuccess")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.INSTALL_AGENT})
     public void given_platformAndArch_then_downloadOutcomeSuccess(
         String platform, String arch, String installType) throws Exception {
 
@@ -499,7 +499,7 @@ public class ExecutorApiTest extends IntegrationTest {
     @ParameterizedTest(
         name = "GET package for platform \"{0}\" arch \"{1}\" install type \"{2}\" should fail")
     @MethodSource("installationModeFailure")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.INSTALL_AGENT})
     public void given_platformAndArchAndBadInstallMode_then_downloadOutcomeFailure(
         String platform, String arch, String installType) throws Exception {
 
@@ -528,7 +528,7 @@ public class ExecutorApiTest extends IntegrationTest {
 
     @ParameterizedTest(name = "GET executable for platform \"{0}\" arch \"{1}\" should succeed ")
     @MethodSource("platformArchCombinationsExecutableSuccess")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.INSTALL_AGENT})
     public void given_platformAndArch_then_downloadExecutableSucceeds(String platform, String arch)
         throws Exception {
       byte[] agentBytes =
@@ -566,7 +566,7 @@ public class ExecutorApiTest extends IntegrationTest {
 
     @ParameterizedTest(name = "GET executable for platform \"{0}\" arch \"{1}\" should fail ")
     @MethodSource("platformArchCombinationsExecutableFailure")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.INSTALL_AGENT})
     public void given_platformAndArch_then_downloadExecutableFails(String platform, String arch) {
       assertThatThrownBy(
               () ->
@@ -579,9 +579,9 @@ public class ExecutorApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Given a user without the AGENT_RUNTIME_ACCESS capability, should reject the executable download")
+        "Given a user without the INSTALL_AGENT capability, should reject the executable download")
     @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS})
-    void givenUserWithoutAgentRuntimeAccess_shouldRejectExecutableDownload() throws Exception {
+    void givenUserWithoutInstallAgentCapability_shouldRejectExecutableDownload() throws Exception {
       mvc.perform(
               get("/api/agent/executable/openaev/%s/%s"
                       .formatted(
@@ -593,9 +593,9 @@ public class ExecutorApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Given a user without the AGENT_RUNTIME_ACCESS capability, should reject the package download")
+        "Given a user without the INSTALL_AGENT capability, should reject the package download")
     @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS})
-    void givenUserWithoutAgentRuntimeAccess_shouldRejectPackageDownload() throws Exception {
+    void givenUserWithoutInstallAgentCapability_shouldRejectPackageDownload() throws Exception {
       mvc.perform(
               get("/api/agent/package/openaev/%s/%s/%s"
                       .formatted(
@@ -608,9 +608,9 @@ public class ExecutorApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Given a user with the AGENT_RUNTIME_ACCESS capability, should allow the executable download")
-    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
-    void givenUserWithAgentRuntimeAccess_shouldAllowExecutableDownload() throws Exception {
+        "Given a user with the INSTALL_AGENT capability, should allow the executable download")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenUserWithInstallAgentCapability_shouldAllowExecutableDownload() throws Exception {
       mvc.perform(
               get("/api/agent/executable/openaev/%s/%s"
                       .formatted(
@@ -622,9 +622,9 @@ public class ExecutorApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Given a user with the AGENT_RUNTIME_ACCESS capability, should allow the package download")
-    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
-    void givenUserWithAgentRuntimeAccess_shouldAllowPackageDownload() throws Exception {
+        "Given a user with the INSTALL_AGENT capability, should allow the package download")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenUserWithInstallAgentCapability_shouldAllowPackageDownload() throws Exception {
       mvc.perform(
               get("/api/agent/package/openaev/%s/%s/%s"
                       .formatted(
