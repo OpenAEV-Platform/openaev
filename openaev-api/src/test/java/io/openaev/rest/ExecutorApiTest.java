@@ -641,9 +641,9 @@ public class ExecutorApiTest extends IntegrationTest {
   class GetOpenAevAgentInstaller {
 
     /**
-     * Bootstraps the service-account user + token for the given tenant. Required to reach a
-     * 2xx response, since {@code EndpointService.generateInstallCommand} looks up the
-     * service-account token.
+     * Bootstraps the service-account user + token for the given tenant. Required to reach a 2xx
+     * response, since {@code EndpointService.generateInstallCommand} looks up the service-account
+     * token.
      */
     private void ensureServiceAccount(String tenantId) {
       serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);

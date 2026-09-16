@@ -464,7 +464,10 @@ public class ExecutorApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Token not found."),
       })
   @GetMapping(
-      value = {AGENT_URI + "/installer/openaev/token", TENANT_AGENT_URI + "/installer/openaev/token"})
+      value = {
+        AGENT_URI + "/installer/openaev/token",
+        TENANT_AGENT_URI + "/installer/openaev/token"
+      })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
     String token =

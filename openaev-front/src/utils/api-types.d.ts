@@ -7963,6 +7963,7 @@ export interface NotificationTriggerInput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -8070,6 +8071,7 @@ export interface NotificationTriggerOutput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -10505,6 +10507,7 @@ export interface RoleInput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
   )[];
@@ -10585,6 +10588,7 @@ export interface RoleOutput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
   )[];
@@ -12721,6 +12725,7 @@ export interface User {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
   )[];
