@@ -15,10 +15,8 @@ public class LimitConsumptionRequest {
   @Override
   public boolean equals(Object o) {
     if (o instanceof LimitConsumptionRequest other) {
-      return address != null
-          && address.equals(other.getAddress())
-          && principal != null
-          && principal.equals(other.getPrincipal());
+      return Objects.equals(address, other.getAddress())
+          && Objects.equals(principal, other.getPrincipal());
     }
     return false;
   }

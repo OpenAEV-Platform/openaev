@@ -1,5 +1,7 @@
 package io.openaev.ratelimit.filter;
 
+import static io.openaev.utils.HttpReqRespUtils.getClientIpAddressFromRequest;
+
 import io.openaev.ratelimit.config.RateLimitConfig;
 import io.openaev.ratelimit.model.RateLimitedPrincipal;
 import io.openaev.ratelimit.service.RateLimitService;
@@ -44,7 +46,9 @@ public class PreliminaryRateLimitFilter extends OncePerRequestFilter {
       LimitSpecification spec = new LimitSpecification(config.getDefaultRps());
       LimitConsumptionRequest lcr =
           new LimitConsumptionRequest(
-              new RateLimitedPrincipal(request.getLocalAddr()), "all endpoints", spec);
+              new RateLimitedPrincipal(getClientIpAddressFromRequest(request)),
+              "all endpoints",
+              spec);
 
       Limit l = rateLimitService.consume(lcr);
 

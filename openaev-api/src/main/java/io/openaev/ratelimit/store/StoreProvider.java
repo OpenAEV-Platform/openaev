@@ -1,5 +1,7 @@
 package io.openaev.ratelimit.store;
 
+import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -7,12 +9,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class StoreProvider {
   private final StoreFactory factory;
-  private volatile Store storeBackend;
+  @Getter private Store storeBackend;
 
-  public synchronized Store getStoreBackend() {
-    if (storeBackend == null) {
-      storeBackend = factory.fromConfiguration();
-    }
-    return storeBackend;
+  @PostConstruct
+  public void initStore() {
+    this.storeBackend = factory.fromConfiguration();
   }
 }

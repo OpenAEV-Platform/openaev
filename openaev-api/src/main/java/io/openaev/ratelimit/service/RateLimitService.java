@@ -13,7 +13,7 @@ public class RateLimitService {
   private final RateLimitConfig rateLimitConfig;
   private final StoreProvider storeProvider;
 
-  public synchronized Limit consume(LimitConsumptionRequest key) {
+  public Limit consume(LimitConsumptionRequest key) {
     if (rateLimitConfig.getEnabled()) return storeProvider.getStoreBackend().tryConsume(key);
     return bypassLimit();
   }

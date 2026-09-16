@@ -31,7 +31,7 @@ Authorization: Bearer <API_KEY>
 Session-based authentication is useful for scripts that simulate browser interactions.
 
 1. Send a `POST` request to `/api/login` with your credentials in the request body.
-2. Extract the `openaev-session` cookie from the response.
+2. Extract the `openaev_session` cookie from the response.
 3. Include the cookie in subsequent requests. The session remains valid as long as the cookie is active.
 
 ## API documentation (Swagger UI)

@@ -1,5 +1,6 @@
 package io.openaev.ratelimit.aop;
 
+import io.openaev.config.SessionHelper;
 import io.openaev.ratelimit.config.RateLimitConfig;
 import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.ratelimit.model.RateLimitedPrincipal;
@@ -49,7 +50,7 @@ public class RateLimitAspect {
     LimitSpecification spec = new LimitSpecification(rps);
     LimitConsumptionRequest lcr =
         new LimitConsumptionRequest(
-            RateLimitedPrincipal.fromUser(userService.currentUserOrNull()), address, spec);
+            new RateLimitedPrincipal(SessionHelper.currentUser().getId()), address, spec);
 
     Limit l = rateLimitService.consume(lcr);
     if (l.getIsRateLimited()) {

@@ -20,11 +20,11 @@ public class RateLimitConfig {
   @Value("${openaev.ratelimit.store-backend:" + IN_MEMORY_STRING + "}")
   private RateLimitStoreBackend storeBackend;
 
-  @JsonProperty("default_rqs")
+  @JsonProperty("default_rps")
   @Value("${default-rps:" + Limits.DEFAULT_RPS + "}")
   private Long defaultRps;
 
-  @JsonProperty("authenticated_rqs")
+  @JsonProperty("authenticated_rps")
   @Value("${authenticated-rps:" + Limits.AUTHENTICATED_RPS + "}")
   private Long authenticatedRps;
 }
