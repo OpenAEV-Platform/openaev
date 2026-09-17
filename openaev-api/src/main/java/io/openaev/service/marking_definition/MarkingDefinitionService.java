@@ -143,7 +143,6 @@ public class MarkingDefinitionService {
     repository.delete(existing);
   }
 
-
   private void validateUniqueOrThrow(
       String type, String definition, String tenantId, String ignoredId) {
     boolean duplicateExists =
