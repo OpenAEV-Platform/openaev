@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.Set;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -1155,5 +1156,158 @@ class TenantStatementInspectorTest {
             + " joins findings inside a subquery; once findings is active that join must be"
             + " filtered too, otherwise the option list spans tenants: "
             + out);
+  }
+
+  // Every native query that names or joins `documents`, read reflectively off DocumentRepository,
+  // replayed through the inspector with the go-live active set (documents plus the join tables that
+  // are already v2-active: tags, channels, assets, challenges). NativeQueryTenantInspectorProbeTest
+  // already asserts none of these is refused with every table active; this nest pins the exact
+  // rewrite each one must get, so a future edit that drops the documents predicate, breaks the
+  // primary-table narrowing that keeps `GROUP BY d.document_id` legal, or fails to wrap an active
+  // join is caught here on the real SQL, before go-live turns a documents list or relations
+  // endpoint into a 500 or a cross-tenant read. See #7904.
+  @Nested
+  @DisplayName("Document native queries survive documents being active")
+  class DocumentNativeQueries {
+
+    // Spring resolves a SpEL selector (:#{...}) into a bind parameter before Hibernate sees the
+    // SQL, so JSqlParser only ever parses the resolved form; rawAllDocuments carries one. Collapse
+    // it to a positional placeholder so the shape parses, exactly as production binding does.
+    private final java.util.regex.Pattern spel = java.util.regex.Pattern.compile("[:?]#\\{[^}]*}");
+
+    private final TenantStatementInspector goLive =
+        new TenantStatementInspector(
+            new TenantTables(
+                Set.of("documents", "tags", "channels", "assets", "challenges"), Set.of()));
+
+    private String rewrite(String method) throws Exception {
+      String sql =
+          java.util.Arrays.stream(
+                  io.openaev.database.repository.DocumentRepository.class.getMethods())
+              .filter(m -> m.getName().equals(method))
+              .findFirst()
+              .orElseThrow()
+              .getAnnotation(org.springframework.data.jpa.repository.Query.class)
+              .value();
+      return goLive.inspect(spel.matcher(sql).replaceAll("?")).replaceAll("\\s+", " ").trim();
+    }
+
+    @ParameterizedTest
+    @DisplayName("documents itself is filtered and the output is valid, re-parsable SQL")
+    @ValueSource(
+        strings = {
+          "rawAllDocuments",
+          "rawAllDocumentsByChannelId",
+          "rawAllDocumentsBySecurityPlatformId",
+          "rawAllDocumentsByChallengeId",
+          "rawAllDocumentsByPayloadId",
+          "findAllDistinctByScenarioId",
+          "findAllDistinctBySimulationId",
+          "findAllDistinctOnInjectsByScenarioId"
+        })
+    void everyDocumentQueryFiltersDocumentsAndStaysValid(String method) throws Exception {
+      String out = rewrite(method);
+      // The documents rows are scoped to the caller: without this predicate the list and relations
+      // endpoints span tenants once the v1 filter is gone.
+      assertTrue(
+          out.contains("can_access_tenant(d.tenant_id)"),
+          method + " must filter documents on d.tenant_id: " + out);
+      // The rewritten SQL is what PostgreSQL will run; it must at least re-parse.
+      assertDoesNotThrow(
+          () -> CCJSqlParserUtil.parse(out), method + " must stay valid SQL: " + out);
+    }
+
+    @ParameterizedTest
+    @DisplayName("documents stays a base table so GROUP BY d.document_id remains legal")
+    @ValueSource(
+        strings = {
+          "rawAllDocuments",
+          "rawAllDocumentsByChannelId",
+          "rawAllDocumentsBySecurityPlatformId",
+          "rawAllDocumentsByChallengeId",
+          "rawAllDocumentsByPayloadId"
+        })
+    void groupByQueriesKeepDocumentsUnwrapped(String method) throws Exception {
+      String out = rewrite(method);
+      // The five aggregate queries project d.* while grouping on d.document_id alone. That is legal
+      // only while documents is a base table (the primary key's functional dependency); wrapping it
+      // in a derived table would make PostgreSQL reject the GROUP BY at runtime. The narrowing must
+      // move the predicate into the WHERE and leave documents unwrapped.
+      assertFalse(
+          out.contains("(SELECT * FROM documents"),
+          method + " must not wrap documents, or GROUP BY d.document_id breaks: " + out);
+      assertTrue(
+          out.toUpperCase(java.util.Locale.ROOT).contains("GROUP BY D.DOCUMENT_ID"),
+          method + " must keep grouping on the document id: " + out);
+    }
+
+    @Test
+    @DisplayName("the tag join is wrapped so document_tags aggregates only the caller's tags")
+    void tagJoinIsFilteredInRawAllDocuments() throws Exception {
+      // tags is already v2-active; once it is wrapped the array_agg(tg.tag_id) can only aggregate
+      // tags the caller may see, so document_tags never leaks another tenant's tag ids.
+      assertTrue(
+          rewrite("rawAllDocuments").contains("can_access_tenant(tg.tenant_id)"),
+          "the tags join must be tenant-filtered");
+    }
+
+    @Test
+    @DisplayName("the channel logo join is wrapped once channels is active")
+    void channelJoinsAreFilteredByChannelId() throws Exception {
+      String out = rewrite("rawAllDocumentsByChannelId");
+      assertTrue(out.contains("can_access_tenant(chl_light.tenant_id)"), out);
+      assertTrue(out.contains("can_access_tenant(chl_dark.tenant_id)"), out);
+    }
+
+    @Test
+    @DisplayName("the security platform logo join is wrapped once assets is active")
+    void assetJoinsAreFilteredBySecurityPlatformId() throws Exception {
+      String out = rewrite("rawAllDocumentsBySecurityPlatformId");
+      assertTrue(out.contains("can_access_tenant(sp_light.tenant_id)"), out);
+      assertTrue(out.contains("can_access_tenant(sp_dark.tenant_id)"), out);
+    }
+
+    @ParameterizedTest
+    @DisplayName("the relations queries keep SELECT DISTINCT d.* over their UNION of link tables")
+    @ValueSource(
+        strings = {
+          "findAllDistinctByScenarioId",
+          "findAllDistinctBySimulationId",
+          "findAllDistinctOnInjectsByScenarioId"
+        })
+    void distinctRelationQueriesStayDistinct(String method) throws Exception {
+      // These select DISTINCT d.* and filter documents through a WHERE d.document_id IN (...). The
+      // narrowing adds the tenant predicate to that WHERE without wrapping documents, so DISTINCT
+      // and the subquery survive. The `challenges` derived-table alias must not be mistaken for the
+      // active challenges table (it is a sub-select, not a base table).
+      String out = rewrite(method);
+      assertTrue(
+          out.toUpperCase(java.util.Locale.ROOT).contains("DISTINCT"),
+          method + " must keep DISTINCT: " + out);
+      assertFalse(
+          out.contains("(SELECT * FROM documents"), method + " must not wrap documents: " + out);
+    }
+
+    @Test
+    @DisplayName("non-vacuity: with documents inactive the documents predicate is not added")
+    void documentsPredicateOnlyAppearsWhenDocumentsIsActive() throws Exception {
+      // The deliberate break: an inspector that does not know documents (only its join tables) must
+      // leave d.tenant_id unfiltered. This is what would happen if documents were dropped from the
+      // active list, and it is the state every assertion above is measuring against. If the
+      // predicate appeared here too, those assertions would be vacuous.
+      String sql =
+          io.openaev.database.repository.DocumentRepository.class
+              .getMethod("rawAllDocumentsByChannelId", String.class)
+              .getAnnotation(org.springframework.data.jpa.repository.Query.class)
+              .value();
+      TenantStatementInspector documentsInactive =
+          new TenantStatementInspector(new TenantTables(Set.of("channels"), Set.of()));
+      String out = documentsInactive.inspect(sql).replaceAll("\\s+", " ").trim();
+      assertFalse(
+          out.contains("can_access_tenant(d.tenant_id)"),
+          "documents must not be filtered when it is not active: " + out);
+      // The still-active join is proof the inspector did run and simply left documents alone.
+      assertTrue(out.contains("can_access_tenant(chl_light.tenant_id)"), out);
+    }
   }
 }
