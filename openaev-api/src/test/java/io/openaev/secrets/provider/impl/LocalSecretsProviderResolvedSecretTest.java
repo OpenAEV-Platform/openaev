@@ -12,7 +12,6 @@ import io.openaev.secrets.provider.impl.handlers.SecretHandler;
 import io.openaev.secrets.provider.impl.handlers.SecretHandlerResolver;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,7 +49,7 @@ class LocalSecretsProviderResolvedSecretTest {
     SecretResolvedValue resolvedValue = mock(SecretResolvedValue.class);
 
     when(secretService.findByIdOrThrow(SECRET_LOCATION)).thenReturn(secret);
-    when(secretHandlerResolver.findFor(secret)).thenReturn(Optional.of(handler));
+    when(secretHandlerResolver.resolveFor(secret)).thenReturn(handler);
     when(handler.toResolvedValue(secret)).thenReturn(resolvedValue);
 
     SecretResolvedValue result = provider.getResolvedSecret(reference);
