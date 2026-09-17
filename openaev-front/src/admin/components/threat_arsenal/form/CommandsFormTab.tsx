@@ -1,6 +1,5 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
@@ -186,7 +185,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
               />
             ))}
             <Button
-              variant="outlined"
+              priority="secondary"
               onClick={() => {
                 argumentsAppend({
                   type: 'text',
@@ -230,7 +229,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
               </div>
             ))}
             <Button
-              variant="outlined"
+              priority="secondary"
               onClick={() => {
                 prerequisitesAppend({
                   executor: 'psh',

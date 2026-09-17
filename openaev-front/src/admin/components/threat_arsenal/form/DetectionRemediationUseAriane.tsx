@@ -1,4 +1,5 @@
-import { Button, SvgIcon } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { SvgIcon } from '@mui/material';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { useEffect, useState } from 'react';
 
@@ -109,9 +110,6 @@ const DetectionRemediationUseAriane = ({
 
   const isLoading = loading || snapshot?.get(securityPlatformId)?.isLoading;
 
-  const actionColor = isEnterpriseEdition ? 'ai.main' : 'action.disabled';
-  const actionBorderColor = isEnterpriseEdition ? 'ai.main' : 'action.disabledBackground';
-
   const renderAction = () => {
     if (isLoading) {
       return (
@@ -126,25 +124,9 @@ const DetectionRemediationUseAriane = ({
       );
     }
     return (
-      <Button
-        type="button"
-        variant="outlined"
-        size="small"
-        onClick={handleClick}
-        aria-label={xtmOneConfigured ? t('Generate with AI') : t('Use Ariane')}
-        startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
-        endIcon={isEnterpriseEdition ? undefined : <EEChip />}
-        disabled={disabled || loading || (!!xtmOneConfigured && !selectedAgent)}
-        sx={{
-          'height': 36,
-          'whiteSpace': 'nowrap',
-          // The marker is a flex item of the end slot: centred on the label, not on a line box.
-          '& .MuiButton-endIcon': { alignItems: 'center' },
-          'color': actionColor,
-          'borderColor': actionBorderColor,
-        }}
-      >
+      <Button variant="ia" priority="secondary" size="sm" startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />} type="button" onClick={handleClick} disabled={disabled || loading || (!!xtmOneConfigured && !selectedAgent)} style={{ whiteSpace: 'nowrap' }}>
         {xtmOneConfigured ? t('Generate with AI') : t('Use Ariane')}
+        {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
       </Button>
     );
   };

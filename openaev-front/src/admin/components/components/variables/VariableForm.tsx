@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -83,21 +83,10 @@ const VariableForm: FunctionComponent<Props> = ({
         marginTop: 20,
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          style={{ marginRight: 10 }}
-          disabled={isSubmitting}
-        >
+        <Button priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 10 }}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

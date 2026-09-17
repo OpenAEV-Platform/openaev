@@ -1,4 +1,5 @@
-import { Box, Button, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import Drawer from '../../../../components/common/Drawer';
@@ -98,13 +99,8 @@ const DashboardCreationDrawer: FunctionComponent<Props> = ({
                   mt: 2,
                 }}
                 >
-                  <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    disabled={!existingDashboardId}
-                    onClick={() => onSelectExisting(existingDashboardId)}
-                  >
+                  <Button priority="secondary" onClick={handleClose}>{t('Cancel')}</Button>
+                  <Button disabled={!existingDashboardId} onClick={() => onSelectExisting(existingDashboardId)}>
                     {t('Continue')}
                   </Button>
                 </Box>

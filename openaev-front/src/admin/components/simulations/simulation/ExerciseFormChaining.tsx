@@ -1,14 +1,7 @@
-import {
-  Combobox,
-  ComboboxChips,
-  ComboboxField,
-  ComboboxHelperText,
-  ComboboxInput,
-  ComboboxLabel,
-} from '@filigran/design-system';
+import { Button, Combobox, ComboboxChips, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ExpandMore } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Button, GridLegacy, MenuItem, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, GridLegacy, MenuItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
@@ -387,20 +380,10 @@ const ExerciseForm: FunctionComponent<Props> = ({
         gap: theme.spacing(1),
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          disabled={isSubmitting}
-        >
+        <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {edit ? t('Update') : t('Create')}
         </Button>
       </div>

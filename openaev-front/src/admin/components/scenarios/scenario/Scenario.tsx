@@ -1,6 +1,6 @@
-import { IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AutoAwesome, LayersClearOutlined, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, Typography } from '@mui/material';
+import { Avatar, Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -355,13 +355,10 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
             }}
             >
               {!autonomousRun.autonomous_run_plan_mode && autonomousRun.autonomous_run_simulation_id && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  component={Link}
-                  to={`/admin/simulations/${autonomousRun.autonomous_run_simulation_id}`}
-                >
-                  {t('Open run simulation')}
+                <Button asChild priority="secondary" size="sm">
+                  <Link to={`/admin/simulations/${autonomousRun.autonomous_run_simulation_id}`}>
+                    {t('Open run simulation')}
+                  </Link>
                 </Button>
               )}
               {/* Clear the AI outcome and return to the normal overview: drops the run + decision
@@ -444,13 +441,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Box component="span" sx={{ display: 'inline-flex' }}>
-                    <Button
-                      startIcon={<PlayArrowOutlined />}
-                      variant="contained"
-                      color="primary"
-                      disabled={isScopeMissing}
-                      onClick={() => setOpenInstantiateSimulationAndStart(true)}
-                    >
+                    <Button startIcon={<PlayArrowOutlined fontSize="small" />} disabled={isScopeMissing} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
                       {t('Normal')}
                     </Button>
                   </Box>
@@ -472,8 +463,9 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                       }}
                     >
                       <Button
-                        startIcon={<AutoAwesome />}
-                        variant="contained"
+                        variant="ia"
+                        priority="secondary"
+                        startIcon={<AutoAwesome fontSize="small" />}
                         onClick={() => {
                           if (!isEnterpriseEdition) {
                             setEEFeatureDetectedInfo(t('Autonomous attack path'));
@@ -482,12 +474,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                           }
                           navigate(`/admin/scenarios/${scenarioId}?openAiLaunch=true`);
                         }}
-                        sx={{
-                          'whiteSpace': 'nowrap',
-                          'backgroundColor': theme.palette.ai.main,
-                          'color': theme.palette.ai.contrastText,
-                          '&:hover': { backgroundColor: theme.palette.ai.dark },
-                        }}
+                        style={{ whiteSpace: 'nowrap' }}
                       >
                         {t('Autonomous')}
                       </Button>
@@ -500,12 +487,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
             </Box>
           )}
           {canLaunch && !isRunActive && !isScenarioChaining && (
-            <Button
-              startIcon={<PlayArrowOutlined />}
-              variant="contained"
-              color="primary"
-              onClick={() => setOpenInstantiateSimulationAndStart(true)}
-            >
+            <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
               {t('Launch simulation now')}
             </Button>
           )}
@@ -579,13 +561,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               {!isScenarioChaining && hasExternalUrl && (
                 <Box sx={{ gridColumn: '1 / -1' }}>
                   <Field label={t('Threat intelligence')}>
-                    <Button
-                      component={Link}
-                      to={scenario.scenario_external_url}
-                      target="_blank"
-                      size="small"
-                      variant="outlined"
-                      startIcon={(
+                    <Button asChild priority="secondary" size="sm">
+                      <Link to={scenario.scenario_external_url} target="_blank">
                         <Avatar
                           style={{
                             width: 20,
@@ -594,9 +571,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                           src={theme.palette.mode === 'dark' ? octiDark : octiLight}
                           alt="OCTI"
                         />
-                      )}
-                    >
-                      {t('Open in OpenCTI')}
+                        {t('Open in OpenCTI')}
+                      </Link>
                     </Button>
                   </Field>
                 </Box>

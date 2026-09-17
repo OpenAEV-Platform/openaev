@@ -1,13 +1,6 @@
-import {
-  Combobox,
-  ComboboxChips,
-  ComboboxField,
-  ComboboxHelperText,
-  ComboboxInput,
-  ComboboxLabel,
-} from '@filigran/design-system';
+import { Button, Combobox, ComboboxChips, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, GridLegacy, MenuItem, Typography } from '@mui/material';
+import { GridLegacy, MenuItem, Typography } from '@mui/material';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
@@ -367,21 +360,10 @@ const ExerciseForm: FunctionComponent<Props> = ({
         marginTop: 20,
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          style={{ marginRight: 10 }}
-          disabled={isSubmitting}
-        >
+        <Button priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 10 }}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {edit ? t('Update') : t('Create')}
         </Button>
       </div>

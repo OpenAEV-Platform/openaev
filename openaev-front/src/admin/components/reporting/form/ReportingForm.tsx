@@ -1,8 +1,8 @@
-import { Checkbox, IconButton, Paper as FdsPaper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Checkbox, IconButton, Paper as FdsPaper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/icons-material';
-import { Box, Button, FormHelperText, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Box, FormHelperText, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm, useFormContext } from 'react-hook-form';
@@ -768,11 +768,7 @@ const ReportingForm: FunctionComponent<Props> = ({
       }}
       >
         <Typography variant="h3" sx={{ margin: 0 }}>{t('Colors')}</Typography>
-        <Button
-          size="small"
-          startIcon={<RestartAltOutlined />}
-          onClick={() => resetBrandingColors()}
-        >
+        <Button priority="tertiary" size="sm" startIcon={<RestartAltOutlined fontSize="small" />} onClick={() => resetBrandingColors()}>
           {t('Reset to platform defaults')}
         </Button>
       </Box>
@@ -857,40 +853,21 @@ const ReportingForm: FunctionComponent<Props> = ({
           marginBottom: 2,
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           {activeStep > 0 && (
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={() => setActiveStep(step => step - 1)}
-              disabled={isSubmitting}
-            >
+            <Button priority="secondary" onClick={() => setActiveStep(step => step - 1)} disabled={isSubmitting}>
               {t('Back')}
             </Button>
           )}
           {!isLastStep && (
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleNext}
-            >
+            <Button onClick={handleNext}>
               {t('Next')}
             </Button>
           )}
           {isLastStep && (
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" disabled={isSubmitting}>
               {editing ? t('Update') : t('Create')}
             </Button>
           )}

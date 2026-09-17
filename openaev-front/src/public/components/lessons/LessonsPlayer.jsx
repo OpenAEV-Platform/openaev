@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, GridLegacy, Paper, Typography } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText, GridLegacy, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
@@ -78,32 +79,32 @@ const LessonsPlayer = (props) => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="secondary"
-            variant="outlined"
-            component={Link}
-            to={`/lessons/${source.type}/${source.id}?user=${source.finalUserId}&preview=true`}
+            asChild
+            priority="secondary"
             style={{
               position: 'absolute',
               top: 20,
               right: 20,
             }}
           >
-            {t('Switch to preview mode')}
+            <Link to={`/lessons/${source.type}/${source.id}?user=${source.finalUserId}&preview=true`}>
+              {t('Switch to preview mode')}
+            </Link>
           </Button>
         )}
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="primary"
-            variant="outlined"
-            component={Link}
-            to={`/admin/${source.type}s/${source.id}/lessons`}
+            asChild
+            priority="secondary"
             style={{
               position: 'absolute',
               top: 20,
               left: 20,
             }}
           >
-            {t('Back to administration')}
+            <Link to={`/admin/${source.type}s/${source.id}/lessons`}>
+              {t('Back to administration')}
+            </Link>
           </Button>
         )}
         <div className={classes.container}>
@@ -242,13 +243,7 @@ const LessonsPlayer = (props) => {
                     textAlign: 'center',
                   }}
                   >
-                    <Button
-                      color="secondary"
-                      variant="contained"
-                      onClick={() => setOpenValidate(true)}
-                      disabled={lessonsAnswers.length > 0 || submitting || source.isUserAbsent}
-                      size="large"
-                    >
+                    <Button onClick={() => setOpenValidate(true)} disabled={lessonsAnswers.length > 0 || submitting || source.isUserAbsent}>
                       {t('Submit')}
                     </Button>
                   </div>
@@ -265,20 +260,10 @@ const LessonsPlayer = (props) => {
                     </DialogContentText>
                   </DialogContent>
                   <DialogActions>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      onClick={() => setOpenValidate(false)}
-                      disabled={submitting}
-                    >
+                    <Button priority="secondary" onClick={() => setOpenValidate(false)} disabled={submitting}>
                       {t('Cancel')}
                     </Button>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handleSubmit}
-                      disabled={submitting}
-                    >
+                    <Button onClick={handleSubmit} disabled={submitting}>
                       {t('Submit')}
                     </Button>
                   </DialogActions>

@@ -1,3 +1,4 @@
+// fds:keep-mui the banner button takes the banner's urgency colour; the library Button has no colour override yet (LIBRARY-FEEDBACK #59)
 import { ChevronRight } from '@mui/icons-material';
 import { type Theme } from '@mui/material';
 import { Button } from '@mui/material';

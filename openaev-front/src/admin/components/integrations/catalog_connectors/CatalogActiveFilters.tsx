@@ -1,5 +1,4 @@
-import { Chip } from '@filigran/design-system';
-import { Button } from '@mui/material';
+import { Button, Chip } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -79,7 +78,7 @@ const CatalogActiveFilters = ({ filters, onToggleFacet, onClearAll }: Props) => 
           deleteLabel={t('Remove')}
         />
       ))}
-      <Button size="small" onClick={onClearAll}>
+      <Button priority="tertiary" size="sm" onClick={onClearAll}>
         {t('Clear all')}
       </Button>
     </div>

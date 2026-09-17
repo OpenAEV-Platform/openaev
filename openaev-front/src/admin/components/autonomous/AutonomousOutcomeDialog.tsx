@@ -1,6 +1,6 @@
-import { Chip } from '@filigran/design-system';
+import { Button, Chip } from '@filigran/design-system';
 import { LaunchOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, Divider, Link, Stack, Typography } from '@mui/material';
+import { Alert, Box, Dialog, DialogContent, DialogTitle, Divider, Link, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link as RouterLink } from 'react-router';
@@ -324,7 +324,7 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
         paddingTop: 0,
       }}
       >
-        <Button onClick={onClose}>{t('Close')}</Button>
+        <Button priority="tertiary" onClick={onClose}>{t('Close')}</Button>
       </Box>
     </Dialog>
   );

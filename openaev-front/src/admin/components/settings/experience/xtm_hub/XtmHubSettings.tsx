@@ -1,12 +1,11 @@
+import { Button } from '@filigran/design-system';
 import { HubOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { useContext, useEffect, useRef } from 'react';
 
 import type { LoggedHelper } from '../../../../../actions/helper';
 import { fetchXtmHubRegistration, refreshConnectivity } from '../../../../../actions/xtmhub/xtmhub-actions';
-import GradientButton from '../../../../../components/GradientButton';
 import { useFormatter } from '../../../../../components/i18n';
 import InfoChip from '../../../../../components/InfoChip';
 import { useHelper } from '../../../../../store';
@@ -62,41 +61,24 @@ const XtmHubSettings: React.FC = () => {
   const buildFooter = (handleOpen?: () => void) => (isXTMHubRegistered
     ? (
         <>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={handleOpen}
-            disabled={!handleOpen}
-          >
+          <Button variant="destructive" priority="secondary" onClick={handleOpen} disabled={!handleOpen}>
             {t('Disconnect XTM Hub')}
           </Button>
-          <GradientButton
-            component="a"
-            href={hubUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t('Go to the Hub')}
-          </GradientButton>
+          <Button variant="highlight" asChild>
+            <a href={hubUrl} target="_blank" rel="noreferrer">{t('Go to the Hub')}</a>
+          </Button>
         </>
       )
     : (
         <>
-          <Button
-            variant="outlined"
-            component="a"
-            href={hubUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t('Explore XTM Hub')}
+          <Button asChild priority="secondary">
+            <a href={hubUrl} target="_blank" rel="noreferrer">
+              {t('Explore XTM Hub')}
+            </a>
           </Button>
-          <GradientButton
-            onClick={handleOpen}
-            disabled={!handleOpen}
-          >
+          <Button variant="highlight" onClick={handleOpen} disabled={!handleOpen}>
             {t('Connect to XTM Hub')}
-          </GradientButton>
+          </Button>
         </>
       ));
 

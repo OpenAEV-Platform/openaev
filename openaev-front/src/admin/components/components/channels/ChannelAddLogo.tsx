@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchDocuments } from '../../../../actions/Document';
@@ -34,12 +34,7 @@ const ChannelAddLogo: FunctionComponent<Props> = ({ handleAddLogo }) => {
   return (
     <div>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
-        <Button
-          variant="outlined"
-          color="primary"
-          size="small"
-          onClick={handleOpen}
-        >
+        <Button priority="secondary" size="sm" onClick={handleOpen}>
           {t('Change logo')}
         </Button>
       </Can>

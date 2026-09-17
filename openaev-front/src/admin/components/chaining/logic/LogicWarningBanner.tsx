@@ -1,6 +1,6 @@
-import { Chip } from '@filigran/design-system';
+import { Button, Chip } from '@filigran/design-system';
 import { Add, Circle } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -92,17 +92,7 @@ const LogicWarningBanner: FunctionComponent<Props> = ({ eventMetas, onAddCompati
           <Typography fontWeight={800} variant="body2">
             {t('not provisioned by any action.')}
           </Typography>
-          <Button
-            size="small"
-            startIcon={<Add />}
-            onClick={() => onAddCompatibleAction(item.field)}
-            sx={{
-              fontWeight: 600,
-              p: 0.5,
-              textTransform: 'none',
-              border: `1px solid ${theme.palette.divider}`,
-            }}
-          >
+          <Button priority="tertiary" size="sm" startIcon={<Add fontSize="small" />} onClick={() => onAddCompatibleAction(item.field)}>
             {t('Add Compatible Action')}
           </Button>
         </Box>

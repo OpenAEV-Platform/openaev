@@ -1,6 +1,6 @@
-import { Chip, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, Close, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
@@ -105,10 +105,10 @@ const ScopeInventoryBox = ({
             accept=".csv,text/csv"
             onChange={handleFileChange}
           />
-          <Button size="small" onClick={onDownloadTemplate} startIcon={<FileDownloadOutlined />}>
+          <Button priority="tertiary" size="sm" startIcon={<FileDownloadOutlined fontSize="small" />} onClick={onDownloadTemplate}>
             {t('CSV template')}
           </Button>
-          <Button size="small" variant="text" onClick={handleOpenUpload} startIcon={<Add />}>
+          <Button priority="tertiary" size="sm" startIcon={<Add fontSize="small" />} onClick={handleOpenUpload}>
             {t('Add Bulk CSV')}
           </Button>
         </div>

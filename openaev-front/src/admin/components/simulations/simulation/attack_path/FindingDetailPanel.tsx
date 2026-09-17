@@ -1,6 +1,6 @@
-import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Close, InfoOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Link, Paper, Typography } from '@mui/material';
+import { Alert, Box, Link, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -386,13 +386,7 @@ const FindingDetailPanel = ({
                 >
                   {a.statusLabel}
                 </Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => onSelect(a.ref)}
-                  sx={{ flexShrink: 0 }}
-                >
+                <Button priority="secondary" size="sm" onClick={() => onSelect(a.ref)} style={{ flexShrink: 0 }}>
                   {t('View')}
                 </Button>
               </Box>

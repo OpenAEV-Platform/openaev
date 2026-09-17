@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
@@ -72,20 +72,10 @@ const OrganizationForm: FunctionComponent<Props> = ({
             marginTop: 20,
           }}
           >
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleClose}
-              disabled={submitting}
-            >
+            <Button priority="secondary" onClick={handleClose} disabled={submitting}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={pristine || submitting}
-            >
+            <Button type="submit" disabled={pristine || submitting}>
               {editing ? t('Update') : t('Create')}
             </Button>
           </div>

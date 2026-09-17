@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { CloudUploadOutlined, DeleteOutline } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type ChangeEvent, type DragEvent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -223,7 +223,6 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
             </Typography>
             <div className={classes.actionRow}>
               <Button
-                variant="contained"
                 disabled={isLimitReached}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -263,15 +262,10 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
         )}
 
         <div className={classes.footerButtons}>
-          <Button onClick={handleClose} disabled={uploading}>
+          <Button priority="tertiary" onClick={handleClose} disabled={uploading}>
             {t('Cancel')}
           </Button>
-          <Button
-            color="primary"
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={selectedFiles.length === 0 || uploading}
-          >
+          <Button onClick={handleSubmit} disabled={selectedFiles.length === 0 || uploading}>
             {t('Import')}
           </Button>
         </div>

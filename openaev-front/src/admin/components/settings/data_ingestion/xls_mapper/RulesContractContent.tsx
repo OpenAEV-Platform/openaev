@@ -1,6 +1,6 @@
-import { Badge, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DeleteOutlined, ExpandMore } from '@mui/icons-material';
-import { Accordion, AccordionActions, AccordionDetails, AccordionSummary, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Typography } from '@mui/material';
+import { Accordion, AccordionActions, AccordionDetails, AccordionSummary, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Typography } from '@mui/material';
 import { CogOutline, InformationOutline } from 'mdi-material-ui';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { Controller, type FieldArrayWithId, useFieldArray, type UseFieldArrayRemove, type UseFormReturn } from 'react-hook-form';
@@ -353,7 +353,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
                           )}
                       </DialogContent>
                       <DialogActions>
-                        <Button variant="outlined" color="primary" onClick={handleDefaultValueClose} autoFocus>
+                        <Button priority="secondary" onClick={handleDefaultValueClose} autoFocus>
                           {t('Close')}
                         </Button>
                       </DialogActions>
@@ -365,7 +365,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
 
         </AccordionDetails>
         <AccordionActions sx={{ padding: '16px' }}>
-          <Button color="error" variant="contained" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
+          <Button variant="destructive" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
         </AccordionActions>
       </Accordion>
       <Dialog
@@ -378,14 +378,11 @@ const RulesContractContent: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => {
-              remove(index);
-              handleCloseAlertDelete();
-            }}
+          <Button priority="secondary" onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
+          <Button onClick={() => {
+            remove(index);
+            handleCloseAlertDelete();
+          }}
           >
             {t('Delete')}
           </Button>

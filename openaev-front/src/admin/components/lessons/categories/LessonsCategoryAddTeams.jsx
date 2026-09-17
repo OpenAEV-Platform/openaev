@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { Add, CastForEducationOutlined } from '@mui/icons-material';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import * as R from 'ramda';
 import { useMemo, useState } from 'react';
 
@@ -148,11 +148,7 @@ const LessonsCategoryAddTeams = ({
         submitLabel={t('Add')}
         headerComponent={headerComponent}
         headerActions={(
-          <Button
-            onClick={selectAllTeams}
-            variant="outlined"
-            size="small"
-          >
+          <Button priority="secondary" size="sm" onClick={selectAllTeams}>
             {t('Select all')}
           </Button>
         )}

@@ -1,8 +1,5 @@
-import {
-  Alert,
-  Button,
-  Typography,
-} from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Alert, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { Link } from 'react-router';
@@ -80,10 +77,8 @@ const ChallengesPreview: FunctionComponent<Props> = ({
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && value.linkToPlayerMode.length > 0 && (
           <Button
-            color="secondary"
-            variant="outlined"
-            component={Link}
-            to={value.linkToPlayerMode}
+            asChild
+            priority="secondary"
             style={{
               position: 'relative',
               float: 'right',
@@ -91,22 +86,24 @@ const ChallengesPreview: FunctionComponent<Props> = ({
               right: theme.spacing(2),
             }}
           >
-            {t('Switch to player mode')}
+            <Link to={value.linkToPlayerMode}>
+              {t('Switch to player mode')}
+            </Link>
           </Button>
         )}
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="primary"
-            variant="outlined"
-            component={Link}
-            to={value.linkToAdministrationMode}
+            asChild
+            priority="secondary"
             style={{
               position: 'relative',
               top: theme.spacing(2),
               left: theme.spacing(2),
             }}
           >
-            {t('Back to administration')}
+            <Link to={value.linkToAdministrationMode}>
+              {t('Back to administration')}
+            </Link>
           </Button>
         )}
         <div className={classes.container}>
@@ -221,7 +218,7 @@ const ChallengesPreview: FunctionComponent<Props> = ({
                   marginTop: theme.spacing(2),
                 }}
                 >
-                  <Button variant="outlined" color="primary" onClick={handleClose} style={{ marginRight: theme.spacing(1) }}>
+                  <Button priority="secondary" onClick={handleClose} style={{ marginRight: theme.spacing(1) }}>
                     {t('Close')}
                   </Button>
                 </div>

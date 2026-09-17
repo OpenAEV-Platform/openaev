@@ -1,5 +1,6 @@
 // fds:keep-mui the AI terms checkbox stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Typography } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Typography } from '@mui/material';
 import type React from 'react';
 import { useContext, useState } from 'react';
 
@@ -46,14 +47,10 @@ const FiligranAiCguDialog: React.FC<FiligranAiCguDialogProps> = ({ open, onClose
             alignItems="center"
             gap={2}
           >
-            <Button
-              href="https://filigran.io/app/uploads/2025/09/filigran-ai-terms-september-2025.pdf"
-              target="_blank"
-              rel="noreferrer"
-              variant="outlined"
-              color="secondary"
-            >
-              {t('Read the Filigran AI Terms')}
+            <Button asChild priority="secondary">
+              <a href="https://filigran.io/app/uploads/2025/09/filigran-ai-terms-september-2025.pdf" target="_blank" rel="noreferrer">
+                {t('Read the Filigran AI Terms')}
+              </a>
             </Button>
             <FormControlLabel
               checked={isChecked}
@@ -67,19 +64,10 @@ const FiligranAiCguDialog: React.FC<FiligranAiCguDialogProps> = ({ open, onClose
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={() => handleSubmit('disabled')}
-        >
+        <Button priority="secondary" onClick={() => handleSubmit('disabled')}>
           {t('Decline')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => handleSubmit('enabled')}
-          disabled={!isChecked || !canManage}
-        >
+        <Button onClick={() => handleSubmit('enabled')} disabled={!isChecked || !canManage}>
           {t('I Agree to Filigran AI Terms')}
         </Button>
       </DialogActions>

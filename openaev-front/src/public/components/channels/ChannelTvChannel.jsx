@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { ChatBubbleOutlineOutlined, FavoriteBorderOutlined, ShareOutlined } from '@mui/icons-material';
-import { Avatar, Button, Card, CardContent, CardHeader, CardMedia, GridLegacy, Typography } from '@mui/material';
+import { Avatar, Card, CardContent, CardHeader, CardMedia, GridLegacy, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { makeStyles } from 'tss-react/mui';
@@ -157,16 +158,13 @@ const ChannelTvChannel = ({ channelReader }) => {
                 />
                 <div className={classes.footer}>
                   <div style={{ float: 'right' }}>
-                    <Button
-                      size="small"
-                      startIcon={<ChatBubbleOutlineOutlined />}
-                    >
+                    <Button priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                       {firstArticle.article_comments || 0}
                     </Button>
-                    <Button size="small" startIcon={<ShareOutlined />}>
+                    <Button priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                       {firstArticle.article_shares || 0}
                     </Button>
-                    <Button size="small" startIcon={<FavoriteBorderOutlined />}>
+                    <Button priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                       {firstArticle.article_likes || 0}
                     </Button>
                   </div>
@@ -238,19 +236,13 @@ const ChannelTvChannel = ({ channelReader }) => {
                     />
                     <div className={classes.footer}>
                       <div style={{ float: 'right' }}>
-                        <Button
-                          size="small"
-                          startIcon={<ChatBubbleOutlineOutlined />}
-                        >
+                        <Button priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                           {article.article_comments || 0}
                         </Button>
-                        <Button size="small" startIcon={<ShareOutlined />}>
+                        <Button priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                           {article.article_shares || 0}
                         </Button>
-                        <Button
-                          size="small"
-                          startIcon={<FavoriteBorderOutlined />}
-                        >
+                        <Button priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                           {article.article_likes || 0}
                         </Button>
                       </div>
@@ -326,19 +318,13 @@ const ChannelTvChannel = ({ channelReader }) => {
                   />
                   <div className={classes.footer}>
                     <div style={{ float: 'right' }}>
-                      <Button
-                        size="small"
-                        startIcon={<ChatBubbleOutlineOutlined />}
-                      >
+                      <Button priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                         {article.article_comments || 0}
                       </Button>
-                      <Button size="small" startIcon={<ShareOutlined />}>
+                      <Button priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                         {article.article_shares || 0}
                       </Button>
-                      <Button
-                        size="small"
-                        startIcon={<FavoriteBorderOutlined />}
-                      >
+                      <Button priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                         {article.article_likes || 0}
                       </Button>
                     </div>

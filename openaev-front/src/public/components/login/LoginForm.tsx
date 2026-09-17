@@ -1,4 +1,5 @@
-import { Button, Stack } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Stack } from '@mui/material';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../components/fields/OldTextField';
@@ -52,23 +53,10 @@ const LoginForm = ({ onSubmit, onResetPassword }: LoginFormProps) => {
             alignItems="center"
             justifyContent="space-between"
           >
-            <Button
-              variant="text"
-              color="primary"
-              onClick={onResetPassword}
-              sx={{
-                marginLeft: -1,
-                fontWeight: 600,
-              }}
-            >
+            <Button priority="tertiary" onClick={onResetPassword} style={{ marginLeft: -1 }}>
               {t('I forgot my password')}
             </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              disabled={pristine || submitting}
-            >
+            <Button type="submit" disabled={pristine || submitting}>
               {t('Sign in')}
             </Button>
           </Stack>

@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   BoltOutlined,
   BugReportOutlined,
@@ -8,7 +8,7 @@ import {
   MovieFilterOutlined,
   NumbersOutlined,
 } from '@mui/icons-material';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Binoculars, SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent, memo, type ReactElement, useCallback, useContext, useMemo } from 'react';
@@ -122,20 +122,7 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }
       </Box>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button
-            onClick={onClick}
-            variant="text"
-            className="noDrag"
-            sx={{
-              fontSize: 36,
-              height: 46,
-              fontWeight: 500,
-              fontFamily: '"Geologica", sans-serif',
-              padding: 0,
-              minWidth: 0,
-              color: 'text.primary',
-            }}
-          >
+          <Button priority="tertiary" onClick={onClick} className="noDrag" style={{ minWidth: 0 }}>
             {data.interval_count != null ? compactNumber(Math.round(animatedCount)) : '-'}
           </Button>
         </TooltipTrigger>

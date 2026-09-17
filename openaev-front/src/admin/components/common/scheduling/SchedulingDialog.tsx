@@ -1,28 +1,7 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { Button, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UpdateOutlined } from '@mui/icons-material';
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  Stack,
-  Switch,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -536,10 +515,10 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={handleClose}>
+            <Button priority="secondary" onClick={handleClose}>
               {t('Cancel')}
             </Button>
-            <Button variant="contained" color="primary" type="submit">
+            <Button type="submit">
               {t('Save')}
             </Button>
           </DialogActions>

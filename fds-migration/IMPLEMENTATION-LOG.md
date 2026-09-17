@@ -588,6 +588,51 @@ in filigran-design-system).
   (checked handler by handler). Self-hiding when the licence is active: not
   adopted, by arbitration.
 
+## 2026-09-17 — Action components wave: Button
+
+- Button (473 MUI sites, 230 files) on the library: 468 sites by a codemod
+  (TypeScript compiler, one pass, imports merged into the existing library
+  import), the rest by hand — the three wrappers (ButtonCreate loses its MUI
+  branch, DialogConfirmation reads `destructive` from its `submitColor`,
+  ActionButtons), the two GradientButton components and their callers, the six
+  EE-gated actions and four icon-only buttons.
+- Mapping: `contained` → `priority="primary"` (default, omitted), `outlined` →
+  `secondary`, `text` and the bare MUI button → `tertiary`; `color="error"` and
+  `"warning"` → `variant="destructive"`, `"ee"` and the gradient buttons →
+  `variant="highlight"`, the AI actions (Ask Ariane, generate with AI, suggest
+  TTPs) → `variant="ia"`; `secondary`, `success`, `inherit` → the default.
+- Placement rule (B1): the default 36px everywhere a MUI medium button stood
+  and in dialog / drawer footers, list headers, detail headers and bulk bars
+  even when MUI said `small`; `sm` (24px) where MUI said `small` inside a form,
+  a card or a Paper header row. `large` has no library counterpart and reads
+  36px.
+- A button that navigates (35 sites: `component={Link}`, `component="a"`, bare
+  `href`) is `asChild` around the anchor, with `to` / `href` / `target` / `rel` on
+  the anchor and the MUI icon inside it (the library ignores `startIcon` under
+  `asChild`); the parent-scenario pivot splits into a link when the scenario is
+  reachable and a disabled button otherwise. The EE marker sits inside the
+  button after the label, as OpenCTI does, and the EE-gated actions read
+  `primary` with the licence and `secondary` without.
+- MUI icons inside a button get `fontSize="small"` (the library slot does not
+  size its icon: LIBRARY-FEEDBACK #56). `sx` layout keys (margins, alignSelf,
+  flexShrink, whiteSpace, position) became `style` with the 8px spacing
+  resolved; colour, typography, radius and hover keys (114 in all) leave with
+  MUI. `disableElevation` and the ripple props are gone. The licence banner's
+  button keeps the banner's urgency colour and stays on MUI (`fds:keep-mui`,
+  LIBRARY-FEEDBACK #59: a colour override for exceptional cases). The
+  reporting split button (a MUI ButtonGroup: generate now + format menu) stays
+  on MUI with a `fds:keep-mui` reason until the library offers a split button
+  (LIBRARY-FEEDBACK #58). Three icon-only MUI buttons received a name (`Add`,
+  copy to clipboard); the copy one is an IconButton.
+- One test adjusted: the XTM Hub tab test mocked a GradientButton path that the
+  screen never imported; the assertion now looks for the connect button text.
+- Measured on the running product at 1400px after the change: list header
+  Create 36px primary beside a 36px highlight "Import from Hub" anchor, detail
+  header Launch / Configuration 36px, the Deploy card action 24px secondary
+  with the EE marker inside, the EE settings CTA 36px highlight, dialog and
+  drawer footers 36px, no MUI button left on the scenario, simulation,
+  settings and integrations screens, no horizontal overflow.
+
 ## 2026-09-17 — Action components wave: Tabs
 
 - Tabs (15 files, every tab bar of the product) on the library: the product

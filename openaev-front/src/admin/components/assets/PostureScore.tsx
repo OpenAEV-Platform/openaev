@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type KeyboardEvent, useState } from 'react';
 
@@ -493,7 +493,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
           })}
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
+          <Button priority="secondary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
         </DialogActions>
       </Dialog>
     </>

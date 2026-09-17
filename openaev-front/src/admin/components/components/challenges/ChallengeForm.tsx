@@ -1,4 +1,4 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   ArrowDropDownOutlined,
@@ -7,7 +7,7 @@ import {
   ControlPointOutlined,
   DeleteOutlined,
 } from '@mui/icons-material';
-import { Button, Grid, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { Grid, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
@@ -456,21 +456,10 @@ const ChallengeForm: FunctionComponent<Props> = ({
           marginTop: 20,
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            style={{ marginRight: 10 }}
-            disabled={isSubmitting}
-          >
+          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 10 }}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={isSubmitting || !isDirty}
-          >
+          <Button type="submit" disabled={isSubmitting || !isDirty}>
             {editing ? t('Update') : t('Create')}
           </Button>
         </div>

@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, CloseOutlined } from '@mui/icons-material';
-import { Box, Button, Slide, Typography } from '@mui/material';
+import { Box, Slide, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -96,19 +96,7 @@ const InjectSelectionBar: FunctionComponent<Props> = ({
         >
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                color="primary"
-                variant="contained"
-                size="small"
-                startIcon={<AddOutlined fontSize="small" />}
-                onClick={onAdd}
-                sx={{
-                  borderRadius: 1,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  paddingInline: 2,
-                }}
-              >
+              <Button startIcon={<AddOutlined fontSize="small" />} onClick={onAdd}>
                 {count === 1 ? t('Add 1 inject') : t('Add {count} injects', { count })}
               </Button>
             </TooltipTrigger>

@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Button, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -87,7 +87,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
         </div>
       ))}
       <Button
-        variant="outlined"
+        priority="secondary"
         onClick={() => {
           cwesAppend({
             cwe_id: '',
@@ -124,7 +124,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
         </div>
       ))}
       <Button
-        variant="outlined"
+        priority="secondary"
         onClick={() => {
           referencesAppend('');
         }}

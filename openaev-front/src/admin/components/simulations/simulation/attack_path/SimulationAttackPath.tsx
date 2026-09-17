@@ -1,4 +1,4 @@
-import { Paper } from '@filigran/design-system';
+import { Button, Paper } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   BugReportOutlined,
@@ -9,7 +9,7 @@ import {
   TrackChangesOutlined,
   VpnKeyOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Button, GlobalStyles } from '@mui/material';
+import { Alert, Box, GlobalStyles } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FolderNetworkOutline } from 'mdi-material-ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -2868,12 +2868,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                   bordered={false}
                   action={scenarioHasNoSims && scenarioId && !hideLaunchCta
                     ? (
-                        <Button
-                          variant="contained"
-                          startIcon={<PlayArrowOutlined />}
-                          onClick={handleLaunchFromScenario}
-                          disabled={launching}
-                        >
+                        <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchFromScenario} disabled={launching}>
                           {t('Launch a simulation')}
                         </Button>
                       )

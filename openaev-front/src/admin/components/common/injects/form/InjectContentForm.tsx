@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined, RotateLeftOutlined } from '@mui/icons-material';
-import { Button, InputLabel } from '@mui/material';
+import { InputLabel } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
@@ -272,13 +272,7 @@ const InjectContentForm = ({
         </Tooltip>
       ),
       action: (
-        <Button
-          color="primary"
-          startIcon={<HelpOutlineOutlined />}
-          variant="outlined"
-          size="small"
-          onClick={openVariablesDialog}
-        >
+        <Button priority="secondary" size="sm" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={openVariablesDialog}>
           {t('Available variables')}
         </Button>
       ),

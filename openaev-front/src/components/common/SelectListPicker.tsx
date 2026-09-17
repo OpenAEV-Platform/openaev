@@ -1,5 +1,5 @@
-import { Checkbox, Chip } from '@filigran/design-system';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Button, Checkbox, Chip } from '@filigran/design-system';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type Breakpoint } from '@mui/material/styles';
 import { type CSSProperties, type ReactElement, type ReactNode, useMemo, useState } from 'react';
 
@@ -316,13 +316,8 @@ const SelectListPicker = <T extends object>({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={onSubmit}
-            disabled={submitDisabled || isLoading}
-          >
+          <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button onClick={onSubmit} disabled={submitDisabled || isLoading}>
             {submitLabel ?? t('Update')}
           </Button>
         </DialogActions>

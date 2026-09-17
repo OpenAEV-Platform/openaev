@@ -1,3 +1,4 @@
+// fds:keep-mui the generate split button (main action + format menu) stays a MUI ButtonGroup until the library offers a split button
 import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDropDownOutlined, FileDownloadOutlined } from '@mui/icons-material';
 import { Box, Button, ButtonGroup, CircularProgress, Menu, MenuItem, Typography } from '@mui/material';

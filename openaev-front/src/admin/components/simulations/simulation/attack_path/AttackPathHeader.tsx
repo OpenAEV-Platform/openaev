@@ -1,4 +1,4 @@
-import { ButtonGroup, ButtonGroupItem, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, ButtonGroup, ButtonGroupItem, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   ArrowBackOutlined,
@@ -12,7 +12,7 @@ import {
   SearchOutlined,
   TableRowsOutlined,
 } from '@mui/icons-material';
-import { Box, Button, ButtonBase, CircularProgress, ListItemButton, Paper, Popover, Typography } from '@mui/material';
+import { Box, ButtonBase, CircularProgress, ListItemButton, Paper, Popover, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
@@ -334,33 +334,12 @@ const AttackPathHeader: FunctionComponent<Props> = ({
 
       {/* Focus escapes read as actions (buttons with a directional icon), not deletable chips. */}
       {hasPathFocus && (
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<ArrowBackOutlined />}
-          onClick={onClearPathFocus}
-          sx={{
-            flexShrink: 0,
-            height: CONTROL_HEIGHT,
-          }}
-        >
+        <Button priority="secondary" startIcon={<ArrowBackOutlined fontSize="small" />} onClick={onClearPathFocus} style={{ flexShrink: 0 }}>
           {t('Back to full graph')}
         </Button>
       )}
       {hasCardFocus && (
-        <Button
-          size="small"
-          variant="outlined"
-          color="inherit"
-          startIcon={<FilterAltOffOutlined />}
-          onClick={onClearFocus}
-          sx={{
-            flexShrink: 0,
-            height: CONTROL_HEIGHT,
-            color: 'text.secondary',
-            borderColor: 'divider',
-          }}
-        >
+        <Button priority="secondary" startIcon={<FilterAltOffOutlined fontSize="small" />} onClick={onClearFocus} style={{ flexShrink: 0 }}>
           {t('Clear focus')}
         </Button>
       )}

@@ -1,10 +1,6 @@
-import { Paper } from '@filigran/design-system';
+import { Button, Paper } from '@filigran/design-system';
 import { DeleteOutlined, PersonOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Typography,
-} from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -118,13 +114,7 @@ const Sessions = () => {
                     {userLabel(userSessions[0], userId)}
                   </Typography>
                   {canManage && userSessions.length > 1 && (
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      startIcon={<DeleteOutlined fontSize="small" />}
-                      onClick={() => onKillUserSessions(userId)}
-                    >
+                    <Button variant="destructive" priority="secondary" size="sm" startIcon={<DeleteOutlined fontSize="small" />} onClick={() => onKillUserSessions(userId)}>
                       {t('Kill all sessions')}
                     </Button>
                   )}

@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { CloseOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, Typography } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import Transition from '../../../../../components/common/Transition';
@@ -156,10 +156,10 @@ const EditInjectExpectationResultDialog = ({ open, injectExpectation, sourceIds,
           )}
       </DialogContent>
       <DialogActions sx={{ padding: theme.spacing(0, 2.5, 2) }}>
-        <Button variant="outlined" color="primary" onClick={onClose}>
+        <Button priority="secondary" onClick={onClose}>
           {t('Cancel')}
         </Button>
-        <Button variant="contained" color="primary" type="submit" form="expectationForm">
+        <Button type="submit" form="expectationForm">
           {t('Validate')}
         </Button>
       </DialogActions>

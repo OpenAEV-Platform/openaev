@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { ArrowDropDown } from '@mui/icons-material';
-import { Button, Menu, MenuItem } from '@mui/material';
+import { Menu, MenuItem } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useState } from 'react';
 
@@ -26,22 +27,7 @@ const LogicalOperatorSelect: FunctionComponent<Props> = ({ value, onChange, read
 
   return (
     <>
-      <Button
-        size="small"
-        disabled={readOnly}
-        onClick={handleOpen}
-        endIcon={<ArrowDropDown />}
-        sx={{
-          'background': `${theme.palette.primary.main}18`,
-          'color': 'primary.main',
-          'fontWeight': 700,
-          'px': 1.5,
-          'borderRadius': 1,
-          'textTransform': 'none',
-          '&:hover': { background: `${theme.palette.primary.main}28` },
-          '& .MuiButton-endIcon': { ml: 0.5 },
-        }}
-      >
+      <Button priority="tertiary" size="sm" endIcon={<ArrowDropDown fontSize="small" />} disabled={readOnly} onClick={handleOpen}>
         {value === 'AND' ? t('And') : t('Or')}
       </Button>
       <Menu

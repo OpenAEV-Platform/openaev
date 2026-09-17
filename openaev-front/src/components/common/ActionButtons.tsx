@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent } from 'react';
 
@@ -31,22 +31,11 @@ const ActionButtons: FunctionComponent<ActionButtonsProps> = ({
       ...style,
     }}
     >
-      <Button
-        variant="outlined"
-        color="primary"
-        onClick={onCancel}
-        disabled={submitting}
-      >
+      <Button priority="secondary" onClick={onCancel} disabled={submitting}>
         {cancelLabel}
       </Button>
 
-      <Button
-        variant="contained"
-        color="primary"
-        type="submit"
-        {...(onSubmit ? { onClick: onSubmit } : { type: 'submit' as const })}
-        disabled={disabled || submitting}
-      >
+      <Button type="submit" {...(onSubmit ? { onClick: onSubmit } : { type: 'submit' as const })} disabled={disabled || submitting}>
         {submitLabel}
       </Button>
     </div>

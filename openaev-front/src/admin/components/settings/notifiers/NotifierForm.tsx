@@ -1,6 +1,6 @@
-import { IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
+import { Button, IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined } from '@mui/icons-material';
-import { Button, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
 
 import TextFieldFds from '../../../../components/fields/TextFieldFds';
@@ -215,8 +215,9 @@ const NotifierForm: FunctionComponent<Props> = ({
             </div>
           ))}
           <Button
-            size="small"
-            startIcon={<AddOutlined />}
+            priority="tertiary"
+            size="sm"
+            startIcon={<AddOutlined fontSize="small" />}
             onClick={() => setHeaders([...headers, {
               key: '',
               value: '',
@@ -240,11 +241,7 @@ const NotifierForm: FunctionComponent<Props> = ({
         marginTop: 20,
       }}
       >
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-        >
+        <Button type="submit">
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { InsertChartOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { useState } from 'react';
 
 import Dialog from '../../../../components/common/dialog/Dialog';
@@ -36,12 +36,11 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'outlined', 
       {variant === 'outlined'
         ? (
             <Button
-              variant="outlined"
-              color="primary"
-              size="small"
-              startIcon={<InsertChartOutlined />}
+              priority="secondary"
+              size="sm"
+              startIcon={<InsertChartOutlined fontSize="small" />}
               onClick={handleOpenSelectDashboardDialog}
-              sx={{
+              style={{
                 alignSelf: 'center',
                 flexShrink: 0,
               }}
@@ -49,15 +48,15 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'outlined', 
               {t('Change dashboard')}
             </Button>
           )
-        : <Button onClick={handleOpenSelectDashboardDialog} variant="text">{t('Select a dashboard')}</Button>}
+        : <Button priority="tertiary" onClick={handleOpenSelectDashboardDialog}>{t('Select a dashboard')}</Button>}
       <Dialog
         title={t('Select a dashboard')}
         open={openSelectDashboardDialog}
         handleClose={handleCloseSelectDashboardDialog}
         actions={(
           <>
-            <Button variant="outlined" color="primary" onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
-            <Button variant="contained" color="primary" onClick={onHandleSubmit}>
+            <Button priority="secondary" onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
+            <Button onClick={onHandleSubmit}>
               {t('Continue')}
             </Button>
           </>

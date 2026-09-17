@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
@@ -150,8 +150,8 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="contained" color="error" onClick={submitDelete}>
+          <Button priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

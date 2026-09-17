@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { AccountTreeOutlined, Add } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchConditions, fetchSteps } from '../../../../actions/chaining/chaining-actions';
@@ -204,13 +204,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
             ? t('Start adding components to complete the configuration of your scenario.')
             : t('Start adding components to complete the configuration of your simulation.')}
           action={(
-            <Button
-              variant="contained"
-              color="primary"
-              size="large"
-              startIcon={<Add />}
-              onClick={handleOpenDrawer}
-            >
+            <Button startIcon={<Add fontSize="small" />} onClick={handleOpenDrawer}>
               {t('Add component')}
             </Button>
           )}

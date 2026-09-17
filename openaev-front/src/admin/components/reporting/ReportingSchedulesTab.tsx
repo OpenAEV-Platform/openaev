@@ -1,6 +1,6 @@
-import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined, EditOutlined, ScheduleOutlined } from '@mui/icons-material';
-import { Box, Button, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -223,14 +223,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                 hint={t('Schedules generate this report on a recurring basis and email it to recipients.')}
               />
               {canManage && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<AddOutlined />}
-                  onClick={() => setDrawer('create')}
-                  // Pull the CTA into the empty state's bottom padding.
-                  sx={{ marginTop: -3 }}
-                >
+                <Button startIcon={<AddOutlined fontSize="small" />} onClick={() => setDrawer('create')} style={{ marginTop: -3 }}>
                   {t('Add schedule')}
                 </Button>
               )}

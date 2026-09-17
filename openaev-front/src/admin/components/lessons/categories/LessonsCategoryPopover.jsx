@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
@@ -88,8 +88,8 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitDelete}>
+          <Button priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

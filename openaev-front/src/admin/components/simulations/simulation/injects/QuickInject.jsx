@@ -1,4 +1,4 @@
-import { IconButton, Switch } from '@filigran/design-system';
+import { Button, IconButton, Switch } from '@filigran/design-system';
 import {
   ArrowDropDownOutlined,
   ArrowDropUpOutlined,
@@ -8,7 +8,7 @@ import {
   DeleteOutlined,
   HelpOutlineOutlined,
 } from '@mui/icons-material';
-import { Button, InputLabel, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, MenuItem, Typography } from '@mui/material';
+import { InputLabel, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, MenuItem, Typography } from '@mui/material';
 import arrayMutators from 'final-form-arrays';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -1091,12 +1091,7 @@ class QuickInjectComponent extends Component {
                     <Typography variant="h2">{t('Inject data')}</Typography>
                   </div>
                   <div style={{ float: 'right' }}>
-                    <Button
-                      color="primary"
-                      variant="outlined"
-                      onClick={this.handleOpenVariables.bind(this)}
-                      startIcon={<HelpOutlineOutlined />}
-                    >
+                    <Button priority="secondary" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={this.handleOpenVariables.bind(this)}>
                       {t('Available variables')}
                     </Button>
                   </div>
@@ -1135,8 +1130,7 @@ class QuickInjectComponent extends Component {
                     attachedDocs,
                   )}
                   <Button
-                    color="secondary"
-                    variant="outlined"
+                    priority="secondary"
                     disabled={submitting || isDisabled}
                     onClick={this.resetDefaultvalues.bind(
                       this,
@@ -1344,12 +1338,7 @@ class QuickInjectComponent extends Component {
                   margin: '20px 0 20px 0',
                 }}
                 >
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    type="submit"
-                    disabled={submitting || isDisabled}
-                  >
+                  <Button type="submit" disabled={submitting || isDisabled}>
                     {t('Send')}
                   </Button>
                 </div>

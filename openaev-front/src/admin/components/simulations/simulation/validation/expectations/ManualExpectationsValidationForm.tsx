@@ -1,6 +1,6 @@
-import { Chip, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
+import { Button, Chip, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Grid, Slider, Typography } from '@mui/material';
+import { Grid, Slider, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -171,12 +171,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
         />
         {!hideActions && (
           <div className={classes.buttons}>
-            <Button
-              type="submit"
-              disabled={isSubmitting || isDisabled}
-              variant="contained"
-              color="primary"
-            >
+            <Button type="submit" disabled={isSubmitting || isDisabled}>
               {t('Validate')}
             </Button>
           </div>

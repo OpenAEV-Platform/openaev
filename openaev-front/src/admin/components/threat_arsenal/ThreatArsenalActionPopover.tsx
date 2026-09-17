@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useContext, useState } from 'react';
 
 import {
@@ -271,8 +271,8 @@ const ThreatArsenalActionPopover = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitDuplicate}>{t('Duplicate')}</Button>
+          <Button priority="secondary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
+          <Button onClick={submitDuplicate}>{t('Duplicate')}</Button>
         </DialogActions>
       </Dialog>
 

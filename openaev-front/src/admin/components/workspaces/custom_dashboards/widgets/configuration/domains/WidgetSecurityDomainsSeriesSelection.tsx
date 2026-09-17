@@ -1,4 +1,5 @@
-import { Button, capitalize, Skeleton } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { capitalize, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
@@ -119,12 +120,7 @@ const WidgetSecurityDomainsSeriesSelection: FunctionComponent<Props> = ({ onChan
         justifyContent: 'center',
       }}
       >
-        <Button
-          variant="contained"
-          color="primary"
-          sx={{ marginTop: theme.spacing(2) }}
-          onClick={handleSubmit}
-        >
+        <Button onClick={handleSubmit} style={{ marginTop: theme.spacing(2) }}>
           {t('Validate')}
         </Button>
       </div>

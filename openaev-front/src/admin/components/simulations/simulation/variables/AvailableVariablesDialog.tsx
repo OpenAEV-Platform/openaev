@@ -1,6 +1,6 @@
-import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Button, Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { CopyAllOutlined } from '@mui/icons-material';
-import { Alert, Button, Dialog, DialogActions, DialogContent, List, ListItem, ListItemButton, ListItemText } from '@mui/material';
+import { Alert, Dialog, DialogActions, DialogContent, List, ListItem, ListItemButton, ListItemText } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -160,18 +160,12 @@ const AvailableVariablesDialog: FunctionComponent<
               {/* TODO: validate when migrate to new react router version */}
               {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
               {/* @ts-ignore */}
-              <Button
-                component={Link}
-                to={uriVariable}
-                color="primary"
-                variant="text"
-                size="small"
-                className={classes.button}
-                onClick={handleClose}
-              >
-                {me.user_is_planner
-                  ? t('manage custom variables')
-                  : t('view custom variables')}
+              <Button asChild priority="tertiary" size="sm" className={classes.button} onClick={handleClose}>
+                <Link to={uriVariable}>
+                  {me.user_is_planner
+                    ? t('manage custom variables')
+                    : t('view custom variables')}
+                </Link>
               </Button>
             </Alert>
             <List>
@@ -189,7 +183,7 @@ const AvailableVariablesDialog: FunctionComponent<
       </DialogContent>
 
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={handleClose}>{t('Close')}</Button>
+        <Button priority="secondary" onClick={handleClose}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

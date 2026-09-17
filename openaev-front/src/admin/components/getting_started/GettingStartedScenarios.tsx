@@ -1,6 +1,6 @@
-import { Paper } from '@filigran/design-system';
+import { Button, Paper } from '@filigran/design-system';
 import { OpenInNew } from '@mui/icons-material';
-import { Box, Button, Link as MUILink, Skeleton, Typography } from '@mui/material';
+import { Box, Link as MUILink, Skeleton, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -147,14 +147,10 @@ const ScenarioCard = ({ scenario }: { scenario: Scenario }) => {
           <OpenInNew sx={{ fontSize: 14 }} />
           {t('learn_more')}
         </MUILink>
-        <Button
-          variant="contained"
-          color="primary"
-          size="small"
-          component={Link}
-          to={`${SCENARIO_BASE_URL}/${scenario.scenario_id}`}
-        >
-          {t('try_scenario')}
+        <Button asChild size="sm">
+          <Link to={`${SCENARIO_BASE_URL}/${scenario.scenario_id}`}>
+            {t('try_scenario')}
+          </Link>
         </Button>
       </Box>
     </Paper>

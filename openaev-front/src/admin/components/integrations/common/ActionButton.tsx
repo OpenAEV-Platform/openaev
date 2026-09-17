@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
@@ -29,31 +29,16 @@ const ActionButton = ({ onUpdate, disabled, status }: Props) => {
 
   if (status === 'starting') {
     return (
-      <Button
-        variant="outlined"
-        color="error"
-        size="small"
-        onClick={onUpdate}
-        disabled={disabled}
-      >
+      <Button variant="destructive" priority="secondary" size="sm" onClick={onUpdate} disabled={disabled}>
         {t('Stop')}
       </Button>
     );
   }
 
   return (
-    <Button
-      variant={isEnterpriseEdition ? 'contained' : 'outlined'}
-      size="small"
-      sx={{
-        color: isEnterpriseEdition ? 'primary' : 'action.disabled',
-        borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
-      }}
-      onClick={onClickAction}
-      endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
-      disabled={disabled}
-    >
-      { t('Start')}
+    <Button priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" onClick={onClickAction} disabled={disabled}>
+      {t('Start')}
+      {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
     </Button>
   );
 };

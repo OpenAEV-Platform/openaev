@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { KeyboardArrowDownOutlined, KeyboardArrowUpOutlined } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type CSSProperties, useState } from 'react';
 
@@ -153,12 +153,7 @@ const TraceMessage = ({ traces, variant = 'boxed' }: Props) => {
               </div>
               <pre style={messageStyle}>{displayMessage}</pre>
               {isTruncated && (
-                <Button
-                  size="small"
-                  onClick={() => toggleMessage(index)}
-                  startIcon={isExpanded ? <KeyboardArrowUpOutlined fontSize="small" /> : <KeyboardArrowDownOutlined fontSize="small" />}
-                  sx={{ marginTop: 0.5 }}
-                >
+                <Button priority="tertiary" size="sm" startIcon={isExpanded ? <KeyboardArrowUpOutlined fontSize="small" /> : <KeyboardArrowDownOutlined fontSize="small" />} onClick={() => toggleMessage(index)} style={{ marginTop: 4 }}>
                   {isExpanded ? t('See Less') : t('See More')}
                 </Button>
               )}

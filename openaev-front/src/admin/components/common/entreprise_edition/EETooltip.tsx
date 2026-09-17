@@ -1,5 +1,6 @@
 // fds:keep-mui the Enterprise Edition upsell tooltip stays out of this wave by ruling
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
 import { type ReactElement, useContext, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -62,7 +63,7 @@ const EETooltip = ({
             {t('To use AI, please enable it in the configuration of your platform.')}
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={() => setOpenEnableAI(false)}>{t('Close')}</Button>
+            <Button priority="secondary" onClick={() => setOpenEnableAI(false)}>{t('Close')}</Button>
           </DialogActions>
         </Dialog>
       </>
@@ -95,7 +96,7 @@ const EETooltip = ({
             {t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.')}
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={() => setOpenConfigAI(false)}>{t('Close')}</Button>
+            <Button priority="secondary" onClick={() => setOpenConfigAI(false)}>{t('Close')}</Button>
           </DialogActions>
         </Dialog>
       </>

@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -282,10 +283,10 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" onClick={handleCancelAutoRegistration} color="primary">
+          <Button priority="secondary" onClick={handleCancelAutoRegistration}>
             {t('Cancel')}
           </Button>
-          <Button onClick={handleConfirmAutoRegistration} color="primary" autoFocus>
+          <Button priority="tertiary" onClick={handleConfirmAutoRegistration} autoFocus>
             {t('Continue')}
           </Button>
         </DialogActions>

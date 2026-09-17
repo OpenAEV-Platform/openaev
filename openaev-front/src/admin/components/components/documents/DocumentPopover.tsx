@@ -1,14 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { FiberManualRecord } from '@mui/icons-material';
-import {
-  Button,
-  Dialog as MuiDialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  List,
-  ListItem,
-  Typography,
-} from '@mui/material';
+import { Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText, List, ListItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
@@ -287,10 +279,10 @@ const DocumentPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>
+          <Button priority="secondary" onClick={handleCloseRemove}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="primary" onClick={submitRemove}>
+          <Button onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

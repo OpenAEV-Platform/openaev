@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined } from '@mui/icons-material';
-import { alpha, Box, Button, CircularProgress, Popover, Skeleton, Typography } from '@mui/material';
+import { alpha, Box, CircularProgress, Popover, Skeleton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type FunctionComponent, type MouseEvent, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -381,12 +381,7 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
           gap: 1,
         }}
         >
-          <Button
-            size="small"
-            variant="text"
-            onClick={() => navigate('/admin/reporting')}
-            sx={{ marginRight: 'auto' }}
-          >
+          <Button priority="tertiary" size="sm" onClick={() => navigate('/admin/reporting')} style={{ marginRight: 'auto' }}>
             {t('Browse all')}
           </Button>
           {generating
@@ -404,12 +399,7 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
                 </Box>
               )
             : canManage && (
-              <Button
-                size="small"
-                variant="contained"
-                color="primary"
-                onClick={handleGenerate}
-              >
+              <Button size="sm" onClick={handleGenerate}>
                 {t('Generate report')}
               </Button>
             )}

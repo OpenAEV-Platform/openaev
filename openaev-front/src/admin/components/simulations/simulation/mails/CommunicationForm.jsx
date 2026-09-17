@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { Form } from 'react-final-form';
 
 import OldRichTextField from '../../../../../components/fields/OldRichTextField';
@@ -56,21 +56,10 @@ const CommunicationForm = ({ onSubmit, handleClose, initialValues }) => {
             marginTop: 20,
           }}
           >
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleClose}
-              style={{ marginRight: 10 }}
-              disabled={submitting}
-            >
+            <Button priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: 10 }}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={pristine || submitting}
-            >
+            <Button type="submit" disabled={pristine || submitting}>
               {t('Send')}
             </Button>
           </div>

@@ -1,4 +1,5 @@
-import { Alert, AlertTitle, AppBar, Button, Toolbar } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Alert, AlertTitle, AppBar, Toolbar } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { logout } from '../actions/Application';
@@ -24,7 +25,7 @@ const NoTenantAlert = () => {
             alt="logo"
             style={{ height: 25 }}
           />
-          <Button color="inherit" onClick={handleLogout}>
+          <Button priority="tertiary" onClick={handleLogout}>
             {t('Logout')}
           </Button>
         </Toolbar>

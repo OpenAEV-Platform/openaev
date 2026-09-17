@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
-import { Box, Button, Paper, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
@@ -797,13 +797,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 {showVulnerability && renderExpectationRow('vulnerability', t('Vulnerability'), 'Not vulnerable', detail?.vulnerabilityStatus, vulnerabilityBy)}
                 {/* Jump to the originating inject for the full action definition (pending backend id). */}
                 {onOpenInject && (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<OpenInNew fontSize="small" />}
-                    onClick={onOpenInject}
-                    sx={{ alignSelf: 'flex-start' }}
-                  >
+                  <Button priority="secondary" size="sm" startIcon={<OpenInNew fontSize="small" />} onClick={onOpenInject} style={{ alignSelf: 'flex-start' }}>
                     {t('Inject details')}
                   </Button>
                 )}

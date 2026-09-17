@@ -1,14 +1,6 @@
-import {
-  Checkbox,
-  Combobox,
-  ComboboxChips,
-  ComboboxField,
-  ComboboxHelperText,
-  ComboboxInput,
-  ComboboxLabel,
-} from '@filigran/design-system';
+import { Button, Checkbox, Combobox, ComboboxChips, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, MenuItem, Typography } from '@mui/material';
+import { MenuItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -321,20 +313,10 @@ const ScenarioForm: FunctionComponent<Props> = ({
         gap: theme.spacing(1),
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          disabled={isSubmitting}
-        >
+        <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

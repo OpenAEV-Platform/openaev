@@ -1,14 +1,6 @@
-import { Paper, Switch } from '@filigran/design-system';
+import { Button, Paper, Switch } from '@filigran/design-system';
 import { BallotOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, VisibilityOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-} from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
@@ -134,37 +126,22 @@ const Lessons: FunctionComponent<Props> = ({
           )}
           {canApplyTemplate && (
             <Field label={t('Template')}>
-              <Button
-                variant="outlined"
-                size="small"
-                color="primary"
-                startIcon={<ContentPasteGoOutlined />}
-                onClick={() => setOpenApplyTemplate(true)}
-              >
+              <Button priority="secondary" size="sm" startIcon={<ContentPasteGoOutlined fontSize="small" />} onClick={() => setOpenApplyTemplate(true)}>
                 {t('Apply')}
               </Button>
             </Field>
           )}
           <Field label={t('Check')}>
-            <Button
-              variant="outlined"
-              size="small"
-              color="primary"
-              startIcon={<VisibilityOutlined />}
-              href={`/lessons/${source.type}/${source.id}?preview=true`}
-            >
-              {t('Preview')}
+            <Button asChild priority="secondary" size="sm">
+              <a href={`/lessons/${source.type}/${source.id}?preview=true`}>
+                <VisibilityOutlined fontSize="small" />
+                {t('Preview')}
+              </a>
             </Button>
           </Field>
           {permissions.canManage && (
             <Field label={t('Categories and questions')}>
-              <Button
-                variant="outlined"
-                size="small"
-                color="error"
-                startIcon={<DeleteSweepOutlined />}
-                onClick={() => setOpenEmptyLessons(true)}
-              >
+              <Button variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenEmptyLessons(true)}>
                 {t('Clear out')}
               </Button>
             </Field>
@@ -257,10 +234,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenEmptyLessons(false)}>
+          <Button priority="secondary" onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="primary" onClick={emptyLessons}>
+          <Button onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -277,10 +254,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenAnonymize(false)}>
+          <Button priority="secondary" onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="primary" onClick={toggleAnonymize}>
+          <Button onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>

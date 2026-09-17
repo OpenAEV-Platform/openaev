@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -80,12 +80,7 @@ const TenantParametersForm: FunctionComponent<TenantParametersFormProps> = ({
         <CustomDashboardAutocompleteFieldController name="platform_simulation_dashboard" label={t('Default simulation dashboard')} disabled={canNotManage} />
         <div>
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={!isDirty || isSubmitting}
-            >
+            <Button type="submit" disabled={!isDirty || isSubmitting}>
               {t('Update')}
             </Button>
           </Can>

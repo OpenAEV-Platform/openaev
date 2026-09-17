@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { ExploreOutlined } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -74,16 +75,7 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
           : t('Create your first action or import an existing arsenal to get started.')}
       </Typography>
       {hasFilters && (
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={onResetFilters}
-          sx={{
-            textTransform: 'none',
-            borderRadius: 1,
-            paddingInline: 3,
-          }}
-        >
+        <Button priority="secondary" onClick={onResetFilters}>
           {t('Reset filters')}
         </Button>
       )}

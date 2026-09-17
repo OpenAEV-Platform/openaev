@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, type Theme } from '@mui/material';
+import { type Theme } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SxProps } from '@mui/system';
 import moment from 'moment/moment';
@@ -81,7 +82,6 @@ const computeBannerInfo = (t: (text: string) => string, eeSettings: License, onB
           </strong>
         </>
       ),
-      buttonStyle: getButtonStyle(remainingDays),
       onButtonClick,
     };
   }
@@ -128,8 +128,8 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
       <TopBanner
         bannerText={bannerInfo.message}
         bannerColor={bannerInfo.bannerColor}
-        buttonStyle={bannerInfo.buttonStyle}
         buttonText={bannerInfo.buttonText}
+        buttonStyle={bannerInfo.buttonStyle}
         onButtonClick={bannerInfo.onButtonClick}
       />
       <Dialog
@@ -152,8 +152,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
           }}
           >
             <Button
-              variant="outlined"
-              color="primary"
+              priority="secondary"
               onClick={() => {
                 setShowFormDialog(false);
                 reset();
@@ -161,7 +160,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
             >
               {t('Cancel')}
             </Button>
-            <Button type="submit" variant="contained" disabled={!isValid} color="primary">
+            <Button type="submit" disabled={!isValid}>
               {t('Validate')}
             </Button>
           </div>
@@ -175,7 +174,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
             marginTop: theme.spacing(2),
           }}
           >
-            <Button onClick={() => setShowThankYouDialog(false)} color="primary">
+            <Button priority="tertiary" onClick={() => setShowThankYouDialog(false)}>
               {t('Close')}
             </Button>
           </div>

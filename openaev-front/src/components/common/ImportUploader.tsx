@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloudUploadOutlined } from '@mui/icons-material';
-import { Button, CircularProgress, type CircularProgressProps } from '@mui/material';
+import { CircularProgress, type CircularProgressProps } from '@mui/material';
 import { type ChangeEvent, type FunctionComponent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -100,14 +100,7 @@ const ImportUploader: FunctionComponent<Props> = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="inline-flex">
-              <Button
-                onClick={handleOpenUpload}
-                disabled={disabled}
-                size="small"
-                variant="outlined"
-                color="inherit"
-                className={classes.buttonImport}
-              >
+              <Button priority="secondary" onClick={handleOpenUpload} disabled={disabled} className={classes.buttonImport}>
                 {t('Import')}
               </Button>
             </span>

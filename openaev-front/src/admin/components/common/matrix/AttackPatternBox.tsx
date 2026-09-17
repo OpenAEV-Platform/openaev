@@ -1,4 +1,5 @@
-import { Button, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { ListItemText, Menu, MenuItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
 import { Link } from 'react-router';
@@ -119,12 +120,7 @@ const AttackPatternBox: FunctionComponent<AttackPatternBoxProps> = ({
 
   return (
     <>
-      <Button
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        className={classes.button}
-        onClick={event => handleOpen(event)}
-      >
+      <Button priority="tertiary" aria-haspopup="true" aria-expanded={open ? 'true' : undefined} className={classes.button} onClick={event => handleOpen(event)}>
         <div className={classes.buttonText}>
           <Typography variant="caption">
             {attackPattern.attack_pattern_name}

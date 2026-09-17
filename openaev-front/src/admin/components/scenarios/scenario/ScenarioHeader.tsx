@@ -1,4 +1,4 @@
-import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesome,
@@ -18,7 +18,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -614,13 +614,7 @@ const ScenarioHeader = ({
   if (isScheduled && !ended) {
     launchActions = (
       <>
-        <Button
-          startIcon={<Stop />}
-          variant="outlined"
-          color="inherit"
-          size="small"
-          onClick={stop}
-        >
+        <Button priority="secondary" startIcon={<Stop fontSize="small" />} onClick={stop}>
           {t('Stop')}
         </Button>
         {/* Even while scheduled, allow a one-off manual run outside
@@ -651,15 +645,7 @@ const ScenarioHeader = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Box component="span" sx={{ display: 'inline-flex' }}>
-              <Button
-                startIcon={<PlayArrowOutlined />}
-                variant="contained"
-                color="primary"
-                size="small"
-                onClick={handleLaunchNormal}
-                disabled={isScopeMissing}
-                data-testid="scenario-launch-button"
-              >
+              <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
                 {t('Normal')}
               </Button>
             </Box>
@@ -680,19 +666,7 @@ const ScenarioHeader = ({
                   gap: 0.5,
                 }}
               >
-                <Button
-                  startIcon={<AutoAwesome />}
-                  variant="contained"
-                  size="small"
-                  onClick={() => openAiDrawerOrEE('launch')}
-                  data-testid="scenario-launch-autonomous-button"
-                  sx={{
-                    'whiteSpace': 'nowrap',
-                    'backgroundColor': theme.palette.ai.main,
-                    'color': theme.palette.ai.contrastText,
-                    '&:hover': { backgroundColor: theme.palette.ai.dark },
-                  }}
-                >
+                <Button variant="ia" priority="secondary" startIcon={<AutoAwesome fontSize="small" />} onClick={() => openAiDrawerOrEE('launch')} data-testid="scenario-launch-autonomous-button" style={{ whiteSpace: 'nowrap' }}>
                   {t('Autonomous')}
                 </Button>
                 {!isEnterpriseEdition && <EEChip />}
@@ -712,15 +686,7 @@ const ScenarioHeader = ({
       <Tooltip>
         <TooltipTrigger asChild>
           <Box component="span" sx={{ display: 'inline-flex' }}>
-            <Button
-              startIcon={<PlayArrowOutlined />}
-              variant="contained"
-              color="primary"
-              size="small"
-              onClick={handleLaunchNormal}
-              disabled={isScopeMissing}
-              data-testid="scenario-launch-button"
-            >
+            <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
               {t('Launch')}
             </Button>
           </Box>
@@ -792,10 +758,8 @@ const ScenarioHeader = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      variant="outlined"
-                      color="primary"
-                      size="small"
-                      startIcon={<TuneOutlined />}
+                      priority="secondary"
+                      startIcon={<TuneOutlined fontSize="small" />}
                       onClick={() => {
                         setConfigurationInitialTab(ScenarioConfigurationTab.TEAMS);
                         setOpenConfiguration(true);
@@ -1056,30 +1020,27 @@ const ScenarioHeader = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
+          <Button priority="secondary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={async () => {
-              setOpenInstantiateSimulationAndStart(false);
-              const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
-              // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
-              // lookup now 404s), so forget the latched run: the overview reverts to the manual view
-              // instead of keeping the stale AI plan outcome + status chip until a full page reload.
-              onAutonomousRunCleared?.();
-              // A manual launch jumps into the simulation that was just created: a chained scenario
-              // lands on the simulation's Attack path tab (the live execution view), a time-based
-              // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
-              // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
-              if (isScenarioChaining) {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
-              } else {
-                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
-              }
-              MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
-            }}
+          <Button onClick={async () => {
+            setOpenInstantiateSimulationAndStart(false);
+            const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
+            // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
+            // lookup now 404s), so forget the latched run: the overview reverts to the manual view
+            // instead of keeping the stale AI plan outcome + status chip until a full page reload.
+            onAutonomousRunCleared?.();
+            // A manual launch jumps into the simulation that was just created: a chained scenario
+            // lands on the simulation's Attack path tab (the live execution view), a time-based
+            // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
+            // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
+            if (isScenarioChaining) {
+              navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
+            } else {
+              navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
+            }
+            MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
+          }}
           >
             {t('Confirm')}
           </Button>

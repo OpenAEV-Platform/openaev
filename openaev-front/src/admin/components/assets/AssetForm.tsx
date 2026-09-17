@@ -1,15 +1,5 @@
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxHelperText,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-} from '@filigran/design-system';
+import { Button, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import {
@@ -340,21 +330,10 @@ const AssetForm: FunctionComponent<Props> = ({
         )}
 
         <div style={{ alignSelf: 'flex-end' }}>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            style={{ marginRight: theme.spacing(2) }}
-            disabled={isSubmitting}
-          >
+          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: theme.spacing(2) }}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={!isDirty || isSubmitting}
-          >
+          <Button type="submit" disabled={!isDirty || isSubmitting}>
             {editing ? t('Update') : t('Create')}
           </Button>
         </div>

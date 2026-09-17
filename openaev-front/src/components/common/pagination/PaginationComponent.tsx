@@ -1,5 +1,5 @@
-import { Chip } from '@filigran/design-system';
-import { Box, Button, TablePagination } from '@mui/material';
+import { Button, Chip } from '@filigran/design-system';
+import { Box, TablePagination } from '@mui/material';
 import { type ChangeEvent, cloneElement, type MouseEvent as ReactMouseEvent, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -176,7 +176,7 @@ const PaginationComponent = <T extends object>({
             <>
               <div style={{ cursor: 'pointer' }} onClick={() => setOpenMitreFilter(true)}>
                 <Button
-                  variant="outlined"
+                  priority="secondary"
                   style={{
                     marginLeft: searchEnable ? 10 : 0,
                     border: '1px solid #c74227',

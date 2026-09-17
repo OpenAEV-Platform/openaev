@@ -1,6 +1,6 @@
-import { Chip, Paper } from '@filigran/design-system';
+import { Button, Chip, Paper } from '@filigran/design-system';
 import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Divider, Stack, Typography } from '@mui/material';
+import { Alert, Box, Divider, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -561,7 +561,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
             }}
             >
               <Chip label={String(proofEvents.length)} severity="low" />
-              <Button onClick={handleExportReport} startIcon={<DownloadOutlined />} size="small" variant="outlined">
+              <Button priority="secondary" size="sm" startIcon={<DownloadOutlined fontSize="small" />} onClick={handleExportReport}>
                 {t('Export report')}
               </Button>
             </Stack>

@@ -1,11 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useMemo } from 'react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
@@ -189,15 +184,10 @@ const ScopeVariableCreateDialog = ({
             />
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={handleClose} disabled={isSubmitting}>
+            <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={!isDirty || isSubmitting}
-            >
+            <Button type="submit" disabled={!isDirty || isSubmitting}>
               {t('Create')}
             </Button>
           </DialogActions>

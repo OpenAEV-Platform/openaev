@@ -1,6 +1,6 @@
-import { Badge, Checkbox, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, Button, Checkbox, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckCircleOutlined, DeleteOutlined, NotificationsOutlined, UnpublishedOutlined } from '@mui/icons-material';
-import { Button, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -219,7 +219,7 @@ const Notifications = () => {
         queryableHelpers={queryableHelpers}
         entityPrefix="notification"
         topBarButtons={(
-          <Button variant="outlined" color="primary" startIcon={<CheckCircleOutlined />} onClick={onMarkAllRead}>
+          <Button priority="secondary" startIcon={<CheckCircleOutlined fontSize="small" />} onClick={onMarkAllRead}>
             {t('Mark all as read')}
           </Button>
         )}

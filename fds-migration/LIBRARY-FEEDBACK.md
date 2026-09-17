@@ -2433,3 +2433,22 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** The MUI `TabPanel keepMounted` pattern: panels that stay mounted so their forms keep their state, but only the active one is shown. The inject drawer relies on it for the inject form, the action details and the logical chains.
 
 **The request.** Hide an inactive force-mounted panel by default (`hidden` when `data-state="inactive"`, or a `data-[state=inactive]:hidden` class on `TabsContent`), so that `forceMount` means "kept mounted" rather than "always shown".
+
+## 56. `Button` does not size the icon in its `startIcon` / `endIcon` slot
+
+**Status.** Open. Worked around in the product (`fontSize="small"` on every MUI icon passed to a button, 20px).
+
+**Measured.** The slot is `<span class="inline-flex shrink-0" aria-hidden>` (`button/Button.tsx` at the pinned commit): no width, height or `[&>svg]` rule. A MUI icon renders at its own 24px in a 24px button; the design frames show a 16px glyph.
+
+**Product need.** 468 buttons converted by a codemod, a third of them with an icon: the icon size has to come from the slot, not from every call site.
+
+**The request.** Size the slot (16px, `[&>svg]:size-4`) so that any icon element reads the design size, as `IconButton` and `TabsTrigger` already do.
+## 58. No split button: a main action joined to a menu trigger
+
+**Status.** Open. One site kept on MUI (`fds:keep-mui`): the reporting page's "Generate now (format)" button joined to a format-menu arrow.
+
+**Measured.** The library has `Button`, `IconButton` and the icon-only `ButtonGroup` (a single-select), none of which renders two adjacent controls sharing one outline where the second opens a menu. Two library buttons side by side read as two actions, not one action with options.
+
+**Product need.** A primary action with a default (generate the report in the default format) and an adjacent trigger listing the alternatives (the other formats).
+
+**The request.** A split button composite, or a `Button` slot for a trailing menu trigger.

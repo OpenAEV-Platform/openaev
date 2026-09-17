@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { KeyboardArrowRightOutlined } from '@mui/icons-material';
-import { Alert, Button, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Alert, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -124,20 +125,12 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
             <div>
               {selected != null
                 && (
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    onClick={() => setSelected(null)}
-                  >
+                  <Button priority="secondary" onClick={() => setSelected(null)}>
                     {t('Back')}
                   </Button>
                 )}
             </div>
-            <Button
-              color="primary"
-              variant="outlined"
-              onClick={() => setOpen(false)}
-            >
+            <Button priority="secondary" onClick={() => setOpen(false)}>
               {t('Close')}
             </Button>
           </div>

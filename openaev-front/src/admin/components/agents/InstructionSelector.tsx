@@ -1,18 +1,6 @@
-import {
-  Radio,
-  RadioGroup,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { Button, Radio, RadioGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { ContentCopyOutlined, TerminalOutlined } from '@mui/icons-material';
-import {
-  Alert,
-  Button,
-  Typography,
-} from '@mui/material';
+import { Alert, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
 import { useEffect, useState } from 'react';
@@ -324,20 +312,10 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
           gap: 8,
         }}
         >
-          <Button
-            variant="outlined"
-            style={{ marginBottom: theme.spacing(2) }}
-            startIcon={<ContentCopyOutlined />}
-            onClick={() => copyToClipboard(t, code)}
-          >
+          <Button priority="secondary" startIcon={<ContentCopyOutlined fontSize="small" />} onClick={() => copyToClipboard(t, code)} style={{ marginBottom: theme.spacing(2) }}>
             {t('Copy')}
           </Button>
-          <Button
-            variant="outlined"
-            style={{ marginBottom: theme.spacing(2) }}
-            startIcon={<DownloadCircleOutline />}
-            onClick={() => download(displayedCode, `openaev.${fileExtension}`, 'text/plain')}
-          >
+          <Button priority="secondary" startIcon={<DownloadCircleOutline fontSize="small" />} onClick={() => download(displayedCode, `openaev.${fileExtension}`, 'text/plain')} style={{ marginBottom: theme.spacing(2) }}>
             {t('Download')}
           </Button>
         </div>

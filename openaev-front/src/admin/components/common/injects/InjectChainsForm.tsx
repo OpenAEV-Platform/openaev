@@ -1,6 +1,6 @@
-import { IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, DeleteOutlined, ExpandMore } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, FormControl, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, FormControl, Typography } from '@mui/material';
 import { type FormApi } from 'final-form';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -829,8 +829,8 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
           <Typography sx={sectionHelperSx}>{t('The inject that must run before this one (at most one).')}</Typography>
         </div>
         <Button
-          variant="outlined"
-          size="small"
+          priority="secondary"
+          size="sm"
           startIcon={<Add fontSize="small" />}
           disabled={parents.length > 0
             || injects?.filter(currentInject => currentInject.inject_depends_duration < values.inject_depends_duration).length === 0 || isDisabled}
@@ -921,14 +921,13 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 </Box>
                 <div style={{ justifyContent: 'left' }}>
                   <Button
-                    color="secondary"
+                    priority="tertiary"
                     aria-label="Add"
-                    size="large"
                     onClick={() => {
                       addConditionParent(parent);
                     }}
-                    style={{ justifyContent: 'start' }}
                     disabled={!canAddConditions(parent.inject!, parentConditions.find(parentCondition => parentCondition.parentId === parent.inject?.inject_id))}
+                    style={{ justifyContent: 'start' }}
                   >
                     <Add fontSize="small" />
                     <Typography>
@@ -947,13 +946,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
           <Typography sx={sectionTitleSx}>{t('Children')}</Typography>
           <Typography sx={sectionHelperSx}>{t('Injects that run after this one, on the condition you define.')}</Typography>
         </div>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<Add fontSize="small" />}
-          disabled={addChildrenButtonDisabled || isDisabled}
-          onClick={addChildren}
-        >
+        <Button priority="secondary" size="sm" startIcon={<Add fontSize="small" />} disabled={addChildrenButtonDisabled || isDisabled} onClick={addChildren}>
           {t('Add child')}
         </Button>
       </Box>
@@ -1039,9 +1032,8 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 </Box>
                 <div style={{ justifyContent: 'left' }}>
                   <Button
-                    color="secondary"
+                    priority="tertiary"
                     aria-label="Add"
-                    size="large"
                     onClick={() => {
                       addConditionChildren(children);
                     }}

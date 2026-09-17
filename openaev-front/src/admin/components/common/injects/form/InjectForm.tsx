@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useContext, useEffect, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -525,17 +525,10 @@ const InjectForm = ({
         )}
 
         <div className={classes.injectFormButtonsContainer}>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           <Button
-            variant="contained"
-            color="primary"
             data-testid="inject-form-submit-button"
             onClick={() => {
               onSubmit(getValues());

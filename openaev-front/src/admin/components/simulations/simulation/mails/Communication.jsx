@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { AttachFileRounded, ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Avatar, Button, Card, CardContent, CardHeader } from '@mui/material';
+import { Avatar, Card, CardContent, CardHeader } from '@mui/material';
 import { lightBlue } from '@mui/material/colors';
 import { useTheme } from '@mui/material/styles';
 import purify from 'dompurify';
@@ -142,13 +142,11 @@ const Communication = (props) => {
               return (
                 <a key={a} href={`/api/communications/attachment?file=${a}`}>
                   <Button
-                    variant="contained"
+                    startIcon={<AttachFileRounded fontSize="small" style={{ fontSize: 14 }} />}
                     style={{
                       marginRight: 10,
                       fontSize: 10,
                     }}
-                    startIcon={<AttachFileRounded style={{ fontSize: 14 }} />}
-                    color="secondary"
                   >
                     {a.substring(a.lastIndexOf('/') + 1)}
                   </Button>

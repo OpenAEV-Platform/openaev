@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { Add } from '@mui/icons-material';
-import { Button, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -42,13 +43,7 @@ const AddComponentButton = ({
   const isEmptyCanvas = nodeCount === 0;
 
   const button = (
-    <Button
-      variant="contained"
-      color="primary"
-      size={isEmptyCanvas ? 'large' : 'medium'}
-      startIcon={<Add />}
-      onClick={onClick}
-    >
+    <Button startIcon={<Add fontSize="small" />} onClick={onClick}>
       {t('Add component')}
     </Button>
   );

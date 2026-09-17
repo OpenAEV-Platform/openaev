@@ -1,6 +1,6 @@
-import { Chip } from '@filigran/design-system';
+import { Button, Chip } from '@filigran/design-system';
 import { GridViewOutlined } from '@mui/icons-material';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -267,15 +267,11 @@ const PaginationComponentV2 = <T extends object>({
           {queryableHelpers.filterHelpers && availableFilterNames?.includes('injector_contract_attack_patterns') && (
             <>
               <Button
-                variant="outlined"
-                color="inherit"
-                size="small"
+                priority="secondary"
                 startIcon={<GridViewOutlined fontSize="small" />}
                 onClick={() => setOpenMitreFilter(true)}
-                sx={{
+                style={{
                   marginLeft: (searchEnable || leftSlot) ? 1.25 : 0,
-                  borderColor: 'divider',
-                  lineHeight: 'initial',
                   whiteSpace: 'nowrap',
                 }}
               >

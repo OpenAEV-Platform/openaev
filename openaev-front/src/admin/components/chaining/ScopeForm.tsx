@@ -1,6 +1,6 @@
-import { Tabs, TabsList, TabsTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tabs, TabsList, TabsTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, PersonOutlined } from '@mui/icons-material';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import {
@@ -661,19 +661,10 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
           gap: theme.spacing(1),
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={onCancel}
-          >
+          <Button priority="secondary" onClick={onCancel}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={onSubmit}
-            disabled={!hasChanges}
-          >
+          <Button onClick={onSubmit} disabled={!hasChanges}>
             {t('Define scope')}
           </Button>
         </Box>

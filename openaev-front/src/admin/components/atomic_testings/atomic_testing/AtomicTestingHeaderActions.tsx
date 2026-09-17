@@ -1,6 +1,6 @@
-import { Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { PlayArrowOutlined, SettingsOutlined, Stop, TrackChangesOutlined, UpdateOutlined } from '@mui/icons-material';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Alert, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -180,28 +180,14 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     if (injectResultOverviewOutput.inject_ready && hasLaunchAbility) {
       const launchOrRelaunchKey = !injectResultOverviewOutput.inject_status?.status_id ? 'Launch now' : 'Relaunch now';
       return (
-        <Button
-          style={{ whiteSpace: 'nowrap' }}
-          startIcon={<PlayArrowOutlined />}
-          variant="contained"
-          color="primary"
-          size="small"
-          onClick={handleOpenDialog}
-          disabled={!canLaunch}
-        >
+        <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleOpenDialog} disabled={!canLaunch} style={{ whiteSpace: 'nowrap' }}>
           {t(launchOrRelaunchKey)}
         </Button>
       );
     } else if (hasManageAbility) {
       return (
         <>
-          <Button
-            startIcon={<SettingsOutlined />}
-            variant="contained"
-            color="warning"
-            size="small"
-            onClick={handleOpenEdit}
-          >
+          <Button variant="destructive" startIcon={<SettingsOutlined fontSize="small" />} onClick={handleOpenEdit}>
             {t('Configure')}
           </Button>
           <AtomicTestingUpdate open={edition} handleClose={handleCloseEdit} atomic={injectResultOverviewOutput} />
@@ -245,15 +231,12 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           )}
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseDialog}>{t('Cancel')}</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={
-              injectResultOverviewOutput.inject_ready && !injectResultOverviewOutput.inject_status?.status_id
-                ? submitLaunch
-                : submitRelaunch
-            }
+          <Button priority="secondary" onClick={handleCloseDialog}>{t('Cancel')}</Button>
+          <Button onClick={
+            injectResultOverviewOutput.inject_ready && !injectResultOverviewOutput.inject_status?.status_id
+              ? submitLaunch
+              : submitRelaunch
+          }
           >
             {t('Confirm')}
           </Button>
@@ -309,13 +292,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
         />
       )}
       {canManage && isScheduled && !scheduleEnded && (
-        <Button
-          startIcon={<Stop />}
-          variant="outlined"
-          color="inherit"
-          size="small"
-          onClick={stopScheduling}
-        >
+        <Button priority="secondary" startIcon={<Stop fontSize="small" />} onClick={stopScheduling}>
           {t('Stop')}
         </Button>
       )}

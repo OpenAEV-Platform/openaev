@@ -1,21 +1,5 @@
-import {
-  Combobox,
-  ComboboxChips,
-  ComboboxClear,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
-import { Alert, Button, Typography } from '@mui/material';
+import { Button, Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
+import { Alert, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -220,20 +204,10 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
       )}
       <ExpectationGroupField isTechnicalExpectation={isTechnicalExpectation(getValues().expectation_type)} control={control} />
       <div className={classes.buttons}>
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          disabled={isSubmitting}
-        >
+        <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isValid || isSubmitting}
-        >
+        <Button type="submit" disabled={!isValid || isSubmitting}>
           {t('Update')}
         </Button>
       </div>

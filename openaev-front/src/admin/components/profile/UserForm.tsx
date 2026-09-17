@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -79,12 +79,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <SelectFieldController name="user_lang" label={t('Language')} items={langItems(t)} />
         <CustomDashboardAutocompleteFieldController name="user_home_dashboard" label={t('Home dashboard')} disabled={false} withPlatformDefault />
         <div>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={!isDirty || isSubmitting}
-          >
+          <Button type="submit" disabled={!isDirty || isSubmitting}>
             {t('Update')}
           </Button>
         </div>

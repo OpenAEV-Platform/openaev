@@ -1,7 +1,7 @@
-import { Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TableViewOutlined } from '@mui/icons-material';
-import { Alert, Box, Button } from '@mui/material';
+import { Alert, Box } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { InformationOutline } from 'mdi-material-ui';
 import moment from 'moment-timezone';
@@ -406,20 +406,10 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
           </Alert>
         )}
       <div className={classes.buttons}>
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          disabled={isSubmitting}
-        >
+        <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {t('Launch import')}
         </Button>
       </div>

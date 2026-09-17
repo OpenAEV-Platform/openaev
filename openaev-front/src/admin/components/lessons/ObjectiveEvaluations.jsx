@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { HowToVoteOutlined } from '@mui/icons-material';
-import { Box, Button, LinearProgress, List, ListItem, ListItemIcon, ListItemText, Slider, Typography } from '@mui/material';
+import { Box, LinearProgress, List, ListItem, ListItemIcon, ListItemText, Slider, Typography } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
@@ -173,22 +174,11 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
         marginTop: 20,
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          style={{ marginRight: isUpdatable ? 10 : 0 }}
-          disabled={submitting}
-        >
+        <Button priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: isUpdatable ? 10 : 0 }}>
           {isUpdatable ? t('Cancel') : t('Close')}
         </Button>
         {isUpdatable && (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={submitEvaluation}
-            disabled={submitting}
-          >
+          <Button onClick={submitEvaluation} disabled={submitting}>
             {t('Evaluate')}
           </Button>
         )}

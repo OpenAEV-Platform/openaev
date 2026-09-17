@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 
@@ -32,7 +33,7 @@ const XtmHubDialogPermissionRequired: React.FC = () => {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setOpen(false)}>{t('Close')}</Button>
+        <Button priority="tertiary" onClick={() => setOpen(false)}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

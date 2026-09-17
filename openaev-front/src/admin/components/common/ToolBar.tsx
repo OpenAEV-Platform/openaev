@@ -1,4 +1,4 @@
-import { Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AddOutlined,
   BrushOutlined,
@@ -11,7 +11,7 @@ import {
   GroupsOutlined,
   InfoOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { Component, type ComponentType, type JSX, type ReactNode } from 'react';
 import { connect } from 'react-redux';
@@ -645,17 +645,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                 </Box>
               ))}
             <Box>
-              <Button
-                disabled={!this.areStepValid()}
-                variant="contained"
-                color="secondary"
-                size="small"
-                onClick={this.handleAddStep.bind(this)}
-                sx={{
-                  width: '100%',
-                  height: 2.5,
-                }}
-              >
+              <Button priority="secondary" fullWidth aria-label={t('Add')} disabled={!this.areStepValid()} onClick={this.handleAddStep.bind(this)}>
                 <AddOutlined fontSize="small" />
               </Button>
             </Box>
@@ -664,13 +654,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               textAlign: 'right',
             }}
             >
-              <Button
-                disabled={!this.areStepValid()}
-                variant="contained"
-                color="primary"
-                onClick={this.handleLaunchUpdate.bind(this)}
-                sx={{ ml: 2 }}
-              >
+              <Button disabled={!this.areStepValid()} onClick={this.handleLaunchUpdate.bind(this)} style={{ marginLeft: 16 }}>
                 {t('Update')}
               </Button>
             </Box>

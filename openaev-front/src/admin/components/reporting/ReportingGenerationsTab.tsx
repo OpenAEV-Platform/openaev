@@ -1,6 +1,6 @@
-import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DeleteOutlined } from '@mui/icons-material';
-import { Box, Button, CircularProgress, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, CircularProgress, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -170,15 +170,7 @@ const ReportingGenerationsTab: FunctionComponent<Props> = ({ generations, onRelo
           hint={t('Generate the report to produce its first downloadable output.')}
         />
         {canManage && onGenerate && (
-          <Button
-            variant="contained"
-            color="primary"
-            disabled={generating}
-            startIcon={generating ? <CircularProgress size={14} color="inherit" /> : undefined}
-            onClick={onGenerate}
-            // Pull the CTA into the empty state's bottom padding.
-            sx={{ marginTop: -3 }}
-          >
+          <Button startIcon={generating ? <CircularProgress size={14} color="inherit" /> : undefined} disabled={generating} onClick={onGenerate} style={{ marginTop: -3 }}>
             {generating ? t('Generating...') : t('Generate now')}
           </Button>
         )}

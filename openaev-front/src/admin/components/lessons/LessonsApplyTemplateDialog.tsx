@@ -1,5 +1,5 @@
-import { Radio, RadioGroup } from '@filigran/design-system';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl } from '@mui/material';
+import { Button, Radio, RadioGroup } from '@filigran/design-system';
+import { Alert, Dialog, DialogActions, DialogContent, DialogTitle, FormControl } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { useId, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -84,16 +84,11 @@ const LessonsApplyTemplateDialog = ({ open, onClose, onApply, lessonsTemplates, 
         <CreateLessonsTemplate inline />
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={onClose}>
+        <Button priority="secondary" onClick={onClose}>
           {t('Cancel')}
         </Button>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={applyTemplate}
-            disabled={templateValue === null}
-          >
+          <Button onClick={applyTemplate} disabled={templateValue === null}>
             {t('Apply')}
           </Button>
         </Can>

@@ -1,6 +1,6 @@
-import { IconButton, Paper, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
+import { Button, IconButton, Paper, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Alert, Box, Button, Pagination, Typography } from '@mui/material';
+import { Alert, Box, Pagination, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -402,14 +402,13 @@ const EndpointDetailPanel = ({
                     onShowMore
                       ? (
                           <Button
-                            size="small"
-                            variant="text"
+                            priority="tertiary"
+                            size="sm"
                             disabled={loadingMore}
                             onClick={() => onShowMore()}
-                            sx={{
-                              mt: 1,
+                            style={{
+                              marginTop: 8,
                               alignSelf: 'flex-start',
-                              textTransform: 'none',
                             }}
                           >
                             {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}

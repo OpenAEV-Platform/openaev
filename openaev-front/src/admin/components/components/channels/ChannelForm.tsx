@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
@@ -97,20 +97,10 @@ const ChannelForm: FunctionComponent<Props> = ({
           marginTop: theme.spacing(2),
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={!isDirty || isSubmitting}
-          >
+          <Button type="submit" disabled={!isDirty || isSubmitting}>
             {editing ? t('Update') : t('Create')}
           </Button>
         </div>

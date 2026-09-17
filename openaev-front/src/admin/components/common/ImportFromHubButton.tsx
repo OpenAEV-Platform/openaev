@@ -1,13 +1,12 @@
-import type { ButtonProps } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
 import { getCurrentTenantId } from '../../../utils/url-helper';
 import { getUrl, isNotEmptyField } from '../../../utils/utils';
-import GradientButton from './GradientButton';
 
-interface ImportFromHubButtonProps extends ButtonProps { serviceIdentifier: string }
+interface ImportFromHubButtonProps { serviceIdentifier: string }
 
 const ImportFromHubButton = ({ serviceIdentifier }: ImportFromHubButtonProps) => {
   const { t } = useFormatter();
@@ -26,15 +25,11 @@ const ImportFromHubButton = ({ serviceIdentifier }: ImportFromHubButtonProps) =>
     : '';
 
   return (
-    <GradientButton
-      size="small"
-      style={{ marginLeft: theme.spacing(0.5) }}
-      href={importFromHubUrl}
-      target="_blank"
-      title={t('Import from Hub')}
-    >
-      <span className="text">{t('Import from Hub')}</span>
-    </GradientButton>
+    <Button variant="highlight" asChild style={{ marginLeft: theme.spacing(0.5) }}>
+      <a href={importFromHubUrl} target="_blank" rel="noreferrer" title={t('Import from Hub')}>
+        {t('Import from Hub')}
+      </a>
+    </Button>
   );
 };
 

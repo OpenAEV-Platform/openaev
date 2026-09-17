@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Menu, MenuItem } from '@mui/material';
 import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
 
 import { deleteChallenge, updateChallenge } from '../../../../actions/challenge-action';
@@ -139,8 +139,8 @@ const ChallengePopover: FunctionComponent<Props> = ({ challenge, onRemoveChallen
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="contained" color="error" onClick={submitDelete}>
+          <Button priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>
@@ -182,8 +182,8 @@ const ChallengePopover: FunctionComponent<Props> = ({ challenge, onRemoveChallen
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitRemove}>
+          <Button priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

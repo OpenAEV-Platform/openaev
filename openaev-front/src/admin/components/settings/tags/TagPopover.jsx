@@ -1,6 +1,6 @@
-import { IconButton } from '@filigran/design-system';
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
@@ -122,10 +122,10 @@ class TagPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={this.handleCloseDelete.bind(this)}>
+            <Button priority="secondary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button variant="contained" color="error" onClick={this.submitDelete.bind(this)}>
+            <Button variant="destructive" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

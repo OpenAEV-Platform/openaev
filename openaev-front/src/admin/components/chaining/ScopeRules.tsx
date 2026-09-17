@@ -1,4 +1,4 @@
-import { Chip, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   BlockOutlined,
   DnsOutlined,
@@ -9,7 +9,7 @@ import {
   PublicOutlined,
   TaskAltOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { type ReactElement, useState } from 'react';
@@ -175,7 +175,7 @@ const ScopeColumn = ({
           )}
         </Box>
 
-        <Button size="small" startIcon={<EditOutlined />} onClick={onAdd} disabled={readOnly}>
+        <Button priority="tertiary" size="sm" startIcon={<EditOutlined fontSize="small" />} onClick={onAdd} disabled={readOnly}>
           {t('Define')}
         </Button>
       </Box>
@@ -252,7 +252,7 @@ const ScopeColumn = ({
           <Typography variant="body2" sx={{ color: 'text.disabled' }}>
             {t('Nothing added yet.')}
           </Typography>
-          <Button size="small" startIcon={<EditOutlined />} onClick={onAdd} disabled={readOnly}>
+          <Button priority="tertiary" size="sm" startIcon={<EditOutlined fontSize="small" />} onClick={onAdd} disabled={readOnly}>
             {t('Define')}
           </Button>
         </Box>

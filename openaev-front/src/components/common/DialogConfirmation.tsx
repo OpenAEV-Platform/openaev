@@ -1,4 +1,5 @@
-import { Button, Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { type FunctionComponent } from 'react';
@@ -12,8 +13,8 @@ interface DialogConfirmationProps {
   handleSubmit: ((resetLoading?: () => void) => void | Promise<void>) | null | undefined; // Updated: Callback is now optional
   text: string;
   submitLabel: string;
-  /** Color of the confirm button. Use 'error' for destructive/irreversible confirmations so the
-   *  action reads as dangerous at a glance. Defaults to 'primary'. */
+  /** Tone of the confirm button. Use 'error' for destructive/irreversible confirmations: the
+   *  button renders destructive so the action reads as dangerous at a glance. Defaults to 'primary'. */
   submitColor?: 'primary' | 'error';
   richContent?: React.ReactNode;
   extraContent?: React.ReactNode;
@@ -83,11 +84,11 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
         {extraContent}
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={handleClose} disabled={loading}>
+        <Button priority="secondary" onClick={handleClose} disabled={loading}>
           {t('Cancel')}
         </Button>
         {handleSubmit && (
-          <Button variant="contained" color={submitColor} loading={loading} onClick={handleLoadingAndSubmit}>
+          <Button variant={submitColor === 'error' ? 'destructive' : undefined} loading={loading} onClick={handleLoadingAndSubmit}>
             {submitLabel}
           </Button>
         )}

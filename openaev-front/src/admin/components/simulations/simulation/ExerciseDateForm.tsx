@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, FormControlLabel, Stack, Switch } from '@mui/material';
+import { FormControlLabel, Stack, Switch } from '@mui/material';
 import { DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { type ChangeEvent, type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
@@ -173,20 +174,11 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
       }}
       >
         {handleClose && (
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose.bind(this)}
-            style={{ marginRight: 10 }}
-          >
+          <Button priority="secondary" onClick={handleClose.bind(this)} style={{ marginRight: 10 }}>
             {t('Cancel')}
           </Button>
         )}
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-        >
+        <Button type="submit">
           {t('Save')}
         </Button>
       </div>

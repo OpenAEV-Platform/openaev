@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ChevronLeftOutlined, ChevronRightOutlined, OpenInNewOutlined } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -167,15 +167,11 @@ const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total
           </Box>
         )}
         {overviewUrl && (
-          <Button
-            variant="outlined"
-            color="primary"
-            size="small"
-            startIcon={<OpenInNewOutlined />}
-            component={Link}
-            to={overviewUrl}
-          >
-            {overviewLabel}
+          <Button asChild priority="secondary">
+            <Link to={overviewUrl}>
+              <OpenInNewOutlined fontSize="small" />
+              {overviewLabel}
+            </Link>
           </Button>
         )}
       </Box>
