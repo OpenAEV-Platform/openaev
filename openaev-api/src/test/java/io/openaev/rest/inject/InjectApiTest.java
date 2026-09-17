@@ -65,10 +65,13 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import net.javacrumbs.jsonunit.core.Option;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -213,8 +216,7 @@ class InjectApiTest extends IntegrationTest {
       credentialReference.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       credentialReference.setStatus(SecretReference.SECRET_STATUS.ACTIVE);
       credentialReference.setConnectorInstanceId("connector-instance-id");
-      credentialReference =
-          (CredentialSecretReference) secretReferenceRepository.save(credentialReference);
+      credentialReference = secretReferenceRepository.save(credentialReference);
 
       inject.setSecretReferences(new ArrayList<>(List.of(credentialReference)));
       injectRepository.save(inject);
@@ -330,6 +332,55 @@ class InjectApiTest extends IntegrationTest {
               .getContentAsString();
 
       assertThatJson(response).node("message").isEqualTo("CREDENTIAL_INACTIVE");
+    }
+
+    private static Stream<SecretReference.SECRET_STATUS> credentialAccessDeniedStatuses() {
+      return Stream.of(
+          SecretReference.SECRET_STATUS.AUTH_FAILED,
+          SecretReference.SECRET_STATUS.PERMISSION_DENIED);
+    }
+
+    @ParameterizedTest
+    @MethodSource("credentialAccessDeniedStatuses")
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Credential access denied statuses should be forbidden")
+    void given_credentialAccessDeniedStatuses_should_forbidResolvingInjectAttachmentSecret(
+        SecretReference.SECRET_STATUS status) throws Exception {
+      credentialReference.setStatus(status);
+      secretReferenceRepository.save(credentialReference);
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThatJson(result.getResponse().getContentAsString())
+                      .node("message")
+                      .isEqualTo("CREDENTIAL_ACCESS_DENIED"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Attachment not on inject should be not found")
+    void given_attachmentNotOnInject_should_returnNotFound() throws Exception {
+      input.setAttachmentId("missing-attachment");
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound())
+          .andExpect(
+              result ->
+                  assertThatJson(result.getResponse().getContentAsString())
+                      .node("message")
+                      .isEqualTo("CREDENTIAL_NOT_FOUND"));
     }
 
     @Test

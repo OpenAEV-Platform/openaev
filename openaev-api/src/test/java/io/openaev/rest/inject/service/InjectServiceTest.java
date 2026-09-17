@@ -1357,5 +1357,25 @@ class InjectServiceTest {
       assertThat(code).isNull();
       verifyNoInteractions(injectAuthorisationRepository);
     }
+
+    @Test
+    @DisplayName("Inject not in progress should deny credential access")
+    void given_injectStatusNotInProgress_should_denyCredentialAccess() {
+      Inject inject = mock(Inject.class);
+      InjectStatus status = mock(InjectStatus.class);
+      when(inject.getStatus()).thenReturn(Optional.of(status));
+      when(status.getName()).thenReturn(ExecutionStatus.DRAFT);
+
+      ExecutableInject executableInject = mock(ExecutableInject.class);
+      Injection injection = mock(Injection.class);
+      when(injection.getInject()).thenReturn(inject);
+      when(executableInject.getInjection()).thenReturn(injection);
+      when(executableInject.getSecretReferenceIds()).thenReturn(List.of("secret-1"));
+
+      String code = injectService.getAuthorisationCodeIfNeeded(executableInject);
+
+      assertThat(code).isNull();
+      verifyNoInteractions(injectAuthorisationRepository);
+    }
   }
 }

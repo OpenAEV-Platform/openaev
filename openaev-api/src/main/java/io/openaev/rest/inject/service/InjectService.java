@@ -1676,7 +1676,7 @@ public class InjectService {
     }
 
     InjectAuthorisation authorisation = authorisationOpt.get();
-    return hashWithSHA256(code).equals(authorisation.getCode());
+    return authorisation.getCode().equals(hashWithSHA256(code));
   }
 
   private boolean isCredentialAccessDeniedStatus(SecretReference.SECRET_STATUS status) {
@@ -1710,6 +1710,12 @@ public class InjectService {
     return secretReference;
   }
 
+  private boolean verifyInjectStatusIsInProgress(Inject inject) {
+    return inject.getStatus().isPresent()
+        && ExecutionStatus.INJECT_EXECUTION_IN_PROGRESS_STATUSES.contains(
+            inject.getStatus().get().getName());
+  }
+
   /**
    * Resolves and validates the credential reference targeted by an inject attachment request.
    *
@@ -1724,16 +1730,12 @@ public class InjectService {
    * @throws ForbiddenException when the authorisation is invalid or the credential is access denied
    * @throws BadRequestException when the credential exists but is currently inactive
    */
-  @Transactional(readOnly = true)
   public CredentialSecretReference getSecretReferenceOrThrow(
       String injectId, InjectAttachmentInput input) {
-    Inject inject =
-        injectRepository
-            .findById(injectId)
-            .orElseThrow(
-                () -> new ElementNotFoundException("Inject not found with id: " + injectId));
+    Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
 
-    if (!verifyAuthorisationCode(injectId, input.getAuthorisation())) {
+    if (!verifyInjectStatusIsInProgress(inject)
+        || !verifyAuthorisationCode(injectId, input.getAuthorisation())) {
       throw new ForbiddenException(CREDENTIAL_ACCESS_DENIED);
     }
 

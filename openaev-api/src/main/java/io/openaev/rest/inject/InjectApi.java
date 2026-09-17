@@ -709,8 +709,8 @@ public class InjectApi extends RestBehavior {
 
   @Operation(description = "Resolve an inject attachment secret")
   @PostMapping({
-    "/api/inject/{injectId}/attachment/secret",
-    TENANT_PREFIX + "/inject/{injectId}/attachment/secret"
+    INJECT_URI + "/{injectId}/attachment/secret",
+    TENANT_INJECT_URI + "/{injectId}/attachment/secret"
   })
   @Transactional(readOnly = true)
   @AccessControl(
