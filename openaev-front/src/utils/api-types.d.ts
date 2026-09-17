@@ -12483,6 +12483,16 @@ export interface UpdateExerciseInput {
   exercise_tags?: string[];
 }
 
+export interface UpdateMeEmailInput {
+  /** @minLength 1 */
+  user_current_password: string;
+  /**
+   * @format email
+   * @minLength 1
+   */
+  user_email: string;
+}
+
 export interface UpdateMePasswordInput {
   /** @minLength 1 */
   user_current_password: string;
@@ -12492,11 +12502,6 @@ export interface UpdateMePasswordInput {
 
 export interface UpdateProfileInput {
   user_country?: string;
-  /**
-   * @format email
-   * @minLength 1
-   */
-  user_email: string;
   /** @minLength 1 */
   user_firstname: string;
   user_home_dashboard?: string;

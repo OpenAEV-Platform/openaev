@@ -150,7 +150,7 @@ public class MeApi extends RestBehavior {
     if (userService.isUserPasswordValid(user, currentPassword)) {
       User moddedUser = updateFunc.apply(user);
       User savedUser = userRepository.save(moddedUser);
-      // Security: a password change kills every other live session of the user; the session
+      // Security: a security sensitive change kills every other live session of the user; the session
       // that performed the change stays alive.
       sessionManager.invalidateOtherUserSessions(user.getId(), stayAliveSessionId);
       return savedUser;
