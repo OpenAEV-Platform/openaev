@@ -98,13 +98,13 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
 
   const entries: PopoverEntry[] = [
     {
-      label: t('Update'),
+      label: 'Update',
       action: () => setOpenUpdate(true),
       disabled: isProtected,
       userRight: canManage,
     },
     {
-      label: t('Delete'),
+      label: 'Delete',
       action: () => setOpenDelete(true),
       disabled: isProtected,
       userRight: canDelete,

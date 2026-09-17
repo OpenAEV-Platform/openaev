@@ -87,11 +87,11 @@ const MarkingDefinitions = () => {
         label: 'Definition',
         isSortable: true,
         value: (item: MarkingDefinitionOutput) => (
-          <div
-            style={{
+          <Box
+            sx={{
               alignItems: 'center',
               display: 'flex',
-              gap: 8,
+              gap: 1,
             }}
           >
             <span>{item.marking_definition_definition}</span>
@@ -100,7 +100,7 @@ const MarkingDefinitions = () => {
                 tooltip={t('This marking definition is protected. It cannot be updated or deleted.')}
               />
             ) : null}
-          </div>
+          </Box>
         ),
       },
       {
