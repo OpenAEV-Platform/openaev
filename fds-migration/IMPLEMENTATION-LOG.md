@@ -588,6 +588,48 @@ in filigran-design-system).
   (checked handler by handler). Self-hiding when the licence is active: not
   adopted, by arbitration.
 
+## 2026-09-17 — Action components wave: Tabs
+
+- Tabs (15 files, every tab bar of the product) on the library: the product
+  wrapper `components/common/tabs/Tabs.tsx` keeps its `entries` / `currentTab`
+  / `onChange` contract so its 12 consumers did not move; the 14 direct MUI
+  bars were rewritten by hand (six route-based bars, six stateful bars, the
+  inject drawer and the variables dialog). `@mui/lab` TabContext, TabList and
+  TabPanel leave with them.
+- Route-based bars (scenario, simulation shell, atomic testing, simulation
+  inject, phishing, integrations) are `TabsTrigger asChild` around the router
+  `Link`, with `aria-current="page"` on the current one and `panels="external"`
+  on the bar (the panels are the routed pages). The simulation shell's "no tab
+  matches" value goes from `false` to `''`. The EE marker of the Remediations
+  tab sits inside the link after the label (the trigger's own 8px gap replaces
+  the MUI margin). The simulation inject's Remediations tab compared a path with
+  a query string to the pathname and could never read as selected; it now
+  compares the bare path like its siblings.
+- Stateful bars: numeric MUI values (target tabs, configuration enums, platform
+  index) become `String(index)` and the handlers take the value alone. The
+  inject drawer keeps its three panels mounted (`TabsContent forceMount`) so the
+  forms keep their state, and hides the inactive ones itself: the library leaves
+  a force-mounted panel visible (LIBRARY-FEEDBACK #55). The variables dialog
+  renders its two lists conditionally, as the MUI TabPanel did.
+- Platform logos (threat arsenal remediation tabs, atomic remediation rail) go
+  in the trigger's 16px `icon` slot with an empty `alt` (the name is the label);
+  the rail is `orientation="vertical"` in a grid cell so it fills the column.
+  The hard-coded English `aria-label` of the remediation bar becomes the
+  translated "Security platforms" on the tablist. The 30px/13px MUI tab class,
+  the `textTransform: none` and the `::first-letter` workarounds go with MUI.
+- The library trigger activates on pointer down (manual activation; arrow keys
+  move focus only, Enter or Space activates): the attack-path panel test fires
+  `mouseDown` where it fired `click`.
+- Measured on the running product at 1400px after the change: 44px triggers,
+  14px labels (600 when active), brand ink and 2px brand underline on the
+  active tab, `aria-current="page"` on the current routed link, arrow keys move
+  focus without navigating and Enter follows the link, the inject drawer shows
+  one panel and hides the other with `hidden`, no MUI tab bar left on the
+  scenario, simulation, atomic testing, phishing, integrations, asset and threat
+  arsenal screens, no horizontal overflow. The vertical rail and the platform
+  tabs were not reached locally (they need a payload-backed atomic testing and
+  the Enterprise Edition).
+
 ## 2026-09-17 — Action components wave: Chip
 
 - Chip (173 sites, 107 files): 169 on the library, 4 filter chips kept on MUI

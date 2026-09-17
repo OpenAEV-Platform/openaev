@@ -321,7 +321,7 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     expect(screen.getByText('Not Prevented')).toBeTruthy();
 
     // The Terminal tab shows the masked command and output via the shared Terminal.
-    fireEvent.click(screen.getByRole('tab', { name: 'Terminal view' }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Terminal view' }));
     expect(await screen.findByText('$ nmap -p 445 host-x -u admin -p ••••')).toBeTruthy();
     expect(screen.getByText('open')).toBeTruthy();
   });

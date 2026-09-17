@@ -1,7 +1,7 @@
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { CopyAllOutlined } from '@mui/icons-material';
-import { TabContext, TabList, TabPanel } from '@mui/lab';
-import { Alert, Button, Dialog, DialogActions, DialogContent, List, ListItem, ListItemButton, ListItemText, Tab } from '@mui/material';
-import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
+import { Alert, Button, Dialog, DialogActions, DialogContent, List, ListItem, ListItemButton, ListItemText } from '@mui/material';
+import { type FunctionComponent, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -86,10 +86,6 @@ const AvailableVariablesDialog: FunctionComponent<
   const { t } = useFormatter();
   const [tab, setTab] = useState('1');
 
-  const handleChange = (_event: SyntheticEvent, newTab: string) => {
-    setTab(newTab);
-  };
-
   const me = useHelper((helper: UserHelper) => helper.getMe());
 
   return (
@@ -102,117 +98,95 @@ const AvailableVariablesDialog: FunctionComponent<
       TransitionComponent={Transition}
       classes={{ paper: classes.dialogPaper }}
     >
-      <TabContext value={tab}>
-        <TabList
-          onChange={handleChange}
-          style={{
-            marginLeft: 24,
-            marginTop: 24,
-          }}
-        >
-          <Tab
-            sx={{ textTransform: 'none' }}
-            label={t('Builtin variables')}
-            value="1"
-          />
-          {uriVariable && (
-            <Tab
-              sx={{ textTransform: 'none' }}
-              label={t('Custom variables')}
-              value="2"
-            />
-          )}
-        </TabList>
-        <DialogContent>
-          <TabPanel
-            value="1"
-            style={{
-              maxHeight: '100%',
-              overflow: 'auto',
-              padding: 0,
-            }}
-          >
+      <Tabs
+        value={tab}
+        onValueChange={setTab}
+        panels="external"
+        style={{
+          marginLeft: 24,
+          marginTop: 24,
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="1">{t('Builtin variables')}</TabsTrigger>
+          {uriVariable && <TabsTrigger value="2">{t('Custom variables')}</TabsTrigger>}
+        </TabsList>
+      </Tabs>
+      <DialogContent>
+        {tab === '1' && (
+          <List>
+            {variablesFromInjectorContract.map((variable) => {
+              return (
+                <div key={variable.key}>
+                  <VariableChildItem
+                    builtin
+                    hasChildren={
+                      variable.children && variable.children.length > 0
+                    }
+                    variableKey={variable.key}
+                    variableValue={variable.label}
+                  />
+                  {variable.children && variable.children.length > 0 && (
+                    <List component="div" disablePadding>
+                      {variable.children.map((variableChild) => {
+                        const variableChildKey = `\${${variableChild.key}}`;
+                        return (
+                          <ListItemButton
+                            key={variableChild.key}
+                            divider={true}
+                            dense={true}
+                            sx={{ pl: 4 }}
+                            onClick={() => copyToClipboard(t, variableChildKey)}
+                          >
+                            <ListItemText
+                              primary={variableChildKey}
+                              secondary={t(variableChild.label)}
+                            />
+                            <CopyAllOutlined />
+                          </ListItemButton>
+                        );
+                      })}
+                    </List>
+                  )}
+                </div>
+              );
+            })}
+          </List>
+        )}
+        {tab === '2' && uriVariable && (
+          <>
+            <Alert severity="info">
+              {t('Please follow this link to')}
+              {/* TODO: validate when migrate to new react router version */}
+              {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+              {/* @ts-ignore */}
+              <Button
+                component={Link}
+                to={uriVariable}
+                color="primary"
+                variant="text"
+                size="small"
+                className={classes.button}
+                onClick={handleClose}
+              >
+                {me.user_is_planner
+                  ? t('manage custom variables')
+                  : t('view custom variables')}
+              </Button>
+            </Alert>
             <List>
-              {variablesFromInjectorContract.map((variable) => {
-                return (
-                  <div key={variable.key}>
-                    <VariableChildItem
-                      builtin
-                      hasChildren={
-                        variable.children && variable.children.length > 0
-                      }
-                      variableKey={variable.key}
-                      variableValue={variable.label}
-                    />
-                    {variable.children && variable.children.length > 0 && (
-                      <List component="div" disablePadding>
-                        {variable.children.map((variableChild) => {
-                          const variableChildKey = `\${${variableChild.key}}`;
-                          return (
-                            <ListItemButton
-                              key={variableChild.key}
-                              divider={true}
-                              dense={true}
-                              sx={{ pl: 4 }}
-                              onClick={() => copyToClipboard(t, variableChildKey)}
-                            >
-                              <ListItemText
-                                primary={variableChildKey}
-                                secondary={t(variableChild.label)}
-                              />
-                              <CopyAllOutlined />
-                            </ListItemButton>
-                          );
-                        })}
-                      </List>
-                    )}
-                  </div>
-                );
-              })}
+              {variables.map(variable => (
+                <div key={variable.variable_key}>
+                  <VariableChildItem
+                    variableKey={variable.variable_key}
+                    variableValue={variable.variable_value}
+                  />
+                </div>
+              ))}
             </List>
-          </TabPanel>
-          {uriVariable && (
-            <TabPanel
-              value="2"
-              style={{
-                maxHeight: '100%',
-                overflow: 'auto',
-                padding: 0,
-              }}
-            >
-              <Alert severity="info">
-                {t('Please follow this link to')}
-                {/* TODO: validate when migrate to new react router version */}
-                {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
-                {/* @ts-ignore */}
-                <Button
-                  component={Link}
-                  to={uriVariable}
-                  color="primary"
-                  variant="text"
-                  size="small"
-                  className={classes.button}
-                  onClick={handleClose}
-                >
-                  {me.user_is_planner
-                    ? t('manage custom variables')
-                    : t('view custom variables')}
-                </Button>
-              </Alert>
-              <List>
-                {variables.map(variable => (
-                  <div key={variable.variable_key}>
-                    <VariableChildItem
-                      variableKey={variable.variable_key}
-                      variableValue={variable.variable_value}
-                    />
-                  </div>
-                ))}
-              </List>
-            </TabPanel>
-          )}
-        </DialogContent>
-      </TabContext>
+          </>
+        )}
+      </DialogContent>
 
       <DialogActions>
         <Button variant="outlined" color="primary" onClick={handleClose}>{t('Close')}</Button>

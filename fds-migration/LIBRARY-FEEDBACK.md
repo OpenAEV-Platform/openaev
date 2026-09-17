@@ -2423,3 +2423,13 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** Keep the filter editable from the chip without losing the mode switch. Converting to a text label with the whole chip clickable would drop the only place where the and/or mode can be changed.
 
 **The request.** Either a filter-bar composite in the library (the roadmap entry) or, on `Chip`, a way to render segments inside the label with their own click targets. Until then the filter chips (FilterChip, ClickableChip, assetGroupRules) stay on MUI.
+
+## 55. `TabsContent forceMount` stays visible when inactive
+
+**Status.** Open. Worked around in the product (`hidden` set by the caller on the inactive panels of the inject drawer).
+
+**Measured.** `TabsContent` forwards `forceMount` to the Radix content, which renders `hidden={!present}` — and `present` is always true under `forceMount` (`@radix-ui/react-tabs` dist, `TabsContent`). Every force-mounted panel of a tab set is therefore visible at once; only `data-state="inactive"` tells them apart, and the library ships no rule on it.
+
+**Product need.** The MUI `TabPanel keepMounted` pattern: panels that stay mounted so their forms keep their state, but only the active one is shown. The inject drawer relies on it for the inject form, the action details and the logical chains.
+
+**The request.** Hide an inactive force-mounted panel by default (`hidden` when `data-state="inactive"`, or a `data-[state=inactive]:hidden` class on `TabsContent`), so that `forceMount` means "kept mounted" rather than "always shown".

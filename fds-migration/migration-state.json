@@ -598,6 +598,31 @@
         "openaev-front/src/components/common/tag/Tag.tsx",
         "openaev-front/src/components/items/ItemTenants.tsx"
       ]
+    },
+    {
+      "component": "Tabs",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Every tab bar. The product wrapper (components/common/tabs/Tabs.tsx, 12 consumers) and the direct MUI tab bars render the library Tabs/TabsList/TabsTrigger. Route-based bars (scenario, simulation, atomic testing, inject, phishing, integrations) are `asChild` triggers around a router Link with `aria-current=\"page\"` on the current one; every bar whose panels are rendered by the caller declares `panels=\"external\"`. Numeric MUI values become strings (`String(index)`), handlers take the value alone. The inject drawer keeps its panels mounted with `forceMount` and hides the inactive ones by hand (LIBRARY-FEEDBACK #55). Platform logos go in the 16px `icon` slot; the vertical remediation rail uses `orientation=\"vertical\"`. The MUI `@mui/lab` TabContext/TabList/TabPanel are gone with it.",
+      "files": [
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/AtomicTesting.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/AtomicTestingRemediations.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/AtomicTestingTabs.tsx",
+        "openaev-front/src/admin/components/chaining/ScopeForm.tsx",
+        "openaev-front/src/admin/components/common/injects/UpdateInject.tsx",
+        "openaev-front/src/admin/components/components/phishing/Phishing.tsx",
+        "openaev-front/src/admin/components/integrations/Integrations.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/Index.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/ScenarioConfiguration.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/SimulationConfiguration.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/SimulationShell.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/injects/InjectIndexTabs.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/variables/AvailableVariablesDialog.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/form/RemediationFormTabs.tsx",
+        "openaev-front/src/components/common/tabs/Tabs.tsx"
+      ]
     }
   ],
   "migratedZones": [

@@ -1,4 +1,4 @@
-import { Tab, Tabs } from '@mui/material';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { lazy, Suspense } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
@@ -47,25 +47,19 @@ const Phishing = () => {
           current: true,
         }]}
       />
-      <Tabs
-        value={activeTab}
-        sx={{
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <Tab
-          component={Link}
-          to="/admin/components/phishing/landing_pages"
-          value="landing_pages"
-          label={t('Pages')}
-        />
-        <Tab
-          component={Link}
-          to="/admin/components/phishing/email_templates"
-          value="email_templates"
-          label={t('Emails')}
-        />
+      <Tabs value={activeTab} panels="external">
+        <TabsList>
+          <TabsTrigger value="landing_pages" asChild>
+            <Link to="/admin/components/phishing/landing_pages" aria-current={activeTab === 'landing_pages' ? 'page' : undefined}>
+              {t('Pages')}
+            </Link>
+          </TabsTrigger>
+          <TabsTrigger value="email_templates" asChild>
+            <Link to="/admin/components/phishing/email_templates" aria-current={activeTab === 'email_templates' ? 'page' : undefined}>
+              {t('Emails')}
+            </Link>
+          </TabsTrigger>
+        </TabsList>
       </Tabs>
       <Suspense fallback={<Loader variant="inElement" />}>
         {activeTab === 'landing_pages' ? <PhishingLandingPages /> : <PhishingEmailTemplates />}
