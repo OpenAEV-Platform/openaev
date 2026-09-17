@@ -14,8 +14,8 @@ import org.springframework.stereotype.Component;
  * <p>This table was originally created alongside {@code marking_definitions} in an earlier revision
  * of this branch. It was lost when that combined migration was superseded, during the main merge,
  * by the dedicated {@code marking_definitions}-only migration from Task 1 (#7651) — this migration
- * restores the join table on its own, against the current {@code marking_definitions} shape
- * ({@code marking_definition_id}, not the old {@code marking_id}).
+ * restores the join table on its own, against the current {@code marking_definitions} shape ({@code
+ * marking_definition_id}, not the old {@code marking_id}).
  */
 @Component
 public class V6_20260917130000000__Add_groups_markings extends BaseJavaMigration {
