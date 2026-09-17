@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260915143000000__Deduplicate_step_delay_queue_and_enforce_unique_key
+public class V6_20260917193000000__Deduplicate_step_delay_queue_and_enforce_unique_key
     extends BaseJavaMigration {
 
   @Override
