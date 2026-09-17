@@ -32,7 +32,12 @@ const TopBarNotifications = ({ iconButtonSx }: Props) => {
         aria-label="notifications"
         component={Link}
         to="/admin/profile/notifications"
-        sx={iconButtonSx(location.pathname.startsWith('/admin/profile/notifications'))}
+        sx={iconButtonSx(
+          // The bell is the single entry point of the notification center:
+          // both its tabs (alerts and triggers) light it up.
+          location.pathname.startsWith('/admin/profile/notifications')
+          || location.pathname.startsWith('/admin/profile/triggers'),
+        )}
       >
         <Badge color="secondary" variant="dot" invisible={unreadCount === 0}>
           <NotificationsOutlined fontSize="medium" />
