@@ -80,12 +80,6 @@ const MarkingDefinitions = () => {
         field: 'marking_definition_type',
         label: 'Type',
         isSortable: true,
-        value: (item: MarkingDefinitionOutput) => item.marking_definition_type,
-      },
-      {
-        field: 'marking_definition_definition',
-        label: 'Definition',
-        isSortable: true,
         value: (item: MarkingDefinitionOutput) => (
           <Box
             sx={{
@@ -94,7 +88,7 @@ const MarkingDefinitions = () => {
               gap: 1,
             }}
           >
-            <span>{item.marking_definition_definition}</span>
+            <span>{item.marking_definition_type}</span>
             {item.marking_definition_protected ? (
               <DangerZone
                 tooltip={t('This marking definition is protected. It cannot be updated or deleted.')}
@@ -102,6 +96,12 @@ const MarkingDefinitions = () => {
             ) : null}
           </Box>
         ),
+      },
+      {
+        field: 'marking_definition_definition',
+        label: 'Definition',
+        isSortable: true,
+        value: (item: MarkingDefinitionOutput) => item.marking_definition_definition,
       },
       {
         field: 'marking_definition_color',
@@ -117,7 +117,7 @@ const MarkingDefinitions = () => {
             {item.marking_definition_color ? (
               <Lens sx={{
                 color: item.marking_definition_color,
-                fontSize: 14,
+                fontSize: 'small',
               }}
               />
             ) : null}
