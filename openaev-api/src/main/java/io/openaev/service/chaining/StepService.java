@@ -1013,13 +1013,9 @@ public class StepService {
     }
     Step copiedTarget = copiedStepsByOriginalId.get(value);
     if (copiedTarget == null) {
-      // The prerequisite is not part of this copy (e.g. a single-step copy). Keeping the source id
-      // would produce a permanently unsatisfiable dependency, so this is logged loudly.
-      log.warn(
-          "DEPEND_ON condition {} references step template {} which is not part of the copy; the dependency cannot be remapped",
-          condition.getId(),
-          value);
-      return value;
+      throw new IllegalArgumentException(
+          "DEPEND_ON condition %s references step template %s which is not part of the copy"
+              .formatted(condition.getId(), value));
     }
     return copiedTarget.getId();
   }
