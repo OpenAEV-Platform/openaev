@@ -1,4 +1,4 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   ArrowBackOutlined,
   AutoAwesomeOutlined,
@@ -7,7 +7,7 @@ import {
   TrackChangesOutlined,
   TuneOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, IconButton, SvgIcon, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { alpha, Box, Button, SvgIcon, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { SelectGroup } from 'mdi-material-ui';
@@ -101,9 +101,13 @@ const TargetRow: FunctionComponent<{
       </Typography>
       <Tooltip>
         <TooltipTrigger asChild>
-          <IconButton size="small" aria-label={removeLabel} onClick={onRemove}>
-            <CloseOutlined sx={{ fontSize: 16 }} />
-          </IconButton>
+          <IconButton
+            icon={<CloseOutlined sx={{ fontSize: 16 }} />}
+            aria-label={removeLabel}
+            onClick={onRemove}
+            priority="tertiary"
+            size="sm"
+          />
         </TooltipTrigger>
         {removeLabel && <TooltipContent>{removeLabel}</TooltipContent>}
       </Tooltip>
@@ -239,9 +243,13 @@ const ScenarioAssistant: FunctionComponent = () => {
       >
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton onClick={() => navigate(listUrl)} aria-label={t('Back')} size="small">
-              <ArrowBackOutlined fontSize="small" />
-            </IconButton>
+            <IconButton
+              icon={<ArrowBackOutlined fontSize="small" />}
+              onClick={() => navigate(listUrl)}
+              aria-label={t('Back')}
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent>{t('Back')}</TooltipContent>
         </Tooltip>

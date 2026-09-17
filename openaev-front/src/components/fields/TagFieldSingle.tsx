@@ -1,14 +1,6 @@
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-} from '@filigran/design-system';
+import { Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, IconButton } from '@filigran/design-system';
 import { AddOutlined, LabelOutlined } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { type FieldErrors } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -142,17 +134,18 @@ const TagFieldSingle: FunctionComponent<Props> = ({
       </Combobox>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
         <IconButton
+          icon={<AddOutlined />}
+          aria-label={t('Add')}
           onClick={handleOpenTagCreation}
-          edge="end"
           style={{
             position: 'absolute',
             top: 30,
             right: 35,
           }}
           disabled={disabled}
-        >
-          <AddOutlined />
-        </IconButton>
+          priority="tertiary"
+          size="md"
+        />
       </Can>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
         <Dialog

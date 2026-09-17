@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, CropFreeOutlined, RemoveOutlined } from '@mui/icons-material';
-import { Box, Divider, IconButton, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Box, Divider, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Panel, useReactFlow } from '@xyflow/react';
 import { memo } from 'react';
@@ -44,25 +44,37 @@ const TimelineControlsComponent = ({ scaleIndex, onScaleChange, onMouseEnter, on
       >
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton aria-label={t('Fit view')} size="small" onClick={() => reactFlow.fitView({ duration: 500 })}>
-              <CropFreeOutlined fontSize="small" />
-            </IconButton>
+            <IconButton
+              icon={<CropFreeOutlined fontSize="small" />}
+              aria-label={t('Fit view')}
+              onClick={() => reactFlow.fitView({ duration: 500 })}
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent>{t('Fit view')}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton aria-label={t('Zoom in')} size="small" onClick={() => reactFlow.zoomIn({ duration: 200 })}>
-              <AddOutlined fontSize="small" />
-            </IconButton>
+            <IconButton
+              icon={<AddOutlined fontSize="small" />}
+              aria-label={t('Zoom in')}
+              onClick={() => reactFlow.zoomIn({ duration: 200 })}
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent>{t('Zoom in')}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton aria-label={t('Zoom out')} size="small" onClick={() => reactFlow.zoomOut({ duration: 200 })}>
-              <RemoveOutlined fontSize="small" />
-            </IconButton>
+            <IconButton
+              icon={<RemoveOutlined fontSize="small" />}
+              aria-label={t('Zoom out')}
+              onClick={() => reactFlow.zoomOut({ duration: 200 })}
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent>{t('Zoom out')}</TooltipContent>
         </Tooltip>

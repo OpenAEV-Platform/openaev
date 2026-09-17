@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AutoAwesome,
   CancelOutlined,
@@ -17,7 +17,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton } from '@mui/material';
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -594,14 +594,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      asChild
+                      icon={<EmojiEventsOutlined fontSize="small" />}
                       aria-label={t('Preview challenges page')}
-                      size="small"
-                      color="primary"
-                      component={Link}
-                      to={`/admin/simulations/${exerciseId}/challenges`}
-                      target="_blank"
+                      priority="tertiary"
+                      size="md"
                     >
-                      <EmojiEventsOutlined fontSize="small" />
+                      <Link to={`/admin/simulations/${exerciseId}/challenges`} target="_blank" />
                     </IconButton>
                   </TooltipTrigger>
                   <TooltipContent>{t('Preview challenges page')}</TooltipContent>
@@ -612,14 +611,16 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span style={{ display: 'inline-flex' }}>
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => setOpenDateDialog(true)}
-                          disabled={exercise.exercise_status !== 'SCHEDULED'}
-                        >
-                          <UpdateOutlined fontSize="small" />
-                        </IconButton>
+                        <span className="inline-flex">
+                          <IconButton
+                            icon={<UpdateOutlined fontSize="small" />}
+                            aria-label={t('Scheduling')}
+                            onClick={() => setOpenDateDialog(true)}
+                            disabled={exercise.exercise_status !== 'SCHEDULED'}
+                            priority="tertiary"
+                            size="md"
+                          />
+                        </span>
                       </span>
                     </TooltipTrigger>
                     <TooltipContent>{t('Modify the scheduling')}</TooltipContent>

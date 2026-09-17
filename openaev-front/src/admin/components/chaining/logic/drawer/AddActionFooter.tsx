@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { Close, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 
 import { useFormatter } from '../../../../../components/i18n';
 
@@ -43,9 +44,13 @@ const AddActionFooter = ({ numberOfSelectedElements, onClear, onSubmit }: AddAct
           {`${numberOfSelectedElements} ${t('Selected')}`}
         </Typography>
         {numberOfSelectedElements > 0 && (
-          <IconButton size="small" onClick={onClear}>
-            <Close sx={{ fontSize: 14 }} />
-          </IconButton>
+          <IconButton
+            icon={<Close sx={{ fontSize: 14 }} />}
+            aria-label={t('Close')}
+            onClick={onClear}
+            priority="tertiary"
+            size="sm"
+          />
         )}
       </Box>
       <Box

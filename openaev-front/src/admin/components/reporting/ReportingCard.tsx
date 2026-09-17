@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined } from '@mui/icons-material';
-import { Box, Chip, IconButton, Paper, Typography } from '@mui/material';
+import { Box, Chip, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -76,18 +76,12 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
+                icon={<FileDownloadOutlined fontSize="small" />}
                 aria-label={t('Download latest generation')}
-                size="small"
-                color="primary"
-                // Programmatic download instead of an <a href>: the card itself is
-                // an anchor, and the wrapper's preventDefault() (needed to cancel
-                // the card navigation) would also cancel a nested link's default.
-                // The endpoint replies Content-Disposition: attachment, so
-                // assigning the URL downloads without leaving the page.
                 onClick={() => window.location.assign(downloadReportingGenerationUrl(generation.reporting_generation_id))}
-              >
-                <FileDownloadOutlined fontSize="small" />
-              </IconButton>
+                priority="tertiary"
+                size="sm"
+              />
             </TooltipTrigger>
             <TooltipContent>{t('Download latest generation')}</TooltipContent>
           </Tooltip>

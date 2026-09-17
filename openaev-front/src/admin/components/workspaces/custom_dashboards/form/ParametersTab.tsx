@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -41,13 +41,12 @@ const ParametersTab = () => {
           {t('Parameters')}
         </Typography>
         <IconButton
-          color="secondary"
+          icon={<Add fontSize="small" />}
           aria-label="Add"
           onClick={() => handleAddParameter(items[0].value)}
-          size="small"
-        >
-          <Add fontSize="small" />
-        </IconButton>
+          priority="tertiary"
+          size="sm"
+        />
       </div>
       {fields
         .map((field, index) => (
@@ -80,9 +79,14 @@ const ParametersTab = () => {
                 />
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <IconButton aria-label={t('Delete')} color="error" onClick={() => remove(index)}>
-                      <DeleteOutlined fontSize="small" />
-                    </IconButton>
+                    <IconButton
+                      icon={<DeleteOutlined fontSize="small" />}
+                      aria-label={t('Delete')}
+                      onClick={() => remove(index)}
+                      variant="destructive"
+                      priority="tertiary"
+                      size="md"
+                    />
                   </TooltipTrigger>
                   <TooltipContent>{t('Delete')}</TooltipContent>
                 </Tooltip>

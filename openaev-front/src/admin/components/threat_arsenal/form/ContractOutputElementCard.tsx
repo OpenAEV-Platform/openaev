@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { DeleteOutlined } from '@mui/icons-material';
-import { Card, IconButton, Typography } from '@mui/material';
+import { Card, Typography } from '@mui/material';
 import { useEffect } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -95,12 +96,12 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
       <TextFieldController name={`${prefixName}.${index}.contract_output_element_key` as const} label={t('Key')} required />
       <SelectFieldController name={`${prefixName}.${index}.contract_output_element_type` as const} label={t('Type')} items={outputParserTypeList} required />
       <IconButton
+        icon={<DeleteOutlined />}
+        aria-label={t('Delete')}
         onClick={() => remove(index)}
-        size="small"
-        color="primary"
-      >
-        <DeleteOutlined />
-      </IconButton>
+        priority="tertiary"
+        size="sm"
+      />
       <TagFieldController style={{ gridColumn: 'span 4' }} name={`${prefixName}.${index}.contract_output_element_tags` as const} label={t('Tags')} />
       <CheckboxFieldController style={{ gridColumn: 'span 4' }} name={`${prefixName}.${index}.contract_output_element_is_finding` as const} label={t('create_findings')} />
       <Typography

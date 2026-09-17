@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { AttachFileRounded, ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Avatar, Button, Card, CardContent, CardHeader, IconButton } from '@mui/material';
+import { Avatar, Button, Card, CardContent, CardHeader } from '@mui/material';
 import { lightBlue } from '@mui/material/colors';
 import { useTheme } from '@mui/material/styles';
 import purify from 'dompurify';
@@ -51,9 +52,13 @@ const Communication = (props) => {
         )}
         action={(
           <div style={{ display: 'flex' }}>
-            <IconButton onClick={expandContent} size="small">
-              {expand ? <ExpandLess /> : <ExpandMore />}
-            </IconButton>
+            <IconButton
+              icon={expand ? <ExpandLess /> : <ExpandMore />}
+              aria-label={expand ? t('Collapse') : t('Expand')}
+              onClick={expandContent}
+              priority="tertiary"
+              size="sm"
+            />
           </div>
         )}
         title={(

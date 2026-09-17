@@ -1,4 +1,4 @@
-import { Switch } from '@filigran/design-system';
+import { IconButton, Switch } from '@filigran/design-system';
 import {
   ArrowDropDownOutlined,
   ArrowDropUpOutlined,
@@ -8,19 +8,7 @@ import {
   DeleteOutlined,
   HelpOutlineOutlined,
 } from '@mui/icons-material';
-import {
-  Button,
-  IconButton,
-  InputLabel,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  ListItemText,
-  MenuItem,
-  Typography,
-} from '@mui/material';
+import { Button, InputLabel, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, MenuItem, Typography } from '@mui/material';
 import arrayMutators from 'final-form-arrays';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -514,19 +502,19 @@ class QuickInjectComponent extends Component {
                             {t(field.label)}
                             {field.cardinality === 'n' && (
                               <IconButton
+                                icon={<ControlPointOutlined />}
+                                aria-label={t('Add')}
                                 onClick={() => fields.push({
                                   type: 'text',
                                   key: '',
                                   value: '',
                                 })}
                                 aria-haspopup="true"
-                                size="medium"
                                 style={{ marginTop: -2 }}
-                                color="primary"
                                 disabled={isDisabled}
-                              >
-                                <ControlPointOutlined />
-                              </IconButton>
+                                priority="tertiary"
+                                size="md"
+                              />
                             )}
                           </InputLabel>
                         </div>
@@ -599,14 +587,14 @@ class QuickInjectComponent extends Component {
                                     )}
                                 {field.cardinality === 'n' && (
                                   <IconButton
+                                    icon={<DeleteOutlined />}
+                                    aria-label={t('Delete')}
                                     onClick={() => fields.remove(index)}
                                     aria-haspopup="true"
-                                    size="small"
-                                    color="primary"
                                     disabled={isDisabled}
-                                  >
-                                    <DeleteOutlined />
-                                  </IconButton>
+                                    priority="tertiary"
+                                    size="sm"
+                                  />
                                 )}
                               </ListItem>
                             );

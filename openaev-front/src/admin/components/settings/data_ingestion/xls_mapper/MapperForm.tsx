@@ -1,6 +1,7 @@
+import { IconButton } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Add } from '@mui/icons-material';
-import { Button, IconButton, Typography } from '@mui/material';
+import { Button, Typography } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -112,7 +113,7 @@ const MapperForm: FunctionComponent<Props> = ({
             {t('Representation for inject type')}
           </Typography>
           <IconButton
-            color="secondary"
+            icon={<Add fontSize="small" />}
             aria-label="Add"
             onClick={() => {
               append({
@@ -121,10 +122,9 @@ const MapperForm: FunctionComponent<Props> = ({
                 inject_importer_rule_attributes: [],
               });
             }}
-            size="large"
-          >
-            <Add fontSize="small" />
-          </IconButton>
+            priority="tertiary"
+            size="md"
+          />
           <div>
             <span className={classes.importersErrorMessage}>{methods.formState.errors.import_mapper_inject_importers?.message}</span>
           </div>

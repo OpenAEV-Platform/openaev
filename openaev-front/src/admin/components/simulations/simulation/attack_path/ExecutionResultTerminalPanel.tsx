@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
+import { Box, Button, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
@@ -614,13 +615,13 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
           {/* Back to the endpoint/finding panel this execution was opened from. */}
           {onBack && (
             <IconButton
-              size="small"
+              icon={<ArrowBack fontSize="small" />}
               aria-label={t('Back')}
               onClick={onBack}
-              sx={{ flexShrink: 0 }}
-            >
-              <ArrowBack fontSize="small" />
-            </IconButton>
+              style={{ flexShrink: 0 }}
+              priority="tertiary"
+              size="md"
+            />
           )}
           <Typography
             variant="h5"
@@ -633,9 +634,14 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
           >
             {detail?.payloadName || t('Execution')}
           </Typography>
-          <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
-            <Close fontSize="small" />
-          </IconButton>
+          <IconButton
+            icon={<Close fontSize="small" />}
+            aria-label={t('Close')}
+            onClick={onClose}
+            style={{ flexShrink: 0 }}
+            priority="tertiary"
+            size="md"
+          />
         </div>
         {/* 38px = the 30px back IconButton + the 8px row gap, so these lines start under the title. */}
         <div style={{ paddingLeft: onBack ? 38 : 0 }}>

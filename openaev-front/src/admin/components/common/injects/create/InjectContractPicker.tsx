@@ -1,6 +1,6 @@
-import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
-import { Box, IconButton, Skeleton, Typography } from '@mui/material';
+import { Box, Skeleton, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
@@ -231,9 +231,13 @@ const InjectContractPicker: FunctionComponent<Props> = ({
         {onBack && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <IconButton onClick={onBack} aria-label={t('Back')} size="small">
-                <ArrowBackOutlined fontSize="small" />
-              </IconButton>
+              <IconButton
+                icon={<ArrowBackOutlined fontSize="small" />}
+                onClick={onBack}
+                aria-label={t('Back')}
+                priority="tertiary"
+                size="sm"
+              />
             </TooltipTrigger>
             <TooltipContent>{t('Back')}</TooltipContent>
           </Tooltip>

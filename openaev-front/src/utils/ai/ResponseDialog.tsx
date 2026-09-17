@@ -1,16 +1,9 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { RichTextEditor } from '@filigran/rich-text-editor';
 import { RefreshOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
 // fds:keep-mui the AI response fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
 // As we can ask AI after and follow up, there is a dependency lifecycle here that can be accepted
 // TODO: Cleanup a bit in upcoming version
 // eslint-disable-next-line import/no-cycle
@@ -361,18 +354,19 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
             <>
               {/* Refresh button */}
               <IconButton
-                size="small"
+                icon={<RefreshOutlined fontSize="small" />}
+                aria-label={t('Refresh')}
                 onClick={handleRefresh}
                 disabled={agentLoading || !selectedAgent}
-                sx={{
+                style={{
                   position: 'absolute',
                   top: 2,
                   right: 2,
                   zIndex: 1,
                 }}
-              >
-                <RefreshOutlined fontSize="small" />
-              </IconButton>
+                priority="tertiary"
+                size="md"
+              />
 
               {((agentLoading && !content) || loadingAgents) && (
                 <Box sx={{

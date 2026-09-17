@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined, EditOutlined, ScheduleOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
+import { Box, Button, Chip, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -306,17 +306,25 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                           <>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <IconButton aria-label={t('Update')} size="small" color="primary" onClick={() => setDrawer(schedule)}>
-                                  <EditOutlined fontSize="small" />
-                                </IconButton>
+                                <IconButton
+                                  icon={<EditOutlined fontSize="small" />}
+                                  aria-label={t('Update')}
+                                  onClick={() => setDrawer(schedule)}
+                                  priority="tertiary"
+                                  size="sm"
+                                />
                               </TooltipTrigger>
                               <TooltipContent>{t('Update')}</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <IconButton aria-label={t('Delete')} size="small" color="primary" onClick={() => setScheduleToDelete(schedule)}>
-                                  <DeleteOutlined fontSize="small" />
-                                </IconButton>
+                                <IconButton
+                                  icon={<DeleteOutlined fontSize="small" />}
+                                  aria-label={t('Delete')}
+                                  onClick={() => setScheduleToDelete(schedule)}
+                                  priority="tertiary"
+                                  size="sm"
+                                />
                               </TooltipTrigger>
                               <TooltipContent>{t('Delete')}</TooltipContent>
                             </Tooltip>

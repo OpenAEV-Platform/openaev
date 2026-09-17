@@ -1,6 +1,6 @@
-import { Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDownwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
-import { Box, IconButton } from '@mui/material';
+import { Box } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { type SortHelpers } from '../../../components/common/queryable/sort/SortHelpers';
@@ -65,15 +65,16 @@ const ThreatArsenalSortSelect: FunctionComponent<Props> = ({ sortHelpers }) => {
       <Tooltip>
         <TooltipTrigger asChild>
           <span>
-            <IconButton
-              size="small"
-              aria-label={sortAsc ? t('Sort ascending') : t('Sort descending')}
-              disabled={value === ''}
-              onClick={() => sortHelpers.handleDirectedSort(value, !sortAsc)}
-              sx={{ color: 'text.secondary' }}
-            >
-              {sortAsc ? <ArrowUpwardOutlined fontSize="small" /> : <ArrowDownwardOutlined fontSize="small" />}
-            </IconButton>
+            <span className="inline-flex">
+              <IconButton
+                icon={sortAsc ? <ArrowUpwardOutlined fontSize="small" /> : <ArrowDownwardOutlined fontSize="small" />}
+                aria-label={sortAsc ? t('Sort ascending') : t('Sort descending')}
+                disabled={value === ''}
+                onClick={() => sortHelpers.handleDirectedSort(value, !sortAsc)}
+                priority="tertiary"
+                size="sm"
+              />
+            </span>
           </span>
         </TooltipTrigger>
         <TooltipContent>{sortAsc ? t('Sort ascending') : t('Sort descending')}</TooltipContent>

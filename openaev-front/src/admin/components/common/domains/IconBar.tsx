@@ -1,5 +1,5 @@
 import { Paper } from '@filigran/design-system';
-import { Card, CardContent, IconButton, Typography } from '@mui/material';
+import { Box, Card, CardContent, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type { FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -61,16 +61,17 @@ const IconBar: FunctionComponent<Props> = ({ elements }) => {
             }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
-              <IconButton
-                size="large"
-                disableRipple
+              <Box
+                component="span"
                 sx={{
+                  'display': 'inline-flex',
+                  'p': 1.5,
                   'color': 'inherit',
                   '& svg': { fontSize: '2rem' },
                 }}
               >
                 {element.icon()}
-              </IconButton>
+              </Box>
               <Typography
                 variant="subtitle1"
                 noWrap

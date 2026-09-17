@@ -1,5 +1,5 @@
 import { CheckCircleOutlined, HighlightOffOutlined, PendingActionsOutlined } from '@mui/icons-material';
-import { Alert, Button, IconButton, Typography } from '@mui/material';
+import { Alert, Box, Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type JSX, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -235,9 +235,16 @@ const ChallengesPlayer = () => {
                     }}
                     clickable
                     actionHeader={(
-                      <IconButton size="large" color={status.color}>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-flex',
+                          p: 1.5,
+                          color: `${status.color}.main`,
+                        }}
+                      >
                         {status.icon}
-                      </IconButton>
+                      </Box>
                     )}
                   />
                 );

@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ChevronLeftOutlined, ChevronRightOutlined, OpenInNewOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -117,14 +117,16 @@ const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <IconButton
-                    size="small"
-                    onClick={onSelectPrevious}
-                    disabled={!canPrevious}
-                    aria-label={t('Previous target')}
-                  >
-                    <ChevronLeftOutlined fontSize="small" />
-                  </IconButton>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<ChevronLeftOutlined fontSize="small" />}
+                      onClick={onSelectPrevious}
+                      disabled={!canPrevious}
+                      aria-label={t('Previous target')}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
                 </span>
               </TooltipTrigger>
               <TooltipContent>{t('Previous target')}</TooltipContent>
@@ -148,14 +150,16 @@ const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <IconButton
-                    size="small"
-                    onClick={onSelectNext}
-                    disabled={!canNext}
-                    aria-label={t('Next target')}
-                  >
-                    <ChevronRightOutlined fontSize="small" />
-                  </IconButton>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<ChevronRightOutlined fontSize="small" />}
+                      onClick={onSelectNext}
+                      disabled={!canNext}
+                      aria-label={t('Next target')}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
                 </span>
               </TooltipTrigger>
               <TooltipContent>{t('Next target')}</TooltipContent>

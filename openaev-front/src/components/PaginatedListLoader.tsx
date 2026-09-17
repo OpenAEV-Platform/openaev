@@ -1,9 +1,10 @@
-import { Checkbox } from '@filigran/design-system';
+import { Checkbox, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, type SvgIconProps } from '@mui/material';
+import { ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, type SvgIconProps } from '@mui/material';
 import { type ComponentType, type CSSProperties, type FunctionComponent } from 'react';
 
 import { type Header } from './common/SortHeadersList';
+import { useFormatter } from './i18n';
 
 interface Props {
   headers: Header[];
@@ -28,6 +29,7 @@ const PaginatedListLoader: FunctionComponent<Props> = ({
   number = 21,
   withCheckbox = false,
 }) => {
+  const { t } = useFormatter();
   return (
     [...Array(number)].map((_, key) => (
       <ListItem
@@ -36,11 +38,12 @@ const PaginatedListLoader: FunctionComponent<Props> = ({
         divider
         secondaryAction={(
           <IconButton
-            size="large"
+            icon={<MoreVert />}
+            aria-label={t('More actions')}
             disabled
-          >
-            <MoreVert color="disabled" />
-          </IconButton>
+            priority="tertiary"
+            size="md"
+          />
         )}
       >
         <ListItemButton

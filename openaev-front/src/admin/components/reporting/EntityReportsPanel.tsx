@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined } from '@mui/icons-material';
-import { alpha, Box, Button, CircularProgress, IconButton, Popover, Skeleton, Typography } from '@mui/material';
+import { alpha, Box, Button, CircularProgress, Popover, Skeleton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type FunctionComponent, type MouseEvent, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -180,13 +180,12 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
       <Tooltip>
         <TooltipTrigger asChild>
           <IconButton
-            size="small"
-            color="primary"
+            icon={<FileChartOutline fontSize="small" />}
             aria-label={t('Reports')}
             onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
-          >
-            <FileChartOutline fontSize="small" />
-          </IconButton>
+            priority="tertiary"
+            size="md"
+          />
         </TooltipTrigger>
         <TooltipContent>{t('Reports')}</TooltipContent>
       </Tooltip>
@@ -330,14 +329,14 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <IconButton
+                          asChild
+                          icon={<FileDownloadOutlined fontSize="small" />}
                           aria-label={t('Download latest generation')}
-                          size="small"
-                          color="primary"
-                          component="a"
-                          href={downloadReportingGenerationUrl(generation.reporting_generation_id)}
                           onClick={event => event.stopPropagation()}
+                          priority="tertiary"
+                          size="sm"
                         >
-                          <FileDownloadOutlined fontSize="small" />
+                          <a href={downloadReportingGenerationUrl(generation.reporting_generation_id)} />
                         </IconButton>
                       </TooltipTrigger>
                       <TooltipContent>{t('Download latest generation')}</TooltipContent>

@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
@@ -113,9 +114,14 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
   return (
     <>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-        <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="small" sx={{ borderRadius: 1 }}>
-          <MoreVert fontSize="small" />
-        </IconButton>
+        <IconButton
+          icon={<MoreVert fontSize="small" />}
+          aria-label={t('More actions')}
+          onClick={handlePopoverOpen}
+          aria-haspopup="true"
+          priority="tertiary"
+          size="sm"
+        />
       </Can>
       <Menu
         anchorEl={anchorEl}

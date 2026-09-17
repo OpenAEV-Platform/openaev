@@ -1,15 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  IconButton,
-  Menu,
-  MenuItem,
-} from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Menu, MenuItem } from '@mui/material';
 import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
 
 import { deleteChallenge, updateChallenge } from '../../../../actions/challenge-action';
@@ -109,9 +100,15 @@ const ChallengePopover: FunctionComponent<Props> = ({ challenge, onRemoveChallen
   return (
     <>
       {(ability.can(ACTIONS.MANAGE, SUBJECTS.CHALLENGES) || ability.can(ACTIONS.DELETE, SUBJECTS.CHALLENGES) || onRemoveChallenge) && (
-        <IconButton disabled={disabled} onClick={handlePopoverOpen} aria-haspopup="true" size="small" color="primary" sx={{ borderRadius: 1 }}>
-          <MoreVert fontSize="small" />
-        </IconButton>
+        <IconButton
+          icon={<MoreVert fontSize="small" />}
+          aria-label={t('More actions')}
+          disabled={disabled}
+          onClick={handlePopoverOpen}
+          aria-haspopup="true"
+          priority="tertiary"
+          size="sm"
+        />
       )}
       <Menu
         anchorEl={anchorEl}

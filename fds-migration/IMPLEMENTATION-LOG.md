@@ -588,6 +588,33 @@ in filigran-design-system).
   (checked handler by handler). Self-hiding when the licence is active: not
   adopted, by arbitration.
 
+## 2026-09-17 — Action components wave: IconButton
+
+- IconButton (135 sites, 99 files) on the library: 133 converted by a codemod
+  in two passes (placeholders both ways, the loop never re-reads what it wrote),
+  2 decorative icon holders replaced by plain spans (the domain icon bar and
+  the challenge status glyph were never actions). The library names nothing
+  through its tooltip, so 47 unnamed buttons received an `aria-label` first:
+  the tooltip text when there was one, else the verb of the icon (`More
+  actions`, `Delete`, `Close`, `Add`, `Back`, `Scheduling`, `Launch`, `Reset`,
+  `Fullscreen`, `Refresh`, `Profile`, `Default value`, `Ask AI`, `Import`, and
+  `Collapse`/`Expand` for the chevrons); five components gained the
+  translation hook for it. No new translation key.
+- Placement rule applied: `sm` (24px) in list rows, forms and cards; `md`
+  (36px) in page headers, drawer and dialog headers, side panels and the bulk
+  toolbar. The kebab wrapper takes its size from the `variant` it already
+  received (`icon` in a row, `toggle` in a header). `color="error"` →
+  `destructive`; AI-tinted buttons → `variant="ia"`; the read/unread and
+  subscribe switches express their state with `active`; icon-only links keep
+  their anchor under `asChild`; `sx` layout keys (position, margins, flex)
+  moved to `style`, colour and radius keys dropped (the library button carries
+  its own look).
+- Measured on the running product at 1400px: row kebab 30 → 24px (icon 20px),
+  header icon buttons 32 → 36px, drawer close 34 → 36px, no horizontal
+  overflow on the list or the detail page. A React warning ("Cannot update a
+  component while rendering a different component", Root) is present on
+  unconverted screens too: pre-existing.
+
 ## 2026-09-17 — Action components wave: Badge
 
 - Badge (4 sites, 2 files) on the library: the unread dot of the notification

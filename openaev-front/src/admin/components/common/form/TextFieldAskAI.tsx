@@ -1,7 +1,6 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 // fds:keep-mui the AI prompt fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Menu, MenuItem, SvgIcon, TextField } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, Menu, MenuItem, SvgIcon, TextField } from '@mui/material';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
 
@@ -62,7 +61,6 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
   triggerAnchor,
   onTriggerClose,
 }) => {
-  const theme = useTheme();
   const externalTrigger = triggerAnchor !== undefined;
   const { t } = useFormatter();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
@@ -240,19 +238,16 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           >
             <span>
               <IconButton
-                size="medium"
+                icon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
+                aria-label={t('Ask AI')}
                 onClick={event =>
                   (isAvailable ? handleOpenMenu(event) : null)}
                 disabled={disabled || !isAvailable}
-                style={{
-                  marginTop: -4,
-                  color: isAvailable
-                    ? theme.palette.ai.main
-                    : theme.palette.action.disabled,
-                }}
-              >
-                <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />
-              </IconButton>
+                style={{ marginTop: -4 }}
+                variant="ia"
+                priority="tertiary"
+                size="md"
+              />
             </span>
           </EETooltip>
         )}

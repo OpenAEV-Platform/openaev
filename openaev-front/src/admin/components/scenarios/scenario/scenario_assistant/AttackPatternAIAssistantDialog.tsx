@@ -1,15 +1,7 @@
+import { IconButton } from '@filigran/design-system';
 import { Clear } from '@mui/icons-material';
 // fds:keep-mui the AI assistant field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import {
-  Box,
-  Button,
-  CircularProgress, Divider,
-  IconButton,
-  List,
-  ListItem,
-  ListItemText, TextField,
-  Typography,
-} from '@mui/material';
+import { Box, Button, CircularProgress, Divider, List, ListItem, ListItemText, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -179,12 +171,12 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
                       dense
                       secondaryAction={(
                         <IconButton
-                          size="small"
+                          icon={<Clear />}
                           aria-label="remove-file"
                           onClick={() => setFiles(files.filter(f => f.name !== file.name))}
-                        >
-                          <Clear />
-                        </IconButton>
+                          priority="tertiary"
+                          size="md"
+                        />
                       )}
                     >
                       <ListItemText primary={file.name} />

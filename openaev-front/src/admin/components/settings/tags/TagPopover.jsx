@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
@@ -85,14 +86,13 @@ class TagPopoverComponent extends Component {
       <>
         {(canManageTags || canDeleteTags) && (
           <IconButton
-            color="primary"
+            icon={<MoreVert fontSize="small" />}
+            aria-label={t('More actions')}
             onClick={this.handlePopoverOpen.bind(this)}
             aria-haspopup="true"
-            size="small"
-            sx={{ borderRadius: 1 }}
-          >
-            <MoreVert fontSize="small" />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
         )}
         <Menu
           anchorEl={this.state.anchorEl}

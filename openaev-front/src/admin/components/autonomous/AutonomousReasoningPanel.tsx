@@ -1,4 +1,4 @@
-import { Radio, RadioGroup } from '@filigran/design-system';
+import { IconButton, Radio, RadioGroup } from '@filigran/design-system';
 import {
   AutoAwesome,
   ErrorOutline,
@@ -8,7 +8,7 @@ import {
   WarningAmber,
 } from '@mui/icons-material';
 // fds:keep-mui the autonomous composer field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Box, Chip, CircularProgress, IconButton, Stack, TextField, Typography } from '@mui/material';
+import { Box, Chip, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -1268,22 +1268,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 {t('Enter to send - Shift+Enter for a new line')}
               </Typography>
               <IconButton
-                size="small"
+                icon={<SendOutlined fontSize="small" />}
                 onClick={handleComposerSubmit}
                 disabled={!canSubmitAnswer}
                 aria-label={t('Send')}
-                sx={{
-                  'backgroundColor': accent,
-                  'color': theme.palette.ai?.contrastText ?? theme.palette.primary.contrastText,
-                  '&:hover': { backgroundColor: theme.palette.ai?.dark ?? theme.palette.primary.dark },
-                  '&.Mui-disabled': {
-                    backgroundColor: alpha(accent, 0.3),
-                    color: alpha('#ffffff', 0.5),
-                  },
-                }}
-              >
-                <SendOutlined fontSize="small" />
-              </IconButton>
+                variant="ia"
+                priority="secondary"
+                size="md"
+              />
             </Stack>
           </Box>
         </Box>

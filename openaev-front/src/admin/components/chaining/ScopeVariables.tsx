@@ -1,6 +1,6 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, DataObjectOutlined, DeleteOutlined } from '@mui/icons-material';
-import { Box, Chip, IconButton, Typography } from '@mui/material';
+import { Box, Chip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -90,13 +90,12 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
           />
         </Box>
         <IconButton
-          color="primary"
-          size="small"
+          icon={<Add fontSize="small" />}
           onClick={() => setOpen(true)}
           aria-label={t('Add variable')}
-        >
-          <Add fontSize="small" />
-        </IconButton>
+          priority="tertiary"
+          size="sm"
+        />
       </Box>
 
       {/* List */}
@@ -172,13 +171,13 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                 <Tooltip key={`del-${variable.scope_variable_id}`}>
                   <TooltipTrigger asChild>
                     <IconButton
-                      size="small"
-                      color="error"
+                      icon={<DeleteOutlined fontSize="small" />}
                       onClick={() => handleDelete(variable.scope_variable_id)}
                       aria-label={t('Delete variable')}
-                    >
-                      <DeleteOutlined fontSize="small" />
-                    </IconButton>
+                      variant="destructive"
+                      priority="tertiary"
+                      size="sm"
+                    />
                   </TooltipTrigger>
                   <TooltipContent>{t('Delete variable')}</TooltipContent>
                 </Tooltip>

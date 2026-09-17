@@ -1,14 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  IconButton,
-  Menu,
-  MenuItem,
-} from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import { type MouseEvent, useContext, useState } from 'react';
 
 import {
@@ -234,9 +226,15 @@ const ThreatArsenalActionPopover = ({
 
   return (
     <>
-      <IconButton color="primary" onClick={handlePopoverOpen} aria-haspopup="true" size="small" disabled={allDisabled} sx={{ borderRadius: 1 }}>
-        <MoreVert fontSize="small" color={allDisabled ? 'disabled' : 'primary'} />
-      </IconButton>
+      <IconButton
+        icon={<MoreVert fontSize="small" />}
+        aria-label={t('More actions')}
+        onClick={handlePopoverOpen}
+        aria-haspopup="true"
+        disabled={allDisabled}
+        priority="tertiary"
+        size="sm"
+      />
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}

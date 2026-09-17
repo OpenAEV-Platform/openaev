@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDropDownOutlined, FileDownloadOutlined } from '@mui/icons-material';
-import { Box, Button, ButtonGroup, Chip, CircularProgress, IconButton, Menu, MenuItem, Typography } from '@mui/material';
+import { Box, Button, ButtonGroup, Chip, CircularProgress, Menu, MenuItem, Typography } from '@mui/material';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -263,12 +263,13 @@ const ReportingPage = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <IconButton
+                  asChild
+                  icon={<FileDownloadOutlined />}
                   aria-label={`${t('Download latest generation')} (${latestDownloadable.reporting_generation_format ?? ''})`}
-                  color="primary"
-                  component="a"
-                  href={downloadReportingGenerationUrl(latestDownloadable.reporting_generation_id)}
+                  priority="tertiary"
+                  size="md"
                 >
-                  <FileDownloadOutlined />
+                  <a href={downloadReportingGenerationUrl(latestDownloadable.reporting_generation_id)} />
                 </IconButton>
               </TooltipTrigger>
               <TooltipContent>{`${t('Download latest generation')} (${latestDownloadable.reporting_generation_format ?? ''})`}</TooltipContent>

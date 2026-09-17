@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { TrackChangesOutlined } from '@mui/icons-material';
-import { alpha, Box, Button, IconButton, Popover, Typography } from '@mui/material';
+import { alpha, Box, Button, Popover, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useState } from 'react';
 
@@ -103,13 +103,12 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
             <Tooltip>
               <TooltipTrigger asChild>
                 <IconButton
-                  size="small"
-                  color="primary"
+                  icon={<TrackChangesOutlined fontSize="small" />}
                   aria-label={t('Review expectations')}
                   onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
-                >
-                  <TrackChangesOutlined fontSize="small" />
-                </IconButton>
+                  priority="tertiary"
+                  size="sm"
+                />
               </TooltipTrigger>
               <TooltipContent>{t('Expectation drift dismissed: expectations still do not match their threat arsenal templates. Click to review and realign.')}</TooltipContent>
             </Tooltip>

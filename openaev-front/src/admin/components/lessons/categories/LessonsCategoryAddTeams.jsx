@@ -1,4 +1,4 @@
-import { IconButton as FdsIconButton } from '@filigran/design-system';
+import { IconButton } from '@filigran/design-system';
 import { Add, CastForEducationOutlined } from '@mui/icons-material';
 import { Box, Button } from '@mui/material';
 import * as R from 'ramda';
@@ -133,7 +133,7 @@ const LessonsCategoryAddTeams = ({
     <>
       {/* The library icon button at `sm` — 24px, the header row's own height.
           MUI's `size="small"` renders 30px and overflowed the row. */}
-      <FdsIconButton
+      <IconButton
         onClick={() => setOpen(true)}
         aria-haspopup="true"
         size="sm"

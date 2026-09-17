@@ -1,8 +1,8 @@
-import { Checkbox, Paper as FdsPaper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Checkbox, IconButton, Paper as FdsPaper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/icons-material';
-import { Box, Button, FormHelperText, IconButton, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Box, Button, FormHelperText, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm, useFormContext } from 'react-hook-form';
@@ -645,9 +645,14 @@ const ReportingForm: FunctionComponent<Props> = ({
                               <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <IconButton aria-label={t('Remove')} size="small" color="error" onClick={() => removeModule(index)}>
-                                    <DeleteOutlined fontSize="small" />
-                                  </IconButton>
+                                  <IconButton
+                                    icon={<DeleteOutlined fontSize="small" />}
+                                    aria-label={t('Remove')}
+                                    onClick={() => removeModule(index)}
+                                    variant="destructive"
+                                    priority="tertiary"
+                                    size="sm"
+                                  />
                                 </TooltipTrigger>
                                 <TooltipContent>{t('Remove')}</TooltipContent>
                               </Tooltip>
@@ -682,9 +687,14 @@ const ReportingForm: FunctionComponent<Props> = ({
                             </Box>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <IconButton aria-label={t('Remove')} size="small" color="error" onClick={() => removeModule(index)}>
-                                  <DeleteOutlined fontSize="small" />
-                                </IconButton>
+                                <IconButton
+                                  icon={<DeleteOutlined fontSize="small" />}
+                                  aria-label={t('Remove')}
+                                  onClick={() => removeModule(index)}
+                                  variant="destructive"
+                                  priority="tertiary"
+                                  size="sm"
+                                />
                               </TooltipTrigger>
                               <TooltipContent>{t('Remove')}</TooltipContent>
                             </Tooltip>

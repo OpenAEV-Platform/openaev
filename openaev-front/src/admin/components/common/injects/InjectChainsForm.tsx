@@ -1,6 +1,6 @@
-import { Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, DeleteOutlined, ExpandMore } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, FormControl, IconButton, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, FormControl, Typography } from '@mui/material';
 import { type FormApi } from 'final-form';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -864,14 +864,15 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      icon={<DeleteOutlined fontSize="small" />}
                       aria-label={t('Delete')}
-                      color="error"
                       onClick={() => {
                         deleteParent(parent);
                       }}
-                    >
-                      <DeleteOutlined fontSize="small" />
-                    </IconButton>
+                      variant="destructive"
+                      priority="tertiary"
+                      size="md"
+                    />
                   </TooltipTrigger>
                   <TooltipContent>{t('Delete')}</TooltipContent>
                 </Tooltip>
@@ -979,14 +980,15 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      icon={<DeleteOutlined fontSize="small" />}
                       aria-label={t('Delete')}
-                      color="error"
                       onClick={() => {
                         deleteChildren(children);
                       }}
-                    >
-                      <DeleteOutlined fontSize="small" />
-                    </IconButton>
+                      variant="destructive"
+                      priority="tertiary"
+                      size="md"
+                    />
                   </TooltipTrigger>
                   <TooltipContent>{t('Delete')}</TooltipContent>
                 </Tooltip>

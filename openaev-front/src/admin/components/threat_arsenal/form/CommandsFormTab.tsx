@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Button, IconButton } from '@mui/material';
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
@@ -220,12 +221,12 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
                 <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.get_command` as const} label={t('Get command')} required />
                 <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.check_command` as const} label={t('Check command')} />
                 <IconButton
+                  icon={<DeleteOutlined />}
+                  aria-label={t('Delete')}
                   onClick={() => prerequisitesRemove(prerequisitesIndex)}
-                  size="small"
-                  color="primary"
-                >
-                  <DeleteOutlined />
-                </IconButton>
+                  priority="tertiary"
+                  size="sm"
+                />
               </div>
             ))}
             <Button

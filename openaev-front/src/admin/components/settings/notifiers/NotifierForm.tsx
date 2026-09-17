@@ -1,13 +1,6 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined } from '@mui/icons-material';
-import { Button, IconButton, Typography } from '@mui/material';
+import { Button, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
 
 import TextFieldFds from '../../../../components/fields/TextFieldFds';
@@ -212,12 +205,13 @@ const NotifierForm: FunctionComponent<Props> = ({
                 style={{ flex: 2 }}
               />
               <IconButton
-                size="small"
-                color="error"
+                icon={<DeleteOutlined fontSize="small" />}
+                aria-label={t('Delete')}
                 onClick={() => setHeaders(headers.filter((_, i) => i !== index))}
-              >
-                <DeleteOutlined fontSize="small" />
-              </IconButton>
+                variant="destructive"
+                priority="tertiary"
+                size="sm"
+              />
             </div>
           ))}
           <Button

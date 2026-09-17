@@ -1,6 +1,6 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AutoAwesome, LayersClearOutlined, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, IconButton, Typography } from '@mui/material';
+import { Avatar, Box, Button, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -372,12 +372,12 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
-                      size="small"
+                      icon={<LayersClearOutlined fontSize="small" />}
                       onClick={() => setClearOutcomeOpen(true)}
                       aria-label={t('Clear AI outcome')}
-                    >
-                      <LayersClearOutlined fontSize="small" />
-                    </IconButton>
+                      priority="tertiary"
+                      size="sm"
+                    />
                   </TooltipTrigger>
                   <TooltipContent>
                     {autonomousRun.autonomous_run_plan_mode

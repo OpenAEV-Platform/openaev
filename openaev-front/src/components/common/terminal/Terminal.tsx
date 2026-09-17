@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDownward } from '@mui/icons-material';
-import { Box, IconButton } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useRef } from 'react';
 
@@ -104,17 +104,17 @@ const Terminal = ({ lines, maxHeight = 400 }: TerminalProps) => {
       <Tooltip>
         <TooltipTrigger asChild>
           <IconButton
+            icon={<ArrowDownward fontSize="small" />}
             aria-label={t('Scroll to bottom')}
-            size="small"
             onClick={scrollToBottom}
-            sx={{
+            style={{
               position: 'absolute',
               top: theme.spacing(),
               right: theme.spacing(2),
             }}
-          >
-            <ArrowDownward fontSize="small" />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
         </TooltipTrigger>
         <TooltipContent>{t('Scroll to bottom')}</TooltipContent>
       </Tooltip>

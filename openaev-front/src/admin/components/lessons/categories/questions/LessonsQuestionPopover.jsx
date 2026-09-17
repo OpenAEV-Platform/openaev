@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 
@@ -67,9 +68,14 @@ const LessonsQuestionPopover = ({
   )(lessonsQuestion);
   return (
     <div>
-      <IconButton onClick={handlePopoverOpen} aria-haspopup="true" size="small" color="primary" sx={{ borderRadius: 1 }}>
-        <MoreVert fontSize="small" />
-      </IconButton>
+      <IconButton
+        icon={<MoreVert fontSize="small" />}
+        aria-label={t('More actions')}
+        onClick={handlePopoverOpen}
+        aria-haspopup="true"
+        priority="tertiary"
+        size="sm"
+      />
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}

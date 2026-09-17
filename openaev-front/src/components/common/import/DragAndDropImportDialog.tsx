@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { CloudUploadOutlined, DeleteOutline } from '@mui/icons-material';
-import { Box, Button, IconButton, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import { type ChangeEvent, type DragEvent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -250,12 +251,12 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
                   <Typography variant="body2">{file.name}</Typography>
                 </div>
                 <IconButton
+                  icon={<DeleteOutline fontSize="small" />}
                   aria-label={t('Remove file')}
-                  size="small"
                   onClick={() => removeFile(index)}
-                >
-                  <DeleteOutline color="primary" fontSize="small" />
-                </IconButton>
+                  priority="tertiary"
+                  size="md"
+                />
               </div>
             ))}
           </div>

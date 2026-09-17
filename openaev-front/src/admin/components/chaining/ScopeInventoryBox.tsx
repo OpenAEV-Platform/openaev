@@ -1,6 +1,6 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, Close, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, Typography } from '@mui/material';
+import { Box, Button, Chip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
@@ -134,21 +134,20 @@ const ScopeInventoryBox = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
+                icon={<Close fontSize="small" />}
                 aria-label={t('Clear all')}
-                size="small"
-                color="primary"
                 onClick={(e) => {
                   e.stopPropagation();
                   onClearAll();
                 }}
-                sx={{
+                style={{
                   position: 'absolute',
                   top: 4,
                   right: 4,
                 }}
-              >
-                <Close fontSize="small" />
-              </IconButton>
+                priority="tertiary"
+                size="sm"
+              />
             </TooltipTrigger>
             <TooltipContent>{t('Clear all')}</TooltipContent>
           </Tooltip>

@@ -1,6 +1,6 @@
-import { IconButton as FdsIconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloudUploadOutlined } from '@mui/icons-material';
-import { Button, CircularProgress, type CircularProgressProps, IconButton } from '@mui/material';
+import { Button, CircularProgress, type CircularProgressProps } from '@mui/material';
 import { type ChangeEvent, type FunctionComponent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -47,13 +47,14 @@ const ImportUploader: FunctionComponent<Props> = ({
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="inline-flex">
-            <IconButton disabled={true} style={{ marginRight: 10 }}>
-              <CircularProgress
-                size={24}
-                thickness={2}
-                color={color ?? 'primary'}
-              />
-            </IconButton>
+            <IconButton
+              icon={<CircularProgress size={24} thickness={2} color={color ?? 'primary'} />}
+              aria-label={t('Import')}
+              disabled={true}
+              style={{ marginRight: 10 }}
+              priority="tertiary"
+              size="md"
+            />
           </span>
         </TooltipTrigger>
         <TooltipContent>{`Uploading ${upload}`}</TooltipContent>
@@ -83,7 +84,7 @@ const ImportUploader: FunctionComponent<Props> = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <span style={{ display: 'inline-flex' }}>
-              <FdsIconButton
+              <IconButton
                 priority="secondary"
                 size="md"
                 aria-label={t(title)}

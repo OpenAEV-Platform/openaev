@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Close, InfoOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, IconButton, Link, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Link, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -232,9 +232,14 @@ const FindingDetailPanel = ({
                 )
               : valueBlock}
           </Box>
-          <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
-            <Close fontSize="small" />
-          </IconButton>
+          <IconButton
+            icon={<Close fontSize="small" />}
+            aria-label={t('Close')}
+            onClick={onClose}
+            style={{ flexShrink: 0 }}
+            priority="tertiary"
+            size="md"
+          />
         </Box>
         {expectations && <Box sx={{ mt: 1 }}>{valueBlock}</Box>}
         <Chip

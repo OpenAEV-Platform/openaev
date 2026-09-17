@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesome,
@@ -18,7 +18,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton } from '@mui/material';
+import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -628,15 +628,17 @@ const ScenarioHeader = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Box component="span" sx={{ display: 'inline-flex' }}>
-              <IconButton
-                size="small"
-                color="primary"
-                onClick={handleLaunchNormal}
-                disabled={isScopeMissing}
-                data-testid="scenario-launch-now-button"
-              >
-                <PlayArrowOutlined fontSize="small" />
-              </IconButton>
+              <span className="inline-flex">
+                <IconButton
+                  icon={<PlayArrowOutlined fontSize="small" />}
+                  aria-label={t('Launch')}
+                  onClick={handleLaunchNormal}
+                  disabled={isScopeMissing}
+                  data-testid="scenario-launch-now-button"
+                  priority="tertiary"
+                  size="md"
+                />
+              </span>
             </Box>
           </TooltipTrigger>
           <TooltipContent>{isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now')}</TooltipContent>
@@ -836,14 +838,13 @@ const ScenarioHeader = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      asChild
+                      icon={<EmojiEventsOutlined fontSize="small" />}
                       aria-label={t('Preview challenges page')}
-                      size="small"
-                      color="primary"
-                      component={Link}
-                      to={`/admin/scenarios/${scenarioId}/challenges`}
-                      target="_blank"
+                      priority="tertiary"
+                      size="md"
                     >
-                      <EmojiEventsOutlined fontSize="small" />
+                      <Link to={`/admin/scenarios/${scenarioId}/challenges`} target="_blank" />
                     </IconButton>
                   </TooltipTrigger>
                   <TooltipContent>{t('Preview challenges page')}</TooltipContent>
@@ -865,9 +866,13 @@ const ScenarioHeader = ({
                   />
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <IconButton aria-label={t('Scheduling')} size="small" color="primary" onClick={() => setOpenScheduling(true)}>
-                        <UpdateOutlined fontSize="small" />
-                      </IconButton>
+                      <IconButton
+                        icon={<UpdateOutlined fontSize="small" />}
+                        aria-label={t('Scheduling')}
+                        onClick={() => setOpenScheduling(true)}
+                        priority="tertiary"
+                        size="md"
+                      />
                     </TooltipTrigger>
                     <TooltipContent>{t('Scheduling')}</TooltipContent>
                   </Tooltip>
@@ -877,14 +882,13 @@ const ScenarioHeader = ({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <IconButton
+                          icon={<DashboardCustomizeOutlined fontSize="small" />}
                           aria-label={t('Scenario assistant')}
-                          size="small"
-                          color="primary"
                           onClick={() => navigate(`/admin/scenarios/${scenarioId}/assistant`)}
                           data-testid="scenario-assistant-button"
-                        >
-                          <DashboardCustomizeOutlined fontSize="small" />
-                        </IconButton>
+                          priority="tertiary"
+                          size="md"
+                        />
                       </TooltipTrigger>
                       <TooltipContent>{t('Scenario assistant')}</TooltipContent>
                     </Tooltip>
@@ -920,20 +924,14 @@ const ScenarioHeader = ({
                       }}
                     >
                       <IconButton
-                        size="small"
+                        icon={<AutoFixHigh fontSize="small" />}
                         onClick={() => openAiDrawerOrEE('build')}
                         aria-label={hasExistingLogic ? t('Rebuild with AI') : t('AI builder')}
                         data-testid="scenario-plan-with-ai-button"
-                        sx={{
-                          'color': theme.palette.ai.main,
-                          '&:hover': {
-                            color: theme.palette.ai.dark,
-                            backgroundColor: alpha(theme.palette.ai.main, 0.08),
-                          },
-                        }}
-                      >
-                        <AutoFixHigh fontSize="small" />
-                      </IconButton>
+                        variant="ia"
+                        priority="tertiary"
+                        size="md"
+                      />
                       {!isEnterpriseEdition && <EEChip />}
                     </Box>
                   </TooltipTrigger>

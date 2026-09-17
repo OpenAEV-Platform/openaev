@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { KeyboardArrowDown, LinkOff, LinkOutlined } from '@mui/icons-material';
-import { Box, Button, ClickAwayListener, IconButton, Paper, Popper, Switch, Typography } from '@mui/material';
+import { Box, Button, ClickAwayListener, Paper, Popper, Switch, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
 import AutocompleteField from '../../../../../components/fields/AutocompleteField';
@@ -142,9 +142,13 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                   </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <IconButton aria-label={t('Unlink')} size="small" onClick={() => onUnlink(fieldKey)}>
-                        <LinkOff fontSize="small" />
-                      </IconButton>
+                      <IconButton
+                        icon={<LinkOff fontSize="small" />}
+                        aria-label={t('Unlink')}
+                        onClick={() => onUnlink(fieldKey)}
+                        priority="tertiary"
+                        size="sm"
+                      />
                     </TooltipTrigger>
                     <TooltipContent>{t('Unlink')}</TooltipContent>
                   </Tooltip>

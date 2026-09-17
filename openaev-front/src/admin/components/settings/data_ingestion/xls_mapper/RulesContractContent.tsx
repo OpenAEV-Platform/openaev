@@ -1,6 +1,6 @@
-import { Badge, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DeleteOutlined, ExpandMore } from '@mui/icons-material';
-import { Accordion, AccordionActions, AccordionDetails, AccordionSummary, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Typography } from '@mui/material';
+import { Accordion, AccordionActions, AccordionDetails, AccordionSummary, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Typography } from '@mui/material';
 import { CogOutline, InformationOutline } from 'mdi-material-ui';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { Controller, type FieldArrayWithId, useFieldArray, type UseFieldArrayRemove, type UseFormReturn } from 'react-hook-form';
@@ -173,9 +173,14 @@ const RulesContractContent: FunctionComponent<Props> = ({
             </Typography>
             <Tooltip>
               <TooltipTrigger asChild>
-                <IconButton aria-label={t('Delete')} color="error" onClick={handleClickOpenAlertDelete}>
-                  <DeleteOutlined fontSize="small" />
-                </IconButton>
+                <IconButton
+                  icon={<DeleteOutlined fontSize="small" />}
+                  aria-label={t('Delete')}
+                  onClick={handleClickOpenAlertDelete}
+                  variant="destructive"
+                  priority="tertiary"
+                  size="md"
+                />
               </TooltipTrigger>
               <TooltipContent>{t('Delete')}</TooltipContent>
             </Tooltip>
@@ -264,11 +269,12 @@ const RulesContractContent: FunctionComponent<Props> = ({
                   />
                   <Badge invisible={!hasAdvancedSetting} accessibleText={t('Default value set')} bareAnchor="md">
                     <IconButton
-                      color="primary"
+                      icon={<CogOutline />}
+                      aria-label={t('Default value')}
                       onClick={() => handleDefaultValueOpen(rulesIndex)}
-                    >
-                      <CogOutline />
-                    </IconButton>
+                      priority="tertiary"
+                      size="md"
+                    />
                   </Badge>
                 </div>
                 {currentRuleIndex !== null

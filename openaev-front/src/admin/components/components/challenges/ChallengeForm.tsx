@@ -1,3 +1,4 @@
+import { IconButton } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   ArrowDropDownOutlined,
@@ -6,17 +7,7 @@ import {
   ControlPointOutlined,
   DeleteOutlined,
 } from '@mui/icons-material';
-import {
-  Button,
-  Grid,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Typography,
-} from '@mui/material';
+import { Button, Grid, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
@@ -417,16 +408,16 @@ const ChallengeForm: FunctionComponent<Props> = ({
             {t('Flags')}
           </Typography>
           <IconButton
+            icon={<ControlPointOutlined />}
+            aria-label={t('Add')}
             onClick={() => appendFlag(EMPTY_FLAG)}
-            size="small"
-            color="primary"
             style={{
               float: 'left',
               margin: '-8px 0 0 10px',
             }}
-          >
-            <ControlPointOutlined />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
           <div className="clearfix" />
           <List>
             {flagFields.map((flagField, index) => (
@@ -448,13 +439,13 @@ const ChallengeForm: FunctionComponent<Props> = ({
                 />
                 {flagFields.length > 1 && (
                   <IconButton
+                    icon={<DeleteOutlined />}
+                    aria-label={t('Delete')}
                     onClick={() => removeFlag(index)}
                     aria-haspopup="true"
-                    size="small"
-                    color="primary"
-                  >
-                    <DeleteOutlined />
-                  </IconButton>
+                    priority="tertiary"
+                    size="sm"
+                  />
                 )}
               </ListItem>
             ))}

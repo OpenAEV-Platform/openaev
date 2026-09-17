@@ -1,6 +1,6 @@
-import { Paper, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
+import { IconButton, Paper, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Alert, Box, Button, IconButton, Pagination, Typography } from '@mui/material';
+import { Alert, Box, Button, Pagination, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -171,9 +171,14 @@ const EndpointDetailPanel = ({
           >
             {endpointLabel}
           </Typography>
-          <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
-            <Close fontSize="small" />
-          </IconButton>
+          <IconButton
+            icon={<Close fontSize="small" />}
+            aria-label={t('Close')}
+            onClick={onClose}
+            style={{ flexShrink: 0 }}
+            priority="tertiary"
+            size="md"
+          />
         </Box>
         {endpointSub && (
           <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{endpointSub}</Typography>

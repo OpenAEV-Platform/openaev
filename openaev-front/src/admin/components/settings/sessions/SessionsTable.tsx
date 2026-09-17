@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DeleteOutlined } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -68,14 +68,13 @@ const SessionsTable: FunctionComponent<Props> = ({ sessions, canManage = false, 
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
-                      edge="end"
-                      size="small"
-                      color="error"
+                      icon={<DeleteOutlined fontSize="small" />}
                       aria-label={t('Kill session')}
                       onClick={() => onKill(session.session_id!)}
-                    >
-                      <DeleteOutlined fontSize="small" />
-                    </IconButton>
+                      variant="destructive"
+                      priority="tertiary"
+                      size="sm"
+                    />
                   </TooltipTrigger>
                   <TooltipContent>{t('Kill session')}</TooltipContent>
                 </Tooltip>
