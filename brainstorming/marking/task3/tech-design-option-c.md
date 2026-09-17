@@ -490,3 +490,36 @@ sequenceDiagram
     PG-->>API: rows in tenant AND fully within clearance
     API-->>U: 200 (over-clearance rows do not exist → 404 on direct GET)
 ```
+## 5. How to deliver MARKING iteratively?
+
+1/ Using feature flag
+As always FF on the front end but also on the Backend
+
+Back-end feature flag: use MarkingFilteringConfig.isMarkingFeatureEnabled
+
+MarkingFilteringConfig.markedTables()  now reads  openaev.enabled-dev-features  directly and checks for  MARKING  or  *  ( PreviewFeature.FEATURE_FLAG_ALL ), matching  PreviewFeatureService.isFeatureEnabled 's exact semantics (comma-separated, case-insensitive).
+• Deliberately did NOT inject  PreviewFeatureService  itself: it resolves through  PlatformSettingsService  →  SettingRepository  (a JPA repository), which needs the  EntityManagerFactory  — but this class's  MarkingDimension  bean feeds into the  HibernatePropertiesCustomizer  that builds that same  EntityManagerFactory . Wiring it in would be a circular dependency at context startup. Reading the raw property directly avoids that while still using the same enum/config knob.
+
+
+2/ Activate thro properties like tenant + one SQL migration script to add a colum.
+Advantage: when deliver we can opt out for a marking table, without removing SQL column.
+Possibly easier testign
+
+3/ Endpoint must have @transaction + TxCtx to activate filteringwhat happen if a REST endpoint has @transactionl but no TxCtx arg
+
+Confirmed by the actual predicate function ( V6_20260917090000000__Add_is_marking_set_allowed_function.java ) — it's the inverse of what "no filtering" would look like: the filter still applies, and it fails closed.
+
+Mechanism:  is_marking_set_allowed(row_marking_ids)  is:
+
+COALESCE(row_marking_ids, '{}') <@ COALESCE(string_to_array(current_setting('app.current_markings', true), ','), '{}')
+
+If a  @Transactional  method has no  TxCtx  param,  TenantScopeTransactionAspect  never runs  set_config('app.current_markings', ...) .  current_setting(..., true)  then returns  NULL  → the right side collapses to  '{}'  (empty clearance).
+
+Result for a table listed in  openaev.marking.active-tables  but hit from a TxCtx-less transaction:
+
+• Unmarked rows ( marking_ids = '{}' / NULL ) →  '{}' <@ '{}'  = true → still visible.
+• Any marked row ( marking_ids  non-empty) →  X <@ '{}'  = false → silently hidden, for every caller including admins (this is a SQL-level filter, orthogonal to admin/RBAC bypass).
+
+So the query still runs, still returns 200, just with an incomplete result set — every row that carries at least one marking vanishes from it. It's not "filtering skipped, everything returned"; it's "filtering applied against a clearance of nothing," which is strictly narrower than intended, not wider. This is exactly the risk the class javadoc calls out: "a transaction sees only unmarked rows of any marking-active table — a partial, silent narrowing rather than an obvious empty result."
+
+

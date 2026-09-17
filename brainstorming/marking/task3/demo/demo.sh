@@ -88,15 +88,15 @@ echo "  tenant = ${TENANT}"
 [ -n "$TENANT" ] || { echo "  ERROR: could not resolve a tenant id (is the dev stack up?)" >&2; exit 1; }
 
 markings="$(curl -s "${admin[@]}" -X POST \
-  "${OPENAEV_URL}/api/tenants/${TENANT}/marking-definitions/search" \
-  -d '{"page":0,"size":50,"sorts":[{"property":"marking_order","direction":"asc"}]}')"
+  "${OPENAEV_URL}/api/tenants/${TENANT}/marking_definitions/search" \
+  -d '{"page":0,"size":50,"sorts":[{"property":"marking_definition_order","direction":"asc"}]}')"
 
 # Fail with the server's own message rather than letting the JSON parse below
 # blow up on an error payload - TENANT_ACCESS_DENIED used to surface as a bare
 # KeyError: 'content', which says nothing about the actual cause.
 case "$markings" in
   *'"content"'*) ;;
-  *) echo "  ERROR: marking-definitions/search did not return a page:" >&2
+  *) echo "  ERROR: marking_definitions/search did not return a page:" >&2
      echo "         ${markings}" >&2
      echo "         check OPENAEV_URL, TOKEN and TENANT." >&2
      exit 1 ;;
@@ -105,7 +105,10 @@ esac
 pick() { echo "$markings" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
-print(next(x['marking_id'] for x in d['content'] if x['marking_name']=='$1'))"; }
+# marking_definition_definition already carries the full 'TLP:GREEN'-style
+# label (Task 1's seed data bakes the type prefix in) - no need to recompose it.
+print(next(x['marking_definition_id'] for x in d['content']
+           if x['marking_definition_definition'] == '$1'))"; }
 
 M_GREEN="$(pick 'TLP:GREEN')"
 M_AMBER="$(pick 'TLP:AMBER')"
@@ -148,7 +151,7 @@ ROLE_MANAGER="$(echo "$roles" | jqr "next(x['role_id'] for x in d['content'] if 
 # Second role: reading marking definitions has its own dedicated capability,
 # ACCESS_MARKING_DEFINITION (Capability.java, CapabilityGroup.MARKING), which
 # Manager does not have. Without it the member gets 403 on
-# /marking-definitions/search, so the UI cannot turn the ids in asset_markings
+# /marking_definitions/search, so the UI cannot turn the ids in asset_markings
 # into names and colours and the Markings column renders empty - even though the
 # ids are right there in the payload.
 #
@@ -348,15 +351,15 @@ EOF
 say "4. Both sides of the containment test, read directly from Postgres"
 docker exec openaev-dev-pgsql psql -U openaev -d openaev -tA -c "
   select 'row markings (assets.marking_ids)  : ' ||
-         coalesce((select string_agg(m.marking_name, ', ' order by m.marking_order)
+         coalesce((select string_agg(m.marking_definition_definition, ', ' order by m.marking_definition_order)
                    from marking_definitions m
-                   where m.marking_id = any(a.marking_ids)), '(none)')
+                   where m.marking_definition_id = any(a.marking_ids)), '(none)')
   from assets a where a.asset_id = '${ASSET_ID}'
   union all
   select 'group grant (groups_markings)      : ' ||
-         coalesce(string_agg(m.marking_name, ', ' order by m.marking_order), '(none)')
+         coalesce(string_agg(m.marking_definition_definition, ', ' order by m.marking_definition_order), '(none)')
   from groups_markings gm
-  join marking_definitions m on m.marking_id = gm.marking_id
+  join marking_definitions m on m.marking_definition_id = gm.marking_id
   where gm.group_id = '${GROUP_ID}'"
 echo "  the grant expands downward in Java (AMBER also grants GREEN and CLEAR);"
 echo "  the SQL predicate itself is a flat subset test with no notion of order."

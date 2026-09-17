@@ -41,8 +41,8 @@ normalize_names() {
 fetch_definitions() {
   local body
   body="$(curl -s "${admin[@]}" -X POST \
-    "${OPENAEV_URL}/api/tenants/${TENANT}/marking-definitions/search" \
-    -d '{"page":0,"size":200,"sorts":[{"property":"marking_order","direction":"asc"}]}' || true)"
+    "${OPENAEV_URL}/api/tenants/${TENANT}/marking_definitions/search" \
+    -d '{"page":0,"size":200,"sorts":[{"property":"marking_definition_order","direction":"asc"}]}' || true)"
 
   echo "$body" | python3 -c "
 import sys, json
@@ -74,7 +74,12 @@ import json, os, sys
 
 catalog = json.loads(os.environ["MARKINGS"])["content"]
 field = os.environ["FIELD"]
-by_name = {m["marking_name"].casefold(): m for m in catalog}
+# marking_definition_definition already carries the full 'TLP:GREEN'-style
+# label (Task 1's seed data bakes the type prefix in) - use it as-is.
+def label(m):
+    return m["marking_definition_definition"]
+
+by_name = {label(m).casefold(): m for m in catalog}
 
 ids, labels, missing = [], [], []
 for name in sys.argv[1:]:
@@ -83,12 +88,12 @@ for name in sys.argv[1:]:
         missing.append(name)
         continue
     # The endpoint takes a set; the same id twice is a typo, not an intent.
-    if hit["marking_id"] not in ids:
-        ids.append(hit["marking_id"])
-        labels.append(f'{hit["marking_name"]} ({hit["marking_id"]})')
+    if hit["marking_definition_id"] not in ids:
+        ids.append(hit["marking_definition_id"])
+        labels.append(f'{label(hit)} ({hit["marking_definition_id"]})')
 
 if missing:
-    known = ", ".join(sorted(m["marking_name"] for m in catalog))
+    known = ", ".join(sorted(label(m) for m in catalog))
     sys.exit(f'unknown marking(s): {", ".join(missing)}\ndefined in this tenant: {known}')
 
 print(json.dumps({field: ids}))

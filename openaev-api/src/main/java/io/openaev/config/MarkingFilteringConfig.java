@@ -1,10 +1,12 @@
 package io.openaev.config;
 
 import io.openaev.annotation.AllowRawJdbc;
+import io.openaev.rest.settings.PreviewFeature;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -13,6 +15,7 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
 
 /**
  * Builds the {@link MarkedTables} the marking dimension filters against, from the live database
@@ -51,9 +54,35 @@ public class MarkingFilteringConfig {
   @Bean
   public MarkedTables markedTables(
       DataSource dataSource,
+      @Value("${openaev.enabled-dev-features:}") String enabledDevFeatures,
       @Value("${openaev.marking.active-tables:}") List<String> activeTables) {
+    if (!isMarkingFeatureEnabled(enabledDevFeatures)) {
+      return MarkedTables.EMPTY;
+    }
     List<String> allowlist = activeTables.stream().filter(name -> !name.isBlank()).toList();
     return deriveFromSchema(dataSource).restrictTo(allowlist);
+  }
+
+  /**
+   * Same semantics as {@code PreviewFeatureService.isFeatureEnabled}: {@code
+   * openaev.enabled-dev-features} is a comma-separated, case-insensitive list, and {@link
+   * PreviewFeature#FEATURE_FLAG_ALL} ({@code "*"}) enables every preview feature including {@link
+   * PreviewFeature#MARKING}.
+   *
+   * <p>Instead of injecting {@code PreviewFeatureService.isFeatureEnabled(MARKING)} do the call
+   * here to avoid a circular dependency in Hibernate life cycle. Same issue than the usage of JDBC
+   * query.
+   */
+  private static boolean isMarkingFeatureEnabled(String enabledDevFeatures) {
+    if (!StringUtils.hasText(enabledDevFeatures)) {
+      return false;
+    }
+    return Arrays.stream(enabledDevFeatures.split(","))
+        .map(String::strip)
+        .anyMatch(
+            token ->
+                token.equalsIgnoreCase(PreviewFeature.FEATURE_FLAG_ALL.getValue())
+                    || token.equalsIgnoreCase(PreviewFeature.MARKING.getValue()));
   }
 
   @Bean
