@@ -110,12 +110,12 @@ const Notifiers = () => {
       isSortable: false,
       value: (notifier: NotifierOutput) => (notifier.notifier_built_in
         ? (
-          <Chip
-            classes={{ root: classes.chipInList }}
-            style={colorStyles.grey}
-            label={t('Built-in')}
-          />
-        )
+            <Chip
+              classes={{ root: classes.chipInList }}
+              style={colorStyles.grey}
+              label={t('Built-in')}
+            />
+          )
         : undefined),
     },
   ], []);
