@@ -181,7 +181,9 @@ public class TenantService {
    * has a grace period to reactivate the tenant before permanent deletion.
    */
   public Tenant softDelete(String tenantId) {
-    throwIfDefaultTenant(tenantId);
+    if (Tenant.DEFAULT_TENANT_UUID.equals(tenantId)) {
+      throw new BadRequestException("Default tenant cannot be deleted: " + tenantId);
+    }
 
     Tenant tenant = findById(tenantId);
     if (tenant.getDeletedAt() != null) {
@@ -256,12 +258,6 @@ public class TenantService {
   private void evictMembershipForTenantUsers(String tenantId) {
     for (String userId : userRepository.findUserIdsByTenantId(tenantId)) {
       tenantMembershipCacheManager.evict(userId, tenantId);
-    }
-  }
-
-  private void throwIfDefaultTenant(String tenantId) {
-    if (tenantId.equals(Tenant.DEFAULT_TENANT_UUID)) {
-      throw new BadRequestException("Default tenant cannot be deleted: " + tenantId);
     }
   }
 }

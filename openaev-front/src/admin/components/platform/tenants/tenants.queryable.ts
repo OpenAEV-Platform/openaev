@@ -24,10 +24,7 @@ export const TENANT_INLINE_STYLES: Record<string, CSSProperties> = {
 };
 
 // Headers
-export const getTenantHeaders: (t: (text: string) => string, defaultTenantId?: string) => Header[] = (
-  t: (text: string) => string,
-  defaultTenantId?: string,
-) => [
+export const getTenantHeaders: (t: (text: string) => string, defaultTenantId?: string) => Header[] = (t: (text: string) => string, defaultTenantId?: string) => [
   {
     field: FIELD_TENANT_NAME,
     label: t('Tenant name'),

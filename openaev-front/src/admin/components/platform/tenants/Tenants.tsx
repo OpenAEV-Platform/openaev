@@ -46,7 +46,7 @@ const Tenants = () => {
     queryableHelpers,
     searchPaginationInput,
   } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_TENANT, buildSearchPagination({ sorts: TENANT_SORTS }));
-  const headers = useMemo(() => getTenantHeaders(t, settings.default_tenant_id), [settings.default_tenant_id, t]);
+  const headers = useMemo(() => getTenantHeaders(t, settings.default_tenant_id), [t, settings.default_tenant_id]);
 
   return (
     <div style={{ display: 'flex' }}>
