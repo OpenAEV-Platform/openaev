@@ -323,7 +323,8 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
     return stepRepository.save(step);
   }
 
-  private StepDelayQueue createPersistedDelayQueueEntry(String input, Workflow workflowRun, Step stepTemplate) {
+  private StepDelayQueue createPersistedDelayQueueEntry(
+      String input, Workflow workflowRun, Step stepTemplate) {
     StepDelayQueue delayEntry =
         StepDelayQueue.builder()
             .workflowRun(workflowRun)
