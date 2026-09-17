@@ -32,7 +32,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("dev")
+@Profile({"dev", "test-feature-branch"})
 @ConditionalOnProperty(prefix = "openaev.dev", name = "seed-prowler-findings", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j

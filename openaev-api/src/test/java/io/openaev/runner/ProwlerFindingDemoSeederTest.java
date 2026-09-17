@@ -48,10 +48,20 @@ class ProwlerFindingDemoSeederTest {
 
     @Test
     @DisplayName("Should require the DEV profile even when the property is enabled")
-    void given_propertyWithoutDevProfile_should_notCreateSeeder() {
+    void given_propertyWithoutSupportedProfile_should_notCreateSeeder() {
       contextRunner
           .withPropertyValues("openaev.dev.seed-prowler-findings=true")
           .run(context -> assertThat(context).doesNotHaveBean(ProwlerFindingDemoSeeder.class));
+    }
+
+    @Test
+    @DisplayName("Should be enabled explicitly for feature branch environments")
+    void given_featureBranchProfileAndProperty_should_createSeeder() {
+      contextRunner
+          .withPropertyValues(
+              "spring.profiles.active=test-feature-branch",
+              "openaev.dev.seed-prowler-findings=true")
+          .run(context -> assertThat(context).hasSingleBean(ProwlerFindingDemoSeeder.class));
     }
   }
 
