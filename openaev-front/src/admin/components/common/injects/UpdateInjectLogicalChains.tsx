@@ -125,7 +125,7 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
               marginBottom: theme.spacing(2),
             }}
             >
-              <Button priority="secondary" onClick={handleClose}>
+              <Button type="button" priority="secondary" onClick={handleClose}>
                 {t('Cancel')}
               </Button>
               <Button type="submit" disabled={(errors !== undefined && Object.keys(errors).length > 0) || permissions.readOnly}>

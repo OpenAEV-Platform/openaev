@@ -2473,3 +2473,13 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** One button whose fill follows a colour decided outside the design system's four types, for an exceptional surface (a full-width urgency banner). The ruling: the library gains a prop for it, documented as exceptional on the docs site.
 
 **The request.** A `color` override on `Button`, an opaque fill for the primary priority with the label ink chosen by the library, documented as an exceptional use.
+
+## 60. `Button` does not default `type="button"`, unlike MUI and unlike the library's own `IconButton`
+
+**Status.** Open. Worked around in the product: `type="button"` written explicitly on the 362 converted sites that had no type.
+
+**Measured.** `Button.tsx` at the pinned commit never sets `type`, so the rendered `<button>` falls back to the HTML default, `submit`. MUI's `ButtonBase` resolves `type === undefined ? "button" : type` (`@mui/material/ButtonBase/ButtonBase.js`), and the library's own `IconButton` declares `type = "button"` as a default parameter. So a MUI button with no type never submitted, and its library replacement does.
+
+**What it cost.** The OpenAEV Button wave turned every such button into a submit button inside its form. Caught by the product's end-to-end suite, not by any type or lint gate: the threat-arsenal "New argument" button submitted the action form instead of appending a row, so the argument field never appeared (`tests_e2e/tests/threat-arsenals/threatArsenal-creation.spec.ts`, two tests, three attempts each). Verified on the running product after the fix: the field appears and the drawer stays open.
+
+**The request.** Default `type="button"` on `Button`, as `IconButton` already does and as MUI does — a button that must submit says so. Until then every consumer has to write it on every site, and the omission is silent.

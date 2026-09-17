@@ -75,7 +75,7 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
           : t('Create your first action or import an existing arsenal to get started.')}
       </Typography>
       {hasFilters && (
-        <Button priority="secondary" onClick={onResetFilters}>
+        <Button type="button" priority="secondary" onClick={onResetFilters}>
           {t('Reset filters')}
         </Button>
       )}

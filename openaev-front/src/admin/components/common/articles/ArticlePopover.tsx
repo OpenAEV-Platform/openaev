@@ -135,8 +135,8 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = f
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="destructive" onClick={submitDelete}>
+          <Button type="button" priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button type="button" variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>
@@ -172,8 +172,8 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = f
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button onClick={submitRemove}>
+          <Button type="button" priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

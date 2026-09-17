@@ -78,7 +78,7 @@ const CatalogActiveFilters = ({ filters, onToggleFacet, onClearAll }: Props) => 
           deleteLabel={t('Remove')}
         />
       ))}
-      <Button priority="tertiary" size="sm" onClick={onClearAll}>
+      <Button type="button" priority="tertiary" size="sm" onClick={onClearAll}>
         {t('Clear all')}
       </Button>
     </div>

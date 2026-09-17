@@ -315,7 +315,7 @@ const ThreatArsenalScenarioUpdateComponent = ({
         )}
 
         {!isLoading && hasMore && (
-          <Button priority="tertiary" size="sm" startIcon={isLoadingMore ? <CircularProgress size={14} /> : undefined} onClick={handleShowMore} disabled={isLoadingMore} style={{ alignSelf: 'center' }}>
+          <Button type="button" priority="tertiary" size="sm" startIcon={isLoadingMore ? <CircularProgress size={14} /> : undefined} onClick={handleShowMore} disabled={isLoadingMore} style={{ alignSelf: 'center' }}>
             {t('Show more')}
           </Button>
         )}
@@ -327,10 +327,10 @@ const ThreatArsenalScenarioUpdateComponent = ({
           marginTop: 1,
         }}
         >
-          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Back')}
           </Button>
-          <Button onClick={handleSubmit} disabled={selectedScenarios.length === 0 || isSubmitting}>
+          <Button type="button" onClick={handleSubmit} disabled={selectedScenarios.length === 0 || isSubmitting}>
             {selectedScenarios.length > 1
               ? t('Add to {count} scenarios', { count: selectedScenarios.length })
               : t('Add to scenario')}

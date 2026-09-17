@@ -23,7 +23,7 @@ const EnterpriseEditionButton = () => {
   const { t } = useFormatter();
   const { openDialog } = useEnterpriseEdition();
   return (
-    <Button variant="highlight" priority="tertiary" size="sm" startIcon={<RocketLaunchOutlined fontSize="small" />} onClick={() => openDialog()}>
+    <Button type="button" variant="highlight" priority="tertiary" size="sm" startIcon={<RocketLaunchOutlined fontSize="small" />} onClick={() => openDialog()}>
       {t('Manage your enterprise edition license')}
     </Button>
   );

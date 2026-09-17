@@ -53,7 +53,7 @@ const LoginForm = ({ onSubmit, onResetPassword }: LoginFormProps) => {
             alignItems="center"
             justifyContent="space-between"
           >
-            <Button priority="tertiary" onClick={onResetPassword} style={{ marginLeft: -1 }}>
+            <Button type="button" priority="tertiary" onClick={onResetPassword} style={{ marginLeft: -1 }}>
               {t('I forgot my password')}
             </Button>
             <Button type="submit" disabled={pristine || submitting}>

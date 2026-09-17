@@ -797,7 +797,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 {showVulnerability && renderExpectationRow('vulnerability', t('Vulnerability'), 'Not vulnerable', detail?.vulnerabilityStatus, vulnerabilityBy)}
                 {/* Jump to the originating inject for the full action definition (pending backend id). */}
                 {onOpenInject && (
-                  <Button priority="secondary" size="sm" startIcon={<OpenInNew fontSize="small" />} onClick={onOpenInject} style={{ alignSelf: 'flex-start' }}>
+                  <Button type="button" priority="secondary" size="sm" startIcon={<OpenInNew fontSize="small" />} onClick={onOpenInject} style={{ alignSelf: 'flex-start' }}>
                     {t('Inject details')}
                   </Button>
                 )}

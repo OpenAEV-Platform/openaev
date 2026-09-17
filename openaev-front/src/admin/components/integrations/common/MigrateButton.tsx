@@ -38,7 +38,7 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
           position: 'relative',
         }}
         >
-          <Button priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" onClick={onMigrateClickAction}>
+          <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" onClick={onMigrateClickAction}>
             {t('Migrate')}
             {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
           </Button>

@@ -402,6 +402,7 @@ const EndpointDetailPanel = ({
                     onShowMore
                       ? (
                           <Button
+                            type="button"
                             priority="tertiary"
                             size="sm"
                             disabled={loadingMore}

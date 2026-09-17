@@ -36,10 +36,10 @@ const XtmHubConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button priority="secondary" onClick={onCancel}>
+        <Button type="button" priority="secondary" onClick={onCancel}>
           {cancelButtonText}
         </Button>
-        <Button onClick={onConfirm} autoFocus>
+        <Button type="button" onClick={onConfirm} autoFocus>
           {confirmButtonText}
         </Button>
       </DialogActions>

@@ -223,7 +223,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                 hint={t('Schedules generate this report on a recurring basis and email it to recipients.')}
               />
               {canManage && (
-                <Button startIcon={<AddOutlined fontSize="small" />} onClick={() => setDrawer('create')} style={{ marginTop: -3 }}>
+                <Button type="button" startIcon={<AddOutlined fontSize="small" />} onClick={() => setDrawer('create')} style={{ marginTop: -3 }}>
                   {t('Add schedule')}
                 </Button>
               )}

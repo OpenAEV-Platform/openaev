@@ -43,7 +43,7 @@ const AddComponentButton = ({
   const isEmptyCanvas = nodeCount === 0;
 
   const button = (
-    <Button startIcon={<Add fontSize="small" />} onClick={onClick}>
+    <Button type="button" startIcon={<Add fontSize="small" />} onClick={onClick}>
       {t('Add component')}
     </Button>
   );

@@ -336,10 +336,10 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleClose}>
+          <Button type="button" priority="secondary" onClick={handleClose}>
             {t('Close')}
           </Button>
-          <Button disabled={loading || !hasResult} onClick={handleAccept}>
+          <Button type="button" disabled={loading || !hasResult} onClick={handleAccept}>
             {t('Accept')}
           </Button>
         </DialogActions>

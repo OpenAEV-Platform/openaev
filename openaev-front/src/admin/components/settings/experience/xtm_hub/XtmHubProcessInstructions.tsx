@@ -36,7 +36,7 @@ const XtmHubProcessInstructions: React.FC<ProcessInstructionsProps> = ({
         width: '100%',
       }}
       >
-        <Button priority="tertiary" onClick={onContinue}>
+        <Button type="button" priority="tertiary" onClick={onContinue}>
           {t('Continue')}
         </Button>
       </div>

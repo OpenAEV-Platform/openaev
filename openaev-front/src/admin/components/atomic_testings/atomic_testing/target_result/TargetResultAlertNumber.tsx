@@ -46,7 +46,7 @@ const TargetResultAlertNumber: FunctionComponent<Props> = ({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button size="sm" onClick={handleClick} style={{ minWidth: 32 }}>
+        <Button type="button" size="sm" onClick={handleClick} style={{ minWidth: 32 }}>
           {alertLinksNumber}
         </Button>
       </TooltipTrigger>

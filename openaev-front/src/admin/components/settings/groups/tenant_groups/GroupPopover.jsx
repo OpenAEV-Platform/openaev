@@ -192,10 +192,10 @@ class GroupPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button priority="secondary" onClick={this.handleCloseDelete.bind(this)}>
+            <Button type="button" priority="secondary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button variant="destructive" onClick={this.submitDelete.bind(this)}>
+            <Button type="button" variant="destructive" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

@@ -41,7 +41,7 @@ const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent, readOn
         />
       </div>
       {!readOnly && (
-        <Button startIcon={<Add fontSize="small" />} onClick={onAddComponent} style={{ alignSelf: 'flex-end' }}>
+        <Button type="button" startIcon={<Add fontSize="small" />} onClick={onAddComponent} style={{ alignSelf: 'flex-end' }}>
           {t('Add component')}
         </Button>
       )}

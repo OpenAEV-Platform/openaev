@@ -1091,7 +1091,7 @@ class QuickInjectComponent extends Component {
                     <Typography variant="h2">{t('Inject data')}</Typography>
                   </div>
                   <div style={{ float: 'right' }}>
-                    <Button priority="secondary" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={this.handleOpenVariables.bind(this)}>
+                    <Button type="button" priority="secondary" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={this.handleOpenVariables.bind(this)}>
                       {t('Available variables')}
                     </Button>
                   </div>
@@ -1130,6 +1130,7 @@ class QuickInjectComponent extends Component {
                     attachedDocs,
                   )}
                   <Button
+                    type="button"
                     priority="secondary"
                     disabled={submitting || isDisabled}
                     onClick={this.resetDefaultvalues.bind(

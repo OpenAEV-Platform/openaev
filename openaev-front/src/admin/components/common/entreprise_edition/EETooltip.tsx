@@ -63,7 +63,7 @@ const EETooltip = ({
             {t('To use AI, please enable it in the configuration of your platform.')}
           </DialogContent>
           <DialogActions>
-            <Button priority="secondary" onClick={() => setOpenEnableAI(false)}>{t('Close')}</Button>
+            <Button type="button" priority="secondary" onClick={() => setOpenEnableAI(false)}>{t('Close')}</Button>
           </DialogActions>
         </Dialog>
       </>
@@ -96,7 +96,7 @@ const EETooltip = ({
             {t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.')}
           </DialogContent>
           <DialogActions>
-            <Button priority="secondary" onClick={() => setOpenConfigAI(false)}>{t('Close')}</Button>
+            <Button type="button" priority="secondary" onClick={() => setOpenConfigAI(false)}>{t('Close')}</Button>
           </DialogActions>
         </Dialog>
       </>

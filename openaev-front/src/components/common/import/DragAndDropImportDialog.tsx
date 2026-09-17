@@ -223,6 +223,7 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
             </Typography>
             <div className={classes.actionRow}>
               <Button
+                type="button"
                 disabled={isLimitReached}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -262,10 +263,10 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
         )}
 
         <div className={classes.footerButtons}>
-          <Button priority="tertiary" onClick={handleClose} disabled={uploading}>
+          <Button type="button" priority="tertiary" onClick={handleClose} disabled={uploading}>
             {t('Cancel')}
           </Button>
-          <Button onClick={handleSubmit} disabled={selectedFiles.length === 0 || uploading}>
+          <Button type="button" onClick={handleSubmit} disabled={selectedFiles.length === 0 || uploading}>
             {t('Import')}
           </Button>
         </div>

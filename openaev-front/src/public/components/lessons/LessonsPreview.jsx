@@ -243,7 +243,7 @@ const LessonsPreview = (props) => {
                 textAlign: 'center',
               }}
               >
-                <Button disabled>
+                <Button type="button" disabled>
                   {t('Submit')}
                 </Button>
               </div>

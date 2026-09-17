@@ -40,7 +40,7 @@ const WidgetPerspectiveSelection: FunctionComponent<{
         justifyContent: 'center',
       }}
       >
-        <Button onClick={handleSubmit} style={{ marginTop: theme.spacing(2) }}>
+        <Button type="button" onClick={handleSubmit} style={{ marginTop: theme.spacing(2) }}>
           {t('Validate')}
         </Button>
       </div>

@@ -88,8 +88,8 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button onClick={submitDelete}>
+          <Button type="button" priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

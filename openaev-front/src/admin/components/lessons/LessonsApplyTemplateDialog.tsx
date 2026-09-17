@@ -84,11 +84,11 @@ const LessonsApplyTemplateDialog = ({ open, onClose, onApply, lessonsTemplates, 
         <CreateLessonsTemplate inline />
       </DialogContent>
       <DialogActions>
-        <Button priority="secondary" onClick={onClose}>
+        <Button type="button" priority="secondary" onClick={onClose}>
           {t('Cancel')}
         </Button>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-          <Button onClick={applyTemplate} disabled={templateValue === null}>
+          <Button type="button" onClick={applyTemplate} disabled={templateValue === null}>
             {t('Apply')}
           </Button>
         </Can>

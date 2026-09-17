@@ -661,10 +661,10 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
           gap: theme.spacing(1),
         }}
         >
-          <Button priority="secondary" onClick={onCancel}>
+          <Button type="button" priority="secondary" onClick={onCancel}>
             {t('Cancel')}
           </Button>
-          <Button onClick={onSubmit} disabled={!hasChanges}>
+          <Button type="button" onClick={onSubmit} disabled={!hasChanges}>
             {t('Define scope')}
           </Button>
         </Box>

@@ -35,7 +35,7 @@ const CatalogEmptyState = ({ onResetFilters }: Props) => {
       <Typography variant="body2" sx={{ color: 'text.secondary' }}>
         {t('Try adjusting your search or clearing some filters.')}
       </Typography>
-      <Button priority="secondary" size="sm" onClick={onResetFilters} style={{ marginTop: 8 }}>
+      <Button type="button" priority="secondary" size="sm" onClick={onResetFilters} style={{ marginTop: 8 }}>
         {t('Reset filters')}
       </Button>
     </section>

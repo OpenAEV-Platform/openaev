@@ -96,7 +96,7 @@ const InjectSelectionBar: FunctionComponent<Props> = ({
         >
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button startIcon={<AddOutlined fontSize="small" />} onClick={onAdd}>
+              <Button type="button" startIcon={<AddOutlined fontSize="small" />} onClick={onAdd}>
                 {count === 1 ? t('Add 1 inject') : t('Add {count} injects', { count })}
               </Button>
             </TooltipTrigger>

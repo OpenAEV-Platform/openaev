@@ -183,7 +183,7 @@ const AvailableVariablesDialog: FunctionComponent<
       </DialogContent>
 
       <DialogActions>
-        <Button priority="secondary" onClick={handleClose}>{t('Close')}</Button>
+        <Button type="button" priority="secondary" onClick={handleClose}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

@@ -142,6 +142,7 @@ const Communication = (props) => {
               return (
                 <a key={a} href={`/api/communications/attachment?file=${a}`}>
                   <Button
+                    type="button"
                     startIcon={<AttachFileRounded fontSize="small" style={{ fontSize: 14 }} />}
                     style={{
                       marginRight: 10,

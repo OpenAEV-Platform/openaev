@@ -324,7 +324,7 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
         paddingTop: 0,
       }}
       >
-        <Button priority="tertiary" onClick={onClose}>{t('Close')}</Button>
+        <Button type="button" priority="tertiary" onClick={onClose}>{t('Close')}</Button>
       </Box>
     </Dialog>
   );

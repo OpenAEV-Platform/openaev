@@ -34,7 +34,7 @@ const ChannelAddLogo: FunctionComponent<Props> = ({ handleAddLogo }) => {
   return (
     <div>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
-        <Button priority="secondary" size="sm" onClick={handleOpen}>
+        <Button type="button" priority="secondary" size="sm" onClick={handleOpen}>
           {t('Change logo')}
         </Button>
       </Can>

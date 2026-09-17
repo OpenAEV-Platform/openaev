@@ -441,7 +441,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               title={t('Inject data')}
               helper={t('The content and targets specific to this inject.')}
               action={(
-                <Button priority="tertiary" size="sm" startIcon={<RestartAlt fontSize="small" />} disabled={readOnly} onClick={handleResetDefaults}>
+                <Button type="button" priority="tertiary" size="sm" startIcon={<RestartAlt fontSize="small" />} disabled={readOnly} onClick={handleResetDefaults}>
                   {t('Reset default value')}
                 </Button>
               )}

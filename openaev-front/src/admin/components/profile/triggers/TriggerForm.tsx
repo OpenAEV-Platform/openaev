@@ -295,7 +295,7 @@ const TriggerForm: FunctionComponent<Props> = ({
       }}
       >
         {onDelete && (
-          <Button variant="destructive" onClick={onDelete}>
+          <Button type="button" variant="destructive" onClick={onDelete}>
             {t('Delete')}
           </Button>
         )}

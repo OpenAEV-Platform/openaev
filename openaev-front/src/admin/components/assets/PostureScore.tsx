@@ -493,7 +493,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
           })}
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
+          <Button type="button" priority="secondary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
         </DialogActions>
       </Dialog>
     </>

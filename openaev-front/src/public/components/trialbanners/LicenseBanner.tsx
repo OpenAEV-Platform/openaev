@@ -152,6 +152,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
           }}
           >
             <Button
+              type="button"
               priority="secondary"
               onClick={() => {
                 setShowFormDialog(false);
@@ -174,7 +175,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
             marginTop: theme.spacing(2),
           }}
           >
-            <Button priority="tertiary" onClick={() => setShowThankYouDialog(false)}>
+            <Button type="button" priority="tertiary" onClick={() => setShowThankYouDialog(false)}>
               {t('Close')}
             </Button>
           </div>

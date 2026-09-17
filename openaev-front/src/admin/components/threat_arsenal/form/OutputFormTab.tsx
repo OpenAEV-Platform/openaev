@@ -46,6 +46,7 @@ const OutputFormTab = () => {
         helper={t('Each attribute extracts a structured value from the raw output.')}
         action={(
           <Button
+            type="button"
             size="sm"
             startIcon={<Add fontSize="small" />}
             onClick={() => outputElementAppend({

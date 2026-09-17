@@ -381,7 +381,7 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
           gap: 1,
         }}
         >
-          <Button priority="tertiary" size="sm" onClick={() => navigate('/admin/reporting')} style={{ marginRight: 'auto' }}>
+          <Button type="button" priority="tertiary" size="sm" onClick={() => navigate('/admin/reporting')} style={{ marginRight: 'auto' }}>
             {t('Browse all')}
           </Button>
           {generating
@@ -399,7 +399,7 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
                 </Box>
               )
             : canManage && (
-              <Button size="sm" onClick={handleGenerate}>
+              <Button type="button" size="sm" onClick={handleGenerate}>
                 {t('Generate report')}
               </Button>
             )}

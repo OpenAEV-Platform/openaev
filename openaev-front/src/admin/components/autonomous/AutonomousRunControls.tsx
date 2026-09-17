@@ -38,17 +38,17 @@ const AutonomousRunControls: FunctionComponent<AutonomousRunControlsProps> = ({ 
   return (
     <>
       {status === 'RUNNING' && (
-        <Button variant="destructive" priority="secondary" startIcon={<PauseOutlined fontSize="small" />} disabled={busy} onClick={() => withBusy(pauseAutonomousRun(runId))}>
+        <Button type="button" variant="destructive" priority="secondary" startIcon={<PauseOutlined fontSize="small" />} disabled={busy} onClick={() => withBusy(pauseAutonomousRun(runId))}>
           {t('Pause')}
         </Button>
       )}
       {status === 'PAUSED' && (
-        <Button priority="secondary" startIcon={<PlayArrowOutlined fontSize="small" />} disabled={busy} onClick={() => withBusy(resumeAutonomousRun(runId))}>
+        <Button type="button" priority="secondary" startIcon={<PlayArrowOutlined fontSize="small" />} disabled={busy} onClick={() => withBusy(resumeAutonomousRun(runId))}>
           {t('Resume')}
         </Button>
       )}
       {(isActive || status === 'PAUSED' || status === 'PLANNING') && (
-        <Button variant="destructive" priority="secondary" startIcon={<CancelOutlined fontSize="small" />} disabled={busy} onClick={() => withBusy(cancelAutonomousRun(runId))}>
+        <Button type="button" variant="destructive" priority="secondary" startIcon={<CancelOutlined fontSize="small" />} disabled={busy} onClick={() => withBusy(cancelAutonomousRun(runId))}>
           {t('Stop')}
         </Button>
       )}

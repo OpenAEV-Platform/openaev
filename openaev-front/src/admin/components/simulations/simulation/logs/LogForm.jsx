@@ -62,7 +62,7 @@ class LogFormComponent extends Component {
               marginTop: 20,
             }}
             >
-              <Button priority="secondary" onClick={handleClose.bind(this)} disabled={submitting}>
+              <Button type="button" priority="secondary" onClick={handleClose.bind(this)} disabled={submitting}>
                 {t('Cancel')}
               </Button>
               <Button type="submit" disabled={pristine || submitting}>

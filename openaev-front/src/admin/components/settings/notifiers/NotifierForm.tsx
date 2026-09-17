@@ -215,6 +215,7 @@ const NotifierForm: FunctionComponent<Props> = ({
             </div>
           ))}
           <Button
+            type="button"
             priority="tertiary"
             size="sm"
             startIcon={<AddOutlined fontSize="small" />}

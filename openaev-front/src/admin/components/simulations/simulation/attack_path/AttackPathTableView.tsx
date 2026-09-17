@@ -167,7 +167,7 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
           {`${t('Most exposed assets')} (${rows.length})`}
         </Typography>
         {/* Export is a side action next to the table content — outlined (not filled), primary color. */}
-        <Button priority="secondary" size="sm" startIcon={<FileDownloadOutlined fontSize="small" />} onClick={exportCsv} disabled={rows.length === 0}>
+        <Button type="button" priority="secondary" size="sm" startIcon={<FileDownloadOutlined fontSize="small" />} onClick={exportCsv} disabled={rows.length === 0}>
           {t('Export CSV')}
         </Button>
       </Box>

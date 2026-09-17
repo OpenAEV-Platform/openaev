@@ -515,7 +515,7 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button priority="secondary" onClick={handleClose}>
+            <Button type="button" priority="secondary" onClick={handleClose}>
               {t('Cancel')}
             </Button>
             <Button type="submit">

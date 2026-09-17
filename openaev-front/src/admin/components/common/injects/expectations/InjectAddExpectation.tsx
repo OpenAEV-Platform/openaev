@@ -56,7 +56,7 @@ const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
     <>
       {inline
         ? (
-            <Button priority="tertiary" size="sm" startIcon={<ControlPointOutlined fontSize="small" />} onClick={handleOpen} disabled={disabled}>
+            <Button type="button" priority="tertiary" size="sm" startIcon={<ControlPointOutlined fontSize="small" />} onClick={handleOpen} disabled={disabled}>
               {t('Add expectations')}
             </Button>
           )

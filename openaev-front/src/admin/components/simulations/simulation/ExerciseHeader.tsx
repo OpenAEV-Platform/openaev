@@ -125,7 +125,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
             <Tooltip>
               <TooltipTrigger asChild>
                 <span style={{ display: 'inline-flex' }}>
-                  <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading || isScopeMissing}>
+                  <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading || isScopeMissing}>
                     {t('Start now')}
                   </Button>
                 </span>
@@ -143,7 +143,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
         // still be resumed. Stop remains offered by dangerousButton().
         if (permissions.canLaunch && !isChaining) {
           return (
-            <Button variant="destructive" priority="secondary" startIcon={<PauseOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('PAUSED')} disabled={isLoading}>
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<PauseOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('PAUSED')} disabled={isLoading}>
               {t('Pause')}
             </Button>
           );
@@ -153,7 +153,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <Button priority="secondary" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading}>
+            <Button type="button" priority="secondary" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading}>
               {t('Resume')}
             </Button>
           );
@@ -171,7 +171,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <Button variant="destructive" priority="secondary" startIcon={<CancelOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('CANCELED')} disabled={isLoading}>
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<CancelOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('CANCELED')} disabled={isLoading}>
               {t('Stop')}
             </Button>
           );
@@ -182,7 +182,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'CANCELED': {
         if (permissions.canLaunch) {
           return (
-            <Button variant="destructive" priority="secondary" startIcon={<RestartAltOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('SCHEDULED')} disabled={isLoading}>
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<RestartAltOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('SCHEDULED')} disabled={isLoading}>
               {t('Reset')}
             </Button>
           );
@@ -226,10 +226,10 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={() => setOpenChangeStatus(null)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenChangeStatus(null)}>
             {t('Cancel')}
           </Button>
-          <Button onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}>
+          <Button type="button" onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}>
             {t('Confirm')}
           </Button>
         </DialogActions>
@@ -502,6 +502,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
+                      type="button"
                       priority="secondary"
                       startIcon={<TuneOutlined fontSize="small" />}
                       onClick={() => {
@@ -611,7 +612,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                             </Button>
                           )
                         : (
-                            <Button priority="secondary" startIcon={<RouteOutlined fontSize="small" />} disabled style={{ maxWidth: 220 }}>
+                            <Button type="button" priority="secondary" startIcon={<RouteOutlined fontSize="small" />} disabled style={{ maxWidth: 220 }}>
                               <Box
                                 component="span"
                                 sx={{

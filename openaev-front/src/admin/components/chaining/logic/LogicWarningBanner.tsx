@@ -92,7 +92,7 @@ const LogicWarningBanner: FunctionComponent<Props> = ({ eventMetas, onAddCompati
           <Typography fontWeight={800} variant="body2">
             {t('not provisioned by any action.')}
           </Typography>
-          <Button priority="tertiary" size="sm" startIcon={<Add fontSize="small" />} onClick={() => onAddCompatibleAction(item.field)}>
+          <Button type="button" priority="tertiary" size="sm" startIcon={<Add fontSize="small" />} onClick={() => onAddCompatibleAction(item.field)}>
             {t('Add Compatible Action')}
           </Button>
         </Box>

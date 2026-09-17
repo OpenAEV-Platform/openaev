@@ -218,7 +218,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
               mb: 2,
             }}
             >
-              <Button priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} disabled={readOnly} onClick={handleAddConditionGroup}>
+              <Button type="button" priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} disabled={readOnly} onClick={handleAddConditionGroup}>
                 {t('Add Condition Group')}
               </Button>
             </Box>

@@ -209,10 +209,10 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
           )
         }
         <div className={`${classes.buttonContainer} ${classes.allWidth}`}>
-          <Button priority="secondary" onClick={onResetAndClose} disabled={isLoading} style={{ marginLeft: 'auto' }}>
+          <Button type="button" priority="secondary" onClick={onResetAndClose} disabled={isLoading} style={{ marginLeft: 'auto' }}>
             {t('Cancel')}
           </Button>
-          <Button onClick={onSubmit} disabled={isLoading || (files.length === 0 && text.trim() === '')}>
+          <Button type="button" onClick={onSubmit} disabled={isLoading || (files.length === 0 && text.trim() === '')}>
             {t('Generate TTP')}
           </Button>
         </div>

@@ -73,7 +73,7 @@ const Section: FunctionComponent<Props> = ({
         </Typography>
         {action}
         {collapsible && (
-          <Button priority="tertiary" size="sm" onClick={() => setCollapsed(c => !c)} aria-label={collapsed ? t('Expand') : t('Collapse')} style={{ minWidth: 0 }}>
+          <Button type="button" priority="tertiary" size="sm" onClick={() => setCollapsed(c => !c)} aria-label={collapsed ? t('Expand') : t('Collapse')} style={{ minWidth: 0 }}>
             {collapsed ? <ExpandMoreOutlined fontSize="small" /> : <ExpandLessOutlined fontSize="small" />}
           </Button>
         )}

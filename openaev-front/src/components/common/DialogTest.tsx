@@ -39,8 +39,8 @@ const DialogTest: FunctionComponent<DialogTestProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button priority="secondary" onClick={handleClose}>{t('Cancel')}</Button>
-        <Button onClick={handleSubmit}>
+        <Button type="button" priority="secondary" onClick={handleClose}>{t('Cancel')}</Button>
+        <Button type="button" onClick={handleSubmit}>
           {t('Confirm')}
         </Button>
       </DialogActions>

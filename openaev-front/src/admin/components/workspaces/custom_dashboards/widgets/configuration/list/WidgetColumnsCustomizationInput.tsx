@@ -173,7 +173,7 @@ const WidgetColumnsCustomizationInput: FunctionComponent<WidgetConfigColumnsCust
           justifyContent: 'flex-end',
         }}
         >
-          <Button priority="secondary" onClick={() => onChange(defaultColumns)}>
+          <Button type="button" priority="secondary" onClick={() => onChange(defaultColumns)}>
             {t('Reset')}
           </Button>
         </Box>

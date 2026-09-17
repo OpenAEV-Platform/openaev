@@ -131,8 +131,8 @@ const TimeoutLock = () => {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button priority="secondary" onClick={handleLogout}>{t('Logout')}</Button>
-        <Button onClick={handleContinue}>{t('Continue session')}</Button>
+        <Button type="button" priority="secondary" onClick={handleLogout}>{t('Logout')}</Button>
+        <Button type="button" onClick={handleContinue}>{t('Continue session')}</Button>
       </DialogActions>
     </Dialog>
   );

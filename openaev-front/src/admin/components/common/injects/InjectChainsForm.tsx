@@ -829,6 +829,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
           <Typography sx={sectionHelperSx}>{t('The inject that must run before this one (at most one).')}</Typography>
         </div>
         <Button
+          type="button"
           priority="secondary"
           size="sm"
           startIcon={<Add fontSize="small" />}
@@ -921,6 +922,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 </Box>
                 <div style={{ justifyContent: 'left' }}>
                   <Button
+                    type="button"
                     priority="tertiary"
                     aria-label="Add"
                     onClick={() => {
@@ -946,7 +948,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
           <Typography sx={sectionTitleSx}>{t('Children')}</Typography>
           <Typography sx={sectionHelperSx}>{t('Injects that run after this one, on the condition you define.')}</Typography>
         </div>
-        <Button priority="secondary" size="sm" startIcon={<Add fontSize="small" />} disabled={addChildrenButtonDisabled || isDisabled} onClick={addChildren}>
+        <Button type="button" priority="secondary" size="sm" startIcon={<Add fontSize="small" />} disabled={addChildrenButtonDisabled || isDisabled} onClick={addChildren}>
           {t('Add child')}
         </Button>
       </Box>
@@ -1032,6 +1034,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 </Box>
                 <div style={{ justifyContent: 'left' }}>
                   <Button
+                    type="button"
                     priority="tertiary"
                     aria-label="Add"
                     onClick={() => {

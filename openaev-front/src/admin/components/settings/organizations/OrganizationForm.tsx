@@ -72,7 +72,7 @@ const OrganizationForm: FunctionComponent<Props> = ({
             marginTop: 20,
           }}
           >
-            <Button priority="secondary" onClick={handleClose} disabled={submitting}>
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting}>
               {t('Cancel')}
             </Button>
             <Button type="submit" disabled={pristine || submitting}>

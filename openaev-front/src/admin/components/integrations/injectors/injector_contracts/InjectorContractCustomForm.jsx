@@ -194,7 +194,7 @@ const InjectorContractForm = (props) => {
               marginTop: theme.spacing(2),
             }}
           >
-            <Button priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: theme.spacing(2) }}>
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: theme.spacing(2) }}>
               {t('Cancel')}
             </Button>
 

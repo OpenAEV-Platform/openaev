@@ -106,7 +106,7 @@ const CustomDomainInstructionsPanel: FunctionComponent<Props> = ({ customDomain,
           </Typography>
           <CustomDomainStatusChip status={domain.custom_domain_status} />
         </Box>
-        <Button startIcon={verifying ? <CircularProgress size={16} color="inherit" /> : <VerifiedUserOutlined />} onClick={onVerify} disabled={verifying}>
+        <Button type="button" startIcon={verifying ? <CircularProgress size={16} color="inherit" /> : <VerifiedUserOutlined />} onClick={onVerify} disabled={verifying}>
           {isVerified ? t('Re-check DNS') : t('Verify domain')}
         </Button>
       </Box>

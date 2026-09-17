@@ -386,7 +386,7 @@ const FindingDetailPanel = ({
                 >
                   {a.statusLabel}
                 </Box>
-                <Button priority="secondary" size="sm" onClick={() => onSelect(a.ref)} style={{ flexShrink: 0 }}>
+                <Button type="button" priority="secondary" size="sm" onClick={() => onSelect(a.ref)} style={{ flexShrink: 0 }}>
                   {t('View')}
                 </Button>
               </Box>

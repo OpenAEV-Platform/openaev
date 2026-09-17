@@ -29,10 +29,10 @@ const XtmHubDialogConnectivityLostAuthorizedRegister: React.FC<Props> = ({ open,
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button priority="secondary" onClick={onCancel}>
+        <Button type="button" priority="secondary" onClick={onCancel}>
           {t('Cancel')}
         </Button>
-        <Button onClick={onConfirm}>
+        <Button type="button" onClick={onConfirm}>
           {t('Reconnect')}
         </Button>
       </DialogActions>

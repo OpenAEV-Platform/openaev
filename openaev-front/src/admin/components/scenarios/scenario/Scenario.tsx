@@ -441,7 +441,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Box component="span" sx={{ display: 'inline-flex' }}>
-                    <Button startIcon={<PlayArrowOutlined fontSize="small" />} disabled={isScopeMissing} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
+                    <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} disabled={isScopeMissing} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
                       {t('Normal')}
                     </Button>
                   </Box>
@@ -463,6 +463,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                       }}
                     >
                       <Button
+                        type="button"
                         variant="ia"
                         priority="secondary"
                         startIcon={<AutoAwesome fontSize="small" />}
@@ -487,7 +488,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
             </Box>
           )}
           {canLaunch && !isRunActive && !isScenarioChaining && (
-            <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
+            <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenInstantiateSimulationAndStart(true)}>
               {t('Launch simulation now')}
             </Button>
           )}

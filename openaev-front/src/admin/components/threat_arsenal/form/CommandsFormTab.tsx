@@ -185,6 +185,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
               />
             ))}
             <Button
+              type="button"
               priority="secondary"
               onClick={() => {
                 argumentsAppend({
@@ -229,6 +230,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
               </div>
             ))}
             <Button
+              type="button"
               priority="secondary"
               onClick={() => {
                 prerequisitesAppend({

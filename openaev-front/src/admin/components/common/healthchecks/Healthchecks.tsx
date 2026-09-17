@@ -107,7 +107,7 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
               :
             </Typography>
             <span>{t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}</span>
-            <Button priority="tertiary" size="sm" onClick={() => goToHealthcheckAction(healthcheck.type!)}>
+            <Button type="button" priority="tertiary" size="sm" onClick={() => goToHealthcheckAction(healthcheck.type!)}>
               {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
             </Button>
           </div>

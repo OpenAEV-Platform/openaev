@@ -29,14 +29,14 @@ const ActionButton = ({ onUpdate, disabled, status }: Props) => {
 
   if (status === 'starting') {
     return (
-      <Button variant="destructive" priority="secondary" size="sm" onClick={onUpdate} disabled={disabled}>
+      <Button type="button" variant="destructive" priority="secondary" size="sm" onClick={onUpdate} disabled={disabled}>
         {t('Stop')}
       </Button>
     );
   }
 
   return (
-    <Button priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" onClick={onClickAction} disabled={disabled}>
+    <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" onClick={onClickAction} disabled={disabled}>
       {t('Start')}
       {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
     </Button>

@@ -204,7 +204,7 @@ const Lessons: FunctionComponent<Props> = ({
           )}
           {canApplyTemplate && (
             <Field label={t('Template')}>
-              <Button priority="secondary" size="sm" startIcon={<ContentPasteGoOutlined fontSize="small" />} onClick={() => setOpenApplyTemplate(true)}>
+              <Button type="button" priority="secondary" size="sm" startIcon={<ContentPasteGoOutlined fontSize="small" />} onClick={() => setOpenApplyTemplate(true)}>
                 {t('Apply')}
               </Button>
             </Field>
@@ -219,7 +219,7 @@ const Lessons: FunctionComponent<Props> = ({
           </Field>
           {permissions.canManage && (
             <Field label={t('Categories and questions')}>
-              <Button variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenEmptyLessons(true)}>
+              <Button type="button" variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenEmptyLessons(true)}>
                 {t('Clear out')}
               </Button>
             </Field>
@@ -239,12 +239,12 @@ const Lessons: FunctionComponent<Props> = ({
             }}
             >
               <Field label={t('Questionnaire')}>
-                <Button priority="secondary" size="sm" startIcon={<SendOutlined fontSize="small" />} onClick={() => setOpenSendLessons(true)}>
+                <Button type="button" priority="secondary" size="sm" startIcon={<SendOutlined fontSize="small" />} onClick={() => setOpenSendLessons(true)}>
                   {t('Send')}
                 </Button>
               </Field>
               <Field label={t('Answers')}>
-                <Button variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenResetAnswers(true)}>
+                <Button type="button" variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenResetAnswers(true)}>
                   {t('Reset')}
                 </Button>
               </Field>
@@ -354,10 +354,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={() => setOpenResetAnswers(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenResetAnswers(false)}>
             {t('Cancel')}
           </Button>
-          <Button onClick={resetAnswers}>
+          <Button type="button" onClick={resetAnswers}>
             {t('Reset')}
           </Button>
         </DialogActions>
@@ -376,10 +376,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={() => setOpenEmptyLessons(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button onClick={emptyLessons}>
+          <Button type="button" onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -432,10 +432,10 @@ const Lessons: FunctionComponent<Props> = ({
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={() => setOpenAnonymize(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button onClick={toggleAnonymize}>
+          <Button type="button" onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>

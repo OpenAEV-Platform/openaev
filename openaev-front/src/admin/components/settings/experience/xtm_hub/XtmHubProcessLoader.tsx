@@ -24,7 +24,7 @@ const ProcessLoader: React.FC<ProcessLoaderProps> = ({
       }}
     >
       <Loader variant="inElement" />
-      <Button onClick={onFocusTab} style={{ marginTop: 32 }}>
+      <Button type="button" onClick={onFocusTab} style={{ marginTop: 32 }}>
         {buttonText}
       </Button>
     </Box>

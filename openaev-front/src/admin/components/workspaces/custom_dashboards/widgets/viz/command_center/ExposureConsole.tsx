@@ -702,12 +702,14 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
 
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
+          <Button type="button" priority="secondary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
           {onInvestigate && (
-            <Button onClick={() => {
-              setExplainOpen(false);
-              onInvestigate();
-            }}
+            <Button
+              type="button"
+              onClick={() => {
+                setExplainOpen(false);
+                onInvestigate();
+              }}
             >
               {t('Investigate breached validations')}
             </Button>

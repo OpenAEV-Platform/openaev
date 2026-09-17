@@ -27,7 +27,7 @@ const LogicalOperatorSelect: FunctionComponent<Props> = ({ value, onChange, read
 
   return (
     <>
-      <Button priority="tertiary" size="sm" endIcon={<ArrowDropDown fontSize="small" />} disabled={readOnly} onClick={handleOpen}>
+      <Button type="button" priority="tertiary" size="sm" endIcon={<ArrowDropDown fontSize="small" />} disabled={readOnly} onClick={handleOpen}>
         {value === 'AND' ? t('And') : t('Or')}
       </Button>
       <Menu

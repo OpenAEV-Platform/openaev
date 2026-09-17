@@ -150,8 +150,8 @@ const InjectorContractPopover = ({ injectorContract, onUpdate, canDelete = true,
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="destructive" onClick={submitDelete}>
+          <Button type="button" priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button type="button" variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

@@ -174,7 +174,7 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
       }}
       >
         {handleClose && (
-          <Button priority="secondary" onClick={handleClose.bind(this)} style={{ marginRight: 10 }}>
+          <Button type="button" priority="secondary" onClick={handleClose.bind(this)} style={{ marginRight: 10 }}>
             {t('Cancel')}
           </Button>
         )}

@@ -60,7 +60,7 @@ const FileFieldController: FunctionComponent<Props> = ({
               disabled={disabled}
               onChange={handleChange}
             />
-            <Button priority="secondary" disabled={disabled} onClick={() => inputRef.current?.click()}>
+            <Button type="button" priority="secondary" disabled={disabled} onClick={() => inputRef.current?.click()}>
               {label ?? t('Select a file')}
             </Button>
             {rejectedFile && (

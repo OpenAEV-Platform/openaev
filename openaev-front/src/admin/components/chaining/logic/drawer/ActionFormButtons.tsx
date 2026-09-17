@@ -28,7 +28,7 @@ const ActionFormButtons = ({
       mt: 1,
     }}
     >
-      <Button priority="secondary" onClick={onCancel}>
+      <Button type="button" priority="secondary" onClick={onCancel}>
         {cancelLabel ?? (readOnly ? t('Close') : t('Cancel'))}
       </Button>
       {!readOnly && (

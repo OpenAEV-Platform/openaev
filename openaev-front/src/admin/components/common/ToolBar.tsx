@@ -645,7 +645,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                 </Box>
               ))}
             <Box>
-              <Button priority="secondary" fullWidth aria-label={t('Add')} disabled={!this.areStepValid()} onClick={this.handleAddStep.bind(this)}>
+              <Button type="button" priority="secondary" fullWidth aria-label={t('Add')} disabled={!this.areStepValid()} onClick={this.handleAddStep.bind(this)}>
                 <AddOutlined fontSize="small" />
               </Button>
             </Box>
@@ -654,7 +654,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               textAlign: 'right',
             }}
             >
-              <Button disabled={!this.areStepValid()} onClick={this.handleLaunchUpdate.bind(this)} style={{ marginLeft: 16 }}>
+              <Button type="button" disabled={!this.areStepValid()} onClick={this.handleLaunchUpdate.bind(this)} style={{ marginLeft: 16 }}>
                 {t('Update')}
               </Button>
             </Box>

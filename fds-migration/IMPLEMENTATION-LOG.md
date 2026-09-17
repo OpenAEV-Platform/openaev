@@ -600,6 +600,23 @@ in filigran-design-system).
   IconButton (secondary, 36px, named "Import injects") beside the view-mode
   ButtonGroup it already shared the row with.
 
+## 2026-09-18 — Button wave follow-up: the implicit `type="button"`
+
+- The library `Button` sets no `type`, so a converted button with none fell
+  back to the HTML default, `submit`, where MUI's `ButtonBase` had resolved it
+  to `"button"`. Every converted button without an explicit type inside a form
+  became a submit button: 362 sites in 201 files, 355 of them in a file that
+  carries a form.
+- Caught by the product's end-to-end suite on the pull request, by nothing
+  local: `check-ts`, `lint`, the unit tests and the conformity script are all
+  blind to it. The threat-arsenal "New argument" button submitted the action
+  form instead of appending a row, so `action_arguments.0.key` never existed
+  (`threatArsenal-creation.spec.ts`, two tests, three attempts each).
+- Fixed by writing `type="button"` on those 362 sites, which is exactly what
+  MUI rendered before. Verified on the running product: the argument field
+  appears and the drawer stays open. Reported as LIBRARY-FEEDBACK #60 — the
+  library's own `IconButton` already defaults to `"button"`.
+
 ## 2026-09-17 — Action components wave: Button
 
 - Button (473 MUI sites, 230 files) on the library: 468 sites by a codemod

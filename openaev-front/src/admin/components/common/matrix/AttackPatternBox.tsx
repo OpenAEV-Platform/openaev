@@ -120,7 +120,7 @@ const AttackPatternBox: FunctionComponent<AttackPatternBoxProps> = ({
 
   return (
     <>
-      <Button priority="tertiary" aria-haspopup="true" aria-expanded={open ? 'true' : undefined} className={classes.button} onClick={event => handleOpen(event)}>
+      <Button type="button" priority="tertiary" aria-haspopup="true" aria-expanded={open ? 'true' : undefined} className={classes.button} onClick={event => handleOpen(event)}>
         <div className={classes.buttonText}>
           <Typography variant="caption">
             {attackPattern.attack_pattern_name}

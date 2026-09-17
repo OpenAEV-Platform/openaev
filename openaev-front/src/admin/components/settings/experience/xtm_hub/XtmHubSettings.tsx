@@ -61,7 +61,7 @@ const XtmHubSettings: React.FC = () => {
   const buildFooter = (handleOpen?: () => void) => (isXTMHubRegistered
     ? (
         <>
-          <Button variant="destructive" priority="secondary" onClick={handleOpen} disabled={!handleOpen}>
+          <Button type="button" variant="destructive" priority="secondary" onClick={handleOpen} disabled={!handleOpen}>
             {t('Disconnect XTM Hub')}
           </Button>
           <Button variant="highlight" asChild>
@@ -76,7 +76,7 @@ const XtmHubSettings: React.FC = () => {
               {t('Explore XTM Hub')}
             </a>
           </Button>
-          <Button variant="highlight" onClick={handleOpen} disabled={!handleOpen}>
+          <Button type="button" variant="highlight" onClick={handleOpen} disabled={!handleOpen}>
             {t('Connect to XTM Hub')}
           </Button>
         </>

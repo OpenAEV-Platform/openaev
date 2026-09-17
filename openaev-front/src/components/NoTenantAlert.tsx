@@ -25,7 +25,7 @@ const NoTenantAlert = () => {
             alt="logo"
             style={{ height: 25 }}
           />
-          <Button priority="tertiary" onClick={handleLogout}>
+          <Button type="button" priority="tertiary" onClick={handleLogout}>
             {t('Logout')}
           </Button>
         </Toolbar>

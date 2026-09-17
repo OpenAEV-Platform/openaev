@@ -180,7 +180,7 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
         />
       </Box>
       <div className={classes.buttons}>
-        <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
         <Button type="submit" disabled={!isDirty || isSubmitting}>

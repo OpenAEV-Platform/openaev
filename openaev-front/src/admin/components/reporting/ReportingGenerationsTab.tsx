@@ -170,7 +170,7 @@ const ReportingGenerationsTab: FunctionComponent<Props> = ({ generations, onRelo
           hint={t('Generate the report to produce its first downloadable output.')}
         />
         {canManage && onGenerate && (
-          <Button startIcon={generating ? <CircularProgress size={14} color="inherit" /> : undefined} disabled={generating} onClick={onGenerate} style={{ marginTop: -3 }}>
+          <Button type="button" startIcon={generating ? <CircularProgress size={14} color="inherit" /> : undefined} disabled={generating} onClick={onGenerate} style={{ marginTop: -3 }}>
             {generating ? t('Generating...') : t('Generate now')}
           </Button>
         )}

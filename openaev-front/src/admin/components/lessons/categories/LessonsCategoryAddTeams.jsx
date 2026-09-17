@@ -148,7 +148,7 @@ const LessonsCategoryAddTeams = ({
         submitLabel={t('Add')}
         headerComponent={headerComponent}
         headerActions={(
-          <Button priority="secondary" size="sm" onClick={selectAllTeams}>
+          <Button type="button" priority="secondary" size="sm" onClick={selectAllTeams}>
             {t('Select all')}
           </Button>
         )}

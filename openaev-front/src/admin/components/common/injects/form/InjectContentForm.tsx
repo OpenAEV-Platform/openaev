@@ -272,7 +272,7 @@ const InjectContentForm = ({
         </Tooltip>
       ),
       action: (
-        <Button priority="secondary" size="sm" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={openVariablesDialog}>
+        <Button type="button" priority="secondary" size="sm" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={openVariablesDialog}>
           {t('Available variables')}
         </Button>
       ),

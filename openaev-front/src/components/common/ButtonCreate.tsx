@@ -28,6 +28,7 @@ const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disable
 
   const button = (
     <Button
+      type="button"
       onClick={onClick}
       size={size}
       data-testid="button-create"

@@ -32,6 +32,7 @@ const TriggerCreate: FunctionComponent<Props> = ({ onCreate }) => {
   return (
     <>
       <Button
+        type="button"
         startIcon={<Add fontSize="small" />}
         onClick={() => setTriggerType('DIGEST')}
         data-testid="button-create-digest"
@@ -44,6 +45,7 @@ const TriggerCreate: FunctionComponent<Props> = ({ onCreate }) => {
         {t('Create Regular digest')}
       </Button>
       <Button
+        type="button"
         startIcon={<Add fontSize="small" />}
         onClick={() => setTriggerType('LIVE')}
         data-testid="button-create-live"

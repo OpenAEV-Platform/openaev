@@ -614,7 +614,7 @@ const ScenarioHeader = ({
   if (isScheduled && !ended) {
     launchActions = (
       <>
-        <Button priority="secondary" startIcon={<Stop fontSize="small" />} onClick={stop}>
+        <Button type="button" priority="secondary" startIcon={<Stop fontSize="small" />} onClick={stop}>
           {t('Stop')}
         </Button>
         {/* Even while scheduled, allow a one-off manual run outside
@@ -645,7 +645,7 @@ const ScenarioHeader = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Box component="span" sx={{ display: 'inline-flex' }}>
-              <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
+              <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
                 {t('Normal')}
               </Button>
             </Box>
@@ -666,7 +666,7 @@ const ScenarioHeader = ({
                   gap: 0.5,
                 }}
               >
-                <Button variant="ia" priority="secondary" startIcon={<AutoAwesome fontSize="small" />} onClick={() => openAiDrawerOrEE('launch')} data-testid="scenario-launch-autonomous-button" style={{ whiteSpace: 'nowrap' }}>
+                <Button type="button" variant="ia" priority="secondary" startIcon={<AutoAwesome fontSize="small" />} onClick={() => openAiDrawerOrEE('launch')} data-testid="scenario-launch-autonomous-button" style={{ whiteSpace: 'nowrap' }}>
                   {t('Autonomous')}
                 </Button>
                 {!isEnterpriseEdition && <EEChip />}
@@ -686,7 +686,7 @@ const ScenarioHeader = ({
       <Tooltip>
         <TooltipTrigger asChild>
           <Box component="span" sx={{ display: 'inline-flex' }}>
-            <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
+            <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
               {t('Launch')}
             </Button>
           </Box>
@@ -758,6 +758,7 @@ const ScenarioHeader = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
+                      type="button"
                       priority="secondary"
                       startIcon={<TuneOutlined fontSize="small" />}
                       onClick={() => {
@@ -1020,27 +1021,29 @@ const ScenarioHeader = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
             {t('Cancel')}
           </Button>
-          <Button onClick={async () => {
-            setOpenInstantiateSimulationAndStart(false);
-            const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
-            // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
-            // lookup now 404s), so forget the latched run: the overview reverts to the manual view
-            // instead of keeping the stale AI plan outcome + status chip until a full page reload.
-            onAutonomousRunCleared?.();
-            // A manual launch jumps into the simulation that was just created: a chained scenario
-            // lands on the simulation's Attack path tab (the live execution view), a time-based
-            // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
-            // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
-            if (isScenarioChaining) {
-              navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
-            } else {
-              navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
-            }
-            MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
-          }}
+          <Button
+            type="button"
+            onClick={async () => {
+              setOpenInstantiateSimulationAndStart(false);
+              const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;
+              // A normal launch supersedes any settled AI outcome server-side (the by-scenario run
+              // lookup now 404s), so forget the latched run: the overview reverts to the manual view
+              // instead of keeping the stale AI plan outcome + status chip until a full page reload.
+              onAutonomousRunCleared?.();
+              // A manual launch jumps into the simulation that was just created: a chained scenario
+              // lands on the simulation's Attack path tab (the live execution view), a time-based
+              // scenario on the simulation overview. Only the AUTONOMOUS launch stays on the
+              // scenario (its attack-path tab hosts the AI cockpit) - see handleAiLaunch.
+              if (isScenarioChaining) {
+                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}/attack-path`);
+              } else {
+                navigate(`${SIMULATION_BASE_URL}/${exercise.exercise_id}`);
+              }
+              MESSAGING$.notifySuccess(t('New simulation successfully created and started'));
+            }}
           >
             {t('Confirm')}
           </Button>

@@ -37,7 +37,7 @@ const PhishingLandingPageHeader = () => {
           {canCreateAtomicTesting && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button priority="secondary" startIcon={<Target fontSize="small" />} onClick={() => navigate(`/admin/atomic_testings/create/${landingPageId}`)} data-testid="landing-page-create-atomic-testing-button">
+                <Button type="button" priority="secondary" startIcon={<Target fontSize="small" />} onClick={() => navigate(`/admin/atomic_testings/create/${landingPageId}`)} data-testid="landing-page-create-atomic-testing-button">
                   {t('Create atomic test')}
                 </Button>
               </TooltipTrigger>

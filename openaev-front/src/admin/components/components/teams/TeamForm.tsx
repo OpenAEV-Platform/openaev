@@ -82,7 +82,7 @@ const TeamForm: FunctionComponent<TeamFormProps> = ({
             />
           )}
           <div className={classes.container} style={{ marginTop: 20 }}>
-            <Button priority="secondary" onClick={handleClose} disabled={submitting}>
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting}>
               {t('Cancel')}
             </Button>
             <Button type="submit" data-testid="team-form-submit-button" disabled={pristine || submitting}>

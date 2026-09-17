@@ -36,6 +36,7 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'outlined', 
       {variant === 'outlined'
         ? (
             <Button
+              type="button"
               priority="secondary"
               size="sm"
               startIcon={<InsertChartOutlined fontSize="small" />}
@@ -48,15 +49,15 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'outlined', 
               {t('Change dashboard')}
             </Button>
           )
-        : <Button priority="tertiary" onClick={handleOpenSelectDashboardDialog}>{t('Select a dashboard')}</Button>}
+        : <Button type="button" priority="tertiary" onClick={handleOpenSelectDashboardDialog}>{t('Select a dashboard')}</Button>}
       <Dialog
         title={t('Select a dashboard')}
         open={openSelectDashboardDialog}
         handleClose={handleCloseSelectDashboardDialog}
         actions={(
           <>
-            <Button priority="secondary" onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
-            <Button onClick={onHandleSubmit}>
+            <Button type="button" priority="secondary" onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
+            <Button type="button" onClick={onHandleSubmit}>
               {t('Continue')}
             </Button>
           </>

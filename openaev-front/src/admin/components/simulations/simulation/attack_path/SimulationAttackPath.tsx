@@ -2868,7 +2868,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                   bordered={false}
                   action={scenarioHasNoSims && scenarioId && !hideLaunchCta
                     ? (
-                        <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchFromScenario} disabled={launching}>
+                        <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchFromScenario} disabled={launching}>
                           {t('Launch a simulation')}
                         </Button>
                       )

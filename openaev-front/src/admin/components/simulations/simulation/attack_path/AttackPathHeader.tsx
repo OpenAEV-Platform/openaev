@@ -334,12 +334,12 @@ const AttackPathHeader: FunctionComponent<Props> = ({
 
       {/* Focus escapes read as actions (buttons with a directional icon), not deletable chips. */}
       {hasPathFocus && (
-        <Button priority="secondary" startIcon={<ArrowBackOutlined fontSize="small" />} onClick={onClearPathFocus} style={{ flexShrink: 0 }}>
+        <Button type="button" priority="secondary" startIcon={<ArrowBackOutlined fontSize="small" />} onClick={onClearPathFocus} style={{ flexShrink: 0 }}>
           {t('Back to full graph')}
         </Button>
       )}
       {hasCardFocus && (
-        <Button priority="secondary" startIcon={<FilterAltOffOutlined fontSize="small" />} onClick={onClearFocus} style={{ flexShrink: 0 }}>
+        <Button type="button" priority="secondary" startIcon={<FilterAltOffOutlined fontSize="small" />} onClick={onClearFocus} style={{ flexShrink: 0 }}>
           {t('Clear focus')}
         </Button>
       )}

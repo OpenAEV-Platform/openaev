@@ -36,6 +36,7 @@ const ExpectationPercentResultByType: FunctionComponent<Props> = ({ expectationT
         <Tooltip key={`${expectationType}-${d.key}`}>
           <TooltipTrigger asChild>
             <Button
+              type="button"
               priority="tertiary"
               size="sm"
               onClick={() => onExpectationResultClick(d.key)}

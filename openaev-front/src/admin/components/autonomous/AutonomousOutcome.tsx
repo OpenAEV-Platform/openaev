@@ -561,7 +561,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
             }}
             >
               <Chip label={String(proofEvents.length)} severity="low" />
-              <Button priority="secondary" size="sm" startIcon={<DownloadOutlined fontSize="small" />} onClick={handleExportReport}>
+              <Button type="button" priority="secondary" size="sm" startIcon={<DownloadOutlined fontSize="small" />} onClick={handleExportReport}>
                 {t('Export report')}
               </Button>
             </Stack>

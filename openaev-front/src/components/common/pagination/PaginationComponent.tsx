@@ -176,6 +176,7 @@ const PaginationComponent = <T extends object>({
             <>
               <div style={{ cursor: 'pointer' }} onClick={() => setOpenMitreFilter(true)}>
                 <Button
+                  type="button"
                   priority="secondary"
                   style={{
                     marginLeft: searchEnable ? 10 : 0,

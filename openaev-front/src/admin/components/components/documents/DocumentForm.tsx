@@ -110,7 +110,7 @@ const DocumentForm: FunctionComponent<Props> = ({
           marginTop: theme.spacing(1),
         }}
         >
-          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           <Button startIcon={isSubmitting && <CircularProgress size={20} />} type="submit" disabled={!isDirty || isSubmitting}>

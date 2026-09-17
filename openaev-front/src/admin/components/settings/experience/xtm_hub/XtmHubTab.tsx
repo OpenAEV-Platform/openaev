@@ -283,10 +283,10 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCancelAutoRegistration}>
+          <Button type="button" priority="secondary" onClick={handleCancelAutoRegistration}>
             {t('Cancel')}
           </Button>
-          <Button priority="tertiary" onClick={handleConfirmAutoRegistration} autoFocus>
+          <Button type="button" priority="tertiary" onClick={handleConfirmAutoRegistration} autoFocus>
             {t('Continue')}
           </Button>
         </DialogActions>

@@ -423,7 +423,7 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button priority="secondary" onClick={handleClose}>
+        <Button type="button" priority="secondary" onClick={handleClose}>
           {t('Close')}
         </Button>
         {isAcceptable && (

@@ -258,6 +258,7 @@ const ScenarioAssistant: FunctionComponent = () => {
         </Typography>
         {aiEnabled && (
           <Button
+            type="button"
             variant="ia"
             priority="tertiary"
             startIcon={<SvgIcon component={LogoXtmOneIcon} inheritViewBox fontSize="small" />}
@@ -553,7 +554,7 @@ const ScenarioAssistant: FunctionComponent = () => {
               {t('~{count} injects', { count: estimatedInjects })}
             </Typography>
           </Box>
-          <Button startIcon={<AutoAwesomeOutlined fontSize="small" />} onClick={onSubmit}>
+          <Button type="button" startIcon={<AutoAwesomeOutlined fontSize="small" />} onClick={onSubmit}>
             {t('Create injects')}
           </Button>
         </Box>

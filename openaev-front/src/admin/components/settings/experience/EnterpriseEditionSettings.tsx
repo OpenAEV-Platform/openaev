@@ -65,7 +65,7 @@ const EnterpriseEditionSettings: React.FC = () => {
   const activatedFooter = !isEnterpriseEditionByConfig
     ? (
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <Button priority="secondary" size="sm" onClick={() => setOpenEEChanges(true)}>
+          <Button type="button" priority="secondary" size="sm" onClick={() => setOpenEEChanges(true)}>
             {t('Disable Enterprise Edition')}
           </Button>
           <EnterpriseEditionButton />
@@ -77,7 +77,7 @@ const EnterpriseEditionSettings: React.FC = () => {
 
   const unregisteredFooter = canManageTenantSettings
     ? (
-        <Button variant="highlight" priority="secondary" startIcon={<RocketLaunchOutlined fontSize="small" />} onClick={() => openDialog()}>
+        <Button type="button" variant="highlight" priority="secondary" startIcon={<RocketLaunchOutlined fontSize="small" />} onClick={() => openDialog()}>
           {t('Try OpenAEV Enterprise Edition')}
         </Button>
       )
@@ -146,7 +146,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                 <ExperienceDetailRow label={t('XTM One (Agentic IA)')} divider={false}>
                   {isCguPending
                     ? (
-                        <Button priority="secondary" size="sm" onClick={() => setOpenValidateTermsOfUse(true)} style={{ lineHeight: '12px' }}>
+                        <Button type="button" priority="secondary" size="sm" onClick={() => setOpenValidateTermsOfUse(true)} style={{ lineHeight: '12px' }}>
                           {t('Validate the Filigran AI Terms')}
                         </Button>
                       )
@@ -217,6 +217,7 @@ const EnterpriseEditionSettings: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button
+            type="button"
             priority="secondary"
             onClick={() => {
               setOpenEEChanges(false);
@@ -224,10 +225,12 @@ const EnterpriseEditionSettings: React.FC = () => {
           >
             {t('Cancel')}
           </Button>
-          <Button onClick={() => {
-            setOpenEEChanges(false);
-            updateEnterpriseEdition({ platform_enterprise_license: '' });
-          }}
+          <Button
+            type="button"
+            onClick={() => {
+              setOpenEEChanges(false);
+              updateEnterpriseEdition({ platform_enterprise_license: '' });
+            }}
           >
             {t('Validate')}
           </Button>

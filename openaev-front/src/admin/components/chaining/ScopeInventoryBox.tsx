@@ -105,10 +105,10 @@ const ScopeInventoryBox = ({
             accept=".csv,text/csv"
             onChange={handleFileChange}
           />
-          <Button priority="tertiary" size="sm" startIcon={<FileDownloadOutlined fontSize="small" />} onClick={onDownloadTemplate}>
+          <Button type="button" priority="tertiary" size="sm" startIcon={<FileDownloadOutlined fontSize="small" />} onClick={onDownloadTemplate}>
             {t('CSV template')}
           </Button>
-          <Button priority="tertiary" size="sm" startIcon={<Add fontSize="small" />} onClick={handleOpenUpload}>
+          <Button type="button" priority="tertiary" size="sm" startIcon={<Add fontSize="small" />} onClick={handleOpenUpload}>
             {t('Add Bulk CSV')}
           </Button>
         </div>

@@ -312,10 +312,10 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
           gap: 8,
         }}
         >
-          <Button priority="secondary" startIcon={<ContentCopyOutlined fontSize="small" />} onClick={() => copyToClipboard(t, code)} style={{ marginBottom: theme.spacing(2) }}>
+          <Button type="button" priority="secondary" startIcon={<ContentCopyOutlined fontSize="small" />} onClick={() => copyToClipboard(t, code)} style={{ marginBottom: theme.spacing(2) }}>
             {t('Copy')}
           </Button>
-          <Button priority="secondary" startIcon={<DownloadCircleOutline fontSize="small" />} onClick={() => download(displayedCode, `openaev.${fileExtension}`, 'text/plain')} style={{ marginBottom: theme.spacing(2) }}>
+          <Button type="button" priority="secondary" startIcon={<DownloadCircleOutline fontSize="small" />} onClick={() => download(displayedCode, `openaev.${fileExtension}`, 'text/plain')} style={{ marginBottom: theme.spacing(2) }}>
             {t('Download')}
           </Button>
         </div>

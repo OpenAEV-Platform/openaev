@@ -50,7 +50,7 @@ const ChallengeTryForm: FunctionComponent<Props> = ({ handleClose, onSubmit }) =
           label={t('Flag')}
         />
         <div style={{ alignSelf: 'flex-end' }}>
-          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: theme.spacing(1) }}>
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: theme.spacing(1) }}>
             {t('Cancel')}
           </Button>
           <Button type="submit" disabled={isSubmitting || !isDirty}>

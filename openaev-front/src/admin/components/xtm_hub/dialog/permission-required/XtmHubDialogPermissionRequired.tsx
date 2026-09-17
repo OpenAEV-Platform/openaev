@@ -33,7 +33,7 @@ const XtmHubDialogPermissionRequired: React.FC = () => {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button priority="tertiary" onClick={() => setOpen(false)}>{t('Close')}</Button>
+        <Button type="button" priority="tertiary" onClick={() => setOpen(false)}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

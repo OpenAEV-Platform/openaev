@@ -87,6 +87,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
         </div>
       ))}
       <Button
+        type="button"
         priority="secondary"
         onClick={() => {
           cwesAppend({
@@ -124,6 +125,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
         </div>
       ))}
       <Button
+        type="button"
         priority="secondary"
         onClick={() => {
           referencesAppend('');

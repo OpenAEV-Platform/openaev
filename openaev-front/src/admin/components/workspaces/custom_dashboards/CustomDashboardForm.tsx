@@ -116,7 +116,7 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
           mt: 2,
         }}
         >
-          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 8 }}>
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 8 }}>
             {t('Cancel')}
           </Button>
           <Button type="submit" disabled={isSubmitting || (editing && !isDirty)}>

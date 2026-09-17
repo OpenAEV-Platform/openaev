@@ -316,8 +316,8 @@ const SelectListPicker = <T extends object>({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button onClick={onSubmit} disabled={submitDisabled || isLoading}>
+          <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="button" onClick={onSubmit} disabled={submitDisabled || isLoading}>
             {submitLabel ?? t('Update')}
           </Button>
         </DialogActions>

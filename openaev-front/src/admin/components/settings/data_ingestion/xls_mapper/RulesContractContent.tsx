@@ -353,7 +353,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
                           )}
                       </DialogContent>
                       <DialogActions>
-                        <Button priority="secondary" onClick={handleDefaultValueClose} autoFocus>
+                        <Button type="button" priority="secondary" onClick={handleDefaultValueClose} autoFocus>
                           {t('Close')}
                         </Button>
                       </DialogActions>
@@ -365,7 +365,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
 
         </AccordionDetails>
         <AccordionActions sx={{ padding: '16px' }}>
-          <Button variant="destructive" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
+          <Button type="button" variant="destructive" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
         </AccordionActions>
       </Accordion>
       <Dialog
@@ -378,11 +378,13 @@ const RulesContractContent: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
-          <Button onClick={() => {
-            remove(index);
-            handleCloseAlertDelete();
-          }}
+          <Button type="button" priority="secondary" onClick={handleCloseAlertDelete}>{t('Cancel')}</Button>
+          <Button
+            type="button"
+            onClick={() => {
+              remove(index);
+              handleCloseAlertDelete();
+            }}
           >
             {t('Delete')}
           </Button>

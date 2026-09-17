@@ -109,10 +109,10 @@ class ObjectivePopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button priority="secondary" onClick={this.handleCloseDelete.bind(this)}>
+            <Button type="button" priority="secondary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button onClick={this.submitDelete.bind(this)}>
+            <Button type="button" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

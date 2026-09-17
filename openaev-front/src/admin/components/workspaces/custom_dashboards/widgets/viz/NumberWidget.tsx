@@ -122,7 +122,7 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }
       </Box>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button priority="tertiary" onClick={onClick} className="noDrag" style={{ minWidth: 0 }}>
+          <Button type="button" priority="tertiary" onClick={onClick} className="noDrag" style={{ minWidth: 0 }}>
             {data.interval_count != null ? compactNumber(Math.round(animatedCount)) : '-'}
           </Button>
         </TooltipTrigger>

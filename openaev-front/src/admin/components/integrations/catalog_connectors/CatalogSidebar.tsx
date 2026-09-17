@@ -306,7 +306,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             {t('Filters')}
           </Typography>
           {anyActive && (
-            <Button priority="tertiary" size="sm" onClick={onClearAll}>
+            <Button type="button" priority="tertiary" size="sm" onClick={onClearAll}>
               {t('Clear all')}
             </Button>
           )}

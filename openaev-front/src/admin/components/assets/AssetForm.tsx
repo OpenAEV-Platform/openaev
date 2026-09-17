@@ -330,7 +330,7 @@ const AssetForm: FunctionComponent<Props> = ({
         )}
 
         <div style={{ alignSelf: 'flex-end' }}>
-          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: theme.spacing(2) }}>
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: theme.spacing(2) }}>
             {t('Cancel')}
           </Button>
           <Button type="submit" disabled={!isDirty || isSubmitting}>

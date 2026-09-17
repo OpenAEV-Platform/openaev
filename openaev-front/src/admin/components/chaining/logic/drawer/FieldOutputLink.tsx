@@ -131,7 +131,7 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                   <Typography variant="caption" color="text.secondary">
                     {t('Limit to Local Scope')}
                   </Typography>
-                  <Button priority="tertiary" size="sm" endIcon={<KeyboardArrowDown fontSize="small" />} onClick={openTypeSelector}>
+                  <Button type="button" priority="tertiary" size="sm" endIcon={<KeyboardArrowDown fontSize="small" />} onClick={openTypeSelector}>
                     {t('Edit links')}
                   </Button>
                   <Tooltip>
@@ -157,7 +157,7 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                 justifyContent: 'flex-end',
               }}
               >
-                <Button priority="tertiary" size="sm" endIcon={<KeyboardArrowDown fontSize="small" />} onClick={openTypeSelector} style={{ whiteSpace: 'nowrap' }}>
+                <Button type="button" priority="tertiary" size="sm" endIcon={<KeyboardArrowDown fontSize="small" />} onClick={openTypeSelector} style={{ whiteSpace: 'nowrap' }}>
                   {t('Link an Output')}
                 </Button>
               </Box>

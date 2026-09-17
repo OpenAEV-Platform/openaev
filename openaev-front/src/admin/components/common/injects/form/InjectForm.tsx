@@ -525,10 +525,11 @@ const InjectForm = ({
         )}
 
         <div className={classes.injectFormButtonsContainer}>
-          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           <Button
+            type="button"
             data-testid="inject-form-submit-button"
             onClick={() => {
               onSubmit(getValues());

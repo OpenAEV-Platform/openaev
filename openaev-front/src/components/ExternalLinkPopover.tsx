@@ -42,8 +42,8 @@ const ExternalLinkPopover: FunctionComponent<ExternalLinkPopoverProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button priority="secondary" onClick={handleCloseExternalLink}>{t('Cancel')}</Button>
-        <Button onClick={handleBrowseExternalLink}>
+        <Button type="button" priority="secondary" onClick={handleCloseExternalLink}>{t('Cancel')}</Button>
+        <Button type="button" onClick={handleBrowseExternalLink}>
           {t('Browse the link')}
         </Button>
       </DialogActions>

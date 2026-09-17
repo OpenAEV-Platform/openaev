@@ -204,7 +204,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
             ? t('Start adding components to complete the configuration of your scenario.')
             : t('Start adding components to complete the configuration of your simulation.')}
           action={(
-            <Button startIcon={<Add fontSize="small" />} onClick={handleOpenDrawer}>
+            <Button type="button" startIcon={<Add fontSize="small" />} onClick={handleOpenDrawer}>
               {t('Add component')}
             </Button>
           )}

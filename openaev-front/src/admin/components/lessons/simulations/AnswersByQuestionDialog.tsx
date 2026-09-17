@@ -79,7 +79,7 @@ const AnswersByQuestionDialog: FunctionComponent<Props> = ({ open, onClose, ques
             </div>
           );
         })}
-        <Button priority="tertiary" onClick={onClose} style={{ marginLeft: 'auto' }}>
+        <Button type="button" priority="tertiary" onClick={onClose} style={{ marginLeft: 'auto' }}>
           {' '}
           {t('Close')}
           {' '}

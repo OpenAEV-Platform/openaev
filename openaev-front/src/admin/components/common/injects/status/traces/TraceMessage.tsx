@@ -153,7 +153,7 @@ const TraceMessage = ({ traces, variant = 'boxed' }: Props) => {
               </div>
               <pre style={messageStyle}>{displayMessage}</pre>
               {isTruncated && (
-                <Button priority="tertiary" size="sm" startIcon={isExpanded ? <KeyboardArrowUpOutlined fontSize="small" /> : <KeyboardArrowDownOutlined fontSize="small" />} onClick={() => toggleMessage(index)} style={{ marginTop: 4 }}>
+                <Button type="button" priority="tertiary" size="sm" startIcon={isExpanded ? <KeyboardArrowUpOutlined fontSize="small" /> : <KeyboardArrowDownOutlined fontSize="small" />} onClick={() => toggleMessage(index)} style={{ marginTop: 4 }}>
                   {isExpanded ? t('See Less') : t('See More')}
                 </Button>
               )}

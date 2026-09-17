@@ -267,6 +267,7 @@ const PaginationComponentV2 = <T extends object>({
           {queryableHelpers.filterHelpers && availableFilterNames?.includes('injector_contract_attack_patterns') && (
             <>
               <Button
+                type="button"
                 priority="secondary"
                 startIcon={<GridViewOutlined fontSize="small" />}
                 onClick={() => setOpenMitreFilter(true)}

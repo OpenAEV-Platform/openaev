@@ -66,7 +66,7 @@ const AddActionFooter = ({ numberOfSelectedElements, onClear, onSubmit }: AddAct
           {t('Bulk select lets you add multiple actions, which you will need to configure after adding them')}
         </Typography>
       </Box>
-      <Button onClick={onSubmit}>
+      <Button type="button" onClick={onSubmit}>
         {t('Add actions')}
       </Button>
     </Box>

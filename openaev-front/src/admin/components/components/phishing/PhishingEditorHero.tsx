@@ -34,7 +34,7 @@ const PhishingEditorHero = ({ icon, overline, title, formId, onCancel, canSave, 
       title={title}
       action={(
         <>
-          <Button priority="secondary" onClick={onCancel} disabled={saving}>
+          <Button type="button" priority="secondary" onClick={onCancel} disabled={saving}>
             {t('Cancel')}
           </Button>
           <Button type="submit" form={formId} disabled={!canSave}>

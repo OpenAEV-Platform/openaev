@@ -295,10 +295,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseDone}>
+          <Button type="button" priority="secondary" onClick={handleCloseDone}>
             {t('Cancel')}
           </Button>
-          <Button onClick={submitDone}>
+          <Button type="button" onClick={submitDone}>
             {t('Mark')}
           </Button>
         </DialogActions>
@@ -327,10 +327,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseEnable}>
+          <Button type="button" priority="secondary" onClick={handleCloseEnable}>
             {t('Cancel')}
           </Button>
-          <Button onClick={submitEnable}>
+          <Button type="button" onClick={submitEnable}>
             {t('Enable')}
           </Button>
         </DialogActions>
@@ -347,10 +347,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseDisable}>
+          <Button type="button" priority="secondary" onClick={handleCloseDisable}>
             {t('Cancel')}
           </Button>
-          <Button onClick={submitDisable}>
+          <Button type="button" onClick={submitDisable}>
             {t('Disable')}
           </Button>
         </DialogActions>
@@ -367,10 +367,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseTrigger}>
+          <Button type="button" priority="secondary" onClick={handleCloseTrigger}>
             {t('Cancel')}
           </Button>
-          <Button onClick={submitTrigger}>
+          <Button type="button" onClick={submitTrigger}>
             {t('Trigger')}
           </Button>
         </DialogActions>

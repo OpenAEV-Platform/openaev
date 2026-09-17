@@ -297,7 +297,7 @@ const ChallengesPlayer = () => {
                 marginTop: theme.spacing(2),
               }}
               >
-                <Button priority="secondary" onClick={handleClose} style={{ marginRight: theme.spacing(1) }}>
+                <Button type="button" priority="secondary" onClick={handleClose} style={{ marginRight: theme.spacing(1) }}>
                   {t('Close')}
                 </Button>
               </div>

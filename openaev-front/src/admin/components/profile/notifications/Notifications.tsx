@@ -219,7 +219,7 @@ const Notifications = () => {
         queryableHelpers={queryableHelpers}
         entityPrefix="notification"
         topBarButtons={(
-          <Button priority="secondary" startIcon={<CheckCircleOutlined fontSize="small" />} onClick={onMarkAllRead}>
+          <Button type="button" priority="secondary" startIcon={<CheckCircleOutlined fontSize="small" />} onClick={onMarkAllRead}>
             {t('Mark all as read')}
           </Button>
         )}

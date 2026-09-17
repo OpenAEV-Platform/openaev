@@ -100,8 +100,8 @@ const DashboardCreationDrawer: FunctionComponent<Props> = ({
                   mt: 2,
                 }}
                 >
-                  <Button priority="secondary" onClick={handleClose}>{t('Cancel')}</Button>
-                  <Button disabled={!existingDashboardId} onClick={() => onSelectExisting(existingDashboardId)}>
+                  <Button type="button" priority="secondary" onClick={handleClose}>{t('Cancel')}</Button>
+                  <Button type="button" disabled={!existingDashboardId} onClick={() => onSelectExisting(existingDashboardId)}>
                     {t('Continue')}
                   </Button>
                 </Box>

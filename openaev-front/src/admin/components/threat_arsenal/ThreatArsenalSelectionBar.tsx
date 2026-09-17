@@ -76,12 +76,12 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
           gap: 1,
         }}
         >
-          <Button startIcon={<MovieFilterOutlined fontSize="small" />} onClick={onRunTest}>
+          <Button type="button" startIcon={<MovieFilterOutlined fontSize="small" />} onClick={onRunTest}>
             {t('Run a test')}
           </Button>
 
           {onDelete && (
-            <Button variant="destructive" priority="secondary" startIcon={<DeleteOutlined fontSize="small" />} onClick={onDelete}>
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<DeleteOutlined fontSize="small" />} onClick={onDelete}>
               {t('Delete')}
             </Button>
           )}

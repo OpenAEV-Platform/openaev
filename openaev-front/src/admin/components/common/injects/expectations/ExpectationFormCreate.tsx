@@ -273,7 +273,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         <ExpectationGroupField isTechnicalExpectation={isTechnicalExpectation(watchType)} control={control} />
       )}
       <div className={classes.buttons}>
-        <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
         <Button type="submit" disabled={!isValid || isSubmitting}>

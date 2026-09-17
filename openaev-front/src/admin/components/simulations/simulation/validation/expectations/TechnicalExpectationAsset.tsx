@@ -125,12 +125,12 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
             <div>
               {selected != null
                 && (
-                  <Button priority="secondary" onClick={() => setSelected(null)}>
+                  <Button type="button" priority="secondary" onClick={() => setSelected(null)}>
                     {t('Back')}
                   </Button>
                 )}
             </div>
-            <Button priority="secondary" onClick={() => setOpen(false)}>
+            <Button type="button" priority="secondary" onClick={() => setOpen(false)}>
               {t('Close')}
             </Button>
           </div>

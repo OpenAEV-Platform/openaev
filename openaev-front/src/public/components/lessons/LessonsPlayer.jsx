@@ -243,7 +243,7 @@ const LessonsPlayer = (props) => {
                     textAlign: 'center',
                   }}
                   >
-                    <Button onClick={() => setOpenValidate(true)} disabled={lessonsAnswers.length > 0 || submitting || source.isUserAbsent}>
+                    <Button type="button" onClick={() => setOpenValidate(true)} disabled={lessonsAnswers.length > 0 || submitting || source.isUserAbsent}>
                       {t('Submit')}
                     </Button>
                   </div>
@@ -260,10 +260,10 @@ const LessonsPlayer = (props) => {
                     </DialogContentText>
                   </DialogContent>
                   <DialogActions>
-                    <Button priority="secondary" onClick={() => setOpenValidate(false)} disabled={submitting}>
+                    <Button type="button" priority="secondary" onClick={() => setOpenValidate(false)} disabled={submitting}>
                       {t('Cancel')}
                     </Button>
-                    <Button onClick={handleSubmit} disabled={submitting}>
+                    <Button type="button" onClick={handleSubmit} disabled={submitting}>
                       {t('Submit')}
                     </Button>
                   </DialogActions>

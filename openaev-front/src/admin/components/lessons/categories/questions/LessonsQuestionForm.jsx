@@ -54,7 +54,7 @@ const LessonsQuestionForm = (props) => {
             marginTop: 20,
           }}
           >
-            <Button priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: 10 }}>
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: 10 }}>
               {t('Cancel')}
             </Button>
             <Button type="submit" disabled={submitting || Object.keys(errors).length > 0}>

@@ -100,7 +100,7 @@ const ImportUploader: FunctionComponent<Props> = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="inline-flex">
-              <Button priority="secondary" onClick={handleOpenUpload} disabled={disabled} className={classes.buttonImport}>
+              <Button type="button" priority="secondary" onClick={handleOpenUpload} disabled={disabled} className={classes.buttonImport}>
                 {t('Import')}
               </Button>
             </span>

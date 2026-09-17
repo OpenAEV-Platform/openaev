@@ -271,8 +271,8 @@ const ThreatArsenalActionPopover = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
-          <Button onClick={submitDuplicate}>{t('Duplicate')}</Button>
+          <Button type="button" priority="secondary" onClick={handleCloseDuplicate}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitDuplicate}>{t('Duplicate')}</Button>
         </DialogActions>
       </Dialog>
 

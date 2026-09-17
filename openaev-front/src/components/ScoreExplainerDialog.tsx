@@ -325,7 +325,7 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button priority="secondary" onClick={onClose}>{t('Close')}</Button>
+        <Button type="button" priority="secondary" onClick={onClose}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

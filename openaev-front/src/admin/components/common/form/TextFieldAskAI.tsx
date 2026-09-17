@@ -420,10 +420,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             />
           </DialogContent>
           <DialogActions>
-            <Button priority="secondary" onClick={handleCloseGenMessageOptions}>
+            <Button type="button" priority="secondary" onClick={handleCloseGenMessageOptions}>
               {t('Cancel')}
             </Button>
             <Button
+              type="button"
               disabled={messageInput.length === 0}
               onClick={() => {
                 handleCloseGenMessageOptions();
@@ -506,10 +507,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             />
           </DialogContent>
           <DialogActions>
-            <Button priority="secondary" onClick={handleCloseGenMediaOptions}>
+            <Button type="button" priority="secondary" onClick={handleCloseGenMediaOptions}>
               {t('Cancel')}
             </Button>
             <Button
+              type="button"
               disabled={messageInput.length === 0}
               onClick={() => {
                 handleCloseGenMediaOptions();
@@ -563,10 +565,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             </Select>
           </DialogContent>
           <DialogActions>
-            <Button priority="secondary" onClick={handleCloseToneOptions}>
+            <Button type="button" priority="secondary" onClick={handleCloseToneOptions}>
               {t('Cancel')}
             </Button>
             <Button
+              type="button"
               disabled={isContentEmpty()}
               onClick={() => {
                 handleCloseToneOptions();

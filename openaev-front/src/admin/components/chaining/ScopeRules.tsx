@@ -175,7 +175,7 @@ const ScopeColumn = ({
           )}
         </Box>
 
-        <Button priority="tertiary" size="sm" startIcon={<EditOutlined fontSize="small" />} onClick={onAdd} disabled={readOnly}>
+        <Button type="button" priority="tertiary" size="sm" startIcon={<EditOutlined fontSize="small" />} onClick={onAdd} disabled={readOnly}>
           {t('Define')}
         </Button>
       </Box>
@@ -252,7 +252,7 @@ const ScopeColumn = ({
           <Typography variant="body2" sx={{ color: 'text.disabled' }}>
             {t('Nothing added yet.')}
           </Typography>
-          <Button priority="tertiary" size="sm" startIcon={<EditOutlined fontSize="small" />} onClick={onAdd} disabled={readOnly}>
+          <Button type="button" priority="tertiary" size="sm" startIcon={<EditOutlined fontSize="small" />} onClick={onAdd} disabled={readOnly}>
             {t('Define')}
           </Button>
         </Box>

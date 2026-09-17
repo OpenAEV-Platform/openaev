@@ -64,10 +64,10 @@ const FiligranAiCguDialog: React.FC<FiligranAiCguDialogProps> = ({ open, onClose
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button priority="secondary" onClick={() => handleSubmit('disabled')}>
+        <Button type="button" priority="secondary" onClick={() => handleSubmit('disabled')}>
           {t('Decline')}
         </Button>
-        <Button onClick={() => handleSubmit('enabled')} disabled={!isChecked || !canManage}>
+        <Button type="button" onClick={() => handleSubmit('enabled')} disabled={!isChecked || !canManage}>
           {t('I Agree to Filigran AI Terms')}
         </Button>
       </DialogActions>

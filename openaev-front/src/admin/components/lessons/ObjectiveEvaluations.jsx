@@ -174,11 +174,11 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
         marginTop: 20,
       }}
       >
-        <Button priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: isUpdatable ? 10 : 0 }}>
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: isUpdatable ? 10 : 0 }}>
           {isUpdatable ? t('Cancel') : t('Close')}
         </Button>
         {isUpdatable && (
-          <Button onClick={submitEvaluation} disabled={submitting}>
+          <Button type="button" onClick={submitEvaluation} disabled={submitting}>
             {t('Evaluate')}
           </Button>
         )}

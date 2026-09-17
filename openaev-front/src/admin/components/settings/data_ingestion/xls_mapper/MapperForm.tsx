@@ -145,7 +145,7 @@ const MapperForm: FunctionComponent<Props> = ({
           marginTop: 20,
         }}
         >
-          <Button onClick={() => setOpenTest(true)} style={{ marginRight: 10 }}>
+          <Button type="button" onClick={() => setOpenTest(true)} style={{ marginRight: 10 }}>
             {t('Test')}
           </Button>
           <Button type="submit">

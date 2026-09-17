@@ -114,7 +114,7 @@ const Sessions = () => {
                     {userLabel(userSessions[0], userId)}
                   </Typography>
                   {canManage && userSessions.length > 1 && (
-                    <Button variant="destructive" priority="secondary" size="sm" startIcon={<DeleteOutlined fontSize="small" />} onClick={() => onKillUserSessions(userId)}>
+                    <Button type="button" variant="destructive" priority="secondary" size="sm" startIcon={<DeleteOutlined fontSize="small" />} onClick={() => onKillUserSessions(userId)}>
                       {t('Kill all sessions')}
                     </Button>
                   )}

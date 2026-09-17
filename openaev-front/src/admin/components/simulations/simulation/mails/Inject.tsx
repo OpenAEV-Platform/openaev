@@ -269,7 +269,7 @@ const InjectComponent: FunctionComponent = () => {
                   justifyContent: 'flex-end',
                 }}
                 >
-                  <Button priority="secondary" startIcon={<ReplyOutlined fontSize="small" />} className={classes.replyAction} onClick={() => handleOpenReply(topic.communication_id)}>
+                  <Button type="button" priority="secondary" startIcon={<ReplyOutlined fontSize="small" />} className={classes.replyAction} onClick={() => handleOpenReply(topic.communication_id)}>
                     {t('Reply')}
                   </Button>
                 </div>

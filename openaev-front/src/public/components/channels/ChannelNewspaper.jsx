@@ -167,18 +167,18 @@ const ChannelNewspaper = ({ channelReader }) => {
                 />
                 <div className={classes.footer}>
                   <div style={{ float: 'left' }}>
-                    <Button priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(firstArticle)}>
+                    <Button type="button" priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(firstArticle)}>
                       {t('Read more')}
                     </Button>
                   </div>
                   <div style={{ float: 'right' }}>
-                    <Button priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
+                    <Button type="button" priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                       {firstArticle.article_comments || 0}
                     </Button>
-                    <Button priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
+                    <Button type="button" priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                       {firstArticle.article_shares || 0}
                     </Button>
-                    <Button priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
+                    <Button type="button" priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                       {firstArticle.article_likes || 0}
                     </Button>
                   </div>
@@ -249,18 +249,18 @@ const ChannelNewspaper = ({ channelReader }) => {
                     />
                     <div className={classes.footer}>
                       <div style={{ float: 'left' }}>
-                        <Button priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(article)}>
+                        <Button type="button" priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(article)}>
                           {t('Read more')}
                         </Button>
                       </div>
                       <div style={{ float: 'right' }}>
-                        <Button priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
+                        <Button type="button" priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                           {article.article_comments || 0}
                         </Button>
-                        <Button priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
+                        <Button type="button" priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                           {article.article_shares || 0}
                         </Button>
-                        <Button priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
+                        <Button type="button" priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                           {article.article_likes || 0}
                         </Button>
                       </div>
@@ -335,18 +335,18 @@ const ChannelNewspaper = ({ channelReader }) => {
                   />
                   <div className={classes.footer}>
                     <div style={{ float: 'left' }}>
-                      <Button priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(article)}>
+                      <Button type="button" priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(article)}>
                         {t('Read more')}
                       </Button>
                     </div>
                     <div style={{ float: 'right' }}>
-                      <Button priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
+                      <Button type="button" priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                         {article.article_comments || 0}
                       </Button>
-                      <Button priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
+                      <Button type="button" priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                         {article.article_shares || 0}
                       </Button>
-                      <Button priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
+                      <Button type="button" priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                         {article.article_likes || 0}
                       </Button>
                     </div>

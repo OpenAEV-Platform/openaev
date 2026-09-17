@@ -94,12 +94,12 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
             readOnly={readOnly}
           />
           {onDelete && (
-            <Button variant="destructive" priority="tertiary" size="sm" startIcon={<DeleteOutline fontSize="small" />} disabled={readOnly} onClick={onDelete} style={{ marginLeft: 8 }}>
+            <Button type="button" variant="destructive" priority="tertiary" size="sm" startIcon={<DeleteOutline fontSize="small" />} disabled={readOnly} onClick={onDelete} style={{ marginLeft: 8 }}>
               {t('Remove group')}
             </Button>
           )}
         </Stack>
-        <Button priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} disabled={readOnly} onClick={handleAddCondition}>
+        <Button type="button" priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} disabled={readOnly} onClick={handleAddCondition}>
           {t('Add Condition')}
         </Button>
       </Stack>

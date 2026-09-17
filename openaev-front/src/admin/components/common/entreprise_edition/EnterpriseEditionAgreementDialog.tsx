@@ -58,8 +58,8 @@ const EnterpriseEditionAgreementDialog = () => {
       title={t('OpenAEV Enterprise Edition (EE) license agreement')}
       actions={(
         <>
-          <Button priority="secondary" onClick={onCloseEnterpriseEditionDialog}>{t('Cancel')}</Button>
-          <Button onClick={enableEnterpriseEdition} disabled={isEmptyField((enterpriseLicense))}>
+          <Button type="button" priority="secondary" onClick={onCloseEnterpriseEditionDialog}>{t('Cancel')}</Button>
+          <Button type="button" onClick={enableEnterpriseEdition} disabled={isEmptyField((enterpriseLicense))}>
             {t('Enable')}
           </Button>
         </>

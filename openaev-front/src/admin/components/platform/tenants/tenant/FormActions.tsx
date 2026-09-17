@@ -26,7 +26,7 @@ const FormActions: FunctionComponent<FormActionsProps> = ({
       gap: theme.spacing(2),
     }}
     >
-      <Button priority="secondary" onClick={onCancel} disabled={submitting}>
+      <Button type="button" priority="secondary" onClick={onCancel} disabled={submitting}>
         {cancelLabel}
       </Button>
 

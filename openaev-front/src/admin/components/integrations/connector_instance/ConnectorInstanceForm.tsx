@@ -361,7 +361,7 @@ const ConnectorInstanceForm = ({
           marginTop: theme.spacing(1),
         }}
         >
-          <Button priority="secondary" onClick={onClose} disabled={isSubmitting}>
+          <Button type="button" priority="secondary" onClick={onClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           <Button type="submit" disabled={isSubmitting || disabled}>

@@ -279,10 +279,10 @@ const DocumentPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button priority="secondary" onClick={handleCloseRemove}>
+          <Button type="button" priority="secondary" onClick={handleCloseRemove}>
             {t('Cancel')}
           </Button>
-          <Button onClick={submitRemove}>
+          <Button type="button" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

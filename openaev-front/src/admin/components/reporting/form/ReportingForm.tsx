@@ -769,7 +769,7 @@ const ReportingForm: FunctionComponent<Props> = ({
       }}
       >
         <Typography variant="h3" sx={{ margin: 0 }}>{t('Colors')}</Typography>
-        <Button priority="tertiary" size="sm" startIcon={<RestartAltOutlined fontSize="small" />} onClick={() => resetBrandingColors()}>
+        <Button type="button" priority="tertiary" size="sm" startIcon={<RestartAltOutlined fontSize="small" />} onClick={() => resetBrandingColors()}>
           {t('Reset to platform defaults')}
         </Button>
       </Box>
@@ -854,16 +854,16 @@ const ReportingForm: FunctionComponent<Props> = ({
           marginBottom: 2,
         }}
         >
-          <Button priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           {activeStep > 0 && (
-            <Button priority="secondary" onClick={() => setActiveStep(step => step - 1)} disabled={isSubmitting}>
+            <Button type="button" priority="secondary" onClick={() => setActiveStep(step => step - 1)} disabled={isSubmitting}>
               {t('Back')}
             </Button>
           )}
           {!isLastStep && (
-            <Button onClick={handleNext}>
+            <Button type="button" onClick={handleNext}>
               {t('Next')}
             </Button>
           )}

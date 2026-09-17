@@ -156,7 +156,7 @@ const EditInjectExpectationResultDialog = ({ open, injectExpectation, sourceIds,
           )}
       </DialogContent>
       <DialogActions sx={{ padding: theme.spacing(0, 2.5, 2) }}>
-        <Button priority="secondary" onClick={onClose}>
+        <Button type="button" priority="secondary" onClick={onClose}>
           {t('Cancel')}
         </Button>
         <Button type="submit" form="expectationForm">
