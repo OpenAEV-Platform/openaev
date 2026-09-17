@@ -6,7 +6,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.cache.TenantMembershipCacheManager;
-import io.openaev.database.model.ProtectedResource;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
@@ -182,7 +181,7 @@ public class TenantService {
    * has a grace period to reactivate the tenant before permanent deletion.
    */
   public Tenant softDelete(String tenantId) {
-    throwIfProtected(new Tenant(tenantId), "Default tenant cannot be deleted: " + tenantId);
+    throwIfDefaultTenant(tenantId);
 
     Tenant tenant = findById(tenantId);
     if (tenant.getDeletedAt() != null) {
@@ -260,10 +259,9 @@ public class TenantService {
     }
   }
 
-  private void throwIfProtected(
-      @NotNull ProtectedResource resource, @NotNull String protectedResourceErrorMessage) {
-    if (resource.isProtectedResource()) {
-      throw new BadRequestException(protectedResourceErrorMessage);
+  private void throwIfDefaultTenant(String tenantId) {
+    if (tenantId.equals(Tenant.DEFAULT_TENANT_UUID)) {
+      throw new BadRequestException("Default tenant cannot be deleted: " + tenantId);
     }
   }
 }

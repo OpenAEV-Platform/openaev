@@ -6,7 +6,6 @@ import io.openaev.api.marking_definition.MarkingDefinitionMapper;
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
-import io.openaev.database.model.ProtectedResource;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
@@ -114,7 +113,9 @@ public class MarkingDefinitionService {
       @NotBlank String markingDefinitionId,
       @NotNull MarkingDefinitionInput input) {
     MarkingDefinition existing = findByIdOrThrow(ctx, markingDefinitionId);
-    throwIfProtected(existing, "Protected marking definitions cannot be updated");
+    if (Boolean.TRUE.equals(existing.getProtectedDefinition())) {
+      throw new BadRequestException("Protected marking definitions cannot be updated");
+    }
     if (!Objects.equals(existing.getType(), input.type())) {
       throw new BadRequestException("Marking definition type is immutable");
     }
@@ -136,16 +137,12 @@ public class MarkingDefinitionService {
    */
   public void delete(@NotNull TxCtx ctx, @NotBlank String markingDefinitionId) {
     MarkingDefinition existing = findByIdOrThrow(ctx, markingDefinitionId);
-    throwIfProtected(existing, "Protected marking definitions cannot be deleted");
+    if (Boolean.TRUE.equals(existing.getProtectedDefinition())) {
+      throw new BadRequestException("Protected marking definitions cannot be deleted");
+    }
     repository.delete(existing);
   }
 
-  private void throwIfProtected(
-      @NotNull ProtectedResource entity, @NotNull String protectedDefinitionErrorMessage) {
-    if (entity.isProtectedResource()) {
-      throw new BadRequestException(protectedDefinitionErrorMessage);
-    }
-  }
 
   private void validateUniqueOrThrow(
       String type, String definition, String tenantId, String ignoredId) {

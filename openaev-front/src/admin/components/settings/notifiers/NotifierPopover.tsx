@@ -55,7 +55,7 @@ const NotifierPopover: FunctionComponent<Props> = ({
 
   const entries: PopoverEntry[] = [
     {
-      label: t('Test'),
+      label: 'Test',
       action: submitTest,
       userRight: canManage,
     },
@@ -63,12 +63,12 @@ const NotifierPopover: FunctionComponent<Props> = ({
   if (!notifier.notifier_built_in) {
     entries.push(
       {
-        label: t('Update'),
+        label: 'Update',
         action: () => setOpenEdit(true),
         userRight: canManage,
       },
       {
-        label: t('Delete'),
+        label: 'Delete',
         action: () => setOpenDelete(true),
         userRight: canManage,
       },

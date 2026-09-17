@@ -36,7 +36,8 @@ const useStyles = makeStyles()(() => ({
 const inlineStyles: Record<string, CSSProperties> = {
   notifier_name: { width: '30%' },
   notifier_type: { width: '15%' },
-  notifier_description: { width: '55%' },
+  notifier_description: { width: '40%' },
+  notifier_built_in: { width: '15%' },
 };
 
 const typeChipStyle = (type?: string): CSSProperties => {
@@ -102,6 +103,20 @@ const Notifiers = () => {
       label: 'Description',
       isSortable: false,
       value: (notifier: NotifierOutput) => notifier.notifier_description,
+    },
+    {
+      field: 'notifier_built_in',
+      label: 'Built-in',
+      isSortable: false,
+      value: (notifier: NotifierOutput) => (notifier.notifier_built_in
+        ? (
+          <Chip
+            classes={{ root: classes.chipInList }}
+            style={colorStyles.grey}
+            label={t('Built-in')}
+          />
+        )
+        : undefined),
     },
   ], []);
 

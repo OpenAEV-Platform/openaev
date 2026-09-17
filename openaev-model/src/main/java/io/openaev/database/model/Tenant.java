@@ -17,7 +17,7 @@ import lombok.Data;
 @Entity
 @Table(name = "tenants")
 @EntityListeners({ModelBaseListener.class, AuditableListener.class})
-public class Tenant implements Base, Auditable, ProtectedResource {
+public class Tenant implements Base, Auditable {
 
   // Same default ID for XTM HUB and OpenAEV instances
   public static final String DEFAULT_TENANT_UUID = "2cffad3a-0001-4078-b0e2-ef74274022c3";
@@ -62,11 +62,5 @@ public class Tenant implements Base, Auditable, ProtectedResource {
 
   public Tenant(String id) {
     this.id = id;
-  }
-
-  @Override
-  @JsonIgnore
-  public boolean isProtectedResource() {
-    return DEFAULT_TENANT_UUID.equals(id);
   }
 }
