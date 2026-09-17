@@ -10111,8 +10111,10 @@ export interface PolicyInput {
 
 /** Operator capabilities of a primitive chaining type. */
 export interface PrimitiveTypeCapabilitiesOutput {
+  caseSensitivity?: boolean;
   /** Comparing values depends on case: the case-sensitivity toggle is meaningful and must be offered. */
   case_sensitivity?: boolean;
+  numericValue?: boolean;
   /** Values are numbers: the greater-than / less-than operators are meaningful and must be offered, and a value must be numeric whatever the operator. */
   numeric_value?: boolean;
 }

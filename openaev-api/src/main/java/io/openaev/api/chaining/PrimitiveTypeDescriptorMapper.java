@@ -38,8 +38,8 @@ public final class PrimitiveTypeDescriptorMapper {
         .primitiveType(type)
         .capabilities(
             PrimitiveTypeCapabilitiesOutput.builder()
-                .numericValue(policy.numericValue())
-                .caseSensitivity(policy.caseSensitivity())
+                .isNumericValue(policy.numericValue())
+                .isCaseSensitivity(policy.caseSensitivity())
                 .build())
         .validation(toValidation(policy))
         .build();
