@@ -110,7 +110,6 @@ jobs:
             '{
               openaev_version: $version,
               openaev_config: ($config + {
-                OPENAEV_ADMIN_EMAIL: "prowler-prototype@openaev.io",
                 OPENAEV_ADMIN_PASSWORD: $password
               }),
               image_digest: $digest
