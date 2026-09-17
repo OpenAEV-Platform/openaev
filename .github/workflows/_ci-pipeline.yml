@@ -102,16 +102,17 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
 
   api-tests:
-    name: "🧪 API Tests (${{ matrix.shard_name }})"
-    runs-on: ubuntu-latest
+    name: "🧪 API Tests (${{ matrix.suite.shard_name }}${{ matrix.runner.suffix }})"
+    runs-on: ${{ matrix.runner.label }}
     timeout-minutes: 30
     # A matrix entry may set continue_on_error: the multi-tenancy shadow runs are instruments, not
     # gates, and a red one must not fail the workflow while the migration is in progress.
-    continue-on-error: ${{ matrix.continue_on_error || false }}
+    continue-on-error: ${{ matrix.suite.continue_on_error || false }}
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.api-matrix) }}
+        suite: ${{ fromJSON(inputs.api-matrix) }}
+        runner: ${{ fromJSON(github.event_name == 'pull_request' && '[{"label":"ubuntu-24.04","suffix":"-x64"},{"label":"ubuntu-24.04-arm","suffix":"-arm64"}]' || '[{"label":"ubuntu-latest","suffix":""}]') }}
     env:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
@@ -119,20 +120,20 @@ jobs:
       MINIO_ENDPOINT: localhost
       MINIO_PORT: 11000
       ENGINE_URL: http://localhost:9200
-      ENGINE_ENGINESELECTOR: ${{ matrix.engine_selector }}
+      ENGINE_ENGINESELECTOR: ${{ matrix.suite.engine_selector }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/api-tests
         with:
-          includes: ${{ matrix.includes }}
-          excludes: ${{ matrix.excludes }}
-          shard: ${{ matrix.shard }}
-          shard-name: ${{ matrix.shard_name }}
-          search-engine: ${{ matrix.search_engine }}
-          artifact-suffix: ${{ matrix.artifact_suffix }}
-          tenant-mode: ${{ matrix.tenant_mode }}
+          includes: ${{ matrix.suite.includes }}
+          excludes: ${{ matrix.suite.excludes }}
+          shard: ${{ matrix.suite.shard }}
+          shard-name: ${{ matrix.suite.shard_name }}${{ matrix.runner.suffix }}
+          search-engine: ${{ matrix.suite.search_engine }}
+          artifact-suffix: ${{ matrix.suite.artifact_suffix }}${{ matrix.runner.suffix }}
+          tenant-mode: ${{ matrix.suite.tenant_mode }}
 
   # ════════════════════════════════════════════════════════════════════
   # E2E Tests — matrix passed from caller
