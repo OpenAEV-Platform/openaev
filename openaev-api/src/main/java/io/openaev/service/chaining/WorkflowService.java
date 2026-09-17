@@ -1057,6 +1057,7 @@ public class WorkflowService {
     copy.setKeepAlive(false);
     copy.setTimeoutEnabled(true);
     copy.setEdited(false);
+    copy.setVersion(0);
     copy.setWorkflowTemplate(null);
     return copy;
   }
