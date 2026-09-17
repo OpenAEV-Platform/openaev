@@ -331,8 +331,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // Act
       expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
 
-      // Assert
-      List<LogEvent> expectationEvents = captureExpectationResultEvents(1);
+      // Assert: both the asset parent and the asset-group parent must be recomputed and logged
+      List<LogEvent> expectationEvents = captureExpectationResultEvents(2);
       List<String> loggedIds =
           expectationEvents.stream()
               .map(event -> extractExpectationId(event))
@@ -1129,8 +1129,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   // -- PRIVATE HELPERS --
 
   private List<LogEvent> captureExpectationResultEvents(int expectedMinimumEvents) {
+    // Audit dispatch runs on AuditLogger's own executor (CompletableFuture.supplyAsync), not on
+    // the calling thread: verify() must wait for the full expected count, not just one
+    // invocation, or a slower/loaded CI runner can race ahead and capture only the events that
+    // happened to complete first.
     ArgumentCaptor<LogEvent> eventCaptor = ArgumentCaptor.forClass(LogEvent.class);
-    verify(auditLogTransportDispatcherUtils, timeout(5000).atLeastOnce())
+    verify(auditLogTransportDispatcherUtils, timeout(5000).atLeast(expectedMinimumEvents))
         .dispatch(eventCaptor.capture(), any());
     List<LogEvent> expectationEvents =
         eventCaptor.getAllValues().stream()
