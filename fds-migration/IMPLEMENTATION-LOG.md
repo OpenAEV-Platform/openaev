@@ -588,6 +588,239 @@ in filigran-design-system).
   (checked handler by handler). Self-hiding when the licence is active: not
   adopted, by arbitration.
 
+## 2026-09-17 — Action components wave: ToggleButton held
+
+- The seven `ToggleButtonGroup` sites stay on MUI with a `fds:keep-mui`
+  reason: every one carries text segments (report format, dashboard mode,
+  coverage filter with counts, preview / code, technique filter, tenant /
+  platform scope, timeline scales) and the library ButtonGroup is icon-only
+  by design (its RFC §7 lists these very sites as out of scope):
+  LIBRARY-FEEDBACK #57. The one standalone `ToggleButton` — the inject import
+  menu trigger — was an icon-only menu button and renders the library
+  IconButton (secondary, 36px, named "Import injects") beside the view-mode
+  ButtonGroup it already shared the row with.
+
+## 2026-09-18 — Library bump: b4e952c, and what it lets the product drop
+
+- The pin moves from `4b54adb` to `b4e952c`, which carries the three pull
+  requests this wave asked for: the Button colour override (#226, with the
+  label laid out as a row), the Tabs icon slot sizing (#227) and the default
+  `type="button"` (#228).
+- What the bump makes redundant, removed here and measured on a bench against
+  the installed build: the `marginLeft: 4` the product had put on the EE marker
+  inside six buttons (the library's label row now provides the 8px gap — 12px
+  measured with the margin, 8px without), and the hand-set 16px on the two
+  remediation tab logos (the slot sizes its child: 16×16 either way).
+- What the bump lets the product convert: the licence banner's action button
+  leaves MUI for the library Button with `color`, closing LIBRARY-FEEDBACK #59.
+  The three bands keep their hexes through primitive tokens — `orange-700`
+  (#884106) and `turquoise-800` (#005744) are exact; the blue band moves from
+  #007399 to `blue-700` (#0079a8), the nearest primitive, one shade lighter.
+  The library picks the label ink and guarantees it stays over 4.58:1.
+- Still on MUI, unchanged: the reporting split button (#58) and the seven
+  text-labelled toggle groups (#57). The 362 explicit `type="button"` stay too:
+  correct, now redundant, and not worth churning inside an open pull request.
+- Opened while doing it: LIBRARY-FEEDBACK #61, `PrimitiveColorToken` is
+  declared by the library but not exported, so the banner reads the union off
+  the prop instead of naming it.
+
+## 2026-09-18 — Chip wave follow-up: a chip must not outgrow its list cell
+
+- Visual pass finding. The MUI chips of two list columns carried a fixed
+  width (`chipInList`: 120px on the scenario type, 140px on the injector
+  contract) and truncated inside it. The library chip sizes to content
+  (ruling B14), so a longer label now outgrew its cell and the CELL cut it:
+  the scenario "Type" chip spilled 2px and lost its rounded edge against the
+  status chip, and the atomic-testing contract chip spilled 49px out of a
+  102px cell, cut mid-word with no ellipsis.
+- Fixed by capping those two chips at their cell (`maxWidth: '100%'`), which
+  hands the truncation back to the library: the label ellipsizes inside the
+  chip and its own tooltip opens only while the label is actually clipped.
+  The dead `withStyles` block the conversion had left in `InjectorContract`
+  goes with it.
+- Swept the ten main list screens at 1400px before and after: two clipped
+  chips before, none after.
+- Left alone, pre-existing: the scenario "Status" cell still draws a
+  text-overflow ellipsis because its own padding makes `scrollWidth` exceed
+  `clientWidth` by 11px, with the chip itself 8px narrower than the cell —
+  the MUI chip overflowed it by far more.
+
+## 2026-09-18 — Button wave follow-up: the implicit `type="button"`
+
+- The library `Button` sets no `type`, so a converted button with none fell
+  back to the HTML default, `submit`, where MUI's `ButtonBase` had resolved it
+  to `"button"`. Every converted button without an explicit type inside a form
+  became a submit button: 362 sites in 201 files, 355 of them in a file that
+  carries a form.
+- Caught by the product's end-to-end suite on the pull request, by nothing
+  local: `check-ts`, `lint`, the unit tests and the conformity script are all
+  blind to it. The threat-arsenal "New argument" button submitted the action
+  form instead of appending a row, so `action_arguments.0.key` never existed
+  (`threatArsenal-creation.spec.ts`, two tests, three attempts each).
+- Fixed by writing `type="button"` on those 362 sites, which is exactly what
+  MUI rendered before. Verified on the running product: the argument field
+  appears and the drawer stays open. Reported as LIBRARY-FEEDBACK #60 — the
+  library's own `IconButton` already defaults to `"button"`.
+
+## 2026-09-17 — Action components wave: Button
+
+- Button (473 MUI sites, 230 files) on the library: 468 sites by a codemod
+  (TypeScript compiler, one pass, imports merged into the existing library
+  import), the rest by hand — the three wrappers (ButtonCreate loses its MUI
+  branch, DialogConfirmation reads `destructive` from its `submitColor`,
+  ActionButtons), the two GradientButton components and their callers, the six
+  EE-gated actions and four icon-only buttons.
+- Mapping: `contained` → `priority="primary"` (default, omitted), `outlined` →
+  `secondary`, `text` and the bare MUI button → `tertiary`; `color="error"` and
+  `"warning"` → `variant="destructive"`, `"ee"` and the gradient buttons →
+  `variant="highlight"`, the AI actions (Ask Ariane, generate with AI, suggest
+  TTPs) → `variant="ia"`; `secondary`, `success`, `inherit` → the default.
+- Placement rule (B1): the default 36px everywhere a MUI medium button stood
+  and in dialog / drawer footers, list headers, detail headers and bulk bars
+  even when MUI said `small`; `sm` (24px) where MUI said `small` inside a form,
+  a card or a Paper header row. `large` has no library counterpart and reads
+  36px.
+- A button that navigates (35 sites: `component={Link}`, `component="a"`, bare
+  `href`) is `asChild` around the anchor, with `to` / `href` / `target` / `rel` on
+  the anchor and the MUI icon inside it (the library ignores `startIcon` under
+  `asChild`); the parent-scenario pivot splits into a link when the scenario is
+  reachable and a disabled button otherwise. The EE marker sits inside the
+  button after the label, as OpenCTI does, and the EE-gated actions read
+  `primary` with the licence and `secondary` without.
+- MUI icons inside a button get `fontSize="small"` (the library slot does not
+  size its icon: LIBRARY-FEEDBACK #56). `sx` layout keys (margins, alignSelf,
+  flexShrink, whiteSpace, position) became `style` with the 8px spacing
+  resolved; colour, typography, radius and hover keys (114 in all) leave with
+  MUI. `disableElevation` and the ripple props are gone. The licence banner's
+  button keeps the banner's urgency colour and stays on MUI (`fds:keep-mui`,
+  LIBRARY-FEEDBACK #59: a colour override for exceptional cases). The
+  reporting split button (a MUI ButtonGroup: generate now + format menu) stays
+  on MUI with a `fds:keep-mui` reason until the library offers a split button
+  (LIBRARY-FEEDBACK #58). Three icon-only MUI buttons received a name (`Add`,
+  copy to clipboard); the copy one is an IconButton.
+- One test adjusted: the XTM Hub tab test mocked a GradientButton path that the
+  screen never imported; the assertion now looks for the connect button text.
+- Measured on the running product at 1400px after the change: list header
+  Create 36px primary beside a 36px highlight "Import from Hub" anchor, detail
+  header Launch / Configuration 36px, the Deploy card action 24px secondary
+  with the EE marker inside, the EE settings CTA 36px highlight, dialog and
+  drawer footers 36px, no MUI button left on the scenario, simulation,
+  settings and integrations screens, no horizontal overflow.
+
+## 2026-09-17 — Action components wave: Tabs
+
+- Tabs (15 files, every tab bar of the product) on the library: the product
+  wrapper `components/common/tabs/Tabs.tsx` keeps its `entries` / `currentTab`
+  / `onChange` contract so its 12 consumers did not move; the 14 direct MUI
+  bars were rewritten by hand (six route-based bars, six stateful bars, the
+  inject drawer and the variables dialog). `@mui/lab` TabContext, TabList and
+  TabPanel leave with them.
+- Route-based bars (scenario, simulation shell, atomic testing, simulation
+  inject, phishing, integrations) are `TabsTrigger asChild` around the router
+  `Link`, with `aria-current="page"` on the current one and `panels="external"`
+  on the bar (the panels are the routed pages). The simulation shell's "no tab
+  matches" value goes from `false` to `''`. The EE marker of the Remediations
+  tab sits inside the link after the label (the trigger's own 8px gap replaces
+  the MUI margin). The simulation inject's Remediations tab compared a path with
+  a query string to the pathname and could never read as selected; it now
+  compares the bare path like its siblings.
+- Stateful bars: numeric MUI values (target tabs, configuration enums, platform
+  index) become `String(index)` and the handlers take the value alone. The
+  inject drawer keeps its three panels mounted (`TabsContent forceMount`) so the
+  forms keep their state, and hides the inactive ones itself: the library leaves
+  a force-mounted panel visible (LIBRARY-FEEDBACK #55). The variables dialog
+  renders its two lists conditionally, as the MUI TabPanel did.
+- Platform logos (threat arsenal remediation tabs, atomic remediation rail) go
+  in the trigger's 16px `icon` slot with an empty `alt` (the name is the label);
+  the rail is `orientation="vertical"` in a grid cell so it fills the column.
+  The hard-coded English `aria-label` of the remediation bar becomes the
+  translated "Security platforms" on the tablist. The 30px/13px MUI tab class,
+  the `textTransform: none` and the `::first-letter` workarounds go with MUI.
+- The library trigger activates on pointer down (manual activation; arrow keys
+  move focus only, Enter or Space activates): the attack-path panel test fires
+  `mouseDown` where it fired `click`.
+- Measured on the running product at 1400px after the change: 44px triggers,
+  14px labels (600 when active), brand ink and 2px brand underline on the
+  active tab, `aria-current="page"` on the current routed link, arrow keys move
+  focus without navigating and Enter follows the link, the inject drawer shows
+  one panel and hides the other with `hidden`, no MUI tab bar left on the
+  scenario, simulation, atomic testing, phishing, integrations, asset and threat
+  arsenal screens, no horizontal overflow. The vertical rail and the platform
+  tabs were not reached locally (they need a payload-backed atomic testing and
+  the Enterprise Edition).
+
+## 2026-09-17 — Action components wave: Chip
+
+- Chip (173 sites, 107 files): 169 on the library, 4 filter chips kept on MUI
+  with a reason (LIBRARY-FEEDBACK #54). Three codemod passes with placeholders
+  both ways (154 sites) plus a hand pass on the status wrappers (ItemSeverity,
+  ItemStatus, ItemCriticality, ItemBoolean, InfoChip, LabelChip, Tag, CvssBadge,
+  ExerciseStatus and the other status chips), the tag components (ItemTags,
+  ItemDomains, DocumentType) and the three chips that navigate.
+- One colour table for every status chip (`statusSeverity` /
+  `colorStyleSeverity` in utils/statusUtils.ts, `criticalitySeverity` in
+  criticalityColor.ts), by ruling: green → low, blue → info, orange → medium
+  for a status and high for a severity, red → critical, greys and the brown
+  "canceled" → neutral, violets → info. Colours carried by the data (tag,
+  domain, document type, notification operation, AI events) go through `color`
+  and render as the library wash; brand-tinted outlined labels read `info`.
+  Fixed widths (100–250px), the 20/25px heights, uppercase and italic go with
+  the MUI classes; the MUI `icon` becomes `startIcon`, `onDelete` gets a
+  `deleteLabel`.
+- A chip that navigates (challenge simulations, context links, target links)
+  is a real link around a non-clickable chip (`components/common/chips/chipLink.ts`
+  carries the focus ring classes): ⌘-click and "open in a new tab" kept, no
+  button inside a link. A non-clickable chip under a TooltipTrigger gets a span
+  host. The loading state of ItemBoolean shows a library Spinner beside a
+  "Loading" label instead of a spinner as label; its EE state renders the EEChip.
+- Measured on the running product at 1400px after the change (see the measure
+  log in the PR): 24px chips, 14px labels, white ink on the 30% wash, no
+  horizontal overflow on the scenario and atomic-testing lists.
+
+## 2026-09-17 — Action components wave: IconButton
+
+- IconButton (135 sites, 99 files) on the library: 133 converted by a codemod
+  in two passes (placeholders both ways, the loop never re-reads what it wrote),
+  2 decorative icon holders replaced by plain spans (the domain icon bar and
+  the challenge status glyph were never actions). The library names nothing
+  through its tooltip, so 47 unnamed buttons received an `aria-label` first:
+  the tooltip text when there was one, else the verb of the icon (`More
+  actions`, `Delete`, `Close`, `Add`, `Back`, `Scheduling`, `Launch`, `Reset`,
+  `Fullscreen`, `Refresh`, `Profile`, `Default value`, `Ask AI`, `Import`, and
+  `Collapse`/`Expand` for the chevrons); five components gained the
+  translation hook for it. No new translation key.
+- Placement rule applied: `sm` (24px) in list rows, forms and cards; `md`
+  (36px) in page headers, drawer and dialog headers, side panels and the bulk
+  toolbar. The kebab wrapper takes its size from the `variant` it already
+  received (`icon` in a row, `toggle` in a header). `color="error"` →
+  `destructive`; AI-tinted buttons → `variant="ia"`; the read/unread and
+  subscribe switches express their state with `active`; icon-only links keep
+  their anchor under `asChild`; `sx` layout keys (position, margins, flex)
+  moved to `style`, colour and radius keys dropped (the library button carries
+  its own look).
+- Measured on the running product at 1400px: row kebab 30 → 24px (icon 20px),
+  header icon buttons 32 → 36px, drawer close 34 → 36px, no horizontal
+  overflow on the list or the detail page. A React warning ("Cannot update a
+  component while rendering a different component", Root) is present on
+  unconverted screens too: pre-existing.
+
+## 2026-09-17 — Action components wave: Badge
+
+- Badge (4 sites, 2 files) on the library: the unread dot of the notification
+  list and the three "advanced setting set" dots on the rule cogs of the XLS
+  mapper form. One tone for badges by ruling (the default, red): the amber and
+  the tonic dots go. Each dot carries an `accessibleText` (`Unread`, `Default
+  value set`, added to the nine language files) so the state is announced
+  instead of being colour only. The cog badge now wraps its button
+  (`bareAnchor="md"`) rather than the glyph inside it.
+- Measured before/after on the running product with a temporary notification
+  and a temporary mapper (both created and deleted for the measurement): dot
+  8×8 px before and after; rgb(255,167,38) → rgb(241,67,55) on the
+  notification, rgb(0,240,188) → rgb(241,67,55) on the cog. On the cog the dot
+  sits at the corner of the 40px MUI button for now (10px right of the glyph);
+  the IconButton pass replaces that button by the 36px library one, which puts
+  the dot back on the glyph's corner.
+
 ## 2026-09-15 — Visual passes and the tooltip wave
 
 - Two visual passes, measured before and after on the rebuilt bundle: native

@@ -1,7 +1,7 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { InfoOutlined } from '@mui/icons-material';
-import { AccordionDetails, Button, Typography } from '@mui/material';
+import { AccordionDetails, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FormEvent, useMemo } from 'react';
 import { FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
@@ -361,20 +361,10 @@ const ConnectorInstanceForm = ({
           marginTop: theme.spacing(1),
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={onClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={isSubmitting || disabled}
-          >
+          <Button type="submit" disabled={isSubmitting || disabled}>
             {t(getActionLabel())}
           </Button>
         </div>

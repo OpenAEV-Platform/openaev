@@ -1,7 +1,8 @@
+import { Button } from '@filigran/design-system';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AddOutlined } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, useCallback, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -217,13 +218,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
               mb: 2,
             }}
             >
-              <Button
-                size="small"
-                color="primary"
-                disabled={readOnly}
-                startIcon={<AddOutlined fontSize="small" />}
-                onClick={handleAddConditionGroup}
-              >
+              <Button type="button" priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} disabled={readOnly} onClick={handleAddConditionGroup}>
                 {t('Add Condition Group')}
               </Button>
             </Box>

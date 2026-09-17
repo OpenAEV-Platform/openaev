@@ -1,5 +1,5 @@
+import { IconButton } from '@filigran/design-system';
 import { DeleteOutlined } from '@mui/icons-material';
-import { IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -132,13 +132,13 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
         </>
       )}
       <IconButton
+        icon={<DeleteOutlined />}
+        aria-label={t('Delete')}
         onClick={onArgumentRemoveClick}
-        size="small"
-        color="primary"
         data-testid={`${argumentName}.delete-btn`}
-      >
-        <DeleteOutlined />
-      </IconButton>
+        priority="tertiary"
+        size="sm"
+      />
     </div>
   );
 };

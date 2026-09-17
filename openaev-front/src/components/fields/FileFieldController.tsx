@@ -1,4 +1,5 @@
-import { Button, FormHelperText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { FormHelperText } from '@mui/material';
 import { type ChangeEvent, type CSSProperties, type FunctionComponent, useRef, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -59,12 +60,7 @@ const FileFieldController: FunctionComponent<Props> = ({
               disabled={disabled}
               onChange={handleChange}
             />
-            <Button
-              variant="outlined"
-              color="primary"
-              disabled={disabled}
-              onClick={() => inputRef.current?.click()}
-            >
+            <Button type="button" priority="secondary" disabled={disabled} onClick={() => inputRef.current?.click()}>
               {label ?? t('Select a file')}
             </Button>
             {rejectedFile && (

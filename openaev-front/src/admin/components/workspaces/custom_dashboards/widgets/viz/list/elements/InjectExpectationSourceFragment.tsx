@@ -1,7 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DevicesOtherOutlined, Groups3Outlined, PersonOutlined } from '@mui/icons-material';
-import { Chip } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { type ComponentType } from 'react';
 
@@ -61,7 +60,7 @@ const InjectExpectationSourceFragment = ({ element }: { element: EsBase }) => {
     <Tooltip>
       <TooltipTrigger asChild>
         <Chip
-          icon={(
+          startIcon={(
             <Icon style={{
               fontSize: 14,
               color: visual.color,
@@ -69,22 +68,8 @@ const InjectExpectationSourceFragment = ({ element }: { element: EsBase }) => {
             />
           )}
           label={targetName ?? kindLabel}
-          size="small"
-          variant="outlined"
-          sx={{
-            'height': 22,
-            'maxWidth': '100%',
-            'fontSize': 11,
-            'fontWeight': 600,
-            'borderRadius': 1,
-            // Kind fallbacks are lowercase i18n keys ("asset group"); real names
-            // must render verbatim (hostnames, emails...).
-            'textTransform': targetName ? 'none' : 'capitalize',
-            'color': visual.color,
-            'borderColor': alpha(visual.color, 0.4),
-            'backgroundColor': alpha(visual.color, 0.08),
-            '& .MuiChip-icon': { marginLeft: 0.5 },
-          }}
+          color={visual.color}
+          style={{ maxWidth: '100%' }}
         />
       </TooltipTrigger>
       {(targetName ? `${targetName} (${kindLabel})` : kindLabel) && <TooltipContent>{targetName ? `${targetName} (${kindLabel})` : kindLabel}</TooltipContent>}

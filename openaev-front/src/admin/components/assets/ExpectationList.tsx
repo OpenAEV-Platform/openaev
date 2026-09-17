@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -124,7 +124,7 @@ const SecurityPlatformsFragment: FunctionComponent<{
       <Tooltip>
         <TooltipTrigger asChild>
           <Chip
-            icon={(
+            startIcon={(
               <img
                 src={buildTenantApiPath(`/api/images/security_platforms/id/${first}/${theme.palette.mode}`)}
                 alt=""
@@ -136,16 +136,7 @@ const SecurityPlatformsFragment: FunctionComponent<{
               />
             )}
             label={label(first)}
-            size="small"
-            variant="outlined"
-            sx={{
-              'height': 22,
-              'maxWidth': '100%',
-              'fontSize': 11,
-              'fontWeight': 600,
-              'borderRadius': 1,
-              '& .MuiChip-icon': { marginLeft: 0.5 },
-            }}
+            style={{ maxWidth: '100%' }}
           />
         </TooltipTrigger>
         {label(first) && <TooltipContent>{label(first)}</TooltipContent>}
@@ -153,17 +144,7 @@ const SecurityPlatformsFragment: FunctionComponent<{
       {rest.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Chip
-              label={`+${rest.length}`}
-              size="small"
-              variant="outlined"
-              sx={{
-                height: 22,
-                fontSize: 11,
-                fontWeight: 600,
-                borderRadius: 1,
-              }}
-            />
+            <Chip label={`+${rest.length}`} />
           </TooltipTrigger>
           {rest.map(label).join(', ') && <TooltipContent>{rest.map(label).join(', ')}</TooltipContent>}
         </Tooltip>

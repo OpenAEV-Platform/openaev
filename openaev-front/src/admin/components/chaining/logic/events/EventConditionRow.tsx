@@ -1,9 +1,8 @@
-import { Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
 // fds:keep-mui the event condition value field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Box, IconButton, TextField, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -52,7 +51,6 @@ const EventConditionRow: FunctionComponent<Props> = ({
   readOnly = false,
 }) => {
   const { t } = useFormatter();
-  const theme = useTheme();
   const { argumentTypes, isLoading: isLoadingArgumentTypes, error: argumentTypesError } = useArgumentTypes();
   const conditionKeyTypes = argumentTypes;
   const isArgumentTypesUnavailable = isLoadingArgumentTypes || !!argumentTypesError || conditionKeyTypes.length === 0;
@@ -297,20 +295,14 @@ const EventConditionRow: FunctionComponent<Props> = ({
         {/* Delete button (only visible when more than one condition) */}
         {canDelete && (
           <IconButton
-            size="small"
+            icon={<DeleteOutline fontSize="small" />}
             onClick={onDelete}
             disabled={readOnly}
-            sx={{
-              'color': 'error.main',
-              'border': '1px solid',
-              'borderColor': 'error.main',
-              'borderRadius': 1,
-              '&:hover': { backgroundColor: `${theme.palette.error.main}1A` },
-            }}
             aria-label={t('Delete condition')}
-          >
-            <DeleteOutline fontSize="small" />
-          </IconButton>
+            variant="destructive"
+            priority="secondary"
+            size="sm"
+          />
         )}
       </Box>
     </Box>

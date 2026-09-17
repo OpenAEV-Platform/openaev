@@ -1,11 +1,10 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tabs, TabsList, TabsTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, PersonOutlined } from '@mui/icons-material';
-import { Box, Button, Tab, Tabs } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import {
   type FunctionComponent,
-  type SyntheticEvent,
   useCallback,
   useContext,
   useEffect,
@@ -446,7 +445,7 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
     />
   );
 
-  const handleTabChange = useCallback((_e: SyntheticEvent, newValue: string) => {
+  const handleTabChange = useCallback((newValue: string) => {
     setCurrentTab(newValue);
   }, []);
 
@@ -588,11 +587,13 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
           <SectionLabel>{addLabel}</SectionLabel>
 
           <Box>
-            <Tabs value={currentTab} onChange={handleTabChange}>
-              {canAccessAssets && <Tab value="assets" label={t('Assets')} />}
-              {canAccessAssets && <Tab value="asset_groups" label={t('Asset groups')} />}
-              {canAccessTeamsAndPlayers && <Tab value="teams" label={t('Teams')} />}
-              {canAccessTeamsAndPlayers && <Tab value="persons" label={t('Persons')} />}
+            <Tabs value={currentTab} onValueChange={handleTabChange} panels="external">
+              <TabsList>
+                {canAccessAssets && <TabsTrigger value="assets">{t('Assets')}</TabsTrigger>}
+                {canAccessAssets && <TabsTrigger value="asset_groups">{t('Asset groups')}</TabsTrigger>}
+                {canAccessTeamsAndPlayers && <TabsTrigger value="teams">{t('Teams')}</TabsTrigger>}
+                {canAccessTeamsAndPlayers && <TabsTrigger value="persons">{t('Persons')}</TabsTrigger>}
+              </TabsList>
             </Tabs>
           </Box>
 
@@ -660,19 +661,10 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
           gap: theme.spacing(1),
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={onCancel}
-          >
+          <Button type="button" priority="secondary" onClick={onCancel}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={onSubmit}
-            disabled={!hasChanges}
-          >
+          <Button type="button" onClick={onSubmit} disabled={!hasChanges}>
             {t('Define scope')}
           </Button>
         </Box>

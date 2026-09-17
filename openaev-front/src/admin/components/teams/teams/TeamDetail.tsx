@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { AssignmentOutlined, GroupsOutlined, HelpOutlineOutlined, HubOutlined, KeyboardArrowRight, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useCallback, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -214,8 +215,8 @@ const TeamDetail = () => {
           title={team.team_name}
           chips={(
             <>
-              {organizationName && <Chip size="small" variant="outlined" label={organizationName} sx={{ borderRadius: 1 }} />}
-              {team.team_contextual && <Chip size="small" color="primary" variant="outlined" label={t('Contextual')} sx={{ borderRadius: 1 }} />}
+              {organizationName && <Chip label={organizationName} />}
+              {team.team_contextual && <Chip label={t('Contextual')} severity="info" />}
             </>
           )}
           action={(

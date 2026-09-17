@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined, EditOutlined, ScheduleOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -186,15 +186,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
       label: 'Recurrence',
       isSortable: true,
       value: (schedule: ReportingSchedule) => (
-        <Chip
-          label={periodSummary(schedule)}
-          variant="outlined"
-          sx={{
-            height: 20,
-            fontSize: 12,
-            borderRadius: 0.5,
-          }}
-        />
+        <Chip label={periodSummary(schedule)} />
       ),
     },
     {
@@ -231,14 +223,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                 hint={t('Schedules generate this report on a recurring basis and email it to recipients.')}
               />
               {canManage && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<AddOutlined />}
-                  onClick={() => setDrawer('create')}
-                  // Pull the CTA into the empty state's bottom padding.
-                  sx={{ marginTop: -3 }}
-                >
+                <Button type="button" startIcon={<AddOutlined fontSize="small" />} onClick={() => setDrawer('create')} style={{ marginTop: -3 }}>
                   {t('Add schedule')}
                 </Button>
               )}
@@ -306,17 +291,25 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                           <>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <IconButton aria-label={t('Update')} size="small" color="primary" onClick={() => setDrawer(schedule)}>
-                                  <EditOutlined fontSize="small" />
-                                </IconButton>
+                                <IconButton
+                                  icon={<EditOutlined fontSize="small" />}
+                                  aria-label={t('Update')}
+                                  onClick={() => setDrawer(schedule)}
+                                  priority="tertiary"
+                                  size="sm"
+                                />
                               </TooltipTrigger>
                               <TooltipContent>{t('Update')}</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <IconButton aria-label={t('Delete')} size="small" color="primary" onClick={() => setScheduleToDelete(schedule)}>
-                                  <DeleteOutlined fontSize="small" />
-                                </IconButton>
+                                <IconButton
+                                  icon={<DeleteOutlined fontSize="small" />}
+                                  aria-label={t('Delete')}
+                                  onClick={() => setScheduleToDelete(schedule)}
+                                  priority="tertiary"
+                                  size="sm"
+                                />
                               </TooltipTrigger>
                               <TooltipContent>{t('Delete')}</TooltipContent>
                             </Tooltip>

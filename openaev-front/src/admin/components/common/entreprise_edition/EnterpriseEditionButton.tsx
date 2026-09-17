@@ -13,29 +13,17 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
+import { Button } from '@filigran/design-system';
 import { RocketLaunchOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 
 const EnterpriseEditionButton = () => {
   const { t } = useFormatter();
-  const theme = useTheme();
   const { openDialog } = useEnterpriseEdition();
   return (
-    <Button
-      size="small"
-      variant="text"
-      color="ee"
-      onClick={() => openDialog()}
-      startIcon={<RocketLaunchOutlined />}
-      sx={{
-        textTransform: 'none',
-        fontWeight: theme.typography.fontWeightBold,
-      }}
-    >
+    <Button type="button" variant="highlight" priority="tertiary" size="sm" startIcon={<RocketLaunchOutlined fontSize="small" />} onClick={() => openDialog()}>
       {t('Manage your enterprise edition license')}
     </Button>
   );

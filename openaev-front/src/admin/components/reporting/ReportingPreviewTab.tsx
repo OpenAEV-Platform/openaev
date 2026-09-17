@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { RefreshOutlined } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -51,9 +51,13 @@ const ReportingPreviewTab: FunctionComponent<Props> = ({ reportingId, refreshTok
         </Typography>
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton aria-label={t('Refresh preview')} size="small" color="primary" onClick={() => setPreviewKey(key => key + 1)}>
-              <RefreshOutlined fontSize="small" />
-            </IconButton>
+            <IconButton
+              icon={<RefreshOutlined fontSize="small" />}
+              aria-label={t('Refresh preview')}
+              onClick={() => setPreviewKey(key => key + 1)}
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent>{t('Refresh preview')}</TooltipContent>
         </Tooltip>

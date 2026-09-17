@@ -1,5 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Button, Typography } from '@mui/material';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Typography } from '@mui/material';
 import { type FunctionComponent, type MouseEvent, useEffect, useState } from 'react';
 
 import { getAlertLinksCount } from '../../../../../actions/atomic_testings/atomic-testing-actions';
@@ -46,23 +46,7 @@ const TargetResultAlertNumber: FunctionComponent<Props> = ({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          size="small"
-          variant="contained"
-          color="primary"
-          disableElevation
-          onClick={handleClick}
-          sx={{
-            minWidth: 32,
-            height: 24,
-            paddingInline: 1,
-            fontSize: 12,
-            fontWeight: 700,
-            lineHeight: 1,
-            borderRadius: 1,
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
+        <Button type="button" size="sm" onClick={handleClick} style={{ minWidth: 32 }}>
           {alertLinksNumber}
         </Button>
       </TooltipTrigger>

@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link, useParams } from 'react-router';
@@ -44,32 +44,32 @@ const ChannelPlayer = () => {
       <div className={classes.root}>
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="secondary"
-            variant="outlined"
-            component={Link}
-            to={`/channels/${exerciseId}/${channelId}?article=${articleId}&user=${userId}&preview=true`}
+            asChild
+            priority="secondary"
             style={{
               position: 'absolute',
               top: 20,
               right: 20,
             }}
           >
-            {t('Switch to preview mode')}
+            <Link to={`/channels/${exerciseId}/${channelId}?article=${articleId}&user=${userId}&preview=true`}>
+              {t('Switch to preview mode')}
+            </Link>
           </Button>
         )}
         {permissions.isLoggedIn && permissions.canAccess && (
           <Button
-            color="primary"
-            variant="outlined"
-            component={Link}
-            to={`/admin/simulations/${exerciseId}/definition`}
+            asChild
+            priority="secondary"
             style={{
               position: 'absolute',
               top: 20,
               left: 20,
             }}
           >
-            {t('Back to administration')}
+            <Link to={`/admin/simulations/${exerciseId}/definition`}>
+              {t('Back to administration')}
+            </Link>
           </Button>
         )}
         {channel.channel_type === 'newspaper' && (

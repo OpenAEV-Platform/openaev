@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { CancelOutlined } from '@mui/icons-material';
-import { Box, IconButton, Skeleton } from '@mui/material';
+import { Box, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -157,13 +158,13 @@ const WidgetSeriesSelection: FunctionComponent<{
           }}
           >
             <IconButton
+              icon={<CancelOutlined fontSize="small" />}
               disabled={index === 0}
               aria-label="Delete"
               onClick={handleRemoveSeries}
-              size="small"
-            >
-              <CancelOutlined fontSize="small" />
-            </IconButton>
+              priority="tertiary"
+              size="sm"
+            />
           </div>
         )}
       <Box padding={2}>

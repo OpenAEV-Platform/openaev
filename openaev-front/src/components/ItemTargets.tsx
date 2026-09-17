@@ -1,6 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DnsOutlined, Groups3Outlined, PersonOutlined, SmartToyOutlined } from '@mui/icons-material';
-import { Chip } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -10,6 +9,7 @@ import { type AssetCategory } from '../admin/components/assets/asset-categories'
 import AssetCategoryIcon from '../admin/components/assets/AssetCategoryIcon';
 import { type TargetSimple } from '../utils/api-types';
 import { getRemainingItemsCount, getVisibleItems, truncate } from '../utils/String';
+import chipLinkClassName from './common/chips/chipLink';
 import { useFormatter } from './i18n';
 import PlatformIcon from './PlatformIcon';
 
@@ -101,7 +101,7 @@ const ItemTargets: FunctionComponent<Props> = ({
   getTargetLink,
 }) => {
   // Standard hooks
-  const { classes, cx } = useStyles();
+  const { classes } = useStyles();
   const { t } = useFormatter();
   let truncateLimit = 15;
   if (variant === 'reduced-view') {
@@ -155,20 +155,15 @@ const ItemTargets: FunctionComponent<Props> = ({
           <span key={index}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Chip
-                  variant="outlined"
-                  key={target.target_id}
-                  classes={{ root: link ? cx(classes.target, classes.clickable) : classes.target }}
-                  icon={getIcon(target)}
-                  label={truncate(target.target_name!, truncateLimit)}
-                  {...(link
-                    ? {
-                        component: Link,
-                        to: link,
-                        clickable: true,
-                      }
-                    : {})}
-                />
+                {link ? (
+                  <Link to={link} className={chipLinkClassName}>
+                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} />
+                  </Link>
+                ) : (
+                  <span className="inline-flex">
+                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} />
+                  </span>
+                )}
               </TooltipTrigger>
               {target.target_name && <TooltipContent>{target.target_name}</TooltipContent>}
             </Tooltip>
@@ -178,11 +173,7 @@ const ItemTargets: FunctionComponent<Props> = ({
       {remainingTargetsCount && remainingTargetsCount > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Chip
-              variant="outlined"
-              classes={{ root: classes.target }}
-              label={`+${remainingTargetsCount}`}
-            />
+            <Chip label={`+${remainingTargetsCount}`} />
           </TooltipTrigger>
           <TooltipContent>
             <>

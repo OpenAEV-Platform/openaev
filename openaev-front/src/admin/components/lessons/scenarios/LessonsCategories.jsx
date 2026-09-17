@@ -1,6 +1,6 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CastForEducationOutlined, HelpOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemText, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext } from 'react';
@@ -228,8 +228,8 @@ const LessonsCategories = ({
                                   )
                             }
                             label={truncate(team?.team_name || '', 30)}
-                            icon={<CastForEducationOutlined />}
-                            sx={{ borderRadius: 1 }}
+                            startIcon={<CastForEducationOutlined />}
+                            deleteLabel={t('Remove')}
                           />
                         </TooltipTrigger>
                         {(team?.team_name || '') && <TooltipContent>{team?.team_name || ''}</TooltipContent>}

@@ -1,6 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ForwardToInbox } from '@mui/icons-material';
-import { IconButton } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import DialogTest from '../../../components/common/DialogTest';
@@ -60,17 +59,18 @@ const InjectTestReplayAll: FunctionComponent<Props> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
-                <IconButton
-                  aria-label="test"
-                  disabled={
-                    injectIds?.length === 0
-                  }
-                  onClick={handleOpenAllTest}
-                  color="primary"
-                  size="small"
-                >
-                  <ForwardToInbox fontSize="small" />
-                </IconButton>
+                <span className="inline-flex">
+                  <IconButton
+                    icon={<ForwardToInbox fontSize="small" />}
+                    aria-label="test"
+                    disabled={
+                      injectIds?.length === 0
+                    }
+                    onClick={handleOpenAllTest}
+                    priority="tertiary"
+                    size="sm"
+                  />
+                </span>
               </span>
             </TooltipTrigger>
             <TooltipContent>{t('Replay all tests')}</TooltipContent>

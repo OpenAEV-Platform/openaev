@@ -1,6 +1,6 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloseOutlined, FullscreenOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle, IconButton, Typography } from '@mui/material';
+import { Box, Dialog, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { type ReactNode, useCallback, useState } from 'react';
 
 import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
@@ -128,16 +128,12 @@ const PhishingHtmlPreview = ({ title, iframeTitle, srcDoc, chrome, height = 560 
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
-                size="small"
+                icon={<FullscreenOutlined fontSize="small" />}
                 onClick={openFullscreen}
                 aria-label={t('Fullscreen')}
-                sx={{
-                  width: 32,
-                  height: 32,
-                }}
-              >
-                <FullscreenOutlined fontSize="small" />
-              </IconButton>
+                priority="tertiary"
+                size="md"
+              />
             </TooltipTrigger>
             <TooltipContent>{t('Fullscreen')}</TooltipContent>
           </Tooltip>
@@ -172,13 +168,12 @@ const PhishingHtmlPreview = ({ title, iframeTitle, srcDoc, chrome, height = 560 
         }}
         >
           <IconButton
+            icon={<CloseOutlined fontSize="small" />}
             aria-label={t('Close')}
             onClick={closeFullscreen}
-            size="large"
-            color="primary"
-          >
-            <CloseOutlined fontSize="small" color="primary" />
-          </IconButton>
+            priority="tertiary"
+            size="md"
+          />
           <Typography
             variant="h6"
             component="span"

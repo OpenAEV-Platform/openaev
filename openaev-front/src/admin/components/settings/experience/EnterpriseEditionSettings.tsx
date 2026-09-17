@@ -1,3 +1,4 @@
+import { Button } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesomeOutlined,
@@ -7,7 +8,7 @@ import {
   SupportAgentOutlined,
   VpnKeyOutlined,
 } from '@mui/icons-material';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Switch, Typography } from '@mui/material';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { type ChangeEvent, useContext, useState } from 'react';
@@ -64,12 +65,7 @@ const EnterpriseEditionSettings: React.FC = () => {
   const activatedFooter = !isEnterpriseEditionByConfig
     ? (
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <Button
-            size="small"
-            variant="outlined"
-            color="primary"
-            onClick={() => setOpenEEChanges(true)}
-          >
+          <Button type="button" priority="secondary" size="sm" onClick={() => setOpenEEChanges(true)}>
             {t('Disable Enterprise Edition')}
           </Button>
           <EnterpriseEditionButton />
@@ -81,25 +77,15 @@ const EnterpriseEditionSettings: React.FC = () => {
 
   const unregisteredFooter = canManageTenantSettings
     ? (
-        <Button
-          variant="outlined"
-          color="ee"
-          startIcon={<RocketLaunchOutlined />}
-          onClick={() => openDialog()}
-        >
+        <Button type="button" variant="highlight" priority="secondary" startIcon={<RocketLaunchOutlined fontSize="small" />} onClick={() => openDialog()}>
           {t('Try OpenAEV Enterprise Edition')}
         </Button>
       )
     : (
-        <Button
-          variant="outlined"
-          color="ee"
-          component="a"
-          href="https://filigran.io/services/openaev-enterprise-edition/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {t('Try OpenAEV Enterprise Edition')}
+        <Button asChild variant="highlight" priority="secondary">
+          <a href="https://filigran.io/services/openaev-enterprise-edition/" target="_blank" rel="noopener noreferrer">
+            {t('Try OpenAEV Enterprise Edition')}
+          </a>
         </Button>
       );
 
@@ -160,13 +146,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                 <ExperienceDetailRow label={t('XTM One (Agentic IA)')} divider={false}>
                   {isCguPending
                     ? (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="secondary"
-                          onClick={() => setOpenValidateTermsOfUse(true)}
-                          style={{ lineHeight: '12px' }}
-                        >
+                        <Button type="button" priority="secondary" size="sm" onClick={() => setOpenValidateTermsOfUse(true)} style={{ lineHeight: '12px' }}>
                           {t('Validate the Filigran AI Terms')}
                         </Button>
                       )
@@ -237,8 +217,8 @@ const EnterpriseEditionSettings: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button
-            variant="outlined"
-            color="primary"
+            type="button"
+            priority="secondary"
             onClick={() => {
               setOpenEEChanges(false);
             }}
@@ -246,8 +226,7 @@ const EnterpriseEditionSettings: React.FC = () => {
             {t('Cancel')}
           </Button>
           <Button
-            variant="contained"
-            color="primary"
+            type="button"
             onClick={() => {
               setOpenEEChanges(false);
               updateEnterpriseEdition({ platform_enterprise_license: '' });

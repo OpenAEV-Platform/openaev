@@ -1,9 +1,8 @@
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@filigran/design-system';
 import { HelpOutlined } from '@mui/icons-material';
-import { TabContext, TabPanel } from '@mui/lab';
-import { Avatar, Tab, Tabs } from '@mui/material';
+import { Avatar } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { useContext, useEffect, useState } from 'react';
 
 import { fetchInject } from '../../../../actions/Inject';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
@@ -46,8 +45,6 @@ interface Props {
   variablesFromExerciseOrScenario?: Variable[];
 }
 
-const useStyles = makeStyles()(() => ({ tabPanel: { padding: 0 } }));
-
 const UpdateInject: React.FC<Props> = ({
   open,
   handleClose,
@@ -62,7 +59,6 @@ const UpdateInject: React.FC<Props> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [isInjectLoading, setIsInjectLoading] = useState(true);
 
@@ -104,7 +100,7 @@ const UpdateInject: React.FC<Props> = ({
   });
 
   // Selection
-  const handleTabChange = (_: SyntheticEvent, newValue: string) => {
+  const handleTabChange = (newValue: string) => {
     setActiveTab(newValue);
 
     if (newValue === 'Action details' && !documentsMap) {
@@ -189,21 +185,25 @@ const UpdateInject: React.FC<Props> = ({
       <>
         {/* The inject card is shared by every tab, so it lives above the tab bar. */}
         {injectFormContent}
-        <TabContext value={activeTab}>
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: theme.spacing(2),
+          }}
+        >
           {!isAtomic && (
-            <Tabs
-              value={activeTab}
-              onChange={handleTabChange}
-              indicatorColor="primary"
-              textColor="primary"
-            >
+            <TabsList>
               {availableTabs.map(tab => (
-                <Tab key={tab} label={t(tab)} value={tab} />
+                <TabsTrigger key={tab} value={tab}>{t(tab)}</TabsTrigger>
               ))}
-            </Tabs>
+            </TabsList>
           )}
-          {/* Inject details */}
-          <TabPanel value="Inject details" keepMounted className={classes.tabPanel}>
+          {/* Inject details - every panel stays mounted so the forms keep their state; the
+              library leaves a force-mounted panel visible, so the inactive ones are hidden here. */}
+          <TabsContent value="Inject details" forceMount hidden={activeTab !== 'Inject details'}>
             {!isInjectLoading && inject && (
               <InjectForm
                 handleClose={handleClose}
@@ -228,22 +228,22 @@ const UpdateInject: React.FC<Props> = ({
                 onInjectorChange={(_id, name) => setSelectedInjectorName(name)}
               />
             )}
-          </TabPanel>
+          </TabsContent>
 
           {/* Action details */}
           {contractPayload && !isAtomic && (
-            <TabPanel value="Action details" keepMounted className={classes.tabPanel}>
+            <TabsContent value="Action details" forceMount hidden={activeTab !== 'Action details'}>
               {!isInjectLoading && inject && (
                 <InjectContractOverview
                   injectorContract={inject.inject_injector_contract}
                   documentsMap={documentsMap}
                 />
               )}
-            </TabPanel>
+            </TabsContent>
           )}
 
           {/* Logical chains */}
-          <TabPanel value="Logical chains" keepMounted className={classes.tabPanel}>
+          <TabsContent value="Logical chains" forceMount hidden={activeTab !== 'Logical chains'}>
             {!isInjectLoading && inject && !isAtomic && (
               <UpdateInjectLogicalChains
                 inject={inject}
@@ -256,8 +256,8 @@ const UpdateInject: React.FC<Props> = ({
                 }
               />
             )}
-          </TabPanel>
-        </TabContext>
+          </TabsContent>
+        </Tabs>
       </>
     </Drawer>
   );

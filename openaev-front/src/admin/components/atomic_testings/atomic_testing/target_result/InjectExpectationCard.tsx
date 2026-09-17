@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddModeratorOutlined, InventoryOutlined, SmartToyOutlined } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 
@@ -229,14 +229,14 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
-                aria-label="Add"
-                size="small"
-                onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
-              >
-                {['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type)
+                icon={['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type)
                   ? <AddModeratorOutlined color="primary" fontSize="medium" />
                   : <InventoryOutlined color="primary" fontSize="medium" />}
-              </IconButton>
+                aria-label="Add"
+                onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
+                priority="tertiary"
+                size="sm"
+              />
             </TooltipTrigger>
             <TooltipContent>{t('Add a result')}</TooltipContent>
           </Tooltip>

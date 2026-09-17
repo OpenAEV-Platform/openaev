@@ -1,24 +1,6 @@
-import {
-  Checkbox,
-  Combobox,
-  ComboboxChips,
-  ComboboxClear,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxHelperText,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { Button, Checkbox, Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 // fds:keep-mui the time-of-day field needs `type="time"`, which the library Input does not offer — LIBRARY-FEEDBACK #49
-import { Button, TextField } from '@mui/material';
+import { TextField } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 
 import { searchNotificationTriggers } from '../../../../actions/notifications/notification-trigger-actions';
@@ -313,19 +295,11 @@ const TriggerForm: FunctionComponent<Props> = ({
       }}
       >
         {onDelete && (
-          <Button
-            variant="contained"
-            color="error"
-            onClick={onDelete}
-          >
+          <Button type="button" variant="destructive" onClick={onDelete}>
             {t('Delete')}
           </Button>
         )}
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-        >
+        <Button type="submit">
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

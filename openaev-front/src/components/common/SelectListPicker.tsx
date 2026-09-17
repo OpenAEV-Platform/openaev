@@ -1,5 +1,5 @@
-import { Checkbox } from '@filigran/design-system';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Button, Checkbox, Chip } from '@filigran/design-system';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type Breakpoint } from '@mui/material/styles';
 import { type CSSProperties, type ReactElement, type ReactNode, useMemo, useState } from 'react';
 
@@ -122,10 +122,8 @@ const SelectListPicker = <T extends object>({
       }}
     >
       <Chip
-        size="small"
-        variant="outlined"
-        color={selectedCount > 0 ? 'primary' : 'default'}
-        label={t('{count} selected', { count: selectedCount })}
+        severity={selectedCount > 0 ? 'info' : 'neutral'}
+        label={String(t('{count} selected', { count: selectedCount }))}
       />
       {headerActions}
       {buttonComponent}
@@ -318,13 +316,8 @@ const SelectListPicker = <T extends object>({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={onClose}>{t('Cancel')}</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={onSubmit}
-            disabled={submitDisabled || isLoading}
-          >
+          <Button type="button" priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="button" onClick={onSubmit} disabled={submitDisabled || isLoading}>
             {submitLabel ?? t('Update')}
           </Button>
         </DialogActions>

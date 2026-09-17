@@ -1,7 +1,7 @@
-import { ButtonGroup, ButtonGroupItem, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Chip, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BarChartOutlined, KeyboardArrowRight, MailOutlined, ReorderOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link, useParams } from 'react-router';
@@ -125,15 +125,6 @@ const Mails = () => {
   };
 
   // Mail count chips: theme-driven tones (read = primary, not read = error).
-  const comChipSx = color => ({
-    fontSize: 12,
-    height: 'fit-content',
-    textTransform: 'uppercase',
-    borderRadius: 1,
-    color,
-    backgroundColor: alpha(color, 0.08),
-    border: `1px solid ${alpha(color, 0.5)}`,
-  });
 
   // Filter and sort hook
   const searchColumns = ['title', 'description', 'content'];
@@ -356,15 +347,12 @@ const Mails = () => {
                               </div>
                               <div style={inlineStyles.inject_communications_not_ack_number}>
                                 <Chip
-                                  sx={comChipSx(theme.palette.error.main)}
-                                  label={inject.inject_communications_not_ack_number}
+                                  severity="critical"
+                                  label={String(inject.inject_communications_not_ack_number)}
                                 />
                               </div>
                               <div style={inlineStyles.inject_communications_number}>
-                                <Chip
-                                  sx={comChipSx(theme.palette.primary.main)}
-                                  label={inject.inject_communications_number}
-                                />
+                                <Chip severity="info" label={String(inject.inject_communications_number)} />
                               </div>
                               <div style={inlineStyles.inject_tags}>
                                 <ItemTags variant="list" tags={inject.inject_tags} />

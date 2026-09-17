@@ -1,4 +1,5 @@
-import { Box, Button, InputLabel } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Box, InputLabel } from '@mui/material';
 import { type FormEvent, type FunctionComponent, useEffect, useState } from 'react';
 import { type FieldErrors } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -108,14 +109,11 @@ const CustomFileUploader: FunctionComponent<CustomFileUploadProps> = ({
             [classes.boxError]: !!errorText,
           })}
         >
-          <Button
-            component="label"
-            variant="contained"
-            onChange={onChange}
-            className={classes.button}
-          >
-            {t('Select your file')}
-            <VisuallyHiddenInput type="file" accept={acceptMimeTypes} />
+          <Button asChild onChange={onChange} className={classes.button}>
+            <label>
+              {t('Select your file')}
+              <VisuallyHiddenInput type="file" accept={acceptMimeTypes} />
+            </label>
           </Button>
           <span
             title={fileNameForDisplay || t('No file selected.')}

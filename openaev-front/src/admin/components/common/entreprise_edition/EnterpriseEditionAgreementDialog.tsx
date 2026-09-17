@@ -11,7 +11,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
 // fds:keep-mui the licence agreement field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Alert, Button, TextField } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Alert, TextField } from '@mui/material';
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -57,13 +58,8 @@ const EnterpriseEditionAgreementDialog = () => {
       title={t('OpenAEV Enterprise Edition (EE) license agreement')}
       actions={(
         <>
-          <Button variant="outlined" color="primary" onClick={onCloseEnterpriseEditionDialog}>{t('Cancel')}</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={enableEnterpriseEdition}
-            disabled={isEmptyField((enterpriseLicense))}
-          >
+          <Button type="button" priority="secondary" onClick={onCloseEnterpriseEditionDialog}>{t('Cancel')}</Button>
+          <Button type="button" onClick={enableEnterpriseEdition} disabled={isEmptyField((enterpriseLicense))}>
             {t('Enable')}
           </Button>
         </>

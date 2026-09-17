@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloseOutlined, DeleteOutlined, MovieFilterOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Slide, Typography } from '@mui/material';
+import { Box, Slide, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -76,36 +76,12 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
           gap: 1,
         }}
         >
-          <Button
-            color="primary"
-            variant="contained"
-            size="small"
-            startIcon={<MovieFilterOutlined fontSize="small" />}
-            onClick={onRunTest}
-            sx={{
-              borderRadius: 1,
-              textTransform: 'none',
-              fontWeight: 600,
-              paddingInline: 2,
-            }}
-          >
+          <Button type="button" startIcon={<MovieFilterOutlined fontSize="small" />} onClick={onRunTest}>
             {t('Run a test')}
           </Button>
 
           {onDelete && (
-            <Button
-              color="error"
-              variant="outlined"
-              size="small"
-              startIcon={<DeleteOutlined fontSize="small" />}
-              onClick={onDelete}
-              sx={{
-                borderRadius: 1,
-                textTransform: 'none',
-                fontWeight: 600,
-                paddingInline: 2,
-              }}
-            >
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<DeleteOutlined fontSize="small" />} onClick={onDelete}>
               {t('Delete')}
             </Button>
           )}
@@ -113,13 +89,12 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
-                size="small"
+                icon={<CloseOutlined fontSize="small" />}
                 onClick={onClear}
                 aria-label={t('Clear selection')}
-                sx={{ color: 'text.secondary' }}
-              >
-                <CloseOutlined fontSize="small" />
-              </IconButton>
+                priority="tertiary"
+                size="sm"
+              />
             </TooltipTrigger>
             <TooltipContent>{t('Clear selection')}</TooltipContent>
           </Tooltip>

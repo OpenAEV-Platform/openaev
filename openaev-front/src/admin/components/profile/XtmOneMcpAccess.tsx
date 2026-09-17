@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ContentCopyOutlined, OpenInNewOutlined } from '@mui/icons-material';
-import { Button, IconButton, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 
 import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Paper from '../../../components/common/Paper';
@@ -66,12 +66,12 @@ const XtmOneMcpAccess = () => {
         <Tooltip>
           <TooltipTrigger asChild>
             <IconButton
-              size="small"
+              icon={<ContentCopyOutlined fontSize="small" />}
               aria-label={t('Copy MCP endpoint URL')}
               onClick={() => copyToClipboard(t, mcpEndpointUrl)}
-            >
-              <ContentCopyOutlined fontSize="small" />
-            </IconButton>
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent>{t('Copy MCP endpoint URL')}</TooltipContent>
         </Tooltip>
@@ -79,17 +79,11 @@ const XtmOneMcpAccess = () => {
       <Typography variant="body2" style={{ marginTop: 20 }}>
         {t('Authenticate with a personal XTM One API key passed as a bearer token. Your endpoint, connection status and ready-to-copy client configuration are available in your XTM One profile.')}
       </Typography>
-      <Button
-        variant="contained"
-        color="primary"
-        component="a"
-        href={xtmOneProfileUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        endIcon={<OpenInNewOutlined />}
-        style={{ marginTop: 20 }}
-      >
-        {t('Manage in XTM One')}
+      <Button asChild style={{ marginTop: 20 }}>
+        <a href={xtmOneProfileUrl} target="_blank" rel="noopener noreferrer">
+          {t('Manage in XTM One')}
+          <OpenInNewOutlined fontSize="small" />
+        </a>
       </Button>
     </Paper>
   );

@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
@@ -325,7 +325,7 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={onClose}>{t('Close')}</Button>
+        <Button type="button" priority="secondary" onClick={onClose}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

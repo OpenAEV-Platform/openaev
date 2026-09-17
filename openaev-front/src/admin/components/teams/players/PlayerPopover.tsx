@@ -1,4 +1,5 @@
-import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
@@ -188,8 +189,8 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitRemove}>
+          <Button type="button" priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

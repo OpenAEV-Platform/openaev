@@ -95,6 +95,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
   return (
     <>
       <Button
+        type="button"
         size="sm"
         startIcon={<AddOutlined fontSize="small" />}
         onClick={() => setOpen(true)}

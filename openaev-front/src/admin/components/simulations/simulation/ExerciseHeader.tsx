@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AutoAwesome,
   CancelOutlined,
@@ -17,7 +17,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -125,14 +125,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
             <Tooltip>
               <TooltipTrigger asChild>
                 <span style={{ display: 'inline-flex' }}>
-                  <Button
-                    startIcon={<PlayArrowOutlined />}
-                    variant="contained"
-                    size="small"
-                    color="primary"
-                    onClick={() => setOpenChangeStatus('RUNNING')}
-                    disabled={isLoading || isScopeMissing}
-                  >
+                  <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading || isScopeMissing}>
                     {t('Start now')}
                   </Button>
                 </span>
@@ -150,14 +143,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
         // still be resumed. Stop remains offered by dangerousButton().
         if (permissions.canLaunch && !isChaining) {
           return (
-            <Button
-              startIcon={<PauseOutlined />}
-              variant="outlined"
-              color="warning"
-              size="small"
-              onClick={() => setOpenChangeStatus('PAUSED')}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<PauseOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('PAUSED')} disabled={isLoading}>
               {t('Pause')}
             </Button>
           );
@@ -167,14 +153,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <Button
-              variant="outlined"
-              startIcon={<PlayArrowOutlined />}
-              color="success"
-              size="small"
-              onClick={() => setOpenChangeStatus('RUNNING')}
-              disabled={isLoading}
-            >
+            <Button type="button" priority="secondary" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('RUNNING')} disabled={isLoading}>
               {t('Resume')}
             </Button>
           );
@@ -192,14 +171,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'PAUSED': {
         if (permissions.canLaunch) {
           return (
-            <Button
-              variant="outlined"
-              startIcon={<CancelOutlined />}
-              color="error"
-              size="small"
-              onClick={() => setOpenChangeStatus('CANCELED')}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<CancelOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('CANCELED')} disabled={isLoading}>
               {t('Stop')}
             </Button>
           );
@@ -210,14 +182,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'CANCELED': {
         if (permissions.canLaunch) {
           return (
-            <Button
-              variant="outlined"
-              startIcon={<RestartAltOutlined />}
-              color="warning"
-              size="small"
-              onClick={() => setOpenChangeStatus('SCHEDULED')}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="destructive" priority="secondary" startIcon={<RestartAltOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('SCHEDULED')} disabled={isLoading}>
               {t('Reset')}
             </Button>
           );
@@ -261,14 +226,10 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenChangeStatus(null)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenChangeStatus(null)}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}
-          >
+          <Button type="button" onClick={() => submitUpdateStatus({ exercise_status: openChangeStatus })}>
             {t('Confirm')}
           </Button>
         </DialogActions>
@@ -490,18 +451,9 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   either way - control lives on the parent scenario). */}
               {exercise.exercise_autonomous && (
                 <Chip
-                  size="small"
-                  variant="outlined"
-                  icon={<AutoAwesome sx={{ fontSize: 14 }} />}
+                  startIcon={<AutoAwesome sx={{ fontSize: 14 }} />}
                   label={t('Autonomous')}
-                  sx={{
-                    'borderRadius': 1,
-                    'height': 22,
-                    'fontSize': 11,
-                    'color': theme.palette.ai?.main ?? theme.palette.primary.main,
-                    'borderColor': theme.palette.ai?.main ?? theme.palette.primary.main,
-                    '& .MuiChip-icon': { color: 'inherit' },
-                  }}
+                  severity="info"
                 />
               )}
               <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
@@ -514,16 +466,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 />
               )}
               <Chip
-                size="small"
-                variant="outlined"
                 label={exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-                sx={{
-                  borderRadius: 1,
-                  height: 22,
-                  fontSize: 11,
-                  color: theme.palette.text.secondary,
-                  borderColor: theme.palette.divider,
-                }}
+                severity="neutral"
               />
             </>
           )}
@@ -558,10 +502,9 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      variant="outlined"
-                      color="primary"
-                      size="small"
-                      startIcon={<TuneOutlined />}
+                      type="button"
+                      priority="secondary"
+                      startIcon={<TuneOutlined fontSize="small" />}
                       onClick={() => {
                         setConfigurationInitialTab(SimulationConfigurationTab.TEAMS);
                         setOpenConfiguration(true);
@@ -594,14 +537,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      asChild
+                      icon={<EmojiEventsOutlined fontSize="small" />}
                       aria-label={t('Preview challenges page')}
-                      size="small"
-                      color="primary"
-                      component={Link}
-                      to={`/admin/simulations/${exerciseId}/challenges`}
-                      target="_blank"
+                      priority="tertiary"
+                      size="md"
                     >
-                      <EmojiEventsOutlined fontSize="small" />
+                      <Link to={`/admin/simulations/${exerciseId}/challenges`} target="_blank" />
                     </IconButton>
                   </TooltipTrigger>
                   <TooltipContent>{t('Preview challenges page')}</TooltipContent>
@@ -612,14 +554,16 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span style={{ display: 'inline-flex' }}>
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => setOpenDateDialog(true)}
-                          disabled={exercise.exercise_status !== 'SCHEDULED'}
-                        >
-                          <UpdateOutlined fontSize="small" />
-                        </IconButton>
+                        <span className="inline-flex">
+                          <IconButton
+                            icon={<UpdateOutlined fontSize="small" />}
+                            aria-label={t('Scheduling')}
+                            onClick={() => setOpenDateDialog(true)}
+                            disabled={exercise.exercise_status !== 'SCHEDULED'}
+                            priority="tertiary"
+                            size="md"
+                          />
+                        </span>
                       </span>
                     </TooltipTrigger>
                     <TooltipContent>{t('Modify the scheduling')}</TooltipContent>
@@ -649,27 +593,38 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span style={{ display: 'inline-flex' }}>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        size="small"
-                        startIcon={<RouteOutlined />}
-                        component={canAccessParentScenario ? Link : 'button'}
-                        to={canAccessParentScenario ? `${SCENARIO_BASE_URL}/${parentScenarioId}` : undefined}
-                        disabled={!canAccessParentScenario}
-                        sx={{ maxWidth: 220 }}
-                      >
-                        <Box
-                          component="span"
-                          sx={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {parentScenario?.scenario_name ?? t('Parent scenario')}
-                        </Box>
-                      </Button>
+                      {canAccessParentScenario
+                        ? (
+                            <Button priority="secondary" asChild style={{ maxWidth: 220 }}>
+                              <Link to={`${SCENARIO_BASE_URL}/${parentScenarioId}`}>
+                                <RouteOutlined fontSize="small" aria-hidden />
+                                <Box
+                                  component="span"
+                                  sx={{
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {parentScenario?.scenario_name ?? t('Parent scenario')}
+                                </Box>
+                              </Link>
+                            </Button>
+                          )
+                        : (
+                            <Button type="button" priority="secondary" startIcon={<RouteOutlined fontSize="small" />} disabled style={{ maxWidth: 220 }}>
+                              <Box
+                                component="span"
+                                sx={{
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {parentScenario?.scenario_name ?? t('Parent scenario')}
+                              </Box>
+                            </Button>
+                          )}
                     </span>
                   </TooltipTrigger>
                   {(parentScenario?.scenario_name ?? t('Parent scenario')) && <TooltipContent>{parentScenario?.scenario_name ?? t('Parent scenario')}</TooltipContent>}

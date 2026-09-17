@@ -1,5 +1,4 @@
-import { Icon, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
-import { Button } from '@mui/material';
+import { Button, Icon, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
 import { type FunctionComponent, useContext } from 'react';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
@@ -131,21 +130,10 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             marginTop: 20,
           }}
           >
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleClose}
-              style={{ marginRight: 10 }}
-              disabled={submitting}
-            >
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: 10 }}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={pristine || submitting}
-            >
+            <Button type="submit" disabled={pristine || submitting}>
               {editing ? t('Update') : t('Create')}
             </Button>
           </div>

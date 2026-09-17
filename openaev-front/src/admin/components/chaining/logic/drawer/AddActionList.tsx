@@ -1,6 +1,6 @@
-import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -183,11 +183,10 @@ const AddActionList = ({
       {compatibleActionFilter && (
         <Box sx={{ mb: 1.5 }}>
           <Chip
-            size="small"
-            color="primary"
-            variant="outlined"
             label={t('Compatible output: {type}', { type: formatConditionKeyLabel(compatibleActionFilter) })}
             onDelete={onClearCompatibleFilter}
+            severity="info"
+            deleteLabel={t('Remove')}
           />
         </Box>
       )}

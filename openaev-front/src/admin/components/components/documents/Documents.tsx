@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DescriptionOutlined, HelpOutlineOutlined, RowingOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -313,11 +313,8 @@ const Documents = () => {
                                     <Tooltip key={exercise.exercise_id}>
                                       <TooltipTrigger asChild>
                                         <Chip
-                                          icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                          classes={{ root: classes.exercise }}
-                                          variant="outlined"
+                                          startIcon={<RowingOutlined style={{ fontSize: 12 }} />}
                                           label={exercise.exercise_name}
-                                          clickable
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             event.preventDefault();
@@ -346,11 +343,8 @@ const Documents = () => {
                                     <Tooltip key={scenario.scenario_id}>
                                       <TooltipTrigger asChild>
                                         <Chip
-                                          icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                          classes={{ root: classes.scenario }}
-                                          variant="outlined"
+                                          startIcon={<RowingOutlined style={{ fontSize: 12 }} />}
                                           label={scenario.scenario_name}
-                                          clickable
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             event.preventDefault();

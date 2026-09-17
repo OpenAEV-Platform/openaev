@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type KeyboardEvent, memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 
@@ -702,11 +702,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
 
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
+          <Button type="button" priority="secondary" onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
           {onInvestigate && (
             <Button
-              variant="contained"
-              color="primary"
+              type="button"
               onClick={() => {
                 setExplainOpen(false);
                 onInvestigate();

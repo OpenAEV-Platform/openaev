@@ -1,10 +1,10 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box, Chip, CircularProgress } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Chip, Spinner, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { withStyles } from 'tss-react/mui';
 
+import EEChip from '../admin/components/common/entreprise_edition/EEChip';
 import inject18n from './i18n';
 
 const styles = () => ({
@@ -42,79 +42,30 @@ const styles = () => ({
   },
 });
 
-const computeInlineStyles = theme => ({
-  green: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
-  },
-  red: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
-  },
-  blue: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
-  },
-  ee: {
-    backgroundColor: theme.palette.ee.lightBackground,
-    color: theme.palette.ee.main,
-  },
-});
-
 const RenderChip = (props) => {
-  const { classes, label, neutralLabel, status, variant, t, reverse } = props;
-  const theme = useTheme();
-  let style = classes.chip;
-  if (variant === 'inList') {
-    style = classes.chipInList;
-  } else if (variant === 'large') {
-    style = classes.chipLarge;
-  } else if (variant === 'xlarge') {
-    style = classes.chipXLarge;
-  }
-  const inlineStyles = computeInlineStyles(theme);
+  const { label, neutralLabel, status, t, reverse } = props;
   if (status === true) {
     return (
-      <Chip
-        classes={{ root: style }}
-        style={reverse ? inlineStyles.red : inlineStyles.green}
-        label={label}
-      />
+      <Chip label={label} severity={reverse ? 'critical' : 'low'} />
     );
   }
   if (status === null) {
     return (
-      <Chip
-        classes={{ root: style }}
-        style={inlineStyles.blue}
-        label={neutralLabel || t('Not applicable')}
-      />
+      <Chip label={neutralLabel || t('Not applicable')} severity="info" />
     );
   }
   if (status === 'ee') {
     return (
-      <Chip
-        classes={{ root: style }}
-        style={inlineStyles.ee}
-        label={neutralLabel || t('EE')}
-      />
+      <EEChip />
     );
   }
   if (status === undefined) {
     return (
-      <Chip
-        classes={{ root: style }}
-        style={inlineStyles.blue}
-        label={<CircularProgress size={10} color="primary" />}
-      />
+      <Chip label={t('Loading')} severity="info" startIcon={<Spinner size="sm" />} />
     );
   }
   return (
-    <Chip
-      classes={{ root: style }}
-      style={reverse ? inlineStyles.green : inlineStyles.red}
-      label={label}
-    />
+    <Chip label={label} severity={reverse ? 'low' : 'critical'} />
   );
 };
 const ItemBooleanComponent = (props) => {

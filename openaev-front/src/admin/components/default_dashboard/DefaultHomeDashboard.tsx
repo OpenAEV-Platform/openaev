@@ -1,6 +1,6 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { RefreshOutlined } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -234,13 +234,12 @@ const DefaultHomeDashboard = () => {
         <Tooltip>
           <TooltipTrigger asChild>
             <IconButton
+              icon={<RefreshOutlined fontSize="small" />}
               aria-label={t('Refresh')}
-              size="small"
-              color="primary"
               onClick={() => setRefreshCount(c => c + 1)}
-            >
-              <RefreshOutlined fontSize="small" />
-            </IconButton>
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent>{t('Refresh')}</TooltipContent>
         </Tooltip>

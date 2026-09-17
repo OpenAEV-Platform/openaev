@@ -1,7 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Chip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { makeStyles } from 'tss-react/mui';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 
 import { type AssetCategory, humanizeEnum } from '../../../../admin/components/assets/asset-categories';
 import AssetCategoryIcon from '../../../../admin/components/assets/AssetCategoryIcon';
@@ -13,23 +10,7 @@ type Props = {
 };
 
 const AssetTypeFragment = (props: Props) => {
-  const theme = useTheme();
   const { t } = useFormatter();
-  const useStyles = makeStyles()(() => ({
-    typeChip: {
-      'height': 20,
-      'borderRadius': 4,
-      'textTransform': 'uppercase',
-      'minWidth': 100,
-      'marginBottom': theme.spacing(0),
-      '& .MuiChip-icon': {
-        marginLeft: 6,
-        color: 'inherit',
-      },
-    },
-  }));
-
-  const { classes } = useStyles();
   // The asset category is the meaningful business descriptor (Host, Web application, AI target,
   // ...). The raw discriminator type ("Endpoint") is only a storage detail - agentless web
   // applications are persisted as endpoints - so it is used as a last-resort fallback only.
@@ -37,12 +18,7 @@ const AssetTypeFragment = (props: Props) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Chip
-          variant="outlined"
-          className={classes.typeChip}
-          icon={<AssetCategoryIcon category={props.category} sx={{ fontSize: 14 }} />}
-          label={label}
-        />
+        <Chip startIcon={<AssetCategoryIcon category={props.category} sx={{ fontSize: 14 }} />} label={label ?? ''} />
       </TooltipTrigger>
       {label && <TooltipContent>{label}</TooltipContent>}
     </Tooltip>

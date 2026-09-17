@@ -1,13 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { Add, ControlPointOutlined } from '@mui/icons-material';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-} from '@mui/material';
+import { Dialog, DialogContent, DialogTitle, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -63,13 +56,13 @@ const CreateLessonsQuestion = (props) => {
         </ListItemButton>
       ) : (
         <IconButton
+          icon={<Add fontSize="small" />}
+          aria-label={t('Add')}
           onClick={handleOpen}
           aria-haspopup="true"
-          size="large"
-          color="secondary"
-        >
-          <Add fontSize="small" />
-        </IconButton>
+          priority="tertiary"
+          size="md"
+        />
       )}
       <Dialog
         open={open}

@@ -1,6 +1,6 @@
-import { Paper } from '@filigran/design-system';
+import { Button, Paper } from '@filigran/design-system';
 import { ExpandLessOutlined, ExpandMoreOutlined } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useState } from 'react';
 
@@ -73,16 +73,7 @@ const Section: FunctionComponent<Props> = ({
         </Typography>
         {action}
         {collapsible && (
-          <Button
-            size="small"
-            onClick={() => setCollapsed(c => !c)}
-            sx={{
-              minWidth: 0,
-              padding: 0.5,
-              color: 'text.secondary',
-            }}
-            aria-label={collapsed ? t('Expand') : t('Collapse')}
-          >
+          <Button type="button" priority="tertiary" size="sm" onClick={() => setCollapsed(c => !c)} aria-label={collapsed ? t('Expand') : t('Collapse')} style={{ minWidth: 0 }}>
             {collapsed ? <ExpandMoreOutlined fontSize="small" /> : <ExpandLessOutlined fontSize="small" />}
           </Button>
         )}

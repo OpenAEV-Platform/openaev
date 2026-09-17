@@ -1,5 +1,4 @@
-import { Paper } from '@filigran/design-system';
-import { Button } from '@mui/material';
+import { Button, Paper } from '@filigran/design-system';
 import { useState } from 'react';
 import { Form } from 'react-final-form';
 import { useDispatch } from 'react-redux';
@@ -75,20 +74,10 @@ const Reset = ({ onCancel }) => {
                     justifyContent: 'center',
                   }}
                   >
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      color="primary"
-                      disabled={pristine || submitting}
-                    >
+                    <Button type="submit" disabled={pristine || submitting}>
                       {t('Send reset code')}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outlined"
-                      color="primary"
-                      onClick={onGoToValidateToken}
-                    >
+                    <Button priority="secondary" type="button" onClick={onGoToValidateToken}>
                       {t('I already have a code')}
                     </Button>
                   </div>
@@ -109,13 +98,7 @@ const Reset = ({ onCancel }) => {
                     label={t('Enter code')}
                     style={{ marginTop: 5 }}
                   />
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    disabled={pristine || submitting}
-                    style={{ marginTop: 30 }}
-                  >
+                  <Button type="submit" disabled={pristine || submitting} style={{ marginTop: 30 }}>
                     {t('Continue')}
                   </Button>
                 </form>
@@ -141,13 +124,7 @@ const Reset = ({ onCancel }) => {
                     label={t('Password validation')}
                     style={{ marginTop: 5 }}
                   />
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    disabled={pristine || submitting}
-                    style={{ marginTop: 30 }}
-                  >
+                  <Button type="submit" disabled={pristine || submitting} style={{ marginTop: 30 }}>
                     {t('Change your password')}
                   </Button>
                 </form>

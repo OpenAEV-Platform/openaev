@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Close, InfoOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, IconButton, Link, Paper, Typography } from '@mui/material';
+import { Alert, Box, Link, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -232,15 +232,18 @@ const FindingDetailPanel = ({
                 )
               : valueBlock}
           </Box>
-          <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
-            <Close fontSize="small" />
-          </IconButton>
+          <IconButton
+            icon={<Close fontSize="small" />}
+            aria-label={t('Close')}
+            onClick={onClose}
+            style={{ flexShrink: 0 }}
+            priority="tertiary"
+            size="md"
+          />
         </Box>
         {expectations && <Box sx={{ mt: 1 }}>{valueBlock}</Box>}
         <Chip
-          size="small"
-          variant="outlined"
-          icon={(
+          startIcon={(
             <Box
               component="span"
               sx={{
@@ -253,7 +256,7 @@ const FindingDetailPanel = ({
             </Box>
           )}
           label={type}
-          sx={{ mt: 0.75 }}
+          style={{ marginTop: 6 }}
         />
       </Box>
 
@@ -383,13 +386,7 @@ const FindingDetailPanel = ({
                 >
                   {a.statusLabel}
                 </Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => onSelect(a.ref)}
-                  sx={{ flexShrink: 0 }}
-                >
+                <Button type="button" priority="secondary" size="sm" onClick={() => onSelect(a.ref)} style={{ flexShrink: 0 }}>
                   {t('View')}
                 </Button>
               </Box>

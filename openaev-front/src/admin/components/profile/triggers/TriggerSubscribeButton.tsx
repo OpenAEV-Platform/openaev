@@ -1,6 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { NotificationAddOutlined, NotificationsActiveOutlined } from '@mui/icons-material';
-import { IconButton } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { createNotificationTrigger, deleteNotificationTrigger, searchNotificationTriggers, updateNotificationTrigger } from '../../../../actions/notifications/notification-trigger-actions';
@@ -119,14 +118,15 @@ const TriggerSubscribeButton: FunctionComponent<Props> = ({
       <Tooltip>
         <TooltipTrigger asChild>
           <IconButton
-            size="small"
-            color={instanceTrigger ? 'success' : 'primary'}
-            onClick={instanceTrigger ? () => setOpenEdit(true) : subscribe}
-          >
-            {instanceTrigger
+            icon={instanceTrigger
               ? <NotificationsActiveOutlined fontSize="small" />
               : <NotificationAddOutlined fontSize="small" />}
-          </IconButton>
+            aria-label={instanceTrigger ? t('Manage notifications on this entity') : t('Subscribe to notifications on this entity')}
+            onClick={instanceTrigger ? () => setOpenEdit(true) : subscribe}
+            active={!!instanceTrigger}
+            priority="tertiary"
+            size="sm"
+          />
         </TooltipTrigger>
         <TooltipContent>{instanceTrigger ? t('Manage notifications on this entity') : t('Subscribe to notifications on this entity')}</TooltipContent>
       </Tooltip>

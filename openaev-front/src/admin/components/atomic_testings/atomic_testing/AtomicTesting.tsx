@@ -1,7 +1,7 @@
-import { Paper } from '@filigran/design-system';
-import { Box, Grid, Tab, Tabs } from '@mui/material';
+import { Paper, Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Box, Grid } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -307,8 +307,8 @@ const AtomicTesting = () => {
     }
   };
 
-  const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
-    const location = tabConfig.find(tc => newValue == tc.key);
+  const handleTabChange = (newValue: string) => {
+    const location = tabConfig.find(tc => newValue === String(tc.key));
     navigateToTab(location);
     if (location) {
       storeTargetTab(injectId, location.type);
@@ -366,16 +366,16 @@ const AtomicTesting = () => {
           {allTargetsChecked ? (
             <>
               <Tabs
-                value={activeTabKey}
-                onChange={handleTabChange}
-                indicatorColor="primary"
-                textColor="primary"
+                value={String(activeTabKey)}
+                onValueChange={handleTabChange}
+                panels="external"
                 className={classes.tabs}
               >
-                {tabConfig
-                  .map(tab => (
-                    <Tab key={`tab-${tab.key}`} label={tab.label} />
+                <TabsList>
+                  {tabConfig.map(tab => (
+                    <TabsTrigger key={`tab-${tab.key}`} value={String(tab.key)}>{tab.label}</TabsTrigger>
                   ))}
+                </TabsList>
               </Tabs>
               {drawTabs()}
             </>

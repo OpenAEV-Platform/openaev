@@ -1,4 +1,5 @@
-import { Button, FormHelperText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { FormHelperText } from '@mui/material';
 import * as R from 'ramda';
 import { useCallback, useRef, useState } from 'react';
 import { Field } from 'react-final-form';
@@ -52,7 +53,7 @@ const FileFieldInput = ({ input, filters, ...props }) => {
       }}
     >
       <input ref={inputRef} style={{ display: 'none' }} type="file" onInput={onChange} />
-      <Button {...props} variant="outlined" color="primary">
+      <Button priority="secondary" {...props}>
         {t('Select a file')}
       </Button>
       {files}

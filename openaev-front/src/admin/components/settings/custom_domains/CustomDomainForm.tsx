@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -59,12 +59,7 @@ const CustomDomainForm: FunctionComponent<Props> = ({ onSubmit }) => {
         marginTop: 20,
       }}
       >
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={isSubmitting}
-        >
+        <Button type="submit" disabled={isSubmitting}>
           {t('Create')}
         </Button>
       </div>

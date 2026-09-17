@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { TrackChangesOutlined } from '@mui/icons-material';
-import { alpha, Box, Button, IconButton, Popover, Typography } from '@mui/material';
+import { alpha, Box, Popover, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useState } from 'react';
 
@@ -103,35 +103,18 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
             <Tooltip>
               <TooltipTrigger asChild>
                 <IconButton
-                  size="small"
-                  color="primary"
+                  icon={<TrackChangesOutlined fontSize="small" />}
                   aria-label={t('Review expectations')}
                   onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
-                >
-                  <TrackChangesOutlined fontSize="small" />
-                </IconButton>
+                  priority="tertiary"
+                  size="sm"
+                />
               </TooltipTrigger>
               <TooltipContent>{t('Expectation drift dismissed: expectations still do not match their threat arsenal templates. Click to review and realign.')}</TooltipContent>
             </Tooltip>
           )
         : (
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<TrackChangesOutlined sx={{ fontSize: 16 }} />}
-              onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
-              sx={{
-                'lineHeight': 'initial',
-                'whiteSpace': 'nowrap',
-                'color': accent,
-                'borderColor': alpha(accent, 0.4),
-                'backgroundColor': alpha(accent, 0.08),
-                '&:hover': {
-                  borderColor: accent,
-                  backgroundColor: alpha(accent, 0.14),
-                },
-              }}
-            >
+            <Button type="button" priority="secondary" size="sm" startIcon={<TrackChangesOutlined fontSize="small" sx={{ fontSize: 16 }} />} onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)} style={{ whiteSpace: 'nowrap' }}>
               {t('Review expectations')}
             </Button>
           )}
@@ -228,28 +211,13 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
         }}
         >
           {/* Deliberate drift escape hatch: acknowledge without hiding forever. */}
-          <Button
-            size="small"
-            variant="text"
-            disabled={dismissing || realigning}
-            onClick={() => submitDismiss(!dismissed)}
-            sx={{
-              marginRight: 'auto',
-              color: 'text.secondary',
-            }}
-          >
+          <Button type="button" priority="tertiary" size="sm" disabled={dismissing || realigning} onClick={() => submitDismiss(!dismissed)} style={{ marginRight: 'auto' }}>
             {dismissed ? t('Restore warning') : t('Dismiss')}
           </Button>
-          <Button size="small" variant="outlined" onClick={() => setAnchorEl(null)}>
+          <Button type="button" priority="secondary" size="sm" onClick={() => setAnchorEl(null)}>
             {t('Cancel')}
           </Button>
-          <Button
-            size="small"
-            variant="contained"
-            color="warning"
-            disabled={realigning || dismissing}
-            onClick={submitRealign}
-          >
+          <Button type="button" variant="destructive" size="sm" disabled={realigning || dismissing} onClick={submitRealign}>
             {t('Realign expectations')}
           </Button>
         </Box>

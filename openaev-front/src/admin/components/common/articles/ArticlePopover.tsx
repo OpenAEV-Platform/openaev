@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { Fragment, useContext, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 
@@ -134,8 +135,8 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = f
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button variant="contained" color="error" onClick={submitDelete}>
+          <Button type="button" priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
+          <Button type="button" variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>
@@ -171,8 +172,8 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = f
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitRemove}>
+          <Button type="button" priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>

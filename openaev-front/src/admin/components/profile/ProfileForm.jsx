@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
@@ -34,12 +34,7 @@ class ProfileFormComponent extends Component {
               style={{ marginTop: 20 }}
             />
             <div style={{ marginTop: 20 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={pristine || submitting}
-              >
+              <Button type="submit" disabled={pristine || submitting}>
                 {t('Update')}
               </Button>
             </div>

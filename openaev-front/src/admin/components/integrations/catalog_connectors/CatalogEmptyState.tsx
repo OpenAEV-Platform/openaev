@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { SearchOffOutlined } from '@mui/icons-material';
-import { Button, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -34,7 +35,7 @@ const CatalogEmptyState = ({ onResetFilters }: Props) => {
       <Typography variant="body2" sx={{ color: 'text.secondary' }}>
         {t('Try adjusting your search or clearing some filters.')}
       </Typography>
-      <Button variant="outlined" size="small" onClick={onResetFilters} sx={{ marginTop: 1 }}>
+      <Button type="button" priority="secondary" size="sm" onClick={onResetFilters} style={{ marginTop: 8 }}>
         {t('Reset filters')}
       </Button>
     </section>

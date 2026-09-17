@@ -1,4 +1,4 @@
-import { Switch } from '@filigran/design-system';
+import { Button, IconButton, Switch } from '@filigran/design-system';
 import {
   ArrowDropDownOutlined,
   ArrowDropUpOutlined,
@@ -8,19 +8,7 @@ import {
   DeleteOutlined,
   HelpOutlineOutlined,
 } from '@mui/icons-material';
-import {
-  Button,
-  IconButton,
-  InputLabel,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  ListItemText,
-  MenuItem,
-  Typography,
-} from '@mui/material';
+import { InputLabel, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, MenuItem, Typography } from '@mui/material';
 import arrayMutators from 'final-form-arrays';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -514,19 +502,19 @@ class QuickInjectComponent extends Component {
                             {t(field.label)}
                             {field.cardinality === 'n' && (
                               <IconButton
+                                icon={<ControlPointOutlined />}
+                                aria-label={t('Add')}
                                 onClick={() => fields.push({
                                   type: 'text',
                                   key: '',
                                   value: '',
                                 })}
                                 aria-haspopup="true"
-                                size="medium"
                                 style={{ marginTop: -2 }}
-                                color="primary"
                                 disabled={isDisabled}
-                              >
-                                <ControlPointOutlined />
-                              </IconButton>
+                                priority="tertiary"
+                                size="md"
+                              />
                             )}
                           </InputLabel>
                         </div>
@@ -599,14 +587,14 @@ class QuickInjectComponent extends Component {
                                     )}
                                 {field.cardinality === 'n' && (
                                   <IconButton
+                                    icon={<DeleteOutlined />}
+                                    aria-label={t('Delete')}
                                     onClick={() => fields.remove(index)}
                                     aria-haspopup="true"
-                                    size="small"
-                                    color="primary"
                                     disabled={isDisabled}
-                                  >
-                                    <DeleteOutlined />
-                                  </IconButton>
+                                    priority="tertiary"
+                                    size="sm"
+                                  />
                                 )}
                               </ListItem>
                             );
@@ -1103,12 +1091,7 @@ class QuickInjectComponent extends Component {
                     <Typography variant="h2">{t('Inject data')}</Typography>
                   </div>
                   <div style={{ float: 'right' }}>
-                    <Button
-                      color="primary"
-                      variant="outlined"
-                      onClick={this.handleOpenVariables.bind(this)}
-                      startIcon={<HelpOutlineOutlined />}
-                    >
+                    <Button type="button" priority="secondary" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={this.handleOpenVariables.bind(this)}>
                       {t('Available variables')}
                     </Button>
                   </div>
@@ -1147,8 +1130,8 @@ class QuickInjectComponent extends Component {
                     attachedDocs,
                   )}
                   <Button
-                    color="secondary"
-                    variant="outlined"
+                    type="button"
+                    priority="secondary"
                     disabled={submitting || isDisabled}
                     onClick={this.resetDefaultvalues.bind(
                       this,
@@ -1356,12 +1339,7 @@ class QuickInjectComponent extends Component {
                   margin: '20px 0 20px 0',
                 }}
                 >
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    type="submit"
-                    disabled={submitting || isDisabled}
-                  >
+                  <Button type="submit" disabled={submitting || isDisabled}>
                     {t('Send')}
                   </Button>
                 </div>

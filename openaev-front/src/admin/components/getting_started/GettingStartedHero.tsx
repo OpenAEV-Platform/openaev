@@ -1,6 +1,6 @@
-import { Paper as FdsPaper } from '@filigran/design-system';
+import { Button, Paper as FdsPaper } from '@filigran/design-system';
 import { OpenInNew, RocketLaunchOutlined } from '@mui/icons-material';
-import { Box, Button, Link as MUILink, Paper, Typography } from '@mui/material';
+import { Box, Link as MUILink, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 
@@ -154,24 +154,17 @@ const GettingStartedHero = () => {
             marginTop: 0.5,
           }}
           >
-            <Button
-              variant="contained"
-              color="primary"
-              component={Link}
-              to={SCENARIO_BASE_URL}
-              startIcon={<RocketLaunchOutlined />}
-            >
-              {t('getting_started_browse_scenarios')}
+            <Button asChild>
+              <Link to={SCENARIO_BASE_URL}>
+                <RocketLaunchOutlined fontSize="small" />
+                {t('getting_started_browse_scenarios')}
+              </Link>
             </Button>
-            <Button
-              variant="outlined"
-              color="primary"
-              href={`${XTM_HUB_DEFAULT_URL}/cybersecurity-solutions/open-bas-scenarios`}
-              target="_blank"
-              rel="noopener noreferrer"
-              endIcon={<OpenInNew />}
-            >
-              {t('XTM Hub Library')}
+            <Button asChild priority="secondary">
+              <a href={`${XTM_HUB_DEFAULT_URL}/cybersecurity-solutions/open-bas-scenarios`} target="_blank" rel="noopener noreferrer">
+                {t('XTM Hub Library')}
+                <OpenInNew fontSize="small" />
+              </a>
             </Button>
           </Box>
         </Box>

@@ -1,15 +1,7 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { Clear } from '@mui/icons-material';
 // fds:keep-mui the AI assistant field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import {
-  Box,
-  Button,
-  CircularProgress, Divider,
-  IconButton,
-  List,
-  ListItem,
-  ListItemText, TextField,
-  Typography,
-} from '@mui/material';
+import { Box, CircularProgress, Divider, List, ListItem, ListItemText, TextField, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -179,12 +171,12 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
                       dense
                       secondaryAction={(
                         <IconButton
-                          size="small"
+                          icon={<Clear />}
                           aria-label="remove-file"
                           onClick={() => setFiles(files.filter(f => f.name !== file.name))}
-                        >
-                          <Clear />
-                        </IconButton>
+                          priority="tertiary"
+                          size="md"
+                        />
                       )}
                     >
                       <ListItemText primary={file.name} />
@@ -217,21 +209,10 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
           )
         }
         <div className={`${classes.buttonContainer} ${classes.allWidth}`}>
-          <Button
-            variant="outlined"
-            color="primary"
-            style={{ marginLeft: 'auto' }}
-            onClick={onResetAndClose}
-            disabled={isLoading}
-          >
+          <Button type="button" priority="secondary" onClick={onResetAndClose} disabled={isLoading} style={{ marginLeft: 'auto' }}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={onSubmit}
-            disabled={isLoading || (files.length === 0 && text.trim() === '')}
-          >
+          <Button type="button" onClick={onSubmit} disabled={isLoading || (files.length === 0 && text.trim() === '')}>
             {t('Generate TTP')}
           </Button>
         </div>

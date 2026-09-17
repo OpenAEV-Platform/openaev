@@ -1,6 +1,6 @@
-import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined, GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -87,11 +87,7 @@ const Reportings = () => {
       label: 'Subject type',
       isSortable: true,
       value: (reporting: Reporting) => (
-        <Chip
-          label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])}
-          size="small"
-          variant="outlined"
-        />
+        <Chip label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])} />
       ),
     },
     {
@@ -247,13 +243,13 @@ const Reportings = () => {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <IconButton
+                                  asChild
+                                  icon={<FileDownloadOutlined fontSize="small" />}
                                   aria-label={t('Download latest generation')}
-                                  size="small"
-                                  color="primary"
-                                  component="a"
-                                  href={downloadReportingGenerationUrl(generation.reporting_generation_id)}
+                                  priority="tertiary"
+                                  size="sm"
                                 >
-                                  <FileDownloadOutlined fontSize="small" />
+                                  <a href={downloadReportingGenerationUrl(generation.reporting_generation_id)} />
                                 </IconButton>
                               </TooltipTrigger>
                               <TooltipContent>{t('Download latest generation')}</TooltipContent>

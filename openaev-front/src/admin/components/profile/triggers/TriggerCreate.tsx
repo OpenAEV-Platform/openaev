@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { Add } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { createNotificationTrigger } from '../../../../actions/notifications/notification-trigger-actions';
@@ -29,35 +29,30 @@ const TriggerCreate: FunctionComponent<Props> = ({ onCreate }) => {
     });
   };
 
-  const buttonSx = {
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-  };
-
   return (
     <>
       <Button
+        type="button"
+        startIcon={<Add fontSize="small" />}
         onClick={() => setTriggerType('DIGEST')}
-        color="primary"
-        variant="contained"
-        size="small"
         data-testid="button-create-digest"
-        startIcon={<Add />}
-        sx={{
-          ...buttonSx,
-          marginRight: 1,
+        style={{
+          marginRight: 8,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
         }}
       >
         {t('Create Regular digest')}
       </Button>
       <Button
+        type="button"
+        startIcon={<Add fontSize="small" />}
         onClick={() => setTriggerType('LIVE')}
-        color="primary"
-        variant="contained"
-        size="small"
         data-testid="button-create-live"
-        startIcon={<Add />}
-        sx={buttonSx}
+        style={{
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+        }}
       >
         {t('Create Live trigger')}
       </Button>

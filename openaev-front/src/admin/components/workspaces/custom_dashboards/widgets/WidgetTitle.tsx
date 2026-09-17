@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   ArrowDownwardOutlined,
   ArrowForwardOutlined,
@@ -6,7 +6,7 @@ import {
   InfoOutlined,
   OpenInFullOutlined,
 } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type ReactNode, useContext } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -156,14 +156,13 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       )}
       {isSecurityCoverage && (
         <IconButton
-          color="primary"
+          icon={<OpenInFullOutlined sx={{ fontSize: 16 }} />}
+          aria-label={t('Fullscreen')}
           className="noDrag"
           onClick={() => setFullscreen(true)}
-          size="small"
-          sx={{ padding: 0.5 }}
-        >
-          <OpenInFullOutlined sx={{ fontSize: 16 }} />
-        </IconButton>
+          priority="tertiary"
+          size="sm"
+        />
       )}
       {!readOnly && customDashboard && (
         <WidgetPopover

@@ -1,5 +1,6 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Button, IconButton, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -77,16 +78,17 @@ const GeneralFormTab = ({ editing = false }: Props) => {
           <TextFieldController name={`vulnerability_cwes.${cwesIndex}.cwe_external_id` as const} label={t('CWE')} />
           <TextFieldController name={`vulnerability_cwes.${cwesIndex}.cwe_source` as const} label={t('Source')} />
           <IconButton
+            icon={<DeleteOutlined />}
+            aria-label={t('Delete')}
             onClick={() => cwesRemove(cwesIndex)}
-            size="small"
-            color="primary"
-          >
-            <DeleteOutlined />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
         </div>
       ))}
       <Button
-        variant="outlined"
+        type="button"
+        priority="secondary"
         onClick={() => {
           cwesAppend({
             cwe_id: '',
@@ -114,16 +116,17 @@ const GeneralFormTab = ({ editing = false }: Props) => {
         >
           <TextFieldController name={`vulnerability_reference_urls.${referencesIndex}` as const} label={t('Url')} />
           <IconButton
+            icon={<DeleteOutlined />}
+            aria-label={t('Delete')}
             onClick={() => referencesRemove(referencesIndex)}
-            size="small"
-            color="primary"
-          >
-            <DeleteOutlined />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
         </div>
       ))}
       <Button
-        variant="outlined"
+        type="button"
+        priority="secondary"
         onClick={() => {
           referencesAppend('');
         }}
