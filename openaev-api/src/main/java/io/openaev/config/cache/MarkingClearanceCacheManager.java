@@ -62,12 +62,12 @@ public class MarkingClearanceCacheManager {
   static final String GRANTED_MARKING_IDS_SQL =
       "select gm.marking_id from groups_markings gm"
           + " join users_groups ug on ug.group_id = gm.group_id"
-          + " join marking_definitions md on md.marking_id = gm.marking_id"
+          + " join marking_definitions md on md.marking_definition_id = gm.marking_id"
           + " where ug.user_id = ? and md.tenant_id = ?";
 
   /** Every marking defined in the tenant — the scale the granted ids are expanded against. */
   static final String TENANT_MARKINGS_SQL =
-      "select marking_id, marking_type, marking_order from marking_definitions"
+      "select marking_definition_id, marking_definition_type, marking_definition_order from marking_definitions"
           + " where tenant_id = ?";
 
   private final JdbcTemplate jdbcTemplate;
@@ -90,9 +90,9 @@ public class MarkingClearanceCacheManager {
             TENANT_MARKINGS_SQL,
             (rs, rowNum) ->
                 new MarkingRef(
-                    rs.getString("marking_id"),
-                    rs.getString("marking_type"),
-                    rs.getInt("marking_order")),
+                    rs.getString("marking_definition_id"),
+                    rs.getString("marking_definition_type"),
+                    rs.getInt("marking_definition_order")),
             tenantId);
 
     // Skipped for a bypassing caller: the grants cannot change the answer, so the query is waste.

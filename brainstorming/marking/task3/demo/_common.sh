@@ -52,8 +52,8 @@ try:
 except Exception:
     sys.exit(1)" 2>/dev/null \
     || die "could not read the marking definitions from ${OPENAEV_URL}.
-      Is the app up, and is TOKEN valid? Note MARKING_DEFINITION read currently
-      sits under ACCESS_TENANT_SETTINGS. The response was:
+      Is the app up, and is TOKEN valid? Note MARKING_DEFINITION read requires
+      the ACCESS_MARKING_DEFINITION capability. The response was:
 ${body}"
 
   printf '%s' "$body"

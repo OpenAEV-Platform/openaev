@@ -145,30 +145,30 @@ roles="$(curl -s "${admin[@]}" -X POST "${OPENAEV_URL}/api/tenants/${TENANT}/rol
   -d '{"page":0,"size":50}')"
 ROLE_MANAGER="$(echo "$roles" | jqr "next(x['role_id'] for x in d['content'] if x['role_name']=='Manager')")"
 
-# Second role: reading marking definitions currently sits under
-# ACCESS_TENANT_SETTINGS (Capability.java, MARKING_DEFINITION READ/SEARCH), which
+# Second role: reading marking definitions has its own dedicated capability,
+# ACCESS_MARKING_DEFINITION (Capability.java, CapabilityGroup.MARKING), which
 # Manager does not have. Without it the member gets 403 on
 # /marking-definitions/search, so the UI cannot turn the ids in asset_markings
 # into names and colours and the Markings column renders empty - even though the
 # ids are right there in the payload.
 #
-# This is a PoC shortcut. Markings are reference data that any user who can see a
-# marked row needs to read, exactly like tags, which have their own ACCESS_TAGS in
-# CapabilityGroup.TAXONOMY. The real fix is a dedicated ACCESS_MARKINGS capability;
-# until then the demo grants ACCESS_TENANT_SETTINGS through a throwaway role.
+# Markings are reference data that any user who can see a marked row needs to
+# read, exactly like tags, which have their own ACCESS_TAGS in
+# CapabilityGroup.TAXONOMY. ACCESS_MARKING_DEFINITION is that dedicated
+# capability (delivered in Task 1, #7651) - grant it through a throwaway role.
 #
 # A separate role rather than editing the seeded Manager: Manager is shared by
 # every user of this dev database, and widening it here would silently persist
 # after the demo and quietly weaken any later test that assumes stock Manager.
 role_reader="$(curl -s "${admin[@]}" -X POST "${OPENAEV_URL}/api/tenants/${TENANT}/roles" \
-  -d "{\"role_name\":\"PoC Marking Reader ${SUFFIX}\",\"role_capabilities\":[\"ACCESS_TENANT_SETTINGS\"]}")"
+  -d "{\"role_name\":\"PoC Marking Reader ${SUFFIX}\",\"role_capabilities\":[\"ACCESS_MARKING_DEFINITION\"]}")"
 ROLE_READER="$(echo "$role_reader" | jqr "d['role_id']")"
 
 curl -s -o /dev/null "${admin[@]}" -X PUT \
   "${OPENAEV_URL}/api/tenants/${TENANT}/groups/${GROUP_ID}/roles" \
   -d "{\"group_roles\":[\"${ROLE_MANAGER}\",\"${ROLE_READER}\"]}"
 echo "  roles = Manager (ACCESS_ASSETS + MANAGE_ASSETS, no BYPASS)"
-echo "        + PoC Marking Reader (ACCESS_TENANT_SETTINGS - lets the UI resolve marking ids)"
+echo "        + PoC Marking Reader (ACCESS_MARKING_DEFINITION - lets the UI resolve marking ids)"
 
 ASSET_NAME="poc-marking-${SUFFIX}"
 endpoint="$(curl -s "${admin[@]}" -X POST "${OPENAEV_URL}/api/tenants/${TENANT}/endpoints/agentless" \
