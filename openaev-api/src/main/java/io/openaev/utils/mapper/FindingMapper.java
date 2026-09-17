@@ -5,8 +5,8 @@ import io.openaev.database.repository.FindingRepository;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.FindingOutput;
-import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.finding.form.FindingSiblingOutput;
+import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
 import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.TargetType;
@@ -138,8 +138,7 @@ public class FindingMapper {
                 .map(endpointMapper::toEndpointSimple)
                 .collect(Collectors.toSet()))
         .findingTriageStatus(
-            triageStatusByFindingId.getOrDefault(
-                finding.getId(), FindingTriageStatus.UNTRIAGED))
+            triageStatusByFindingId.getOrDefault(finding.getId(), FindingTriageStatus.UNTRIAGED))
         // Derived from the same relatedAssets used above (not finding.getAssetGroups(), which
         // only reflects the single underlying finding's own inject) so the aggregated view shows
         // every asset group across all assets sharing this (type, value) pair.

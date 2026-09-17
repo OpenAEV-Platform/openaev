@@ -15,7 +15,11 @@ Findings transform raw execution output into searchable, categorized technical i
 
 Findings are created automatically during Inject execution. When an Inject produces structured output (e.g., a port scan result, a CVE detection, or extracted credentials), OpenAEV parses the output and creates one Finding per discovered indicator.
 
-Each Finding is deduplicated by its combination of value, type, and field. If the same Finding is detected again in a later execution, the existing record is updated with a new "last seen" timestamp rather than creating a duplicate.
+OpenAEV keeps a stable Finding identity and a separate occurrence for every observation. The stable
+identity combines the tenant, source namespace (Injector and contract output), type, and value.
+Every detected location/context is stored on an occurrence. A re-detection appends an occurrence
+and updates the stable Finding's first/last seen dates; it never overwrites earlier evidence.
+Human-owned tags are consolidated on the stable Finding.
 
 ## Finding types
 
@@ -30,8 +34,55 @@ Each Finding is deduplicated by its combination of value, type, and field. If th
 | Number | Numeric indicators |
 | File / Share | Discovered files or network shares |
 | Username | Discovered usernames and accounts |
+| Misconfig | OCSF configuration findings, including Prowler cloud checks |
 
 Additional types exist for Active Directory findings (SID, delegation, Kerberoastable accounts, ASREPRoastable accounts, etc.).
+
+### Actionable groups
+
+The global Findings page groups technical types by the analyst step they support. The group is
+stored on the stable Finding, so sidebar filtering applies to the complete result set rather than
+only the currently loaded page.
+
+| Group | Contract output types |
+|---|---|
+| Surface & Reachability | Port, PortScan, IPv4, IPv6, Computer |
+| Identities | SID, Username, Admin username, Email |
+| Credential Access | Credentials, account without password requirement, AS-REP-roastable account, Kerberoastable account |
+| Privilege & Trust Structure | Group, Delegation |
+| Exploitable Weaknesses | CVE, Vulnerability |
+| Resources | Share, File |
+| Configuration & Posture | Password policy, OCSF cloud misconfiguration |
+| Informative | Text, Number, action output, and expectation signature |
+
+The **Informative** group is intentionally separate from the actionable workflow. Asset discovery
+continues to create Assets rather than Findings.
+
+### Prowler and OCSF findings
+
+Prowler results enter OpenAEV through the standard Inject execution callback as unmodified OCSF
+records. OpenAEV uses `metadata.event_code` as the rule value and each `resources[]` UID as its
+occurrence location. Repeated scans and additional resources for the same rule remain occurrences
+of the same stable Finding. The source product participates in the stable identity, preventing
+similarly named rules from unrelated scanners from being merged.
+
+The visible label is **Misconfig (provider)**, for example **Misconfig (AWS)**. The provider is
+derived only from `resources[].cloud_partition`; `cloud.provider` is not used. Blank partitions are
+ignored. Each resource keeps its own partition on its occurrence. If the observed partitions
+conflict, the aggregate Finding does not present an arbitrary provider.
+
+OCSF outcome and OpenAEV triage are separate concepts:
+
+| OCSF outcome | Finding behavior |
+|---|---|
+| `FAIL` | Active misconfiguration |
+| `MANUAL` | Review result; not persisted as a Finding |
+| `MUTED` | Muted result; not persisted as a Finding |
+| `PASS` | Compliant result; not persisted as a Finding |
+
+The detail view preserves the raw OCSF response and shows the rule title and description, evidence,
+risk, categories, MITRE ATT&CK mappings, resource metadata, remediation, Inject source, and
+re-detection timeline.
 
 ## Sensitive Findings
 
@@ -73,7 +124,8 @@ so segment-level masking leaves them untouched on its own.
 
 ## Findings list
 
-Navigate to **Findings** in the left menu to see all Findings in an aggregated view. The list groups Findings by unique value and type, merging Assets from all occurrences into a single row.
+Navigate to **Findings** in the left menu to see all Findings in an aggregated view. The list shows
+one row per stable tenant/source/type/value identity and consolidates its observed Locations.
 
 Each row displays:
 
@@ -81,12 +133,13 @@ Each row displays:
 |---|---|
 | Type | The Finding category (CVE, Port, Credentials, etc.) |
 | Value | The technical value (monospace display), masked for sensitive Findings |
-| Assets | Endpoints where the Finding was detected |
-| Asset groups | Asset groups containing affected endpoints |
+| Location | Asset, endpoint, cloud resource, account, user, team, or other context where the Finding was detected |
 | First seen | When the Finding was first detected |
 | Last seen | When the Finding was most recently detected (default sort) |
 
-Use the search bar and filters to narrow results by type, date range, Assets, or Asset groups.
+Use the actionable-group sidebar, search bar, and filters to narrow results by workflow, type, date
+range, source, or triage status. The toolbar switches between grid and list views and exports the
+currently loaded result set. The selected view is retained in the browser.
 
 ![Findings list](assets/findings-list.png)
 
@@ -97,6 +150,7 @@ Click on a Finding to open its detail view. The **Overview** presents the Findin
 - **Finding type and value** with occurrence count and impacted Asset count
 - **Information**: type, value, field, first seen, last seen, tags
 - **Occurrences**: every Inject execution that produced this Finding, shown both as a list and as a timeline, with links to the parent Simulation and Scenario
+- **Also Detected On**: the distinct Locations observed across the Finding's occurrence history
 - **Vulnerability panel**: for CVE-type Findings, a summary of the vulnerability enrichment surfaced directly in the Overview
 
 The Overview loads a lightweight Finding summary so counts and enrichment appear without fetching every occurrence up front.

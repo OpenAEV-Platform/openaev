@@ -442,8 +442,7 @@ public class FindingDistinctSearchService {
     Map<String, FindingTriageStatus> triageStatusByFindingId =
         findingTriageRepository.findByFinding_IdIn(findingIds).stream()
             .collect(
-                Collectors.toMap(
-                    triage -> triage.getFinding().getId(), FindingTriage::getStatus));
+                Collectors.toMap(triage -> triage.getFinding().getId(), FindingTriage::getStatus));
 
     // Step 4: Map page findings + grouped assets to AggregatedFindingOutput
     return page.map(

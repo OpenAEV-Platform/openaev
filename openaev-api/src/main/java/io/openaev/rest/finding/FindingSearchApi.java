@@ -259,6 +259,7 @@ public class FindingSearchApi extends RestBehavior {
       responseCode = "200",
       content = @Content(schema = @Schema(implementation = PageFindingSiblingOutput.class)))
   public Page<FindingSiblingOutput> findingAlsoDetectedOn(
+      TxCtx ctx,
       @PathVariable @NotNull final String findingId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return findingDistinctSearchService.findAlsoDetectedOn(findingId, searchPaginationInput);

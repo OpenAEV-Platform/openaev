@@ -2,6 +2,7 @@ package io.openaev.rest;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import io.openaev.annotation.NoTenantScope;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +41,15 @@ public class HomeApi {
   // graceful fallback when the built SPA bundle is absent from the classpath (see home()).
   @Value("${openaev.dev.frontend-url:http://localhost:3001}")
   private String devFrontendUrl;
+
+  @GetMapping("/csrf")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true)
+  @NoTenantScope
+  public ResponseEntity<Void> csrf(CsrfToken csrfToken) {
+    csrfToken.getToken();
+    return ResponseEntity.noContent().build();
+  }
 
   // SPA catch-all: serves index.html for all paths except those handled by dedicated controllers.
   // The negative lookahead excludes specific path prefixes from matching.

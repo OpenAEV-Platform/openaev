@@ -16,6 +16,7 @@ import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.finding.StableFindingIngestionService;
 import io.openaev.utils.mapper.FindingMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -49,6 +50,7 @@ public class FindingService {
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
+  private final StableFindingIngestionService stableFindingIngestionService;
 
   // -- CRUD --
 
@@ -230,13 +232,21 @@ public class FindingService {
           .ifPresentOrElse(
               asset ->
                   saveAgentFinding(
-                      inject, asset, contractOutputContext, valueExtractor.apply(jsonNode)),
+                      inject,
+                      asset,
+                      contractOutputContext,
+                      valueExtractor.apply(jsonNode),
+                      jsonNode),
               () -> log.warn("Finding dropped: No asset match for host in {}", jsonNode));
     }
   }
 
   public void saveAgentFinding(
-      Inject inject, Asset asset, ContractOutputContext contractOutputContext, String value) {
+      Inject inject,
+      Asset asset,
+      ContractOutputContext contractOutputContext,
+      String value,
+      JsonNode sourceRecord) {
 
     String tenantId = inject.getTenant() != null ? inject.getTenant().getId() : null;
 
@@ -250,6 +260,20 @@ public class FindingService {
         contractOutputContext.name(),
         asset.getId(),
         contractOutputContext.tagIds());
+    stableFindingIngestionService.ingestAgent(
+        inject, contractOutputContext, value, asset, sourceRecord);
+  }
+
+  public void saveAgentFinding(
+      Inject inject, Asset asset, ContractOutputContext contractOutputContext, String value) {
+    saveAgentFinding(
+        inject,
+        asset,
+        contractOutputContext,
+        value,
+        com.fasterxml.jackson.databind.node.JsonNodeFactory.instance
+            .objectNode()
+            .put("value", value));
   }
 
   private Optional<Asset> resolveAssetFromStructuredOutput(
@@ -314,6 +338,28 @@ public class FindingService {
             enricher);
 
     createFindings(findings, inject.getId());
+    stableFindingIngestionService.ingest(
+        inject,
+        contractOutputContext,
+        findings,
+        validSourceRecords(structuredOutputNode, contractOutputContext, validator));
+  }
+
+  private List<JsonNode> validSourceRecords(
+      JsonNode structuredOutputNode,
+      ContractOutputContext contractOutputContext,
+      Predicate<JsonNode> validator) {
+    if (contractOutputContext.isMultiple() && structuredOutputNode.isArray()) {
+      List<JsonNode> records = new ArrayList<>();
+      structuredOutputNode.forEach(
+          node -> {
+            if (validator.test(node)) {
+              records.add(node);
+            }
+          });
+      return records;
+    }
+    return List.of(structuredOutputNode);
   }
 
   /**

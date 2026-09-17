@@ -3,10 +3,13 @@ package io.openaev.rest.finding;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.FindingHistoryActionType;
+import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.FindingTriageHistory;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.FindingOccurrenceRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingTriageHistoryRepository;
+import io.openaev.database.repository.StableFindingRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.finding.form.FindingArchiveBulkItemOutput;
@@ -42,6 +45,8 @@ public class FindingArchiveService {
   private static final String UNARCHIVE_JUSTIFICATION = "Un-archived via bulk action";
 
   private final FindingRepository findingRepository;
+  private final FindingOccurrenceRepository findingOccurrenceRepository;
+  private final StableFindingRepository stableFindingRepository;
   private final FindingTriageHistoryRepository findingTriageHistoryRepository;
   private final TenantRepository tenantRepository;
   private final UserService userService;
@@ -65,6 +70,7 @@ public class FindingArchiveService {
         // An archive/un-archive change is a human action: bump humanUpdateDate ("Updated at"
         // filter), not updateDate ("Last seen", reserved for scanner detection).
         findingRepository.touchHumanUpdate(finding.getId(), tenantId);
+        synchronizeStableFinding(finding.getId(), tenantId, archivedAt);
         recordHistory(finding, archived, currentUser, tenantId);
         results.add(
             FindingArchiveBulkItemOutput.builder()
@@ -82,6 +88,18 @@ public class FindingArchiveService {
       }
     }
     return results;
+  }
+
+  private void synchronizeStableFinding(String findingId, String tenantId, Instant archivedAt) {
+    findingOccurrenceRepository.findAllByMigratedFromIdAndTenantId(findingId, tenantId).stream()
+        .map(FindingOccurrence::getStableFinding)
+        .distinct()
+        .forEach(
+            stableFinding -> {
+              stableFinding.setArchivedAt(archivedAt);
+              stableFinding.setHumanUpdatedAt(Instant.now());
+              stableFindingRepository.save(stableFinding);
+            });
   }
 
   private void recordHistory(Finding finding, boolean archived, User actor, String tenantId) {

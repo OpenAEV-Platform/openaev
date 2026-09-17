@@ -1,10 +1,14 @@
-import { DevicesOutlined, FormatListNumberedOutlined, Groups3Outlined, PersonOutlined, ShieldOutlined } from '@mui/icons-material';
-import { Alert, Box, Chip, Typography } from '@mui/material';
+import { FormatListNumberedOutlined, LocationOnOutlined, ShieldOutlined } from '@mui/icons-material';
+import { Box, Chip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchFinding, fetchFindingSummary, searchFindings } from '../../../actions/findings/finding-actions';
+import {
+  fetchStableFinding,
+  fetchStableFindingSummary,
+  searchStableFindingOccurrences,
+} from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock, SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
@@ -14,9 +18,14 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
 import { INJECT } from '../../../constants/Entities';
-import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
+import type {
+  FindingOutput,
+  RelatedFindingOutput,
+  StableFindingSummaryOutput,
+} from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
 import AlsoDetectedOnPanel from './AlsoDetectedOnPanel';
+import { getFindingAggregationCategory } from './findingAggregationCategories';
 import FindingComments from './FindingComments';
 import FindingContextLink from './FindingContextLink';
 import FindingOccurrences from './FindingOccurrences';
@@ -24,10 +33,35 @@ import FindingTriageHistory from './FindingTriageHistory';
 import getFindingTypeLabel from './FindingTypeLabel';
 import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
 import OCSFRemediationTab from './OCSFRemediationTab';
-import {
-  getProwlerPrototypeRecord,
-  searchProwlerPrototypeOccurrences,
-} from './prowler_prototype/prowler-findings.fixture';
+
+type FindingDetailOutput = Omit<FindingOutput, 'finding_type'> & {
+  finding_type: FindingOutput['finding_type'] | 'ocsf';
+  finding_legacy_id?: string;
+  finding_source_finding_id?: string;
+  finding_title?: string;
+  finding_description?: string;
+  finding_evidence?: string;
+  finding_status_detail?: string;
+  finding_resource_name?: string;
+  finding_resource_type?: string;
+  finding_resource_service?: string;
+  finding_location_key?: string;
+  finding_location_type?: string;
+  finding_aggregation_category?: string;
+  finding_risk_details?: string;
+  finding_categories?: string[];
+  finding_mitre_attack?: string[];
+  finding_inject?: RelatedFindingOutput['finding_inject'];
+  finding_source?: { injector_name?: string };
+  finding_severity?: string;
+  finding_resource?: string;
+  finding_cloud_provider?: string;
+  finding_cloud_account?: string;
+  finding_cloud_region?: string;
+  finding_compliance?: string;
+  finding_remediation?: string;
+  finding_raw_data?: string;
+};
 
 // finding_raw_data is stored as a compact single-line JSON string (see
 // OCSFOutputProcessor#enrichFinding); pretty-print it for readability, falling back to the raw
@@ -45,33 +79,25 @@ const TAB_ALSO_DETECTED_ON = 'Also Detected On';
 const TAB_RAW_RESPONSE = 'Raw response';
 const TAB_HISTORY = 'History';
 
-// Full-page finding overview: one deduplicated finding (type + value) with its
-// group-wide summary (true first/last seen, occurrences, impact spread), the
+// Full-page finding overview: one stable tenant/source/type/value finding with its
+// lifecycle summary (true first/last seen and occurrences), the
 // vulnerability context when it is a CVE, and a tabbed lower section (occurrence
-// timeline, cross-asset relations, raw scanner payload, triage/comment history) -
+// timeline, sibling locations, raw scanner payload, triage/comment history) -
 // mirroring the pre-rebuild FindingDetail.tsx tab organization users were used to.
 const FindingOverview = () => {
   const { t, fldt } = useFormatter();
   const theme = useTheme();
   const { findingId } = useParams() as { findingId: string };
 
-  const [finding, setFinding] = useState<FindingOutput | null>(null);
-  // Group-wide aggregates are computed server-side: a Finding row is ONE
-  // occurrence (per inject), so its own dates/links cannot answer "since when
-  // and how widely has this been seen?".
-  const [summary, setSummary] = useState<FindingSummaryOutput | null>(null);
+  const [finding, setFinding] = useState<FindingDetailOutput | null>(null);
+  // Lifecycle dates and spread are computed from every occurrence of the stable Finding.
+  const [summary, setSummary] = useState<StableFindingSummaryOutput | null>(null);
   const [cvssScore, setCvssScore] = useState<number | null>(null);
-  const prototypeRecord = getProwlerPrototypeRecord(findingId);
 
   useEffect(() => {
-    if (prototypeRecord) {
-      setFinding(prototypeRecord.detail as FindingOutput);
-      setSummary(prototypeRecord.summary);
-      return;
-    }
-    fetchFinding(findingId).then(response => setFinding(response.data as FindingOutput));
-    fetchFindingSummary(findingId).then(response => setSummary(response.data as FindingSummaryOutput));
-  }, [findingId, prototypeRecord]);
+    fetchStableFinding(findingId).then(response => setFinding(response.data as FindingDetailOutput));
+    fetchStableFindingSummary(findingId).then(response => setSummary(response.data));
+  }, [findingId]);
 
   const typeLabel = useMemo(
     () => (finding ? getFindingTypeLabel(t, finding.finding_type, finding.finding_cloud_provider) : ''),
@@ -79,6 +105,7 @@ const FindingOverview = () => {
   );
 
   const isOCSF = finding?.finding_type === 'ocsf';
+  const historyFindingId = finding?.finding_legacy_id ?? findingId;
 
   // Raw response only exists for OCSF/Prowler findings (Finding#rawData is populated solely by
   // OCSFOutputProcessor) - every other finding type never shows that tab at all.
@@ -113,59 +140,21 @@ const FindingOverview = () => {
   }
 
   const isCVE = finding.finding_type === 'cve';
-  const displayedCvssScore = prototypeRecord?.vulnerability?.cvssScore ?? cvssScore;
-  const prowlerContext = prototypeRecord?.context;
+  const displayedCvssScore = cvssScore;
+  const aggregationCategory = getFindingAggregationCategory(finding.finding_aggregation_category);
 
   const renderTabPanel = () => {
     switch (currentTab) {
       case TAB_TIMELINE:
         return (
           <FindingOccurrences
-            searchFindings={prototypeRecord
-              ? input => searchProwlerPrototypeOccurrences(findingId, input)
-              : searchFindings}
+            searchFindings={input => searchStableFindingOccurrences(findingId, input)}
             finding={finding}
             contextId={findingId}
           />
         );
       case TAB_ALSO_DETECTED_ON:
-        return prototypeRecord
-          ? (
-              <AlsoDetectedOnPanel
-                finding={finding}
-                searchAlsoDetectedOn={() => Promise.resolve({
-                  data: {
-                    content: [],
-                    empty: true,
-                    first: true,
-                    last: true,
-                    number: 0,
-                    numberOfElements: 0,
-                    pageable: {
-                      offset: 0,
-                      pageNumber: 0,
-                      pageSize: 20,
-                      paged: true,
-                      sort: {
-                        empty: true,
-                        sorted: false,
-                        unsorted: true,
-                      },
-                      unpaged: false,
-                    },
-                    size: 20,
-                    sort: {
-                      empty: true,
-                      sorted: false,
-                      unsorted: true,
-                    },
-                    totalElements: 0,
-                    totalPages: 0,
-                  },
-                })}
-              />
-            )
-          : <AlsoDetectedOnPanel finding={finding} />;
+        return <AlsoDetectedOnPanel key={finding.finding_id} finding={finding} />;
       case TAB_RAW_RESPONSE:
         return finding.finding_raw_data
           ? (
@@ -196,13 +185,6 @@ const FindingOverview = () => {
               </Box>
             );
       case TAB_HISTORY:
-        if (prototypeRecord) {
-          return (
-            <Alert severity="info" variant="outlined">
-              {t('Comments and triage history are not connected in this UI prototype.')}
-            </Alert>
-          );
-        }
         // Comments and triage history are two distinct read/write logs on the same finding -
         // combined under one "History" tab rather than two separate tabs, per user request.
         return (
@@ -214,11 +196,11 @@ const FindingOverview = () => {
           >
             <Box>
               <SectionLabel>{t('Comments')}</SectionLabel>
-              <FindingComments findingId={findingId} />
+              <FindingComments findingId={historyFindingId} />
             </Box>
             <Box>
               <SectionLabel>{t('Triage History')}</SectionLabel>
-              <FindingTriageHistory findingId={findingId} />
+              <FindingTriageHistory findingId={historyFindingId} />
             </Box>
           </Box>
         );
@@ -260,15 +242,12 @@ const FindingOverview = () => {
         stats={(
           <>
             <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={summary?.finding_occurrences ?? '-'} />
-            <HeroStat icon={DevicesOutlined} label={t('Impacted assets')} value={summary?.finding_assets_count ?? '-'} color={theme.palette.primary.main} />
-            {/* Team / person spread only shows when the finding actually touched people
-                (e.g. phishing credentials): machine findings keep a compact stat row. */}
-            {(summary?.finding_teams_count ?? 0) > 0 && (
-              <HeroStat icon={Groups3Outlined} label={t('Impacted teams')} value={summary?.finding_teams_count ?? '-'} color={theme.palette.success.main} />
-            )}
-            {(summary?.finding_users_count ?? 0) > 0 && (
-              <HeroStat icon={PersonOutlined} label={t('Impacted persons')} value={summary?.finding_users_count ?? '-'} color={theme.palette.success.main} />
-            )}
+            <HeroStat
+              icon={LocationOnOutlined}
+              label={t('Location')}
+              value={summary?.finding_locations_count ?? '-'}
+              color={theme.palette.primary.main}
+            />
             {isCVE && (
               <HeroStat icon={ShieldOutlined} label={t('CVSS score')} value={displayedCvssScore != null ? displayedCvssScore.toFixed(1) : '-'} color={theme.palette.warning.main} />
             )}
@@ -278,6 +257,7 @@ const FindingOverview = () => {
 
       <InformationGrid title={t('Information')}>
         <Field label={t('Type')}>{typeLabel}</Field>
+        <Field label={t('Category')}>{t(aggregationCategory.label)}</Field>
         <Field label={t('Value')}>
           <Box
             component="pre"
@@ -305,9 +285,9 @@ const FindingOverview = () => {
             "first seen shows a later date" bug). */}
         <Field label={t('First seen')}>{summary ? fldt(summary.finding_first_seen) : '-'}</Field>
         <Field label={t('Last seen')}>{summary ? fldt(summary.finding_last_seen) : '-'}</Field>
-        {prototypeRecord?.occurrences.at(-1) && (
+        {finding.finding_inject && (
           <Field label={t('Inject')}>
-            <FindingContextLink finding={prototypeRecord.occurrences.at(-1)!} type={INJECT} />
+            <FindingContextLink finding={finding} type={INJECT} />
           </Field>
         )}
         <Field label={t('Tags')}>
@@ -317,102 +297,71 @@ const FindingOverview = () => {
 
       {/* CVE context: everything known about the vulnerability (identity,
           description, remediation, weaknesses, references) in ONE paper. */}
-      {isCVE && !prototypeRecord && (
+      {isCVE && (
         <FindingVulnerabilityPanel
           cveId={finding.finding_value}
           onCvssScore={setCvssScore}
         />
       )}
-      {isCVE && prototypeRecord?.vulnerability && (
-        <InformationGrid title={t('Vulnerability context')}>
-          <Field label={t('CVSS Version 3.1')}>{prototypeRecord.vulnerability.cvssScore.toFixed(1)}</Field>
-          <Field label={t('Description')}>{prototypeRecord.vulnerability.description}</Field>
-          <Field label={t('Remediation')}>{prototypeRecord.vulnerability.remediation}</Field>
-        </InformationGrid>
-      )}
-
       {/* OCSF/Prowler cloud context: resource identifier, account/region/provider and
           the violated compliance requirements, plus a dedicated remediation reading pane. */}
       {isOCSF && (
         <>
           <InformationGrid title={t('Cloud details')}>
-            {prowlerContext && (
-              <>
-                <Field label={t('Outcome')}>
-                  <Chip size="small" color="error" label={prowlerContext.outcome} />
-                </Field>
-                <Field label={t('Severity')}>{emptyFilled(finding.finding_severity)}</Field>
-                <Field label={t('Rule ID')}>{prowlerContext.ruleId}</Field>
-              </>
-            )}
-            <Field label={t('Resource')}>{prowlerContext?.resourceName ?? emptyFilled(finding.finding_resource)}</Field>
-            {prowlerContext && (
-              <>
-                <Field label={t('Resource UID')}>{emptyFilled(finding.finding_resource)}</Field>
-                <Field label={t('Resource type')}>{prowlerContext.resourceType}</Field>
-                <Field label={t('Service')}>{prowlerContext.service}</Field>
-              </>
-            )}
+            <Field label={t('Severity')}>{emptyFilled(finding.finding_severity)}</Field>
+            <Field label={t('Rule ID')}>{finding.finding_value}</Field>
+            <Field label={t('Resource')}>{finding.finding_resource_name ?? emptyFilled(finding.finding_resource)}</Field>
+            <Field label={t('Resource UID')}>{emptyFilled(finding.finding_resource)}</Field>
+            <Field label={t('Resource type')}>{emptyFilled(finding.finding_resource_type)}</Field>
+            <Field label={t('Service')}>{emptyFilled(finding.finding_resource_service)}</Field>
             <Field label={t('Cloud provider')}>{emptyFilled(finding.finding_cloud_provider)}</Field>
             <Field label={t('Cloud account')}>{emptyFilled(finding.finding_cloud_account)}</Field>
             <Field label={t('Cloud region')}>{emptyFilled(finding.finding_cloud_region)}</Field>
             <Field label={t('Compliance')}>{emptyFilled(finding.finding_compliance)}</Field>
           </InformationGrid>
-          {prowlerContext && (
-            <>
-              <InformationGrid title={t('Evidence')}>
-                <Field label={t('Description')}>{prowlerContext.description}</Field>
-                <Field label={t('Message')}>{prowlerContext.message}</Field>
-                <Field label={t('Status detail')}>
-                  <Typography
-                    component="code"
-                    sx={{
-                      fontFamily: 'Consolas, monaco, monospace',
-                      fontSize: 12.5,
-                    }}
-                  >
-                    {prowlerContext.statusDetail}
-                  </Typography>
-                </Field>
-                {Object.entries(prowlerContext.evidenceMetadata).map(([key, value]) => (
-                  <Field key={key} label={t(key.replaceAll('_', ' '))}>{String(value)}</Field>
+          <InformationGrid title={t('Evidence')}>
+            <Field label={t('Description')}>{emptyFilled(finding.finding_description)}</Field>
+            <Field label={t('Evidence')}>{emptyFilled(finding.finding_evidence)}</Field>
+            <Field label={t('Status detail')}>
+              <Typography
+                component="code"
+                sx={{
+                  fontFamily: 'Consolas, monaco, monospace',
+                  fontSize: 12.5,
+                }}
+              >
+                {emptyFilled(finding.finding_status_detail)}
+              </Typography>
+            </Field>
+            <Field label={t('Source finding ID')}>{emptyFilled(finding.finding_source_finding_id)}</Field>
+          </InformationGrid>
+          <InformationGrid title={t('Attack context')}>
+            <Field label={t('Risk details')}>{emptyFilled(finding.finding_risk_details)}</Field>
+            <Field label={t('Categories')}>
+              <Box sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 0.5,
+              }}
+              >
+                {(finding.finding_categories ?? []).map(category => (
+                  <Chip key={category} size="small" variant="outlined" label={category} />
                 ))}
-              </InformationGrid>
-              <InformationGrid title={t('Attack context')}>
-                <Field label={t('Risk details')}>{prowlerContext.riskDetails}</Field>
-                <Field label={t('Categories')}>
-                  <Box sx={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 0.5,
-                  }}
-                  >
-                    {prowlerContext.categories.map(category => (
-                      <Chip key={category} size="small" variant="outlined" label={category} />
-                    ))}
-                  </Box>
-                </Field>
-                <Field label={t('MITRE ATT&CK')}>
-                  <Box sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 0.5,
-                  }}
-                  >
-                    {prowlerContext.mitreAttack.map(technique => (
-                      <Typography key={technique.id} variant="body2">
-                        <strong>{technique.id}</strong>
-                        {' · '}
-                        {technique.name}
-                        {' · '}
-                        {technique.tactic}
-                      </Typography>
-                    ))}
-                  </Box>
-                </Field>
-              </InformationGrid>
-            </>
-          )}
+              </Box>
+            </Field>
+            <Field label={t('MITRE ATT&CK')}>
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 0.5,
+              }}
+              >
+                {(finding.finding_mitre_attack ?? []).map(technique => (
+                  <Typography key={technique} variant="body2">{technique}</Typography>
+                ))}
+              </Box>
+            </Field>
+          </InformationGrid>
           <div style={{ marginTop: theme.spacing(1) }}>
             <SectionBlock title={t('Remediation')}>
               <OCSFRemediationTab remediation={finding.finding_remediation} />

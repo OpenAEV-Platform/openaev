@@ -52,6 +52,8 @@ public interface InjectRepository
 
   Optional<Inject> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  boolean existsByTitleAndTenantId(@NotBlank String title, @NotBlank String tenantId);
+
   /**
    * Updates only an inject's {@code updated_at} timestamp, through Hibernate so the tenant
    * statement inspector covers it (a previous raw-JDBC helper bypassed it). Returns the number of

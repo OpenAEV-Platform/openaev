@@ -2,6 +2,30 @@ import { simpleCall, simplePatchCall, simplePostCall, simplePutCall } from '../.
 import { type FindingArchiveSettingsInput, type SearchPaginationInput } from '../../utils/api-types';
 
 const FINDING_URI = '/api/findings';
+const STABLE_FINDING_URI = '/api/stable-findings';
+
+export const fetchStableFinding = (findingId: string) => {
+  return simpleCall(`${STABLE_FINDING_URI}/${findingId}`);
+};
+
+export const fetchStableFindingSummary = (findingId: string) => {
+  return simpleCall(`${STABLE_FINDING_URI}/${findingId}/summary`);
+};
+
+export const fetchStableFindingLocations = (findingId: string) => {
+  return simpleCall(`${STABLE_FINDING_URI}/${findingId}/locations`);
+};
+
+export const searchStableFindings = (searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall(`${STABLE_FINDING_URI}/search`, searchPaginationInput);
+};
+
+export const searchStableFindingOccurrences = (
+  findingId: string,
+  searchPaginationInput: SearchPaginationInput,
+) => {
+  return simplePostCall(`${STABLE_FINDING_URI}/${findingId}/occurrences/search`, searchPaginationInput);
+};
 
 // -- ARCHIVE SETTINGS --
 
@@ -26,8 +50,8 @@ export const fetchFinding = (findingId: string) => {
   return simpleCall(`${FINDING_URI}/${findingId}`);
 };
 
-// Group-wide summary (deduplicated by type + value): true first/last seen and
-// distinct impact counts across every occurrence, computed server-side.
+// Stable identity summary: true first/last seen and distinct impact counts across every
+// occurrence, computed server-side.
 export const fetchFindingSummary = (findingId: string) => {
   return simpleCall(`${FINDING_URI}/${findingId}/summary`);
 };
@@ -94,11 +118,10 @@ export const searchDistinctFindingsForScenarios = (scenarioId: string, searchPag
   return simplePostCall(uri, data);
 };
 
-// -- ALSO DETECTED ON --
+// -- LEGACY ALSO DETECTED ON --
 
-// Sibling Findings sharing the same Type + Value as findingId but on a different Location
-// (Triforce identity, Phase 1 - see finding_triforce_design.md). One row per sibling Location,
-// including archived ones (always shown, flagged via finding_archived - never hidden).
+// Kept for legacy Finding detail consumers. Stable Finding details use
+// fetchStableFindingLocations(), because Location belongs to an occurrence.
 export const searchFindingsAlsoDetectedOn = (findingId: string, searchPaginationInput: SearchPaginationInput) => {
   const data = searchPaginationInput;
   const uri = `${FINDING_URI}/${findingId}/also-detected-on/search`;

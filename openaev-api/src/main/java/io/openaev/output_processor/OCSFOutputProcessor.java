@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,18 +43,19 @@ public class OCSFOutputProcessor extends FindingCapableOutputProcessor {
   public static final String RESOURCES = "resources";
   public static final String DATA = "data";
   public static final String METADATA = "metadata";
+  public static final String EVENT_CODE = "event_code";
   public static final String ARN = "arn";
   public static final String CLOUD = "cloud";
+  public static final String CLOUD_PARTITION = "cloud_partition";
   public static final String ACCOUNT = "account";
   public static final String REGION = "region";
-  public static final String PROVIDER = "provider";
   public static final String REMEDIATION = "remediation";
   public static final String DESC = "desc";
   public static final String REFERENCES = "references";
   public static final String UNMAPPED = "unmapped";
   public static final String COMPLIANCE = "compliance";
   public static final String STATUS_CODE = "status_code";
-  public static final String STATUS_CODE_PASS = "PASS";
+  public static final String STATUS_CODE_FAIL = "FAIL";
 
   private final AssetRepository assetRepository;
 
@@ -73,25 +75,33 @@ public class OCSFOutputProcessor extends FindingCapableOutputProcessor {
   }
 
   /**
-   * A record is a candidate Finding only if it has a title and its check did not simply "PASS".
-   * "PASS" means the resource is compliant (no misconfiguration), so turning it into a Finding
-   * would be misleading. "FAIL" and "MANUAL" (requires human review) are both kept, as well as any
-   * unrecognized/missing status_code, to fail open rather than silently drop data.
+   * A record is a candidate Finding only if its identity and outcome are explicit. PASS is
+   * compliant and is never persisted; unknown outcomes are rejected rather than silently
+   * represented as an active vulnerability.
    */
   @Override
   public boolean validate(JsonNode jsonNode) {
     JsonNode findingInfo = jsonNode.get(FINDING_INFO);
-    if (findingInfo == null || !findingInfo.hasNonNull(TITLE)) {
+    if (findingInfo == null || !nonBlank(findingInfo.get(TITLE))) {
+      return false;
+    }
+    JsonNode eventCode = jsonNode.path(METADATA).get(EVENT_CODE);
+    if (!nonBlank(eventCode)) {
       return false;
     }
     JsonNode statusCode = jsonNode.get(STATUS_CODE);
-    return statusCode == null || !STATUS_CODE_PASS.equalsIgnoreCase(statusCode.asText());
+    if (!nonBlank(statusCode)) {
+      return false;
+    }
+    return STATUS_CODE_FAIL.equals(statusCode.asText().toUpperCase(Locale.ROOT));
   }
 
-  /** The check's title (e.g. "S3 Bucket Server Access Logging Disabled") is the finding value. */
+  /**
+   * The immutable Prowler rule id is the Finding value; titles may change between product versions.
+   */
   @Override
   public String toFindingValue(JsonNode jsonNode) {
-    return jsonNode.get(FINDING_INFO).get(TITLE).asText();
+    return jsonNode.path(METADATA).get(EVENT_CODE).asText();
   }
 
   /**
@@ -135,9 +145,11 @@ public class OCSFOutputProcessor extends FindingCapableOutputProcessor {
       if (cloud.hasNonNull(REGION)) {
         finding.setCloudRegion(cloud.get(REGION).asText());
       }
-      if (cloud.hasNonNull(PROVIDER)) {
-        finding.setCloudProvider(cloud.get(PROVIDER).asText());
-      }
+    }
+
+    String provider = cloudProvider(jsonNode);
+    if (provider != null) {
+      finding.setCloudProvider(provider);
     }
 
     String remediation = remediationText(jsonNode);
@@ -162,6 +174,32 @@ public class OCSFOutputProcessor extends FindingCapableOutputProcessor {
       return null;
     }
     return resources.get(0);
+  }
+
+  /**
+   * Resolves the provider from resource cloud partitions. Conflicting values are represented as
+   * unknown instead of selecting an arbitrary resource and masking the conflict.
+   */
+  String cloudProvider(JsonNode jsonNode) {
+    JsonNode resources = jsonNode.get(RESOURCES);
+    if (resources == null || !resources.isArray()) {
+      return null;
+    }
+    Set<String> partitions = new LinkedHashSet<>();
+    for (JsonNode resource : resources) {
+      JsonNode partition = resource.get(CLOUD_PARTITION);
+      if (nonBlank(partition)) {
+        partitions.add(partition.asText().trim().toLowerCase(Locale.ROOT));
+      }
+    }
+    if (partitions.isEmpty()) {
+      return null;
+    }
+    return partitions.size() == 1 ? partitions.iterator().next() : "unknown";
+  }
+
+  private static boolean nonBlank(JsonNode node) {
+    return node != null && !node.isNull() && !node.asText().isBlank();
   }
 
   /**

@@ -35,6 +35,10 @@ class OCSFOutputProcessorTest {
         "severity": "Low",
         "status_code": "FAIL",
         "finding_info": { "title": "Check if IAM Access Analyzer is enabled", "uid": "finding-1" },
+        "metadata": {
+          "event_code": "iam_access_analyzer_enabled",
+          "product": { "uid": "prowler", "name": "Prowler" }
+        },
         "resources": [
           {
             "cloud_partition": "aws",
@@ -64,12 +68,33 @@ class OCSFOutputProcessorTest {
     }
 
     @Test
-    @DisplayName("Should accept a MANUAL record (requires human review)")
-    void shouldAcceptManualRecord() throws Exception {
+    @DisplayName("Should reject a MANUAL record because only failures become findings")
+    void shouldRejectManualRecord() throws Exception {
       JsonNode node =
           objectMapper.readTree(
-              "{\"status_code\": \"MANUAL\", \"finding_info\": {\"title\": \"Check X\"}}");
-      assertTrue(processor.validate(node));
+              """
+              {
+                "status_code": "MANUAL",
+                "metadata": {"event_code": "check_x"},
+                "finding_info": {"title": "Check X"}
+              }
+              """);
+      assertFalse(processor.validate(node));
+    }
+
+    @Test
+    @DisplayName("Should reject a MUTED record because only failures become findings")
+    void shouldRejectMutedRecord() throws Exception {
+      JsonNode node =
+          objectMapper.readTree(
+              """
+              {
+                "status_code": "MUTED",
+                "metadata": {"event_code": "check_x"},
+                "finding_info": {"title": "Check X"}
+              }
+              """);
+      assertFalse(processor.validate(node));
     }
 
     @Test
@@ -77,14 +102,46 @@ class OCSFOutputProcessorTest {
     void shouldRejectPassRecord() throws Exception {
       JsonNode node =
           objectMapper.readTree(
-              "{\"status_code\": \"PASS\", \"finding_info\": {\"title\": \"Check X\"}}");
+              """
+              {
+                "status_code": "PASS",
+                "metadata": {"event_code": "check_x"},
+                "finding_info": {"title": "Check X"}
+              }
+              """);
       assertFalse(processor.validate(node));
     }
 
     @Test
     @DisplayName("Should reject a record missing finding_info.title")
     void shouldRejectRecordMissingTitle() throws Exception {
-      JsonNode node = objectMapper.readTree("{\"status_code\": \"FAIL\"}");
+      JsonNode node =
+          objectMapper.readTree(
+              "{\"status_code\": \"FAIL\", \"metadata\": {\"event_code\": \"check_x\"}}");
+      assertFalse(processor.validate(node));
+    }
+
+    @Test
+    @DisplayName("Should reject an unknown outcome")
+    void shouldRejectUnknownOutcome() throws Exception {
+      JsonNode node =
+          objectMapper.readTree(
+              """
+              {
+                "status_code": "UNKNOWN",
+                "metadata": {"event_code": "check_x"},
+                "finding_info": {"title": "Check X"}
+              }
+              """);
+      assertFalse(processor.validate(node));
+    }
+
+    @Test
+    @DisplayName("Should reject a record missing metadata.event_code")
+    void shouldRejectRecordMissingEventCode() throws Exception {
+      JsonNode node =
+          objectMapper.readTree(
+              "{\"status_code\": \"FAIL\", \"finding_info\": {\"title\": \"Check X\"}}");
       assertFalse(processor.validate(node));
     }
   }
@@ -156,13 +213,53 @@ class OCSFOutputProcessorTest {
     }
 
     @Test
-    @DisplayName(
-        "Should read the cloud provider (used by the frontend to label e.g. \"Cloud (AWS)\")")
-    void shouldReadCloudProvider() throws Exception {
+    @DisplayName("Should read the cloud provider from resources[].cloud_partition")
+    void shouldReadCloudProviderFromResourcePartition() throws Exception {
       JsonNode node = objectMapper.readTree(AWS_FAIL_SAMPLE);
       Finding finding = new Finding();
       processor.enrichFinding(node, finding);
       assertEquals("aws", finding.getCloudProvider());
+    }
+
+    @Test
+    @DisplayName("Should not read the provider from cloud.provider")
+    void shouldNotReadProviderFromCloudObject() throws Exception {
+      JsonNode node =
+          objectMapper.readTree(
+              "{\"resources\": [{\"uid\": \"resource-1\"}], \"cloud\": {\"provider\": \"aws\"}}");
+      Finding finding = new Finding();
+      processor.enrichFinding(node, finding);
+      assertNull(finding.getCloudProvider());
+    }
+
+    @Test
+    @DisplayName("Should expose conflicting resource partitions as unknown")
+    void shouldExposeConflictingResourcePartitions() throws Exception {
+      JsonNode node =
+          objectMapper.readTree(
+              """
+              {
+                "resources": [
+                  {"uid": "resource-1", "cloud_partition": "aws"},
+                  {"uid": "resource-2", "cloud_partition": "azure"}
+                ]
+              }
+              """);
+      Finding finding = new Finding();
+      processor.enrichFinding(node, finding);
+      assertEquals("unknown", finding.getCloudProvider());
+    }
+  }
+
+  @Nested
+  @DisplayName("toFindingValue")
+  class ToFindingValue {
+
+    @Test
+    @DisplayName("Should use metadata.event_code instead of the mutable title")
+    void shouldUseEventCode() throws Exception {
+      JsonNode node = objectMapper.readTree(AWS_FAIL_SAMPLE);
+      assertEquals("iam_access_analyzer_enabled", processor.toFindingValue(node));
     }
   }
 

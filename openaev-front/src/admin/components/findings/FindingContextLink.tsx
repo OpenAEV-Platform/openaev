@@ -9,7 +9,11 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 interface Props {
-  finding: RelatedFindingOutput;
+  finding: {
+    finding_inject?: RelatedFindingOutput['finding_inject'];
+    finding_simulation?: RelatedFindingOutput['finding_simulation'];
+    finding_scenario?: RelatedFindingOutput['finding_scenario'];
+  };
   type: string;
 }
 

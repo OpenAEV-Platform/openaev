@@ -3,6 +3,7 @@ package io.openaev.rest.finding;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.finding.form.FindingTriageBulkInput;
@@ -44,7 +45,7 @@ public class FindingTriageApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<FindingTriageOutput> getFindingTriage(
-      @PathVariable @NotNull final String id) {
+      TxCtx ctx, @PathVariable @NotNull final String id) {
     return ResponseEntity.ok(findingTriageService.getCurrentStatus(id));
   }
 
@@ -58,6 +59,7 @@ public class FindingTriageApi extends RestBehavior {
       actionPerformed = Action.TRIAGE,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<FindingTriageOutput> triageFinding(
+      TxCtx ctx,
       @PathVariable @NotNull final String id,
       @RequestBody @Valid @NotNull final FindingTriageInput input) {
     return ResponseEntity.ok(
@@ -73,7 +75,7 @@ public class FindingTriageApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.TRIAGE, resourceType = ResourceType.FINDING)
   public ResponseEntity<List<FindingTriageBulkItemOutput>> triageFindingsBulk(
-      @RequestBody @Valid @NotNull final FindingTriageBulkInput input) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final FindingTriageBulkInput input) {
     return ResponseEntity.ok(
         findingTriageService.triageBulk(
             input.getFindingIds(), input.getStatus(), input.getJustification()));
@@ -86,7 +88,7 @@ public class FindingTriageApi extends RestBehavior {
       actionPerformed = Action.TRIAGE,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<List<FindingTriageHistoryOutput>> findingTriageHistory(
-      @PathVariable @NotNull final String id) {
+      TxCtx ctx, @PathVariable @NotNull final String id) {
     return ResponseEntity.ok(findingTriageService.history(id));
   }
 }

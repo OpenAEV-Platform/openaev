@@ -13,8 +13,8 @@ import io.openaev.rest.finding.form.FindingInput;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.service.settings.TenantSettingsService;
+import io.openaev.utils.mapper.FindingMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -122,7 +122,7 @@ public class FindingApi extends RestBehavior {
   @GetMapping(TENANT_FINDING_URI + "/settings/archive-days")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @Transactional(readOnly = true)
-  public FindingArchiveSettingsOutput findArchiveDays(@PathVariable String tenantId) {
+  public FindingArchiveSettingsOutput findArchiveDays(TxCtx ctx, @PathVariable String tenantId) {
     return new FindingArchiveSettingsOutput(
         this.tenantSettingsService.findFindingArchiveDays(tenantId));
   }
@@ -131,6 +131,7 @@ public class FindingApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   public FindingArchiveSettingsOutput updateArchiveDays(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @RequestBody @Valid @NotNull final FindingArchiveSettingsInput input) {
     this.tenantSettingsService.updateFindingArchiveDays(tenantId, input.getArchiveDays());

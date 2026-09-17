@@ -3,6 +3,7 @@ package io.openaev.rest.finding;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.finding.form.FindingArchiveBulkInput;
@@ -35,7 +36,7 @@ public class FindingArchiveApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.ARCHIVE, resourceType = ResourceType.FINDING)
   public ResponseEntity<List<FindingArchiveBulkItemOutput>> archiveFindingsBulk(
-      @RequestBody @Valid @NotNull final FindingArchiveBulkInput input) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final FindingArchiveBulkInput input) {
     return ResponseEntity.ok(
         findingArchiveService.archiveBulk(input.getFindingIds(), input.getArchived()));
   }

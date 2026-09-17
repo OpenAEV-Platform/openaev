@@ -177,6 +177,11 @@ export interface AgentTarget {
 
 export interface AggregatedFindingOutput {
   /**
+   * Time this finding was manually archived (bulk 'Archive' action), null if it has never been manually archived. Combined with the tenant's archive-days setting on the frontend to compute the 'Archived' badge.
+   * @format date-time
+   */
+  finding_archived_at?: string;
+  /**
    * Asset groups linked to assets
    * @uniqueItems true
    */
@@ -186,16 +191,43 @@ export interface AggregatedFindingOutput {
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
+  /** Cloud account identifier the resource belongs to (OCSF findings only) */
+  finding_cloud_account?: string;
+  /** Cloud provider the resource belongs to, e.g. "aws", "azure", "gcp", "kubernetes" (OCSF findings only) */
+  finding_cloud_provider?: string;
+  /** Cloud region of the resource (OCSF findings only) */
+  finding_cloud_region?: string;
+  /** Comma-joined violated compliance requirements (OCSF findings only) */
+  finding_compliance?: string;
   /**
    * First time the finding was seen
    * @format date-time
    */
   finding_created_at: string;
   /**
+   * Last time a user acted on this finding (triage status change, comment), null if no human action has ever been recorded
+   * @format date-time
+   */
+  finding_human_updated_at?: string;
+  /**
    * Finding Id
    * @minLength 1
    */
   finding_id: string;
+  /** Remediation guidance for the cloud misconfiguration (OCSF findings only) */
+  finding_remediation?: string;
+  /** Scanned cloud resource identifier, e.g. an S3 bucket ARN (OCSF findings only) */
+  finding_resource?: string;
+  /** Severity of the cloud misconfiguration (OCSF findings only) */
+  finding_severity?: string;
+  /** Injector that produced this finding (null if the finding was created manually, e.g. via the API, without a real inject/injector behind it) */
+  finding_source?: InjectorSimple;
+  /** Current triage status of the finding (UNTRIAGED if no triage decision has been made yet) */
+  finding_triage_status:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -224,7 +256,8 @@ export interface AggregatedFindingOutput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /**
    * Last time the finding was seen
    * @format date-time
@@ -2979,7 +3012,8 @@ export interface ContractOutputElement {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /** @format date-time */
   contract_output_element_updated_at: string;
   listened?: boolean;
@@ -3036,7 +3070,8 @@ export interface ContractOutputElementInput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
 }
 
 /** Represents the rules for parsing the output of an execution. */
@@ -3089,7 +3124,8 @@ export interface ContractOutputElementSimple {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
 }
 
 export interface CreateConnectorInstanceInput {
@@ -3410,6 +3446,12 @@ export interface CredentialOutput {
   credential_tags_ids?: string[];
   /** Credential type */
   credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
+}
+
+export interface CsrfToken {
+  headerName?: string;
+  parameterName?: string;
+  token?: string;
 }
 
 export interface CustomDashboard {
@@ -5761,6 +5803,54 @@ export interface FilterGroup {
   mode: "and" | "or";
 }
 
+export interface FindingArchiveBulkInput {
+  archived: boolean;
+  /** @minItems 1 */
+  finding_ids: string[];
+}
+
+export interface FindingArchiveBulkItemOutput {
+  error?: string;
+  /** @format date-time */
+  finding_archived_at?: string;
+  finding_id?: string;
+  success?: boolean;
+}
+
+export interface FindingArchiveSettingsInput {
+  /**
+   * @format int32
+   * @min 1
+   */
+  finding_archive_days: number;
+}
+
+export interface FindingArchiveSettingsOutput {
+  /** @format int32 */
+  finding_archive_days?: number;
+}
+
+export interface FindingCommentInput {
+  /**
+   * @minLength 0
+   * @maxLength 4000
+   */
+  finding_comment_content: string;
+}
+
+export interface FindingCommentOutput {
+  finding_comment_author_firstname?: string;
+  finding_comment_author_id?: string;
+  finding_comment_author_lastname?: string;
+  finding_comment_content?: string;
+  /** @format date-time */
+  finding_comment_created_at?: string;
+  finding_comment_finding_id?: string;
+  finding_comment_id?: string;
+  /** @format date-time */
+  finding_comment_updated_at?: string;
+}
+
 export interface FindingInput {
   /** @minLength 1 */
   finding_field: string;
@@ -5790,9 +5880,99 @@ export interface FindingInput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /** @minLength 1 */
   finding_value: string;
+}
+
+export interface FindingLocationOutput {
+  finding_location?: string;
+  /** @format date-time */
+  finding_location_first_seen?: string;
+  finding_location_key?: string;
+  /** @format date-time */
+  finding_location_last_seen?: string;
+  /** @format int64 */
+  finding_location_occurrences?: number;
+  finding_location_severity?: string;
+  finding_location_type?: "ASSET" | "RESOURCE" | "USER" | "TEAM";
+}
+
+export interface FindingOccurrenceOutput {
+  /** @uniqueItems true */
+  finding_asset_groups?: AssetGroupSimple[];
+  /** @uniqueItems true */
+  finding_assets?: EndpointSimple[];
+  finding_categories?: string[];
+  finding_cloud_account?: string;
+  finding_cloud_provider?: string;
+  finding_cloud_region?: string;
+  finding_compliance?: string;
+  /** @format date-time */
+  finding_created_at?: string;
+  finding_description?: string;
+  finding_evidence?: string;
+  finding_evidence_scope?: "INDIVIDUAL" | "GROUP";
+  finding_id?: string;
+  finding_inject?: InjectSimple;
+  finding_inject_id?: string;
+  finding_location?: string;
+  finding_location_key?: string;
+  finding_location_type?: "ASSET" | "RESOURCE" | "USER" | "TEAM";
+  finding_mitre_attack?: string[];
+  finding_outcome?: string;
+  finding_raw_data?: string;
+  finding_remediation?: string;
+  finding_resource?: string;
+  finding_resource_name?: string;
+  finding_resource_service?: string;
+  finding_resource_snapshot?: string;
+  finding_resource_type?: string;
+  finding_risk_details?: string;
+  finding_scan_id?: string;
+  finding_scenario?: ScenarioSimple;
+  finding_severity?: string;
+  /** @format int32 */
+  finding_severity_id?: number;
+  finding_simulation?: ExerciseSimple;
+  finding_source_finding_id?: string;
+  finding_status_detail?: string;
+  finding_target_role?: "EXECUTOR" | "TARGET" | "UNKNOWN";
+  /** @uniqueItems true */
+  finding_teams?: TargetSimple[];
+  finding_title?: string;
+  finding_type?:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature"
+    | "ocsf";
+  /** @format date-time */
+  finding_updated_at?: string;
+  /** @uniqueItems true */
+  finding_users?: TargetSimple[];
+  finding_value?: string;
 }
 
 export interface FindingOutput {
@@ -5866,7 +6046,8 @@ export interface FindingOutput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /**
    * Last time the finding was seen
    * @format date-time
@@ -5874,6 +6055,105 @@ export interface FindingOutput {
   finding_updated_at: string;
   /** User ids linked to the finding */
   finding_users?: string[];
+  /**
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
+   * @minLength 1
+   */
+  finding_value: string;
+}
+
+export interface FindingSiblingOutput {
+  /** Whether this sibling is currently archived (manually, or by re-detection timeout) - always included per Decision #10, never hidden from this panel. */
+  finding_archived?: boolean;
+  /**
+   * Time this finding was manually archived (bulk 'Archive' action), null if it has never been manually archived. Combined with the tenant's archive-days setting on the frontend to compute the 'Archived' badge.
+   * @format date-time
+   */
+  finding_archived_at?: string;
+  /**
+   * Asset groups linked to assets
+   * @uniqueItems true
+   */
+  finding_asset_groups?: AssetGroupSimple[];
+  /**
+   * Assets linked to the finding (any asset type, not only endpoints)
+   * @uniqueItems true
+   */
+  finding_assets: EndpointSimple[];
+  /** Cloud account identifier the resource belongs to (OCSF findings only) */
+  finding_cloud_account?: string;
+  /** Cloud provider the resource belongs to, e.g. "aws", "azure", "gcp", "kubernetes" (OCSF findings only) */
+  finding_cloud_provider?: string;
+  /** Cloud region of the resource (OCSF findings only) */
+  finding_cloud_region?: string;
+  /** Comma-joined violated compliance requirements (OCSF findings only) */
+  finding_compliance?: string;
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
+  finding_created_at: string;
+  /**
+   * Last time a user acted on this finding (triage status change, comment), null if no human action has ever been recorded
+   * @format date-time
+   */
+  finding_human_updated_at?: string;
+  /**
+   * Finding Id
+   * @minLength 1
+   */
+  finding_id: string;
+  /** The single asset that is this sibling Finding's Location (Triforce identity, Phase 1). Null for findings not yet covered by the Location backfill (multi-asset or unlocated finding types - see Finding#locationAsset). */
+  finding_location?: EndpointSimple;
+  /** Remediation guidance for the cloud misconfiguration (OCSF findings only) */
+  finding_remediation?: string;
+  /** Scanned cloud resource identifier, e.g. an S3 bucket ARN (OCSF findings only) */
+  finding_resource?: string;
+  /** Severity of the cloud misconfiguration (OCSF findings only) */
+  finding_severity?: string;
+  /** Injector that produced this finding (null if the finding was created manually, e.g. via the API, without a real inject/injector behind it) */
+  finding_source?: InjectorSimple;
+  /** Current triage status of the finding (UNTRIAGED if no triage decision has been made yet) */
+  finding_triage_status:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
+  /**
+   * Represents the data type being extracted.
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
+   */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature"
+    | "ocsf";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at: string;
   /**
    * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
@@ -5939,7 +6219,8 @@ export interface FindingSummaryOutput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /**
    * Number of distinct impacted persons across all occurrences
    * @format int64
@@ -5947,6 +6228,71 @@ export interface FindingSummaryOutput {
   finding_users_count?: number;
   /** Finding value, masked when the finding type holds secret material */
   finding_value?: string;
+}
+
+export interface FindingTriageBulkInput {
+  /** @minItems 1 */
+  finding_ids: string[];
+  /**
+   * @minLength 10
+   * @maxLength 4000
+   */
+  justification: string;
+  status: "UNTRIAGED" | "CONFIRMED" | "FALSE_POSITIVE" | "RISK_ACCEPTED";
+}
+
+export interface FindingTriageBulkItemOutput {
+  error?: string;
+  finding_id?: string;
+  status?: "UNTRIAGED" | "CONFIRMED" | "FALSE_POSITIVE" | "RISK_ACCEPTED";
+  success?: boolean;
+}
+
+export interface FindingTriageHistoryOutput {
+  finding_triage_history_action?: "TRIAGE_CHANGE" | "ARCHIVE" | "UNARCHIVE";
+  finding_triage_history_actor_firstname?: string;
+  finding_triage_history_actor_id?: string;
+  finding_triage_history_actor_lastname?: string;
+  /** @format date-time */
+  finding_triage_history_created_at?: string;
+  finding_triage_history_finding_id?: string;
+  finding_triage_history_from_status?:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
+  finding_triage_history_id?: string;
+  finding_triage_history_is_system?: boolean;
+  finding_triage_history_justification?: string;
+  finding_triage_history_to_status?:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
+  system?: boolean;
+}
+
+export interface FindingTriageInput {
+  /**
+   * @minLength 10
+   * @maxLength 4000
+   */
+  justification: string;
+  status: "UNTRIAGED" | "CONFIRMED" | "FALSE_POSITIVE" | "RISK_ACCEPTED";
+}
+
+export interface FindingTriageOutput {
+  /** @format date-time */
+  finding_triage_created_at?: string;
+  finding_triage_finding_id?: string;
+  finding_triage_id?: string;
+  finding_triage_status?:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
+  /** @format date-time */
+  finding_triage_updated_at?: string;
 }
 
 export interface FlagInput {
@@ -6989,6 +7335,7 @@ export interface InjectorContract {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature"
+    | "ocsf"
   )[];
   injector_contract_tags?: string[];
   /** @format date-time */
@@ -7269,6 +7616,21 @@ export interface InjectorOutput {
 export interface InjectorRegistration {
   connection?: BrokerConnectionInfo;
   listen?: string;
+}
+
+export interface InjectorSimple {
+  /**
+   * Injector Id
+   * @minLength 1
+   */
+  injector_id: string;
+  /**
+   * Injector Name
+   * @minLength 1
+   */
+  injector_name: string;
+  /** Injector Type */
+  injector_type?: string;
 }
 
 export interface InjectorUpdateInput {
@@ -7993,6 +8355,7 @@ export interface NotificationTriggerInput {
     | "PHISHING_LANDING_PAGE"
     | "PHISHING_EMAIL_TEMPLATE"
     | "FINDING"
+    | "FINDING_COMMENT"
     | "DASHBOARD"
     | "REPORT"
     | "PLATFORM_SETTING"
@@ -8101,6 +8464,7 @@ export interface NotificationTriggerOutput {
     | "PHISHING_LANDING_PAGE"
     | "PHISHING_EMAIL_TEMPLATE"
     | "FINDING"
+    | "FINDING_COMMENT"
     | "DASHBOARD"
     | "REPORT"
     | "PLATFORM_SETTING"
@@ -8519,6 +8883,44 @@ export interface PageEndpointTargetOutput {
 
 export interface PageExerciseSimple {
   content?: ExerciseSimple[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageFindingOccurrenceOutput {
+  content?: FindingOccurrenceOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageFindingSiblingOutput {
+  content?: FindingSiblingOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -9013,6 +9415,25 @@ export interface PageRoleOutput {
 
 export interface PageSecurityPlatform {
   content?: SecurityPlatform[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageStableFindingOutput {
+  content?: StableFindingOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10190,6 +10611,11 @@ export interface RelatedEntityOutput {
 
 export interface RelatedFindingOutput {
   /**
+   * Time this finding was manually archived (bulk 'Archive' action), null if it has never been manually archived. Combined with the tenant's archive-days setting on the frontend to compute the 'Archived' badge.
+   * @format date-time
+   */
+  finding_archived_at?: string;
+  /**
    * Asset groups linked to assets
    * @uniqueItems true
    */
@@ -10199,11 +10625,24 @@ export interface RelatedFindingOutput {
    * @uniqueItems true
    */
   finding_assets: EndpointSimple[];
+  /** Cloud account identifier the resource belongs to (OCSF findings only) */
+  finding_cloud_account?: string;
+  /** Cloud provider the resource belongs to, e.g. "aws", "azure", "gcp", "kubernetes" (OCSF findings only) */
+  finding_cloud_provider?: string;
+  /** Cloud region of the resource (OCSF findings only) */
+  finding_cloud_region?: string;
+  /** Comma-joined violated compliance requirements (OCSF findings only) */
+  finding_compliance?: string;
   /**
    * First time the finding was seen
    * @format date-time
    */
   finding_created_at: string;
+  /**
+   * Last time a user acted on this finding (triage status change, comment), null if no human action has ever been recorded
+   * @format date-time
+   */
+  finding_human_updated_at?: string;
   /**
    * Finding Id
    * @minLength 1
@@ -10211,15 +10650,29 @@ export interface RelatedFindingOutput {
   finding_id: string;
   /** Inject linked to finding */
   finding_inject: InjectSimple;
+  /** Remediation guidance for the cloud misconfiguration (OCSF findings only) */
+  finding_remediation?: string;
+  /** Scanned cloud resource identifier, e.g. an S3 bucket ARN (OCSF findings only) */
+  finding_resource?: string;
   /** Scenario linked to inject */
   finding_scenario?: ScenarioSimple;
+  /** Severity of the cloud misconfiguration (OCSF findings only) */
+  finding_severity?: string;
   /** Simulation linked to inject */
   finding_simulation?: ExerciseSimple;
+  /** Injector that produced this finding (null if the finding was created manually, e.g. via the API, without a real inject/injector behind it) */
+  finding_source?: InjectorSimple;
   /**
    * Teams linked to the finding occurrence
    * @uniqueItems true
    */
   finding_teams?: TargetSimple[];
+  /** Current triage status of the finding (UNTRIAGED if no triage decision has been made yet) */
+  finding_triage_status:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -10248,7 +10701,8 @@ export interface RelatedFindingOutput {
     | "account_with_password_not_required"
     | "asreproastable_account"
     | "kerberoastable_account"
-    | "expectation_signature";
+    | "expectation_signature"
+    | "ocsf";
   /**
    * Last time the finding was seen
    * @format date-time
@@ -10481,6 +10935,8 @@ export interface RoleInput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "MANAGE_FINDING_TRIAGE"
+    | "MANAGE_FINDING_ARCHIVE"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -10562,6 +11018,8 @@ export interface RoleOutput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "MANAGE_FINDING_TRIAGE"
+    | "MANAGE_FINDING_ARCHIVE"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -11540,6 +11998,162 @@ export interface SortObject {
   property?: string;
 }
 
+export interface StableFindingOutput {
+  finding_aggregation_category?:
+    | "SURFACE_REACHABILITY"
+    | "IDENTITIES"
+    | "CREDENTIAL_ACCESS"
+    | "PRIVILEGE_TRUST_STRUCTURE"
+    | "EXPLOITABLE_WEAKNESSES"
+    | "RESOURCES"
+    | "CONFIGURATION_POSTURE"
+    | "INFORMATIVE";
+  /** @format date-time */
+  finding_archived_at?: string;
+  /** @uniqueItems true */
+  finding_asset_groups?: AssetGroupSimple[];
+  /** @format int64 */
+  finding_asset_groups_count?: number;
+  /** @uniqueItems true */
+  finding_assets?: EndpointSimple[];
+  /** @format int64 */
+  finding_assets_count?: number;
+  finding_categories?: string[];
+  finding_category?: "LOCALIZED" | "INFORMATIVE";
+  finding_cloud_account?: string;
+  finding_cloud_provider?: string;
+  finding_cloud_region?: string;
+  finding_compliance?: string;
+  /** @format date-time */
+  finding_created_at?: string;
+  finding_description?: string;
+  finding_evidence?: string;
+  finding_field?: string;
+  /** @format date-time */
+  finding_human_updated_at?: string;
+  finding_id?: string;
+  finding_inject?: InjectSimple;
+  finding_inject_id?: string;
+  finding_legacy_id?: string;
+  finding_lifecycle?: "ACTIVE" | "REVIEW_REQUIRED" | "MUTED";
+  finding_location?: string;
+  finding_location_key?: string;
+  finding_location_type?: "ASSET" | "RESOURCE" | "USER" | "TEAM";
+  finding_mitre_attack?: string[];
+  finding_name?: string;
+  /** @format int64 */
+  finding_occurrences?: number;
+  finding_outcome?: string;
+  finding_raw_data?: string;
+  finding_remediation?: string;
+  finding_resource?: string;
+  finding_resource_name?: string;
+  finding_resource_service?: string;
+  finding_resource_type?: string;
+  finding_resource_uid?: string;
+  finding_risk_details?: string;
+  finding_scenario?: ScenarioSimple;
+  finding_severity?: string;
+  /** @format int32 */
+  finding_severity_id?: number;
+  finding_simulation?: ExerciseSimple;
+  finding_source?: InjectorSimple;
+  finding_source_finding_id?: string;
+  finding_status_detail?: string;
+  /** @uniqueItems true */
+  finding_tags?: string[];
+  /** @uniqueItems true */
+  finding_teams?: TargetSimple[];
+  /** @format int64 */
+  finding_teams_count?: number;
+  finding_title?: string;
+  finding_triage_status?:
+    | "UNTRIAGED"
+    | "CONFIRMED"
+    | "FALSE_POSITIVE"
+    | "RISK_ACCEPTED";
+  finding_type?:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature"
+    | "ocsf";
+  /** @format date-time */
+  finding_updated_at?: string;
+  /** @uniqueItems true */
+  finding_users?: TargetSimple[];
+  /** @format int64 */
+  finding_users_count?: number;
+  finding_value?: string;
+}
+
+export interface StableFindingSummaryOutput {
+  /** @format int64 */
+  finding_asset_groups_count?: number;
+  /** @format int64 */
+  finding_assets_count?: number;
+  /** @format date-time */
+  finding_first_seen?: string;
+  finding_id?: string;
+  /** @format date-time */
+  finding_last_seen?: string;
+  /** @format int64 */
+  finding_locations_count?: number;
+  /** @format int64 */
+  finding_occurrences?: number;
+  /** @format int64 */
+  finding_teams_count?: number;
+  finding_type?:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature"
+    | "ocsf";
+  /** @format int64 */
+  finding_users_count?: number;
+  finding_value?: string;
+}
+
 export interface StatusPayload {
   dns_resolution_hostname?: string;
   executable_file?: StatusPayloadDocument;
@@ -12374,6 +12988,7 @@ export interface ThreatArsenalActionFullOutput {
     | "asreproastable_account"
     | "kerberoastable_account"
     | "expectation_signature"
+    | "ocsf"
   )[];
   /** Action source origin */
   action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
@@ -12699,6 +13314,8 @@ export interface User {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "MANAGE_FINDING_TRIAGE"
+    | "MANAGE_FINDING_ARCHIVE"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"

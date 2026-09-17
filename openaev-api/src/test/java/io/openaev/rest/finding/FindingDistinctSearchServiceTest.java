@@ -77,7 +77,7 @@ class FindingDistinctSearchServiceTest {
 
       when(findingRepository.findAll(any(Specification.class))).thenReturn(List.of());
       when(findingTriageRepository.findByFinding_IdIn(anyList())).thenReturn(List.of());
-      when(findingMapper.toAggregatedFindingOutput(any(), anyList(), anyMap()))
+      when(findingMapper.toAggregatedFindingOutput(any(), anyList(), any(), any(), anyMap()))
           .thenReturn(AggregatedFindingOutput.builder().build());
 
       // Act
@@ -103,7 +103,7 @@ class FindingDistinctSearchServiceTest {
 
       when(findingRepository.findAll(any(Specification.class))).thenReturn(List.of());
       when(findingTriageRepository.findByFinding_IdIn(anyList())).thenReturn(List.of(triage));
-      when(findingMapper.toAggregatedFindingOutput(any(), anyList(), anyMap()))
+      when(findingMapper.toAggregatedFindingOutput(any(), anyList(), any(), any(), anyMap()))
           .thenReturn(AggregatedFindingOutput.builder().build());
 
       // Act

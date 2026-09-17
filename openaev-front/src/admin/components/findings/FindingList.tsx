@@ -1,4 +1,5 @@
-import { Box, Button, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
+import { GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
+import { Box, Button, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { Binoculars, Cog } from 'mdi-material-ui';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -22,7 +23,11 @@ import { useHelper } from '../../../store';
 import { type AggregatedFindingOutput, type FindingArchiveBulkItemOutput, type FindingTriageBulkItemOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import InjectIcon from '../common/injects/InjectIcon';
+import { getFindingAggregationCategory } from './findingAggregationCategories';
 import FindingBulkActionBar from './FindingBulkActionBar';
+import FindingCard from './FindingCard';
+import FindingHero from './FindingHero';
+import FindingSidebar from './FindingSidebar';
 import FindingTriageControl from './FindingTriageControl';
 import getFindingTypeLabel from './FindingTypeLabel';
 
@@ -35,12 +40,26 @@ const ARCHIVED_FILTER_KEY = 'finding_archived';
 
 type TriageStatus = NonNullable<AggregatedFindingOutput['finding_triage_status']>;
 type ArchiveTab = 'active' | 'archived';
+type ViewMode = 'grid' | 'list';
+type StableFindingListItem = AggregatedFindingOutput & {
+  finding_legacy_id?: string;
+  finding_location?: string;
+  finding_location_key?: string;
+  finding_aggregation_category?: string;
+};
+
+const VIEW_MODE_STORAGE_KEY = 'findings:view-mode';
+
+const readViewMode = (): ViewMode => {
+  if (typeof window === 'undefined') return 'list';
+  return window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'list';
+};
 
 interface Props {
-  searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
+  searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<StableFindingListItem> }>;
   filterLocalStorageKey: string;
   contextId?: string;
-  // Column fields to hide (e.g. ['finding_asset_groups']) — defaults to showing all columns.
+  // Column fields to hide — defaults to showing all columns.
   hiddenFields?: string[];
   // Compact mode for embedding in a narrow container (e.g. the attack-path drawer): hides the
   // search/filters/pagination top bar. Defaults to false so the full-page usage is unchanged.
@@ -53,20 +72,21 @@ interface Props {
 }
 
 const inlineStyles: Record<string, CSSProperties> = ({
-  finding_type: { width: '11%' },
-  finding_value: { width: '20%' },
-  finding_assets: { width: '14%' },
-  finding_asset_groups: { width: '12%' },
-  finding_source: { width: '9%' },
-  finding_created_at: { width: '12%' },
-  finding_updated_at: { width: '12%' },
-  finding_triage_status: { width: '9%' },
+  finding_type: { width: '10%' },
+  finding_aggregation_category: { width: '14%' },
+  finding_value: { width: '18%' },
+  finding_assets: { width: '20%' },
+  finding_source: { width: '8%' },
+  finding_created_at: { width: '10%' },
+  finding_updated_at: { width: '10%' },
+  finding_triage_status: { width: '10%' },
 });
 
 const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false, showArchiveTabs = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
+  const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
 
   const { user } = useHelper((helper: UserHelper) => ({ user: helper.getMe() }));
 
@@ -97,16 +117,15 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
 
   const availableFilterNames = [
     'finding_type',
+    'finding_aggregation_category',
     'finding_created_at',
     'finding_updated_at',
     'finding_human_updated_at',
-    'finding_asset_groups',
-    'finding_assets',
     'finding_triage_status',
     'finding_source',
   ];
 
-  const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
+  const [findings, setFindings] = useState<StableFindingListItem[]>([]);
   // Total across all pages, tracked in compact mode (no pager) so we can tell the user when the list is
   // truncated instead of silently hiding findings beyond the page.
   const [total, setTotal] = useState<number>(0);
@@ -176,7 +195,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     handleToggleSelectAll,
     onToggleEntity,
     numberOfSelectedElements,
-  } = useEntityToggle<AggregatedFindingOutput>('finding', findings, total);
+  } = useEntityToggle<StableFindingListItem>('finding', findings, total);
 
   const handleArchiveTabChange = (tab: ArchiveTab) => {
     if (tab === archiveTab) return;
@@ -185,14 +204,30 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     setReloadContentCount(c => c + 1);
   };
 
+  const handleViewModeChange = (_: unknown, value: ViewMode | null) => {
+    if (!value) return;
+    setViewMode(value);
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
+  };
+
   const selectedFindingIds = () => (selectAll
     ? findings.map(f => f.finding_id).filter(id => !(id in (deSelectedElements || {})))
     : Object.keys(selectedElements));
 
   const bulkTriage = (status: TriageStatus, justification: string): Promise<FindingTriageBulkItemOutput[]> => {
-    const ids = selectedFindingIds();
-    return triageFindingsBulk(ids, status, justification).then((res: { data: FindingTriageBulkItemOutput[] }) => {
-      const successIds = new Set(res.data.filter(r => r.success && r.finding_id).map(r => r.finding_id));
+    const selectedIds = new Set(selectedFindingIds());
+    const legacyToStableId = new Map(
+      findings
+        .filter(f => selectedIds.has(f.finding_id) && f.finding_legacy_id)
+        .map(f => [f.finding_legacy_id as string, f.finding_id]),
+    );
+    return triageFindingsBulk([...legacyToStableId.keys()], status, justification).then((res: { data: FindingTriageBulkItemOutput[] }) => {
+      const successIds = new Set(
+        res.data
+          .filter(r => r.success && r.finding_id)
+          .map(r => legacyToStableId.get(r.finding_id as string))
+          .filter((id): id is string => Boolean(id)),
+      );
       setFindings(current => current.map(f => (successIds.has(f.finding_id)
         ? {
             ...f,
@@ -205,12 +240,21 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   };
 
   const bulkArchive = (archived: boolean): Promise<FindingArchiveBulkItemOutput[]> => {
-    const ids = selectedFindingIds();
+    const selectedIds = new Set(selectedFindingIds());
+    const legacyToStableId = new Map(
+      findings
+        .filter(f => selectedIds.has(f.finding_id) && f.finding_legacy_id)
+        .map(f => [f.finding_legacy_id as string, f.finding_id]),
+    );
     return archiveFindingsBulk({
-      finding_ids: ids,
+      finding_ids: [...legacyToStableId.keys()],
       archived,
     }).then((res: { data: FindingArchiveBulkItemOutput[] }) => {
-      const byId = new Map(res.data.filter(r => r.success && r.finding_id).map(r => [r.finding_id, r.finding_archived_at ?? null]));
+      const byId = new Map(
+        res.data
+          .filter(r => r.success && r.finding_id)
+          .map(r => [legacyToStableId.get(r.finding_id as string), r.finding_archived_at ?? null]),
+      );
       setFindings(current => current.map(f => (byId.has(f.finding_id)
         ? {
             ...f,
@@ -238,6 +282,26 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
           {getFindingTypeLabel(t, finding.finding_type, finding.finding_cloud_provider)}
         </span>
       ),
+    },
+    {
+      field: 'finding_aggregation_category',
+      label: 'Category',
+      isSortable: true,
+      value: (finding: StableFindingListItem) => {
+        const category = getFindingAggregationCategory(finding.finding_aggregation_category);
+        const CategoryIcon = category.icon;
+        return (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.75,
+          }}
+          >
+            <CategoryIcon sx={{ fontSize: 16 }} />
+            <Typography variant="caption">{t(category.label)}</Typography>
+          </Box>
+        );
+      },
     },
     {
       field: 'finding_value',
@@ -272,35 +336,32 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     },
     {
       field: 'finding_assets',
-      label: 'Asset',
+      label: 'Location',
       isSortable: false,
-      value: (finding: AggregatedFindingOutput) => (
-        <ItemTargets
-          targets={(finding.finding_assets || []).map(asset => ({
-            target_id: asset.asset_id,
-            target_name: asset.asset_name,
-            target_type: 'ASSETS',
-            // Category + platform drive the chip glyph (taxonomy icon, or the OS brand icon
-            // for host-like endpoints) - same rendering as the asset pages.
-            target_category: asset.asset_category,
-            target_subtype: asset.endpoint_platform,
-          })) as TargetSimple[]}
-        />
-      ),
-    },
-    {
-      field: 'finding_asset_groups',
-      label: 'Asset groups',
-      isSortable: false,
-      value: (finding: AggregatedFindingOutput) => (
-        <ItemTargets
-          targets={(finding.finding_asset_groups || []).map(group => ({
-            target_id: group.asset_group_id,
-            target_name: group.asset_group_name,
-            target_type: 'ASSETS_GROUPS',
-          })) as TargetSimple[]}
-        />
-      ),
+      value: (finding: StableFindingListItem) => finding.finding_location
+        || finding.finding_location_key
+        ? (
+            <Box
+              component="span"
+              sx={{
+                fontFamily: 'monospace',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {finding.finding_location ?? finding.finding_location_key}
+            </Box>
+          )
+        : (
+            <ItemTargets
+              targets={(finding.finding_assets || []).map(asset => ({
+                target_id: asset.asset_id,
+                target_name: asset.asset_name,
+                target_type: 'ASSETS',
+                target_category: asset.asset_category,
+                target_subtype: asset.endpoint_platform,
+              })) as TargetSimple[]}
+            />
+          ),
     },
     {
       field: 'finding_source',
@@ -382,10 +443,31 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     exportData: findings,
     exportFileName: `${t('Findings')}.csv`,
   };
-  const topBarButtons = compact
+  const actions = compact
     ? null
     : (
-        <Box display="flex" gap={1} alignItems="center">
+        <>
+          {showArchiveTabs && (
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              size="small"
+              onChange={handleViewModeChange}
+              aria-label={t('View mode')}
+              sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
+            >
+              <ToggleButton value="grid" aria-label={t('Grid view')}>
+                <Tooltip title={t('Grid view')}>
+                  <GridViewOutlined fontSize="small" />
+                </Tooltip>
+              </ToggleButton>
+              <ToggleButton value="list" aria-label={t('List view')}>
+                <Tooltip title={t('List view')}>
+                  <ViewListOutlined fontSize="small" />
+                </Tooltip>
+              </ToggleButton>
+            </ToggleButtonGroup>
+          )}
           <ExportButton totalElements={total} exportProps={exportProps} />
           {user?.user_admin && (
             <>
@@ -438,144 +520,266 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
               </Popover>
             </>
           )}
-        </Box>
+        </>
       );
 
-  return (
-    <>
-      {showArchiveTabs && (
-        <Tabs
-          value={archiveTab}
-          onChange={(_e, value: ArchiveTab) => handleArchiveTabChange(value)}
-          sx={{ mb: 1 }}
-        >
-          <Tab label={t('Active')} value="active" />
-          <Tab label={t('Archived')} value="archived" />
-        </Tabs>
-      )}
-      <PaginationComponentV2
-        fetch={searchFindingsToload}
-        searchPaginationInput={searchPaginationInput}
-        setContent={setFindings}
-        entityPrefix="finding"
-        availableFilterNames={availableFilterNames}
-        queryableHelpers={queryableHelpers}
-        contextId={contextId}
-        searchEnable={!compact}
-        disableFilters={compact}
-        disablePagination={compact}
-        topBarButtons={topBarButtons}
-        reloadContentCount={reloadContentCount}
-      />
-      <List>
-        <ListItem
-          sx={{
-            textTransform: 'uppercase',
-            paddingTop: 0,
-            ...(numberOfSelectedElements > 0
-              ? {
-                  backgroundColor: 'background.accent',
-                  paddingBlock: 0.5,
-                }
-              : {}),
-          }}
-        >
-          {!compact && (
-            <ListItemIcon style={{ minWidth: 40 }}>
-              <Checkbox
-                edge="start"
-                checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+  const archiveTabs = showArchiveTabs && (
+    <Tabs
+      value={archiveTab}
+      onChange={(_e, value: ArchiveTab) => handleArchiveTabChange(value)}
+    >
+      <Tab label={t('Active')} value="active" />
+      <Tab label={t('Archived')} value="archived" />
+    </Tabs>
+  );
+
+  const pagination = (
+    <PaginationComponentV2
+      fetch={searchFindingsToload}
+      searchPaginationInput={searchPaginationInput}
+      setContent={setFindings}
+      entityPrefix="finding"
+      availableFilterNames={availableFilterNames}
+      queryableHelpers={queryableHelpers}
+      contextId={contextId}
+      searchEnable={!compact}
+      disableFilters={compact}
+      disablePagination={compact}
+      topBarButtons={showArchiveTabs ? null : actions}
+      leftSlot={showArchiveTabs && viewMode === 'grid'
+        ? (
+            <Tooltip title={t('Select all')}>
+              <span>
+                <Checkbox
+                  size="small"
+                  checked={selectAll}
+                  indeterminate={
+                    (!selectAll && numberOfSelectedElements > 0)
+                    || (selectAll && Object.keys(deSelectedElements ?? {}).length > 0)
+                  }
+                  onChange={handleToggleSelectAll}
+                  disabled={findings.length === 0}
+                  slotProps={{ input: { 'aria-label': t('Select all') } }}
+                />
+              </span>
+            </Tooltip>
+          )
+        : undefined}
+      reloadContentCount={reloadContentCount}
+    />
+  );
+
+  const listView = (
+    <List>
+      <ListItem
+        sx={{
+          textTransform: 'uppercase',
+          paddingTop: 0,
+          ...(numberOfSelectedElements > 0
+            ? {
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : {}),
+        }}
+      >
+        {!compact && (
+          <ListItemIcon style={{ minWidth: 40 }}>
+            <Checkbox
+              edge="start"
+              checked={selectAll}
+              disableRipple
+              onChange={handleToggleSelectAll}
+            />
+          </ListItemIcon>
+        )}
+        {numberOfSelectedElements > 0
+          ? (
+              <ListItemText
+                primary={(
+                  <FindingBulkActionBar
+                    numberOfSelectedElements={numberOfSelectedElements}
+                    onClear={handleClearSelectedElements}
+                    onTriage={bulkTriage}
+                    onArchive={bulkArchive}
+                  />
+                )}
               />
-            </ListItemIcon>
-          )}
-          {numberOfSelectedElements > 0
-            ? (
+            )
+          : (
+              <>
+                <ListItemIcon />
                 <ListItemText
                   primary={(
-                    <FindingBulkActionBar
-                      numberOfSelectedElements={numberOfSelectedElements}
-                      onClear={handleClearSelectedElements}
-                      onTriage={bulkTriage}
-                      onArchive={bulkArchive}
+                    <SortHeadersComponentV2
+                      headers={visibleHeaders}
+                      inlineStylesHeaders={visibleStyles}
+                      sortHelpers={queryableHelpers.sortHelpers}
                     />
                   )}
                 />
-              )
-            : (
-                <>
-                  <ListItemIcon />
-                  <ListItemText
-                    primary={(
-                      <SortHeadersComponentV2
-                        headers={visibleHeaders}
-                        inlineStylesHeaders={visibleStyles}
-                        sortHelpers={queryableHelpers.sortHelpers}
-                      />
-                    )}
-                  />
-                </>
-              )}
-        </ListItem>
-        {loading
-          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={visibleStyles} />
-          : findings.map(finding => (
-              <ListItem
-                key={finding.finding_id}
-                sx={{ height: 50 }}
-                divider
-                disablePadding
-                data-testid="finding-row"
-              >
-                {!compact && (
-                  <ListItemIcon
-                    style={{
-                      minWidth: 40,
-                      marginLeft: 16,
-                    }}
-                    onClick={event => onToggleEntity(finding, event)}
-                  >
-                    <Checkbox
-                      edge="start"
-                      checked={
-                        (selectAll && !(finding.finding_id in (deSelectedElements || {})))
-                        || finding.finding_id in (selectedElements || {})
-                      }
-                      disableRipple
-                    />
-                  </ListItemIcon>
-                )}
-                <ListItemButton
-                  sx={{ height: 50 }}
-                  component={Link}
-                  to={`/admin/findings/${finding.finding_id}`}
+              </>
+            )}
+      </ListItem>
+      {loading
+        ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={visibleStyles} />
+        : findings.map(finding => (
+            <ListItem
+              key={finding.finding_id}
+              sx={{ height: 50 }}
+              divider
+              disablePadding
+              data-testid="finding-row"
+            >
+              {!compact && (
+                <ListItemIcon
+                  style={{
+                    minWidth: 40,
+                    marginLeft: 16,
+                  }}
+                  onClick={event => onToggleEntity(finding, event)}
                 >
-                  <ListItemIcon>
-                    <FindingIcon findingType={finding.finding_type} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={(
-                      <div style={bodyItemsStyles.bodyItems}>
-                        {visibleHeaders.map(header => (
-                          <div
-                            key={header.field}
-                            style={{
-                              ...bodyItemsStyles.bodyItem,
-                              ...visibleStyles[header.field],
-                            }}
-                          >
-                            {header.value && header.value(finding)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                  <Checkbox
+                    edge="start"
+                    checked={
+                      (selectAll && !(finding.finding_id in (deSelectedElements || {})))
+                      || finding.finding_id in (selectedElements || {})
+                    }
+                    disableRipple
                   />
-                </ListItemButton>
-              </ListItem>
-            ))}
-        {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
-      </List>
+                </ListItemIcon>
+              )}
+              <ListItemButton
+                sx={{ height: 50 }}
+                component={Link}
+                to={`/admin/findings/${finding.finding_id}`}
+              >
+                <ListItemIcon>
+                  <FindingIcon findingType={finding.finding_type} />
+                </ListItemIcon>
+                <ListItemText
+                  primary={(
+                    <div style={bodyItemsStyles.bodyItems}>
+                      {visibleHeaders.map(header => (
+                        <div
+                          key={header.field}
+                          style={{
+                            ...bodyItemsStyles.bodyItem,
+                            ...visibleStyles[header.field],
+                          }}
+                        >
+                          {header.value && header.value(finding)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+      {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
+    </List>
+  );
+
+  const gridView = (
+    <>
+      {numberOfSelectedElements > 0 && (
+        <Box sx={{
+          padding: 1,
+          border: theme => `1px solid ${theme.palette.divider}`,
+          borderRadius: 1,
+          backgroundColor: 'background.accent',
+        }}
+        >
+          <FindingBulkActionBar
+            numberOfSelectedElements={numberOfSelectedElements}
+            onClear={handleClearSelectedElements}
+            onTriage={bulkTriage}
+            onArchive={bulkArchive}
+          />
+        </Box>
+      )}
+      {!loading && findings.length === 0
+        ? <Empty message={t('No finding found.')} />
+        : (
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 2,
+            }}
+            >
+              {findings.map(finding => (
+                <FindingCard
+                  key={finding.finding_id}
+                  finding={finding}
+                  checked={
+                    (selectAll && !(finding.finding_id in (deSelectedElements || {})))
+                    || finding.finding_id in (selectedElements || {})
+                  }
+                  anySelected={numberOfSelectedElements > 0}
+                  onToggleEntity={event => onToggleEntity(finding, event)}
+                  onTriageChange={(newStatus) => {
+                    setFindings(current => current.map(currentFinding =>
+                      currentFinding.finding_id === finding.finding_id
+                        ? {
+                            ...currentFinding,
+                            finding_triage_status: newStatus,
+                          }
+                        : currentFinding));
+                  }}
+                />
+              ))}
+            </Box>
+          )}
+    </>
+  );
+
+  const content = showArchiveTabs && viewMode === 'grid' ? gridView : listView;
+
+  if (showArchiveTabs && !compact) {
+    return (
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+      }}
+      >
+        <FindingHero
+          totalElements={total}
+          rightSlot={actions}
+          bottomSlot={archiveTabs}
+        />
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 3,
+        }}
+        >
+          <FindingSidebar
+            searchPaginationInput={searchPaginationInput}
+            filterHelpers={queryableHelpers.filterHelpers}
+          />
+          <Box sx={{
+            display: 'flex',
+            minWidth: 0,
+            flex: 1,
+            flexDirection: 'column',
+            gap: 2,
+          }}
+          >
+            {pagination}
+            {content}
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
+
+  return (
+    <>
+      {archiveTabs}
+      {pagination}
+      {content}
       {/* Compact mode has no pager: if the run produced more findings than one compact page, say so
           explicitly (with the total) so the list never reads as "this inject has N findings". */}
       {compact && !loading && total > findings.length && (

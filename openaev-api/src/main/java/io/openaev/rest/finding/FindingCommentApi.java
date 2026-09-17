@@ -3,6 +3,7 @@ package io.openaev.rest.finding;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.finding.form.FindingCommentInput;
@@ -39,7 +40,7 @@ public class FindingCommentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<List<FindingCommentOutput>> findingComments(
-      @PathVariable @NotNull final String id) {
+      TxCtx ctx, @PathVariable @NotNull final String id) {
     return ResponseEntity.ok(
         findingCommentService.findByFinding(id).stream().map(FindingCommentOutput::from).toList());
   }
@@ -51,6 +52,7 @@ public class FindingCommentApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<FindingCommentOutput> createFindingComment(
+      TxCtx ctx,
       @PathVariable @NotNull final String id,
       @RequestBody @Valid @NotNull final FindingCommentInput input) {
     return ResponseEntity.ok(
@@ -66,6 +68,7 @@ public class FindingCommentApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.FINDING_COMMENT)
   public ResponseEntity<FindingCommentOutput> updateFindingComment(
+      TxCtx ctx,
       @PathVariable @NotNull final String commentId,
       @RequestBody @Valid @NotNull final FindingCommentInput input) {
     return ResponseEntity.ok(
@@ -80,7 +83,7 @@ public class FindingCommentApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.FINDING_COMMENT)
   public ResponseEntity<FindingCommentOutput> deleteFindingComment(
-      @PathVariable @NotNull final String commentId) {
+      TxCtx ctx, @PathVariable @NotNull final String commentId) {
     return ResponseEntity.ok(
         FindingCommentOutput.from(findingCommentService.deleteComment(commentId)));
   }
