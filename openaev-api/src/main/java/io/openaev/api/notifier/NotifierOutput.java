@@ -38,11 +38,6 @@ public class NotifierOutput {
   @Schema(description = "Whether the notifier is built-in (read-only)")
   private boolean builtIn;
 
-  @JsonProperty("protected_resource")
-  @Schema(description = "Whether the notifier is protected from user-driven mutations")
-  @NotNull
-  private boolean protectedResource;
-
   @JsonProperty("notifier_created_at")
   @Schema(description = "Creation date of the notifier")
   private Instant createdAt;

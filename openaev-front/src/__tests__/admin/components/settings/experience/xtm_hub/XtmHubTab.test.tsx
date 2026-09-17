@@ -129,7 +129,6 @@ const theme = createTheme();
 const TENANT: TenantOutput = {
   tenant_id: 'tenant-abc',
   tenant_name: 'Test Tenant',
-  protected_resource: false,
 };
 
 const DEFAULT_SETTINGS: Partial<PlatformSettings> = {

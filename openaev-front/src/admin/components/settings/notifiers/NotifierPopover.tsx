@@ -9,7 +9,6 @@ import { type NotifierInput, type NotifierOutput } from '../../../../utils/api-t
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isProtectedResource } from '../../../../utils/protected-resource';
 import NotifierForm from './NotifierForm';
 
 interface Props {
@@ -61,7 +60,7 @@ const NotifierPopover: FunctionComponent<Props> = ({
       userRight: canManage,
     },
   ];
-  if (!isProtectedResource(notifier)) {
+  if (!notifier.notifier_built_in) {
     entries.push(
       {
         label: t('Update'),

@@ -5,7 +5,6 @@ import { initSorting } from '../../../../components/common/queryable/Page';
 import type { Header } from '../../../../components/common/SortHeadersList';
 import DangerZone from '../../../../components/common/tag/DangerZone';
 import type { SortField, TenantOutput } from '../../../../utils/api-types';
-import { isProtectedResource } from '../../../../utils/protected-resource';
 import TenantStatus from './TenantStatus';
 
 // Local Storage
@@ -25,13 +24,16 @@ export const TENANT_INLINE_STYLES: Record<string, CSSProperties> = {
 };
 
 // Headers
-export const getTenantHeaders: (t: (text: string) => string) => Header[] = (t: (text: string) => string) => [
+export const getTenantHeaders: (t: (text: string) => string, defaultTenantId?: string) => Header[] = (
+  t: (text: string) => string,
+  defaultTenantId?: string,
+) => [
   {
     field: FIELD_TENANT_NAME,
     label: t('Tenant name'),
     isSortable: true,
     value: (tenant: TenantOutput) =>
-      isProtectedResource(tenant)
+      tenant.tenant_id === defaultTenantId
         ? createElement(
             'div',
             {

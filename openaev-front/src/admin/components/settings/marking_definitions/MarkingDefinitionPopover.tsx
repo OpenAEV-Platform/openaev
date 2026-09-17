@@ -16,7 +16,6 @@ import {
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isProtectedResource } from '../../../../utils/protected-resource';
 import MarkingDefinitionForm from './MarkingDefinitionForm';
 import {
   extractMarkingDefinitionFromStoreResult,
@@ -45,7 +44,7 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
   const [openOrderConfirm, setOpenOrderConfirm] = useState(false);
   const [pendingUpdateInput, setPendingUpdateInput] = useState<MarkingDefinitionInput | null>(null);
 
-  const isProtected = isProtectedResource(markingDefinition);
+  const isProtected = markingDefinition.marking_definition_protected;
 
   const updateInputFromDefinition
     = (value: MarkingDefinitionOutput): MarkingDefinitionInput => ({

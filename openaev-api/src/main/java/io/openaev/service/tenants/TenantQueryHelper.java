@@ -1,7 +1,6 @@
 package io.openaev.service.tenants;
 
 import static io.openaev.api.tenants.TenantOutput.*;
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.database.model.Tenant;
@@ -35,8 +34,7 @@ public class TenantQueryHelper {
                     tuple.get(ALIAS_ID, String.class),
                     tuple.get(ALIAS_NAME, String.class),
                     tuple.get(ALIAS_DESCRIPTION, String.class),
-                    tuple.get(ALIAS_DELETED_AT, Instant.class),
-                    DEFAULT_TENANT_UUID.equals(tuple.get(ALIAS_ID, String.class))))
+                    tuple.get(ALIAS_DELETED_AT, Instant.class)))
         .toList();
   }
 }

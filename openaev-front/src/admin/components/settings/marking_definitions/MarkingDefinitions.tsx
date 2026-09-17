@@ -25,7 +25,6 @@ import {
 import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isProtectedResource } from '../../../../utils/protected-resource';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
 import MarkingDefinitionForm from './MarkingDefinitionForm';
@@ -96,7 +95,7 @@ const MarkingDefinitions = () => {
             }}
           >
             <span>{item.marking_definition_definition}</span>
-            {isProtectedResource(item) ? (
+            {item.marking_definition_protected ? (
               <DangerZone
                 tooltip={t('This marking definition is protected. It cannot be updated or deleted.')}
               />

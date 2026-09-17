@@ -12,5 +12,4 @@ public record MarkingDefinitionOutput(
     @JsonProperty("marking_definition_color") String color,
     @JsonProperty("marking_definition_order") @NotNull Integer order,
     @JsonProperty("marking_definition_protected") @NotNull Boolean protectedDefinition,
-    @JsonProperty("protected_resource") @NotNull Boolean protectedResource,
     @JsonProperty("marking_definition_created_at") @NotNull Instant createdAt) {}

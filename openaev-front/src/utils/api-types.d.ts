@@ -7768,7 +7768,6 @@ export interface MarkingDefinitionOutput {
   marking_definition_protected: boolean;
   /** @minLength 1 */
   marking_definition_type: string;
-  protected_resource: boolean;
 }
 
 export interface MissingImportedAction {
@@ -8181,8 +8180,6 @@ export interface NotifierOutput {
    * @format date-time
    */
   notifier_updated_at?: string;
-  /** Whether the notifier is protected from user-driven mutations */
-  protected_resource: boolean;
 }
 
 export interface OAuthProvider {
@@ -12065,7 +12062,6 @@ export interface TenantInput {
 }
 
 export interface TenantOutput {
-  protected_resource: boolean;
   /** @format date-time */
   tenant_deleted_at?: string;
   tenant_description?: string;

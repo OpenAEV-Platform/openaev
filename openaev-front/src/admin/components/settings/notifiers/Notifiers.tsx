@@ -12,12 +12,10 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../components/common/SortHeadersList';
-import DangerZone from '../../../../components/common/tag/DangerZone';
 import { useFormatter } from '../../../../components/i18n';
 import { type NotifierOutput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isProtectedResource } from '../../../../utils/protected-resource';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import CustomizationMenu from '../CustomizationMenu';
 import NotifierCreate from './NotifierCreate';
@@ -38,8 +36,7 @@ const useStyles = makeStyles()(() => ({
 const inlineStyles: Record<string, CSSProperties> = {
   notifier_name: { width: '30%' },
   notifier_type: { width: '15%' },
-  notifier_description: { width: '40%' },
-  protected_resource: { width: '15%' },
+  notifier_description: { width: '55%' },
 };
 
 const typeChipStyle = (type?: string): CSSProperties => {
@@ -105,16 +102,6 @@ const Notifiers = () => {
       label: 'Description',
       isSortable: false,
       value: (notifier: NotifierOutput) => notifier.notifier_description,
-    },
-    {
-      field: 'protected_resource',
-      label: t('Protection'),
-      isSortable: false,
-      value: (notifier: NotifierOutput) => (isProtectedResource(notifier)
-        ? (
-            <DangerZone tooltip={t('This notifier is protected. It cannot be updated or deleted.')} />
-          )
-        : undefined),
     },
   ], []);
 
