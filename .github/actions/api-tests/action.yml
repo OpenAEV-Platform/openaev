@@ -79,7 +79,14 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: maven
+
+    - name: Cache API test Maven dependencies
+      uses: actions/cache@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Mark artifact waiting
       if: ${{ github.event_name == 'pull_request' }}
@@ -318,18 +325,16 @@ runs:
       shell: bash
       env:
         COLLECT_TELEMETRY: ${{ github.event_name == 'pull_request' }}
-      # Run the 'test' lifecycle phase so that JaCoCo's prepare-agent
-      # execution (bound to 'initialize' in pom.xml) fires through the
-      # normal lifecycle and properly sets the argLine property BEFORE
-      # Surefire reads it.  Compilation is skipped because the classes
-      # are already downloaded from the backend-compile job.
+      # Initialize JaCoCo, then run the existing test/report executions directly.
+      # The test lifecycle would recompile the downloaded classes and test classes;
+      # maven.compiler.skip is not a supported compiler-plugin property.
       run: |
         COMMAND_PREFIX=()
         if [ "$COLLECT_TELEMETRY" = "true" ]; then
           COMMAND_PREFIX=(python3 .github/scripts/api-test-telemetry.py run)
         fi
-        "${COMMAND_PREFIX[@]}" mvn -B -ntp -pl openaev-api test \
-          -Dmaven.compiler.skip=true \
+        "${COMMAND_PREFIX[@]}" mvn -B -ntp -pl openaev-api \
+          initialize surefire:test@default-test jacoco:report@report \
           ${{ steps.suite.outputs.surefire_arg }} \
           ${{ steps.tenant.outputs.args }}
 
