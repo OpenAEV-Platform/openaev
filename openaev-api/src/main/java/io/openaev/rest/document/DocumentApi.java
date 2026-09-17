@@ -10,6 +10,8 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UrlAccessControl;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -85,19 +87,27 @@ public class DocumentApi extends RestBehavior {
   private final FileService fileService;
   private final InjectService injectService;
   private final ChannelService channelService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @PostMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackFor = Exception.class)
   public Document uploadDocument(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
+    // Resolve the write tenant before the duplicate lookup: an ambiguous or missing write scope
+    // must be refused with 400 whether the uploaded bytes match an existing document or not, not
+    // only on the new-document branch. The new document below is attributed to this tenant.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
+    // Scope the duplicate lookup to the resolved write tenant: an unscoped lookup runs under the
+    // ambient tenant filter, so on the header route a request scoped to B would find and mutate the
+    // default tenant's document with the same bytes.
     Optional<Document> targetDocument =
-        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
+        documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(fileTarget, tenantId);
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
       // Compute exercises
@@ -123,8 +133,12 @@ public class DocumentApi extends RestBehavior {
       document.setTags(tags);
       return documentService.save(document);
     } else {
-      fileService.uploadFile(fileTarget, file);
+      // The write tenant was resolved above, before any object-storage I/O, so a refused scope
+      // returns 400 without the upload having persisted an object the rolled-back transaction
+      // cannot remove.
+      fileService.uploadFile(tenantId, fileTarget, file);
       Document document = new Document();
+      document.setTenant(new Tenant(tenantId));
       document.setTarget(fileTarget);
       document.setName(file.getOriginalFilename());
       document.setDescription(input.getDescription());
@@ -146,16 +160,18 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackFor = Exception.class)
   public Document upsertDocument(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return documentService.upsert(
         file.getOriginalFilename(),
         file.getInputStream(),
         file.getSize(),
         file.getContentType(),
-        input);
+        input,
+        tenantId);
   }
 
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})

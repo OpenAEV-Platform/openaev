@@ -13,6 +13,7 @@ import io.openaev.database.model.Reporting;
 import io.openaev.database.model.ReportingFormat;
 import io.openaev.database.model.ReportingGeneration;
 import io.openaev.database.model.ReportingGenerationStatus;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
@@ -177,7 +178,8 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
   }
 
   /** Immutable snapshot of everything the background render thread needs. */
-  private record RenderJob(
+  // Package-private so the storeDocument attribution can be pinned from a test in this package.
+  record RenderJob(
       String generationId,
       String reportingId,
       String reportingName,
@@ -185,7 +187,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
       String tenantId,
       String tokenValue) {}
 
-  private record CapturedOutput(byte[] bytes, String extension, String contentType) {}
+  record CapturedOutput(byte[] bytes, String extension, String contentType) {}
 
   @Override
   public void render(final ReportingGeneration generation, final User actingUser) {
@@ -209,15 +211,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
       this.reportingGenerationRepository.save(generation);
       return;
     }
-    Reporting reporting = generation.getReporting();
-    RenderJob job =
-        new RenderJob(
-            generation.getId(),
-            reporting.getId(),
-            reporting.getName(),
-            generation.getFormat(),
-            TenantContext.getCurrentTenant(),
-            tokenValue);
+    RenderJob job = toRenderJob(generation, tokenValue);
     // Dispatch only after the caller transaction commits, otherwise the background thread could
     // start before the PENDING row is visible.
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -231,6 +225,26 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     } else {
       submit(job);
     }
+  }
+
+  /**
+   * Builds the immutable snapshot the background render thread works from. The tenant is read from
+   * the generation itself (a {@link io.openaev.database.model.TenantBase} whose {@code tenant_id}
+   * is non-nullable), NOT from the ambient {@link TenantContext} of the request thread: on the
+   * header route ({@code X-Tenant-Ids}) the ambient tenant is the default one, so a job built from
+   * it would store the report under the wrong tenant once the persistence listener no longer stamps
+   * the row.
+   */
+  // Package-private so a test can assert the job carries the generation's own tenant.
+  RenderJob toRenderJob(final ReportingGeneration generation, final String tokenValue) {
+    Reporting reporting = generation.getReporting();
+    return new RenderJob(
+        generation.getId(),
+        reporting.getId(),
+        reporting.getName(),
+        generation.getFormat(),
+        generation.getTenant().getId(),
+        tokenValue);
   }
 
   private void submit(final RenderJob job) {
@@ -432,8 +446,10 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     return base + tenantSegment + "/reporting/" + job.reportingId() + "/render?format=" + format;
   }
 
-  private Document storeDocument(final RenderJob job, final CapturedOutput output)
-      throws Exception {
+  // Package-private so the attribution can be pinned on the real stack with the ambient tenant set
+  // to a different tenant than the job's, proving the row and object follow the job's tenant rather
+  // than the render thread's ambient context (the TenantBaseListener removed at documents go-live).
+  Document storeDocument(final RenderJob job, final CapturedOutput output) throws Exception {
     String fileName =
         "report_"
             + slugify(job.reportingName())
@@ -443,12 +459,19 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
             + output.extension();
     // Same content-addressed target scheme as DocumentService.upsert
     String target = DigestUtils.md5Hex(output.bytes()) + "." + output.extension();
+    String tenantId = job.tenantId();
+    // Attribute the row and store the object under the generation's tenant, captured on the request
+    // thread before dispatch. A persisted generation always carries a tenant
+    // (reporting_generations.tenant_id is non-nullable), so this is never null and the report never
+    // depends on the ambient TenantContext of the render thread.
     this.fileService.uploadFile(
+        tenantId,
         target,
         new ByteArrayInputStream(output.bytes()),
         output.bytes().length,
         output.contentType());
     Document document = new Document();
+    document.setTenant(new Tenant(tenantId));
     document.setName(fileName);
     document.setTarget(target);
     document.setType(output.contentType());

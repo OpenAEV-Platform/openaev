@@ -62,6 +62,7 @@ public class DocumentService {
    * @param fileSize Size of the document to upsert
    * @param fileContentType Content Type of the document to upsert
    * @param input documents informations for his creation
+   * @param tenantId tenant the new document is attributed to when the upsert creates one
    * @return the upserted Document
    * @throws Exception when an upload issue occur
    */
@@ -70,13 +71,17 @@ public class DocumentService {
       InputStream fileIS,
       long fileSize,
       String fileContentType,
-      DocumentCreateInput input)
+      DocumentCreateInput input,
+      String tenantId)
       throws Exception {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
+    // Scope both duplicate lookups to the resolved write tenant: an unscoped lookup runs under the
+    // ambient tenant filter, so on the header route an upsert scoped to B would find and mutate the
+    // default tenant's document with the same bytes or name.
     Optional<Document> targetDocument =
-        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
+        documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(fileTarget, tenantId);
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
@@ -104,12 +109,17 @@ public class DocumentService {
       return save(document);
     } else {
       Optional<Document> existingDocument =
-          documentRepository.findFirstByNameOrderByIdAsc(fileName);
+          documentRepository.findFirstByNameAndTenantIdOrderByIdAsc(fileName, tenantId);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
-        // Update doc
+        // Update doc: store the new bytes under the existing row's tenant so the object stays
+        // co-located with the row that points at it, regardless of the ambient scope.
         fileService.uploadFile(
-            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
+            document.getTenant().getId(),
+            fileTarget,
+            new ByteArrayInputStream(content),
+            fileSize,
+            fileContentType);
         document.setDescription(input.getDescription());
 
         // Compute exercises
@@ -136,8 +146,9 @@ public class DocumentService {
         return save(document);
       } else {
         fileService.uploadFile(
-            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
+            tenantId, fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         Document document = new Document();
+        document.setTenant(new Tenant(tenantId));
         document.setTarget(fileTarget);
         document.setName(fileName);
         document.setDescription(input.getDescription());

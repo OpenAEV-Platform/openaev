@@ -235,12 +235,18 @@ public class V1_DataImporter implements Importer {
       prefix = "payload_";
     }
     importTags(ctx, importNode, prefix, baseIds);
+    // Resolve the write tenant from the request scope once: the imported documents are created off
+    // it and stored under it, so a removed TenantBaseListener never has to stamp them, and the
+    // create/update decision is scoped to the write tenant rather than the ambient filter.
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     Exercise savedExercise =
         Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
     Scenario savedScenario =
         Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
-    importDocuments(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
-    importDocument(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
+    importDocuments(
+        importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
+    importDocument(
+        importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
 
     // Should be done after tags & documents
     if (prefix.equals("payload_")) {
@@ -785,6 +791,7 @@ public class V1_DataImporter implements Importer {
       JsonNode importNode,
       String prefix,
       Map<String, ImportEntry> docReferences,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       Map<String, Base> baseIds) {
@@ -795,7 +802,8 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(
+                nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, baseIds);
           }
         });
     // Handle argument documents
@@ -807,7 +815,8 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(
+                nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, baseIds);
           }
         });
   }
@@ -816,6 +825,7 @@ public class V1_DataImporter implements Importer {
       JsonNode importNode,
       String prefix,
       Map<String, ImportEntry> docReferences,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       Map<String, Base> baseIds) {
@@ -830,7 +840,8 @@ public class V1_DataImporter implements Importer {
     if (target != null) {
       ImportEntry entry = docReferences.get(target);
       if (entry != null) {
-        handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+        handleDocumentWithEntry(
+            nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, baseIds);
       }
     }
   }
@@ -839,17 +850,22 @@ public class V1_DataImporter implements Importer {
       JsonNode nodeDoc,
       ImportEntry entry,
       String target,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       Map<String, Base> baseIds) {
     String contentType = new MimetypesFileTypeMap().getContentType(entry.getEntry().getName());
+    // Scope the create/update decision to the write tenant: an unscoped lookup runs under the
+    // ambient filter, so a document with the same target in another tenant would be reused and
+    // re-linked here instead of a fresh one being created for the import's tenant.
     Optional<Document> targetDocument =
-        this.documentRepository.findFirstByTargetOrderByIdAsc(target);
+        this.documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(target, writeTenant);
 
     if (targetDocument.isPresent()) {
       updateExistingDocument(nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);
     } else {
-      uploadNewDocument(nodeDoc, entry, target, savedExercise, savedScenario, contentType, baseIds);
+      uploadNewDocument(
+          nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, contentType, baseIds);
     }
   }
 
@@ -879,18 +895,22 @@ public class V1_DataImporter implements Importer {
       JsonNode nodeDoc,
       ImportEntry entry,
       String target,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       String contentType,
       Map<String, Base> baseIds) {
     try {
+      // Store the object under the write tenant, the same tenant the row below is attributed to, so
+      // it is retrievable whatever the ambient TenantContext (the header route sets none).
       this.documentService.uploadFile(
-          target, entry.getData(), entry.getContentLength(), contentType);
+          writeTenant, target, entry.getData(), entry.getContentLength(), contentType);
     } catch (Exception e) {
       throw new ImportException(e);
     }
 
     Document document = new Document();
+    document.setTenant(new Tenant(writeTenant));
     document.setTarget(target);
     document.setName(nodeDoc.get("document_name").textValue());
     document.setDescription(nodeDoc.get("document_description").textValue());
