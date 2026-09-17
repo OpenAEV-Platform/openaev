@@ -12,11 +12,20 @@ import { type MarkingDefinitionOutput } from '../api-types';
  *
  * The definition set is small and effectively static (nine seeded TLP/PAP levels per tenant), so a
  * single generous page is enough; there is nothing to paginate through.
+ *
+ * @param options.skip when true (e.g. the `MARKING` feature flag is off), issues no request at all —
+ * a caller behind a disabled flag must not leak a `marking_definitions` search even if its own
+ * rendering is otherwise gated.
  */
-const useMarkingDefinitions = (): Record<string, MarkingDefinitionOutput> => {
+const useMarkingDefinitions = (options?: { skip?: boolean }): Record<string, MarkingDefinitionOutput> => {
+  const skip = options?.skip ?? false;
   const [definitions, setDefinitions] = useState<Record<string, MarkingDefinitionOutput>>({});
 
   useEffect(() => {
+    if (skip) {
+      setDefinitions({});
+      return undefined;
+    }
     let cancelled = false;
     searchMarkingDefinitions({
       page: 0,
@@ -39,7 +48,7 @@ const useMarkingDefinitions = (): Record<string, MarkingDefinitionOutput> => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [skip]);
 
   return definitions;
 };

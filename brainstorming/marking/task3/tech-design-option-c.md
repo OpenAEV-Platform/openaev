@@ -201,14 +201,16 @@ clearance = m_green,m_warm
 
 #### What the PoC code does today
 
-`MarkingDefinitionService.delete(id)` performs the hard delete and evicts every cached clearance. The
-`marking_ids` scrub is **deliberately not there yet**: no table is marking-activated, so no array can hold
-the id. The scrub lands with activation (step 3), generated from the same `MarkedTables` registry that drives
-the inspector, so it cannot drift out of sync with the allowlist:
+✅ **Both mitigations now exist** — `MarkingDefinitionService.delete(id)` scrubs `marking_ids` and evicts
+the cache; `.update(id)` evicts on order change. Tracked and delivered as
+`implementation-plan-option-c.md` **3.8** (scrub + eviction on delete) and **3.9** (eviction on order
+change), pinned by `MarkingDefinitionServiceTest`. The scrub is generated from the same `MarkedTables`
+registry that drives the inspector, so it cannot drift out of sync with the allowlist:
 
 ```java
-for (MarkedTable t : markedTables.all())
-  jdbc.update("UPDATE " + t.table() + " SET marking_ids = array_remove(marking_ids, ?)", markingId);
+for (String table : markedTables.tableNames())
+  jdbc.update("UPDATE " + table + " SET marking_ids = array_remove(marking_ids, ?)"
+      + " WHERE marking_ids @> ARRAY[?]::text[]", markingId, markingId);
 ```
 
 **And this is the cost Option 2 pays for losing the FK.** `ON DELETE CASCADE` would have touched only the
@@ -219,7 +221,7 @@ must still rewrite each matching row. Cost therefore grows with the *size of eve
 the number of rows carrying the marking. On `assets` — the largest and most-joined of the three — that is a
 noticeable write burst inside the delete transaction.
 
-Three mitigations, in order of preference:
+Mitigations, in order of preference:
 
 1. **Do not hard-delete**: archive the definition instead. This works because the row still exists, so
    the id in `marking_ids` is never dangling — but it only works under one **load-bearing condition**: the
@@ -229,10 +231,14 @@ Three mitigations, in order of preference:
    An archive that also strips the grants — or a resolver that filters on `archived = false` — reproduces
    the hard-delete bug exactly: the id becomes unholdable and the rows vanish platform-wide. Archiving
    changes the id from *unholdable* to *still holdable but no longer assignable*; that is the whole trick.
+   🔴 **Not the chosen path**: the PO wants a marking definition to stay hard-deletable even while still in
+   use, so 3.8 implements the scrub below instead of this mitigation.
 2. **Narrow the scan** with `WHERE marking_ids @> ARRAY[?]` so the GIN index can select candidate rows
-   (`@>` is the containment direction GIN serves well), instead of rewriting blindly.
-3. **Move it off the request** — run the scrub asynchronously if hard delete is ever shipped for large
-   tenants, accepting a short window where the id is dangling.
+   (`@>` is the containment direction GIN serves well), instead of rewriting blindly — the approach 3.8
+   takes, shown in the snippet above and now shipped.
+3. **Move it off the request** — run the scrub asynchronously if the per-request cost above ever proves
+   too high in practice, accepting a short window where the id is dangling. Not needed for 3.8; revisit
+   only if the synchronous scrub shows up in performance testing (§5.5/5.4).
 
 ```mermaid
 sequenceDiagram
@@ -250,14 +256,16 @@ sequenceDiagram
     PG-->>REPO: groups_markings grants cascade (FK)
     Note right of PG: no cascade to marking_ids arrays<br/>(no FK under Option 2)
     SVC->>PG: UPDATE {marked table} SET marking_ids = array_remove(marking_ids, id)
-    Note right of SVC: not implemented yet — lands with activation (step 3)<br/>one UPDATE per marked table = costly
+    Note right of SVC: delivered — 3.8<br/>one UPDATE per marked table, narrowed by the @&gt; containment guard
     SVC->>CACHE: evictAll()
-    Note right of CACHE: grants are gone, but derived<br/>clearances are still cached
+    Note right of CACHE: delivered — 3.8<br/>grants are gone, and the cache is now evicted so no clearance stays stale
     SVC-->>API: done
     API-->>A: 204 No Content
 ```
 
-The archive-rather-delete policy above is what avoids needing the scrub at all.
+✅ The scrub (mitigation 2) is now shipped as 3.8; the archive-rather-delete policy above was considered
+and explicitly not chosen, since the PO wants hard delete to stay available while a marking is still in
+use.
 
 ### 3.3 Concrete schema
 

@@ -16,10 +16,14 @@
   `ASSIGN_MARKING` capability, tracked there, not here).
 - 3.1–3.3 (Task 3 mechanism PoC on `assets`) delivered.
 - 3.4 API delivered but has **no UI**.
-- 3.5's list column is delivered but filter/search and `ACCESS_MARKINGS` are not, and 🔴 the column is not
-  yet gated behind `MARKING`.
+- 3.5's list column is delivered but filter/search and `ACCESS_MARKINGS` are not; the column and its fetch
+  are now gated behind `MARKING` (Endpoints list — the leak found in review; the Assets list column was
+  already gated).
 - 3.6 (bulk assign) not started.
 - 3.7 (ES/OpenSearch query-side filtering) not started — in scope for this plan, not go-live polish.
+- 3.8 (definition delete: scrub + evict) and 3.9 (definition update: evict on order change) delivered.
+  3.10 (eviction scope tightening) not started — found during review, deferred as pure optimization (not
+  a correctness gap, since over-eviction never fails open).
 
 **Feature flag**: every UI piece of 3.4/3.5/3.6 must render only behind `MARKING` (reused from Task 1,
 default off) — see the note under each step.
@@ -44,9 +48,12 @@ by Task 1 (default off, menu masking when disabled).
 | 3.2 activate `assets` on `openaev.marking.active-tables` | ✅ done | `6bfd3d2db8` |
 | 3.3 escalation guard + declassification logging on the asset write path | ✅ done | `d9b216fffb` |
 | 3.4 asset detail — assign a marking (US1) | 🔴 API done, **no UI** | `d9b216fffb` (API only) |
-| 3.5 Assets list — column/filter/search (US2) | 🔴 **column done**, filter/search + `ACCESS_MARKINGS` not done | `1da4aac904` (column only) |
+| 3.5 Assets list — column/filter/search (US2) | 🔴 **column done, gated behind `MARKING`**, filter/search + `ACCESS_MARKINGS` not done | `1da4aac904` (column only) |
 | 3.6 Assets list — bulk assign (US3) | pending | |
 | 3.7 ES/OpenSearch query-side filtering | pending | |
+| 3.8 Definition delete: `marking_ids` scrub + cache eviction | ✅ done | |
+| 3.9 Definition update: evict on `order` change | ✅ done | |
+| 3.10 `TenantGroupService` eviction scope tightening | pending — deferred (optimization, not a correctness gap) | |
 | 4 `activate-marking-table` skill — *the mechanism PoC's real deliverable* | pending | |
 | 5 go-live hardening | out of scope for this plan | |
 
@@ -204,7 +211,7 @@ write path (`AssetMarkingsService.updateAssetMarkings`).
      - Component test confirming the field does not render when `MARKING` is disabled.
      - The assigned marking is visible on the detail page immediately after save.
 
-**3.5 — 🔴 column done, filter/search + `ACCESS_MARKINGS` + flag-gating not done — US2: marking column +
+**3.5 — 🔴 column done and flag-gated, filter/search + `ACCESS_MARKINGS` not done — US2: marking column +
 filter + search on the Assets list.**
 
 - **Delivered**: a **Markings** column on the Endpoints list (`1da4aac904`).
@@ -214,13 +221,10 @@ filter + search on the Assets list.**
   - The column is **not sortable** (markings are a `text[]` on the row, not a joinable column).
   - Per the design's read-side argument, exposing `asset_markings` leaks nothing — a row only reaches
     the caller if its markings are already a subset of their clearance.
-- 🔴 **Regression, not just a gap**:
-  - `Endpoints.tsx` does not call `isFeatureEnabled('MARKING')` anywhere — the column renders
-    unconditionally, so it is currently visible even with the flag off, unlike every other Task 1/Task 2
-    marking surface.
-  - This must be fixed alongside the filter/search work below, not deferred: wrap the column definition
-    (and its `useMarkingDefinitions` fetch) the same way `settings.config.tsx` gates the Marking
-    Definitions menu entry.
+- ✅ **Regression fixed**: `Endpoints.tsx` now calls `isFeatureEnabled('MARKING')` and gates both the
+  column definition and the `useMarkingDefinitions` fetch (an optional `{ skip }` param was added to the
+  hook so no `marking_definitions` request fires at all when the flag is off) — matching the
+  `settings.config.tsx` gating pattern used for the Marking Definitions menu entry.
 - **Still missing**: the column is display-only. There is no marking entry in the list's filter options
   and no marking term in the free-text search; a user cannot yet narrow the Assets list to "only
   `TLP:RED`" or "no marking".
@@ -286,6 +290,108 @@ DB-backed Assets list search covered by 3.2/3.5.)*
   - A test proving a marked asset is indexed with its `marking_ids`, and that an out-of-clearance query
     does not return it.
   - Mutation-checked, same discipline as 3.2: with the ES-side filter removed, the new test(s) fail.
+
+**3.8 — ✅ done — Definition delete now scrubs `marking_ids` and evicts the cache (was a real bug, not
+hardening).**
+
+- **Delivered**: `MarkingDefinitionService` now injects `MarkedTables`, `MarkingClearanceCacheManager`
+  and `JdbcTemplate` (class-level `@AllowRawJdbc`, justified below). `delete()` runs the scrub over
+  `MarkedTables.tableNames()` after the row is removed, then calls `evictAll()`.
+- **Tests**: `MarkingDefinitionServiceTest` (new, Mockito-based) pins: the scrub SQL runs once per
+  marking-active table with the deleted id as both parameters, `evictAll()` is called exactly once, a
+  protected definition throws before either side effect runs, and an empty `MarkedTables` (flag off)
+  still evicts but issues no SQL. Existing `AssetMarkingIsolationTest` and
+  `MarkingClearanceCacheManagerTest` continue to pass unmodified.
+
+- **Why this is required now, not go-live polish**: `assets` is already activated (3.1/3.2), so
+  `MarkingDefinitionService.delete()` is not a stale demo path — it is destructive today. Confirmed by
+  reading the actual code, not assumed: neither the scrub nor `evictAll()` is called, contradicting the
+  "What the PoC code does today" claim in `tech-design-option-c.md` §3.2 (written when no table was
+  activated yet, never revisited after 3.2 shipped) — that section needs correcting once this lands.
+- **Root cause**: Option 2 has no FK on `marking_ids` (§3.2), so nothing cascades into the array. Once the
+  `marking_definitions` row is gone, the deleted id survives inside every row's array forever — and can
+  never re-enter anyone's clearance, since `MarkingClearanceCacheManager.TENANT_MARKINGS_SQL` only ever
+  returns ids that still exist. Every row carrying it becomes invisible platform-wide, permanently,
+  including to admins — and it cannot be repaired through the API either: `updateAssetMarkings` reads the
+  asset through `findByIdAndTenantId`, which the inspector already filters, so the asset 404s before the
+  write is ever reached. Only direct SQL gets it back.
+- `groups_markings` is **not** part of this gap — its FK already has `ON DELETE CASCADE`
+  (`V6_20260917130000000__Add_groups_markings.java:33`), so the grants clean up correctly today.
+- **PO decision**: hard delete must stay possible even while the marking is still assigned to rows or
+  groups — the "archive instead of delete" mitigation in §3.2 is explicitly **not** the chosen path, so
+  the scrub is mandatory, not optional.
+- **Build**:
+  - Inject `MarkedTables` (already a bean, `MarkingFilteringConfig.markedTables()`) into
+    `MarkingDefinitionService`, and for every name in `MarkedTables.tableNames()` — the same
+    schema-derived, allowlist-narrowed set the inspector itself filters against, so the scrub can never
+    drift out of sync with which tables are actually marking-active — run:
+    ```sql
+    UPDATE <table> SET marking_ids = array_remove(marking_ids, ?) WHERE marking_ids @> ARRAY[?]::text[]
+    ```
+    The `@>` guard (§3.2 mitigation 2) lets the GIN index select candidate rows instead of a blind
+    full-table rewrite; without it every row in every marked table gets rewritten regardless of whether
+    it holds the id.
+  - Call `markingClearanceCacheManager.evictAll()` after the delete commits — the definition's grants are
+    gone from `groups_markings`, but any clearance already cached before the delete still contains the id
+    until eviction (fails open for up to the 5-minute TTL otherwise).
+  - Dynamic table name means this cannot be expressed through JPA/`Specification`; needs raw JDBC,
+    `@AllowRawJdbc`-justified the same way as `MarkingClearanceCacheManager` (metadata-only /
+    schema-driven, not an arbitrary query).
+- **DoD**:
+  - Test: delete a marking definition that is both referenced by an in-clearance asset's `marking_ids`
+    and granted through a group's `groups_markings` row; assert the array no longer contains the id, the
+    grant row is gone (already true today via cascade), and the previously-marked asset is now visible to
+    every caller as unmarked — not vanished.
+  - Mutation-checked: with the `evictAll()` call removed, a clearance cached before the delete must still
+    resolve to the old (larger) set on the next call, proving the test would actually catch the
+    regression.
+  - Regression: `AssetMarkingIsolationTest` and `MarkingClearanceCacheManagerTest` continue to pass
+    unmodified.
+
+**3.9 — ✅ done — Definition-order update now evicts the clearance cache.**
+
+- **Why this matters**: `MarkingScopeResolver` treats marking as ordinal per type (`TLP:AMBER` implies
+  `TLP:GREEN` implies `TLP:CLEAR`) and expands the highest order a user was granted, per type, downward
+  (`MarkingScopeResolver.resolve`). Lowering (or raising) a definition's `order` therefore changes what an
+  already-cached clearance *should* expand to, for every user holding any grant on that type — not just
+  one group's members, unlike the group-side changes 3.10 discusses.
+- **Current gap**: `MarkingDefinitionService.update()` persists the new `order` but calls no eviction at
+  all. This is a documented-but-never-wired gap, not a new design question: both
+  `task2/tech-design.md:147` and `task2/implementation-plan.md:76` already call for `evictAll()` here —
+  `MarkingDefinitionService` predates `MarkingClearanceCacheManager` (it shipped in Task 1, #7651, before
+  the cache existed) and was never revisited when Task 2 added it.
+- **Build**: call `markingClearanceCacheManager.evictAll()` in `update()` whenever
+  `input.order() != existing.getOrder()` — guarded, so a definition save that only touches `color` or
+  `definition` text does not pay for a full-cache blast for no reason.
+- **DoD**: a test that lowers a definition's `order` and asserts a clearance cached beforehand is
+  recomputed (not served stale) on the next call after the update, mutation-checked against removing the
+  `evictAll()` call.
+- **Delivered**: `update()` computes `orderChanged` before mutating the entity and calls
+  `evictAll()` after `save()` only when it is true — a `color`/`definition`-only save no longer pays for
+  a cache-wide blast. `MarkingDefinitionServiceTest` pins both the evict-on-order-change and the
+  no-evict-when-unchanged cases.
+
+**3.10 — 🔴 pending — `TenantGroupService` over-evicts across every tenant for a single-tenant change.**
+
+- **Why this is safe today but worth tightening**: `MarkingClearanceCacheManager` exposes both a
+  single-tenant `evict(userId, tenantId)` and a multi-tenant `evictForUser(userId)`/`evictForUsers(...)`.
+  The latter deliberately walks every tenant the user belongs to (via
+  `TenantMembershipCacheManager.findTenantIdsByUserId`) — necessary for `PlatformGroupService`, since a
+  platform group is dual-scope and can grant markings across many tenants at once (see
+  `task2/implementation-plan.md:68-72`).
+  `TenantGroupService.updateGroupUsers`, `updateGroupMarkings` and `delete` are tenant-scoped by
+  construction — they already resolve `TenantContext.getCurrentTenant()` or receive `tenantId` as a
+  parameter — yet call the same broad `evictForUsers`, paying for an unnecessary
+  `findTenantIdsByUserId` lookup plus evictions in every unrelated tenant the user happens to belong to.
+  Over-eviction is not a correctness bug — it never fails open — just wasted work.
+- **Build**: replace the three `TenantGroupService` call sites with a loop over the affected user ids
+  calling `markingClearanceCacheManager.evict(userId, tenantId)` with the tenant already in scope, leaving
+  every `PlatformGroupService` call site on `evictForUsers` unchanged.
+- **DoD**:
+  - Existing `TenantGroupMarkingsApiTest` and group tests continue to pass unmodified.
+  - A new test asserting a tenant-group marking/membership change does **not** evict the user's cached
+    clearance in an unrelated second tenant — proving the narrower call does what the broad one
+    incidentally did, not less.
 
 ### Step 4 — Capture the procedure as an AI skill, then prove it *(deps: 3)*
 
