@@ -128,6 +128,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private DocumentRepository documentRepository;
+  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private CommunicationRepository communicationRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectAuthorisationRepository injectAuthorisationRepository;
@@ -210,6 +211,12 @@ class InjectApiTest extends IntegrationTest {
       inject = InjectFixture.getDefaultInject();
       inject.setExercise(EXERCISE);
       inject.setInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject = injectRepository.save(inject);
+      InjectStatus injectStatus = new InjectStatus();
+      injectStatus.setInject(inject);
+      injectStatus.setName(ExecutionStatus.PENDING);
+      injectStatus = injectStatusComposer.forInjectStatus(injectStatus).persist().get();
+      inject.setStatus(injectStatus);
       inject = injectRepository.save(inject);
 
       credentialReference = CredentialSecretReferenceFixture.getUsernamePasswordReference();
@@ -297,19 +304,17 @@ class InjectApiTest extends IntegrationTest {
         throws Exception {
       input.setAuthorisation("wrong-code");
 
-      String response =
-          mvc.perform(
-                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isForbidden())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      assertThatJson(response).node("message").isEqualTo("CREDENTIAL_ACCESS_DENIED");
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertEquals(
+                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
     }
 
     @Test
@@ -358,9 +363,29 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(status().isForbidden())
           .andExpect(
               result ->
-                  assertThatJson(result.getResponse().getContentAsString())
-                      .node("message")
-                      .isEqualTo("CREDENTIAL_ACCESS_DENIED"));
+                  assertEquals(
+                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Inject not in progress should deny credential access")
+    void given_injectStatusNotInProgress_should_denyCredentialAccess() throws Exception {
+      InjectStatus injectStatus = inject.getStatus().orElseThrow();
+      injectStatus.setName(ExecutionStatus.DRAFT);
+      injectStatusRepository.save(injectStatus);
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertEquals(
+                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
     }
 
     @Test
@@ -378,9 +403,7 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(status().isNotFound())
           .andExpect(
               result ->
-                  assertThatJson(result.getResponse().getContentAsString())
-                      .node("message")
-                      .isEqualTo("CREDENTIAL_NOT_FOUND"));
+                  assertEquals("CREDENTIAL_NOT_FOUND", result.getResolvedException().getMessage()));
     }
 
     @Test
