@@ -16,12 +16,12 @@ public class PrimitiveTypeCapabilitiesOutput {
           "Values are numbers: the greater-than / less-than operators are meaningful and must be"
               + " offered, and a value must be numeric whatever the operator.")
   @JsonProperty("numeric_value")
-  private boolean numericValue;
+  private boolean isNumericValue;
 
   @Schema(
       description =
           "Comparing values depends on case: the case-sensitivity toggle is meaningful and must be"
               + " offered.")
   @JsonProperty("case_sensitivity")
-  private boolean caseSensitivity;
+  private boolean isCaseSensitivity;
 }
