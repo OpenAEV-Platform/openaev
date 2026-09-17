@@ -179,6 +179,6 @@ The idempotency guard and the end-scope-snapshot freeze run **unconditionally be
 
 - No change to the public API surface (`WorkflowController` / DTOs) or to the four
   `WORKFLOW_END_CAUSE` enum values.
-- Historical data healed once by migration `V6_20260908142053000__Heal_legacy_ended_workflow_steps_and_states`
+- Historical data healed once by migration `V6_20260917194000000__Heal_legacy_ended_workflow_steps_and_states`
   (steps forced to `END`, orphaned `workflow_states` deleted for pre-existing `END` workflows) —
   not part of the ongoing contract, a one-time backfill.

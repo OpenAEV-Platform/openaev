@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * <p>Idempotent (a re-run matches zero rows).
  */
 @Component
-public class V6_20260908142053000__Heal_legacy_ended_workflow_steps_and_states
+public class V6_20260917194000000__Heal_legacy_ended_workflow_steps_and_states
     extends BaseJavaMigration {
 
   @Override
