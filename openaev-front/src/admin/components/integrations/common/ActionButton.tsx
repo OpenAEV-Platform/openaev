@@ -38,7 +38,7 @@ const ActionButton = ({ onUpdate, disabled, status }: Props) => {
   return (
     <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" onClick={onClickAction} disabled={disabled}>
       {t('Start')}
-      {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
+      {!isEnterpriseEdition && <EEChip />}
     </Button>
   );
 };

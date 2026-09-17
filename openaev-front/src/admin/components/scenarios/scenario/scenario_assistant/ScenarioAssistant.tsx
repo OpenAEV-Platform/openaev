@@ -269,7 +269,7 @@ const ScenarioAssistant: FunctionComponent = () => {
             }}
           >
             {t('Suggest TTPs with XTM One')}
-            {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
+            {!isEnterpriseEdition && <EEChip />}
           </Button>
         )}
       </Box>

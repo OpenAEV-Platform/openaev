@@ -182,7 +182,7 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
         >
           <Button variant="ia" priority="secondary" size="sm" startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />} type="button" onClick={handleOpen} disabled={disabled} style={{ whiteSpace: 'nowrap' }}>
             {btnLabel}
-            {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
+            {!isEnterpriseEdition && <EEChip />}
           </Button>
         </span>
       </EETooltip>

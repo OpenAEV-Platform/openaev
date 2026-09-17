@@ -126,7 +126,7 @@ const DetectionRemediationUseAriane = ({
     return (
       <Button variant="ia" priority="secondary" size="sm" startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />} type="button" onClick={handleClick} disabled={disabled || loading || (!!xtmOneConfigured && !selectedAgent)} style={{ whiteSpace: 'nowrap' }}>
         {xtmOneConfigured ? t('Generate with AI') : t('Use Ariane')}
-        {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
+        {!isEnterpriseEdition && <EEChip />}
       </Button>
     );
   };

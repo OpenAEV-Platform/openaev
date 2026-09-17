@@ -600,6 +600,30 @@ in filigran-design-system).
   IconButton (secondary, 36px, named "Import injects") beside the view-mode
   ButtonGroup it already shared the row with.
 
+## 2026-09-18 — Library bump: b4e952c, and what it lets the product drop
+
+- The pin moves from `4b54adb` to `b4e952c`, which carries the three pull
+  requests this wave asked for: the Button colour override (#226, with the
+  label laid out as a row), the Tabs icon slot sizing (#227) and the default
+  `type="button"` (#228).
+- What the bump makes redundant, removed here and measured on a bench against
+  the installed build: the `marginLeft: 4` the product had put on the EE marker
+  inside six buttons (the library's label row now provides the 8px gap — 12px
+  measured with the margin, 8px without), and the hand-set 16px on the two
+  remediation tab logos (the slot sizes its child: 16×16 either way).
+- What the bump lets the product convert: the licence banner's action button
+  leaves MUI for the library Button with `color`, closing LIBRARY-FEEDBACK #59.
+  The three bands keep their hexes through primitive tokens — `orange-700`
+  (#884106) and `turquoise-800` (#005744) are exact; the blue band moves from
+  #007399 to `blue-700` (#0079a8), the nearest primitive, one shade lighter.
+  The library picks the label ink and guarantees it stays over 4.58:1.
+- Still on MUI, unchanged: the reporting split button (#58) and the seven
+  text-labelled toggle groups (#57). The 362 explicit `type="button"` stay too:
+  correct, now redundant, and not worth churning inside an open pull request.
+- Opened while doing it: LIBRARY-FEEDBACK #61, `PrimitiveColorToken` is
+  declared by the library but not exported, so the banner reads the union off
+  the prop instead of naming it.
+
 ## 2026-09-18 — Chip wave follow-up: a chip must not outgrow its list cell
 
 - Visual pass finding. The MUI chips of two list columns carried a fixed

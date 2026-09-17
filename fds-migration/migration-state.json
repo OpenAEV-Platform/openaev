@@ -631,7 +631,7 @@
       "guards": [
         "imported-from-library"
       ],
-      "reason": "Every text button. MUI `contained` reads `priority=\"primary\"` (the default), `outlined` `secondary`, `text` and the bare button `tertiary`; `color=\"error\"` and `\"warning\"` read `variant=\"destructive\"`, `\"ee\"` and the two gradient buttons `variant=\"highlight\"`, the AI actions `variant=\"ia\"`, every other colour the default. Placement rule: 36px (`md`) in dialog and drawer footers, list headers, detail headers and bulk bars; 24px (`sm`) where MUI said `small` inside a form, a card or a Paper header row. A button that navigates is `asChild` around the router Link or the anchor, its icon inside the anchor. The EE marker sits inside the button after the label. MUI icons inside a button carry `fontSize=\"small\"`; `sx` layout keys became `style`, colour and typography keys left with MUI. The two GradientButton components are gone. Two sites stay on MUI with a `fds:keep-mui` reason: the reporting split button (LIBRARY-FEEDBACK #58) and the licence banner button (LIBRARY-FEEDBACK #59).",
+      "reason": "Every text button. MUI `contained` reads `priority=\"primary\"` (the default), `outlined` `secondary`, `text` and the bare button `tertiary`; `color=\"error\"` and `\"warning\"` read `variant=\"destructive\"`, `\"ee\"` and the two gradient buttons `variant=\"highlight\"`, the AI actions `variant=\"ia\"`, every other colour the default. Placement rule: 36px (`md`) in dialog and drawer footers, list headers, detail headers and bulk bars; 24px (`sm`) where MUI said `small` inside a form, a card or a Paper header row. A button that navigates is `asChild` around the router Link or the anchor, its icon inside the anchor. The EE marker sits inside the button after the label. MUI icons inside a button carry `fontSize=\"small\"`; `sx` layout keys became `style`, colour and typography keys left with MUI. The two GradientButton components are gone. One site stays on MUI with a `fds:keep-mui` reason: the reporting split button (LIBRARY-FEEDBACK #58). The licence banner's button carries the band's urgency colour through the library `color` override (#59, shipped and consumed at the 2026-09-18 bump).",
       "files": [
         "openaev-front/src/admin/components/agents/InstructionSelector.tsx",
         "openaev-front/src/admin/components/ariane/FiligranAiCguDialog.tsx",
@@ -858,6 +858,7 @@
         "openaev-front/src/public/components/login/LoginSSOButton.tsx",
         "openaev-front/src/public/components/login/Reset.jsx",
         "openaev-front/src/public/components/trialbanners/LicenseBanner.tsx",
+        "openaev-front/src/public/components/trialbanners/TopBanner.tsx",
         "openaev-front/src/utils/ai/ResponseDialog.tsx"
       ]
     }

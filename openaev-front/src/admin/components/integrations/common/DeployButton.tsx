@@ -55,7 +55,7 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
       )}
       <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" startIcon={isEnterpriseEdition ? null : <RocketLaunchOutlined fontSize="small" />} onClick={onDeployClickAction}>
         {t('Deploy')}
-        {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
+        {!isEnterpriseEdition && <EEChip />}
       </Button>
     </div>
   );

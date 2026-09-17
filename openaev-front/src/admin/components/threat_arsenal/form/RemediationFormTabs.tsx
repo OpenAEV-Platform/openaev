@@ -98,11 +98,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
                     <img
                       src={buildTenantApiPath(`/api/images/security_platforms/id/${tab.asset_id}/${theme.palette.mode}`)}
                       alt=""
-                      style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: 4,
-                      }}
+                      style={{ borderRadius: 4 }}
                     />
                   )}
                 >

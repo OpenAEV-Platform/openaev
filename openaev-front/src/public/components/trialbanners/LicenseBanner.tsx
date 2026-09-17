@@ -1,8 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type Theme } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SxProps } from '@mui/system';
 import moment from 'moment/moment';
 import type React from 'react';
 import { useState } from 'react';
@@ -17,7 +15,7 @@ import { type License, type PlatformSettings } from '../../../utils/api-types';
 import { daysBetweenDates } from '../../../utils/Time';
 import { zodImplement } from '../../../utils/Zod';
 import { LICENSE_OPTION_TRIAL } from './constants';
-import TopBanner, { type TopBannerColor } from './TopBanner';
+import TopBanner, { type BannerButtonColor, type TopBannerColor } from './TopBanner';
 
 const TRIAL_YELLOW_DAYS = 8;
 const TRIAL_GREEN_DAYS = 22;
@@ -26,7 +24,7 @@ interface BannerInfo {
   message: React.ReactNode;
   bannerColor: TopBannerColor;
   buttonText?: string;
-  buttonStyle?: SxProps<Theme>;
+  buttonColor?: BannerButtonColor;
   onButtonClick?: () => void;
 }
 
@@ -36,26 +34,20 @@ const getBannerColor = (remainingDays: number) => {
   return 'gradient_blue';
 };
 
-const getButtonColor = (remainingDays: number): string => {
-  if (remainingDays <= TRIAL_YELLOW_DAYS) return '#884106';
-  if (remainingDays <= TRIAL_GREEN_DAYS) return '#005744';
-  return '#007399';
-};
-
-const getButtonStyle = (remainingDays: number): SxProps<Theme> => {
-  const buttonColor = getButtonColor(remainingDays);
-
-  return {
-    color: 'white',
-    fontWeight: 'bold',
-    backgroundColor: buttonColor,
-  };
+// The action button is filled with the band's own urgency colour, through the
+// library's exceptional `color` override (its RFC §9.1). The three tokens carry
+// the hexes the banner used, except the blue: #007399 has no primitive, and
+// `blue-700` (#0079a8) is the nearest step.
+const getButtonColor = (remainingDays: number): BannerButtonColor => {
+  if (remainingDays <= TRIAL_YELLOW_DAYS) return 'orange-700';
+  if (remainingDays <= TRIAL_GREEN_DAYS) return 'turquoise-800';
+  return 'blue-700';
 };
 const computeBannerError = (message: string): BannerInfo => {
   return {
     message,
     bannerColor: 'red',
-    buttonStyle: getButtonStyle(0),
+    buttonColor: getButtonColor(0),
   };
 };
 
@@ -129,7 +121,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
         bannerText={bannerInfo.message}
         bannerColor={bannerInfo.bannerColor}
         buttonText={bannerInfo.buttonText}
-        buttonStyle={bannerInfo.buttonStyle}
+        buttonColor={bannerInfo.buttonColor}
         onButtonClick={bannerInfo.onButtonClick}
       />
       <Dialog

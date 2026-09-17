@@ -2466,7 +2466,7 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 
 ## 59. `Button` has no colour override for an exceptional case
 
-**Status.** Open, PR on the library requested (Sandy, 2026-09-18). One site kept on MUI (`fds:keep-mui`): the licence banner's action button.
+**Status.** CLOSED by library #226 (merged 2026-09-17), consumed at the 2026-09-18 bump: the licence banner's action button renders the library Button with `color`, and its `fds:keep-mui` is gone.
 
 **Measured.** `ButtonProps` is `variant` × `priority` × `size`; the RFC's §7 excludes MUI's `color` ("covered by `variant`"). The licence banner paints its button in the banner's urgency colour (`#884106` yellow band, `#005744` green band, `#007399` blue band, white label): three colours that are neither brand, destructive, ia nor highlight, chosen to echo the band the button sits on.
 
@@ -2476,10 +2476,20 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 
 ## 60. `Button` does not default `type="button"`, unlike MUI and unlike the library's own `IconButton`
 
-**Status.** Open. Worked around in the product: `type="button"` written explicitly on the 362 converted sites that had no type.
+**Status.** CLOSED by library #228 (merged 2026-09-18), consumed at the bump. The 362 explicit `type="button"` the product wrote stay: they are correct and now redundant, to be dropped in a later cleanup rather than churned inside this pull request.
 
 **Measured.** `Button.tsx` at the pinned commit never sets `type`, so the rendered `<button>` falls back to the HTML default, `submit`. MUI's `ButtonBase` resolves `type === undefined ? "button" : type` (`@mui/material/ButtonBase/ButtonBase.js`), and the library's own `IconButton` declares `type = "button"` as a default parameter. So a MUI button with no type never submitted, and its library replacement does.
 
 **What it cost.** The OpenAEV Button wave turned every such button into a submit button inside its form. Caught by the product's end-to-end suite, not by any type or lint gate: the threat-arsenal "New argument" button submitted the action form instead of appending a row, so the argument field never appeared (`tests_e2e/tests/threat-arsenals/threatArsenal-creation.spec.ts`, two tests, three attempts each). Verified on the running product after the fix: the field appears and the drawer stays open.
 
 **The request.** Default `type="button"` on `Button`, as `IconButton` already does and as MUI does — a button that must submit says so. Until then every consumer has to write it on every site, and the omission is silent.
+
+## 61. `PrimitiveColorToken` is declared but not exported
+
+**Status.** Open. Worked around in the product (the union is read off the prop).
+
+**Measured.** `dist/index.d.ts` at the bumped commit declares `type PrimitiveColorToken = keyof typeof PRIMITIVE_COLORS` and uses it for `ButtonProps["color"]`, but the type is absent from the package's exports: naming it in a consumer fails with TS2459, "declares 'PrimitiveColorToken' locally, but it is not exported".
+
+**Product need.** The licence banner maps three urgency bands to three tokens and needs to name that union in its own props (`TopBanner`, `LicenseBanner`). It currently derives it with `NonNullable<ComponentProps<typeof Button>['color']>`, which works but says nothing to a reader.
+
+**The request.** Export `PrimitiveColorToken` (and, if useful, `PRIMITIVE_COLORS`) from the package entry, next to `ButtonProps`.

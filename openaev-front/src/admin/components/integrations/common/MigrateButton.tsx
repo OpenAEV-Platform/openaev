@@ -40,7 +40,7 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
         >
           <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" onClick={onMigrateClickAction}>
             {t('Migrate')}
-            {!isEnterpriseEdition && <EEChip style={{ marginLeft: 4 }} />}
+            {!isEnterpriseEdition && <EEChip />}
           </Button>
         </div>
       </TooltipTrigger>
