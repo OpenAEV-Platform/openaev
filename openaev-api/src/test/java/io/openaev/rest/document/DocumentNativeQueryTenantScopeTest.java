@@ -1,6 +1,5 @@
 package io.openaev.rest.document;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -67,6 +66,8 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
   private String securityPlatformB;
   private String challengeA;
   private String payloadA;
+  private String injectorContractA;
+  private String injectA;
 
   @BeforeEach
   void seedTwoTenants() {
@@ -88,6 +89,11 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
     challengeA = seedChallenge(tenantA);
     link("challenges_documents", "challenge_id", challengeA, "document_id", docA1);
     payloadA = seedPayloadWithFile(tenantA, docA1);
+    // On-injects branch: an injector contract carrying the file-drop payload, and an inject on the
+    // scenario using that contract, so findAllDistinctOnInjectsByScenarioId returns docA1 rather
+    // than only proving it executes.
+    injectorContractA = seedInjectorContractWithPayload(tenantA, payloadA);
+    injectA = seedInjectOnScenario(tenantA, scenarioA, injectorContractA);
     // Article branch of the relations queries: one on the scenario (docA1), one on the exercise
     // (docA2), so both findAllDistinctBy* return a real row rather than only proving they execute.
     seedArticleWithDocument(channelA, scenarioA, null, docA1);
@@ -102,6 +108,15 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
 
   @AfterEach
   void cleanup() {
+    // Remove the inject before its scenario and injector contract, and the contract before its
+    // payload, so the foreign keys of the on-injects chain do not block the deletes below.
+    if (injectA != null) {
+      jdbc.update("DELETE FROM injects WHERE inject_id = ?", injectA);
+    }
+    if (injectorContractA != null) {
+      jdbc.update(
+          "DELETE FROM injectors_contracts WHERE injector_contract_id = ?", injectorContractA);
+    }
     for (String documentId : List.of(docA1, docA2, docB1)) {
       jdbc.update("DELETE FROM articles_documents WHERE document_id = ?", documentId);
       jdbc.update("DELETE FROM documents_tags WHERE document_id = ?", documentId);
@@ -261,17 +276,20 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("on injects by scenario id: the payload/injector-contract shape executes scoped")
-    void given_scenario_should_executeOnInjectsQueryWithoutError() {
-      // No inject/injector-contract chain is seeded, so the result is empty; the value certified
-      // here is that the rewritten SQL (documents narrowed inside its LEFT JOIN chain) executes on
-      // PostgreSQL under a scope rather than being refused or producing invalid SQL at go-live.
-      assertDoesNotThrow(
-          () ->
-              scoped(
-                  tenantA,
-                  () -> documentRepository.findAllDistinctOnInjectsByScenarioId(scenarioA)),
-          "the on-injects relations query must execute once documents is active");
+    @DisplayName("on injects by scenario id: the payload's file document is returned to the caller")
+    void given_scenarioWithInjectChain_should_returnLinkedDocumentScopedToCaller() {
+      // The scenario has an inject whose injector contract carries the file-drop payload of docA1,
+      // so the payload/injector-contract/inject chain resolves to docA1 under the caller's scope
+      // and
+      // to nothing for another tenant's document.
+      List<String> ids =
+          scoped(tenantA, () -> documentRepository.findAllDistinctOnInjectsByScenarioId(scenarioA))
+              .stream()
+              .map(io.openaev.database.model.Document::getId)
+              .toList();
+      assertTrue(
+          ids.contains(docA1), "the inject payload's file document must be returned: " + ids);
+      assertFalse(ids.contains(docB1), "no other tenant's document may appear: " + ids);
     }
   }
 
@@ -412,6 +430,34 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
         id,
         "payload-" + id,
         fileDocumentId,
+        tenantId);
+    return id;
+  }
+
+  private String seedInjectorContractWithPayload(String tenantId, String payloadId) {
+    String id = UUID.randomUUID().toString();
+    // injectors_contracts has a composite key (injector_contract_id, tenant_id), and the injects
+    // foreign key references both columns, so the contract must carry the same tenant as the
+    // inject.
+    jdbc.update(
+        "INSERT INTO injectors_contracts (injector_contract_id, tenant_id,"
+            + " injector_contract_content, injector_contract_payload) VALUES (?, ?, '{}', ?)",
+        id,
+        tenantId,
+        payloadId);
+    return id;
+  }
+
+  private String seedInjectOnScenario(String tenantId, String scenarioId, String contractId) {
+    String id = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO injects (inject_id, inject_title, inject_created_at, inject_updated_at,"
+            + " inject_depends_duration, inject_all_teams, inject_enabled, inject_scenario,"
+            + " inject_injector_contract, tenant_id)"
+            + " VALUES (?, 'on-injects doc', now(), now(), 0, false, true, ?, ?, ?)",
+        id,
+        scenarioId,
+        contractId,
         tenantId);
     return id;
   }
