@@ -5,7 +5,11 @@ import static io.openaev.utils.injector_contract.InjectorContractContentUtils.FI
 import static io.openaev.utils.injector_contract.InjectorContractContentUtils.OUTPUTS;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetCategory;
+import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
@@ -13,6 +17,7 @@ import io.openaev.database.model.InjectStatus;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -31,17 +36,33 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+/**
+ * Opt-in demo data for development and disposable feature environments.
+ *
+ * <p>Every sample is submitted through the normal Inject callback pipeline so the demo exercises
+ * output validation, legacy Finding compatibility, stable identity aggregation and occurrence
+ * persistence. The profile and property gates keep synthetic data out of production deployments.
+ */
 @Component
 @Profile({"dev", "test-feature-branch"})
-@ConditionalOnProperty(prefix = "openaev.dev", name = "seed-prowler-findings", havingValue = "true")
+@ConditionalOnProperty(prefix = "openaev.dev", name = "seed-findings", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
-public class ProwlerFindingDemoSeeder implements CommandLineRunner {
+public class FindingDemoSeeder implements CommandLineRunner {
 
   static final String DEMO_INJECTOR_TYPE = "openaev_prowler_demo";
+  static final String NATIVE_DEMO_INJECTOR_TYPE = "openaev_findings_demo";
   static final String OUTPUT_KEY = "findings";
   static final int OCCURRENCES_PER_FINDING = 3;
   static final int DEMO_FINDING_COUNT = 4;
+  static final int NATIVE_DEMO_FINDING_COUNT = 24;
+
+  private static final String NATIVE_INJECT_TITLE = "OpenAEV categorized findings demo";
+  private static final List<DemoAsset> DEMO_ASSETS =
+      List.of(
+          new DemoAsset("e1000000-0000-4000-8000-000000000001", "internet-gateway"),
+          new DemoAsset("e1000000-0000-4000-8000-000000000002", "identity-server"),
+          new DemoAsset("e1000000-0000-4000-8000-000000000003", "file-server"));
 
   private static final String ACCOUNT_ID = "123456789012";
   private static final String REGION = "eu-west-1";
@@ -137,6 +158,7 @@ public class ProwlerFindingDemoSeeder implements CommandLineRunner {
               "https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html"));
 
   private final ObjectMapper objectMapper;
+  private final AssetRepository assetRepository;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final InjectRepository injectRepository;
@@ -166,20 +188,25 @@ public class ProwlerFindingDemoSeeder implements CommandLineRunner {
         created++;
       }
     }
-    log.info("Prowler finding demo seed complete: {} inject occurrences created", created);
+    created += seedNativeFindings();
+    log.info("Finding demo seed complete: {} inject occurrences created", created);
   }
 
   private Injector ensureInjector() {
+    return ensureInjector(DEMO_INJECTOR_TYPE, "Prowler", "misconfiguration_scanner");
+  }
+
+  private Injector ensureInjector(String type, String name, String category) {
     return injectorRepository
-        .findByTypeAndTenantId(DEMO_INJECTOR_TYPE, DEFAULT_TENANT_UUID)
+        .findByTypeAndTenantId(type, DEFAULT_TENANT_UUID)
         .orElseGet(
             () -> {
               Injector injector = new Injector();
               injector.setId(UUID.randomUUID().toString());
               injector.setTenantId(DEFAULT_TENANT_UUID);
-              injector.setName("Prowler");
-              injector.setType(DEMO_INJECTOR_TYPE);
-              injector.setCategory("misconfiguration_scanner");
+              injector.setName(name);
+              injector.setType(type);
+              injector.setCategory(category);
               return injectorRepository.save(injector);
             });
   }
@@ -219,6 +246,83 @@ public class ProwlerFindingDemoSeeder implements CommandLineRunner {
     return saved;
   }
 
+  private int seedNativeFindings() {
+    List<Asset> assets = DEMO_ASSETS.stream().map(this::ensureAsset).toList();
+    Injector injector =
+        ensureInjector(NATIVE_DEMO_INJECTOR_TYPE, "OpenAEV Demo Scanner", "security_scanner");
+    InjectorContract contract = ensureNativeContract(injector);
+    if (injectRepository.existsByTitleAndTenantId(NATIVE_INJECT_TITLE, DEFAULT_TENANT_UUID)) {
+      return 0;
+    }
+    Inject inject = createInject(NATIVE_INJECT_TITLE, injector, contract, SCAN_TIMES.size() - 1);
+    injectRepository.save(inject);
+    injectExecutionService.handleInjectExecutionCallback(
+        inject.getId(), null, nativeCallback(assets));
+    return 1;
+  }
+
+  private Asset ensureAsset(DemoAsset demoAsset) {
+    return assetRepository
+        .findByIdAndTenantId(demoAsset.id(), DEFAULT_TENANT_UUID)
+        .orElseGet(
+            () -> {
+              Asset asset = new Asset();
+              asset.setId(demoAsset.id());
+              asset.setName(demoAsset.name());
+              asset.setDescription("Synthetic asset used only by the opt-in Findings demo seed.");
+              asset.setCategory(AssetCategory.GENERIC_ASSET);
+              asset.setTenant(new Tenant(DEFAULT_TENANT_UUID));
+              return assetRepository.save(asset);
+            });
+  }
+
+  private InjectorContract ensureNativeContract(Injector injector) {
+    InjectorContract contract =
+        injectorContractRepository.findByInjectorsContaining(injector).stream()
+            .findFirst()
+            .orElseGet(
+                () -> {
+                  InjectorContract created = new InjectorContract();
+                  created.setId(UUID.randomUUID().toString());
+                  created.setTenant(new Tenant(DEFAULT_TENANT_UUID));
+                  created.setLabels(Map.of("en", "Categorized findings demo"));
+                  created.setManual(false);
+                  created.setCustom(false);
+                  created.setNeedsExecutor(false);
+                  created.setAtomicTesting(true);
+                  created.setPlatforms(
+                      new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Generic});
+                  created.addInjector(injector);
+                  return created;
+                });
+
+    ObjectNode content = objectMapper.createObjectNode();
+    content.putArray(FIELDS);
+    ArrayNode outputs = content.putArray(OUTPUTS);
+    addOutput(outputs, "surface", ContractOutputType.PortsScan, "Surface & Reachability");
+    addOutput(outputs, "identities", ContractOutputType.Username, "Identities");
+    addOutput(outputs, "credentials", ContractOutputType.Credentials, "Credential Access");
+    addOutput(outputs, "privileges", ContractOutputType.Group, "Privilege & Trust Structure");
+    addOutput(outputs, "weaknesses", ContractOutputType.Vulnerability, "Exploitable Weaknesses");
+    addOutput(outputs, "resources", ContractOutputType.Share, "Resources");
+    addOutput(outputs, "posture", ContractOutputType.PasswordPolicy, "Configuration & Posture");
+    addOutput(outputs, "informative", ContractOutputType.Text, "Informative");
+    contract.setContent(content.toString());
+    contract.setConvertedContent(content);
+    InjectorContract saved = injectorContractRepository.save(contract);
+    injectorRepository.linkContract(injector.getId(), saved.getId(), DEFAULT_TENANT_UUID);
+    return saved;
+  }
+
+  private void addOutput(ArrayNode outputs, String field, ContractOutputType type, String label) {
+    ObjectNode output = outputs.addObject();
+    output.put("type", type.getLabel());
+    output.put("field", field);
+    output.putArray("labels").add(label);
+    output.put("isMultiple", true);
+    output.put("isFindingCompatible", true);
+  }
+
   private Inject createInject(
       String injectTitle, Injector injector, InjectorContract contract, int scanIndex) {
     Inject inject = new Inject();
@@ -247,6 +351,154 @@ public class ProwlerFindingDemoSeeder implements CommandLineRunner {
     structuredOutput.set(
         OUTPUT_KEY, objectMapper.createArrayNode().add(payload(scanIndex, findingIndex)));
     input.setOutputStructured(structuredOutput.toString());
+    return input;
+  }
+
+  private InjectExecutionInput nativeCallback(List<Asset> assets) {
+    InjectExecutionInput input = new InjectExecutionInput();
+    input.setMessage("Categorized finding demo completed");
+    input.setStatus("INFO");
+    input.setAction(InjectExecutionAction.complete);
+    input.setDuration(15_000);
+
+    String gatewayId = assets.get(0).getId();
+    String identityServerId = assets.get(1).getId();
+    String fileServerId = assets.get(2).getId();
+    ObjectNode output = objectMapper.createObjectNode();
+    ArrayNode surface = output.putArray("surface");
+    surface
+        .addObject()
+        .put("asset_id", gatewayId)
+        .put("host", "198.51.100.10")
+        .put("port", "22")
+        .put("service", "ssh");
+    surface
+        .addObject()
+        .put("asset_id", gatewayId)
+        .put("host", "198.51.100.10")
+        .put("port", "443")
+        .put("service", "https");
+    surface
+        .addObject()
+        .put("asset_id", gatewayId)
+        .put("host", "198.51.100.10")
+        .put("port", "3389")
+        .put("service", "rdp");
+
+    ArrayNode identities = output.putArray("identities");
+    identities
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("domain", "DEMO")
+        .put("username", "alice");
+    identities
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("domain", "DEMO")
+        .put("username", "backup-operator");
+    identities
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("domain", "DEMO")
+        .put("username", "service-deploy");
+
+    ArrayNode credentials = output.putArray("credentials");
+    credentials
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("username", "alice")
+        .put("hash", "DEMO_HASH_ALICE");
+    credentials
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("username", "backup-operator")
+        .put("hash", "DEMO_HASH_BACKUP");
+    credentials
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("username", "service-deploy")
+        .put("hash", "DEMO_HASH_DEPLOY");
+
+    ArrayNode privileges = output.putArray("privileges");
+    privileges
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("group_name", "Domain Admins")
+        .put("member_count", "5");
+    privileges
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("group_name", "Backup Operators")
+        .put("member_count", "12");
+    privileges
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("group_name", "Remote Desktop Users")
+        .put("member_count", "28");
+
+    ArrayNode weaknesses = output.putArray("weaknesses");
+    weaknesses
+        .addObject()
+        .put("asset_id", gatewayId)
+        .put("name", "CVE-2024-6387")
+        .put("status", "vulnerable")
+        .put("details", "OpenSSH regreSSHion exposure");
+    weaknesses
+        .addObject()
+        .put("asset_id", gatewayId)
+        .put("name", "CVE-2023-44487")
+        .put("status", "vulnerable")
+        .put("details", "HTTP/2 rapid reset exposure");
+    weaknesses
+        .addObject()
+        .put("asset_id", fileServerId)
+        .put("name", "CVE-2021-44228")
+        .put("status", "vulnerable")
+        .put("details", "Log4Shell-compatible component detected");
+
+    ArrayNode resources = output.putArray("resources");
+    resources
+        .addObject()
+        .put("asset_id", fileServerId)
+        .put("host", "files.demo.internal")
+        .put("share_name", "Finance")
+        .put("permissions", "READ");
+    resources
+        .addObject()
+        .put("asset_id", fileServerId)
+        .put("host", "files.demo.internal")
+        .put("share_name", "Engineering")
+        .put("permissions", "READ_WRITE");
+    resources
+        .addObject()
+        .put("asset_id", fileServerId)
+        .put("host", "files.demo.internal")
+        .put("share_name", "Public")
+        .put("permissions", "ANONYMOUS_READ");
+
+    ArrayNode posture = output.putArray("posture");
+    posture
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("key", "MinimumPasswordLength")
+        .put("value", "8");
+    posture
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("key", "PasswordHistorySize")
+        .put("value", "5");
+    posture
+        .addObject()
+        .put("asset_id", identityServerId)
+        .put("key", "LockoutThreshold")
+        .put("value", "0");
+
+    output
+        .putArray("informative")
+        .add("Synthetic reconnaissance completed")
+        .add("Demo environment contains no production data")
+        .add("Finding history is generated through the callback pipeline");
+    input.setOutputStructured(output.toString());
     return input;
   }
 
@@ -330,4 +582,6 @@ public class ProwlerFindingDemoSeeder implements CommandLineRunner {
       Map<String, List<String>> compliance,
       String remediation,
       String remediationReference) {}
+
+  private record DemoAsset(String id, String name) {}
 }
