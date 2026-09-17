@@ -3,7 +3,6 @@ package io.openaev.service.chaining;
 import static io.openaev.database.model.ConditionType.DEPEND_ON;
 import static org.junit.jupiter.api.Assertions.*;
 
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -23,6 +22,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -30,9 +30,10 @@ import org.springframework.transaction.annotation.Transactional;
  * cloning primitive shared by launch, autonomous plan provisioning, convert-to-manual and
  * duplication (ADR-007).
  */
+@SpringBootTest
 @Transactional
 @DisplayName("StepService - workflow graph copy")
-class StepServiceGraphCopyIntegrationTest extends IntegrationTest {
+class StepServiceGraphCopyIntegrationTest {
 
   @Autowired private StepService stepService;
   @Autowired private ConditionService conditionService;
