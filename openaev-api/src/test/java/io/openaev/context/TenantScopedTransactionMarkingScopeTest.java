@@ -173,7 +173,7 @@ class TenantScopedTransactionMarkingScopeTest extends IntegrationTest {
   private Set<String> markingIdsOf(String tenantId) {
     return Set.copyOf(
         jdbc.queryForList(
-            "SELECT marking_id FROM marking_definitions WHERE tenant_id = ?",
+            "SELECT marking_definition_id FROM marking_definitions WHERE tenant_id = ?",
             String.class,
             tenantId));
   }
@@ -196,8 +196,9 @@ class TenantScopedTransactionMarkingScopeTest extends IntegrationTest {
 
   private void seedMarking(String tenantId, String type, String name, int order) {
     jdbc.update(
-        "INSERT INTO marking_definitions (marking_id, marking_type, marking_name, marking_order,"
-            + " marking_created_at, marking_updated_at, tenant_id)"
+        "INSERT INTO marking_definitions (marking_definition_id, marking_definition_type,"
+            + " marking_definition_definition, marking_definition_order,"
+            + " marking_definition_created_at, marking_definition_updated_at, tenant_id)"
             + " VALUES (?, ?, ?, ?, now(), now(), ?)",
         UUID.randomUUID().toString(),
         type,

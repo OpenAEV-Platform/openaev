@@ -67,8 +67,10 @@ class ScopeStatementInspectorTest {
     @DisplayName("emits that dimension's predicate alone, with no AND wrapper")
     void singleDimensionEmitsItsPredicateVerbatim() {
       // The extraction must not change the emitted SQL: an AND-join of one element is the element.
-      // documents is strict, so no allow_platform flag either.
-      String out = inspect(inspector, "SELECT * FROM documents d WHERE d.id = ?");
+      // documents is strict, so no allow_platform flag either. No pre-existing WHERE, so there is
+      // nothing for the predicate to be ANDed onto — narrowedPredicateAddedOnceWithExistingWhere
+      // in TenantStatementInspectorTest covers the existing-WHERE case.
+      String out = inspect(inspector, "SELECT * FROM documents d");
       assertTrue(out.contains("WHERE can_access_tenant(d.tenant_id)"), out);
       assertTrue(!out.contains("AND can_access_tenant"), out);
     }

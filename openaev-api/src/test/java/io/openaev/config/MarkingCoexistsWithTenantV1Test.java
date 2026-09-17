@@ -21,6 +21,15 @@ import org.junit.jupiter.api.Test;
  * setting and adds no {@code ?}; if it ever did, the wrap being inserted in the FROM (which
  * precedes the WHERE) would shift every later placeholder and silently break positional binding.
  * Every case below therefore asserts the placeholder count is preserved.
+ *
+ * <p><b>Synthetic, not config-driven:</b> the inspector below is hand-built with a {@code
+ * documents} entry hardcoded as v1 (empty {@link TenantTables}) and marking-active — it does not
+ * read the real {@code Document} entity's {@code @Filter} annotation, nor {@code
+ * openaev.tenant.active-tables} / {@code openaev.marking.active-tables} from {@code
+ * application.properties}. It will keep passing even if {@code documents} is later migrated to
+ * tenant v2, since nothing here is wired to that migration. If/when that happens, this class stops
+ * describing a real table and should be re-pointed at a table that is still genuinely v1, or have
+ * this note updated to say so explicitly.
  */
 @DisplayName("Marking coexists with tenant isolation v1")
 class MarkingCoexistsWithTenantV1Test {
@@ -61,19 +70,20 @@ class MarkingCoexistsWithTenantV1Test {
   void v1ConditionSurvives() {
     String out =
         rewrite("SELECT d.doc_id, d.name FROM documents d WHERE d.tenant_id = ? AND d.name = ?");
-    // Marking filters the wrapped source, the v1 condition stays in the outer WHERE: both apply.
-    assertTrue(
-        out.contains("(SELECT * FROM documents d WHERE " + MARKING_PREDICATE + ") AS d"), out);
-    assertTrue(out.endsWith("WHERE d.tenant_id = ? AND d.name = ?"), out);
+    // The primary table is narrowed into the existing WHERE (not wrapped): the v1 condition and
+    // the marking predicate are ANDed together, both apply.
+    assertTrue(out.contains("WHERE (d.tenant_id = ? AND d.name = ?)"), out);
+    assertTrue(out.endsWith("AND (" + MARKING_PREDICATE + ")"), out);
   }
 
   @Test
   @DisplayName("the wrapper projects everything, so the v1 condition still resolves tenant_id")
   void wrapperKeepsTheTenantColumnAvailable() {
-    // A projected wrap (SELECT * …) is what makes an outer reference to a column the marking
-    // predicate never mentions legal.
+    // The primary table is narrowed into the WHERE: the v1 condition and the marking predicate are
+    // ANDed together in place, so the outer reference to tenant_id still resolves against the base
+    // table (never wrapped away).
     String out = rewrite("SELECT d.doc_id FROM documents d WHERE d.tenant_id = ?");
-    assertTrue(out.contains("SELECT * FROM documents d WHERE " + MARKING_PREDICATE), out);
+    assertTrue(out.contains("WHERE (d.tenant_id = ?) AND (" + MARKING_PREDICATE + ")"), out);
   }
 
   @Test
@@ -83,7 +93,12 @@ class MarkingCoexistsWithTenantV1Test {
         rewrite(
             "SELECT d.doc_id FROM documents d"
                 + " WHERE (d.tenant_id = ? OR d.tenant_id IS NULL) AND d.name = ?");
-    assertTrue(out.endsWith("WHERE (d.tenant_id = ? OR d.tenant_id IS NULL) AND d.name = ?"), out);
+    assertTrue(
+        out.endsWith(
+            "WHERE ((d.tenant_id = ? OR d.tenant_id IS NULL) AND d.name = ?) AND ("
+                + MARKING_PREDICATE
+                + ")"),
+        out);
   }
 
   @Test
@@ -93,8 +108,11 @@ class MarkingCoexistsWithTenantV1Test {
         rewrite(
             "SELECT d.doc_id FROM documents d JOIN tags t ON t.doc_id = d.doc_id"
                 + " WHERE d.tenant_id = ? AND t.label = ?");
+    // documents is the primary table, narrowed into the WHERE; tags is not covered by any
+    // dimension, so the join stays untouched.
     assertTrue(
-        out.contains("(SELECT * FROM documents d WHERE " + MARKING_PREDICATE + ") AS d"), out);
+        out.contains("WHERE (d.tenant_id = ? AND t.label = ?) AND (" + MARKING_PREDICATE + ")"),
+        out);
     assertTrue(out.contains("JOIN tags t ON t.doc_id = d.doc_id"), out);
   }
 

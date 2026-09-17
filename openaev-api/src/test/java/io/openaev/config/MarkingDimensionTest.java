@@ -102,9 +102,12 @@ class MarkingDimensionTest {
       ScopeStatementInspector inspector =
           new ScopeStatementInspector(List.of(tenant, new MarkingDimension(ACTIVE)));
       String out = flatten(inspector.inspect("SELECT * FROM documents d WHERE d.id = ?"));
+      // The primary table is narrowed into the existing WHERE (not wrapped), so the original
+      // predicate survives alongside both dimensions' predicates, ANDed together.
+      assertTrue(out.contains("WHERE (d.id = ?)"), out);
       assertTrue(
           out.contains(
-              "WHERE can_access_tenant(d.tenant_id) AND is_marking_set_allowed(d.marking_ids)"),
+              "AND (can_access_tenant(d.tenant_id) AND is_marking_set_allowed(d.marking_ids))"),
           out);
     }
 
