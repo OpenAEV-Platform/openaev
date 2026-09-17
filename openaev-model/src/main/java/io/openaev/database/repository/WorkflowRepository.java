@@ -83,7 +83,8 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
         WHERE workflow_status = 'RUN'
           AND workflow_timeout_enabled = true
           AND workflow_timeout_seconds IS NOT NULL
-          AND workflow_created_at + (workflow_timeout_seconds || ' seconds')::interval <= now()
+          AND workflow_created_at
+              + ((workflow_timeout_seconds + COALESCE(workflow_pause_second, 0)) || ' seconds')::interval <= now()
         """,
       nativeQuery = true)
   List<String> findAllExpiredRunWorkflowIds();

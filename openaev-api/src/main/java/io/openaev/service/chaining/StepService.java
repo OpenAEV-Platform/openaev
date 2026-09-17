@@ -1097,6 +1097,10 @@ public class StepService {
     return stepRepository.findAllStepByWorkflow_IdAndStatusIn(id, ACTIVE_STEP_STATUS);
   }
 
+  public List<Step> findAllStepsByWorkflowRunIdAndStatus(String workflowRunId, StepStatus status) {
+    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(workflowRunId, List.of(status));
+  }
+
   /**
    * Ends all active steps for the given workflow run.
    *

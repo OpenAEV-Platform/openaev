@@ -19,6 +19,7 @@ import io.openaev.service.LessonsService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -88,6 +89,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
   @Mock private WorkflowService workflowService;
+  @Mock private WorkflowPauseService workflowPauseService;
   @Mock private GrantService grantService;
   @Mock private ExerciseTeamUserService exerciseTeamUserService;
   @Mock private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
@@ -142,6 +144,7 @@ class ExerciseServiceTest extends IntegrationTest {
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
+            workflowPauseService,
             pauseExerciseService,
             fileService,
             stepService,

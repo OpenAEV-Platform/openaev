@@ -827,6 +827,17 @@ public class WorkflowService {
   }
 
   /**
+   * Finds workflows stopped for a simulation.
+   *
+   * @param simulationId the ID of the simulation
+   * @return a list of workflow executed (status = STOP)
+   */
+  public List<Workflow> findWorkflowStoppedBySimulationId(String simulationId) {
+    return this.workflowRepository.findAllBySimulation_IdAndStatus(
+        simulationId, WorkflowStatus.STOP);
+  }
+
+  /**
    * Finds the workflow template for a scenario.
    *
    * @param scenarioId the ID of the scenario
@@ -1548,6 +1559,11 @@ public class WorkflowService {
     return workflowRepository.existsByIdAndStatus(workflowId, WorkflowStatus.END);
   }
 
+  @Transactional(readOnly = true)
+  public boolean isWorkflowStopped(String workflowId) {
+    return workflowRepository.existsByIdAndStatus(workflowId, WorkflowStatus.STOP);
+  }
+
   /**
    * Finds all RUN workflows whose timeout has expired.
    *
@@ -1597,9 +1613,10 @@ public class WorkflowService {
     // createReadySteps/enqueueReadySteps
     // below, re-readying and re-enqueuing steps on a terminated run (churn, and a possible re-fire
     // after a timeout settle).
-    if (this.isWorkflowEnded(workflowRun.getId())) {
+    if (this.isWorkflowEnded(workflowRun.getId()) || this.isWorkflowStopped(workflowRun.getId())) {
       log.info(
-          "[Chaining] Ignoring evaluation because workflow run {} has ended.", workflowRun.getId());
+          "[Chaining] Ignoring evaluation because workflow run {} is not runnable (END/STOP).",
+          workflowRun.getId());
       return workflowRun;
     }
 

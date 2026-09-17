@@ -45,7 +45,6 @@ import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
-import io.openaev.rest.exception.ChainingOperationNotSupportedException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExerciseBulkProcessingInput;
 import io.openaev.rest.exercise.form.ExerciseSimple;
@@ -60,6 +59,7 @@ import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -154,6 +154,7 @@ public class ExerciseService {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   private final WorkflowService workflowService;
+  private final WorkflowPauseService workflowPauseService;
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
@@ -674,9 +675,6 @@ public class ExerciseService {
   }
 
   // Still declares ChainingException: startWorkflowBySimulationId (chaining engine start)
-  // propagates that checked exception. The pause refusal no longer travels through it - it is now
-  // the unchecked ChainingOperationNotSupportedException, mapped to a 400 by RestBehavior instead
-  // of bubbling up unhandled as a 500.
   @Transactional(rollbackFor = Exception.class)
   public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
       throws ChainingException {
@@ -787,20 +785,21 @@ public class ExerciseService {
       pause.setExercise(exercise);
       pause.setDuration(between(lastPause, now()).getSeconds());
       pauseRepository.save(pause);
+      if (workflowService.isSimulationChaining(exercise.getId())) {
+        boolean isEnded = workflowPauseService.resumeSimulationWorkflowRuns(exercise.getId());
+        if (isEnded) {
+          // Reload the exercise to get the updated status after the workflow has ended
+          return this.exercise(exerciseId);
+        }
+      }
     }
     // If pause is asked, just set the pause date.
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
-      // Pausing a chained simulation is unsupported (issue #307): the chaining engine is
-      // queue-based and has no pause semantics. Autonomous (AI-driven) runs need first-class
-      // steering though, so the block is lifted for them: the orchestrator relies on being able
-      // to pause and resume the underlying chained simulation.
-      if (workflowService.isSimulationChaining(exercise.getId())
-          && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
-        throw new ChainingOperationNotSupportedException(
-            "Pausing a chained simulation is not allowed yet, please contact support");
-      }
       exercise.setCurrentPause(Instant.now());
+      if (workflowService.isSimulationChaining(exercise.getId())) {
+        workflowPauseService.pauseSimulationWorkflowRuns(exercise.getId());
+      }
     }
     // Cancelation
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
