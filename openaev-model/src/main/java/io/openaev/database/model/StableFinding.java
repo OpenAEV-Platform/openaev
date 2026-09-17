@@ -99,6 +99,12 @@ public class StableFinding implements TenantBase, Auditable {
   })
   private Injector sourceInjector;
 
+  @JsonProperty("finding_source_type")
+  @Queryable(filterable = true, path = "sourceInjector.type", label = "source type")
+  public String getSourceType() {
+    return sourceInjector == null ? null : sourceInjector.getType();
+  }
+
   @Enumerated(EnumType.STRING)
   @Queryable(filterable = true, sortable = true, label = "finding type")
   @JsonProperty("finding_type")

@@ -123,6 +123,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     'finding_human_updated_at',
     'finding_triage_status',
     'finding_source',
+    'finding_source_type',
   ];
 
   const [findings, setFindings] = useState<StableFindingListItem[]>([]);
@@ -758,6 +759,9 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
           <FindingSidebar
             searchPaginationInput={searchPaginationInput}
             filterHelpers={queryableHelpers.filterHelpers}
+            sourceTypes={findings
+              .map(finding => finding.finding_source?.injector_type)
+              .filter((sourceType): sourceType is string => Boolean(sourceType))}
           />
           <Box sx={{
             display: 'flex',

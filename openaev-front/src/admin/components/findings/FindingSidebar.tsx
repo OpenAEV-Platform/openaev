@@ -5,36 +5,43 @@ import { type FilterHelpers } from '../../../components/common/queryable/filter/
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import { useFormatter } from '../../../components/i18n';
 import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
+import InjectIcon from '../common/injects/InjectIcon';
 import {
   ACTIONABLE_FINDING_CATEGORIES,
   INFORMATIVE_FINDING_CATEGORY,
 } from './findingAggregationCategories';
 
 const CATEGORY_FILTER_KEY = 'finding_aggregation_category';
+const SOURCE_TYPE_FILTER_KEY = 'finding_source_type';
 
 interface Props {
   searchPaginationInput: SearchPaginationInput;
   filterHelpers: FilterHelpers;
+  sourceTypes: string[];
 }
 
-const FindingSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
+const FindingSidebar = ({ searchPaginationInput, filterHelpers, sourceTypes }: Props) => {
   const { t } = useFormatter();
   const filters = useMemo(
     () => searchPaginationInput.filterGroup?.filters ?? [],
     [searchPaginationInput.filterGroup],
   );
-  const values = useMemo(
+  const categoryValues = useMemo(
     () => filters.find((filter: Filter) => filter.key === CATEGORY_FILTER_KEY)?.values ?? [],
     [filters],
   );
+  const sourceTypeValues = useMemo(
+    () => filters.find((filter: Filter) => filter.key === SOURCE_TYPE_FILTER_KEY)?.values ?? [],
+    [filters],
+  );
 
-  const setValues = useCallback((next: string[]) => {
-    const existing = filters.find((filter: Filter) => filter.key === CATEGORY_FILTER_KEY);
+  const setValues = useCallback((key: string, next: string[]) => {
+    const existing = filters.find((filter: Filter) => filter.key === key);
     if (next.length === 0) {
       if (existing?.id) {
         filterHelpers.handleRemoveFilterById(existing.id);
       } else {
-        filterHelpers.handleRemoveFilterByKey(CATEGORY_FILTER_KEY);
+        filterHelpers.handleRemoveFilterByKey(key);
       }
       return;
     }
@@ -44,7 +51,7 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
     }
     filterHelpers.handleAddFilterWithEmptyValue({
       id: generateFilterId(),
-      key: CATEGORY_FILTER_KEY,
+      key,
       operator: 'eq',
       values: next,
       mode: 'and',
@@ -56,15 +63,21 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
     return {
       value: category.value,
       label: t(category.label),
-      checked: values.includes(category.value),
+      checked: categoryValues.includes(category.value),
       icon: () => <Icon />,
       onToggle: () => setValues(
-        values.includes(category.value)
-          ? values.filter(value => value !== category.value)
-          : [...values, category.value],
+        CATEGORY_FILTER_KEY,
+        categoryValues.includes(category.value)
+          ? categoryValues.filter(value => value !== category.value)
+          : [...categoryValues, category.value],
       ),
     };
-  }, [setValues, t, values]);
+  }, [categoryValues, setValues, t]);
+
+  const availableSourceTypes = useMemo(
+    () => [...new Set([...sourceTypes, ...sourceTypeValues])].sort((left, right) => left.localeCompare(right)),
+    [sourceTypeValues, sourceTypes],
+  );
 
   const sections: FacetSection[] = [
     {
@@ -77,9 +90,25 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers }: Props) => {
       label: t('Informative'),
       rows: [row(INFORMATIVE_FINDING_CATEGORY)],
     },
+    {
+      id: 'source-type',
+      label: t('Source type'),
+      rows: availableSourceTypes.map(sourceType => ({
+        value: sourceType,
+        label: sourceType,
+        checked: sourceTypeValues.includes(sourceType),
+        icon: () => <InjectIcon type={sourceType} />,
+        onToggle: () => setValues(
+          SOURCE_TYPE_FILTER_KEY,
+          sourceTypeValues.includes(sourceType)
+            ? sourceTypeValues.filter(value => value !== sourceType)
+            : [...sourceTypeValues, sourceType],
+        ),
+      })),
+    },
   ];
 
-  return <FacetSidebar sections={sections} />;
+  return <FacetSidebar sections={sections.filter(section => section.rows.length > 0)} />;
 };
 
 export default FindingSidebar;
