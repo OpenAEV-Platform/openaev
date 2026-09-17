@@ -196,6 +196,7 @@ runs:
           # Excludes are derived from the shard files, so they can never drift
           # out of sync and silently drop a package from the run.
           cat "$SHARD_DIR"/api-*.txt > /tmp/surefire-excludes.txt
+          printf '%s\n' '**/*$*' >> /tmp/surefire-excludes.txt
           echo "surefire_arg=-Dsurefire.excludesFile=/tmp/surefire-excludes.txt" >> "$GITHUB_OUTPUT"
           echo "🔄 Catch-all shard: everything not claimed by $SHARD_DIR/api-*.txt"
           cat /tmp/surefire-excludes.txt
@@ -215,6 +216,7 @@ runs:
           ARGS="-Dsurefire.includesFile=/tmp/surefire-includes.txt"
           if [ -n "$SHARD_EXCLUDES" ]; then
             echo "$SHARD_EXCLUDES" > /tmp/surefire-excludes.txt
+            printf '%s\n' '**/*$*' >> /tmp/surefire-excludes.txt
             ARGS="$ARGS -Dsurefire.excludesFile=/tmp/surefire-excludes.txt"
             echo "📋 Include patterns:"
             cat /tmp/surefire-includes.txt

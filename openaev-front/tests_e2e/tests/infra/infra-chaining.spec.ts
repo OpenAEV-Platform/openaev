@@ -1,11 +1,12 @@
 import { type APIRequestContext, expect, type Page } from '@playwright/test';
 
+import { type AttackPathDTO } from '../../../src/utils/api-types';
 import ScenarioApiHelpers from '../../api-helpers/ScenarioApiHelpers';
 import { test } from '../../fixtures';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
 import { installAgent, waitForRegisteredAgent } from '../../utils/agent';
 import deployAndStartInjector from '../../utils/injector';
-import { tenantUrl } from '../../utils/url';
+import { tenantApiPath, tenantUrl } from '../../utils/url';
 
 const NMAP_TCP_CONNECT_SCAN = 'Nmap - TCP Connect Scan';
 
@@ -34,6 +35,20 @@ const attackPathNode = (page: Page, label: string) => page
   .getByTestId('attack-path-node')
   .filter({ hasText: label })
   .first();
+
+const expectPayloadOutput = async (page: Page, payloadName: string, output: string): Promise<void> => {
+  await attackPathNode(page, payloadName).click();
+  const execution = page.getByRole('button', { name: new RegExp(payloadName, 'i') }).last();
+  await expect(execution).toBeVisible({ timeout: 10_000 });
+  await execution.click();
+  await page.getByRole('tab', {
+    name: 'Terminal view',
+    exact: true,
+  }).click();
+  await expect(page.getByText(output).filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
+  await page.locator('button[role="tab"]').filter({ hasText: /^Findings$/ }).click();
+  await expect(page.getByTestId('finding-row').filter({ hasText: output }).first()).toBeVisible({ timeout: 10_000 });
+};
 
 const addEndpointToScope = async (page: Page, hostname: string): Promise<void> => {
   await page.getByRole('tab', {
@@ -176,7 +191,7 @@ test.describe.serial('Infrastructure - chaining', () => {
     platform = installedAgent.platform;
   });
 
-  test('runs an output-triggered action chain and displays the resulting finding', async ({ page, request }) => {
+  test('chains source action output through a matching event to a second action', async ({ page, request }) => {
     await waitForRegisteredAgent(page, hostname);
     const threatArsenalHelper = new ThreatArsenalHelper(page);
     await threatArsenalHelper.createCommandLinePayload({
@@ -210,6 +225,7 @@ test.describe.serial('Infrastructure - chaining', () => {
     await addTextTrigger(page, triggerName, sourceToken);
     await addPayloadActionGatedByTrigger(page, resultPayloadName);
     const simulationUrl = await launchScenario(page);
+    const simulationId = new URL(simulationUrl).pathname.split('/').at(-2);
 
     await expect(async () => {
       await page.goto(simulationUrl);
@@ -223,17 +239,28 @@ test.describe.serial('Infrastructure - chaining', () => {
       await expect(sourceAction).toBeVisible({ timeout: 10_000 });
       await expect(resultAction).toBeVisible({ timeout: 10_000 });
 
-      await resultAction.click();
-      const resultExecution = page.getByRole('button', { name: new RegExp(resultPayloadName, 'i') }).last();
-      await expect(resultExecution).toBeVisible({ timeout: 10_000 });
-      await resultExecution.click();
-      await page.getByRole('tab', {
-        name: 'Terminal view',
-        exact: true,
-      }).click();
-      await expect(page.getByText(resultToken).filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
+      await expectPayloadOutput(page, sourcePayloadName, sourceToken);
+      await expectPayloadOutput(page, resultPayloadName, resultToken);
+
+      const graphResponse = await request.get(tenantApiPath(`/api/attack-path/simulations/${simulationId}/graph?mode=full`));
+      await expect(graphResponse).toBeOK();
+      const graph: AttackPathDTO = await graphResponse.json();
+      const resultExecution = graph.attackPathExecutions?.find(execution => execution.payloadName === resultPayloadName);
+      expect(resultExecution, 'The follow-up action must have an execution record').toBeDefined();
+      expect(resultExecution?.consumedFindingKeys, 'The follow-up must consume source output through the matching event').toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            eventName: triggerName,
+            keyType: 'text',
+            operator: 'EQ',
+            value: sourceToken,
+            matchedFindingIds: expect.arrayContaining([expect.any(String)]),
+          }),
+        ]),
+      );
 
       await target.click();
+      await expect(page.getByTitle(sourceToken, { exact: true })).toBeVisible({ timeout: 10_000 });
       await expect(page.getByTitle(resultToken, { exact: true })).toBeVisible({ timeout: 10_000 });
     }).toPass({
       intervals: [10_000],
