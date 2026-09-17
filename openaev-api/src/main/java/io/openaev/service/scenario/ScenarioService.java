@@ -588,8 +588,9 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Latest exercise not found"));
   }
 
+  @Transactional
   public Scenario updateScenario(@NotNull final Scenario scenario) {
-    return this.updateScenario(scenario, null, false);
+    return updateScenarioInternal(scenario, null, false);
   }
 
   /**
@@ -601,6 +602,11 @@ public class ScenarioService {
    */
   @Transactional
   public Scenario updateScenario(
+      @NotNull final Scenario scenario, Set<Tag> currentTags, boolean applyRule) {
+    return updateScenarioInternal(scenario, currentTags, applyRule);
+  }
+
+  private Scenario updateScenarioInternal(
       @NotNull final Scenario scenario, Set<Tag> currentTags, boolean applyRule) {
     if (applyRule) {
       // Get asset groups from the TagRule of the added tags
