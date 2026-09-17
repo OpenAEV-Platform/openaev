@@ -1,13 +1,10 @@
 io/openaev/api/autonomous/**/*Test.java
 io/openaev/api/secrets_providers/**/*Test.java
 io/openaev/rest/challenge/**/*Test.java
-io/openaev/rest/executor/**/*Test.java
 io/openaev/rest/inject/**/*Test.java
 io/openaev/rest/injector/**/*Test.java
-io/openaev/rest/kill_chain_phase/**/*Test.java
 io/openaev/rest/session/**/*Test.java
 io/openaev/rest/settings/**/*Test.java
-io/openaev/rest/tag/**/*Test.java
 io/openaev/secrets/**/*Test.java
 io/openaev/service/autonomous/**/*Test.java
 io/openaev/service/targets/search/**/*Test.java
