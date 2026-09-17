@@ -600,6 +600,27 @@ in filigran-design-system).
   IconButton (secondary, 36px, named "Import injects") beside the view-mode
   ButtonGroup it already shared the row with.
 
+## 2026-09-18 — Chip wave follow-up: a chip must not outgrow its list cell
+
+- Visual pass finding. The MUI chips of two list columns carried a fixed
+  width (`chipInList`: 120px on the scenario type, 140px on the injector
+  contract) and truncated inside it. The library chip sizes to content
+  (ruling B14), so a longer label now outgrew its cell and the CELL cut it:
+  the scenario "Type" chip spilled 2px and lost its rounded edge against the
+  status chip, and the atomic-testing contract chip spilled 49px out of a
+  102px cell, cut mid-word with no ellipsis.
+- Fixed by capping those two chips at their cell (`maxWidth: '100%'`), which
+  hands the truncation back to the library: the label ellipsizes inside the
+  chip and its own tooltip opens only while the label is actually clipped.
+  The dead `withStyles` block the conversion had left in `InjectorContract`
+  goes with it.
+- Swept the ten main list screens at 1400px before and after: two clipped
+  chips before, none after.
+- Left alone, pre-existing: the scenario "Status" cell still draws a
+  text-overflow ellipsis because its own padding makes `scrollWidth` exceed
+  `clientWidth` by 11px, with the chip itself 8px narrower than the cell —
+  the MUI chip overflowed it by far more.
+
 ## 2026-09-18 — Button wave follow-up: the implicit `type="button"`
 
 - The library `Button` sets no `type`, so a converted button with none fell

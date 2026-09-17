@@ -39,7 +39,7 @@ const ScenarioType: FunctionComponent<Props> = ({ type }) => {
   const { severity, Icon } = TYPE_STYLES[type];
 
   return (
-    <Chip severity={severity} startIcon={<Icon />} label={t(type)} />
+    <Chip severity={severity} startIcon={<Icon />} label={t(type)} style={{ maxWidth: '100%' }} />
   );
 };
 
