@@ -2413,3 +2413,13 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** The report structure rows carry one optional title per section on a single line: the label must sit left of the field so the row stays one line high next to its remove button. The product draws its own `<label htmlFor>` beside a label-less `Input` for now.
 
 **The request.** The same `labelPosition` on `Input` and `Textarea` as on `Combobox`, so a form row can keep the library label, its required marker and its tones when the label sits left.
+
+## 54. `Chip` cannot host the filter chip: its label is text only, and the and/or switch lives in the label
+
+**Status.** Open. Four filter chips kept on MUI (`fds:keep-mui`).
+
+**Measured.** `ChipProps.label` is `string` (`chip/Chip.tsx`, `dist/index.d.ts` at the pinned commit). The product's filter chip renders three clickable zones inside its label — the property, the operator and the values — each opening the edit popover, and the `and` / `or` word between two values toggles the filter mode on click. The popover edits the operator and the values, not the mode.
+
+**Product need.** Keep the filter editable from the chip without losing the mode switch. Converting to a text label with the whole chip clickable would drop the only place where the and/or mode can be changed.
+
+**The request.** Either a filter-bar composite in the library (the roadmap entry) or, on `Chip`, a way to render segments inside the label with their own click targets. Until then the filter chips (FilterChip, ClickableChip, assetGroupRules) stay on MUI.

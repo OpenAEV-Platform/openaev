@@ -1,3 +1,4 @@
+import { type ChipSeverity } from '@filigran/design-system';
 import { type CSSProperties } from 'react';
 
 // Single source of truth for the asset-criticality palette, so criticality reads the SAME everywhere it is
@@ -26,6 +27,17 @@ const CRITICALITY_STYLE: Record<string, CSSProperties> = {
     fontStyle: 'italic',
   },
 };
+
+// The library severity for a criticality chip (same reading as the palette above: green low → red critical, unknown neutral).
+const CRITICALITY_SEVERITY: Record<string, ChipSeverity> = {
+  LOW: 'low',
+  MEDIUM: 'info',
+  HIGH: 'high',
+  VERY_HIGH: 'critical',
+  UNKNOWN: 'neutral',
+};
+export const criticalitySeverity = (criticality: string | undefined | null): ChipSeverity =>
+  CRITICALITY_SEVERITY[criticality ?? 'UNKNOWN'] ?? CRITICALITY_SEVERITY.UNKNOWN;
 
 // The full chip style (background + accent) for a criticality; unknown/absent falls back to neutral grey.
 export const criticalityStyle = (criticality: string | undefined | null): CSSProperties =>

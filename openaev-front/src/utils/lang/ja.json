@@ -2176,6 +2176,7 @@
   "Llm_model": "LLM Model",
   "Load earlier messages": "以前のメッセージを読み込む",
   "Load_balancer": "Load Balancer",
+  "Loading": "読み込み中",
   "Loading AI assistant, please wait...": "AIアシスタントを読み込み中です。",
   "Loading argument types...": "引数の型を読み込んでいます...",
   "Loading collectors...": "コレクターをロード中...",

@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined, EditOutlined, ScheduleOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
+import { Box, Button, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -186,15 +186,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
       label: 'Recurrence',
       isSortable: true,
       value: (schedule: ReportingSchedule) => (
-        <Chip
-          label={periodSummary(schedule)}
-          variant="outlined"
-          sx={{
-            height: 20,
-            fontSize: 12,
-            borderRadius: 0.5,
-          }}
-        />
+        <Chip label={periodSummary(schedule)} />
       ),
     },
     {

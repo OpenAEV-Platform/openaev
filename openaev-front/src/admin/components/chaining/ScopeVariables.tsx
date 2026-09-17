@@ -1,7 +1,7 @@
-import { IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, DataObjectOutlined, DeleteOutlined } from '@mui/icons-material';
-import { Box, Chip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -77,17 +77,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
           <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
             {t('Variables')}
           </Typography>
-          <Chip
-            label={variables.length}
-            size="small"
-            sx={{
-              height: 20,
-              minWidth: 24,
-              fontWeight: 700,
-              color: 'primary.main',
-              backgroundColor: alpha(theme.palette.primary.main, 0.12),
-            }}
-          />
+          <Chip label={String(variables.length)} severity="info" />
         </Box>
         <IconButton
           icon={<Add fontSize="small" />}
@@ -140,12 +130,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                 <Chip
                   key={`type-${variable.scope_variable_id}`}
                   label={variable.scope_variable_type ?? '—'}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    justifySelf: 'start',
-                    fontSize: '0.7rem',
-                  }}
+                  style={{ justifySelf: 'start' }}
                 />
                 <Typography
                   key={`value-${variable.scope_variable_id}`}

@@ -1,4 +1,5 @@
-import { Box, Button, Chip, TablePagination } from '@mui/material';
+import { Chip } from '@filigran/design-system';
+import { Box, Button, TablePagination } from '@mui/material';
 import { type ChangeEvent, cloneElement, type MouseEvent as ReactMouseEvent, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -240,12 +241,10 @@ const PaginationComponent = <T extends object>({
         <div className={classes.filters}>
           {!isEmptyFilter(searchPaginationInput.filterGroup, MITRE_FILTER_KEY) && (
             <Chip
-              style={{
-                borderRadius: 4,
-                marginTop: 5,
-              }}
               label={`Attack Pattern = ${computeAttackPatternNameForFilter()}`}
               onDelete={() => helpers.handleRemoveFilterByKey(MITRE_FILTER_KEY)}
+              style={{ marginTop: 5 }}
+              deleteLabel={t('Remove')}
             />
           )}
         </div>

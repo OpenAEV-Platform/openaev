@@ -1,4 +1,4 @@
-import { IconButton, Radio, RadioGroup } from '@filigran/design-system';
+import { Chip, IconButton, Radio, RadioGroup } from '@filigran/design-system';
 import {
   AutoAwesome,
   ErrorOutline,
@@ -8,7 +8,7 @@ import {
   WarningAmber,
 } from '@mui/icons-material';
 // fds:keep-mui the autonomous composer field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Box, Chip, CircularProgress, Stack, TextField, Typography } from '@mui/material';
+import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -1025,19 +1025,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                         >
                           {eventIcon(event)}
                         </Box>
-                        <Chip
-                          label={t(eventTypeLabel(event.autonomous_event_type))}
-                          size="small"
-                          sx={{
-                            height: 18,
-                            fontSize: 10,
-                            fontWeight: 600,
-                            letterSpacing: '0.04em',
-                            borderRadius: 0.5,
-                            color,
-                            backgroundColor: alpha(color, 0.12),
-                          }}
-                        />
+                        <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                         <Box sx={{ flex: 1 }} />
                         {event.autonomous_event_created_at && (
                           <Typography variant="caption" color="text.secondary">

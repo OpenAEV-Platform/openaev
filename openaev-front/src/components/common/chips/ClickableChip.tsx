@@ -1,4 +1,5 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+// fds:keep-mui deferred to the filter bar wave (LIBRARY-FEEDBACK #54: the filter chip edits its and/or from the label)
 import { Box, Chip } from '@mui/material';
 import { type FunctionComponent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';

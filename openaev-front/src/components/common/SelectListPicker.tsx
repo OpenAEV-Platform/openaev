@@ -1,5 +1,5 @@
-import { Checkbox } from '@filigran/design-system';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Checkbox, Chip } from '@filigran/design-system';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type Breakpoint } from '@mui/material/styles';
 import { type CSSProperties, type ReactElement, type ReactNode, useMemo, useState } from 'react';
 
@@ -122,10 +122,8 @@ const SelectListPicker = <T extends object>({
       }}
     >
       <Chip
-        size="small"
-        variant="outlined"
-        color={selectedCount > 0 ? 'primary' : 'default'}
-        label={t('{count} selected', { count: selectedCount })}
+        severity={selectedCount > 0 ? 'info' : 'neutral'}
+        label={String(t('{count} selected', { count: selectedCount }))}
       />
       {headerActions}
       {buttonComponent}

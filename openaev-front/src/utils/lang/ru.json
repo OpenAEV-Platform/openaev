@@ -2176,6 +2176,7 @@
   "Llm_model": "LLM Model",
   "Load earlier messages": "Загрузить предыдущие сообщения",
   "Load_balancer": "Load Balancer",
+  "Loading": "Загрузка",
   "Loading AI assistant, please wait...": "Загрузка ИИ-ассистента, пожалуйста, подождите...",
   "Loading argument types...": "Загрузка типов аргументов...",
   "Loading collectors...": "Загрузка коллекторов...",

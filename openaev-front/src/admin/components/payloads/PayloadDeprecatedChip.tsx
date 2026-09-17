@@ -1,6 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Chip } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 
 import { useFormatter } from '../../../components/i18n';
 import { type PayloadSimple } from '../../../utils/api-types';
@@ -14,7 +12,6 @@ interface Props { status?: PayloadSimple['payload_status'] }
  */
 const PayloadDeprecatedChip = ({ status }: Props) => {
   const { t } = useFormatter();
-  const theme = useTheme();
 
   if (status !== 'DEPRECATED') {
     return null;
@@ -22,20 +19,7 @@ const PayloadDeprecatedChip = ({ status }: Props) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Chip
-          size="small"
-          variant="outlined"
-          label={t('Deprecated')}
-          sx={{
-            borderRadius: 1,
-            height: 20,
-            fontSize: 11,
-            color: theme.palette.text.disabled,
-            borderColor: alpha(theme.palette.text.disabled, 0.4),
-            // Never let the chip shrink when rendered next to a truncating title
-            flexShrink: 0,
-          }}
-        />
+        <Chip label={t('Deprecated')} style={{ flexShrink: 0 }} />
       </TooltipTrigger>
       <TooltipContent>{t('Deprecated: Functionality not guaranteed')}</TooltipContent>
     </Tooltip>

@@ -2176,6 +2176,7 @@
   "Llm_model": "LLM Model",
   "Load earlier messages": "加载之前的消息",
   "Load_balancer": "Load Balancer",
+  "Loading": "正在加载",
   "Loading AI assistant, please wait...": "正在加载人工智能助手，请稍候...",
   "Loading argument types...": "正在加载参数类型...",
   "Loading collectors...": "正在加载采集器...",

@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Chip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 
 import { useFormatter } from '../../../../../components/i18n';
 import type { ScopeAssetOutput, ScopeTeamOutput } from '../../../../../utils/api-types';
@@ -47,29 +47,16 @@ const ActionScopeChips = ({ isPayload, assets, teams = [], allTeams = false }: A
         }}
         >
           {assets.map(asset => (
-            <Chip
-              key={`asset-${asset.asset_id ?? ''}`}
-              label={asset.asset_name ?? ''}
-              size="small"
-              variant="filled"
-            />
+            <Chip key={`asset-${asset.asset_id ?? ''}`} label={asset.asset_name ?? ''} />
           ))}
           {allTeams ? (
-            <Chip
-              key="team-all"
-              icon={<GroupsOutlined />}
-              label={t('All teams')}
-              size="small"
-              variant="filled"
-            />
+            <Chip key="team-all" startIcon={<GroupsOutlined />} label={t('All teams')} />
           ) : (
             teams.map(team => (
               <Chip
                 key={`team-${team.team_id ?? ''}`}
-                icon={<GroupsOutlined />}
+                startIcon={<GroupsOutlined />}
                 label={team.team_name ?? ''}
-                size="small"
-                variant="filled"
               />
             ))
           )}

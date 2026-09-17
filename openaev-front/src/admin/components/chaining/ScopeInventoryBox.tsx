@@ -1,6 +1,6 @@
-import { IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, Close, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
@@ -153,7 +153,7 @@ const ScopeInventoryBox = ({
           </Tooltip>
         )}
         {chips.map(chip => (
-          <Chip key={chip.key} label={chip.label} size="small" onDelete={chip.onDelete} />
+          <Chip key={chip.key} label={chip.label} onDelete={chip.onDelete} deleteLabel={t('Remove')} />
         ))}
         <input
           ref={inputRef}
@@ -201,14 +201,12 @@ const ScopeInventoryBox = ({
             <Chip
               key={`${val}-${idx}`}
               label={val}
-              size="small"
-              color="primary"
-              variant="outlined"
-              onDelete={(e) => {
-                e.stopPropagation();
+              onDelete={() => {
                 const updated = parsedValues.filter((_, i) => i !== idx);
                 setInputValue(updated.join(', '));
               }}
+              severity="info"
+              deleteLabel={t('Remove')}
             />
           ))}
         </Paper>

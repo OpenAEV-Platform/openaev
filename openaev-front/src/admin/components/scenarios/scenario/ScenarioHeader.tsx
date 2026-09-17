@@ -1,4 +1,4 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesome,
@@ -18,7 +18,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -763,18 +763,7 @@ const ScenarioHeader = ({
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label={isScheduled ? t('Scheduled') : t('Not scheduled')}
-                    sx={{
-                      borderRadius: 1,
-                      height: 22,
-                      fontSize: 11,
-                      color: isScheduled ? theme.palette.success.main : theme.palette.text.disabled,
-                      borderColor: isScheduled ? alpha(theme.palette.success.main, 0.4) : theme.palette.divider,
-                    }}
-                  />
+                  <Chip label={isScheduled ? t('Scheduled') : t('Not scheduled')} severity="low" />
                 </TooltipTrigger>
                 {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
               </Tooltip>

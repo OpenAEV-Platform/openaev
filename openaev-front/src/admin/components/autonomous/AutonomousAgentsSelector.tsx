@@ -1,11 +1,10 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Select, SelectContent, SelectItem, SelectTrigger, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, InfoOutlined, OpenInNewOutlined, SmartToyOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, Stack, Typography, useMediaQuery } from '@mui/material';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, Stack, Typography, useMediaQuery } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useMemo, useState } from 'react';
 
 import { type AdditionalAgent, AUTONOMOUS_DISCOVERY_MODES, type AutonomousDiscoveryMode, ORCHESTRATOR_DEFAULT_DISCOVERY_MODE, SPECIALIST_DEFAULT_DISCOVERY_MODE } from '../../../actions/autonomous/autonomous-types';
-import colorStyles from '../../../components/Color';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { type SortHelpers } from '../../../components/common/queryable/sort/SortHelpers';
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
@@ -50,13 +49,6 @@ interface Props {
 }
 
 // Design-system list chip (same pattern as Notifiers / the triggers list).
-const chipInList: CSSProperties = {
-  fontSize: 12,
-  height: 20,
-  borderRadius: 4,
-  textTransform: 'uppercase',
-  width: 100,
-};
 
 /**
  * Shared agent picker used both in Settings > Customization > Autonomous attack (tenant defaults)
@@ -473,13 +465,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                 description: orchestrator.description,
                 iconColor: theme.palette.ai.main,
                 chip: (
-                  <Chip
-                    style={{
-                      ...chipInList,
-                      ...colorStyles.purple,
-                    }}
-                    label={t('Orchestrator')}
-                  />
+                  <Chip label={t('Orchestrator')} />
                 ),
                 modeNode: showModes ? renderModeSelect(orchestrator.id) : null,
                 trailing: (
@@ -513,13 +499,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                   iconColor: enabled ? theme.palette.ai.main : theme.palette.text.disabled,
                   chip: agent.slug === builtinSlug
                     ? (
-                        <Chip
-                          style={{
-                            ...chipInList,
-                            ...colorStyles.grey,
-                          }}
-                          label={t('Built-in')}
-                        />
+                        <Chip label={t('Built-in')} />
                       )
                     : null,
                   modeNode,

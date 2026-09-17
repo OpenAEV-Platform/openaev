@@ -1,13 +1,6 @@
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxInput,
-  ComboboxTrigger,
-} from '@filigran/design-system';
+import { Chip, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxTrigger } from '@filigran/design-system';
 import { LabelOutlined } from '@mui/icons-material';
-import { Box, Chip } from '@mui/material';
+import { Box } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
@@ -139,6 +132,7 @@ const TagsFilter: FunctionComponent<Props> = ({
               key={currentTag.id}
               label={currentTag.label}
               onDelete={() => onRemoveTag?.(currentTag.id)}
+              deleteLabel={t('Remove')}
             />
           ))}
         </Box>

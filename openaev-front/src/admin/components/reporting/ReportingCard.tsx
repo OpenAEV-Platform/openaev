@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined } from '@mui/icons-material';
-import { Box, Chip, Paper, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -154,10 +154,8 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
       }}
       >
         <Chip
-          icon={<ContextIcon sx={{ fontSize: 14 }} />}
+          startIcon={<ContextIcon sx={{ fontSize: 14 }} />}
           label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])}
-          size="small"
-          variant="outlined"
         />
         <ReportingFormatFragment format={reporting.reporting_default_format} />
         {generation && (

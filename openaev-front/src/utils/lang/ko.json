@@ -2176,6 +2176,7 @@
   "Llm_model": "LLM Model",
   "Load earlier messages": "이전 메시지 불러오기",
   "Load_balancer": "Load Balancer",
+  "Loading": "로드 중",
   "Loading AI assistant, please wait...": "AI 어시스턴트를 로드하는 중입니다... 잠시만 기다려주세요...",
   "Loading argument types...": "인수 유형을 불러오는 중...",
   "Loading collectors...": "수집기를 로드하는 중...",

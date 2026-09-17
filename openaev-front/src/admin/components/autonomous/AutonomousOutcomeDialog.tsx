@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { LaunchOutlined, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, Dialog, DialogContent, DialogTitle, Divider, Link, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, Divider, Link, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link as RouterLink } from 'react-router';
@@ -153,28 +154,10 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
             }}
             >
               {cves.map(cve => (
-                <Chip
-                  key={cve}
-                  label={cve}
-                  size="small"
-                  sx={{
-                    borderRadius: 0.5,
-                    color: theme.palette.error.main,
-                    backgroundColor: alpha(theme.palette.error.main, 0.12),
-                  }}
-                />
+                <Chip key={cve} label={cve} severity="critical" />
               ))}
               {techniques.map(technique => (
-                <Chip
-                  key={technique}
-                  label={technique}
-                  size="small"
-                  sx={{
-                    borderRadius: 0.5,
-                    color: theme.palette.info.main,
-                    backgroundColor: alpha(theme.palette.info.main, 0.12),
-                  }}
-                />
+                <Chip key={technique} label={technique} severity="info" />
               ))}
             </Stack>
           )}
@@ -218,15 +201,7 @@ const AutonomousOutcomeDialog: FunctionComponent<Props> = ({
                         }}
                       >
                         {finding.type && (
-                          <Chip
-                            label={finding.type}
-                            size="small"
-                            sx={{
-                              borderRadius: 0.5,
-                              color: theme.palette.success.main,
-                              backgroundColor: alpha(theme.palette.success.main, 0.12),
-                            }}
-                          />
+                          <Chip label={finding.type} severity="low" />
                         )}
                         <Typography
                           variant="body2"

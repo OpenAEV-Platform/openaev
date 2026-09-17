@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Close, InfoOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, Link, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Link, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -243,9 +243,7 @@ const FindingDetailPanel = ({
         </Box>
         {expectations && <Box sx={{ mt: 1 }}>{valueBlock}</Box>}
         <Chip
-          size="small"
-          variant="outlined"
-          icon={(
+          startIcon={(
             <Box
               component="span"
               sx={{
@@ -258,7 +256,7 @@ const FindingDetailPanel = ({
             </Box>
           )}
           label={type}
-          sx={{ mt: 0.75 }}
+          style={{ marginTop: 6 }}
         />
       </Box>
 

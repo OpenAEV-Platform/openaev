@@ -1,5 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Chip } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
@@ -27,17 +26,11 @@ const styles = () => ({
 
 class InjectorContractComponent extends Component {
   render() {
-    const { classes, label, variant, deleted } = this.props;
-    const style = variant === 'list' ? classes.chipInList : classes.chip;
+    const { label, deleted } = this.props;
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Chip
-            variant="outlined"
-            color={deleted ? 'default' : 'primary'}
-            classes={{ root: style }}
-            label={deleted ? <i>{label}</i> : label}
-          />
+          <Chip severity={deleted ? 'neutral' : 'info'} label={label} />
         </TooltipTrigger>
         {label && <TooltipContent>{label}</TooltipContent>}
       </Tooltip>

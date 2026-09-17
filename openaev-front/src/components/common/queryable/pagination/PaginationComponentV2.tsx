@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { GridViewOutlined } from '@mui/icons-material';
-import { Box, Button, Chip } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -337,17 +338,9 @@ const PaginationComponentV2 = <T extends object>({
               }}
             >
               <Chip
-                style={{ borderRadius: 4 }}
-                label={(
-                  <>
-                    <strong>{t('Attack Pattern')}</strong>
-                    {' '}
-                    =
-                    {' '}
-                    {computeAttackPatternNameForFilter()}
-                  </>
-                )}
+                label={`${t('Attack Pattern')} = ${computeAttackPatternNameForFilter()}`}
                 onDelete={() => queryableHelpers.filterHelpers.handleRemoveFilterByKey(MITRE_FILTER_KEY)}
+                deleteLabel={t('Remove')}
               />
               {(searchPaginationInput.filterGroup?.filters?.filter(f => availableFilterNames?.filter(n => n !== MITRE_FILTER_KEY).includes(f.key)).length ?? 0) > 0 && (
                 <ClickableModeChip

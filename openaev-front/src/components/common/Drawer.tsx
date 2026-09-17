@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Chip, Drawer as DrawerMUI, type PaperProps, Typography } from '@mui/material';
+import { Drawer as DrawerMUI, type PaperProps, Typography } from '@mui/material';
 import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -166,15 +166,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
           {headerActions}
           {additionalTitle && (<Typography variant="subtitle1">{additionalTitle}</Typography>)}
           {additionalChipLabel && (
-            <Chip
-              label={additionalChipLabel}
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: color,
-                color: color,
-              }}
-            />
+            <Chip label={additionalChipLabel} color={color} />
           )}
           <IconButton icon={<Close />} aria-label="Close" onClick={handleClose} priority="tertiary" size="md" />
         </div>

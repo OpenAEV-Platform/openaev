@@ -1,11 +1,11 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box, Chip, Typography } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Typography } from '@mui/material';
 import { FilePdfBox, LanguageHtml5 } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import { type ReportingGeneration } from '../../../utils/api-types';
-import { computeStatusStyle } from '../../../utils/statusUtils';
+import { statusSeverity } from '../../../utils/statusUtils';
 
 /**
  * Output format rendered design-system style: a file-type icon plus the
@@ -60,18 +60,7 @@ export const ReportingStatusChip: FunctionComponent<StatusChipProps> = ({ status
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Chip
-          label={t(effectiveStatus)}
-          style={computeStatusStyle(effectiveStatus)}
-          sx={{
-            height: 20,
-            fontSize: 11,
-            textTransform: 'uppercase',
-            borderRadius: 0.5,
-            width: 90,
-            flexShrink: 0,
-          }}
-        />
+        <Chip label={t(effectiveStatus)} severity={statusSeverity(effectiveStatus)} style={{ flexShrink: 0 }} />
       </TooltipTrigger>
       {(tooltip ?? t(effectiveStatus)) && <TooltipContent>{tooltip ?? t(effectiveStatus)}</TooltipContent>}
     </Tooltip>

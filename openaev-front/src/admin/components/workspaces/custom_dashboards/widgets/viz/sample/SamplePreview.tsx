@@ -1,4 +1,5 @@
-import { Box, Chip } from '@mui/material';
+import { Chip } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
@@ -49,20 +50,11 @@ const SamplePreview = ({ active, children, variant = 'full' }: Props) => {
       </Box>
       <Chip
         label={t('Sample')}
-        size="small"
-        variant="outlined"
-        sx={{
+        severity="neutral"
+        style={{
           position: 'absolute',
           top: 0,
           right: 0,
-          height: 18,
-          fontSize: 9,
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'text.disabled',
-          borderColor: 'divider',
-          backgroundColor: 'background.paper',
         }}
       />
     </Box>

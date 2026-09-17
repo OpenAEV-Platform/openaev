@@ -1,9 +1,9 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Chip } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type FunctionComponent, type ReactElement } from 'react';
 import { Link } from 'react-router';
 
 import { truncate } from '../utils/String';
+import chipLinkClassName from './common/chips/chipLink';
 
 interface Props {
   title: string;
@@ -28,30 +28,13 @@ const ContextLink: FunctionComponent<Props> = ({
   title,
   url,
   icon,
-  variant = 'list',
 }) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Chip
-          variant="outlined"
-          clickable
-          component={Link}
-          to={url}
-          icon={icon}
-          label={truncate(title, 30)}
-          sx={{
-            'fontSize': 12,
-            'height': variant === 'field' ? 25 : 20,
-            'borderRadius': 1,
-            'maxWidth': '100%',
-            '& .MuiChip-icon': { fontSize: '1rem' },
-            '&:hover': {
-              borderColor: 'primary.main',
-              color: 'primary.main',
-            },
-          }}
-        />
+        <Link to={url} className={chipLinkClassName}>
+          <Chip startIcon={icon} label={truncate(title, 30) ?? ''} severity="info" />
+        </Link>
       </TooltipTrigger>
       {title && <TooltipContent>{title}</TooltipContent>}
     </Tooltip>

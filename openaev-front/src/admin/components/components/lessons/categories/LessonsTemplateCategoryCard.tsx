@@ -1,5 +1,5 @@
-import { Paper } from '@filigran/design-system';
-import { Box, Chip, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { Chip, Paper } from '@filigran/design-system';
+import { Box, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -100,16 +100,10 @@ const LessonsTemplateCategoryCard: FunctionComponent<Props> = ({
             <Chip
               label={(() => {
                 if (questions.length === 1) return t('1 question');
-                return t('{count} questions', { count: questions.length });
+                return String(t('{count} questions', { count: questions.length }));
               })()}
-              size="small"
-              sx={{
-                height: 18,
-                fontSize: 11,
-                borderRadius: 0.5,
-                flexShrink: 0,
-                color: 'text.secondary',
-              }}
+              severity="neutral"
+              style={{ flexShrink: 0 }}
             />
           </Box>
           {category.lessons_template_category_description && (

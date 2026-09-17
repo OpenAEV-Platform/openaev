@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { Add, Circle } from '@mui/icons-material';
-import { Box, Button, Chip, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -86,14 +87,7 @@ const LogicWarningBanner: FunctionComponent<Props> = ({ eventMetas, onAddCompati
           <Typography variant="body2">
             {`${t('Event')} "${item.eventName}" ${t('references field:')}`}
           </Typography>
-          <Chip
-            label={formatConditionKeyLabel(item.field)}
-            size="small"
-            sx={{
-              backgroundColor: 'action.hover',
-              fontWeight: 600,
-            }}
-          />
+          <Chip label={formatConditionKeyLabel(item.field)} severity="neutral" />
           <Typography variant="body2">{t('which is')}</Typography>
           <Typography fontWeight={800} variant="body2">
             {t('not provisioned by any action.')}

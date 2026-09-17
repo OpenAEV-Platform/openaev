@@ -1,4 +1,4 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AutoAwesome,
   CancelOutlined,
@@ -17,7 +17,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -490,18 +490,9 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   either way - control lives on the parent scenario). */}
               {exercise.exercise_autonomous && (
                 <Chip
-                  size="small"
-                  variant="outlined"
-                  icon={<AutoAwesome sx={{ fontSize: 14 }} />}
+                  startIcon={<AutoAwesome sx={{ fontSize: 14 }} />}
                   label={t('Autonomous')}
-                  sx={{
-                    'borderRadius': 1,
-                    'height': 22,
-                    'fontSize': 11,
-                    'color': theme.palette.ai?.main ?? theme.palette.primary.main,
-                    'borderColor': theme.palette.ai?.main ?? theme.palette.primary.main,
-                    '& .MuiChip-icon': { color: 'inherit' },
-                  }}
+                  severity="info"
                 />
               )}
               <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
@@ -514,16 +505,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 />
               )}
               <Chip
-                size="small"
-                variant="outlined"
                 label={exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-                sx={{
-                  borderRadius: 1,
-                  height: 22,
-                  fontSize: 11,
-                  color: theme.palette.text.secondary,
-                  borderColor: theme.palette.divider,
-                }}
+                severity="neutral"
               />
             </>
           )}

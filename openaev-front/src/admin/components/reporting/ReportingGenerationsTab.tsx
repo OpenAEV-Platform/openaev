@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DeleteOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, CircularProgress, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Button, CircularProgress, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -137,17 +137,7 @@ const ReportingGenerationsTab: FunctionComponent<Props> = ({ generations, onRelo
       label: 'Trigger',
       isSortable: true,
       value: (generation: ReportingGeneration) => (
-        <Chip
-          label={t(TRIGGER_LABELS[generation.reporting_generation_trigger ?? 'MANUAL'])}
-          variant="outlined"
-          sx={{
-            height: 20,
-            fontSize: 12,
-            textTransform: 'uppercase',
-            borderRadius: 0.5,
-            width: 100,
-          }}
-        />
+        <Chip label={t(TRIGGER_LABELS[generation.reporting_generation_trigger ?? 'MANUAL'])} />
       ),
     },
     {

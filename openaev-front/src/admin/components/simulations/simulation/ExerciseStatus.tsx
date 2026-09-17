@@ -1,29 +1,8 @@
-import { Chip } from '@mui/material';
+import { Chip } from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
-import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 import { type Exercise } from '../../../../utils/api-types';
-
-const useStyles = makeStyles()(() => ({
-  chip: {
-    marginTop: 2,
-    fontSize: 14,
-    fontWeight: 800,
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    height: 25,
-  },
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 120,
-  },
-}));
 
 interface Props {
   exerciseStatus: Exercise['exercise_status'] | undefined;
@@ -34,60 +13,33 @@ interface Props {
 const ExerciseStatus: FunctionComponent<Props> = ({
   exerciseStatus,
   exerciseStartDate,
-  variant,
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const { classes } = useStyles();
-  const style = variant === 'list' ? classes.chipInList : classes.chip;
   switch (exerciseStatus) {
     case 'SCHEDULED':
       return (
-        <Chip
-          classes={{ root: style }}
-          style={colorStyles.blue}
-          label={exerciseStartDate ? t('Scheduled') : t('Draft')}
-        />
+        <Chip label={exerciseStartDate ? t('Scheduled') : t('Draft')} severity="info" />
       );
     case 'RUNNING':
       return (
-        <Chip
-          classes={{ root: style }}
-          style={colorStyles.green}
-          label={t('Running')}
-        />
+        <Chip label={t('Running')} severity="low" />
       );
     case 'PAUSED':
       return (
-        <Chip
-          classes={{ root: style }}
-          style={colorStyles.orange}
-          label={t('Paused')}
-        />
+        <Chip label={t('Paused')} severity="medium" />
       );
     case 'CANCELED':
       return (
-        <Chip
-          classes={{ root: style }}
-          style={colorStyles.canceled}
-          label={t('Canceled')}
-        />
+        <Chip label={t('Canceled')} severity="neutral" />
       );
     case 'FINISHED':
       return (
-        <Chip
-          classes={{ root: style }}
-          style={colorStyles.grey}
-          label={t('Finished')}
-        />
+        <Chip label={t('Finished')} severity="neutral" />
       );
     default:
       return (
-        <Chip
-          classes={{ root: style }}
-          style={colorStyles.blue}
-          label={t('Scheduled')}
-        />
+        <Chip label={t('Scheduled')} severity="info" />
       );
   }
 };

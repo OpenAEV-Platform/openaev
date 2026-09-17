@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { GroupsOutlined, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Binoculars } from 'mdi-material-ui';
 import { useCallback, useMemo } from 'react';
@@ -151,8 +152,8 @@ const PersonDetail = () => {
         title={displayName}
         chips={(
           <>
-            {organizationName && <Chip size="small" variant="outlined" label={organizationName} sx={{ borderRadius: 1 }} />}
-            {user.user_admin && <Chip size="small" color="primary" variant="outlined" label={t('Administrator')} sx={{ borderRadius: 1 }} />}
+            {organizationName && <Chip label={organizationName} />}
+            {user.user_admin && <Chip label={t('Administrator')} severity="info" />}
           </>
         )}
         action={(

@@ -1,5 +1,5 @@
-import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box, Card, CardActionArea, Chip, Typography } from '@mui/material';
+import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Card, CardActionArea, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
 
@@ -284,36 +284,12 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         }}
         >
           {primaryDomain && (
-            <Chip
-              size="small"
-              label={primaryDomain.domain_name}
-              variant="outlined"
-              sx={{
-                height: 20,
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: '0.02em',
-                textTransform: 'uppercase',
-                borderColor: alpha(accent, 0.5),
-                color: accent,
-                backgroundColor: alpha(accent, 0.08),
-                borderRadius: 0.75,
-              }}
-            />
+            <Chip label={primaryDomain.domain_name} color={accent} />
           )}
           {domains.length > 1 && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Chip
-                  size="small"
-                  label={`+${domains.length - 1}`}
-                  variant="outlined"
-                  sx={{
-                    height: 20,
-                    fontSize: 10.5,
-                    borderRadius: 0.75,
-                  }}
-                />
+                <Chip label={`+${domains.length - 1}`} />
               </TooltipTrigger>
               {domains.slice(1).map(d => d.domain_name).join(', ') && <TooltipContent>{domains.slice(1).map(d => d.domain_name).join(', ')}</TooltipContent>}
             </Tooltip>

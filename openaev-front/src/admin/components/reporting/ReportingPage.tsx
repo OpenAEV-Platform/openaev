@@ -1,6 +1,6 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDropDownOutlined, FileDownloadOutlined } from '@mui/icons-material';
-import { Box, Button, ButtonGroup, Chip, CircularProgress, Menu, MenuItem, Typography } from '@mui/material';
+import { Box, Button, ButtonGroup, CircularProgress, Menu, MenuItem, Typography } from '@mui/material';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
@@ -222,13 +222,11 @@ const ReportingPage = () => {
               {reporting.reporting_name}
             </Typography>
             <Chip
-              icon={<ContextIcon fontSize="small" />}
+              startIcon={<ContextIcon fontSize="small" />}
               label={subjectName ? `${contextLabel} - ${subjectName}` : contextLabel}
-              size="small"
-              variant="outlined"
             />
             <ReportingFormatFragment format={defaultFormat} />
-            <Chip label={t(TIME_RANGE_LABELS[reporting.reporting_time_range ?? 'LAST_30_DAYS'])} size="small" variant="outlined" />
+            <Chip label={t(TIME_RANGE_LABELS[reporting.reporting_time_range ?? 'LAST_30_DAYS'])} />
           </Box>
           {reporting.reporting_description && (
             <Typography

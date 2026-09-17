@@ -1,9 +1,7 @@
+import { Chip, type ChipSeverity } from '@filigran/design-system';
 import { AccountTreeOutlined, ScheduleOutlined } from '@mui/icons-material';
-import { Chip } from '@mui/material';
-import { type CSSProperties, type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { type FunctionComponent } from 'react';
 
-import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 
 // Ids MUST match the backend ScenarioUtils engine-type values and the frontend ScenarioTypeFilter
@@ -13,38 +11,19 @@ export const SCENARIO_TYPE_CHAINED = 'Chained';
 
 export type ScenarioTypeValue = typeof SCENARIO_TYPE_TIME_BASED | typeof SCENARIO_TYPE_CHAINED;
 
-const useStyles = makeStyles()(() => ({
-  chip: {
-    marginTop: 2,
-    fontSize: 14,
-    fontWeight: 800,
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    height: 25,
-  },
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    float: 'left',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 130,
-  },
-}));
-
 // One color + icon per engine type, chosen to read at a glance:
 // - Time-based: a clock (classic scheduled scenario)
 // - Chained: a workflow tree (inject-chaining logic map)
 const TYPE_STYLES: Record<ScenarioTypeValue, {
-  color: CSSProperties;
+  severity: ChipSeverity;
   Icon: typeof ScheduleOutlined;
 }> = {
   [SCENARIO_TYPE_TIME_BASED]: {
-    color: colorStyles.blue,
+    severity: 'info',
     Icon: ScheduleOutlined,
   },
   [SCENARIO_TYPE_CHAINED]: {
-    color: colorStyles.green,
+    severity: 'low',
     Icon: AccountTreeOutlined,
   },
 };
@@ -54,26 +33,13 @@ interface Props {
   variant?: 'list';
 }
 
-const ScenarioType: FunctionComponent<Props> = ({ type, variant }) => {
+const ScenarioType: FunctionComponent<Props> = ({ type }) => {
   const { t } = useFormatter();
-  const { classes } = useStyles();
 
-  const style = variant === 'list' ? classes.chipInList : classes.chip;
-  const { color, Icon } = TYPE_STYLES[type];
+  const { severity, Icon } = TYPE_STYLES[type];
 
   return (
-    <Chip
-      classes={{ root: style }}
-      style={color}
-      sx={{
-        '& .MuiChip-icon': {
-          color: 'inherit',
-          fontSize: variant === 'list' ? 14 : 18,
-        },
-      }}
-      icon={<Icon />}
-      label={t(type)}
-    />
+    <Chip severity={severity} startIcon={<Icon />} label={t(type)} />
   );
 };
 

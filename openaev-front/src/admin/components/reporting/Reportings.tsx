@@ -1,6 +1,6 @@
-import { ButtonGroup, ButtonGroupItem, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined, GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -87,11 +87,7 @@ const Reportings = () => {
       label: 'Subject type',
       isSortable: true,
       value: (reporting: Reporting) => (
-        <Chip
-          label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])}
-          size="small"
-          variant="outlined"
-        />
+        <Chip label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])} />
       ),
     },
     {

@@ -1,7 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckCircleOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Button, Chip } from '@mui/material';
-import { alpha } from '@mui/material/styles';
+import { Button } from '@mui/material';
 import { type CSSProperties, type SyntheticEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -47,20 +46,9 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
         <Tooltip>
           <TooltipTrigger asChild>
             <Chip
-              icon={<CheckCircleOutlined sx={{ fontSize: 14 }} />}
-              label={deploymentCount > 1 ? t('{count} deployed', { count: deploymentCount }) : t('Deployed')}
-              size="small"
-              variant="outlined"
-              sx={theme => ({
-                'height': 24,
-                'fontSize': 11,
-                'fontWeight': 600,
-                'borderRadius': 1,
-                'color': theme.palette.success.main,
-                'borderColor': alpha(theme.palette.success.main, 0.4),
-                'backgroundColor': alpha(theme.palette.success.main, 0.08),
-                '& .MuiChip-icon': { color: theme.palette.success.main },
-              })}
+              startIcon={<CheckCircleOutlined sx={{ fontSize: 14 }} />}
+              label={deploymentCount > 1 ? String(t('{count} deployed', { count: deploymentCount })) : t('Deployed')}
+              severity="low"
             />
           </TooltipTrigger>
           <TooltipContent>{t('This connector has {count} deployed instance(s). Manage them from the Deployed tab.', { count: deploymentCount })}</TooltipContent>

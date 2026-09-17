@@ -1,6 +1,6 @@
-import { Paper } from '@filigran/design-system';
+import { Chip, Paper } from '@filigran/design-system';
 import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, Divider, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Divider, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -76,19 +76,7 @@ const MetaChip: FunctionComponent<{
   label: string;
   color: string;
 }> = ({ label, color }) => (
-  <Chip
-    label={label}
-    size="small"
-    sx={{
-      height: 18,
-      fontSize: 10,
-      fontWeight: 600,
-      letterSpacing: '0.03em',
-      borderRadius: 0.5,
-      color,
-      backgroundColor: alpha(color, 0.12),
-    }}
-  />
+  <Chip label={label} color={color} />
 );
 
 // Shared outcome card for a capability gap / proof entry: tone-tinted frame, leading icon (or a
@@ -531,7 +519,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
       action={gapsAreSample
         ? null
         : (
-            <Chip size="small" label={capabilityGaps.length} color="warning" variant="outlined" sx={{ borderRadius: 1 }} />
+            <Chip label={String(capabilityGaps.length)} severity="medium" />
           )}
     >
       <SamplePreview active={gapsAreSample} variant="subtle">
@@ -572,7 +560,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
               gap: 1,
             }}
             >
-              <Chip size="small" label={proofEvents.length} color="success" variant="outlined" sx={{ borderRadius: 1 }} />
+              <Chip label={String(proofEvents.length)} severity="low" />
               <Button onClick={handleExportReport} startIcon={<DownloadOutlined />} size="small" variant="outlined">
                 {t('Export report')}
               </Button>
@@ -677,16 +665,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
         action={timelineIsSample
           ? null
           : (
-              <Chip
-                size="small"
-                label={decisionEvents.length}
-                variant="outlined"
-                sx={{
-                  borderRadius: 1,
-                  borderColor: alpha(accent, 0.4),
-                  color: accent,
-                }}
-              />
+              <Chip label={String(decisionEvents.length)} color={accent} />
             )}
       >
         <SamplePreview active={timelineIsSample} variant="subtle">
@@ -776,19 +755,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                           >
                             {eventIcon(event)}
                           </Box>
-                          <Chip
-                            label={t(eventTypeLabel(event.autonomous_event_type))}
-                            size="small"
-                            sx={{
-                              height: 18,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              letterSpacing: '0.04em',
-                              borderRadius: 0.5,
-                              color,
-                              backgroundColor: alpha(color, 0.12),
-                            }}
-                          />
+                          <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                           <Box sx={{ flex: 1 }} />
                           {time && (
                             <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
@@ -849,19 +816,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                       >
                         {eventIcon(event)}
                       </Box>
-                      <Chip
-                        label={t(eventTypeLabel(event.autonomous_event_type))}
-                        size="small"
-                        sx={{
-                          height: 16,
-                          fontSize: 9,
-                          fontWeight: 700,
-                          letterSpacing: '0.04em',
-                          borderRadius: 0.5,
-                          color,
-                          backgroundColor: alpha(color, 0.12),
-                        }}
-                      />
+                      <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                       <Typography
                         variant="caption"
                         sx={{

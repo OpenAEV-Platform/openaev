@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { SmartButtonOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -289,14 +290,7 @@ const InjectorContracts = () => {
                       return killChains.length > 0
                         ? (
                             killChains.map(killChain => (
-                              <Chip
-                                key={killChain}
-                                variant="outlined"
-                                classes={{ root: classes.chipInList }}
-                                style={{ width: 120 }}
-                                color="primary"
-                                label={killChain}
-                              />
+                              <Chip key={killChain} label={killChain} severity="info" />
                             ))
                           )
                         : (

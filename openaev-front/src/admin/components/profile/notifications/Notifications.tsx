@@ -1,6 +1,6 @@
-import { Badge, Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, Checkbox, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckCircleOutlined, DeleteOutlined, NotificationsOutlined, UnpublishedOutlined } from '@mui/icons-material';
-import { Button, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Button, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -186,14 +186,7 @@ const Notifications = () => {
         <Tooltip>
           <TooltipTrigger asChild>
             <Chip
-              style={{
-                fontSize: 12,
-                height: 20,
-                width: 140,
-                borderRadius: 4,
-              }}
-              color={notification.notification_type === 'LIVE' ? 'warning' : 'secondary'}
-              variant="outlined"
+              severity={notification.notification_type === 'LIVE' ? 'medium' : 'info'}
               label={notification.notification_name ?? '-'}
               onClick={(event) => {
               // Quick filter on the trigger: only this trigger's notifications.

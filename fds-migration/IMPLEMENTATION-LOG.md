@@ -588,6 +588,34 @@ in filigran-design-system).
   (checked handler by handler). Self-hiding when the licence is active: not
   adopted, by arbitration.
 
+## 2026-09-17 — Action components wave: Chip
+
+- Chip (173 sites, 107 files): 169 on the library, 4 filter chips kept on MUI
+  with a reason (LIBRARY-FEEDBACK #54). Three codemod passes with placeholders
+  both ways (154 sites) plus a hand pass on the status wrappers (ItemSeverity,
+  ItemStatus, ItemCriticality, ItemBoolean, InfoChip, LabelChip, Tag, CvssBadge,
+  ExerciseStatus and the other status chips), the tag components (ItemTags,
+  ItemDomains, DocumentType) and the three chips that navigate.
+- One colour table for every status chip (`statusSeverity` /
+  `colorStyleSeverity` in utils/statusUtils.ts, `criticalitySeverity` in
+  criticalityColor.ts), by ruling: green → low, blue → info, orange → medium
+  for a status and high for a severity, red → critical, greys and the brown
+  "canceled" → neutral, violets → info. Colours carried by the data (tag,
+  domain, document type, notification operation, AI events) go through `color`
+  and render as the library wash; brand-tinted outlined labels read `info`.
+  Fixed widths (100–250px), the 20/25px heights, uppercase and italic go with
+  the MUI classes; the MUI `icon` becomes `startIcon`, `onDelete` gets a
+  `deleteLabel`.
+- A chip that navigates (challenge simulations, context links, target links)
+  is a real link around a non-clickable chip (`components/common/chips/chipLink.ts`
+  carries the focus ring classes): ⌘-click and "open in a new tab" kept, no
+  button inside a link. A non-clickable chip under a TooltipTrigger gets a span
+  host. The loading state of ItemBoolean shows a library Spinner beside a
+  "Loading" label instead of a spinner as label; its EE state renders the EEChip.
+- Measured on the running product at 1400px after the change (see the measure
+  log in the PR): 24px chips, 14px labels, white ink on the 30% wash, no
+  horizontal overflow on the scenario and atomic-testing lists.
+
 ## 2026-09-17 — Action components wave: IconButton
 
 - IconButton (135 sites, 99 files) on the library: 133 converted by a codemod

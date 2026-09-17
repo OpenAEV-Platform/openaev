@@ -1,6 +1,6 @@
-import { Checkbox } from '@filigran/design-system';
+import { Checkbox, Chip } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, lazy, Suspense, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -184,7 +184,6 @@ const Injects: FunctionComponent<Props> = ({
         );
         return (
           <Chip
-            classes={{ root: classes.duration }}
             label={`${duration.days}
                           ${t('d')}, ${duration.hours}
                           ${t('h')}, ${duration.minutes}

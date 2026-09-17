@@ -1,15 +1,6 @@
-import { SearchField } from '@filigran/design-system';
+import { Chip, SearchField } from '@filigran/design-system';
 import { CheckCircleOutlined, RadioButtonUncheckedOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  ButtonBase,
-  Chip,
-  CircularProgress,
-  Skeleton,
-  Slide,
-  Typography,
-} from '@mui/material';
+import { Box, Button, ButtonBase, CircularProgress, Skeleton, Slide, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
 import { useEffect, useRef, useState } from 'react';
@@ -199,11 +190,10 @@ const ThreatArsenalScenarioUpdateComponent = ({
               {selectedScenarios.map(scenario => (
                 <Chip
                   key={scenario.scenario_id}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  label={scenario.scenario_name}
+                  label={scenario.scenario_name ?? ''}
                   onDelete={() => toggleScenario(scenario)}
+                  severity="info"
+                  deleteLabel={t('Remove')}
                 />
               ))}
             </Box>

@@ -1,8 +1,9 @@
+import { Chip } from '@filigran/design-system';
 import { AutoAwesomeOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
 // fds:keep-mui the AI generation fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon, TextField, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon, TextField, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
@@ -276,17 +277,9 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
                     <Chip
                       key={suggestion.label}
                       label={suggestion.label}
-                      size="small"
-                      variant="outlined"
-                      icon={<AutoAwesomeOutlined sx={{ fontSize: 14 }} />}
+                      startIcon={<AutoAwesomeOutlined sx={{ fontSize: 14 }} />}
                       onClick={() => applySuggestion(suggestion.instruction)}
                       disabled={loading}
-                      sx={{
-                        'borderColor': alpha(theme.palette.ai.main, 0.4),
-                        'color': 'text.secondary',
-                        '& .MuiChip-icon': { color: 'ai.main' },
-                        '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.08) },
-                      }}
                     />
                   ))}
                 </Box>

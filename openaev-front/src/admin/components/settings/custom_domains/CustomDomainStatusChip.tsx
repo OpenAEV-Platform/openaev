@@ -1,4 +1,4 @@
-import { Chip } from '@mui/material';
+import { Chip, type ChipSeverity } from '@filigran/design-system';
 import { type CSSProperties, type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -11,22 +11,10 @@ interface Props {
 
 // Status-driven colour, aligned with the platform's severity palette: verified is a positive
 // (green) state, pending is a neutral/in-progress (amber) state, failed is an error (red) state.
-const STATUS_COLORS: Record<CustomDomain['custom_domain_status'], {
-  color: string;
-  background: string;
-}> = {
-  VERIFIED: {
-    color: '#4caf50',
-    background: 'rgba(76, 175, 80, 0.12)',
-  },
-  PENDING: {
-    color: '#ff9800',
-    background: 'rgba(255, 152, 0, 0.12)',
-  },
-  FAILED: {
-    color: '#f44336',
-    background: 'rgba(244, 67, 54, 0.12)',
-  },
+const STATUS_SEVERITY: Record<CustomDomain['custom_domain_status'], ChipSeverity> = {
+  VERIFIED: 'low',
+  PENDING: 'medium',
+  FAILED: 'critical',
 };
 
 const STATUS_LABELS: Record<CustomDomain['custom_domain_status'], string> = {
@@ -37,23 +25,8 @@ const STATUS_LABELS: Record<CustomDomain['custom_domain_status'], string> = {
 
 const CustomDomainStatusChip: FunctionComponent<Props> = ({ status, style }) => {
   const { t } = useFormatter();
-  const palette = STATUS_COLORS[status];
-
   return (
-    <Chip
-      size="small"
-      variant="outlined"
-      label={t(STATUS_LABELS[status])}
-      style={{
-        color: palette.color,
-        borderColor: palette.color,
-        backgroundColor: palette.background,
-        fontWeight: 600,
-        borderRadius: 4,
-        height: 24,
-        ...style,
-      }}
-    />
+    <Chip label={t(STATUS_LABELS[status])} severity={STATUS_SEVERITY[status]} style={style} />
   );
 };
 

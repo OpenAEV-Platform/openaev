@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { Add } from '@mui/icons-material';
-import { Alert, Button, Chip, Link } from '@mui/material';
+import { Alert, Button, Link } from '@mui/material';
 import { useEffect } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -68,18 +69,8 @@ const OutputFormTab = () => {
           gap: 8,
         }}
         >
-          <Chip
-            variant="outlined"
-            size="small"
-            sx={{ borderRadius: 1 }}
-            label={`${t('Output mode')} : ${t('Stdout')}`}
-          />
-          <Chip
-            variant="outlined"
-            size="small"
-            sx={{ borderRadius: 1 }}
-            label={`${t('Parsing')} : ${t('Regex')}`}
-          />
+          <Chip label={`${t('Output mode')} : ${t('Stdout')}`} />
+          <Chip label={`${t('Parsing')} : ${t('Regex')}`} />
         </div>
 
         {contractOutputElements.map((contracOutputElement, contractOutputElementIndex) => (

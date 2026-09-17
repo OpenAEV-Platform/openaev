@@ -1,5 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { alpha, Chip, type TooltipProps, Typography } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { type TooltipProps, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -51,19 +51,9 @@ const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({ status }) =>
 
   const chip = (
     <Chip
-      size="medium"
       label={label}
-      icon={<StatusIcon sx={{ fontSize: theme.typography.caption.fontSize }} />}
-      sx={{
-        'backgroundColor': alpha(statusColor, 0.08),
-        'color': statusColor,
-        'fontSize': theme.typography.caption.fontSize,
-        'fontWeight': theme.typography.fontWeightBold,
-        'textTransform': 'uppercase',
-        'borderRadius': Number(theme.shape.borderRadius) / 2,
-        'height': theme.spacing(3),
-        '& .MuiChip-icon': { color: 'inherit' },
-      }}
+      startIcon={<StatusIcon sx={{ fontSize: theme.typography.caption.fontSize }} />}
+      color={statusColor}
     />
   );
 

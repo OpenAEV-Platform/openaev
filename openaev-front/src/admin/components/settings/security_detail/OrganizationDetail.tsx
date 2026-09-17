@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { DomainOutlined, HelpOutlineOutlined, KeyboardArrowRight, PersonOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
@@ -156,7 +157,7 @@ const OrganizationDetailContent = () => {
             icon={DomainOutlined}
             title={organization.organization_name}
             chips={(
-              <Chip size="small" variant="outlined" label={t('{count} members', { count: members.length })} sx={{ borderRadius: 1 }} />
+              <Chip label={String(t('{count} members', { count: members.length }))} />
             )}
             action={(
               <OrganizationPopover
