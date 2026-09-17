@@ -588,6 +588,23 @@ in filigran-design-system).
   (checked handler by handler). Self-hiding when the licence is active: not
   adopted, by arbitration.
 
+## 2026-09-17 — Action components wave: Badge
+
+- Badge (4 sites, 2 files) on the library: the unread dot of the notification
+  list and the three "advanced setting set" dots on the rule cogs of the XLS
+  mapper form. One tone for badges by ruling (the default, red): the amber and
+  the tonic dots go. Each dot carries an `accessibleText` (`Unread`, `Default
+  value set`, added to the nine language files) so the state is announced
+  instead of being colour only. The cog badge now wraps its button
+  (`bareAnchor="md"`) rather than the glyph inside it.
+- Measured before/after on the running product with a temporary notification
+  and a temporary mapper (both created and deleted for the measurement): dot
+  8×8 px before and after; rgb(255,167,38) → rgb(241,67,55) on the
+  notification, rgb(0,240,188) → rgb(241,67,55) on the cog. On the cog the dot
+  sits at the corner of the 40px MUI button for now (10px right of the glyph);
+  the IconButton pass replaces that button by the 36px library one, which puts
+  the dot back on the glyph's corner.
+
 ## 2026-09-15 — Visual passes and the tooltip wave
 
 - Two visual passes, measured before and after on the rebuilt bundle: native

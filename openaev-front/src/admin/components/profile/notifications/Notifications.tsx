@@ -1,6 +1,6 @@
-import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckCircleOutlined, DeleteOutlined, NotificationsOutlined, UnpublishedOutlined } from '@mui/icons-material';
-import { Badge, Button, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Button, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -359,7 +359,7 @@ const Notifications = () => {
                     </ListItemIcon>
                     <ListItemIcon>
                       {/* Unread = small dot on the notification icon (OpenCTI-style) */}
-                      <Badge color="warning" variant="dot" invisible={notification.notification_is_read}>
+                      <Badge invisible={notification.notification_is_read} accessibleText={t('Unread')}>
                         {operationIcon(getFirstOperation(notification))}
                       </Badge>
                     </ListItemIcon>

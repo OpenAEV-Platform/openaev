@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DeleteOutlined, ExpandMore } from '@mui/icons-material';
-import { Accordion, AccordionActions, AccordionDetails, AccordionSummary, Badge, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Typography } from '@mui/material';
+import { Accordion, AccordionActions, AccordionDetails, AccordionSummary, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Typography } from '@mui/material';
 import { CogOutline, InformationOutline } from 'mdi-material-ui';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { Controller, type FieldArrayWithId, useFieldArray, type UseFieldArrayRemove, type UseFormReturn } from 'react-hook-form';
@@ -228,42 +228,15 @@ const RulesContractContent: FunctionComponent<Props> = ({
             )}
           />
           {rulesFields.map((ruleField, rulesIndex) => {
-            let cogIcon;
+            // The dot on the cog says that this rule carries an advanced setting (a default value, and for some rules an extra option).
+            const defaultValue = methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`);
+            const additionalConfig = methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_additional_config`);
+            const hasDefaultValue = !!defaultValue && defaultValue.length > 0;
+            let hasAdvancedSetting = hasDefaultValue;
             if (ruleField.rule_attribute_name === 'trigger_time') {
-              cogIcon = (
-                <Badge
-                  color="secondary"
-                  variant="dot"
-                  invisible={(!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`) || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)?.length === 0)
-                    && (!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_additional_config.timePattern`)
-                      || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_additional_config`)?.timePattern?.length === 0)}
-                >
-                  <CogOutline />
-                </Badge>
-              );
+              hasAdvancedSetting = hasDefaultValue || !!additionalConfig?.timePattern?.length;
             } else if (ruleField.rule_attribute_name === 'teams') {
-              cogIcon = (
-                <Badge
-                  color="secondary"
-                  variant="dot"
-                  invisible={(!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`) || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)?.length === 0)
-                    && (!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_additional_config.allTeamsValue`)
-                      || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_additional_config`)?.allTeamsValue?.length === 0)}
-                >
-                  <CogOutline />
-                </Badge>
-              );
-            } else {
-              cogIcon = (
-                <Badge
-                  color="secondary"
-                  variant="dot"
-                  invisible={!methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)
-                    || methods.getValues(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_default_value`)?.length === 0}
-                >
-                  <CogOutline />
-                </Badge>
-              );
+              hasAdvancedSetting = hasDefaultValue || !!additionalConfig?.allTeamsValue?.length;
             }
             return (
               <div key={ruleField.id} style={{ marginTop: 20 }}>
@@ -289,12 +262,14 @@ const RulesContractContent: FunctionComponent<Props> = ({
                       />
                     )}
                   />
-                  <IconButton
-                    color="primary"
-                    onClick={() => handleDefaultValueOpen(rulesIndex)}
-                  >
-                    {cogIcon}
-                  </IconButton>
+                  <Badge invisible={!hasAdvancedSetting} accessibleText={t('Default value set')} bareAnchor="md">
+                    <IconButton
+                      color="primary"
+                      onClick={() => handleDefaultValueOpen(rulesIndex)}
+                    >
+                      <CogOutline />
+                    </IconButton>
+                  </Badge>
                 </div>
                 {currentRuleIndex !== null
                   && (
