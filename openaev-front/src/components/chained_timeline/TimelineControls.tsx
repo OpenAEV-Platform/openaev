@@ -1,5 +1,6 @@
 import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, CropFreeOutlined, RemoveOutlined } from '@mui/icons-material';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
 import { Box, Divider, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Panel, useReactFlow } from '@xyflow/react';

@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloudUploadOutlined } from '@mui/icons-material';
-import { Menu, MenuItem, ToggleButton } from '@mui/material';
+import { Menu, MenuItem } from '@mui/material';
 import { type MouseEvent as ReactMouseEvent, useContext, useState } from 'react';
 
 import { storeXlsFile } from '../../../../actions/mapper/mapper-actions';
@@ -91,22 +91,17 @@ const InjectImportMenu = ({ onImportedInjects = () => {} }: Props) => {
 
   return (
     <>
-      <ToggleButton
-        value="import"
-        aria-label="import"
-        size="small"
-        onClick={event => handleOpenMenu(event)}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <CloudUploadOutlined
-              color="primary"
-              fontSize="small"
-            />
-          </TooltipTrigger>
-          <TooltipContent>{t('Import injects')}</TooltipContent>
-        </Tooltip>
-      </ToggleButton>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            icon={<CloudUploadOutlined fontSize="small" />}
+            aria-label={t('Import injects')}
+            priority="secondary"
+            onClick={event => handleOpenMenu(event)}
+          />
+        </TooltipTrigger>
+        <TooltipContent>{t('Import injects')}</TooltipContent>
+      </Tooltip>
       <Menu
         id="menu-import-injects"
         anchorEl={menuOpen.anchorEl}

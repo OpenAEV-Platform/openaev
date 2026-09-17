@@ -2443,6 +2443,17 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** 468 buttons converted by a codemod, a third of them with an icon: the icon size has to come from the slot, not from every call site.
 
 **The request.** Size the slot (16px, `[&>svg]:size-4`) so that any icon element reads the design size, as `IconButton` and `TabsTrigger` already do.
+
+## 57. `ButtonGroup` items are icon-only, the product's segmented controls carry text
+
+**Status.** Open. Seven `ToggleButtonGroup` sites kept on MUI (`fds:keep-mui`).
+
+**Measured.** `ButtonGroupItemProps` omits `children` and requires `icon` and `aria-label` (`button-group/ButtonGroup.tsx`, `dist/index.d.ts` at the pinned commit); the RFC scopes the component to icon-only segments and lists "Items carrying a text label — 10 OpenAEV sites" as out of scope (§7). The product's seven segmented controls are text: report format (PDF / DOCX…), new / existing dashboard, all / covered / gaps with counts, preview / code, all techniques / with actions, tenant / platform with the EE marker, the timeline scales.
+
+**Product need.** A segmented single-select whose segments are words, sometimes with a count or a marker beside the word.
+
+**The request.** A text-label variant of `ButtonGroupItem` (children as the label, `icon` optional), or a ruling that these controls become Tabs or Select. Until then the seven groups stay on MUI; the one standalone `ToggleButton` (the inject import menu trigger) was an icon-only menu button and is now an IconButton.
+
 ## 58. No split button: a main action joined to a menu trigger
 
 **Status.** Open. One site kept on MUI (`fds:keep-mui`): the reporting page's "Generate now (format)" button joined to a format-menu arrow.
@@ -2452,3 +2463,13 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** A primary action with a default (generate the report in the default format) and an adjacent trigger listing the alternatives (the other formats).
 
 **The request.** A split button composite, or a `Button` slot for a trailing menu trigger.
+
+## 59. `Button` has no colour override for an exceptional case
+
+**Status.** Open, PR on the library requested (Sandy, 2026-09-18). One site kept on MUI (`fds:keep-mui`): the licence banner's action button.
+
+**Measured.** `ButtonProps` is `variant` × `priority` × `size`; the RFC's §7 excludes MUI's `color` ("covered by `variant`"). The licence banner paints its button in the banner's urgency colour (`#884106` yellow band, `#005744` green band, `#007399` blue band, white label): three colours that are neither brand, destructive, ia nor highlight, chosen to echo the band the button sits on.
+
+**Product need.** One button whose fill follows a colour decided outside the design system's four types, for an exceptional surface (a full-width urgency banner). The ruling: the library gains a prop for it, documented as exceptional on the docs site.
+
+**The request.** A `color` override on `Button`, an opaque fill for the primary priority with the label ink chosen by the library, documented as an exceptional use.

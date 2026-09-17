@@ -1,4 +1,5 @@
 import { Button } from '@filigran/design-system';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
 import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 

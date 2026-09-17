@@ -588,6 +588,18 @@ in filigran-design-system).
   (checked handler by handler). Self-hiding when the licence is active: not
   adopted, by arbitration.
 
+## 2026-09-17 — Action components wave: ToggleButton held
+
+- The seven `ToggleButtonGroup` sites stay on MUI with a `fds:keep-mui`
+  reason: every one carries text segments (report format, dashboard mode,
+  coverage filter with counts, preview / code, technique filter, tenant /
+  platform scope, timeline scales) and the library ButtonGroup is icon-only
+  by design (its RFC §7 lists these very sites as out of scope):
+  LIBRARY-FEEDBACK #57. The one standalone `ToggleButton` — the inject import
+  menu trigger — was an icon-only menu button and renders the library
+  IconButton (secondary, 36px, named "Import injects") beside the view-mode
+  ButtonGroup it already shared the row with.
+
 ## 2026-09-17 — Action components wave: Button
 
 - Button (473 MUI sites, 230 files) on the library: 468 sites by a codemod

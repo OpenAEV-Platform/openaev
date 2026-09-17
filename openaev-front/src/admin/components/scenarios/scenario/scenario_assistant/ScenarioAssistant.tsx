@@ -7,6 +7,7 @@ import {
   TrackChangesOutlined,
   TuneOutlined,
 } from '@mui/icons-material';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
 import { alpha, Box, SvgIcon, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';

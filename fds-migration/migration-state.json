@@ -406,6 +406,7 @@
         "openaev-front/src/admin/components/common/articles/Articles.tsx",
         "openaev-front/src/admin/components/common/form/TextFieldAskAI.tsx",
         "openaev-front/src/admin/components/common/injects/InjectChainsForm.tsx",
+        "openaev-front/src/admin/components/common/injects/InjectImportMenu.tsx",
         "openaev-front/src/admin/components/common/injects/create/InjectContractPicker.tsx",
         "openaev-front/src/admin/components/common/injects/create/InjectSelectionBar.tsx",
         "openaev-front/src/admin/components/common/injects/expectations/ExpectationsDriftIndicator.tsx",
