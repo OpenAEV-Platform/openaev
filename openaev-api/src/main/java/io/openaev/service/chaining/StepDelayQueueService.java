@@ -3,7 +3,9 @@ package io.openaev.service.chaining;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepDelayQueue;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.StepDelayQueueRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,7 @@ public class StepDelayQueueService {
    * @param workflowRun the {@link Workflow} instance associated with the step
    * @param goal the target timestamp when the step should be ready to execute
    */
+  @Transactional
   public void pushStepTemplateIntoStepDelayQueue(
       Step stepTemplate,
       Instant now,
@@ -44,22 +47,15 @@ public class StepDelayQueueService {
       long delay,
       Workflow workflowRun,
       Instant goal) {
+    Instant delayedGoal = WorkflowStatus.STOP.equals(workflowRun.getStatus()) ? null : goal;
     log.debug(
         "[Chaining] Delay step template: {} condition time after: {} + {} milliseconds => goal: {}",
         stepTemplate.getId(),
         now,
         delay,
-        goal);
-    StepDelayQueue stepDelayQueue =
-        StepDelayQueue.builder()
-            .input(input)
-            .now(now)
-            .goal(goal)
-            .delay(delay)
-            .stepTemplate(stepTemplate)
-            .workflowRun(workflowRun)
-            .build();
-    stepDelayQueueRepository.save(stepDelayQueue);
+        delayedGoal);
+    stepDelayQueueRepository.upsertByWorkflowRunStepTemplateAndInput(
+        input, now, delayedGoal, delay, stepTemplate.getId(), workflowRun.getId());
   }
 
   /**
@@ -82,8 +78,23 @@ public class StepDelayQueueService {
    * @param workflowRun the workflow run whose delay entries should be removed
    */
   @Transactional
-  public void deleteAllByWorkflowRun(Workflow workflowRun) {
-    stepDelayQueueRepository.deleteAllByWorkflowRun(workflowRun);
+  public void deleteAllByWorkflowRun(
+      Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
+    int count = stepDelayQueueRepository.deleteAllByWorkflowRun(workflowRun);
+
+    if (count != 0 && WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS.equals(cause)) {
+      log.error(
+          "[Chaining] Workflow {} ended due to {}. But {} step(s) are still in the delay queue.",
+          workflowRun.getId(),
+          cause.name(),
+          count);
+      return;
+    }
+    log.info(
+        "[Chaining] {} step delay queue entries of workflow {} have been deleted due to {}.",
+        count,
+        workflowRun.getId(),
+        cause.name());
   }
 
   /**
@@ -93,5 +104,34 @@ public class StepDelayQueueService {
    */
   public List<StepDelayQueue> findAllByWorkflowRun(Workflow workflowRun) {
     return stepDelayQueueRepository.findAllByWorkflowRun(workflowRun);
+  }
+
+  @Transactional
+  public void nullifyGoalsByWorkflowRun(Workflow workflowRun) {
+    stepDelayQueueRepository.nullifyGoalsByWorkflowRun(workflowRun);
+  }
+
+  @Transactional
+  public void recalculateGoalsOnResume(
+      Workflow workflowRun, Instant resumeAt, Instant workflowPauseAt) {
+    List<StepDelayQueue> delayedSteps = stepDelayQueueRepository.findAllByWorkflowRun(workflowRun);
+    if (delayedSteps.isEmpty()) {
+      return;
+    }
+
+    for (StepDelayQueue delayedStep : delayedSteps) {
+      long delayMillis = Math.max(0L, delayedStep.getDelay() == null ? 0L : delayedStep.getDelay());
+      long remainingMillis = delayMillis;
+      Instant enqueuedAt = delayedStep.getNow();
+
+      if (workflowPauseAt != null && enqueuedAt != null && enqueuedAt.isBefore(workflowPauseAt)) {
+        Instant initialGoal = enqueuedAt.plusMillis(delayMillis);
+        remainingMillis = Math.max(0L, Duration.between(workflowPauseAt, initialGoal).toMillis());
+      }
+
+      delayedStep.setGoal(resumeAt.plusMillis(remainingMillis));
+    }
+
+    stepDelayQueueRepository.saveAll(delayedSteps);
   }
 }

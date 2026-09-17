@@ -139,6 +139,16 @@ public class Workflow implements Base {
   @Max(86400) // 24h
   private Long timeoutSeconds;
 
+  @Column(name = "workflow_pause_at")
+  @JsonProperty("workflow_pause_at")
+  @Schema(description = "Timestamp when the workflow has been paused")
+  private Instant pauseAt;
+
+  @Column(name = "workflow_pause_second")
+  @JsonProperty("workflow_pause_second")
+  @Schema(description = "Total pause duration in seconds, incremented at each pause/resume cycle")
+  private long pauseSecond;
+
   // Safe mode
   @Column(name = "workflow_safe_mode_enabled", columnDefinition = "boolean")
   @JsonProperty("workflow_safe_mode_enabled")

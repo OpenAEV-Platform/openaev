@@ -132,12 +132,14 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param stepReady step ready to run
    */
   void run(Step stepReady) {
-    // Guard: ignore if workflow run has already ended (e.g. timeout).
-    // Reads fresh status from DB to catch concurrent timeout completion.
+    // Guard: ignore if workflow run is not runnable (END or STOP).
+    // Reads fresh status from DB to catch concurrent timeout/pause completion.
     Workflow workflowRun = stepReady.getWorkflow();
-    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
+    if (workflowRun != null
+        && (workflowService.isWorkflowEnded(workflowRun.getId())
+            || workflowService.isWorkflowStopped(workflowRun.getId()))) {
       log.info(
-          "[Chaining] Ignoring run request for step {} because workflow run {} has ended.",
+          "[Chaining] Ignoring run request for step {} because workflow run {} is not runnable (END/STOP).",
           stepReady.getId(),
           workflowRun.getId());
       return;
@@ -221,7 +223,19 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
   private void processExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
     Step stepRun;
     try {
-      stepRun = stepService.findByIdAndStatus(stepEvent.getStepId(), StepStatus.RUN);
+      stepRun = stepService.findById(stepEvent.getStepId());
+      if (stepRun.getStatus() == StepStatus.END) {
+        log.info(
+            "[Chaining] Update consume: Step already in END state. Step ID: {}",
+            stepEvent.getStepId());
+        return;
+      } else if (stepRun.getStatus() != StepStatus.RUN) {
+        log.error(
+            "[Chaining] Update consume: Step not in RUN or END state. Step ID: {}, Current Status: {}",
+            stepEvent.getStepId(),
+            stepRun.getStatus());
+        return;
+      }
     } catch (ElementNotFoundException e) {
       // Todo: system notif queue fail + system log for step + status FAIL
       log.error(
