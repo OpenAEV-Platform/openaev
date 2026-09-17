@@ -286,6 +286,7 @@ const me = state => state.referential.getIn(['entities', 'users', state.app.getI
 
 export const storeHelper = state => ({
   logged: () => state.app.get('logged'),
+  isTenantAccessDenied: () => state.app.get('tenantAccessDenied') ?? false,
   getMe: () => me(state),
   getMeAdmin: () => me(state)?.get('user_admin') ?? false,
   getMeTokens: () => entities('tokens', state).filter(
