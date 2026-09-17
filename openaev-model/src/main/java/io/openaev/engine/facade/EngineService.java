@@ -1,9 +1,10 @@
-package io.openaev.engine;
+package io.openaev.engine.facade;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.raw.RawUserAuth;
+import io.openaev.engine.EsModel;
 import io.openaev.engine.api.*;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
@@ -41,6 +42,15 @@ public interface EngineService {
    * @throws IOException in case of issue communicating with the analytics engine
    */
   void cleanUpIndex(String model) throws IOException;
+
+  /**
+   * Clean up the index
+   *
+   * @param model the model to clean up
+   * @param withTemplate if true, also delete the index template
+   * @throws IOException in case of issue communicating with the analytics engine
+   */
+  void cleanUpIndex(String model, boolean withTemplate) throws IOException;
 
   /**
    * Deletes the documents for the given entity ids (and their cascade dependencies), then cleans

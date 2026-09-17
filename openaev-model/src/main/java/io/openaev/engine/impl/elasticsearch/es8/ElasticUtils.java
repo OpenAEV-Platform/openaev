@@ -1,11 +1,8 @@
-package io.openaev.utils;
+package io.openaev.engine.impl.elasticsearch.es8;
 
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregation.Builder.ContainerBuilder;
-import co.elastic.clients.elasticsearch._types.aggregations.DateHistogramAggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.ExtendedBounds;
-import co.elastic.clients.elasticsearch._types.aggregations.FieldDateMath;
-import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import es8.co.elastic.clients.elasticsearch._types.aggregations.*;
+import es8.co.elastic.clients.elasticsearch._types.aggregations.Aggregation.Builder.ContainerBuilder;
+import es8.co.elastic.clients.elasticsearch._types.query_dsl.*;
 import io.openaev.database.model.Filters;
 import io.openaev.engine.api.HistogramInterval;
 import io.openaev.exception.InvalidDateRangeException;
@@ -99,12 +96,23 @@ public class ElasticUtils {
               h.field(field)
                   .minDocCount(0)
                   .format(interval.format)
-                  .calendarInterval(interval.esType)
+                  .calendarInterval(toEsInterval(interval))
                   .keyed(false);
           if (extendedBounds != null) {
             builder.extendedBounds(extendedBounds);
           }
           return builder;
         });
+  }
+
+  private static CalendarInterval toEsInterval(HistogramInterval interval) {
+    return switch (interval) {
+      case day -> CalendarInterval.Day;
+      case week -> CalendarInterval.Week;
+      case month -> CalendarInterval.Month;
+      case year -> CalendarInterval.Year;
+      case hour -> CalendarInterval.Hour;
+      case quarter -> CalendarInterval.Quarter;
+    };
   }
 }
