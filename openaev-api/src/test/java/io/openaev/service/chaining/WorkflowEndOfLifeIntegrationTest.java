@@ -123,8 +123,8 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
       Step stepReady = createPersistedStep(workflowRun, StepStatus.READY);
       Step stepRun = createPersistedStep(workflowRun, StepStatus.RUN);
       Step stepTemplate = createPersistedStep(workflowRun, StepStatus.TEMPLATE);
-      createPersistedDelayQueueEntry(workflowRun, stepTemplate);
-      createPersistedDelayQueueEntry(workflowRun, stepTemplate);
+      createPersistedDelayQueueEntry("{\"input_1\": \"value\"}", workflowRun, stepTemplate);
+      createPersistedDelayQueueEntry("{}", workflowRun, stepTemplate);
       createPersistedWorkflowState(workflowRun, stepTemplate);
 
       // Act
@@ -186,9 +186,9 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
       Step stepReady = createPersistedStep(workflowRun, StepStatus.READY);
       Step stepRun = createPersistedStep(workflowRun, StepStatus.RUN);
       Step stepTemplate = createPersistedStep(workflowRun, StepStatus.TEMPLATE);
-      createPersistedDelayQueueEntry(workflowRun, stepTemplate);
-      createPersistedDelayQueueEntry(workflowRun, stepTemplate);
-      createPersistedDelayQueueEntry(workflowRun, stepTemplate);
+      createPersistedDelayQueueEntry("{\"input_1\": \"value\"}", workflowRun, stepTemplate);
+      createPersistedDelayQueueEntry("{\"input_2\": \"value\"}", workflowRun, stepTemplate);
+      createPersistedDelayQueueEntry("{\"input_3\": \"value\"}", workflowRun, stepTemplate);
       createPersistedWorkflowState(workflowRun, stepTemplate);
       createPersistedWorkflowState(workflowRun, null);
       Inject activeInject = createPersistedActiveInject(workflowRun.getSimulation());
@@ -323,12 +323,12 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
     return stepRepository.save(step);
   }
 
-  private StepDelayQueue createPersistedDelayQueueEntry(Workflow workflowRun, Step stepTemplate) {
+  private StepDelayQueue createPersistedDelayQueueEntry(String input, Workflow workflowRun, Step stepTemplate) {
     StepDelayQueue delayEntry =
         StepDelayQueue.builder()
             .workflowRun(workflowRun)
             .stepTemplate(stepTemplate)
-            .input("{}")
+            .input(input)
             .now(Instant.now())
             .goal(Instant.now().plus(1, ChronoUnit.HOURS))
             .delay(3600000L)

@@ -34,12 +34,12 @@ public class V6_20260915143000000__Deduplicate_step_delay_queue_and_enforce_uniq
 
       statement.execute(
           """
-          CREATE UNIQUE INDEX IF NOT EXISTS uk_steps_delay_queue_run_step_input
-          ON steps_delay_queue (
-            steps_delay_queue_workflow_run_id,
-            steps_delay_queue_step_template_id,
-            COALESCE(steps_delay_queue_input, '')
-          );
+            CREATE UNIQUE INDEX uk_steps_delay_queue_run_step_input
+            ON steps_delay_queue (
+              steps_delay_queue_workflow_run_id,
+              steps_delay_queue_step_template_id,
+              steps_delay_queue_input
+            ) NULLS NOT DISTINCT;
           """);
 
       statement.execute(

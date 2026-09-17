@@ -60,7 +60,7 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
           ON CONFLICT (
             steps_delay_queue_workflow_run_id,
             steps_delay_queue_step_template_id,
-            (COALESCE(steps_delay_queue_input, ''::text))
+            steps_delay_queue_input
           )
           DO UPDATE
           SET
