@@ -161,6 +161,7 @@ public class InjectHelper {
         getInjectTeams(inject),
         inject.getAssets(), // TODO There is also inefficient lazy loading inside this get function
         inject.getAssetGroups(),
+        inject.getSecretReferences(),
         usersFromInjection(inject));
   }
 

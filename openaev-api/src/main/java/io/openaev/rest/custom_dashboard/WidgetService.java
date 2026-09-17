@@ -2,9 +2,9 @@ package io.openaev.rest.custom_dashboard;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Filters;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Widget;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.WidgetRepository;
@@ -40,18 +40,21 @@ public class WidgetService {
 
   @Transactional
   public Widget createWidget(
-      @NotBlank final String customDashboardId, @NotNull final Widget widget) {
+      @NotBlank final String customDashboardId,
+      @NotNull final Widget widget,
+      @NotBlank final String tenantId) {
     // FIXME: needs some refactoring
     // -> CustomDashboardRepository should not be called directly here but using the service here is
     // causing circular dependency
     CustomDashboard customDashboard =
         customDashboardRepository
-            .findByIdAndTenantId(customDashboardId, TenantContext.getCurrentTenant())
+            .findById(customDashboardId)
             .orElseThrow(
                 () ->
                     new EntityNotFoundException(
                         "Custom dashboard not found with id: " + customDashboardId));
     widget.setCustomDashboard(customDashboard);
+    widget.setTenant(new Tenant(tenantId));
     this.sendTelemetryEvent(widget, false);
     return this.widgetRepository.save(widget);
   }
@@ -71,7 +74,7 @@ public class WidgetService {
   @Transactional(readOnly = true)
   public Widget widget(@NotBlank final String widgetId) {
     return this.widgetRepository
-        .findByIdAndTenantId(widgetId, TenantContext.getCurrentTenant())
+        .findById(widgetId)
         .orElseThrow(() -> new EntityNotFoundException("Widget with id: " + widgetId));
   }
 

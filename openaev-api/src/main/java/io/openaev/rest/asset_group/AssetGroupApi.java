@@ -8,6 +8,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.asset.dto.AssetOutput;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -58,6 +60,33 @@ public class AssetGroupApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final InjectSearchService injectSearchService;
+  private final TenantWriteScopeResolver writeScopeResolver;
+
+  /**
+   * Resolves the lazy {@code assets} collection inside the scoped transaction, for every handler
+   * that returns an {@code AssetGroup} entity.
+   *
+   * <p>{@code AssetGroup.assets} is a lazy {@code @ManyToMany} on the v2-active {@code assets}
+   * table, serialized by {@code MultiIdListSerializer} AFTER the handler returns, through
+   * open-in-view. The session is still open, so nothing throws, but the transaction and its {@code
+   * app.current_tenants} scope are gone and the statement inspector fail-closes the query: the
+   * endpoint returns 200 with {@code asset_group_assets: []} for every group, whatever the data.
+   * Carrying a {@code TxCtx} is necessary and not sufficient.
+   *
+   * <p>Same shape and same fix as {@code SecurityPlatformApi.withManagerLinksInitialized} (#7026).
+   * Pinned by {@code AssetAssociationSinkTest}, which is deliberately NOT {@code @Transactional}: a
+   * transactional test keeps the scope alive through serialization and would pass while proving
+   * nothing, which is exactly how this defect stayed invisible.
+   */
+  private static AssetGroup withAssetsInitialized(AssetGroup assetGroup) {
+    Hibernate.initialize(assetGroup.getAssets());
+    return assetGroup;
+  }
+
+  private static List<AssetGroup> withAssetsInitialized(List<AssetGroup> assetGroups) {
+    assetGroups.forEach(AssetGroupApi::withAssetsInitialized);
+    return assetGroups;
+  }
 
   @PostMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET_GROUP)
@@ -66,14 +95,17 @@ public class AssetGroupApi extends RestBehavior {
     AssetGroup assetGroup = new AssetGroup();
     assetGroup.setUpdateAttributes(input);
     assetGroup.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    return this.assetGroupService.createAssetGroup(assetGroup);
+    // Resolves the single tenant this write belongs to, and refuses an ambiguous multi-tenant
+    // scope with a 400 rather than picking one silently.
+    String tenantId = this.writeScopeResolver.tenantForWrite(ctx, null);
+    return withAssetsInitialized(this.assetGroupService.createAssetGroup(assetGroup, tenantId));
   }
 
   @GetMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET_GROUP)
   public List<AssetGroup> assetGroups(TxCtx ctx) {
-    return this.assetGroupService.assetGroups();
+    return withAssetsInitialized(this.assetGroupService.assetGroups());
   }
 
   @LogExecutionTime
@@ -170,7 +202,7 @@ public class AssetGroupApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET_GROUP)
   public AssetGroup assetGroup(TxCtx ctx, @PathVariable @NotBlank final String assetGroupId) {
-    return this.assetGroupService.assetGroup(assetGroupId);
+    return withAssetsInitialized(this.assetGroupService.assetGroup(assetGroupId));
   }
 
   @PutMapping({ASSET_GROUP_URI + "/{assetGroupId}", TENANT_ASSET_GROUP_URI + "/{assetGroupId}"})
@@ -186,7 +218,7 @@ public class AssetGroupApi extends RestBehavior {
     AssetGroup assetGroup = this.assetGroupService.assetGroup(assetGroupId);
     assetGroup.setUpdateAttributes(input);
     assetGroup.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    return this.assetGroupService.updateAssetGroup(assetGroup);
+    return withAssetsInitialized(this.assetGroupService.updateAssetGroup(assetGroup));
   }
 
   @PutMapping({
@@ -203,7 +235,8 @@ public class AssetGroupApi extends RestBehavior {
       @PathVariable @NotBlank final String assetGroupId,
       @Valid @RequestBody final UpdateAssetsOnAssetGroupInput input) {
     AssetGroup assetGroup = this.assetGroupService.assetGroup(assetGroupId);
-    return this.assetGroupService.updateAssetsOnAssetGroup(assetGroup, input.getAssetIds());
+    return withAssetsInitialized(
+        this.assetGroupService.updateAssetsOnAssetGroup(assetGroup, input.getAssetIds()));
   }
 
   @DeleteMapping({ASSET_GROUP_URI + "/{assetGroupId}", TENANT_ASSET_GROUP_URI + "/{assetGroupId}"})

@@ -12,7 +12,7 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import ItemTags from '../../../../components/ItemTags';
 import { useHelper } from '../../../../store';
-import type { Challenge, Document } from '../../../../utils/api-types';
+import type { Challenge, Document, PublicChallenge } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentType from '../../components/documents/DocumentType';
 
@@ -65,7 +65,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   },
 };
 
-interface Props { currentChallenge: Challenge | null }
+interface Props { currentChallenge: Challenge | PublicChallenge | null }
 
 const ChallengesPreviewDocumentsList: FunctionComponent<Props> = ({ currentChallenge }) => {
   const { classes } = useStyles();

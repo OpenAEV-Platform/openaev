@@ -43,6 +43,12 @@ In the **Definition** tab, add the elements that make up the Scenario:
 - [Custom variables](../components/variables.md) for dynamic content in Injects
 - [Media pressure](../components/media-pressure.md) articles
 - [Challenges](../components/challenges.md) for CTF (Capture The Flag) elements
+- [Lessons](../components/lessons.md) to add post-run surveys for the Scenario
+
+!!! note
+
+    For chained Scenarios, the Lessons target team list comes from the run scope. For time-based
+    Scenarios, it comes from the Scenario teams you configured.
 
 In the **Injects** tab, create the chain of events by adding Injects. See [Inject overview](../../evaluate/injects/inject-overview.md) for the creation workflow.
 

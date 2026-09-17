@@ -24,11 +24,15 @@ public interface DomainRepository
 
   @NotNull
   @Transactional(readOnly = true)
-  Optional<Domain> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+  Optional<Domain> findByNameAndTenantId(@NotNull String name, @NotNull String tenantId);
 
   @NotNull
   @Transactional(readOnly = true)
   List<Domain> findByNameIn(Collection<String> names);
+
+  @NotNull
+  @Transactional(readOnly = true)
+  List<Domain> findByNameInAndTenantId(Collection<String> names, String tenantId);
 
   @Query(
       value =

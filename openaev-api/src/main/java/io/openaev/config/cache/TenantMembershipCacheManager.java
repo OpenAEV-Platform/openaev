@@ -21,6 +21,12 @@ import org.springframework.stereotype.Service;
  * other request-scoped callers) do not open a Hibernate session. Combined with open-in-view, a
  * Hibernate query here would hold a pool connection for the whole HTTP request and trip Hikari leak
  * detection on long POSTs.
+ *
+ * <p>Eviction here is plain declarative {@code @CacheEvict}/{@code @Caching} — transaction safety
+ * (evict immediately, then again after commit) is handled once, for every cache, by the {@link
+ * CacheManager} bean itself ({@code CommitAwareCacheManager}, wired in {@code CachingConfig}), not
+ * by this class. See that class's javadoc for why a plain {@code @CacheEvict} alone is not
+ * transaction-safe.
  */
 @Service
 @RequiredArgsConstructor
@@ -82,9 +88,11 @@ public class TenantMembershipCacheManager {
 
   /**
    * Evicts all cached tenant membership entries for a given user, including the cached tenant-id
-   * list. Membership keys are evicted through {@link CacheManager} because calling {@link
-   * #evict(String, String)} from this method would be a self-invocation and skip the cache
-   * interceptor.
+   * list. Goes through {@link CacheManager} directly, rather than calling {@link #evict(String,
+   * String)} in a loop, because that would be a self-invocation and skip the {@code @CacheEvict}
+   * interceptor entirely (Spring's declarative caching only intercepts calls made through the
+   * proxy). The caches themselves are still transaction-safe, since that guarantee lives in the
+   * {@link CacheManager} bean, not in how eviction is triggered.
    */
   public void evictForUser(String userId, List<String> tenantIds) {
     Cache tenantIdsCache = cacheManager.getCache(USER_TENANT_IDS_CACHE);

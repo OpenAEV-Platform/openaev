@@ -86,9 +86,7 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
       "Given user with tags but no organization, playerPagination should handle null organization")
   void givenUserWithTagsButNoOrganization_playerPagination_shouldReturnNullOrganization() {
     // Given
-    Tag tag = new Tag();
-    tag.setName("solo-tag");
-    tagRepository.save(tag);
+    Tag tag = tagRepository.save(TagFixture.getTagWithText("solo-tag"));
 
     User user = new User();
     user.setEmail("solo@test.com");

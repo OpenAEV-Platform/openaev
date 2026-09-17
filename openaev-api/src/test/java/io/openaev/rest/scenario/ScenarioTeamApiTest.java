@@ -20,12 +20,19 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScenarioTeamUser;
+import io.openaev.database.model.ScopeRuleSelectedMode;
+import io.openaev.database.model.ScopeRuleSource;
+import io.openaev.database.model.ScopeRuleValueType;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
+import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowScopeRule;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.ScenarioTeamUserRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exercise.form.ExerciseTeamPlayersEnableInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
@@ -33,6 +40,7 @@ import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +64,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private WorkflowRepository workflowRepository;
 
   @DisplayName("Given a valid scenario and team input, should add team to scenario successfully")
   @Test
@@ -119,29 +128,34 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_validScenarioWithTeams_should_retrieveTeamsSuccessfully() throws Exception {
     // -- PREPARE --
-    Team team = new Team();
-    team.setName(TEAM_NAME);
-    Team teamCreated = this.teamRepository.save(team);
-
-    Scenario scenario = getScenario();
-    scenario.setTeams(List.of(teamCreated));
-    Scenario scenarioCreated = this.scenarioRepository.save(scenario);
+    Team teamCreated = createTeam(TEAM_NAME);
+    Scenario scenarioCreated = createScenarioWithTeams(teamCreated);
 
     // -- EXECUTE --
-    String response =
-        this.mvc
-            .perform(
-                get(SCENARIO_URI + "/" + scenarioCreated.getId() + "/teams")
-                    .accept(MediaType.APPLICATION_JSON)
-                    .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+    String response = getScenarioTeamsResponse(scenarioCreated.getId());
 
     // -- ASSERT --
     assertNotNull(response);
     assertEquals(teamCreated.getId(), JsonPath.read(response, "$[0].team_id"));
+  }
+
+  @DisplayName(
+      "Given a chained scenario with scoped teams, should retrieve scoped teams successfully")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_chainedScenarioWithScopedTeams_should_retrieveScopedTeamsSuccessfully()
+      throws Exception {
+    // -- PREPARE --
+    Team scopedTeamCreated = createTeam(TEAM_NAME);
+    Scenario scenarioCreated = createChainedScenarioWithScopedTeam(scopedTeamCreated);
+
+    // -- EXECUTE --
+    String response = getScenarioTeamsResponse(scenarioCreated.getId());
+
+    // -- ASSERT --
+    assertNotNull(response);
+    assertEquals(scopedTeamCreated.getId(), JsonPath.read(response, "$[0].team_id"));
+    assertEquals(scenarioCreated.getId(), JsonPath.read(response, "$[0].team_scenarios[0]"));
   }
 
   @DisplayName("Given a valid scenario and team, should add player to team successfully")
@@ -149,13 +163,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_validScenarioAndTeam_should_addPlayerToTeamSuccessfully() throws Exception {
     // -- PREPARE --
-    Team team = new Team();
-    team.setName(TEAM_NAME);
-    Team teamCreated = this.teamRepository.save(team);
-
-    Scenario scenario = getScenario();
-    scenario.setTeams(List.of(teamCreated));
-    Scenario scenarioCreated = this.scenarioRepository.save(scenario);
+    Team teamCreated = createTeam(TEAM_NAME);
+    Scenario scenarioCreated = createScenarioWithTeams(teamCreated);
 
     User user = UserFixture.getUser();
     User userCreated = this.userRepository.save(user);
@@ -196,13 +205,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
   void given_validScenarioAndTeamWithPlayer_should_removePlayerFromTeamSuccessfully()
       throws Exception {
     // -- PREPARE --
-    Team team = new Team();
-    team.setName(TEAM_NAME);
-    Team teamCreated = this.teamRepository.save(team);
-
-    Scenario scenario = getScenario();
-    scenario.setTeams(List.of(teamCreated));
-    Scenario scenarioCreated = this.scenarioRepository.save(scenario);
+    Team teamCreated = createTeam(TEAM_NAME);
+    Scenario scenarioCreated = createScenarioWithTeams(teamCreated);
 
     User user = UserFixture.getUser();
     User userCreated = this.userRepository.save(user);
@@ -246,13 +250,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_validScenarioWithTeam_should_removeTeamFromScenarioSuccessfully() throws Exception {
     // -- PREPARE --
-    Team team = new Team();
-    team.setName(TEAM_NAME);
-    Team teamCreated = this.teamRepository.save(team);
-
-    Scenario scenario = getScenario();
-    scenario.setTeams(List.of(teamCreated));
-    Scenario scenarioCreated = this.scenarioRepository.save(scenario);
+    Team teamCreated = createTeam(TEAM_NAME);
+    Scenario scenarioCreated = createScenarioWithTeams(teamCreated);
 
     ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
     input.setTeamIds(List.of(teamCreated.getId()));
@@ -273,6 +272,54 @@ class ScenarioTeamApiTest extends IntegrationTest {
     // -- ASSERT --
     List<Team> teams = this.teamRepository.findAll(fromScenario(scenarioCreated.getId()));
     assertTrue(teams.isEmpty());
+  }
+
+  private String getScenarioTeamsResponse(String scenarioId) throws Exception {
+    return this.mvc
+        .perform(
+            get(SCENARIO_URI + "/" + scenarioId + "/teams")
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+  }
+
+  private Team createTeam(String teamName) {
+    Team team = new Team();
+    team.setName(teamName);
+    return this.teamRepository.save(team);
+  }
+
+  private Scenario createScenarioWithTeams(Team... teams) {
+    Scenario scenario = getScenario();
+    scenario.setTeams(List.of(teams));
+    return this.scenarioRepository.save(scenario);
+  }
+
+  private Scenario createChainedScenarioWithScopedTeam(Team scopedTeam) {
+    Scenario scenarioCreated = this.scenarioRepository.save(getScenario());
+
+    WorkflowScopeRule scopeRule =
+        WorkflowScopeRule.builder()
+            .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+            .ruleSource(ScopeRuleSource.TEAM)
+            .ruleValue(scopedTeam.getId())
+            .valueType(ScopeRuleValueType.TEAM_ID)
+            .build();
+
+    Workflow workflow =
+        Workflow.builder()
+            .status(WorkflowStatus.TEMPLATE)
+            .version(0)
+            .scenario(scenarioCreated)
+            .workflowScopeRules(new ArrayList<>())
+            .build();
+    scopeRule.setWorkflow(workflow);
+    workflow.getWorkflowScopeRules().add(scopeRule);
+    this.workflowRepository.save(workflow);
+    return scenarioCreated;
   }
 
   @DisplayName("Scenario team search")

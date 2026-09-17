@@ -3,6 +3,8 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
@@ -32,7 +34,8 @@ import org.hibernate.type.SqlTypes;
 @Entity(name = "ConnectorInstance")
 @Table(name = "connector_instances")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-public class ConnectorInstancePersisted extends ConnectorInstance implements TenantBase {
+public class ConnectorInstancePersisted extends ConnectorInstance
+    implements TenantBase, AuditStateCapturable {
   @Id
   @Column(name = "connector_instance_id")
   @GeneratedValue(generator = "UUID")
@@ -54,6 +57,7 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Ten
 
   @Column(name = "connector_instance_started_at")
   @JsonProperty("connector_instance_started_at")
+  @AuditStateIgnore
   private Instant startedAt;
 
   // Fixes a bug due to a new version of jackson and lombok
@@ -70,6 +74,7 @@ public class ConnectorInstancePersisted extends ConnectorInstance implements Ten
       orphanRemoval = true)
   @JsonProperty("connector_instance_logs")
   @NotNull
+  @AuditStateIgnore
   private Set<ConnectorInstanceLog> logs = new HashSet<>();
 
   /** Shadow base class members */

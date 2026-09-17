@@ -3,11 +3,14 @@ package io.openaev.rest;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,10 +21,12 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Variable;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.VariableRepository;
 import io.openaev.rest.variable.form.VariableInput;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
@@ -52,6 +57,7 @@ public class VariableApiTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private VariableRepository variableRepository;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private TenantRepository tenantRepository;
   @Autowired private EntityManager entityManager;
 
   static String VARIABLE_ID;
@@ -271,6 +277,37 @@ public class VariableApiTest extends IntegrationTest {
       return variableId;
     }
 
+    private String seedExerciseInTenant(String tenantId) {
+      String exerciseId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+                  + " exercise_mail_from, tenant_id)"
+                  + " VALUES (:id, :name, :status, :mailFrom, CAST(:tenant AS uuid))")
+          .setParameter("id", exerciseId)
+          .setParameter("name", "Isolation Exercise")
+          .setParameter("status", "SCHEDULED")
+          .setParameter("mailFrom", "isolation-test@openaev.io")
+          .setParameter("tenant", tenantId)
+          .executeUpdate();
+      return exerciseId;
+    }
+
+    private String seedVariableInExercise(String exerciseId, String key) {
+      String variableId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO variables (variable_id, variable_key, variable_value, variable_type,"
+                  + " variable_exercise) VALUES (:id, :key, :value, :type, :exerciseId)")
+          .setParameter("id", variableId)
+          .setParameter("key", key)
+          .setParameter("value", "test_value")
+          .setParameter("type", "String")
+          .setParameter("exerciseId", exerciseId)
+          .executeUpdate();
+      return variableId;
+    }
+
     @Test
     @DisplayName("Variable in scenario X should NOT be updatable via scenario Y (cross-tenant)")
     void given_variableInScenarioX_should_notBeUpdatableViaScenarioY() throws Exception {
@@ -378,6 +415,80 @@ public class VariableApiTest extends IntegrationTest {
 
       // Assert
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Variable in exercise X should NOT be updatable via exercise Y (cross-tenant)")
+    void given_variableInExerciseX_should_notBeUpdatableViaExerciseY() throws Exception {
+      // Arrange
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      String exerciseX = seedExerciseInTenant(tenantX.getId());
+      String exerciseY = seedExerciseInTenant(tenantY.getId());
+      String variableId = seedVariableInExercise(exerciseX, "exercise_isolation_key");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantY.getId()
+                          + "/exercises/"
+                          + exerciseY
+                          + "/variables/"
+                          + variableId)
+                      .content(asJsonString(createVariableInput("hijacked_key")))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant selector membership")
+  class TenantSelectorMembership {
+
+    @Test
+    @WithMockUser(isAdmin = false)
+    @DisplayName("Selecting a tenant the caller does not belong to is forbidden")
+    @Transactional
+    void selectingForeignTenantIsForbidden() throws Exception {
+      String memberTenant =
+          tenantIsolationHelper.createTenantWithCurrentUser("member-tenant").getId();
+      String foreignTenant =
+          tenantRepository.save(TenantFixture.getTenant("foreign-" + UUID.randomUUID())).getId();
+
+      mvc.perform(
+              get(
+                  "/api/tenants/"
+                      + foreignTenant
+                      + "/scenarios/"
+                      + UUID.randomUUID()
+                      + "/variables"))
+          .andExpect(status().isForbidden())
+          .andExpect(content().string(containsString("TENANT_ACCESS_DENIED")));
+
+      mvc.perform(
+              get(
+                  "/api/tenants/"
+                      + memberTenant
+                      + "/scenarios/"
+                      + UUID.randomUUID()
+                      + "/variables"))
+          .andExpect(content().string(not(containsString("TENANT_ACCESS_DENIED"))));
     }
   }
 }

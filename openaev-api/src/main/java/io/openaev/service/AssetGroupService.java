@@ -45,9 +45,36 @@ public class AssetGroupService {
   private final AssetGroupMapper assetGroupMapper;
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
+  /**
+   * Builds the owning tenant reference, refusing a blank one loudly.
+   *
+   * <p>Explicit rather than {@code @NotBlank}: this bean is not {@code @Validated}, so the
+   * annotation alone never fires and a blank tenant would reach the database as {@code tenant_id =
+   * NULL}, which is the silent corruption explicit attribution exists to prevent.
+   */
+  private static Tenant requireTenant(final String tenantId) {
+    if (tenantId == null || tenantId.isBlank()) {
+      throw new IllegalArgumentException("an asset group write must carry the tenant that owns it");
+    }
+    return new Tenant(tenantId);
+  }
+
   // -- ASSET GROUP --
 
-  public AssetGroup createAssetGroup(@NotNull final AssetGroup assetGroup) {
+  /**
+   * Creates an asset group owned by {@code tenantId}.
+   *
+   * <p>The tenant is an explicit parameter and is never inferred. That is the contract regardless
+   * of {@code TenantBaseListener}, which the entity deliberately still carries (#7844 removes it):
+   * relying on it would stamp {@code tenant_id} from the v1 thread-local behind this method's back,
+   * which is ambient and wrong off the request path. Passing the tenant explicitly is also what
+   * lets #7844 land without touching callers. HTTP callers resolve the tenant through {@link
+   * io.openaev.config.TenantWriteScopeResolver}, which refuses an unscoped or ambiguous request
+   * with a 400; background callers pass the tenant their own scope was opened for.
+   */
+  public AssetGroup createAssetGroup(
+      @NotNull final AssetGroup assetGroup, @NotBlank final String tenantId) {
+    assetGroup.setTenant(requireTenant(tenantId));
     AssetGroup assetGroupCreated = this.assetGroupRepository.save(assetGroup);
     return computeDynamicAssets(assetGroupCreated);
   }
@@ -179,7 +206,15 @@ public class AssetGroupService {
         chunk -> this.assetGroupRepository.deleteAll(this.assetGroupRepository.findAllById(chunk)));
   }
 
-  public AssetGroup createOrUpdateAssetGroupWithoutDynamicAssets(AssetGroup assetGroup) {
+  /**
+   * Upserts an asset group owned by {@code tenantId}, without resolving dynamic members.
+   *
+   * <p>Same rule as {@link #createAssetGroup}: the tenant is explicit. Connector callers run inside
+   * a {@code TenantScopedTransaction} and pass the tenant that scope was opened for.
+   */
+  public AssetGroup createOrUpdateAssetGroupWithoutDynamicAssets(
+      AssetGroup assetGroup, @NotBlank final String tenantId) {
+    assetGroup.setTenant(requireTenant(tenantId));
     return this.assetGroupRepository.save(assetGroup);
   }
 

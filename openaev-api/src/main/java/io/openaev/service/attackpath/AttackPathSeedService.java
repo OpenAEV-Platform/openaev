@@ -443,9 +443,8 @@ public class AttackPathSeedService {
             + injector.name()
             + "-payload --timeout 30 --format json --verbose";
     // A credential-capable injector (not the nmap scanner) uses a discovered credential inline,
-    // which
-    // the read masks: the drawer shows "-p ••••", proving credentials never leave the server in
-    // clear.
+    // which the read masks: the drawer shows "-p ******", proving credentials never leave the
+    // server in clear.
     if (sampleCredential == null || "nmap".equals(injector.name())) {
       return base;
     }

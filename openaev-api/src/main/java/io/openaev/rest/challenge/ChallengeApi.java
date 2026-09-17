@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
@@ -45,6 +46,7 @@ public class ChallengeApi extends RestBehavior {
   private final DocumentRepository documentRepository;
   private final ChallengeService challengeService;
   private final DocumentService documentService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @Transactional
@@ -105,7 +107,9 @@ public class ChallengeApi extends RestBehavior {
   public Challenge createChallenge(TxCtx ctx, @Valid @RequestBody ChallengeInput input)
       throws InputValidationException {
     challengeService.validateFlags(input.flags());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Challenge challenge = new Challenge();
+    challenge.setTenant(new Tenant(tenantId));
     challenge.setUpdateAttributes(input);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));

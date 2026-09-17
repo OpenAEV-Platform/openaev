@@ -94,6 +94,7 @@ interface Props {
   articles: Article[];
   variables: Variable[];
   uriVariable: string;
+  variablesConfigurationUri?: string;
 }
 
 const Injects: FunctionComponent<Props> = ({
@@ -103,6 +104,7 @@ const Injects: FunctionComponent<Props> = ({
   articles,
   variables,
   uriVariable,
+  variablesConfigurationUri = uriVariable,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -714,7 +716,7 @@ const Injects: FunctionComponent<Props> = ({
               injects={injects}
               articlesFromExerciseOrScenario={articles}
               variablesFromExerciseOrScenario={variables}
-              uriVariable={uriVariable}
+              uriVariable={variablesConfigurationUri}
             />
           )}
       </>

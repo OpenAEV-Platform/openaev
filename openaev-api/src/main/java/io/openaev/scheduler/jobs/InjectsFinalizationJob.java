@@ -9,6 +9,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.helper.InjectHelper;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
@@ -51,6 +52,7 @@ public class InjectsFinalizationJob implements Job {
   private Integer injectExecutionThreshold;
 
   private final InjectHelper injectHelper;
+  private final InjectRepository injectRepository;
   private final InjectService injectService;
   private final InjectStatusService injectStatusService;
   private final ExerciseRepository exerciseRepository;
@@ -178,39 +180,67 @@ public class InjectsFinalizationJob implements Job {
       return;
     }
 
+    // Finalize each inject inside its own tenant's scope, the way handleAutoClosingSimulations
+    // already does. The sweep above is deliberately cross-tenant and stays so; what needs a scope
+    // is the per-inject work, because resolving the agents walks the inject's assets and asset
+    // groups. asset_groups is v2-active, and the disableFilter("tenantFilter") this job inherits
+    // from v1 does nothing about that: the statement inspector rewrites by SQL text and filters a
+    // findById like any other read, so AssetGroupService.assetGroup(id) finds nothing and throws.
+    // That exception escapes to execute(), so one inject targeting an asset group would stop the
+    // whole sweep, for every tenant. PendingInjectAssetGroupScopeTest pins both halves.
+    //
+    // Only the ids cross the scope boundary, and each inject is refetched inside its tenant's
+    // transaction, exactly like the simulations above. Carrying the entities over would keep the
+    // eager Inject.assets collection loaded by the unscoped sweep, which is the very state this
+    // activation makes wrong: once assets is v2-active that collection comes back empty, and the
+    // finalization would silently see an agentless inject where there are agents.
+    Map<String, List<String>> pendingIdsByTenant = new LinkedHashMap<>();
     for (Inject inject : pendingInjects) {
-      InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
-      // Find agents that already have a COMPLETE trace
-      Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
+      pendingIdsByTenant
+          .computeIfAbsent(inject.getTenant().getId(), key -> new ArrayList<>())
+          .add(inject.getId());
+    }
 
-      // Get all agents expected to execute this inject
-      List<Agent> allAgents = injectService.getAgentsByInject(inject);
+    pendingIdsByTenant.forEach(
+        (tenantId, injectIds) ->
+            tenantScopedJobRunner.runInTenant(
+                tenantId,
+                () ->
+                    injectRepository.findAllById(injectIds).forEach(this::finalizePendingInject)));
+  }
 
-      if (allAgents.isEmpty()) {
-        // Agentless inject: network scanners (e.g. Nuclei) target assets that have no agent, so the
-        // per-agent timeout loop below can never record anything. Without an explicit trace,
-        // updateFinalInjectStatus finalizes the inject ERROR from an empty COMPLETE-trace list and
-        // the execution details show only the initial "waiting to be consumed" info trace - a red
-        // inject with no reason. Add a clear agentless timeout trace instead, unless a terminal
-        // COMPLETE trace was already recorded (e.g. the injector reported the timeout itself).
-        boolean hasCompleteTrace =
-            status.getTraces().stream()
-                .anyMatch(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()));
-        if (!hasCompleteTrace) {
-          ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
-        }
-      } else {
-        // Add a COMPLETE/TIMEOUT trace for each agent that never responded
-        for (Agent agent : allAgents) {
-          if (!completedAgentIds.contains(agent.getId())) {
-            ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
-          }
+  private void finalizePendingInject(Inject inject) {
+    InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
+    // Find agents that already have a COMPLETE trace
+    Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
+
+    // Get all agents expected to execute this inject
+    List<Agent> allAgents = injectService.getAgentsByInject(inject);
+
+    if (allAgents.isEmpty()) {
+      // Agentless inject: network scanners (e.g. Nuclei) target assets that have no agent, so the
+      // per-agent timeout loop below can never record anything. Without an explicit trace,
+      // updateFinalInjectStatus finalizes the inject ERROR from an empty COMPLETE-trace list and
+      // the execution details show only the initial "waiting to be consumed" info trace - a red
+      // inject with no reason. Add a clear agentless timeout trace instead, unless a terminal
+      // COMPLETE trace was already recorded (e.g. the injector reported the timeout itself).
+      boolean hasCompleteTrace =
+          status.getTraces().stream()
+              .anyMatch(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()));
+      if (!hasCompleteTrace) {
+        ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
+      }
+    } else {
+      // Add a COMPLETE/TIMEOUT trace for each agent that never responded
+      for (Agent agent : allAgents) {
+        if (!completedAgentIds.contains(agent.getId())) {
+          ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
         }
       }
-      injectStatusService.updateFinalInjectStatus(status);
-      // Save + stream one by one: the timeout finalization must reach the execution screens in
-      // real time (an inject stuck PENDING would otherwise stay "in flight" until a reload).
-      injectStatusService.saveAndStreamInject(status);
     }
+    injectStatusService.updateFinalInjectStatus(status);
+    // Save + stream one by one: the timeout finalization must reach the execution screens in
+    // real time (an inject stuck PENDING would otherwise stay "in flight" until a reload).
+    injectStatusService.saveAndStreamInject(status);
   }
 }

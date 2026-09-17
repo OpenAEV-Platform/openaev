@@ -224,6 +224,7 @@ public class InjectExecutionStep implements ActionStep {
               inject.getTeams(),
               inject.getAssets(),
               inject.getAssetGroups(),
+              inject.getSecretReferences(),
               users,
               true,
               readyStep.getId());

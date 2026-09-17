@@ -12,7 +12,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectExpectationService;
@@ -20,11 +19,14 @@ import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
+import java.io.IOException;
 import java.time.Instant;
-import java.util.List;
+import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Component
 @RequiredArgsConstructor
@@ -50,20 +52,34 @@ public class Executor {
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
 
-  private InjectStatus executeExternal(
-      ExecutableInject executableInject, Injector injector, List<AssetToExecute> assetToExecutes)
+  private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
       throws Exception {
     Inject inject = executableInject.getInjection().getInject();
+    String authorisationCode = injectService.getAuthorisationCodeIfNeeded(executableInject);
     String jsonInject =
         mapper.writeValueAsString(
-            executableInjectDTOMapper.toExecutableInjectDTO(executableInject));
+            executableInjectDTOMapper.toExecutableInjectDTO(executableInject, authorisationCode));
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
-    injectExpectationService.computeAndSaveExpectations(
-        executableInject, inject, injector.getType(), assetToExecutes);
+    injectExpectationService.computeAndSaveExpectations(executableInject, injector.getType());
 
-    rabbitmqService.publish(injector.getId(), jsonInject);
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              try {
+                rabbitmqService.publish(injector.getId(), jsonInject);
+              } catch (IOException | TimeoutException e) {
+                throw new IllegalStateException("Failed to publish inject after commit", e);
+              }
+            }
+          });
+    } else {
+      rabbitmqService.publish(injector.getId(), jsonInject);
+    }
+
     injectStatus.addInfoTrace(
         "The inject has been published and is now waiting to be consumed.",
         ExecutionTraceAction.EXECUTION);
@@ -90,11 +106,6 @@ public class Executor {
   }
 
   public InjectStatus execute(ExecutableInject executableInject) throws Exception {
-    return execute(executableInject, null);
-  }
-
-  public InjectStatus execute(
-      ExecutableInject executableInject, List<AssetToExecute> preResolvedAssets) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     InjectorContract injectorContract =
         inject
@@ -135,11 +146,7 @@ public class Executor {
       this.executionExecutorService.launchExecutorContext(inject);
     }
     if (injector.isExternal()) {
-      List<AssetToExecute> assetToExecutes =
-          preResolvedAssets != null
-              ? preResolvedAssets
-              : this.injectService.resolveAllAssetsToExecute(inject);
-      return executeExternal(executableInject, injector, assetToExecutes);
+      return executeExternal(executableInject, injector);
     } else {
       return executeInternal(executableInject, injector);
     }

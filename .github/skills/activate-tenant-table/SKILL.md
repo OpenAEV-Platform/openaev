@@ -49,6 +49,16 @@ incident. Do not trade them away to make a test pass.
    for the expected reason before you write any production code. Never weaken,
    delete or `@Disabled` an existing test to get green, with one exception
    introduced in Phase 2 and resolved in Phase 6 (the documented go-live guard).
+
+   **Red for the intended reason is not enough.** A test that goes red when you
+   remove your fix may only be pinning that fix, not the behaviour it is meant
+   to protect. Before calling it done, break the behaviour a SECOND way, on a
+   different line or in a different layer, and confirm it fails again.
+
+   Lot C's gauge tests are the example. They were red without their fix and
+   green with it, then stayed green when the gauge was re-wired to the unscoped
+   repository: they called the scoped method directly instead of the supplier
+   the gauge actually registers.
 2. **Background writers go through the primitive, never `@Transactional`.** A
    scheduler job, queue consumer, connector-side path or startup task that
    writes the table is NOT an automatic stop anymore (it was before #6398).
@@ -91,17 +101,38 @@ incident. Do not trade them away to make a test pass.
    does not exist anymore, stop and find its successor
    (`git log --oneline --follow --all -- <path>`). Never substitute an
    invented pattern for a missing reference.
+10. **`TxCtx` position is fixed.** In every new or modified method signature
+    that carries `TxCtx`, it must be the FIRST parameter (annotations allowed,
+    e.g. `@RequireTenantSelector TxCtx ctx`). Keep this order through service
+    call chains too, so wiring remains grep-auditable and consistent.
+11. **No v1 tenant context in v2/integration tests.** For API v2 activation
+    tests and integration tests, do not add `TenantContext.getCurrentTenant()`,
+    `TenantContext.setCurrentTenant(...)`, or `enableFilter("tenantFilter")`.
+    Use explicit tenant ids + `TxCtx`/`TenantScopedTransaction` helpers.
+12. **Repository extends `CrudRepository`, not `JpaRepository`.** The
+    convention for strict tenant-scoped repositories in this codebase (see
+    `TagRuleRepository`, `DomainRepository`, `NotificationRepository`) is
+    `extends CrudRepository<Entity, Id>, JpaSpecificationExecutor<Entity>`.
+    `JpaRepository` additionally exposes `findAll(Sort)` (every row, every
+    tenant, unbounded and unpaginated) plus `saveAndFlush`, `deleteInBatch`,
+    `deleteAllInBatch`, `getReferenceById` — none of them take a tenant
+    argument, so they are an easy accidental cross-tenant bypass. Only widen
+    to `JpaRepository` if the repository genuinely needs one of those extras,
+    and then scope every call site through a tenant-aware `Specification`.
 
 ## Baseline: controller entrypoints already carry `TxCtx`
 
 Every `@Transactional` method under `io.openaev.api/**` and
-`io.openaev.rest/**` already declares a bare `TxCtx ctx` parameter, added in
-one pass across every already-`@Transactional` controller endpoint in the
-codebase. This is safe by construction — a `TxCtx` parameter is inert until
-the table it touches is added to `active-tables` — and it changes what a
-single-table activation needs to do:
+`io.openaev.rest/**` declares a bare `TxCtx ctx` parameter, added in one pass
+across the codebase, with five deliberate exclusions that carry
+`@NoTenantScope` instead: `UserApi.login`, `UserApi.passwordReset`,
+`UserApi.changePasswordReset` and `UserApi.validatePasswordResetToken`
+(permitAll, pre-auth), and `StreamApi.streamFlux` (`propagation = NEVER`, so
+there is no transaction to scope). That changes what a single-table
+activation needs to do:
 
-- **Phase 1 no longer hunts for missing `TxCtx` on controller entrypoints.**
+- **Phase 1 no longer hunts exhaustively for missing `TxCtx` on controller
+  entrypoints**, though it still spot-checks the ones it needs (see below).
   That search (the biggest source of the regressions cited throughout this
   skill — #6409, #6410, #7026, #7605/#7621) is done, once, for the whole
   codebase. Phase 1 is now scoped to what the blanket wiring does NOT cover:
@@ -109,9 +140,15 @@ single-table activation needs to do:
   shapes, and OSIV/lazy-serialization sinks (Phase 3b) — a `TxCtx` parameter
   on a method signature does not by itself fix a lazy association or computed
   getter resolved by Jackson AFTER the transaction has already closed.
-- **This is a point-in-time fact, not a self-enforcing invariant**, until a
-  codebase-wide ArchUnit rule requires `TxCtx` on every `@Transactional`
-  controller method (tracked as a follow-up). A NEW controller endpoint added
+- **A `TxCtx` parameter is not inert.** It resolves a scope and sets it on the
+  transaction whether or not the table it touches is active, and
+  `TenantScopeTransactionAspect` throws when a nested `@Transactional` method
+  tries to redefine a scope already set in the same transaction. Adding or
+  removing one is a behaviour change, not a signature change: assume it can
+  break a caller, and re-run the suite.
+- **This is a point-in-time fact, not a self-enforcing invariant**, until the
+  default-secure compile rule (`EndpointTxScopeRule`, #7726) is enabled for
+  `openaev-api`; it currently ships disabled. A NEW controller endpoint added
   after this baseline, or one that was not yet `@Transactional` at the time,
   may still be missing it — spot-check the entrypoints this activation
   actually needs (Phase 1) rather than assuming.
@@ -177,6 +214,9 @@ STOP conditions, report instead of continuing:
   A background READ-only hit (e.g. a telemetry counter) is not a blocker but
   must be listed in the report as a documented degradation: once the table is
   active it reads zero rows unless that reader also carries a scope.
+  `ProductInventoryMetricCollector` (below) is the single, always-present
+  instance of this shape — check it on every activation, not only when Phase 1
+  happens to surface it.
 - 0.3 finds a unique index on a business key that does not include
   `tenant_id` → the schema needs a prep migration first (model: the existing
   `__Update_unique_constraints_for_tenants` migration in
@@ -218,6 +258,18 @@ output or file lines behind each gate verdict, do not paraphrase them.
 
 ### Phase 1 — Inventory what the mass `TxCtx` wiring does NOT already cover
 
+Quick hygiene checks on changed files before deeper inventory:
+
+```bash
+# Any signature carrying TxCtx with non-first position must be fixed
+grep -rn "(.*,[[:space:]]*[@A-Za-z0-9_ ]*TxCtx[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*" \
+  openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
+
+# In API v2 / integration tests, block v1 tenant-context/filter idioms
+grep -rn "TenantContext.getCurrentTenant\|TenantContext.setCurrentTenant\|enableFilter(\"tenantFilter\")" \
+  openaev-api/src/test/java --include="*.java"
+```
+
 Because of the baseline above, Phase 1 no longer hunts for missing `TxCtx` on
 controller entrypoints. It is still fully required for everything the
 blanket wiring cannot fix by construction:
@@ -240,6 +292,13 @@ blanket wiring cannot fix by construction:
    `@Transactional`, after the mass-wiring PR may still be missing `TxCtx`.
    Spot-check the entrypoints this activation actually needs rather than
    assuming full coverage.
+6. **Query shapes that stop being valid SQL once the table is wrapped.** The
+   inspector rewrites `FROM {table} t` into a derived table. PostgreSQL's
+   functional-dependency rule — selecting ungrouped columns is legal when the
+   `GROUP BY` covers the table's primary key — applies to BASE TABLES only, so
+   any `GROUP BY` relying on it becomes invalid SQL. See the GROUP BY section
+   below; this one is not a `TxCtx` problem at all and no amount of wiring
+   fixes it.
 
 ```bash
 grep -rln "{EntityRepository}" openaev-api/src/main/java openaev-model/src/main/java
@@ -259,6 +318,201 @@ Classify every hit:
   (wrap its read in `tenantTx.execute(scope, …)`) if it must keep seeing rows
 - background writer → convert to the primitive in Phase 5b. If you are not
   converting it in this run, it is a blocker: stop and report (Phase 0)
+
+#### Removing the v1 `@Filter` silently disarms every isolation test that does not activate the table
+
+The test profile declares no `openaev.tenant.active-tables`, so the inspector never fires in a test
+context unless that context sets it. Every isolation test therefore needs
+`@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`, which the RED phase
+above already tells you to write.
+
+The trap is the other direction, and it is about tests you did NOT write. A suite that asserted this
+table's isolation **before** the activation was relying on the v1 `@Filter`. Removing that filter
+takes its isolation away, and because the inspector is not active in its context either, the
+assertions keep running against nothing. They do not fail loudly: a cross-tenant read simply starts
+returning the other tenant's rows, and only an assertion precise enough to notice will catch it.
+
+That is what happened on the `assets` activation (#6438). `EndpointApiTest`'s `TenantIsolation`
+nested class had four cross-tenant tests and no `@TestPropertySource`. Removing `Asset`'s `@Filter`
+turned one of them red (`given_endpointInTenantX_should_notAppearInTenantYSearch` returned tenant X's
+endpoint to a search under tenant Y) while the other three stayed green **without isolating
+anything**. Attribution was correct throughout; only the read was unprotected.
+
+Find them before go-live:
+
+```bash
+# test classes that assert something about this table's isolation, and whether they activate it
+grep -rln "{Entity}\|{table}" openaev-api/src/test --include="*.java"   | xargs grep -ln "Tenant\|tenant"   | xargs grep -Ln "TestPropertySource"
+```
+
+Read every hit. A class that asserts cross-tenant behaviour and does not set `active-tables` is
+either proving nothing or about to break.
+
+**Put the annotation on the outermost test class, not on a `@Nested` one.** A `@TestPropertySource`
+on a nested class builds a second Spring context, and the mock user provisioned by
+`WithMockUserTestExecutionListener` lives in the parent's `TestUserHolder`; the nested context gets
+an empty one and every test fails on "The given id must not be null" before reaching its assertion.
+
+#### Code that relied on the v1 `@Filter` breaks silently, and it is not only tests
+
+The previous section is about test suites. The same removal takes isolation away from **production**
+paths that never carried a `TxCtx` and were scoped by the v1 filter alone, enabled on every
+`@Transactional` method by `HibernateFilterTransactionAspect` from the thread-local.
+
+`NotificationMatchingService.matches` is the case to remember. It is `@Transactional` with no
+`TxCtx`, reached from an `@Async` `@TransactionalEventListener` - a pool thread, after commit, no
+ambient transaction - and `NotificationEngineService` states the dependency in its own comment:
+*"runs with the trigger's tenant so the Hibernate tenant filter scopes every query correctly"*.
+Activating `assets`, `asset_groups` or `findings` removes that filter, so every LIVE notification
+trigger with a non-empty filter on those resources counted zero rows and stopped firing. No log, no
+exception: `matches` catches and returns false.
+
+`session.disableFilter("tenantFilter")` is the same family read from the other side. It is how v1
+code declares "this read is deliberately cross-tenant", and it is **inert** under v2: it does nothing
+to `app.current_tenants`, and the inspector never consults the Hibernate filter.
+
+```bash
+# both directions, before go-live
+rg -n 'disableFilter\("tenantFilter"\)' --type java
+rg -n 'HibernateFilterTransactionAspect|tenant filter' --type java openaev-api/src/main
+# then, for each hit, answer: does this path reach {table}, and what sets its scope now?
+```
+
+Follow the call chain to the tables it actually reaches, not the imports of the class in front of
+you. `QueueChainingJob` was classified as safe because its own imports name only `steps`,
+`workflow_runs` and `step_delay_queue`; four levels down, `createReadySteps` reaches
+`ScopeService.getValidAssets` -> `assetService.assets(ids)` on the activated `assets` table.
+
+#### The inspector rewrites `UPDATE` and `DELETE`, not only `SELECT`
+
+`rewriteUpdate` adds `can_access_tenant(...)` to an UPDATE's WHERE. With no scope the statement
+updates **zero rows and reports success**. On the `findings` activation this hit the test-only date
+setters (`endpointRepository.setCreationDate`): they silently did nothing, every endpoint kept
+`now()` as its creation date, and three date-range dashboard assertions counted all of them. The
+symptom looked like over-counting across tenants, which is the wrong diagnosis entirely.
+
+Any `@Modifying` query on the table needs a scope, in tests as much as in production.
+
+#### A `@Transactional` MockMvc test keeps the scope the request resolved
+
+The tenant aspect is `@Before`-only and writes `set_config(..., true)`, which is transaction-local.
+In a `@Transactional` test the handler joins the test transaction, so after `mvc.perform` returns,
+the scope the request resolved is **still set**. Anything the test then reads through a repository
+sees it.
+
+That silently couples the expectation to the response. `FindingApiTest` compared its HTTP response
+against `findingRepository.findAll()` taken in that same transaction: if the search ever failed
+closed, both sides came back empty and `[] == []` held. Eight assertions were affected.
+
+Either materialise the expectation from the fixtures you seeded, read it through raw JDBC (which the
+inspector never rewrites), or at minimum assert it is non-empty - that single guard is what turns
+`[] == []` back into a failure.
+#### Telemetry gauge check: `ProductInventoryMetricCollector`
+
+`openaev-api/src/main/java/io/openaev/telemetry/metric_collectors/ProductInventoryMetricCollector.java`
+registers a platform-wide `{table}_total` gauge for most entities, evaluated by
+a `Supplier` lambda OUTSIDE any HTTP request — no `TxCtx` from the mass wiring
+ever reaches it, so it is always a background reader in the Phase 1 sense
+above, and it is the single, recurring, always-present instance of that shape:
+check it on every activation regardless of whether the earlier greps surfaced
+it. Its own javadoc documents the exact failure mode: with no scope open,
+`TenantStatementInspector` fails closed and the gauge silently reports 0, not
+an error.
+
+```bash
+grep -n "{table}\|{entity}Repository" \
+  openaev-api/src/main/java/io/openaev/telemetry/metric_collectors/ProductInventoryMetricCollector.java
+```
+
+- No hit at all → nothing to do, the table has no gauge.
+- A hit using `safeCount({entity}Repository::count)` directly (the plain,
+  un-scoped form) → this is a go-live blocker for that one gauge line, not
+  the whole activation: it must be converted to the scoped form BEFORE
+  go-live, following the pattern already used for three other v2-active
+  tables in the same file, `countAssetGroups()` / `countChannels()` /
+  `countImportMappers()` (model fix for `challenges`, #6416):
+
+  ```java
+  // registration: this::count{Entities} instead of {entity}Repository::count
+  metricRegistry.registerGauge(
+      "{table}_total", "Number of {entities}", () -> safeCount(this::count{Entities}));
+
+  /** Counts {entities} across the whole platform ({table} is v2-active, #<issue>). */
+  long count{Entities}() {
+    return countAcrossAllTenants({entity}Repository::count);
+  }
+  ```
+- A hit already wrapped in `countAcrossAllTenants(...)` → already correct,
+  nothing to do; note it in the Phase 9 report as verified, not skipped.
+
+There is no test in CI that would catch a regression here on its own: the
+gauge only degrades silently in a real deployment (no assertion fails, no
+exception is thrown). Treat this grep as mandatory evidence for the Phase 9
+report even when the answer is "no hit" — a claimed activation with no note
+on this file is unverified, not verified-empty.
+
+
+#### GROUP BY on a wrapped table: valid SQL before activation, a 500 after
+
+The inspector rewrites `FROM {table} t` into
+`FROM (SELECT * FROM {table} t WHERE can_access_tenant(t.tenant_id)) AS t`.
+PostgreSQL lets a query select ungrouped columns when the `GROUP BY` covers the
+table's primary key, but that rule holds for **base tables only**. A derived
+table has no primary key to infer the dependency from, so the same query stops
+being valid:
+
+```sql
+-- base table: accepted
+SELECT ag.asset_group_id, ag.asset_group_name FROM asset_groups ag GROUP BY 1;
+
+-- wrapped exactly as the inspector wraps it: refused
+SELECT ag.asset_group_id, ag.asset_group_name
+FROM (SELECT * FROM asset_groups ag WHERE can_access_tenant(ag.tenant_id, true)) AS ag
+GROUP BY 1;
+ERROR: column "ag.asset_group_name" must appear in the GROUP BY clause
+```
+
+Hibernate's criteria layer emits exactly that shape whenever a query helper
+groups on `root.get("id")` alone and multiselects other columns, which is the
+normal way list and search endpoints are written here.
+
+**This fails in production and passes in CI.** The test profile ships an empty
+`active-tables`, so the inspector never fires and the query keeps its base-table
+form. The symptom is a 500 on a search or list endpoint, after go-live.
+
+Find every site before activating:
+
+```bash
+# every GROUP BY in code that can reach the table, then read each one:
+# does it group on the id alone while multiselecting other columns?
+grep -rn "groupBy(" openaev-api/src/main/java --include="*.java"
+```
+
+Fix by listing every non-aggregated projected column in the `GROUP BY`. It is
+equivalent for the planner and does not depend on the FROM item being a base
+table. Worked example, `AssetGroupQueryHelper` in the `asset_groups`
+activation (#6435):
+
+```java
+cq.groupBy(
+    List.of(
+        assetGroupRoot.get("id"),
+        assetGroupRoot.get("name"),
+        assetGroupRoot.get("description"),
+        dynamicFilterAsJsonb));
+```
+
+A column of a type PostgreSQL cannot group on directly (`json`, for instance)
+needs a groupable expression on both sides: project `to_jsonb(...)` and group on
+that same expression, not on the raw column.
+
+**Do not wait for a fix in the rewriter to skip this step** (tracked in #7843). Making the
+inspector keep the primary FROM item as a base table (moving its predicate into
+the `WHERE`) would only cover columns of that primary table. Joined tables stay
+wrapped, so a query grouping on a joined table's id while selecting its other
+columns breaks the same way as soon as that joined table is activated in turn:
+`UserQueryHelper` selects the organization's name while grouping only on its id.
+Listing the columns is what covers both cases.
 
 **Still walk the transitive closure of callers — but now for background
 paths, association/computed-getter sinks, and other non-controller code, not
@@ -358,6 +612,12 @@ uses a FROM/JOIN shape the inspector does not cover at all, that is a
 blocker: stop and report (Phase 0), do not attempt to teach the inspector a
 new shape inside a table-activation PR.
 
+Also avoid CTE and alias names that match real active table names (for
+example `WITH tags AS (...)` once `tags` is active). PostgreSQL can resolve
+that shadowing, but the inspector's relation-name matching may treat the CTE
+as the active table and fail-close the read. Prefer explicit names such as
+`scenario_tags_agg`.
+
 Pin the fix with a regression test in `TenantStatementInspectorTest` using
 the REAL production SQL (read the `@Query` value via reflection off the
 repository method, as PR #7008 does), not a hand-simplified paraphrase — the
@@ -452,6 +712,17 @@ Notes that make or break the test:
 - `@TestPropertySource` activates the table for this test only. The test
   classpath keeps the allowlist empty on purpose; never add your table to the
   test-wide properties.
+- **Leave `@WithMockUser` at its default (`autoJoinDefaultTenant` stays
+  `false`) on this class.** The class-level mock user must resolve to exactly
+  the tenants `tenantHelper.createTenantWithCurrentUser(...)` granted it —
+  nothing more. Setting `autoJoinDefaultTenant = true` here silently adds a
+  second tenant membership, which (a) defeats the "create with no
+  selector → 400" assertion below (the fallback selector now sees an
+  unambiguous default tenant instead of an ambiguous multi-tenant scope) and
+  (b) can trip `TenantScopeTransactionAspect`'s "scope already set for this
+  transaction" guard the moment a second `mvc.perform` call in the same test
+  method resolves a wider scope than the first. See
+  `WithMockUser.autoJoinDefaultTenant()` javadoc for the full rationale.
 - Seed with a native `INSERT ... VALUES` including `tenant_id`, like the
   pilot's `seedMapper`. The inspector does not block VALUES inserts.
 - Ground-truth assertions (prove a row was NOT touched) use raw JDBC on the
@@ -575,16 +846,45 @@ Classify each call site:
   like `MultiIdListSerializer`, a DTO mapper invoked by Jackson, a
   `@JsonSerialize` field) → **the dangerous case**. With open-in-view or any
   serialization step that runs after the controller method returns, the
-  association resolves OUTSIDE the transaction the aspect scoped. Fix per the
-  #7026 pattern: force-initialize the association INSIDE the scoped
-  transaction, before the method returns, with a documented helper
-  (`Hibernate.initialize(owning.get{Entities}())`, or eager-fetch it in the
-  query that loaded `{OwningEntity}`), and make sure that controller method
-  itself carries `TxCtx` — a lazy association resolved eagerly under no scope
-  still reads zero rows. Model: `SecurityPlatformApi`'s
-  `withCollectorsInitialized` helper (PR #7026).
+  association resolves OUTSIDE the transaction the aspect scoped. Force-initialize
+  the association INSIDE the scoped transaction, before the method returns —
+  and make sure that controller method itself carries `TxCtx`, since a lazy
+  association resolved eagerly under no scope still reads zero rows. The
+  CORRECT helper depends on the association's cardinality, not on which one
+  happens to compile. Read 3b.2a below before picking one; treating
+  `Hibernate.initialize(...)` and `JOIN FETCH` as interchangeable is what makes
+  this step easy to get wrong.
 - no controller ever serializes it, only used inside a background job → treat
   as Phase 5b (background reader), not this phase.
+
+**3b.2a — which fix, by cardinality.** Both patterns run the SAME rewritten,
+tenant-scoped SQL (the inspector inspects every statement a session issues,
+regardless of which helper triggered it) — the difference is what happens when
+the target row is invisible under the caller's scope, and that difference is
+driven entirely by the association's cardinality:
+
+| Cardinality | What an invisible target does | Safe pattern | Model |
+|---|---|---|---|
+| `@OneToMany` / `@ManyToMany` (a collection) | The collection query is naturally a `WHERE fk = ?`-style list; an out-of-scope child row is just excluded from the list. Degrades to an empty collection, never throws. | `Hibernate.initialize(owning.get{Entities}())` inside the scoped transaction, right where the association is needed, before the method returns. | `SecurityPlatformApi`'s `withCollectorsInitialized` (`Hibernate.initialize(securityPlatform.getCollectors())`, PR #7026); `InjectHelper` (`Hibernate.initialize(inject.getTags())`, `.getTeams()`, …) |
+| `@ManyToOne` / `@OneToOne` (a single required reference), **no** `@NotFound` on the field | Hibernate assumes referential integrity: initializing a proxy whose target row fails `can_access_tenant(...)` returns zero rows for a lookup-by-id, and Hibernate throws `ObjectNotFoundException`/`EntityNotFoundException` — an unhandled 500 at the point of initialization, not an empty result. `Hibernate.initialize()` is NOT safe here by default. | `JOIN FETCH owner.association` in the SAME query that loads the owning row (or an `@EntityGraph`), not a separate `Hibernate.initialize()` call. JPQL's default `JOIN FETCH` is an INNER join: if the referenced row fails the tenant predicate, the join condition fails and the OWNING row itself is silently dropped from the result set — no exception, no null to handle, and it matches "nothing visible" semantics for the caller for free. | `InjectExpectationRepository#findChallengeExpectationsByExerciseAndUser` / `#findByUserAndExerciseAndChallenge`, `JOIN FETCH i.challenge` added when `challenges` went v2-active (#6416) |
+| `@ManyToOne` / `@OneToOne`, association ALREADY carries `@NotFound(action = NotFoundAction.IGNORE)` for unrelated referential-integrity reasons (model: `Inject.java`, `InjectorInjectorContract.java`) | `null` is already the documented, handled outcome for a missing target — an invisible-under-tenant-scope target degrades the exact same way a genuinely-deleted one already does. | `Hibernate.initialize()` is fine to reuse as-is; verify the annotation is already there before assuming it, and confirm every existing caller already null-checks the getter. | n/a — check the field's existing annotations first |
+| A required `@ManyToOne`/`@OneToOne` where you *want* a null instead of a dropped owning row (rare — usually only right at the association's own aggregate boundary, not through an unrelated join) | Adding `@NotFound(action = NotFoundAction.IGNORE)` specifically to unlock this makes the association **permanently EAGER for every caller**, not just this one — it cannot stay lazy once Hibernate must silently swallow a missing target. Treat this as a deliberate, wider mapping change, not a query-local fix, and audit every other caller of that getter before adding it. | Prefer `JOIN FETCH` (row above) unless you have a specific reason this is insufficient; if you do add `@NotFound`, you must also add the null-handling code downstream yourself — nothing does that for you. | — |
+
+Quick check before picking a row — confirm the cardinality and any existing `@NotFound` on the field:
+
+```bash
+grep -n -B3 "{fieldName}" openaev-model/src/main/java/io/openaev/database/model/{OwningEntity}.java \
+  | grep -E "@OneToMany|@ManyToMany|@ManyToOne|@OneToOne|@NotFound"
+```
+
+Getting this wrong ships one of two ways: pick `Hibernate.initialize()` on a
+`*ToOne` with no `@NotFound` and the association throws at initialization time
+instead of degrading — a 500 on whatever request happens to first touch an
+invisible target, appearing later and further from the original access than
+the read that triggered it; pick `JOIN FETCH` on a `*ToMany` and you likely
+don't crash, but you lose the chance to reuse an already-loaded owning row
+across multiple associations the way `Hibernate.initialize()` naturally allows
+— it isn't wrong, just needlessly more invasive than the one-liner.
 
 **3b.3 — pin every fixed accessor with an ArchUnit rule and a scoped test:**
 
@@ -674,6 +974,21 @@ Rules for this sub-phase:
   asserting the computed field is NON-NULL on a representative endpoint per
   controller family, not just on the table's own API. A null-valued scalar is
   the failure mode; an empty-array assertion will not catch it.
+- **That pin must NOT be `@Transactional`, and this is not a style detail.** The
+  defect is a lazy association resolved by Jackson AFTER the handler's
+  transaction closed. A `@Transactional` test class keeps that transaction open:
+  the handler joins it, serialization happens inside it, the scope is still set,
+  and the assertion passes. The test then looks like a pin and is not one. Seed
+  through a committed `TransactionTemplate` and sweep the rows in an
+  `@AfterEach`, so the request's own transaction is the one that closes before
+  serialization.
+
+  Three defects of this family have shipped or nearly shipped:
+  `SecurityPlatform#collectors` (#7026, found in production months after
+  go-live), `Finding.getAssetGroups()` and `Finding.assets` (#6420), and
+  `AssetGroup.assets` (#6438). The last two were each covered by a sink test
+  that **passed** while the endpoint returned an empty array, because both tests
+  were transactional. Correcting the test is what turned them red.
 
 ### Phase 4 — RED then GREEN: write attribution
 
@@ -727,6 +1042,19 @@ carries no explicit selector, see
 The pilot does not use it: the resolver's single-tenant rule already refuses
 ambiguous writes. Do not add it unless the endpoint must refuse even an
 implicit single-tenant scope.
+
+**Testing the plain (non-isolation) create path.** Outside the two-tenant
+`{Entity}HttpIsolationTest` suite above, an ordinary create/import test (e.g.
+`{Entity}ApiCapabilityTest`, a permissions test) that hits the same
+`@RequireTenantSelector`-gated endpoint needs the mock user to resolve to
+exactly ONE authorized tenant, or `tenantForWrite` refuses it with 400 (empty
+authorized set is not a single tenant either). If that test doesn't already
+grant the mock user a tenant of its own, add
+`@WithMockUser(autoJoinDefaultTenant = true)` on that ONE test method — never
+at the class level, and never on a test in the isolation suite above, which
+must keep the default `false` (see Phase 2's note on this same flag). Models:
+`TagApiCapabilityTest#given_manageTags_should_createTag`,
+`ImportExportMapperApiTest#testImportCsvWithEndpointsCsvType`.
 
 Do NOT keep `TenantBaseListener` / `TenantIdBaseListener` on the entity. It is
 a v1 pattern that reads from `TenantContext` — which is no longer the source of
@@ -804,12 +1132,28 @@ Model conversion: `UrlAccessTokenPurgeJob`
 converted to `tenantTx.execute(TxCtx.allTenants(), …)` in PR #6398. Injected
 dependency: `TenantScopedTransaction tenantTx`.
 
-Maturity note: the background path is newer and less proven than the HTTP path.
-At the time of writing, the only converted job is `UrlAccessTokenPurgeJob`, which
-uses `allTenants()`; the per-tenant `forEachTenant` idiom has no production caller
-yet (it is covered by integration tests, not by a real job). Treat the first
-per-tenant conversion as a real dress rehearsal, not a copy-paste, and expand the
-model list as jobs are converted.
+Maturity note (refreshed for #6398): the background path is now well
+proven. Nine Quartz jobs sit directly on the primitive (eight top-level jobs plus
+the nested `EngineSyncExecutionJob.Job`, which implements `org.quartz.Job` and calls
+`TenantScopedTransaction` itself), and several more reach it through
+`TenantScopedJobRunner`. Working model implementations exist for all three idioms:
+
+- `allTenants()` (bulk read or predicate delete across tenants):
+  `UrlAccessTokenPurgeJob` and `NotificationEventRetentionService.deleteOldEvents`.
+- `forEachTenant` (per-tenant, one transaction each), three production callers:
+  `AutonomousTimeoutService.sweep`, `XtmHubService.refreshConnectivityAllTenants`,
+  and `ExpectationsExpirationManagerJob.run`.
+- `execute(TxCtx.forTenant(id), …)` (one known tenant): via
+  `TenantScopedJobRunner.runInTenant`, used by `InjectsExecutionJob`,
+  `InjectsFinalizationJob` and `WorkflowTimeoutJob`.
+
+Copy the idiom that matches the scope decision below, not a single blessed job.
+Every background family is now enumerated and classified by the background guard
+(`BackgroundEntrypointTenantScopeArchTest` + `background-guard-baseline.txt`): a
+new background entry point in one of the six recognised families fails the build
+until it is on the primitive or classified there with a reason. This is
+build-time enumeration, not a runtime scope check: see the "Known limits" note
+below for what it does not prove.
 
 **Enumerate every background path first.** Phase 1's greps are repository- and
 table-name-oriented and can miss a background surface. There is no single
@@ -978,13 +1322,20 @@ over them:**
 
 - No runtime scope guarantee for background writers. The HTTP side is pinned by
   `TenantScopedEntrypointsTxCtxArchTest`, which fails the build if an active
-  table's handler loses its `TxCtx`. There is NO background analogue yet: a NEW
-  job that writes an already-active table without going through the primitive
-  would read and write zero rows with no failing test. The existing rules forbid
-  the wrong SHAPE (`@Transactional`, raw plumbing, raw JDBC) but do not assert
-  that every writer of an active table carries a real scope. Until that guard
-  exists, converting a table's writers is a point-in-time fact, not an invariant
-  — say so in the report.
+  table's handler loses its `TxCtx`. The background side now has a *build-time*
+  analogue: `BackgroundEntrypointTenantScopeArchTest` (+
+  `background-guard-baseline.txt`) enumerates the six background families and
+  fails the build until a new entry point is on the primitive or classified in
+  the baseline with a reason. That closes the "new job slips in unnoticed" gap,
+  but only structurally: the guard proves every entry point is enumerated and
+  reasoned, NOT that the SQL each one runs actually carries a scope. A path
+  waived `touches-no-tenant-table`, or one whose class-level waiver no longer
+  fits a method added later, can still read or write an already-active table
+  with the wrong tenant and no test fails. The existing rules forbid the wrong
+  SHAPE (`@Transactional`, raw plumbing, raw JDBC) but do not assert that every
+  writer of an active table carries a real scope. Until a *runtime* guard exists,
+  converting a table's writers is a point-in-time fact, not an invariant; say so
+  in the report.
 - The per-tenant loop is serial and single-threaded, one transaction per tenant.
   For a job over thousands of tenants, watch total runtime against the job's
   window (`@DisallowConcurrentExecution` means an overrun skips the next fire).
@@ -1162,7 +1513,7 @@ mvn -B -ntp spotless:check || mvn -ntp spotless:apply
 mvn -ntp clean install -DskipTests
 
 # 8.3 your tests, then the FULL API suite (needs the Docker services from
-# openaev-dev/docker-compose.yml: PostgreSQL, MinIO, OpenSearch, RabbitMQ)
+# openaev-dev/docker-compose.yml: PostgreSQL, Silo, OpenSearch, RabbitMQ)
 mvn -ntp -pl openaev-api test -Dtest='{Entity}*IsolationTest'
 ```
 
@@ -1184,6 +1535,8 @@ Before marking the issue done, write down:
   owning entity, whether it was lazy-loaded outside the transaction (the #7026
   shape) or already safe, the fix applied, and its scoped test
 - background readers left degraded (from Phase 0/1), each with a one-line impact
+- the `ProductInventoryMetricCollector` check (Phase 1): hit or no-hit, and if
+  hit, whether it was already scoped or converted to `countAcrossAllTenants()`
 - child tables and how they are covered
 - client impact: writes now require a single-tenant scope. Calls using the tenant path
   (`/api/tenants/{tenantId}/...`) already satisfy this; callers using the header route or no selector
@@ -1212,6 +1565,9 @@ Before marking the issue done, write down:
       `InjectorContractService` search/association code already wired for
       `InjectorContractApi#injectorContracts`, missed because the shared
       service method was never re-grepped once one caller looked done)
+- [ ] every new/changed method signature carrying `TxCtx` has `TxCtx` in first
+      parameter position (annotation allowed), and callsites follow the same
+      order consistently
 - [ ] association-accessor scan run for every entity holding a reference to
       the activated entity, regardless of whether the activated table has its
       own API (eager/lazy loads bypass the repository grep either way)
@@ -1242,9 +1598,21 @@ Before marking the issue done, write down:
       reached through serialization (custom serializer, DTO mapper) force-
       initialized inside a scoped transaction; each fixed entrypoint pinned in
       both arch tests and covered by a production-like scoped test
+- [ ] every force-initialization fix from Phase 3b/3b.2a chose its pattern by
+      the association's cardinality, not by whichever compiled: `*ToMany` used
+      `Hibernate.initialize()` on the collection, a `*ToOne` with no existing
+      `@NotFound` used `JOIN FETCH`/`@EntityGraph` in the loading query instead
+      of `Hibernate.initialize()` (which throws on an invisible target for a
+      required reference), and any NEW `@NotFound(IGNORE)` added to unlock
+      `Hibernate.initialize()` on a `*ToOne` came with an audit of every other
+      caller of that getter plus explicit null-handling downstream
 - [ ] background writers converted to the primitive (no `@Transactional`, no raw
       plumbing), each with a per-tenant or `allTenants` scope and a green
       background isolation test (Phase 5b)
+- [ ] `ProductInventoryMetricCollector` checked for a gauge on this table
+      (Phase 1): no hit, or a hit already/now wrapped in
+      `countAcrossAllTenants()` — never left as a plain
+      `safeCount({entity}Repository::count)`
 - [ ] native queries on the table (`@Query(nativeQuery=true)`,
       `createNativeQuery`) are exercised by a test so a fail-closed rewrite
       refusal surfaces in CI, not production; any raw JDBC on the table converted
@@ -1255,6 +1623,10 @@ Before marking the issue done, write down:
       table-function FROM item (`jsonb_array_elements`, `unnest`, ...) carries
       `LATERAL`; a regression test pins the real production SQL (#7007)
 - [ ] non-admin variant green
+- [ ] API v2/integration tests added or modified in this activation do not use
+      `TenantContext.getCurrentTenant()`, `TenantContext.setCurrentTenant(...)`,
+      or `enableFilter("tenantFilter")`; tenant scope is expressed via explicit
+      tenant ids and `TxCtx`/`TenantScopedTransaction`
 - [ ] arch tests updated and green
 - [ ] go-live is one commit: @Filter removed + allowlist entry + re-enabled test + config guard
 - [ ] v1 remnant audit complete: no `TenantContext`/`findByIdAndTenantId`/`TenantBaseListener`

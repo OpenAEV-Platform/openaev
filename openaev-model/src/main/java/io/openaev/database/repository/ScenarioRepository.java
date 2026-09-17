@@ -220,6 +220,9 @@ public interface ScenarioRepository
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
 
+  // Keep the tag aggregation CTE name distinct from the real `tags` table: once `tags` became a
+  // v2-active tenant-scoped table, reusing `tags` as a CTE name in this native query collided with
+  // the tenant SQL inspector's relation-name matching and broke tenant-path scenario reads.
   @Query(
       value =
           "WITH "
@@ -266,7 +269,25 @@ public interface ScenarioRepository
               + "  WHERE i.inject_scenario = :scenarioId "
               + "  GROUP BY i.inject_scenario "
               + "), "
-              + "tags AS ( "
+              + "workflow_platforms AS ( "
+              + "  SELECT w.workflow_scenario_id AS scenario_id, "
+              + "         array_agg(DISTINCT platform.scenario_platform) "
+              + "           AS scenario_platforms "
+              + "  FROM workflows w "
+              + "  JOIN steps st ON st.step_workflow_id = w.workflow_id "
+              + "  CROSS JOIN LATERAL jsonb_array_elements_text("
+              + "    COALESCE("
+              + "      st.step_data -> 'inject_injector_contract' -> 'injector_contract_platforms', "
+              + "      '[]'::jsonb"
+              + "    )"
+              + "  ) AS platform(scenario_platform) "
+              + "  WHERE w.workflow_scenario_id = :scenarioId "
+              + "    AND w.workflow_status = 'TEMPLATE' "
+              + "    AND st.step_status = 'TEMPLATE' "
+              + "    AND st.step_template_id IS NULL "
+              + "  GROUP BY w.workflow_scenario_id "
+              + "), "
+              + "scenario_tags_agg AS ( "
               + "  SELECT scenario_id, "
               + "         array_agg(DISTINCT tag_id) FILTER (WHERE tag_id IS NOT NULL) AS scenario_tags "
               + "  FROM scenarios_tags "
@@ -286,8 +307,9 @@ public interface ScenarioRepository
               + "       su.scenario_users_number, "
               + "       ex.scenario_exercises, "
               + "       kc.scenario_kill_chain_phases, "
-              + "       pf.scenario_platforms, "
-              + "       tg.scenario_tags, "
+              + "       COALESCE(wpf.scenario_platforms, pf.scenario_platforms) "
+              + "         AS scenario_platforms, "
+              + "       sta.scenario_tags, "
               + "       rt.scenario_reply_to, "
               + "       su.scenario_teams_users, "
               + "       w.workflow_id AS scenario_workflow_id "
@@ -297,7 +319,8 @@ public interface ScenarioRepository
               + "LEFT JOIN exercises ex ON ex.scenario_id = s.scenario_id "
               + "LEFT JOIN kill_chain kc ON kc.scenario_id = s.scenario_id "
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
-              + "LEFT JOIN tags tg ON tg.scenario_id = s.scenario_id "
+              + "LEFT JOIN workflow_platforms wpf ON wpf.scenario_id = s.scenario_id "
+              + "LEFT JOIN scenario_tags_agg sta ON sta.scenario_id = s.scenario_id "
               + "LEFT JOIN reply_to rt ON rt.scenario_id = s.scenario_id "
               + "LEFT JOIN workflows w ON w.workflow_scenario_id = s.scenario_id "
               + "WHERE s.scenario_id = :scenarioId AND s.tenant_id = :#{#tenantContext.currentTenant}",

@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
+import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -57,6 +58,7 @@ import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -66,6 +68,7 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.TeamOutputVisibilityUtils;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
@@ -120,6 +123,7 @@ public class ExerciseService {
   private final UserService userService;
   private final GrantService grantService;
   private final ExerciseTeamUserService exerciseTeamUserService;
+  private final ScopeService scopeService;
 
   private final ExerciseMapper exerciseMapper;
   private final InjectMapper injectMapper;
@@ -248,6 +252,26 @@ public class ExerciseService {
     return exerciseMapper.getExerciseSimples(exercises);
   }
 
+  @Transactional(readOnly = true)
+  public List<TeamOutput> getExerciseTeams(@NotBlank final String exerciseId) {
+    String workflowId = rawSimulation(exerciseId).getExercise_workflow_id();
+    return StringUtils.hasText(workflowId)
+        ? getWorkflowExerciseTeams(exerciseId, workflowId)
+        : getTimeBasedExerciseTeams(exerciseId);
+  }
+
+  private List<TeamOutput> getWorkflowExerciseTeams(
+      final String exerciseId, final String workflowId) {
+    List<TeamOutput> teams =
+        teamService.find(
+            fromIds(scopeService.getValidTeams(workflowId).stream().map(Team::getId).toList()));
+    return TeamOutputVisibilityUtils.markExerciseVisibility(teams, exerciseId);
+  }
+
+  private List<TeamOutput> getTimeBasedExerciseTeams(final String exerciseId) {
+    return this.teamService.find(fromExercise(exerciseId));
+  }
+
   // -- UPDATE --
   public Exercise updateExercise(@NotNull final Exercise exercise) {
     exercise.setUpdatedAt(now());
@@ -267,8 +291,10 @@ public class ExerciseService {
     duplicateTeamUsers(exerciseDuplicate, exerciseOrigin, contextualTeams);
     getListOfArticles(exerciseDuplicate, exerciseOrigin);
     getListOfVariables(exerciseDuplicate, exerciseOrigin);
-    getObjectives(exerciseDuplicate, exerciseOrigin);
-    getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    if (exerciseOrigin.isLessonsEnabled()) {
+      getObjectives(exerciseDuplicate, exerciseOrigin);
+      getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    }
     return exerciseRepository.save(exerciseDuplicate);
   }
 
@@ -288,6 +314,7 @@ public class ExerciseService {
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
+    exerciseDuplicate.setLessonsEnabled(exerciseOrigin.isLessonsEnabled());
     exerciseDuplicate.setTags(new HashSet<>(exerciseOrigin.getTags()));
     exerciseDuplicate.setReplyTos(new ArrayList<>(exerciseOrigin.getReplyTos()));
     exerciseDuplicate.setDocuments(new ArrayList<>(exerciseOrigin.getDocuments()));

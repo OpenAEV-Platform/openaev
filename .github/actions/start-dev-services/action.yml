@@ -1,7 +1,7 @@
 name: Start Dev Services
 description: >
   Start the backing service containers shared by the test jobs (PostgreSQL,
-  Elasticsearch or OpenSearch, RabbitMQ, MinIO) in the background and assert
+  Elasticsearch or OpenSearch, RabbitMQ, Silo) in the background and assert
   they came up. Image tags come from openaev-dev/docker-compose.yml. Containers
   are named pgsql, search-engine, rabbitmq and minio. Readiness polling is left
   to the caller so the containers can boot while other setup runs.

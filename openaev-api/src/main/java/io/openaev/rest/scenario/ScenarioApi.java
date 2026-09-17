@@ -2,7 +2,6 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ScenarioSpecification.byName;
-import static io.openaev.database.specification.TeamSpecification.fromScenario;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
@@ -15,6 +14,7 @@ import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
@@ -86,7 +86,6 @@ public class ScenarioApi extends RestBehavior {
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final ImportService importService;
   private final ScenarioService scenarioService;
-  private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
   private final ChannelService channelService;
@@ -97,6 +96,7 @@ public class ScenarioApi extends RestBehavior {
   private final ExpectationsDriftService expectationsDriftService;
   private final AutonomousRunService autonomousRunService;
   private final EnterpriseEditionService enterpriseEditionService;
+  private final TenantWriteScopeResolver writeScopeResolver;
   private final LicenseCacheManager licenseCacheManager;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
@@ -113,11 +113,10 @@ public class ScenarioApi extends RestBehavior {
       scenario.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       scenario.setCustomDashboard(
           this.tenantSettingsService
-              .findSetting(
-                  TenantContext.getCurrentTenant(),
-                  TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
+              .findSetting(tenantId, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)
@@ -434,7 +433,7 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public List<TeamOutput> scenarioTeams(
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
-    return this.teamService.find(fromScenario(scenarioId));
+    return this.scenarioService.getScenarioTeams(scenarioId);
   }
 
   @Transactional(rollbackFor = Exception.class)

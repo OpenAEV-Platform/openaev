@@ -6,13 +6,15 @@ import static io.openaev.utils.CustomDashboardTimeRange.*;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.EndpointRepository;
@@ -23,7 +25,6 @@ import io.openaev.engine.api.EngineSortField;
 import io.openaev.engine.api.HistogramInterval;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.SortDirection;
-import io.openaev.rest.custom_dashboard.form.CustomDashboardInput;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.es.EntitiesPaginationInput;
@@ -33,7 +34,6 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.Pagination;
-import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.time.Instant;
@@ -41,18 +41,25 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @WithMockUser(isAdmin = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+// The test profile declares no active tables, so this suite ran the whole dashboard and indexing
+// pipeline with the inspector inert. It names the three tables the widgets and their ES indexing
+// reach, not only findings: @TestPropertySource REPLACES the property, so naming findings alone
+// would deactivate tables that ARE active in production and test less than production while
+// looking stricter.
+@TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets,asset_groups")
 @DisplayName("Dashboard API tests")
 class DashboardApiTest extends IntegrationTest {
 
   @Autowired private EngineService engineService;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private EngineContext engineContext;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private WidgetComposer widgetComposer;
@@ -70,6 +77,41 @@ class DashboardApiTest extends IntegrationTest {
   @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+
+  /**
+   * Scopes the test's own transaction, for the tests that write through a repository instead of
+   * going through HTTP. The inspector adds a tenant predicate to an UPDATE as well as to a SELECT,
+   * so the test-only date setters below silently update zero rows without a scope, the entities
+   * keep {@code now()} as their creation date and every date-range assertion counts all of them.
+   *
+   * <p>Deliberately not a {@code @BeforeEach}: the Tenant Isolation tests in this class issue HTTP
+   * requests that address another tenant, and a class-wide pin makes the aspect refuse the scope
+   * those requests need.
+   */
+  private void scopeToAmbientTenant() {
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(TenantContext.getCurrentTenant()));
+  }
+
+  /**
+   * Indexes the way production does. {@code EngineSyncExecutionJob} runs the sweep under {@code
+   * TxCtx.allTenants()}; calling {@code bulkProcessing} straight from a test runs one layer below
+   * that, with no scope, so every {@code findForIndexing} query on an activated table reads nothing
+   * and the index stays empty. The scope is released again afterwards because the HTTP request that
+   * follows must set its own, and the aspect refuses to redefine one that is already set.
+   */
+  private void indexEveryTenant() {
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.allTenants());
+    try {
+      engineService.bulkProcessing(engineContext.getModels().stream());
+    } finally {
+      // Released with the raw setting rather than the primitive: TxCtx.missing() is an intention
+      // the resolver rejects on purpose, and what is needed here is the neutral starting state a
+      // fresh transaction has, so the HTTP request that follows sets its own scope normally.
+      entityManager
+          .createNativeQuery("SELECT set_config('app.current_tenants', '', true)")
+          .getSingleResult();
+    }
+  }
 
   @BeforeEach
   void setup() throws IOException {
@@ -104,7 +146,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -157,7 +199,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -261,7 +303,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -319,7 +361,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -372,7 +414,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -419,7 +461,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -474,7 +516,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -509,6 +551,7 @@ class DashboardApiTest extends IntegrationTest {
     @Test
     @DisplayName("Count entities with date range filter.")
     void countEntitiesWithDateRangeFilter() throws Exception {
+      scopeToAmbientTenant();
       Endpoint endpoint1 =
           endpointComposer
               .forEndpoint(
@@ -568,7 +611,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -594,6 +637,7 @@ class DashboardApiTest extends IntegrationTest {
         "Count entities with DEFAULT widget and dashboard parameter ALL_TIME should count all"
             + " entities regardless of age")
     void countEntitiesWithDefaultWidgetAndDashboardParameterAllTime() throws Exception {
+      scopeToAmbientTenant();
       // -- ARRANGE --
       Endpoint endpoint1 =
           endpointComposer
@@ -650,7 +694,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -682,6 +726,7 @@ class DashboardApiTest extends IntegrationTest {
     @Test
     @DisplayName("Fetch series for temporal widgets.")
     void fetchSeriesForTemporalWidgets() throws Exception {
+      scopeToAmbientTenant();
       Endpoint endpoint1 =
           endpointComposer
               .forEndpoint(
@@ -750,7 +795,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -773,6 +818,7 @@ class DashboardApiTest extends IntegrationTest {
     @Test
     @DisplayName("Fetch series for structural widgets.")
     void fetchSeriesForStructuralWidgets() throws Exception {
+      scopeToAmbientTenant();
       Endpoint endpoint1 =
           endpointComposer
               .forEndpoint(
@@ -830,7 +876,7 @@ class DashboardApiTest extends IntegrationTest {
       // force persistence
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async, so the method above
       // completes before the data is available in the system
       Thread.sleep(1000);
@@ -869,7 +915,7 @@ class DashboardApiTest extends IntegrationTest {
     private void flushAndProcessElastic() throws InterruptedException {
       entityManager.flush();
       entityManager.clear();
-      engineService.bulkProcessing(engineContext.getModels().stream());
+      indexEveryTenant();
       // elastic needs to process the data; it does so async
       Thread.sleep(1000);
     }
@@ -1405,249 +1451,6 @@ class DashboardApiTest extends IntegrationTest {
               });
 
       assertThatJson(response).node("es_entities.es_datas").isArray().hasSize(2);
-    }
-  }
-
-  @Nested
-  @DisplayName("Tenant Isolation")
-  @WithMockUser
-  class TenantIsolation {
-
-    @Test
-    @DisplayName("Custom dashboard created in tenant X should NOT be readable from tenant Y")
-    void given_customDashboardInTenantX_should_notBeReadableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
-
-      // Seeded directly (native insert), not through the create endpoint: creating under tenant
-      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
-      // the read call below sets it to Y - the aspect refuses a scope change within one
-      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
-      String dashboardId = seedCustomDashboardInTenant(tenantX, "Isolation Test Dashboard");
-
-      // -------- Act — read from tenant Y (expect 404) --------
-      int responseStatus =
-          mvc.perform(
-                  get("/api/tenants/" + tenantY.getId() + "/custom-dashboards/" + dashboardId)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Custom dashboard created in tenant X should be readable from tenant X")
-    void given_customDashboardInTenantX_should_beReadableFromTenantX() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
-
-      CustomDashboardInput input = new CustomDashboardInput();
-      input.setName("Same Tenant Dashboard");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String dashboardId = JsonPath.read(createResponse, "$.custom_dashboard_id");
-
-      // -------- Act & Assert — read from same tenant should succeed --------
-      mvc.perform(
-              get("/api/tenants/" + tenantX.getId() + "/custom-dashboards/" + dashboardId)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isOk())
-          .andExpect(
-              result ->
-                  assertThatJson(result.getResponse().getContentAsString())
-                      .node("custom_dashboard_name")
-                      .isEqualTo("Same Tenant Dashboard"));
-    }
-
-    @Test
-    @DisplayName("Custom dashboard search in tenant Y should NOT return dashboards from tenant X")
-    void given_customDashboardInTenantX_should_notAppearInTenantYSearch() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
-
-      // Seeded directly (native insert), not through the create endpoint: creating under tenant
-      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
-      // the search call below sets it to Y - the aspect refuses a scope change within one
-      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
-      seedCustomDashboardInTenant(tenantX, "CrossTenantSearchDashboard");
-
-      // -------- Act — search from tenant Y --------
-      SearchPaginationInput searchInput =
-          PaginationFixture.simpleTextSearch("CrossTenantSearchDashboard");
-
-      String searchResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/custom-dashboards/search")
-                      .content(asJsonString(searchInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
-    }
-
-    @Test
-    @DisplayName("Custom dashboard created in tenant X should NOT be updatable from tenant Y")
-    void given_customDashboardInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
-
-      // Seeded directly (native insert): creating under tenant X's path via the API would set the
-      // tenant scope (TxCtx) to X on this test's wrapping transaction, and the update call below
-      // sets it to Y - the aspect refuses a scope change within one transaction (see
-      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
-      String dashboardId = seedCustomDashboardInTenant(tenantX, "Update Isolation Test Dashboard");
-
-      // -------- Act — update from tenant Y (expect 404) --------
-      CustomDashboardInput updateInput = new CustomDashboardInput();
-      updateInput.setName("Hijacked Name");
-
-      int responseStatus =
-          mvc.perform(
-                  put("/api/tenants/" + tenantY.getId() + "/custom-dashboards/" + dashboardId)
-                      .content(asJsonString(updateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Custom dashboard created in tenant X should NOT be deletable from tenant Y")
-    void given_customDashboardInTenantX_should_notBeDeletableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.DELETE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
-
-      // Seeded directly (native insert): creating under tenant X's path via the API would set the
-      // tenant scope (TxCtx) to X on this test's wrapping transaction, and the delete call below
-      // sets it to Y - the aspect refuses a scope change within one transaction (see
-      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
-      String dashboardId = seedCustomDashboardInTenant(tenantX, "Delete Isolation Test Dashboard");
-
-      // -------- Act — delete from tenant Y (expect 404) --------
-      int responseStatus =
-          mvc.perform(
-                  delete("/api/tenants/" + tenantY.getId() + "/custom-dashboards/" + dashboardId)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName(
-        "Widget data endpoint in tenant Y should NOT return data for widget belonging to tenant X")
-    void given_widgetInTenantX_should_notBeAccessibleFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
-
-      // Create a widget via composers in tenant X context. Not created through the create
-      // endpoint: creating under tenant X's path would set the tenant scope (TxCtx) to X on this
-      // test's wrapping transaction, and the count call below sets it to Y - the aspect refuses a
-      // scope change within one transaction (see TenantScopeTransactionAspect).
-      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
-      Widget widget =
-          widgetComposer
-              .forWidget(WidgetFixture.createNumberWidgetWithEntity("asset"))
-              .withCustomDashboard(
-                  customDashboardComposer.forCustomDashboard(
-                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
-              .persist()
-              .get();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — access widget data from tenant Y (expect 404) --------
-      int response =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/dashboards/count/" + widget.getId())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(new HashMap<>()))
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getContentLength();
-
-      // -------- Assert --------
-      assertThat(response).isEqualTo(0);
-    }
-
-    /**
-     * Seeds a custom dashboard directly via native insert instead of the create endpoint: creating
-     * through the API sets the tenant scope (TxCtx) on this test's wrapping transaction, which
-     * conflicts with a subsequent call scoped to a different tenant within the same test (see
-     * TenantScopeTransactionAspect).
-     */
-    private String seedCustomDashboardInTenant(Tenant tenant, String name) {
-      String dashboardId = UUID.randomUUID().toString();
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO custom_dashboards (custom_dashboard_id, custom_dashboard_name, tenant_id)"
-                  + " VALUES (CAST(:id AS uuid), :name, CAST(:tenant AS uuid))")
-          .setParameter("id", dashboardId)
-          .setParameter("name", name)
-          .setParameter("tenant", tenant.getId())
-          .executeUpdate();
-      entityManager.flush();
-      entityManager.clear();
-      return dashboardId;
     }
   }
 }

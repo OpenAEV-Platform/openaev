@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Domain;
@@ -30,6 +31,7 @@ public class DomainApi extends RestBehavior {
   public static final String DOMAIN_URI = "/api/domains";
   public static final String TENANT_DOMAIN_URI = TENANT_PREFIX + "/domains";
   private final DomainService domainService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @LogExecutionTime
   @Operation(summary = "Search Domains")
@@ -57,7 +59,8 @@ public class DomainApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
   public Domain upsertDomain(TxCtx ctx, @Valid @RequestBody DomainBaseInput input) {
-    return domainService.upsert(input);
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return domainService.upsert(input, tenantId);
   }
 
   // -- OPTION --

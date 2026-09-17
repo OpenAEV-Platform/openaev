@@ -10,17 +10,19 @@ import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
-import io.openaev.utils.PrimitiveValueMaskingUtils;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -55,6 +57,7 @@ public class WorkflowService {
   private final StepDelayQueueService stepDelayQueueService;
   private final ScopeSnapshotService scopeSnapshotService;
   private final ScopeService scopeService;
+  private final LessonsService lessonsService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
@@ -203,6 +206,7 @@ public class WorkflowService {
     }
     if (change.scopeRulesChanged()) {
       realignTemplateActionTargets(workflow);
+      pruneLessonTargets(workflow);
     }
     return workflow;
   }
@@ -272,8 +276,21 @@ public class WorkflowService {
    * call to the {@code @Transactional} sibling would bypass the Spring proxy (see {@code
    * TenantBackgroundTransactionArchTest#no_transactional_self_invocation}).
    */
+  /**
+   * The {@code ctx} argument is load-bearing even though this body never reads it: {@code
+   * REQUIRES_NEW} suspends the caller's transaction, so the caller's scope does not travel with it
+   * and the new transaction would start with {@code app.current_tenants} unset. The tenant aspect
+   * sets it from this parameter.
+   *
+   * <p>Without it the realignment below reads {@code ScopeService.getValidAssets}, which resolves
+   * an ASSET_ID allowlist through the activated {@code assets} table, gets nothing, and then
+   * PERSISTS {@code inject_assets: []} onto every asset-centric step template of the workflow. A
+   * fail-closed read driving a destructive write is the worst shape this migration can produce, so
+   * the scope is not optional here.
+   */
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
   public void writeAllowlistScopeIsolated(
+      TxCtx ctx,
       String scenarioId,
       String simulationId,
       List<WorkflowScopeRuleInput> allowlistRules,
@@ -297,6 +314,7 @@ public class WorkflowService {
                 w -> {
                   if (writeAllowlistRules(w, rules, replaceExisting)) {
                     realignTemplateActionTargets(w);
+                    pruneLessonTargets(w);
                   }
                 });
       } catch (ChainingException e) {
@@ -306,7 +324,12 @@ public class WorkflowService {
     }
     if (hasText(simulationId)) {
       findWorkflowRunBySimulationId(simulationId)
-          .forEach(w -> writeAllowlistRules(w, rules, replaceExisting));
+          .forEach(
+              w -> {
+                if (writeAllowlistRules(w, rules, replaceExisting)) {
+                  pruneLessonTargets(w);
+                }
+              });
     }
   }
 
@@ -439,6 +462,31 @@ public class WorkflowService {
   }
 
   /**
+   * Removes lesson-target teams that are no longer part of the workflow scope.
+   *
+   * <p>Lesson categories store their own team links, so scope edits must prune them explicitly or
+   * stale targets remain selectable even after the scope author removed them.
+   */
+  private void pruneLessonTargets(Workflow workflow) {
+    if (workflow == null) {
+      return;
+    }
+    List<String> scopedTeamIds =
+        Optional.ofNullable(scopeService.getValidTeams(workflow.getId())).orElse(List.of()).stream()
+            .map(Team::getId)
+            .toList();
+    Exercise simulation = workflow.getSimulation();
+    if (simulation != null) {
+      lessonsService.pruneTeamsForSimulation(simulation.getId(), scopedTeamIds);
+      return;
+    }
+    Scenario scenario = workflow.getScenario();
+    if (scenario != null) {
+      lessonsService.pruneTeamsForScenario(scenario.getId(), scopedTeamIds);
+    }
+  }
+
+  /**
    * Saves a workflow run to the repository.
    *
    * @param workflowRun the workflow run to save
@@ -461,25 +509,6 @@ public class WorkflowService {
     workflowTemplate = updateEditedWorkflow(workflowTemplate);
 
     Workflow run = copyWorkflowTemplateToRun(workflowTemplate);
-
-    return saveWorkflowRun(run);
-  }
-
-  /**
-   * Launches a workflow for a scenario by creating a simulation-level template and a run from it.
-   *
-   * @param workflowTemplateScenario the scenario's workflow template
-   * @param simulation the simulation to attach the run to
-   * @return the created workflow run
-   */
-  public Workflow launchWorkflowScenario(Workflow workflowTemplateScenario, Exercise simulation) {
-    // Copy workflow TEMPLATE (scenario) to a new workflow TEMPLATE (simulation)
-    Workflow workflowTemplateSimulation =
-        copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation);
-    workflowTemplateSimulation = saveWorkflowRun(workflowTemplateSimulation);
-
-    // Copy workflow TEMPLATE (simulation) to a new workflow execution RUN (simulation)
-    Workflow run = copyWorkflowTemplateToRun(workflowTemplateSimulation);
 
     return saveWorkflowRun(run);
   }
@@ -697,7 +726,7 @@ public class WorkflowService {
    */
   private String resolveScopeVariableValueForPersistence(
       ScopeVariable existing, ScopeVariableInput input) {
-    if (PrimitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
+    if (SensitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
         existing.getType(), existing.getValue(), input.getValue())) {
       return existing.getValue();
     }
@@ -1371,8 +1400,24 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
-    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
-    startWorkflow(workflowRun);
+    doStartWorkflowBySimulationId(workflowTemplate);
+  }
+
+  /**
+   * Starts a workflow run for a simulation only when a simulation TEMPLATE workflow exists.
+   *
+   * <p>This is the scheduled-execution counterpart of the manual start flow: manual launches always
+   * create the simulation TEMPLATE first, while scheduled chained simulations create that template
+   * earlier and only need the run started once the simulation becomes runnable.
+   *
+   * @param simulationId id of the simulation to start if chained
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowBySimulationIdIfPresent(String simulationId) throws ChainingException {
+    Optional<Workflow> workflowTemplate = findWorkflowTemplateBySimulationId(simulationId);
+    if (workflowTemplate.isPresent()) {
+      doStartWorkflowBySimulationId(workflowTemplate.get());
+    }
   }
 
   /**
@@ -1389,11 +1434,15 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-
-    Workflow workflowRun = launchWorkflowScenario(workflowTemplateScenario, simulation);
-    Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
+    Workflow workflowTemplateSimulation =
+        saveWorkflowRun(copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation));
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
+    doStartWorkflowBySimulationId(workflowTemplateSimulation);
+  }
+
+  private void doStartWorkflowBySimulationId(Workflow workflowTemplate) throws ChainingException {
+    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
     startWorkflow(workflowRun);
   }
 
@@ -1433,7 +1482,6 @@ public class WorkflowService {
    *
    * @param workflowRun the workflow run to start
    */
-  @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
     // Telemetry: one chaining workflow run started.
     resultsMetricCollector.recordWorkflowRun();

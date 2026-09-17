@@ -17,6 +17,7 @@ public enum CapabilityGroup {
   PLATFORM_SETTINGS,
   TENANT_SETTINGS,
   SECURITY,
+  MARKING,
   TAXONOMY,
   TENANTS,
   STIX,

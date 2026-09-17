@@ -8,6 +8,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -53,6 +54,7 @@ public class ChannelApi extends RestBehavior {
   private final UserRepository userRepository;
   private final ChannelService channelService;
   private final DocumentService documentService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CHANNELS --
 
@@ -117,6 +119,7 @@ public class ChannelApi extends RestBehavior {
   public Channel createChannel(TxCtx ctx, @Valid @RequestBody ChannelCreateInput input) {
     Channel channel = new Channel();
     channel.setUpdateAttributes(input);
+    channel.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
     return channelRepository.save(channel);
   }
 

@@ -100,8 +100,15 @@ const LessonsCategoryAddTeams = ({
 
   const headerComponent = (
     <Box sx={{
-      display: 'flex',
+      display: 'grid',
+      gridTemplateColumns: {
+        xs: 'minmax(0, 1fr)',
+        md: 'minmax(0, 1fr) minmax(220px, 280px)',
+      },
       gap: 1,
+      alignItems: 'center',
+      marginBottom: 1,
+      width: '100%',
     }}
     >
       <SearchFilter

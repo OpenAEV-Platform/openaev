@@ -169,6 +169,7 @@ class UserApiTest extends IntegrationTest {
     void resetPassword() throws Exception {
       // -- PREPARE --
       ResetUserInput input = UserFixture.getResetUserInput(EMAIL);
+      input.setLang("fr");
 
       // -- EXECUTE --
       mvc.perform(
@@ -179,6 +180,7 @@ class UserApiTest extends IntegrationTest {
           .andExpect(status().isOk());
 
       // -- ASSERT --
+      ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
       ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
       // not ideal, but the actual reset happens in a background thread!
       Awaitility.await()
@@ -186,12 +188,14 @@ class UserApiTest extends IntegrationTest {
           .until(
               () -> {
                 try {
-                  verify(mailingService).sendEmail(anyString(), anyString(), userCaptor.capture());
+                  verify(mailingService)
+                      .sendEmail(subjectCaptor.capture(), anyString(), userCaptor.capture());
                   return true;
                 } catch (Exception e) {
                   return false;
                 }
               });
+      assertEquals("Code de récupération OpenAEV: reset_token", subjectCaptor.getValue());
       assertEquals(EMAIL, userCaptor.getValue().get(0).getEmail());
     }
 
