@@ -80,11 +80,11 @@ public class QueueChainingJob implements Job {
 
             // Guard: ignore if workflow run has already ended (e.g. timeout).
             if (workflowService.isWorkflowEnded(stepDelayQueue.getWorkflowRun().getId())) {
-              log.info(
+              log.warn(
                   "[Chaining] Ignoring step {} because workflow run {} has ended.",
                   stepDelayQueue.getId(),
                   stepDelayQueue.getWorkflowRun().getId());
-              log.info(
+              log.warn(
                   "[Chaining] Deleting all delayed steps for workflow run {} as it has ended.",
                   stepDelayQueue.getWorkflowRun().getId());
               stepDelayQueueService.deleteAllByWorkflowRun(
