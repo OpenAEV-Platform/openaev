@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  * roles_capabilities(role_id, capability)}.
  */
 @Component
-public class V6_20260916150000000__Add_install_agent_capability_to_service_role
+public class V6_20260917200000000__Add_install_agent_capability_to_service_role
     extends BaseJavaMigration {
 
   @Override
