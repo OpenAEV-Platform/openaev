@@ -10520,6 +10520,7 @@ export interface RoleInput {
     | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "AGENT_DOCUMENT_ACCESS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -10601,6 +10602,7 @@ export interface RoleOutput {
     | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "AGENT_DOCUMENT_ACCESS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -12738,6 +12740,7 @@ export interface User {
     | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "AGENT_DOCUMENT_ACCESS"
   )[];
   /** City of the user */
   user_city?: string;

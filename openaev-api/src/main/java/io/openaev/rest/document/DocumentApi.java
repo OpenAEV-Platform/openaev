@@ -311,6 +311,21 @@ public class DocumentApi extends RestBehavior {
     return buildDocumentDownloadResponse(documentId);
   }
 
+  @GetMapping(TENANT_DOCUMENT_API + "/{documentId}/agent-file")
+  @Transactional
+  // TEMPORARY (#294): dedicated download route for the service-account (implant) token,
+  // scoped via AGENT_DOCUMENT_ACCESS/AGENT_DOCUMENT_READ instead of ACCESS_DOCUMENTS/READ,
+  // so the service-account never needs SEARCH. Remove once #294's durable per-document
+  // scoping solution replaces this workaround. Coordinated with implant repo route change.
+  @AccessControl(
+      resourceId = "#documentId",
+      actionPerformed = Action.AGENT_DOCUMENT_READ,
+      resourceType = ResourceType.DOCUMENT)
+  public ResponseEntity<InputStreamResource> downloadDocumentForAgent(
+      TxCtx ctx, @PathVariable String documentId) {
+    return buildDocumentDownloadResponse(documentId);
+  }
+
   private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(String documentId) {
     Document document = documentService.document(documentId);
 
