@@ -169,6 +169,7 @@ public class InjectTestStatusService {
             List.of(),
             inject.getAssets(),
             inject.getAssetGroups(),
+            inject.getSecretReferences(),
             List.of(userInjectContext));
     Execution execution = executor.executeInjection(injection);
 

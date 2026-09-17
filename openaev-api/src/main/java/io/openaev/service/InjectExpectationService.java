@@ -19,6 +19,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -41,6 +45,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.expectation.ExpectationBehavior;
 import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -81,6 +86,8 @@ public class InjectExpectationService {
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final InjectExpectationLockService injectExpectationLockService;
   private final InjectService injectService;
+  private final InjectorContractContentUtils injectorContractContentUtils;
+  private final Optional<AuditLogger> auditLogger;
 
   @Resource protected ObjectMapper mapper;
 
@@ -565,6 +572,7 @@ public class InjectExpectationService {
     }
     Collector collector = this.collectorService.collector(input.getCollectorId());
     computeTechnicalExpectation(technicalExpectation, collector, input, false);
+    logAutomaticExpectationResult(technicalExpectation, collector);
     return technicalExpectation;
   }
 
@@ -601,6 +609,7 @@ public class InjectExpectationService {
     // Same propagation contract as computeTechnicalExpectation: agentless expectations only
     // propagate asset -> group, agent expectations roll up the full chain.
     propagateTechnicalExpectation(updated, updated.getAgent() == null, null);
+    logAutomaticExpectationResult(updated, securityPlatform.getId(), securityPlatform.getName());
     return technicalExpectation;
   }
 
@@ -706,6 +715,10 @@ public class InjectExpectationService {
     }
     List<TechnicalInjectExpectation> saved =
         fromIterable(this.injectExpectationRepository.saveAll(updatedExpectations));
+
+    for (TechnicalInjectExpectation expectation : saved) {
+      logAutomaticExpectationResult(expectation, collector);
+    }
 
     // 2) Propagation deduplicated per parent: recomputing an asset (or asset group) score reads
     // all its children, so one pass per distinct parent is equivalent to one pass per item
@@ -1168,8 +1181,7 @@ public class InjectExpectationService {
       return mergeExpectationResultsByExpectationType(
           switch (targetTypeEnum) {
             case TEAMS, ASSETS_GROUPS ->
-                this.findMergedExpectationsByInjectAndTargetAndTargetType(
-                    injectId, targetId, "not applicable", targetType);
+                this.findExpectationsByInjectAndTargetAndTargetType(injectId, targetId, targetType);
             case PLAYERS ->
                 injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
             case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
@@ -1189,18 +1201,19 @@ public class InjectExpectationService {
   }
 
   /**
-   * Finds expectations by inject, target, parent target, and target type.
+   * Finds expectations by inject, target, and target type, enriching asset and asset-group
+   * expectations with their agents'/children's security-platform results for display (unlike {@link
+   * #findMergedExpectationsByInjectAndTargetAndTargetType(String, String, String)}, results are NOT
+   * merged across expectations of the same type).
    *
    * @param injectId the inject ID
    * @param targetId the target ID
-   * @param parentTargetId the parent target ID (e.g., team ID for players)
    * @param targetType the type of target (TEAMS, PLAYERS, AGENT, ASSETS, ASSETS_GROUPS)
    * @return a list of matching expectations
    */
-  public List<? extends BaseInjectExpectation> findMergedExpectationsByInjectAndTargetAndTargetType(
+  public List<? extends BaseInjectExpectation> findExpectationsByInjectAndTargetAndTargetType(
       @NotBlank final String injectId,
       @NotBlank final String targetId,
-      @NotBlank final String parentTargetId,
       @NotBlank final String targetType) {
     try {
       TargetType targetTypeEnum = TargetType.valueOf(targetType);
@@ -1223,7 +1236,7 @@ public class InjectExpectationService {
             throw new RuntimeException(
                 "Target type "
                     + targetType
-                    + " not implemented for this method findMergedExpectationsByInjectAndTargetAndTargetType");
+                    + " not implemented for this method findExpectationsByInjectAndTargetAndTargetType");
       };
     } catch (IllegalArgumentException e) {
       return Collections.emptyList();
@@ -1981,5 +1994,80 @@ public class InjectExpectationService {
     Inject inject = injection.getInjection().getInject();
     ObjectNode content = inject.getContent();
     return this.mapper.treeToValue(content, converter);
+  }
+
+  // -- AUDIT LOGGING --
+
+  private void logExpectationResultEvent(
+      @NotNull BaseInjectExpectation expectation, @Nullable InjectExpectationResult sourceResult) {
+    auditLogger.ifPresent(
+        logger -> {
+          Optional<InjectExpectationResult> optionalSourceResult =
+              Optional.ofNullable(sourceResult);
+          String injectId =
+              Optional.ofNullable(expectation.getInject()).map(Inject::getId).orElse(null);
+          String expectationResult =
+              Optional.ofNullable(expectation.getResponse()).map(Enum::name).orElse(null);
+          String source =
+              optionalSourceResult.map(InjectExpectationResult::getSourceName).orElse(null);
+          String sourceId =
+              optionalSourceResult.map(InjectExpectationResult::getSourceId).orElse(null);
+          String sourceType =
+              optionalSourceResult.map(InjectExpectationResult::getSourceType).orElse(null);
+          String detectionTimestamp =
+              optionalSourceResult.map(InjectExpectationResult::getDate).orElse(null);
+
+          Map<String, Object> contextData = new LinkedHashMap<>();
+          contextData.put("inject_id", injectId);
+          contextData.put("expectation_id", expectation.getId());
+          contextData.put("expectation_type", expectation.getType().name());
+          contextData.put("result", expectationResult);
+          contextData.put("source", source);
+          contextData.put("source_id", sourceId);
+          contextData.put("source_type", sourceType);
+          contextData.put("execution_timestamp", detectionTimestamp);
+
+          logger.logEvent(
+              AuditEvent.builder()
+                  .eventType(EventType.EXECUTION)
+                  .eventScope(AuditEventScope.EXPECTATION_RESULT)
+                  .eventStatus(EventStatus.SUCCESS)
+                  .resourceType(ResourceType.INJECT)
+                  .resourceId(injectId)
+                  .message(
+                      "Expectation '%s' for inject '%s', result: %s"
+                          .formatted(expectation.getType().name(), injectId, expectationResult))
+                  .contextData(contextData)
+                  .origin(AuditEventOrigin.SYSTEM)
+                  .build());
+        });
+  }
+
+  /**
+   * Emits the standard expectation-result audit event for automatic/system updates attributed to
+   * the provided collector.
+   *
+   * @param expectation the expectation whose result has just been computed
+   * @param collector the collector used as audit source attribution
+   */
+  public void logAutomaticExpectationResult(
+      @NotNull final BaseInjectExpectation expectation, @NotNull final Collector collector) {
+    logAutomaticExpectationResult(expectation, collector.getId(), collector.getName());
+  }
+
+  private void logAutomaticExpectationResult(
+      @NotNull final BaseInjectExpectation expectation,
+      @NotBlank final String sourceId,
+      @Nullable final String sourceName) {
+    InjectExpectationResult sourceResult = findResultBySourceId(expectation.getResults(), sourceId);
+    if (sourceResult == null) {
+      sourceResult =
+          InjectExpectationResult.builder()
+              .sourceId(sourceId)
+              .sourceName(sourceName)
+              .date(Instant.now().toString())
+              .build();
+    }
+    logExpectationResultEvent(expectation, sourceResult);
   }
 }

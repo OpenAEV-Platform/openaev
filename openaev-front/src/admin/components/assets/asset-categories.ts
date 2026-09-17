@@ -328,6 +328,7 @@ const ACRONYMS = new Set([
 ]);
 
 const SPECIAL_LABELS: Record<string, string> = {
+  GCP_OAUTH2: 'GCP OAuth 2.0',
   GRAPHQL_API: 'GraphQL API',
   SINGLE_PAGE_APP: 'Single-page app',
   SAN_NAS: 'SAN / NAS',

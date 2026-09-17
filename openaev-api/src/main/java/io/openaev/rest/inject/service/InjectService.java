@@ -7,6 +7,7 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
@@ -32,6 +33,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.execution.ExecutableInject;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -113,7 +115,7 @@ public class InjectService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
-  private final InjectDependenciesRepository injectDependenciesRepository;
+  private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
@@ -1635,5 +1637,31 @@ public class InjectService {
       log.warn("Invalid JSON in inject content", e);
     }
     return null;
+  }
+
+  /**
+   * Creates and stores a fresh authorisation code when the inject carries secret references.
+   *
+   * @param executableInject the executable inject to check for secret references
+   * @return the raw authorisation code, or {@code null} when the inject has no secret references
+   */
+  public String getAuthorisationCodeIfNeeded(ExecutableInject executableInject) {
+    if (executableInject.getSecretReferenceIds() == null
+        || executableInject.getSecretReferenceIds().isEmpty()) {
+      return null;
+    }
+    Inject inject = executableInject.getInjection().getInject();
+    String rawCode = UUID.randomUUID().toString();
+    String hashedCode = hashWithSHA256(rawCode);
+
+    injectAuthorisationRepository.deleteAllByInjectId(inject.getId());
+
+    InjectAuthorisation authorisation = new InjectAuthorisation();
+    authorisation.setInject(inject);
+    authorisation.setCode(hashedCode);
+    authorisation.setIssuedAt(Instant.now());
+    injectAuthorisationRepository.save(authorisation);
+
+    return rawCode;
   }
 }

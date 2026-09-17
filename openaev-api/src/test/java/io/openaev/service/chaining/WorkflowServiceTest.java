@@ -1442,8 +1442,7 @@ class WorkflowServiceTest {
       workflow.getWorkflowScopeVariables().add(existing);
 
       ScopeVariableInput input =
-          new ScopeVariableInput(
-              varId, "password_var", PrimitiveType.Password, "T*******t", "desc");
+          new ScopeVariableInput(varId, "password_var", PrimitiveType.Password, "To******", "desc");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
@@ -1472,7 +1471,7 @@ class WorkflowServiceTest {
       workflow.getWorkflowScopeVariables().add(existing);
 
       ScopeVariableInput input =
-          new ScopeVariableInput(varId, "password_var", PrimitiveType.Text, "T*******t", "desc");
+          new ScopeVariableInput(varId, "password_var", PrimitiveType.Text, "To******", "desc");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
