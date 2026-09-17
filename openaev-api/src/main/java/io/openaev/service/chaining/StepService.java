@@ -841,7 +841,6 @@ public class StepService {
    * @param copiedStepsByOriginalId map of original step template id -> its copy, used to rewrite
    *     {@code DEPEND_ON} values and {@code step_from} references
    */
-  @Transactional(rollbackFor = Exception.class)
   void copyStepConditionTemplate(
       Step step,
       Step stepCopied,

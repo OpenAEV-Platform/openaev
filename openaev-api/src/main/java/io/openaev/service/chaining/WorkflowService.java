@@ -999,7 +999,7 @@ public class WorkflowService {
   @Transactional(rollbackFor = Exception.class)
   public Workflow copyScenarioChainingWorkflowAsManual(
       @NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo) throws ChainingException {
-    return duplicateScenarioWorkflow(scenarioIdFrom, scenarioTo);
+    return doDuplicateScenarioWorkflow(scenarioIdFrom, scenarioTo);
   }
 
   /**
@@ -1016,6 +1016,16 @@ public class WorkflowService {
   @Transactional(rollbackFor = Exception.class)
   public Workflow duplicateScenarioWorkflow(
       @NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo) throws ChainingException {
+    return doDuplicateScenarioWorkflow(scenarioIdFrom, scenarioTo);
+  }
+
+  /**
+   * The scenario workflow copy itself. Deliberately free of {@code @Transactional} so both public
+   * entry points can call it without tripping the Spring self-invocation trap; they are the ones
+   * carrying the transaction.
+   */
+  private Workflow doDuplicateScenarioWorkflow(String scenarioIdFrom, Scenario scenarioTo)
+      throws ChainingException {
     Optional<Workflow> sourceOpt = findWorkflowTemplateByScenarioId(scenarioIdFrom);
     if (sourceOpt.isEmpty()) {
       return null;
