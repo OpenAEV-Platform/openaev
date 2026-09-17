@@ -13087,6 +13087,16 @@ export interface Workflow {
    * @max 5940
    */
   workflow_max_temporal_rate_seconds?: number;
+  /**
+   * Timestamp when the workflow has been paused
+   * @format date-time
+   */
+  workflow_pause_at?: string;
+  /**
+   * Total pause duration in seconds, incremented at each pause/resume cycle
+   * @format int64
+   */
+  workflow_pause_second?: number;
   workflow_rate_limit_enabled?: boolean;
   workflow_safe_mode_enabled?: boolean;
   workflow_scope_rules?: WorkflowScopeRule[];
