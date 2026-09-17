@@ -20,6 +20,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.user.form.me.UpdateMeEmailInput;
 import io.openaev.rest.user.form.me.UpdateMePasswordInput;
 import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
@@ -30,6 +31,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -108,16 +110,49 @@ public class MeApi extends RestBehavior {
   public User updatePassword(
       TxCtx ctx, @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
+    return doSecuritySensitiveUpdate(
+        currentUser().getId(),
+        input.getCurrentPassword(),
+        user -> {
+          user.setPassword(userService.encodeUserPassword(input.getPassword()));
+          return user;
+        },
+        httpRequest.getSession().getId());
+  }
+
+  @PutMapping(ME_URI + "/email")
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @Transactional
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  public User updateEmail(
+      TxCtx ctx, @Valid @RequestBody UpdateMeEmailInput input, HttpServletRequest httpRequest)
+      throws InputValidationException {
+    return doSecuritySensitiveUpdate(
+        currentUser().getId(),
+        input.getCurrentPassword(),
+        user -> {
+          user.setEmail(input.getEmail());
+          return user;
+        },
+        httpRequest.getSession().getId());
+  }
+
+  private User doSecuritySensitiveUpdate(
+      String userId,
+      String currentPassword,
+      Function<User, User> updateFunc,
+      String stayAliveSessionId)
+      throws InputValidationException {
     User user =
         userRepository
-            .findById(currentUser().getId())
+            .findById(userId)
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-    if (userService.isUserPasswordValid(user, input.getCurrentPassword())) {
-      user.setPassword(userService.encodeUserPassword(input.getPassword()));
-      User savedUser = userRepository.save(user);
+    if (userService.isUserPasswordValid(user, currentPassword)) {
+      User moddedUser = updateFunc.apply(user);
+      User savedUser = userRepository.save(moddedUser);
       // Security: a password change kills every other live session of the user; the session
       // that performed the change stays alive.
-      sessionManager.invalidateOtherUserSessions(user.getId(), httpRequest.getSession().getId());
+      sessionManager.invalidateOtherUserSessions(user.getId(), stayAliveSessionId);
       return savedUser;
     } else {
       throw new InputValidationException("user_current_password", "Bad current password");

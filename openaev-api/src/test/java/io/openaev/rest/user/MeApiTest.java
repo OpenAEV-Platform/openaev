@@ -1,13 +1,17 @@
 package io.openaev.rest.user;
 
+import static io.openaev.rest.user.MeApi.ME_URI;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
@@ -16,11 +20,19 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.user.form.me.UpdateMeEmailInput;
+import io.openaev.rest.user.form.me.UpdateMePasswordInput;
+import io.openaev.rest.user.form.me.UpdateProfileInput;
+import io.openaev.service.UserService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +49,279 @@ public class MeApiTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private UserRepository userRepository;
+  @Autowired private UserService userService;
+  @Autowired private EntityManager entityManager;
+  @Autowired private ObjectMapper objectMapper;
+  @Autowired private io.openaev.utils.mockUser.TestUserHolder testUserHolder;
+  @Autowired private UserComposer userComposer;
+
+  @Nested
+  @WithMockUser
+  @DisplayName("PUT /api/me/profile")
+  class PutMeProfile {
+    private static final String URI = ME_URI + "/profile";
+
+    @Test
+    @DisplayName("Given email field in profile update, then do not update email")
+    void given_emailInUpdateRequest_then_doNotUpdateEmail() throws Exception {
+
+      User me = testUserHolder.get();
+      String expectedEmail = me.getEmail();
+
+      UpdateProfileInput input = new UpdateProfileInput();
+      String expectedFirstname = "Georges";
+      String expectedLastname = "Abitbol";
+      String expectedLang = "ja";
+      String expectedTheme = "dark";
+      input.setFirstname(expectedFirstname);
+      input.setLastname(expectedLastname);
+      input.setLang(expectedLang);
+      input.setTheme(expectedTheme);
+
+      ObjectNode jsonInput = objectMapper.valueToTree(input);
+      jsonInput.put("user_email", "bad@evil.invalid");
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(jsonInput.toString()))
+          .andExpect(status().isOk());
+      entityManager.flush();
+      entityManager.clear();
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(user -> assertThat(user.getEmail()).isEqualTo(expectedEmail))
+          .satisfies(user -> assertThat(user.getFirstname()).isEqualTo(expectedFirstname))
+          .satisfies(user -> assertThat(user.getLastname()).isEqualTo(expectedLastname))
+          .satisfies(user -> assertThat(user.getTheme()).isEqualTo(expectedTheme))
+          .satisfies(user -> assertThat(user.getLang()).isEqualTo(expectedLang));
+    }
+  }
+
+  @Nested
+  @WithMockUser
+  @DisplayName("PUT /api/me/password")
+  class PutMePassword {
+    private static final String URI = ME_URI + "/password";
+
+    @Test
+    @DisplayName("Given correct current password field in update, then accept update")
+    void given_correctPasswordInUpdate_then_acceptUpdate() throws Exception {
+      String currentPassword = "current_user_password";
+      String newPassword = "new_user_password";
+
+      User me = testUserHolder.get();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userComposer.forUser(me).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      UpdateMePasswordInput input = new UpdateMePasswordInput();
+      input.setCurrentPassword(currentPassword);
+      input.setPassword(newPassword);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isOk());
+      entityManager.flush();
+      entityManager.clear();
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(
+              user -> assertThat(userService.isUserPasswordValid(user, newPassword)).isTrue());
+    }
+
+    @Test
+    @DisplayName("Given wrong current password field in update, then reject update")
+    void given_wrongPasswordInUpdate_then_rejectUpdate() throws Exception {
+      String currentPassword = "current_user_password";
+      String wrongPassword = "WRONG";
+      String newPassword = "new_user_password";
+
+      User me = testUserHolder.get();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userComposer.forUser(me).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      UpdateMePasswordInput input = new UpdateMePasswordInput();
+      input.setCurrentPassword(wrongPassword);
+      input.setPassword(newPassword);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isBadRequest());
+      entityManager.flush();
+      entityManager.clear();
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(
+              user -> assertThat(userService.isUserPasswordValid(user, newPassword)).isFalse());
+    }
+
+    @Test
+    @DisplayName("Given no current password field in update, then reject update")
+    void given_noPasswordInUpdate_then_rejectUpdate() throws Exception {
+      String currentPassword = "current_user_password";
+      String newPassword = "new_user_password";
+
+      User me = testUserHolder.get();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userComposer.forUser(me).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      // omit current password
+      UpdateMePasswordInput input = new UpdateMePasswordInput();
+      input.setPassword(newPassword);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isBadRequest());
+      entityManager.flush();
+      entityManager.clear();
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(
+              user -> assertThat(userService.isUserPasswordValid(user, newPassword)).isFalse());
+    }
+  }
+
+  @Nested
+  @WithMockUser
+  @DisplayName("PUT /api/me/email")
+  class PutMeEmail {
+    private static final String URI = ME_URI + "/email";
+
+    @Test
+    @DisplayName("Given correct current password field in update, then accept update")
+    void given_correctPasswordInUpdate_then_acceptUpdate() throws Exception {
+      String currentPassword = "current_user_password";
+      String newEmail = "new@good.invalid";
+
+      User me = testUserHolder.get();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userComposer.forUser(me).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(newEmail);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isOk());
+      entityManager.flush();
+      entityManager.clear();
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(user -> assertThat(user.getEmail()).isEqualTo(newEmail));
+    }
+
+    @Test
+    @DisplayName("Given wrong current password field in update, then reject update")
+    void given_wrongPasswordInUpdate_then_rejectUpdate() throws Exception {
+      String currentPassword = "current_user_password";
+      String wrongPassword = "WRONG";
+      String newEmail = "new@good.invalid";
+
+      User me = testUserHolder.get();
+      String expectedEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userComposer.forUser(me).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(wrongPassword);
+      input.setEmail(newEmail);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isBadRequest());
+      entityManager.flush();
+      entityManager.clear();
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(user -> assertThat(user.getEmail()).isEqualTo(expectedEmail));
+    }
+
+    @Test
+    @DisplayName("Given no current password field in update, then reject update")
+    void given_noPasswordInUpdate_then_rejectUpdate() throws Exception {
+      String currentPassword = "current_user_password";
+      String newEmail = "new@good.invalid";
+
+      User me = testUserHolder.get();
+      String expectedEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userComposer.forUser(me).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      // omit the password
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setEmail(newEmail);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isBadRequest());
+      entityManager.flush();
+      entityManager.clear();
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(user -> assertThat(user.getEmail()).isEqualTo(expectedEmail));
+    }
+  }
 
   @Nested
   @DisplayName("GET /api/me")
@@ -50,7 +335,7 @@ public class MeApiTest extends IntegrationTest {
       // No specific setup needed — uses the mock user from @WithMockUser
 
       // -------- Act & Assert --------
-      mvc.perform(get(MeApi.ME_URI).accept(MediaType.APPLICATION_JSON).with(csrf()))
+      mvc.perform(get(ME_URI).accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.user_id").isNotEmpty())
           .andExpect(jsonPath("$.user_email").isNotEmpty());
@@ -69,7 +354,7 @@ public class MeApiTest extends IntegrationTest {
       // No specific setup needed — uses the mock user from @WithMockUser
 
       // -------- Act & Assert --------
-      mvc.perform(get(MeApi.ME_URI + "/tenants").accept(MediaType.APPLICATION_JSON).with(csrf()))
+      mvc.perform(get(ME_URI + "/tenants").accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$").isArray());
     }
@@ -87,7 +372,7 @@ public class MeApiTest extends IntegrationTest {
       // No specific setup needed — uses the mock user from @WithMockUser
 
       // -------- Act & Assert --------
-      mvc.perform(get(MeApi.ME_URI + "/tokens").accept(MediaType.APPLICATION_JSON).with(csrf()))
+      mvc.perform(get(ME_URI + "/tokens").accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$").isArray());
     }
@@ -129,7 +414,7 @@ public class MeApiTest extends IntegrationTest {
       // -------- Act — GET /api/me without tenantId in URL → TenantContext = DEFAULT (platform)
       // --------
       String response =
-          mvc.perform(get(MeApi.ME_URI).accept(MediaType.APPLICATION_JSON).with(csrf()))
+          mvc.perform(get(ME_URI).accept(MediaType.APPLICATION_JSON).with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
