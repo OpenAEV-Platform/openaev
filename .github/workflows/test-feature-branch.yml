@@ -93,15 +93,36 @@ jobs:
       - name: Install AWX cli
         run: pip install awxkit
       - name: Deploy feature environment via AWX
+        env:
+          AWX_HOST: ${{ secrets.AWX_URL }}
+          AWX_USERNAME: ${{ secrets.AWX_USER }}
+          AWX_PASSWORD: ${{ secrets.AWX_PASSWORD }}
+          OPENAEV_CONFIG: ${{ inputs.openaev_config }}
+          FEATURE_ADMIN_PASSWORD: ${{ secrets.FEATURE_BRANCH_ADMIN_PASSWORD }}
+          OPENAEV_VERSION: ${{ steps.meta.outputs.version }}
+          IMAGE_DIGEST: ${{ needs.openaev-platform.outputs.dockerBuildDigest }}
         run: |
-          awx --conf.host ${{ secrets.AWX_URL }} \
-            --conf.username ${{ secrets.AWX_USER }} \
-            --conf.password ${{ secrets.AWX_PASSWORD }} \
+          extra_vars=$(jq -cn \
+            --arg version "$OPENAEV_VERSION" \
+            --arg password "$FEATURE_ADMIN_PASSWORD" \
+            --arg digest "$IMAGE_DIGEST" \
+            --argjson config "$OPENAEV_CONFIG" \
+            '{
+              openaev_version: $version,
+              openaev_config: ($config + {
+                OPENAEV_ADMIN_EMAIL: "prowler-prototype@openaev.io",
+                OPENAEV_ADMIN_PASSWORD: $password
+              }),
+              image_digest: $digest
+            }')
+          awx --conf.host "$AWX_HOST" \
+            --conf.username "$AWX_USERNAME" \
+            --conf.password "$AWX_PASSWORD" \
             -f human \
           job_templates launch 'Deploy OpenAEV feature branch for testing' \
             --wait \
             --inventory eu-west-staging \
-            --extra_vars '{"openaev_version":"${{steps.meta.outputs.version}}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}'
+            --extra_vars "$extra_vars"
       - name: Forge URL to match playbook limitations
         id: urlforge
         run: |
