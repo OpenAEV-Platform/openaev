@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
@@ -18,7 +19,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -27,10 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
  * the safety guarantee is not the source status but the fact that the cloner reads only from the
  * TEMPLATE workflow.
  */
-@SpringBootTest
 @Transactional
 @DisplayName("Chained simulation duplication")
-class ChainedSimulationDuplicationIntegrationTest {
+class ChainedSimulationDuplicationIntegrationTest extends IntegrationTest {
 
   @Autowired private WorkflowService workflowService;
   @Autowired private StepService stepService;
