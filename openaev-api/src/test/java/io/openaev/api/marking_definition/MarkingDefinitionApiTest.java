@@ -83,6 +83,7 @@ class MarkingDefinitionApiTest extends IntegrationTest {
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$.marking_definition_type").value("TLP"))
           .andExpect(jsonPath("$.marking_definition_definition").value("TLP:BLUE"))
+          .andExpect(jsonPath("$.marking_definition_color").value("#2196F3"))
           .andExpect(jsonPath("$.marking_definition_order").value(6))
           .andExpect(jsonPath("$.marking_definition_protected").value(false));
     }
@@ -111,6 +112,83 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_blankColor_should_rejectCreation")
+    void given_blankColor_should_rejectCreation() throws Exception {
+      // Arrange
+      long countBefore = repository.count();
+      String body =
+          """
+          {
+            "marking_definition_type": "TLP",
+            "marking_definition_definition": "TLP:BLANK-COLOR",
+            "marking_definition_color": "",
+            "marking_definition_order": 7
+          }
+          """;
+
+      // Act & Assert
+      mvc.perform(
+              post(URI, Tenant.DEFAULT_TENANT_UUID)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+
+      assertThat(repository.count()).isEqualTo(countBefore);
+    }
+
+    @Test
+    @DisplayName("given_whitespaceColor_should_rejectCreation")
+    void given_whitespaceColor_should_rejectCreation() throws Exception {
+      // Arrange
+      long countBefore = repository.count();
+      String body =
+          """
+          {
+            "marking_definition_type": "TLP",
+            "marking_definition_definition": "TLP:WHITESPACE-COLOR",
+            "marking_definition_color": "   ",
+            "marking_definition_order": 7
+          }
+          """;
+
+      // Act & Assert
+      mvc.perform(
+              post(URI, Tenant.DEFAULT_TENANT_UUID)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+
+      assertThat(repository.count()).isEqualTo(countBefore);
+    }
+
+    @Test
+    @DisplayName("given_missingColor_should_rejectCreation")
+    void given_missingColor_should_rejectCreation() throws Exception {
+      // Arrange
+      long countBefore = repository.count();
+      String body =
+          """
+          {
+            "marking_definition_type": "TLP",
+            "marking_definition_definition": "TLP:MISSING-COLOR",
+            "marking_definition_order": 8
+          }
+          """;
+
+      // Act & Assert
+      mvc.perform(
+              post(URI, Tenant.DEFAULT_TENANT_UUID)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+
+      assertThat(repository.count()).isEqualTo(countBefore);
+    }
+
+    @Test
     @DisplayName("given_malformedColor_should_rejectCreation")
     void given_malformedColor_should_rejectCreation() throws Exception {
       // Arrange
@@ -131,6 +209,76 @@ class MarkingDefinitionApiTest extends IntegrationTest {
                   .content(body)
                   .with(csrf()))
           .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    @DisplayName("given_blankColor_should_rejectUpdate")
+    void given_blankColor_should_rejectUpdate() throws Exception {
+      // Arrange
+      MarkingDefinition existing =
+          createPersistedMarkingDefinition(
+              Tenant.DEFAULT_TENANT_UUID,
+              "TLP",
+              "TLP:UPDATE-BLANK-COLOR",
+              "#123456",
+              5,
+              Instant.parse("2026-01-02T10:00:00Z"));
+      String body =
+          """
+          {
+            "marking_definition_type": "TLP",
+            "marking_definition_definition": "TLP:UPDATE-BLANK-COLOR",
+            "marking_definition_color": "",
+            "marking_definition_order": 5
+          }
+          """;
+
+      // Act
+      mvc.perform(
+              put(URI + "/{id}", Tenant.DEFAULT_TENANT_UUID, existing.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+
+      // Assert
+      MarkingDefinition reloaded = repository.findById(existing.getId()).orElseThrow();
+      assertThat(reloaded.getColor()).isEqualTo("#123456");
+    }
+
+    @Test
+    @DisplayName("given_whitespaceColor_should_rejectUpdate")
+    void given_whitespaceColor_should_rejectUpdate() throws Exception {
+      // Arrange
+      MarkingDefinition existing =
+          createPersistedMarkingDefinition(
+              Tenant.DEFAULT_TENANT_UUID,
+              "TLP",
+              "TLP:UPDATE-WHITESPACE-COLOR",
+              "#654321",
+              6,
+              Instant.parse("2026-01-03T10:00:00Z"));
+      String body =
+          """
+          {
+            "marking_definition_type": "TLP",
+            "marking_definition_definition": "TLP:UPDATE-WHITESPACE-COLOR",
+            "marking_definition_color": "   ",
+            "marking_definition_order": 6
+          }
+          """;
+
+      // Act
+      mvc.perform(
+              put(URI + "/{id}", Tenant.DEFAULT_TENANT_UUID, existing.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+
+      // Assert
+      MarkingDefinition reloaded = repository.findById(existing.getId()).orElseThrow();
+      assertThat(reloaded.getColor()).isEqualTo("#654321");
     }
 
     @Test

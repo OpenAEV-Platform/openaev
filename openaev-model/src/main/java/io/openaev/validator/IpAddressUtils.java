@@ -1,4 +1,4 @@
-package io.openaev.utils;
+package io.openaev.validator;
 
 import java.math.BigInteger;
 import java.net.Inet4Address;

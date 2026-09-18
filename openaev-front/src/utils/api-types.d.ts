@@ -2422,11 +2422,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface ChainingOutput {
-  conditions?: EventOutput[];
-  steps?: StepOutput[];
-}
-
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -7908,8 +7903,11 @@ export interface MapperConditionOutput {
 }
 
 export interface MarkingDefinitionInput {
-  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
-  marking_definition_color?: string;
+  /**
+   * @minLength 1
+   * @pattern ^#[0-9a-fA-F]{6}$
+   */
+  marking_definition_color: string;
   /** @minLength 1 */
   marking_definition_definition: string;
   /**
@@ -7922,7 +7920,8 @@ export interface MarkingDefinitionInput {
 }
 
 export interface MarkingDefinitionOutput {
-  marking_definition_color?: string;
+  /** @minLength 1 */
+  marking_definition_color: string;
   /** @format date-time */
   marking_definition_created_at: string;
   /** @minLength 1 */
@@ -10109,6 +10108,93 @@ export interface PolicyInput {
   platform_login_message?: string;
 }
 
+/** Operator capabilities of a primitive chaining type. */
+export interface PrimitiveTypeCapabilitiesOutput {
+  /** Comparing values depends on case: the case-sensitivity toggle is meaningful and must be offered. */
+  is_case_sensitivity?: boolean;
+  /** Values are numbers: the greater-than / less-than operators are meaningful and must be offered, and a value must be numeric whatever the operator. */
+  is_numeric_value?: boolean;
+}
+
+/** Operator capabilities and value format rules of a primitive chaining type, so the UI can offer the right operators and validate values without duplicating backend rules. */
+export interface PrimitiveTypeDescriptorOutput {
+  /** The primitive type this descriptor applies to. */
+  primitive_type?:
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "email"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
+  /** What the user can do with values of this type. */
+  primitive_type_capabilities?: PrimitiveTypeCapabilitiesOutput;
+  /** How a value of this type is validated. */
+  primitive_type_validation?: PrimitiveTypeValidationOutput;
+}
+
+/** A single value format rule. */
+export interface PrimitiveTypeFormatRuleOutput {
+  /** Stable key for the error message, to be translated by the frontend. Never a pre-translated sentence. */
+  error_message_key?: string;
+  /** Identifier of the rule. When no pattern is exposed, the frontend must provide its own implementation for this identifier, pinned by the shared test vectors. */
+  kind?: string;
+  /** Pattern to apply, written in the Java / ECMAScript intersection so it can be passed straight to RegExp. Absent for rules backed by a parser that no portable regex can express (IP addresses, subnets, email). */
+  pattern?: string;
+}
+
+/** Value format validation of a primitive chaining type. */
+export interface PrimitiveTypeValidationOutput {
+  /** Operators the rules apply to. Deliberately excludes IS_NULL / IS_NOT_NULL, which carry no value, and IN / NIN, which are evaluated as substring matches so a partial value is legitimate. */
+  applies_to?: (
+    | "AND"
+    | "OR"
+    | "EQ"
+    | "NEQ"
+    | "IS_NULL"
+    | "IS_NOT_NULL"
+    | "GT"
+    | "GTE"
+    | "LT"
+    | "LTE"
+    | "IN"
+    | "NIN"
+    | "MAPPER"
+    | "DEPEND_ON"
+  )[];
+  /** Alternative rules, combined with OR semantics. Empty when the type constrains no format, in which case any value is accepted. */
+  rules?: PrimitiveTypeFormatRuleOutput[];
+}
+
 export interface PropertySchemaDTO {
   schema_property_entity: string;
   schema_property_has_dynamic_value?: boolean;
@@ -10626,9 +10712,6 @@ export interface RoleInput {
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
     | "RESOLVE_INJECT_SECRET"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10670,10 +10753,13 @@ export interface RoleInput {
     | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
     | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
     | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
@@ -10707,9 +10793,6 @@ export interface RoleOutput {
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
     | "RESOLVE_INJECT_SECRET"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10751,10 +10834,13 @@ export interface RoleOutput {
     | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
     | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
     | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
@@ -12865,9 +12951,6 @@ export interface User {
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
     | "RESOLVE_INJECT_SECRET"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -12909,10 +12992,13 @@ export interface User {
     | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
     | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
     | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"

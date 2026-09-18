@@ -15,6 +15,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
@@ -25,6 +26,7 @@ import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.sql.SQLException;
 import java.util.*;
@@ -1484,6 +1486,112 @@ class WorkflowServiceTest {
       assertEquals(PrimitiveType.Text, updated.getType());
       assertEquals("TopSecret", updated.getValue());
       verify(workflowRepository).save(workflow);
+    }
+
+    @Test
+    @DisplayName("should reject a new variable whose value does not match its declared type")
+    void given_newVariableWithMalformedValue_should_throwBadRequest() {
+      // Arrange - a variable carries a single exact value, so the type's format always applies
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "target", PrimitiveType.IPv4, "not-an-ip", null)));
+
+      // Act & Assert
+      assertThrows(
+          BadRequestException.class,
+          () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+      verify(workflowRepository, never()).save(any(Workflow.class));
+    }
+
+    @Test
+    @DisplayName("should accept a new variable whose value matches its declared type")
+    void given_newVariableWithWellFormedValue_should_createVariable() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "target", PrimitiveType.IPv4, "10.0.0.1", null)));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertEquals("10.0.0.1", result.getWorkflowScopeVariables().getFirst().getValue());
+    }
+
+    @Test
+    @DisplayName("should accept any value on a type that constrains no format")
+    void given_newVariableOnUnconstrainedType_should_createVariable() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "note", PrimitiveType.Text, "anything ###", null)));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertEquals("anything ###", result.getWorkflowScopeVariables().getFirst().getValue());
+    }
+
+    @Test
+    @DisplayName("should reject an update that makes an existing variable value malformed")
+    void given_updateWithMalformedValue_should_throwBadRequest() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("target");
+      existing.setType(PrimitiveType.IPv4);
+      existing.setValue("10.0.0.1");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(varId, "target", PrimitiveType.IPv4, "999.0.0.1", null)));
+
+      // Act & Assert
+      assertThrows(
+          BadRequestException.class,
+          () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+    }
+
+    @Test
+    @DisplayName("should validate the resolved value, not the masked echo sent back by the client")
+    void given_maskedEchoOnValidatedType_should_notRejectTheStoredValue() {
+      // Arrange - the stored value is masked in responses, and the client echoes the mask back
+      // while retyping the variable to a format-validated type. Validating the payload would
+      // reject "1******1"; validating the resolved value accepts the stored address.
+      Workflow workflow = buildTemplate(false);
+      String address = "10.0.0.1";
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("secret_host");
+      existing.setType(PrimitiveType.Password);
+      existing.setValue(address);
+      existing.setDescription("old desc");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      String maskedEcho = SensitiveValueMaskingUtils.maskIfNeeded(PrimitiveType.Password, address);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(
+              new ScopeVariableInput(
+                  varId, "secret_host", PrimitiveType.IPv4, maskedEcho, "new desc")));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
+      assertEquals(address, updated.getValue());
+      assertEquals(PrimitiveType.IPv4, updated.getType());
     }
 
     @Test
