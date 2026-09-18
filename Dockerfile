@@ -20,7 +20,17 @@ COPY openaev-api ./openaev-api
 COPY openaev-maven-plugin ./openaev-maven-plugin
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
-RUN mvn install -DskipTests -Pdev
+# Maven Central intermittently answers 500. Whatever already downloaded stays in the local
+# repository, so re-running the same command resumes rather than restarts.
+RUN for attempt in 1 2 3; do \
+      mvn install -DskipTests -Pdev \
+        -Dmaven.wagon.http.retryHandler.count=3 \
+        -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 && exit 0; \
+      echo "Maven build failed (attempt $attempt/3), retrying..."; \
+      sleep $((attempt * 15)); \
+    done; \
+    echo "Maven build failed after 3 attempts"; \
+    exit 1
 
 FROM eclipse-temurin:21.0.12_8-jre-noble AS app
 

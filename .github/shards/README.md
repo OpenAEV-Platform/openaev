@@ -29,47 +29,6 @@ two shards with the same number of Spring-context classes ran 4.6 min and
 Every shard pays JVM, Spring context, and Maven startup costs. Summed class
 durations are workload estimates, not predictions of full CI job duration.
 
-## PR runner comparisons
-
-PRs run each API shard on `ubuntu-24.04` (x64) and `ubuntu-24.04-arm` (ARM64).
-The job names and artifact suffixes identify the architecture. Push and Nightly
-jobs retain their existing runner configuration.
-
-Each PR API job publishes a phase timing table and an
-`api-telemetry-shard-<shard>-<architecture>` artifact, retained for seven days:
-
-- `machine.json`: CPU model, architecture, kernel, runner image and disk settings.
-- `phases.jsonl` and `timings.json`: timestamped phase boundaries and elapsed time.
-    Service-container timing includes image pulls and container launch. Java/cache
-    setup, artifact waiting, artifact downloads/verification, service readiness,
-    test selection, compilation and test execution are tracked separately.
-- `resources.jsonl`: host CPU, memory, swap, disk and pressure counters, Docker
-    resource usage, and PostgreSQL connection counts grouped by state/wait event.
-    Samples are taken every ten seconds; commands have four-second timeouts and
-    database sampling has a two-second statement timeout. SQL text is not collected.
-- `vmstat.log` and `iostat.log`: five-second samples when those tools are installed.
-    No packages are installed for diagnostics; raw `/proc` counters provide a
-    fallback. The first vmstat row is an average since boot, not a five-second sample.
-- `jvm-*.log`: bounded GC/safepoint logs for Maven and its child JVMs, enabled via
-    `JAVA_TOOL_OPTIONS` without replacing JaCoCo's `argLine`.
-- `process-time.txt`: GNU time wall/CPU time and maximum RSS for Maven and its
-    descendants, excluding the separately running service containers.
-- `maven.log`, `result.json`, and Surefire reports: timestamped output, Maven exit
-    code and individual test results. Missing tools/services are recorded in
-    `collector.log` or the corresponding resource sample.
-
-Collection starts inside the API action, after checkout, and stops after Maven
-or on earlier failure/cancellation. Diagnostic steps are best-effort and do not
-override Maven's exit code. A forcibly terminated runner may not upload artifacts.
-Test-execution time includes Spring context startup and fixtures; nested suite
-durations must not be blindly summed. Artifact waiting measures another job's
-progress, not this runner's performance. Compare repeated runs of the same commit
-by phase and shard, not only whole-job duration.
-
-Validate the helper without running API services:
-
-        python -m unittest discover -s .github/scripts -p test_api_test_telemetry.py
-
 ## Rebalancing
 
 The existing collection and repacking commands are:

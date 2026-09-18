@@ -16,6 +16,7 @@ import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -77,6 +78,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private EndpointRepository endpointRepository;
+  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private AgentRepository agentRepository;
   @Autowired private PlatformTransactionManager transactionManager;
   @MockitoSpyBean private ManagerFactory managerFactory;
@@ -106,6 +108,11 @@ class InjectsExecutionJobTest extends IntegrationTest {
    */
   private void inTransaction(Runnable work) {
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
+  }
+
+  /** Drops any committed status row for an inject; these outlive the entity association. */
+  private void deleteStatusOf(String injectId) {
+    injectStatusRepository.findByInjectId(injectId).ifPresent(injectStatusRepository::delete);
   }
 
   @DisplayName("Not start children injects at the same time as parent injects")
@@ -161,6 +168,13 @@ class InjectsExecutionJobTest extends IntegrationTest {
           injectRepository.saveAll(new ArrayList<>(List.of(injectParent, injectChildren)));
           entityManager.flush();
 
+          // Detaching the association does not necessarily drop the composer's PENDING row.
+          // Left behind, the job's own insert trips uniq_658a47a864e0dbd and rolls back its
+          // transaction, so the parent ends up with no status at all.
+          deleteStatusOf(injectParent.getId());
+          deleteStatusOf(injectChildren.getId());
+          entityManager.flush();
+
           ids[0] = exerciseSaved.getId();
           ids[1] = injectParent.getId();
           ids[2] = injectChildren.getId();
@@ -192,6 +206,8 @@ class InjectsExecutionJobTest extends IntegrationTest {
       // to run inside the class-level @Transactional): sweep them explicitly, no auto-rollback.
       inTransaction(
           () -> {
+            deleteStatusOf(ids[1]);
+            deleteStatusOf(ids[2]);
             exerciseRepository.deleteById(ids[0]);
             endpointRepository.deleteAll(endpointComposer.generatedItems);
           });

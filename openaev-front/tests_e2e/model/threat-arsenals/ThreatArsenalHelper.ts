@@ -39,6 +39,9 @@ class ThreatArsenalHelper {
     await threatArsenalList.openCreateThreatArsenal();
 
     const form = new ThreatArsenalFormComponent(this.page);
+    // The dialog heading renders before MUI has associated the label with the input,
+    // so the field is not yet reachable by accessible name.
+    await form.nameField.waitFor({ state: 'visible' });
     await form.nameField.fill(name);
     await form.selectDomain('Endpoint');
     await form.switchToCommandsTab();

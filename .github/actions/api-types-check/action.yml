@@ -46,8 +46,24 @@ runs:
         restore-keys: |
           ${{ runner.os }}-yarn-
 
+    # Yarn's hardened mode (forced on public PRs) re-resolves from the registry and has
+    # crashed mid-resolution, failing the whole pipeline; retry like frontend-build does.
     - name: Install frontend dependencies
-      run: yarn install --immutable
+      run: |
+        for attempt in 1 2; do
+          echo "::group::Attempt $attempt of 2"
+          if yarn install --immutable; then
+            echo "::endgroup::"
+            echo "✅ Install succeeded on attempt $attempt"
+            exit 0
+          fi
+          echo "::endgroup::"
+          if [ "$attempt" -lt 2 ]; then
+            echo "⚠️ Attempt $attempt failed, retrying…"
+          fi
+        done
+        echo "❌ Install failed after 2 attempts"
+        exit 1
       shell: bash
       working-directory: openaev-front
 
@@ -59,7 +75,7 @@ runs:
         wait-seconds: "900"
 
     - name: Download backend JAR artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: openaev-api-jar
         path: openaev-api/target

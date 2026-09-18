@@ -24,18 +24,18 @@ runs:
         distribution: temurin
         cache: maven
     - name: Download frontend build artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: frontend-build
         path: openaev-front/builder/prod/build
     - name: Download compiled Maven artifacts
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
     - name: Download release assets (agents, implants, catalog)
       if: ${{ inputs.download-release-assets == 'true' }}
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: release-assets
         path: openaev-api/src/main/resources

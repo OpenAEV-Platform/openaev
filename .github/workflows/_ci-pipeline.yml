@@ -102,17 +102,16 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
 
   api-tests:
-    name: "🧪 API Tests (${{ matrix.suite.shard_name }}${{ matrix.runner.suffix }})"
-    runs-on: ${{ matrix.runner.label }}
+    name: "🧪 API Tests (${{ matrix.shard_name }})"
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     # A matrix entry may set continue_on_error: the multi-tenancy shadow runs are instruments, not
     # gates, and a red one must not fail the workflow while the migration is in progress.
-    continue-on-error: ${{ matrix.suite.continue_on_error || false }}
+    continue-on-error: ${{ matrix.continue_on_error || false }}
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(inputs.api-matrix) }}
-        runner: ${{ fromJSON(github.event_name == 'pull_request' && '[{"label":"ubuntu-24.04","suffix":"-x64"},{"label":"ubuntu-24.04-arm","suffix":"-arm64"}]' || '[{"label":"ubuntu-latest","suffix":""}]') }}
+        include: ${{ fromJSON(inputs.api-matrix) }}
     env:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
@@ -120,20 +119,20 @@ jobs:
       MINIO_ENDPOINT: localhost
       MINIO_PORT: 11000
       ENGINE_URL: http://localhost:9200
-      ENGINE_ENGINESELECTOR: ${{ matrix.suite.engine_selector }}
+      ENGINE_ENGINESELECTOR: ${{ matrix.engine_selector }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/api-tests
         with:
-          includes: ${{ matrix.suite.includes }}
-          excludes: ${{ matrix.suite.excludes }}
-          shard: ${{ matrix.suite.shard }}
-          shard-name: ${{ matrix.suite.shard_name }}${{ matrix.runner.suffix }}
-          search-engine: ${{ matrix.suite.search_engine }}
-          artifact-suffix: ${{ matrix.suite.artifact_suffix }}${{ matrix.runner.suffix }}
-          tenant-mode: ${{ matrix.suite.tenant_mode }}
+          includes: ${{ matrix.includes }}
+          excludes: ${{ matrix.excludes }}
+          shard: ${{ matrix.shard }}
+          shard-name: ${{ matrix.shard_name }}
+          search-engine: ${{ matrix.search_engine }}
+          artifact-suffix: ${{ matrix.artifact_suffix }}
+          tenant-mode: ${{ matrix.tenant_mode }}
 
   # ════════════════════════════════════════════════════════════════════
   # E2E Tests — matrix passed from caller
@@ -258,19 +257,23 @@ jobs:
           echo "📦 Merging JaCoCo exec files from all shards..."
           EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
           if [ -z "$EXEC_FILES" ]; then
-            echo "⚠️ No JaCoCo exec files found"
-            exit 1
+            # Expected when a shard failed before uploading: report no coverage rather than
+            # turning one red shard into a second red job.
+            echo "⚠️ No JaCoCo exec files found — skipping coverage report"
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           SHARD_COUNT=$(echo "$EXEC_FILES" | wc -l)
           cat jacoco-exec/jacoco-exec-shard-*/jacoco.exec > openaev-api/target/jacoco.exec
+          echo "merged=true" >> "$GITHUB_OUTPUT"
           echo "✅ Merged $SHARD_COUNT shard(s)"
 
       - name: Coverage report & threshold check
-        if: steps.jacoco-merge.outcome == 'success'
+        if: steps.jacoco-merge.outputs.merged == 'true'
         run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage threshold check ⚠️"
 
       - name: Upload API coverage
-        if: ${{ !cancelled() && steps.jacoco-merge.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.jacoco-merge.outputs.merged == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-api

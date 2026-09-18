@@ -56,23 +56,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Start API telemetry
-      if: ${{ github.event_name == 'pull_request' }}
-      continue-on-error: true
-      shell: bash
-      run: python3 .github/scripts/api-test-telemetry.py start
-
     - name: Start service containers
       uses: ./.github/actions/start-dev-services
       with:
         search-engine: ${{ inputs.search-engine }}
         search-engine-image: ${{ inputs.search-engine-image }}
-
-    - name: Mark Java and cache setup
-      if: ${{ github.event_name == 'pull_request' }}
-      continue-on-error: true
-      shell: bash
-      run: python3 .github/scripts/api-test-telemetry.py mark java-and-cache-setup
 
     - name: Set up Java 21
       uses: actions/setup-java@v6
@@ -88,12 +76,6 @@ runs:
         restore-keys: |
           maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-
 
-    - name: Mark artifact waiting
-      if: ${{ github.event_name == 'pull_request' }}
-      continue-on-error: true
-      shell: bash
-      run: python3 .github/scripts/api-test-telemetry.py mark artifact-wait
-
     - name: Wait for compiled artifacts
       uses: ./.github/actions/wait-for-artifacts
       with:
@@ -103,12 +85,6 @@ runs:
         producer-job-names: Backend Compile
         wait-seconds: "600"
 
-    - name: Mark artifact downloads
-      if: ${{ github.event_name == 'pull_request' }}
-      continue-on-error: true
-      shell: bash
-      run: python3 .github/scripts/api-test-telemetry.py mark artifact-downloads
-
     - name: Clear cached OpenAEV artifacts
       shell: bash
       run: |
@@ -117,22 +93,16 @@ runs:
         rm -rf ~/.m2/repository/io/openaev/
 
     - name: Download backend-compiled artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
 
     - name: Download api-build-output artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: api-build-output
         path: openaev-api/target
-
-    - name: Mark artifact verification
-      if: ${{ github.event_name == 'pull_request' }}
-      continue-on-error: true
-      shell: bash
-      run: python3 .github/scripts/api-test-telemetry.py mark artifact-verification
 
     - name: Verify downloaded artifacts
       shell: bash
@@ -185,12 +155,6 @@ runs:
         fi
         echo "✅ Test classes found ($TEST_CLASS_COUNT *Test.class files)"
 
-    - name: Mark service readiness
-      if: ${{ github.event_name == 'pull_request' }}
-      continue-on-error: true
-      shell: bash
-      run: python3 .github/scripts/api-test-telemetry.py mark service-readiness
-
     - name: Wait for services
       shell: bash
       run: |
@@ -223,12 +187,6 @@ runs:
         curl -sf http://localhost:11000/minio/health/live || { echo "❌ Silo failed to start"; exit 1; }
 
         echo "✅ All services ready"
-
-    - name: Mark test selection
-      if: ${{ github.event_name == 'pull_request' }}
-      continue-on-error: true
-      shell: bash
-      run: python3 .github/scripts/api-test-telemetry.py mark test-selection
 
     - name: Prepare test suite
       id: suite
@@ -323,26 +281,14 @@ runs:
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
       shell: bash
-      env:
-        COLLECT_TELEMETRY: ${{ github.event_name == 'pull_request' }}
       # Initialize JaCoCo, then run the existing test/report executions directly.
       # The test lifecycle would recompile the downloaded classes and test classes;
       # maven.compiler.skip is not a supported compiler-plugin property.
       run: |
-        COMMAND_PREFIX=()
-        if [ "$COLLECT_TELEMETRY" = "true" ]; then
-          COMMAND_PREFIX=(python3 .github/scripts/api-test-telemetry.py run)
-        fi
-        "${COMMAND_PREFIX[@]}" mvn -B -ntp -pl openaev-api \
+        mvn -B -ntp -pl openaev-api \
           initialize surefire:test@default-test jacoco:report@report \
           ${{ steps.suite.outputs.surefire_arg }} \
           ${{ steps.tenant.outputs.args }}
-
-    - name: Stop API telemetry and summarise timings
-      if: ${{ always() && github.event_name == 'pull_request' }}
-      continue-on-error: true
-      shell: bash
-      run: python3 .github/scripts/api-test-telemetry.py stop
 
     - name: Diagnose surefire dump files (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
@@ -473,15 +419,3 @@ runs:
         name: jacoco-exec-shard-${{ inputs.shard }}${{ inputs.artifact-suffix }}
         path: openaev-api/target/jacoco.exec
         if-no-files-found: error
-
-    - name: Upload API telemetry and Surefire reports
-      if: ${{ always() && github.event_name == 'pull_request' }}
-      continue-on-error: true
-      uses: actions/upload-artifact@v7
-      with:
-        name: api-telemetry-shard-${{ inputs.shard }}${{ inputs.artifact-suffix }}
-        path: |
-          ${{ runner.temp }}/api-test-telemetry
-          openaev-api/target/surefire-reports
-        retention-days: 7
-        if-no-files-found: warn
