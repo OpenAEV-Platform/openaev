@@ -15,7 +15,7 @@ import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 're
 import AutocompleteField from '../../../../../components/fields/AutocompleteField';
 import { useFormatter } from '../../../../../components/i18n';
 import { formatPrimitiveTypeLabel } from '../../../../../utils/String';
-import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
+import usePrimitiveTypeDescriptors from '../usePrimitiveTypeDescriptors';
 
 export interface FieldLink {
   outputTypes: string[];
@@ -49,7 +49,7 @@ const FieldOutputLink: FunctionComponent<Props> = ({
   onToggleLocalScope,
 }) => {
   const { t } = useFormatter();
-  const { argumentTypes } = useArgumentTypes();
+  const { primitiveTypes } = usePrimitiveTypeDescriptors();
 
   // Stable anchor that persists across the "Link an Output" <-> "Edit links" transition.
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,8 +58,8 @@ const FieldOutputLink: FunctionComponent<Props> = ({
   const [selectorReady, setSelectorReady] = useState(false);
 
   const menuItems = useMemo(
-    () => (argumentTypes.length > 0 ? argumentTypes : ['text']),
-    [argumentTypes],
+    () => (primitiveTypes.length > 0 ? primitiveTypes : ['text']),
+    [primitiveTypes],
   );
 
   const normalizedLinkOutputTypes = useMemo(() => link?.outputTypes ?? [], [link]);

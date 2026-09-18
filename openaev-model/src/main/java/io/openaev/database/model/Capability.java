@@ -168,20 +168,6 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.INJECT_SECRET, Action.RESOLVE)),
 
-  // Marking definitions
-  ACCESS_MARKING_DEFINITION(
-      null,
-      CapabilityGroup.MARKING,
-      EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.MARKING_DEFINITION, Action.READ),
-      pair(ResourceType.MARKING_DEFINITION, Action.SEARCH)),
-  MANAGE_MARKING_DEFINITION(
-      ACCESS_MARKING_DEFINITION,
-      pair(ResourceType.MARKING_DEFINITION, Action.WRITE),
-      pair(ResourceType.MARKING_DEFINITION, Action.CREATE)),
-  DELETE_MARKING_DEFINITION(
-      MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
-
   // Dashboards
   ACCESS_DASHBOARDS(
       null,
@@ -448,6 +434,27 @@ public enum Capability {
       pair(ResourceType.GROUP_ROLE, Action.DELETE),
       pair(ResourceType.USER, Action.DELETE)),
 
+  // Sessions
+  MANAGE_SESSIONS(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.SESSION, Action.READ),
+      pair(ResourceType.SESSION, Action.WRITE)),
+
+  // Marking definitions
+  ACCESS_MARKING_DEFINITION(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.MARKING_DEFINITION, Action.READ),
+      pair(ResourceType.MARKING_DEFINITION, Action.SEARCH)),
+  MANAGE_MARKING_DEFINITION(
+      ACCESS_MARKING_DEFINITION,
+      pair(ResourceType.MARKING_DEFINITION, Action.WRITE),
+      pair(ResourceType.MARKING_DEFINITION, Action.CREATE)),
+  DELETE_MARKING_DEFINITION(
+      MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
       null,
@@ -472,14 +479,6 @@ public enum Capability {
       pair(ResourceType.PLATFORM_GROUP, Action.DELETE),
       pair(ResourceType.PLATFORM_ROLE, Action.DELETE),
       pair(ResourceType.PLATFORM_USER, Action.DELETE)),
-
-  // Sessions
-  MANAGE_SESSIONS(
-      null,
-      CapabilityGroup.SECURITY,
-      EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.SESSION, Action.READ),
-      pair(ResourceType.SESSION, Action.WRITE)),
 
   MANAGE_PLATFORM_SESSIONS(
       null,

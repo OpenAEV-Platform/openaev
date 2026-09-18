@@ -5,6 +5,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCatalogConnectorManagedByXtmComposer;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnectorInstanceConfiguration;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -141,7 +143,14 @@ public class SimulationInjectApiTest extends IntegrationTest {
     // Assert — response contains an inject status
     assertThat(response).isNotEmpty();
 
+    TestTransaction.flagForCommit();
+    TestTransaction.end();
+
     // Assert — rabbitmqService.publish was called with the injector ID as routing key
-    verify(rabbitmqService).publish(eq(externalInjector.getId()), any(String.class));
+    await()
+        .untilAsserted(
+            () -> verify(rabbitmqService).publish(eq(externalInjector.getId()), any(String.class)));
+
+    TestTransaction.start();
   }
 }

@@ -205,10 +205,8 @@ class StepEventServiceTest {
       when(e2.getStepId()).thenReturn(stepRunId2);
 
       // Both steps not found — early return per event, no crash
-      when(stepService.findByIdAndStatus(stepRunId1, StepStatus.RUN))
-          .thenThrow(new ElementNotFoundException("not found"));
-      when(stepService.findByIdAndStatus(stepRunId2, StepStatus.RUN))
-          .thenThrow(new ElementNotFoundException("not found"));
+      when(stepService.findById(stepRunId1)).thenThrow(new ElementNotFoundException("not found"));
+      when(stepService.findById(stepRunId2)).thenThrow(new ElementNotFoundException("not found"));
 
       // Act
       List<ExternalUpdateEvent> result = stepEventService.handleExternalUpdateEvent(events);
@@ -350,7 +348,8 @@ class StepEventServiceTest {
 
       Step stepRun = mock(Step.class);
       when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
-      when(stepService.findByIdAndStatus(event.getStepId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.findById(event.getStepId())).thenReturn(stepRun);
+      when(stepRun.getStatus()).thenReturn(StepStatus.RUN);
       when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
           .thenReturn(actionStep);
 
@@ -380,7 +379,8 @@ class StepEventServiceTest {
 
       Step stepRun = mock(Step.class);
       when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
-      when(stepService.findByIdAndStatus(event.getStepId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.findById(event.getStepId())).thenReturn(stepRun);
+      when(stepRun.getStatus()).thenReturn(StepStatus.RUN);
       when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
           .thenReturn(actionStep);
 
@@ -408,7 +408,8 @@ class StepEventServiceTest {
 
       Step stepRun = mock(Step.class);
       when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
-      when(stepService.findByIdAndStatus(event.getStepId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.findById(event.getStepId())).thenReturn(stepRun);
+      when(stepRun.getStatus()).thenReturn(StepStatus.RUN);
       when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
           .thenReturn(actionStep);
 
@@ -497,8 +498,7 @@ class StepEventServiceTest {
       // Short-circuit the body: this test only asserts the tenant scope is opened, not the update
       // logic (the setUp stub runs the primitive's Runnable, which would otherwise NPE on a null
       // step).
-      when(stepService.findByIdAndStatus(any(), any()))
-          .thenThrow(new ElementNotFoundException("short-circuit"));
+      when(stepService.findById(any())).thenThrow(new ElementNotFoundException("short-circuit"));
 
       stepEventService.handleExternalUpdateEvent(event);
 
@@ -521,7 +521,8 @@ class StepEventServiceTest {
       Step stepRun = mock(Step.class);
       when(stepRun.getStepAction()).thenReturn(null);
 
-      when(stepService.findByIdAndStatus(stepRunId, StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.findById(stepRunId)).thenReturn(stepRun);
+      when(stepRun.getStatus()).thenReturn(StepStatus.RUN);
 
       when(stepService.factoryAction(null, null))
           .thenThrow(new ChainingException("Action step is null"));
@@ -541,8 +542,7 @@ class StepEventServiceTest {
       String stepRunId = UUID.randomUUID().toString();
       when(event.getStepId()).thenReturn(stepRunId);
 
-      when(stepService.findByIdAndStatus(stepRunId, StepStatus.RUN))
-          .thenThrow(new ElementNotFoundException("not found"));
+      when(stepService.findById(stepRunId)).thenThrow(new ElementNotFoundException("not found"));
 
       // -------- Act --------
       stepEventService.handleExternalUpdateEvent(event);
@@ -561,7 +561,8 @@ class StepEventServiceTest {
       Step stepRun = mock(Step.class);
       when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
 
-      when(stepService.findByIdAndStatus(stepRunId, StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.findById(stepRunId)).thenReturn(stepRun);
+      when(stepRun.getStatus()).thenReturn(StepStatus.RUN);
 
       ActionStep actionStep = mock(ActionStep.class);
       when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
@@ -587,7 +588,8 @@ class StepEventServiceTest {
       when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
       when(stepRun.getId()).thenReturn(stepRunId);
 
-      when(stepService.findByIdAndStatus(stepRunId, StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.findById(stepRunId)).thenReturn(stepRun);
+      when(stepRun.getStatus()).thenReturn(StepStatus.RUN);
 
       ActionStep localActionStep = mock(ActionStep.class);
       when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepRunId))

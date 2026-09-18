@@ -1835,6 +1835,108 @@ export type AverageConfiguration = UtilRequiredKeys<
   series: Series[];
 };
 
+export type AwsAccessKey = Value & {
+  aws_access_key_id?: string;
+  aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  aws_secret_access_key?: string;
+  aws_session_token?: string;
+};
+
+export type AwsAssumeRole = Value & {
+  aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  aws_external_id?: string;
+  aws_role_arn?: string;
+  aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
+  aws_source_profile_access_key_id?: string;
+  aws_source_profile_secret_access_key?: string;
+};
+
+export type AzureManagedIdentity = Value & {
+  azure_client_id?: string;
+  azure_environment?: string;
+  azure_subscription_id?: string;
+};
+
+export type AzureServicePrincipal = Value & {
+  azure_client_id?: string;
+  azure_client_secret?: string;
+  azure_environment?: string;
+  azure_subscription_id?: string;
+  azure_tenant_id?: string;
+};
+
 interface BaseEsBase {
   /** @format date-time */
   base_created_at?: string;
@@ -2318,11 +2420,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_id?: string;
   catalog_connector_logo_url?: string;
   catalog_connector_short_description?: string;
-}
-
-export interface ChainingOutput {
-  conditions?: EventOutput[];
-  steps?: StepOutput[];
 }
 
 export interface Challenge {
@@ -5982,6 +6079,21 @@ export interface FullTextSearchResult {
   tags?: Tag[];
 }
 
+export type GcpOAuth2 = Value & {
+  gcp_oauth_client_id?: string;
+  gcp_oauth_client_secret?: string;
+  gcp_oauth_refresh_token?: string;
+  gcp_project_id?: string;
+  gcp_scope?: string;
+};
+
+export type GcpServiceAccount = Value & {
+  /** @format byte */
+  gcp_private_key_json?: Blob;
+  gcp_project_id?: string;
+  gcp_scope?: string;
+};
+
 export interface GetExercisesInput {
   exercise_ids?: string[];
 }
@@ -6047,6 +6159,11 @@ export interface GroupUpdateUsersInput {
   group_users?: string[];
 }
 
+export type Hash = Value & {
+  hash?: string;
+  hash_algorithm?: "SHA" | "NTLM";
+};
+
 export interface HealthCheck {
   /**
    * Date when the failure have been found
@@ -6084,6 +6201,33 @@ export interface HealthCheck {
     | "MESSAGE"
     | "SCOPE_DEFINITION"
     | "UNKNOWN";
+}
+
+/** Detailed health check response. */
+export interface HealthCheckDetailsOutput {
+  /**
+   * Size used by the object storage bucket, in bytes
+   * @format int64
+   * @example 20971520
+   */
+  s3_used_size?: number;
+  /**
+   * Size used by the analytics engine indexes (replicas excluded), in bytes
+   * @format int64
+   * @example 524288000
+   */
+  es_used_size?: number;
+  /**
+   * Size used by the PostgreSQL database, in bytes
+   * @format int64
+   * @example 104857600
+   */
+  pg_used_size?: number;
+  /**
+   * Status of the platform
+   * @example "success"
+   */
+  status?: string;
 }
 
 export interface ImportMapper {
@@ -6235,6 +6379,13 @@ export interface InjectAssistantInput {
    * @format int32
    */
   inject_by_ttp_number: number;
+}
+
+export interface InjectAttachmentInput {
+  /** @minLength 1 */
+  attachment_id: string;
+  /** @minLength 1 */
+  authorisation: string;
 }
 
 export interface InjectAuthorisation {
@@ -7752,8 +7903,11 @@ export interface MapperConditionOutput {
 }
 
 export interface MarkingDefinitionInput {
-  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
-  marking_definition_color?: string;
+  /**
+   * @minLength 1
+   * @pattern ^#[0-9a-fA-F]{6}$
+   */
+  marking_definition_color: string;
   /** @minLength 1 */
   marking_definition_definition: string;
   /**
@@ -7766,7 +7920,8 @@ export interface MarkingDefinitionInput {
 }
 
 export interface MarkingDefinitionOutput {
-  marking_definition_color?: string;
+  /** @minLength 1 */
+  marking_definition_color: string;
   /** @format date-time */
   marking_definition_created_at: string;
   /** @minLength 1 */
@@ -9953,6 +10108,93 @@ export interface PolicyInput {
   platform_login_message?: string;
 }
 
+/** Operator capabilities of a primitive chaining type. */
+export interface PrimitiveTypeCapabilitiesOutput {
+  /** Comparing values depends on case: the case-sensitivity toggle is meaningful and must be offered. */
+  is_case_sensitivity?: boolean;
+  /** Values are numbers: the greater-than / less-than operators are meaningful and must be offered, and a value must be numeric whatever the operator. */
+  is_numeric_value?: boolean;
+}
+
+/** Operator capabilities and value format rules of a primitive chaining type, so the UI can offer the right operators and validate values without duplicating backend rules. */
+export interface PrimitiveTypeDescriptorOutput {
+  /** The primitive type this descriptor applies to. */
+  primitive_type?:
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "email"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
+  /** What the user can do with values of this type. */
+  primitive_type_capabilities?: PrimitiveTypeCapabilitiesOutput;
+  /** How a value of this type is validated. */
+  primitive_type_validation?: PrimitiveTypeValidationOutput;
+}
+
+/** A single value format rule. */
+export interface PrimitiveTypeFormatRuleOutput {
+  /** Stable key for the error message, to be translated by the frontend. Never a pre-translated sentence. */
+  error_message_key?: string;
+  /** Identifier of the rule. When no pattern is exposed, the frontend must provide its own implementation for this identifier, pinned by the shared test vectors. */
+  kind?: string;
+  /** Pattern to apply, written in the Java / ECMAScript intersection so it can be passed straight to RegExp. Absent for rules backed by a parser that no portable regex can express (IP addresses, subnets, email). */
+  pattern?: string;
+}
+
+/** Value format validation of a primitive chaining type. */
+export interface PrimitiveTypeValidationOutput {
+  /** Operators the rules apply to. Deliberately excludes IS_NULL / IS_NOT_NULL, which carry no value, and IN / NIN, which are evaluated as substring matches so a partial value is legitimate. */
+  applies_to?: (
+    | "AND"
+    | "OR"
+    | "EQ"
+    | "NEQ"
+    | "IS_NULL"
+    | "IS_NOT_NULL"
+    | "GT"
+    | "GTE"
+    | "LT"
+    | "LTE"
+    | "IN"
+    | "NIN"
+    | "MAPPER"
+    | "DEPEND_ON"
+  )[];
+  /** Alternative rules, combined with OR semantics. Empty when the type constrains no format, in which case any value is accepted. */
+  rules?: PrimitiveTypeFormatRuleOutput[];
+}
+
 export interface PropertySchemaDTO {
   schema_property_entity: string;
   schema_property_has_dynamic_value?: boolean;
@@ -10469,9 +10711,6 @@ export interface RoleInput {
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
     | "RESOLVE_INJECT_SECRET"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10513,10 +10752,13 @@ export interface RoleInput {
     | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
     | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
     | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
@@ -10550,9 +10792,6 @@ export interface RoleOutput {
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
     | "RESOLVE_INJECT_SECRET"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10594,10 +10833,13 @@ export interface RoleOutput {
     | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
     | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
     | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
@@ -11113,6 +11355,27 @@ export interface SearchPaginationInput {
 
 export interface SearchTerm {
   searchTerm?: string;
+}
+
+export interface SecretResolvedValue {
+  type?:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
+  value?:
+    | AwsAccessKey
+    | AwsAssumeRole
+    | AzureManagedIdentity
+    | AzureServicePrincipal
+    | GcpOAuth2
+    | GcpServiceAccount
+    | Hash
+    | UsernamePassword;
 }
 
 export interface SecretsProvider {
@@ -12687,9 +12950,6 @@ export interface User {
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
     | "RESOLVE_INJECT_SECRET"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -12731,10 +12991,13 @@ export interface User {
     | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
     | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
     | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
@@ -12854,6 +13117,11 @@ export interface UserTenantOutput {
   tenant_name?: string;
 }
 
+export type UsernamePassword = Value & {
+  password?: string;
+  username?: string;
+};
+
 export interface ValidationContent {
   /** A list of errors */
   errors?: string[];
@@ -12875,6 +13143,8 @@ export interface ValidationErrorBag {
   /** Return message */
   message?: string;
 }
+
+export type Value = any;
 
 export interface Variable {
   listened?: boolean;
