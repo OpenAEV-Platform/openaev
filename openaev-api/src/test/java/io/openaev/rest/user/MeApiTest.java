@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -39,14 +38,11 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -272,9 +268,6 @@ public class MeApiTest extends IntegrationTest {
     }
 
     @Test
-    // Disable transactionality;
-    // the following tests go through async code that can't share transaction scopes
-    @Transactional(propagation = Propagation.NEVER)
     @DisplayName("Given confirmation, then effect change")
     void given_confirmedUpdate_then_acceptUpdate() throws Exception {
       String currentPassword = "current_user_password";
@@ -299,19 +292,6 @@ public class MeApiTest extends IntegrationTest {
                   .content(objectMapper.writeValueAsString(input)))
           .andExpect(status().isOk());
 
-      // not ideal, but the actual reset happens in a background thread!
-      Awaitility.await()
-          .atMost(15, TimeUnit.SECONDS)
-          .until(
-              () -> {
-                try {
-                  verify(mockMailingService, times(1)).sendEmail(anyString(), anyString(), any());
-                  return true;
-                } catch (Exception e) {
-                  return false;
-                }
-              });
-
       mvc.perform(
               get(ME_URI + "/confirm-email-change/" + superSecretConfirmationCode)
                   .with(csrf())
@@ -327,9 +307,6 @@ public class MeApiTest extends IntegrationTest {
     }
 
     @Test
-    // Disable transactionality;
-    // the following tests go through async code that can't share transaction scopes
-    @Transactional(propagation = Propagation.NEVER)
     @DisplayName("Given wrong confirmation, then reject change")
     void given_wrongConfirmation_then_rejectUpdate() throws Exception {
       String currentPassword = "current_user_password";
@@ -356,19 +333,6 @@ public class MeApiTest extends IntegrationTest {
                   .with(csrf())
                   .content(objectMapper.writeValueAsString(input)))
           .andExpect(status().isOk());
-
-      // not ideal, but the actual reset happens in a background thread!
-      Awaitility.await()
-          .atMost(15, TimeUnit.SECONDS)
-          .until(
-              () -> {
-                try {
-                  verify(mockMailingService, times(1)).sendEmail(anyString(), anyString(), any());
-                  return true;
-                } catch (Exception e) {
-                  return false;
-                }
-              });
 
       mvc.perform(
               get(ME_URI + "/confirm-email-change/" + badConfirmationCode)

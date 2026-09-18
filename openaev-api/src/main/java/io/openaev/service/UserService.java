@@ -24,7 +24,6 @@ import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
-import io.openaev.service.user_events.UserEmailChangeRequestedEvent;
 import io.openaev.service.user_events.UserPasswordSetupRequestedEvent;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
@@ -391,19 +390,13 @@ public class UserService {
   }
 
   public void requestEmailChange(User user, String newEmail) {
-    eventPublisher.publishEvent(
-        new UserEmailChangeRequestedEvent(user, randomUtils.getRandomAlphanumeric(64), newEmail));
-  }
-
-  @Async
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-  public void onUserEmailChangeRequested(UserEmailChangeRequestedEvent event) {
+    String confirmationCode = randomUtils.getRandomAlphanumeric(64);
     synchronized (emailChangeConfirmationTokenMap) {
       emailChangeConfirmationTokenMap.put(
-          event.user().getId(), new EmailChangeRequest(event.confirmationCode(), event.newEmail()));
+          user.getId(), new EmailChangeRequest(confirmationCode, newEmail));
     }
 
-    String subject = "OpenAEV email change to " + event.newEmail() + " requested";
+    String subject = "OpenAEV email change to " + newEmail + " requested";
     String body =
         """
             Hi %s,<br/>
@@ -418,14 +411,12 @@ public class UserService {
             The link is valid for %s minutes.
             """
             .formatted(
-                event.user().getName(),
-                openAEVConfig.getBaseUrl()
-                    + "/api/me/confirm-email-change/"
-                    + event.confirmationCode(),
+                user.getName(),
+                openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode,
                 String.valueOf(Math.ceilDivExact(tenMinutes, 60000)));
-    tenantTx.execute(
+    tenantTx.executeNew(
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-        () -> mailingService.sendEmail(subject, body, List.of(event.user())));
+        () -> mailingService.sendEmail(subject, body, List.of(user)));
   }
 
   public User confirmEmailChange(String confirmationCode) {
