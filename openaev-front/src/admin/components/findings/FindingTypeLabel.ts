@@ -1,4 +1,9 @@
-import ContractOutputElementType from './ContractOutputElementType';
+import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from './ContractOutputElementType';
+
+export const getFindingTypeKey = (findingType: string): string => (
+  CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS.find(key => ContractOutputElementType[key] === findingType)
+  ?? findingType
+);
 
 // OCSF findings are security misconfigurations produced by scanners like Prowler: instead of
 // surfacing the internal contract type name ("OCSF"), show the provider-independent user-facing
@@ -8,10 +13,14 @@ const getFindingTypeLabel = (
   findingType: string,
   _cloudProvider?: string | null,
 ): string => {
-  if (findingType === 'ocsf') {
+  const findingTypeKey = getFindingTypeKey(findingType);
+  if (findingTypeKey === 'ocsf') {
     return t('Misconfig');
   }
-  return t(ContractOutputElementType[findingType as keyof typeof ContractOutputElementType] ?? findingType);
+  return t(
+    ContractOutputElementType[findingTypeKey as keyof typeof ContractOutputElementType]
+    ?? findingType,
+  );
 };
 
 export default getFindingTypeLabel;

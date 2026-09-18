@@ -6,9 +6,10 @@ import { type FilterHelpers } from '../../../components/common/queryable/filter/
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
+import prowlerIcon from '../../../static/images/prowler.png';
 import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
-import getFindingTypeLabel from './FindingTypeLabel';
+import getFindingTypeLabel, { getFindingTypeKey } from './FindingTypeLabel';
 import { type FindingFacetCounts } from './useFindingFacetCounts';
 
 const SEVERITY_FILTER_KEY = 'finding_severity';
@@ -104,7 +105,7 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: P
         value: type,
         label: getFindingTypeLabel(t, type),
         count: facetCounts?.types[type],
-        icon: () => <FindingIcon findingType={type} />,
+        icon: () => <FindingIcon findingType={getFindingTypeKey(type)} />,
         checked: typeValues.includes(type),
         onToggle: () => toggle(TYPE_FILTER_KEY, type),
       }));
@@ -120,7 +121,10 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: P
       value: source.source_id,
       label: source.source_name,
       count: source.source_count,
-      icon: () => <InjectIcon type={source.source_type} />,
+      icon: () => source.source_name.toLowerCase().includes('prowler')
+        || source.source_type.toLowerCase().includes('prowler')
+        ? <img src={prowlerIcon} alt="" />
+        : <InjectIcon type={source.source_type} />,
       checked: sourceValues.includes(source.source_id),
       onToggle: () => toggle(SOURCE_FILTER_KEY, source.source_id),
     }));
