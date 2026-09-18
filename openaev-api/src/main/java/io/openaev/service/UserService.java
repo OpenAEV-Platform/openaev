@@ -19,6 +19,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.GroupSpecification;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
@@ -391,6 +392,14 @@ public class UserService {
 
   public void requestEmailChange(User user, String newEmail) {
     String confirmationCode = randomUtils.getRandomAlphanumeric(64);
+    ReservedKeyValidator.validateUserEmailPattern(newEmail);
+
+    Optional<User> duplicate = userRepository.findByEmailIgnoreCase(newEmail);
+    if (duplicate.isPresent()) {
+      // use bad request and not Conflict to prevent account enumeration
+      throw new BadRequestException("Requested new email already belongs to an existing account.");
+    }
+
     synchronized (emailChangeConfirmationTokenMap) {
       emailChangeConfirmationTokenMap.put(
           user.getId(), new EmailChangeRequest(confirmationCode, newEmail));

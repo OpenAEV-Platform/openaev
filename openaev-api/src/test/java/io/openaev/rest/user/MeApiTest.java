@@ -30,6 +30,7 @@ import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
@@ -256,6 +257,78 @@ public class MeApiTest extends IntegrationTest {
                   .with(csrf())
                   .content(objectMapper.writeValueAsString(input)))
           .andExpect(status().isOk());
+      entityManager.flush();
+      entityManager.clear();
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(user -> assertThat(user.getEmail()).isEqualTo(expectedEmail));
+    }
+
+    @Test
+    @DisplayName("Given bad format email in update, then reject request")
+    void given_badEmailFormat_then_rejectRequest() throws Exception {
+      String currentPassword = "current_user_password";
+      String newEmail = "not an email";
+
+      User me = testUserHolder.get();
+      String expectedEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userComposer.forUser(me).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(newEmail);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isBadRequest());
+      entityManager.flush();
+      entityManager.clear();
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(user -> assertThat(user.getEmail()).isEqualTo(expectedEmail));
+    }
+
+    @Test
+    @DisplayName("Given already used email in update, then reject request")
+    void given_alreadyUsedEmail_then_rejectRequest() throws Exception {
+      String currentPassword = "current_user_password";
+
+      UserComposer.Composer userWrapper =
+          userComposer.forUser(UserFixture.getUser("Han", "Solo", "han@solo.invalid")).persist();
+
+      String newEmail = userWrapper.get().getEmail();
+
+      User me = testUserHolder.get();
+      String expectedEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userComposer.forUser(me).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(newEmail);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isBadRequest());
       entityManager.flush();
       entityManager.clear();
 
