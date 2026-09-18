@@ -325,7 +325,6 @@
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/InjectExpectationSourceFragment.tsx",
         "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/ListColumnConfig.tsx",
         "openaev-front/src/components/AttackPatternChip.tsx",
-        "openaev-front/src/components/Breadcrumbs.tsx",
         "openaev-front/src/components/ContextLink.tsx",
         "openaev-front/src/components/CustomTooltip.jsx",
         "openaev-front/src/components/CvssBadge.tsx",
@@ -860,6 +859,17 @@
         "openaev-front/src/public/components/trialbanners/LicenseBanner.tsx",
         "openaev-front/src/public/components/trialbanners/TopBanner.tsx",
         "openaev-front/src/utils/ai/ResponseDialog.tsx"
+      ]
+    },
+    {
+      "component": "Breadcrumbs",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The single product breadcrumb wrapper renders the library component: the call sites keep their `elements` / `variant` shape and the component owns the nav > ol > li markup, the separators, the truncation with its title attribute and `aria-current=\"page\"`. The router Link goes in through `linkComponent`, so an ancestor entry stays a real link. The pre-truncation at 26 characters and the per-entry tooltip that replaced it are gone: the library truncates by CSS and keeps the full label readable.",
+      "files": [
+        "openaev-front/src/components/Breadcrumbs.tsx"
       ]
     }
   ],
