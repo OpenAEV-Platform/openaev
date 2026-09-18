@@ -100,7 +100,7 @@ public class OrganizationApi extends RestBehavior {
   public Organization createOrganization(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody OrganizationCreateInput input) {
     String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
-    return organizationService.createOrganization(ctx, input, tenantId);
+    return organizationService.createOrganization(input, tenantId);
   }
 
   @PutMapping({
