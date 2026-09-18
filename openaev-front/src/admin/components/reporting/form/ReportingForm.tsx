@@ -532,8 +532,13 @@ const ReportingForm: FunctionComponent<Props> = ({
                     key={format}
                     value={format}
                     label={(
+                      // `flex`, not `inline-flex`: an inline box inside the
+                      // library's label span sits on its baseline, which left
+                      // the icon and the text 2.75px above the circle. A block
+                      // box makes the span its own height, and the row's
+                      // `items-center` then lines the three up.
                       <span style={{
-                        display: 'inline-flex',
+                        display: 'flex',
                         alignItems: 'center',
                         gap: theme.spacing(0.5),
                       }}
