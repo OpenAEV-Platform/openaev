@@ -444,6 +444,20 @@ public class UserService {
     return userRepository.save(user.get());
   }
 
+  public void sendEmailChangeConfirmationEmail(User user) {
+    String subject = "OpenAEV email was changed to " + user.getEmail();
+    String body =
+        """
+            Hi %s,<br/>
+            <br/>
+            Your OpenAEV account's email address was successfully changed to this present address.<br/>
+            """
+            .formatted(user.getName());
+    tenantTx.executeNew(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> mailingService.sendEmail(subject, body, List.of(user)));
+  }
+
   /**
    * Applies a change of password for the specified account and reset token
    *

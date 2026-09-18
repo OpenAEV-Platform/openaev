@@ -152,6 +152,9 @@ public class MeApi extends RestBehavior {
       TxCtx ctx, HttpServletRequest httpRequest, @PathVariable String confirmationCode) {
     User user = userService.confirmEmailChange(confirmationCode);
     sessionManager.invalidateOtherUserSessions(user.getId(), httpRequest.getSession().getId());
+
+    userService.sendEmailChangeConfirmationEmail(user);
+
     MultiValueMap<String, String> headers = new HttpHeaders();
     headers.add("Location", openAEVConfig.getBaseUrl());
     return new ResponseEntity<>(headers, HttpStatus.FOUND);
