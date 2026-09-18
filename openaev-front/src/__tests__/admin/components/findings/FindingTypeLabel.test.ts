@@ -5,19 +5,13 @@ import getFindingTypeLabel from '../../../../admin/components/findings/FindingTy
 const translate = (key: string) => key;
 
 describe('getFindingTypeLabel', () => {
-  describe.each([
-    ['aws', 'Misconfig (AWS)'],
-    ['azure', 'Misconfig (Azure)'],
-    ['gcp', 'Misconfig (GCP)'],
-    ['kubernetes', 'Misconfig (Kubernetes)'],
-    ['custom-cloud', 'Misconfig (Custom-cloud)'],
-  ])('given an OCSF provider', (provider, expected) => {
-    it(`should display ${expected}`, () => {
+  describe.each(['aws', 'azure', 'gcp', 'kubernetes', 'custom-cloud'])('given an OCSF provider', (provider) => {
+    it('should display the provider-independent Misconfig type', () => {
       // Act
       const label = getFindingTypeLabel(translate, 'ocsf', provider);
 
       // Assert
-      expect(label).toBe(expected);
+      expect(label).toBe('Misconfig');
     });
   });
 

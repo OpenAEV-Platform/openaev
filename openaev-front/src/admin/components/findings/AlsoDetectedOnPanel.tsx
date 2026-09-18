@@ -34,7 +34,7 @@ const AlsoDetectedOnPanel = ({ finding }: Props) => {
   const headers: Header[] = [
     {
       field: 'finding_location',
-      label: 'Location',
+      label: 'Asset',
       isSortable: false,
       value: (location: FindingLocationOutput) => (
         <>{location.finding_location ?? location.finding_location_key ?? '-'}</>

@@ -11,7 +11,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface StableFindingRepository
-    extends JpaRepository<StableFinding, String>, JpaSpecificationExecutor<StableFinding> {
+    extends JpaRepository<StableFinding, String>,
+        JpaSpecificationExecutor<StableFinding>,
+        StableFindingRepositoryCustom {
 
   Optional<StableFinding> findByKeyAndTenantId(String key, String tenantId);
 

@@ -20,6 +20,10 @@ export const searchStableFindings = (searchPaginationInput: SearchPaginationInpu
   return simplePostCall(`${STABLE_FINDING_URI}/search`, searchPaginationInput);
 };
 
+export const fetchStableFindingFacetCounts = (searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall(`${STABLE_FINDING_URI}/facet-counts`, searchPaginationInput);
+};
+
 export const searchStableFindingOccurrences = (
   findingId: string,
   searchPaginationInput: SearchPaginationInput,

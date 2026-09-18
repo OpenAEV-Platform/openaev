@@ -1,15 +1,20 @@
 package io.openaev.service.finding;
 
+import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchPaginationInputMapper.translateFields;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.finding.FindingLocationOutput;
 import io.openaev.api.finding.FindingOccurrenceOutput;
+import io.openaev.api.finding.StableFindingFacetCountsOutput;
+import io.openaev.api.finding.StableFindingFacetCountsOutput.SourceFacetOutput;
 import io.openaev.api.finding.StableFindingMapper;
 import io.openaev.api.finding.StableFindingOutput;
 import io.openaev.api.finding.StableFindingSummaryOutput;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Filters.FilterGroup;
 import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.StableFinding;
 import io.openaev.database.repository.FindingOccurrenceRepository;
@@ -47,6 +52,10 @@ public class StableFindingReadService {
           Map.entry("finding_teams", "teams.id"),
           Map.entry("finding_users", "users.id"),
           Map.entry("finding_asset_groups", "inject.assetGroups.id"));
+  private static final String SEVERITY_FILTER = "finding_severity";
+  private static final String TYPE_FILTER = "finding_type";
+  private static final String PROVIDER_FILTER = "finding_cloud_provider";
+  private static final String SOURCE_FILTER = "finding_source";
 
   private final StableFindingRepository stableFindingRepository;
   private final FindingOccurrenceRepository findingOccurrenceRepository;
@@ -73,6 +82,31 @@ public class StableFindingReadService {
         finding ->
             stableFindingMapper.toOutput(
                 finding, occurrencesByFinding.getOrDefault(finding.getId(), List.of())));
+  }
+
+  /**
+   * Returns full-result facet counts. Each facet ignores its own selected values while preserving
+   * search text and every other filter, so users can add alternatives without a selected row
+   * collapsing all sibling counts to zero.
+   */
+  @Transactional(readOnly = true)
+  public StableFindingFacetCountsOutput facetCounts(TxCtx ctx, SearchPaginationInput input) {
+    Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
+    return new StableFindingFacetCountsOutput(
+        stableFindingRepository.countBySeverity(
+            facetSpecification(input, tenantIds, SEVERITY_FILTER)),
+        stableFindingRepository.countByType(facetSpecification(input, tenantIds, TYPE_FILTER)),
+        stableFindingRepository.countByCloudProvider(
+            facetSpecification(input, tenantIds, PROVIDER_FILTER)),
+        stableFindingRepository
+            .countBySource(facetSpecification(input, tenantIds, SOURCE_FILTER))
+            .values()
+            .stream()
+            .map(
+                source ->
+                    new SourceFacetOutput(
+                        source.id(), source.name(), source.type(), source.count()))
+            .toList());
   }
 
   /** Returns one stable identity only when its id belongs to an authorized tenant. */
@@ -172,6 +206,28 @@ public class StableFindingReadService {
     return stableFindingRepository
         .findByIdAndTenantIdIn(id, tenantIds)
         .orElseThrow(() -> new EntityNotFoundException("Stable finding not found: " + id));
+  }
+
+  private Specification<StableFinding> facetSpecification(
+      SearchPaginationInput input, Set<String> tenantIds, String excludedFilter) {
+    FilterGroup source = input.getFilterGroup();
+    FilterGroup filtered =
+        source == null
+            ? null
+            : FilterGroup.builder()
+                .mode(source.getMode())
+                .filters(
+                    source.getFilters() == null
+                        ? List.of()
+                        : source.getFilters().stream()
+                            .filter(filter -> !excludedFilter.equals(filter.getKey()))
+                            .toList())
+                .build();
+    Specification<StableFinding> tenantScope =
+        (root, query, cb) -> root.get("tenant").get("id").in(tenantIds);
+    return tenantScope
+        .and(computeFilterGroupJpa(filtered))
+        .and(computeSearchJpa(input.getTextSearch()));
   }
 
   private List<FindingOccurrence> findOccurrences(String id, Set<String> tenantIds) {

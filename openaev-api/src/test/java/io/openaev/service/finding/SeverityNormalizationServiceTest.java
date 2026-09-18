@@ -2,6 +2,8 @@ package io.openaev.service.finding;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.FindingSeverityBucket;
@@ -52,6 +54,13 @@ class SeverityNormalizationServiceTest {
       Finding finding = findingWith(ContractOutputType.CVE, "2.1");
       assertEquals(FindingSeverityBucket.LOW, service.normalize(finding));
     }
+
+    @Test
+    @DisplayName("Should bucket 0 as UNKNOWN")
+    void given_cvss_0_should_bucket_unknown() {
+      Finding finding = findingWith(ContractOutputType.CVE, "0");
+      assertEquals(FindingSeverityBucket.UNKNOWN, service.normalize(finding));
+    }
   }
 
   @Nested
@@ -92,31 +101,31 @@ class SeverityNormalizationServiceTest {
   class TypeFallback {
 
     @Test
-    @DisplayName("Should bucket Credentials (Netexec) as HIGH by default")
-    void given_credentials_no_severity_should_bucket_high() {
+    @DisplayName("Should bucket Credentials as CRITICAL by default")
+    void given_credentials_no_severity_should_bucket_critical() {
       Finding finding = findingWith(ContractOutputType.Credentials, null);
-      assertEquals(FindingSeverityBucket.HIGH, service.normalize(finding));
+      assertEquals(FindingSeverityBucket.CRITICAL, service.normalize(finding));
     }
 
     @Test
-    @DisplayName("Should bucket Vulnerability (AI Red Team) as HIGH by default")
-    void given_vulnerability_no_severity_should_bucket_high() {
+    @DisplayName("Should leave Vulnerability without a severity as UNKNOWN")
+    void given_vulnerability_no_severity_should_bucket_unknown() {
       Finding finding = findingWith(ContractOutputType.Vulnerability, "");
-      assertEquals(FindingSeverityBucket.HIGH, service.normalize(finding));
+      assertEquals(FindingSeverityBucket.UNKNOWN, service.normalize(finding));
     }
 
     @Test
-    @DisplayName("Should bucket Sid (Netexec) as MEDIUM by default")
-    void given_sid_no_severity_should_bucket_medium() {
+    @DisplayName("Should leave Sid without a severity as UNKNOWN")
+    void given_sid_no_severity_should_bucket_unknown() {
       Finding finding = findingWith(ContractOutputType.Sid, null);
-      assertEquals(FindingSeverityBucket.MEDIUM, service.normalize(finding));
+      assertEquals(FindingSeverityBucket.UNKNOWN, service.normalize(finding));
     }
 
     @Test
-    @DisplayName("Should bucket PortsScan (Nmap) as LOW by default")
-    void given_portscan_no_severity_should_bucket_low() {
+    @DisplayName("Should leave PortsScan without a severity as UNKNOWN")
+    void given_portscan_no_severity_should_bucket_unknown() {
       Finding finding = findingWith(ContractOutputType.PortsScan, null);
-      assertEquals(FindingSeverityBucket.LOW, service.normalize(finding));
+      assertEquals(FindingSeverityBucket.UNKNOWN, service.normalize(finding));
     }
 
     @Test
@@ -131,6 +140,33 @@ class SeverityNormalizationServiceTest {
     void given_type_without_fallback_entry_should_bucket_unknown() {
       Finding finding = findingWith(ContractOutputType.Email, null);
       assertEquals(FindingSeverityBucket.UNKNOWN, service.normalize(finding));
+    }
+
+    @Nested
+    @DisplayName("Asset criticality")
+    class AssetCriticalityFallback {
+
+      @Test
+      @DisplayName("Should elevate a finding on a very-high criticality asset to CRITICAL")
+      void given_very_high_asset_should_bucket_critical() {
+        Finding finding = findingWith(ContractOutputType.Text, null);
+        Asset asset = new Asset();
+        asset.setCriticality(AssetCriticality.VERY_HIGH);
+        finding.setAssets(java.util.List.of(asset));
+
+        assertEquals(FindingSeverityBucket.CRITICAL, service.normalize(finding));
+      }
+
+      @Test
+      @DisplayName("Should retain the highest explicit or asset-derived severity")
+      void given_medium_finding_on_high_asset_should_bucket_high() {
+        Finding finding = findingWith(ContractOutputType.CVE, "5.0");
+        Asset asset = new Asset();
+        asset.setCriticality(AssetCriticality.HIGH);
+        finding.setAssets(java.util.List.of(asset));
+
+        assertEquals(FindingSeverityBucket.HIGH, service.normalize(finding));
+      }
     }
   }
 }

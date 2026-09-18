@@ -175,16 +175,69 @@ public class StableFinding implements TenantBase, Auditable {
 
   @Formula(
       """
-      (select o.finding_occurrence_observed_severity
-       from finding_occurrences o
-       where o.finding_occurrence_stable_finding_id = stable_finding_id
-         and o.tenant_id = tenant_id
-       order by o.finding_occurrence_observed_at desc, o.finding_occurrence_id desc
-       limit 1)
+      (case
+        when stable_finding_type = 'Credentials' then 'CRITICAL'
+        else coalesce((
+          select case max(signal.rank)
+            when 4 then 'CRITICAL'
+            when 3 then 'HIGH'
+            when 2 then 'MEDIUM'
+            when 1 then 'LOW'
+            else 'UNKNOWN'
+          end
+          from (
+            select case
+              when lower(trim(o.finding_occurrence_observed_severity)) = 'critical' then 4
+              when lower(trim(o.finding_occurrence_observed_severity)) = 'high' then 3
+              when lower(trim(o.finding_occurrence_observed_severity)) = 'medium' then 2
+              when lower(trim(o.finding_occurrence_observed_severity)) = 'low' then 1
+              when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
+                and trim(o.finding_occurrence_observed_severity)::numeric >= 9 then 4
+              when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
+                and trim(o.finding_occurrence_observed_severity)::numeric >= 7 then 3
+              when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
+                and trim(o.finding_occurrence_observed_severity)::numeric >= 4 then 2
+              when trim(o.finding_occurrence_observed_severity) ~ '^[0-9]+([.][0-9]+)?$'
+                and trim(o.finding_occurrence_observed_severity)::numeric > 0 then 1
+              else 0
+            end as rank
+            from finding_occurrences o
+            where o.finding_occurrence_stable_finding_id = stable_finding_id
+              and o.tenant_id = tenant_id
+            union all
+            select case a.asset_criticality
+              when 'VERY_HIGH' then 4
+              when 'HIGH' then 3
+              when 'MEDIUM' then 2
+              when 'LOW' then 1
+              else 0
+            end as rank
+            from finding_occurrences o
+            join finding_occurrences_assets oa
+              on oa.finding_occurrence_id = o.finding_occurrence_id
+            join assets a on a.asset_id = oa.asset_id
+            where o.finding_occurrence_stable_finding_id = stable_finding_id
+              and o.tenant_id = tenant_id
+          ) signal
+        ), 'UNKNOWN')
+      end)
       """)
   @Queryable(filterable = true, sortable = true, label = "severity")
   @JsonProperty("finding_severity")
   private String latestSeverity;
+
+  @Formula(
+      """
+      (select case when count(distinct lower(o.finding_occurrence_resource_provider)) = 1
+        then min(lower(o.finding_occurrence_resource_provider))
+        else null end
+       from finding_occurrences o
+       where o.finding_occurrence_stable_finding_id = stable_finding_id
+         and o.tenant_id = tenant_id)
+      """)
+  @Queryable(filterable = true, sortable = true, label = "cloud provider")
+  @JsonProperty("finding_cloud_provider")
+  private String cloudProvider;
 
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(

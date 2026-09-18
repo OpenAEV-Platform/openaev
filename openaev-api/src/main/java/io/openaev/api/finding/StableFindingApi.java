@@ -44,6 +44,16 @@ public class StableFindingApi {
     return stableFindingReadService.search(ctx, input);
   }
 
+  @PostMapping("/facet-counts")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.FINDING)
+  @LogExecutionTime
+  @Operation(summary = "Get Finding sidebar facet counts")
+  public StableFindingFacetCountsOutput facetCounts(
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput input) {
+    return stableFindingReadService.facetCounts(ctx, input);
+  }
+
   @PostMapping("/{id}/occurrences/search")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.FINDING)

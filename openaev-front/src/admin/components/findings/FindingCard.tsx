@@ -7,14 +7,12 @@ import { useNavigate } from 'react-router';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import { type AggregatedFindingOutput } from '../../../utils/api-types';
-import { getFindingAggregationCategory } from './findingAggregationCategories';
 import FindingTriageControl from './FindingTriageControl';
 import getFindingTypeLabel from './FindingTypeLabel';
 
 type CardFinding = AggregatedFindingOutput & {
   finding_location?: string;
   finding_location_key?: string;
-  finding_aggregation_category?: string;
   finding_occurrences?: number;
 };
 
@@ -28,6 +26,8 @@ const severityAccent = (severity: string | null | undefined, fallback: string): 
       return '#facc15';
     case 'low':
       return '#4caf50';
+    case 'unknown':
+      return '#607d8b';
     default:
       return fallback;
   }
@@ -45,8 +45,6 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity, onTriageCh
   const { t, nsdt } = useFormatter();
   const theme = useTheme();
   const navigate = useNavigate();
-  const category = getFindingAggregationCategory(finding.finding_aggregation_category);
-  const CategoryIcon = category.icon;
   const accent = severityAccent(finding.finding_severity, theme.palette.primary.main);
   const showCheckbox = checked || anySelected;
   const location = finding.finding_location ?? finding.finding_location_key;
@@ -70,6 +68,7 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity, onTriageCh
           transform: 'translateY(-2px)',
         },
         '&:hover .finding-card-checkbox': { opacity: 1 },
+        '& .MuiSvgIcon-root': { color: accent },
       }}
     >
       <Box
@@ -174,16 +173,6 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity, onTriageCh
             {finding.finding_value}
           </Typography>
         </Tooltip>
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.75,
-          color: 'text.secondary',
-        }}
-        >
-          <CategoryIcon sx={{ fontSize: 16 }} />
-          <Typography variant="caption">{t(category.label)}</Typography>
-        </Box>
         <Typography variant="caption" color="text.secondary">
           {getFindingTypeLabel(t, finding.finding_type, finding.finding_cloud_provider)}
         </Typography>
@@ -196,7 +185,7 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity, onTriageCh
             whiteSpace: 'nowrap',
           }}
         >
-          {location ?? t('No location')}
+          {location ?? t('No asset')}
         </Typography>
         <Box sx={{
           display: 'flex',

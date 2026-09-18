@@ -11998,6 +11998,25 @@ export interface SortObject {
   property?: string;
 }
 
+export interface SourceFacetOutput {
+  /** @format int64 */
+  source_count?: number;
+  source_id?: string;
+  source_name?: string;
+  source_type?: string;
+}
+
+export interface StableFindingFacetCountsOutput {
+  /** Finding counts grouped by cloud provider */
+  cloud_providers?: Record<string, number>;
+  /** Finding counts grouped by effective severity */
+  severities?: Record<string, number>;
+  /** Finding counts grouped by source */
+  sources?: SourceFacetOutput[];
+  /** Finding counts grouped by output type */
+  types?: Record<string, number>;
+}
+
 export interface StableFindingOutput {
   finding_aggregation_category?:
     | "SURFACE_REACHABILITY"

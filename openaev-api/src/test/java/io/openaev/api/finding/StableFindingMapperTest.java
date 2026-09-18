@@ -9,6 +9,7 @@ import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.StableFinding;
 import io.openaev.database.model.StableFindingCategory;
 import io.openaev.database.model.StableFindingLifecycle;
+import io.openaev.service.finding.SeverityNormalizationService;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mapper.ExerciseMapper;
@@ -31,7 +32,8 @@ class StableFindingMapperTest {
           mock(ExerciseMapper.class),
           mock(ScenarioMapper.class),
           mock(InjectMapper.class),
-          mock(InjectorMapper.class));
+          mock(InjectorMapper.class),
+          new SeverityNormalizationService());
 
   @Nested
   @DisplayName("Provider aggregation")
@@ -115,7 +117,7 @@ class StableFindingMapperTest {
       assertThat(output.title()).isEqualTo("Latest title");
       assertThat(output.evidenceDetail()).isEqualTo("latest evidence");
       assertThat(output.outcome()).isEqualTo("FAIL");
-      assertThat(output.severity()).isEqualTo("High");
+      assertThat(output.severity()).isEqualTo("HIGH");
       assertThat(output.severityId()).isEqualTo(4);
       assertThat(output.occurrences()).isEqualTo(2);
       assertThat(output.cloudProvider()).isEqualTo("aws");

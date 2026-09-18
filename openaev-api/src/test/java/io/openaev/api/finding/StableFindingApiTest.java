@@ -36,7 +36,7 @@ class StableFindingApiTest {
     }
 
     @Test
-    @DisplayName("Exposes stable detail, summary, search, occurrence, and location paths")
+    @DisplayName("Exposes stable detail, summary, search, facet, occurrence, and location paths")
     void given_controller_should_exposeRequiredReadPaths() throws NoSuchMethodException {
       // Arrange / Act
       Method search =
@@ -50,6 +50,11 @@ class StableFindingApiTest {
               io.openaev.context.TxCtx.class,
               String.class,
               io.openaev.utils.pagination.SearchPaginationInput.class);
+      Method facetCounts =
+          StableFindingApi.class.getMethod(
+              "facetCounts",
+              io.openaev.context.TxCtx.class,
+              io.openaev.utils.pagination.SearchPaginationInput.class);
       Method detail =
           StableFindingApi.class.getMethod(
               "findById", io.openaev.context.TxCtx.class, String.class);
@@ -61,6 +66,8 @@ class StableFindingApiTest {
 
       // Assert
       assertThat(search.getAnnotation(PostMapping.class).value()).containsExactly("/search");
+      assertThat(facetCounts.getAnnotation(PostMapping.class).value())
+          .containsExactly("/facet-counts");
       assertThat(occurrences.getAnnotation(PostMapping.class).value())
           .containsExactly("/{id}/occurrences/search");
       assertThat(detail.getAnnotation(GetMapping.class).value()).containsExactly("/{id}");
@@ -87,7 +94,7 @@ class StableFindingApiTest {
               .toList();
 
       // Act / Assert
-      assertThat(endpoints).hasSize(5);
+      assertThat(endpoints).hasSize(6);
       assertThat(endpoints)
           .allSatisfy(
               endpoint -> {

@@ -2,6 +2,7 @@ package io.openaev.service.finding;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -13,8 +14,11 @@ import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.StableFinding;
 import io.openaev.database.repository.FindingOccurrenceRepository;
 import io.openaev.database.repository.StableFindingRepository;
+import io.openaev.database.repository.StableFindingRepositoryCustom.SourceCount;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +42,47 @@ class StableFindingReadServiceTest {
   @Mock private StableFindingOutput stableFindingOutput;
 
   @InjectMocks private StableFindingReadService service;
+
+  @Nested
+  @DisplayName("Facet counts")
+  class FacetCounts {
+
+    @Test
+    @DisplayName("Returns grouped counts for every supported facet")
+    void given_groupedCounts_should_returnAllSupportedFacets() {
+      // Arrange
+      when(stableFindingRepository.countBySeverity(any()))
+          .thenReturn(Map.of("CRITICAL", 2L, "UNKNOWN", 1L));
+      when(stableFindingRepository.countByType(any())).thenReturn(Map.of("OCSF", 2L));
+      when(stableFindingRepository.countByCloudProvider(any())).thenReturn(Map.of("aws", 2L));
+      when(stableFindingRepository.countBySource(any()))
+          .thenReturn(
+              Map.of(
+                  "source-id",
+                  new SourceCount("source-id", "Prowler", "openaev_prowler_demo", 2L)));
+
+      // Act
+      var counts = service.facetCounts(TxCtx.forTenant(TENANT_ID), new SearchPaginationInput());
+
+      // Assert
+      assertThat(counts.severities()).containsEntry("CRITICAL", 2L);
+      assertThat(counts.types()).containsEntry("OCSF", 2L);
+      assertThat(counts.cloudProviders()).containsEntry("aws", 2L);
+      assertThat(counts.sources())
+          .singleElement()
+          .satisfies(
+              source -> {
+                assertThat(source.id()).isEqualTo("source-id");
+                assertThat(source.name()).isEqualTo("Prowler");
+                assertThat(source.type()).isEqualTo("openaev_prowler_demo");
+                assertThat(source.count()).isEqualTo(2L);
+              });
+      verify(stableFindingRepository).countBySeverity(any());
+      verify(stableFindingRepository).countByType(any());
+      verify(stableFindingRepository).countByCloudProvider(any());
+      verify(stableFindingRepository).countBySource(any());
+    }
+  }
 
   @Nested
   @DisplayName("Tenant-scoped lookup")

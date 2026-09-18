@@ -1,7 +1,7 @@
-import { GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, Button, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { GridViewOutlined, InfoOutlined, ViewListOutlined } from '@mui/icons-material';
+import { Box, Button, Checkbox, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { Binoculars, Cog } from 'mdi-material-ui';
-import { type CSSProperties, useEffect, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
 import { archiveFindingsBulk, fetchFindingArchiveDays, updateFindingArchiveDays } from '../../../actions/findings/finding-actions';
@@ -29,6 +29,7 @@ import FindingHero from './FindingHero';
 import FindingSidebar from './FindingSidebar';
 import FindingTriageControl from './FindingTriageControl';
 import getFindingTypeLabel from './FindingTypeLabel';
+import useFindingFacetCounts from './useFindingFacetCounts';
 
 const DEFAULT_ARCHIVE_DAYS = 30;
 
@@ -44,7 +45,6 @@ type StableFindingListItem = AggregatedFindingOutput & {
   finding_legacy_id?: string;
   finding_location?: string;
   finding_location_key?: string;
-  finding_aggregation_category?: string;
 };
 
 const VIEW_MODE_STORAGE_KEY = 'findings:view-mode';
@@ -115,7 +115,8 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
 
   const availableFilterNames = [
     'finding_type',
-    'finding_aggregation_category',
+    'finding_severity',
+    'finding_cloud_provider',
     'finding_created_at',
     'finding_updated_at',
     'finding_human_updated_at',
@@ -143,12 +144,30 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
   // alive or has been solved. The storage key is suffixed (-v2) so browsers that persisted the
   // previous "first seen" default pick up the new one instead of restoring the stale sort.
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
-    `${filterLocalStorageKey}-v2`,
+    `${filterLocalStorageKey}-v3`,
     buildSearchPagination({
       sorts: initSorting('finding_updated_at', 'DESC'),
       ...(compact ? { size: compactPageSize } : {}),
     }),
   );
+  const facetInput = useMemo<SearchPaginationInput>(() => ({
+    ...searchPaginationInput,
+    filterGroup: {
+      mode: searchPaginationInput.filterGroup?.mode ?? 'and',
+      filters: [
+        ...(searchPaginationInput.filterGroup?.filters ?? []),
+        ...(showArchiveTabs
+          ? [{
+              id: ARCHIVED_FILTER_KEY,
+              key: ARCHIVED_FILTER_KEY,
+              operator: 'eq' as const,
+              values: [archiveTab === 'archived' ? 'true' : 'false'],
+            }]
+          : []),
+      ],
+    },
+  }), [archiveTab, searchPaginationInput, showArchiveTabs]);
+  const facetCounts = useFindingFacetCounts(facetInput);
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
     // Injects the (non-user-facing) archived-status filter server-side so the "Archived" tab
@@ -315,7 +334,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     },
     {
       field: 'finding_assets',
-      label: 'Location',
+      label: 'Asset',
       isSortable: false,
       value: (finding: StableFindingListItem) => finding.finding_location
         || finding.finding_location_key
@@ -451,14 +470,13 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
           {user?.user_admin && (
             <>
               <Tooltip title={t('Finding settings')}>
-                <Button
+                <IconButton
                   size="small"
-                  variant="outlined"
-                  startIcon={<Cog fontSize="small" />}
                   onClick={e => setSettingsAnchorEl(e.currentTarget)}
+                  aria-label={t('Finding settings')}
                 >
-                  {t('Settings')}
-                </Button>
+                  <Cog fontSize="small" />
+                </IconButton>
               </Tooltip>
               <Popover
                 open={Boolean(settingsAnchorEl)}
@@ -478,12 +496,12 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 1,
-                  minWidth: 300,
+                  width: 200,
                 }}
                 >
                   <Typography variant="subtitle2">{t('Archive findings after (days)')}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {t('Findings inactive for this many days move to the Archived tab. After 30 more days there, they are removed from this page to keep it fast — but stay fully visible from the simulations that found them.')}
+                    {t('Archived findings are removed from this page after this many days, but remain accessible from the simulations that found them.')}
                   </Typography>
                   <TextField
                     type="number"
@@ -508,7 +526,25 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       onChange={(_e, value: ArchiveTab) => handleArchiveTabChange(value)}
     >
       <Tab label={t('Active')} value="active" />
-      <Tab label={t('Archived')} value="archived" />
+      <Tab
+        value="archived"
+        label={(
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+          }}
+          >
+            {t('Archived')}
+            <Tooltip title={t('Findings that have been inactive for the configured period. They remain available here before being removed from this page and remain accessible from the simulations that found them.')}>
+              <InfoOutlined
+                fontSize="small"
+                onClick={event => event.stopPropagation()}
+              />
+            </Tooltip>
+          </Box>
+        )}
+      />
     </Tabs>
   );
 
@@ -581,6 +617,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
                     onClear={handleClearSelectedElements}
                     onTriage={bulkTriage}
                     onArchive={bulkArchive}
+                    archiveAction={archiveTab === 'active' ? 'archive' : 'unarchive'}
                   />
                 )}
               />
@@ -675,6 +712,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
             onClear={handleClearSelectedElements}
             onTriage={bulkTriage}
             onArchive={bulkArchive}
+            archiveAction={archiveTab === 'active' ? 'archive' : 'unarchive'}
           />
         </Box>
       )}
@@ -737,9 +775,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
           <FindingSidebar
             searchPaginationInput={searchPaginationInput}
             filterHelpers={queryableHelpers.filterHelpers}
-            sourceTypes={findings
-              .map(finding => finding.finding_source?.injector_type)
-              .filter((sourceType): sourceType is string => Boolean(sourceType))}
+            facetCounts={facetCounts}
           />
           <Box sx={{
             display: 'flex',

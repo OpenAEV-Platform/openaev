@@ -25,7 +25,6 @@ import type {
 } from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
 import AlsoDetectedOnPanel from './AlsoDetectedOnPanel';
-import { getFindingAggregationCategory } from './findingAggregationCategories';
 import FindingComments from './FindingComments';
 import FindingContextLink from './FindingContextLink';
 import FindingOccurrences from './FindingOccurrences';
@@ -47,7 +46,6 @@ type FindingDetailOutput = Omit<FindingOutput, 'finding_type'> & {
   finding_resource_service?: string;
   finding_location_key?: string;
   finding_location_type?: string;
-  finding_aggregation_category?: string;
   finding_risk_details?: string;
   finding_categories?: string[];
   finding_mitre_attack?: string[];
@@ -77,7 +75,7 @@ const formatRawData = (rawData: string): string => {
 const TAB_TIMELINE = 'Timeline';
 const TAB_ALSO_DETECTED_ON = 'Also Detected On';
 const TAB_RAW_RESPONSE = 'Raw response';
-const TAB_HISTORY = 'History';
+const TAB_ACTIVITY_LOG = 'Activity log';
 
 // Full-page finding overview: one stable tenant/source/type/value finding with its
 // lifecycle summary (true first/last seen and occurrences), the
@@ -127,8 +125,8 @@ const FindingOverview = () => {
       });
     }
     entries.push({
-      key: TAB_HISTORY,
-      label: t('History'),
+      key: TAB_ACTIVITY_LOG,
+      label: t('Activity log'),
     });
     return entries;
   }, [isOCSF, t]);
@@ -141,7 +139,6 @@ const FindingOverview = () => {
 
   const isCVE = finding.finding_type === 'cve';
   const displayedCvssScore = cvssScore;
-  const aggregationCategory = getFindingAggregationCategory(finding.finding_aggregation_category);
 
   const renderTabPanel = () => {
     switch (currentTab) {
@@ -184,9 +181,9 @@ const FindingOverview = () => {
                 {t('There is no raw response available for this finding.')}
               </Box>
             );
-      case TAB_HISTORY:
-        // Comments and triage history are two distinct read/write logs on the same finding -
-        // combined under one "History" tab rather than two separate tabs, per user request.
+      case TAB_ACTIVITY_LOG:
+        // Comments and triage history are two distinct read/write logs on the same finding,
+        // combined under one activity log.
         return (
           <Box sx={{
             display: 'flex',
@@ -244,7 +241,7 @@ const FindingOverview = () => {
             <HeroStat icon={FormatListNumberedOutlined} label={t('Occurrences')} value={summary?.finding_occurrences ?? '-'} />
             <HeroStat
               icon={LocationOnOutlined}
-              label={t('Location')}
+              label={t('Asset')}
               value={summary?.finding_locations_count ?? '-'}
               color={theme.palette.primary.main}
             />
@@ -257,7 +254,7 @@ const FindingOverview = () => {
 
       <InformationGrid title={t('Information')}>
         <Field label={t('Type')}>{typeLabel}</Field>
-        <Field label={t('Category')}>{t(aggregationCategory.label)}</Field>
+        <Field label={t('Severity')}>{emptyFilled(finding.finding_severity)}</Field>
         <Field label={t('Value')}>
           <Box
             component="pre"
@@ -308,7 +305,6 @@ const FindingOverview = () => {
       {isOCSF && (
         <>
           <InformationGrid title={t('Cloud details')}>
-            <Field label={t('Severity')}>{emptyFilled(finding.finding_severity)}</Field>
             <Field label={t('Rule ID')}>{finding.finding_value}</Field>
             <Field label={t('Resource')}>{finding.finding_resource_name ?? emptyFilled(finding.finding_resource)}</Field>
             <Field label={t('Resource UID')}>{emptyFilled(finding.finding_resource)}</Field>
@@ -337,18 +333,6 @@ const FindingOverview = () => {
           </InformationGrid>
           <InformationGrid title={t('Attack context')}>
             <Field label={t('Risk details')}>{emptyFilled(finding.finding_risk_details)}</Field>
-            <Field label={t('Categories')}>
-              <Box sx={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 0.5,
-              }}
-              >
-                {(finding.finding_categories ?? []).map(category => (
-                  <Chip key={category} size="small" variant="outlined" label={category} />
-                ))}
-              </Box>
-            </Field>
             <Field label={t('MITRE ATT&CK')}>
               <Box sx={{
                 display: 'flex',
@@ -372,8 +356,7 @@ const FindingOverview = () => {
 
       {/* Lower section as tabs (mirrors the pre-rebuild FindingDetail.tsx organization):
           Timeline (occurrences) is the default/first tab, followed by Also Detected On,
-          the raw scanner payload for OCSF findings only, and the combined comments +
-          triage history log. */}
+          the raw scanner payload for OCSF findings only, and the combined activity log. */}
       <Box sx={{ marginTop: theme.spacing(1) }}>
         <Tabs
           entries={tabEntries}

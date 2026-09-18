@@ -5,6 +5,7 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.FindingLocationType;
 import io.openaev.database.model.FindingOccurrence;
+import io.openaev.database.model.FindingSeverityBucket;
 import io.openaev.database.model.FindingTriageStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.StableFinding;
@@ -49,6 +50,8 @@ public class StableFindingMapper {
   private final ScenarioMapper scenarioMapper;
   private final InjectMapper injectMapper;
   private final InjectorMapper injectorMapper;
+  private final io.openaev.service.finding.SeverityNormalizationService
+      severityNormalizationService;
 
   /**
    * Maps a stable finding and all of its preloaded observations to the compatibility read shape.
@@ -98,6 +101,14 @@ public class StableFindingMapper {
             .filter(location -> !location.isBlank())
             .distinct()
             .toList();
+    FindingSeverityBucket effectiveSeverity =
+        severityNormalizationService.normalize(
+            finding.getType(),
+            occurrences.stream().map(FindingOccurrence::getObservedSeverity).toList(),
+            occurrences.stream()
+                .flatMap(occurrence -> occurrence.getAssets().stream())
+                .map(Asset::getCriticality)
+                .toList());
 
     return StableFindingOutput.builder()
         .id(finding.getId())
@@ -142,7 +153,7 @@ public class StableFindingMapper {
         .aggregationCategory(finding.getAggregationCategory())
         .lifecycle(finding.getLifecycle())
         .outcome(latest == null ? null : persistedOutcome(latest.getOutcome()))
-        .severity(latest == null ? null : latest.getObservedSeverity())
+        .severity(effectiveSeverity.name())
         .severityId(latest == null ? null : latest.getObservedSeverityId())
         .sourceUid(latest == null ? null : latest.getSourceFindingUid())
         .resource(latest == null ? null : latest.getResource())

@@ -62,12 +62,13 @@ interface Props {
   onClear: () => void;
   onTriage: (status: TriageStatus, justification: string) => Promise<FindingTriageBulkItemOutput[]>;
   onArchive: (archived: boolean) => Promise<FindingArchiveBulkItemOutput[]>;
+  archiveAction: 'archive' | 'unarchive';
 }
 
 // Lightweight, Finding-specific bulk action bar - deliberately not the shared ToolBar component
 // (openaev-front/src/admin/components/common/ToolBar.tsx), which is tightly coupled to
 // injects/scenarios concerns (teams, asset groups, endpoints, bulk-test) that do not apply here.
-const FindingBulkActionBar = ({ numberOfSelectedElements, onClear, onTriage, onArchive }: Props) => {
+const FindingBulkActionBar = ({ numberOfSelectedElements, onClear, onTriage, onArchive, archiveAction }: Props) => {
   const { t } = useFormatter();
   const { me } = useAuth();
   const isAdmin = me.user_admin === true;
@@ -160,22 +161,27 @@ const FindingBulkActionBar = ({ numberOfSelectedElements, onClear, onTriage, onA
           </MenuItem>,
         ]}
       </Menu>
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<ArchiveOutline fontSize="small" />}
-        onClick={() => setArchiveDialog('archive')}
-      >
-        {t('Archive')}
-      </Button>
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<ArchiveArrowUpOutline fontSize="small" />}
-        onClick={() => setArchiveDialog('unarchive')}
-      >
-        {t('Un-archive')}
-      </Button>
+      {archiveAction === 'archive'
+        ? (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ArchiveOutline fontSize="small" />}
+              onClick={() => setArchiveDialog('archive')}
+            >
+              {t('Archive')}
+            </Button>
+          )
+        : (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ArchiveArrowUpOutline fontSize="small" />}
+              onClick={() => setArchiveDialog('unarchive')}
+            >
+              {t('Un-archive')}
+            </Button>
+          )}
       <DialogConfirmation
         open={pendingTarget !== null}
         handleClose={closeTriageDialog}

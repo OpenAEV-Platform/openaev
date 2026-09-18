@@ -1,37 +1,51 @@
+import { CloudOutlined } from '@mui/icons-material';
 import { useCallback, useMemo } from 'react';
 
 import { type FacetRow, type FacetSection, FacetSidebar } from '../../../components/common/facets/FacetFilters';
 import { type FilterHelpers } from '../../../components/common/queryable/filter/FilterHelpers';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
+import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
-import {
-  ACTIONABLE_FINDING_CATEGORIES,
-  INFORMATIVE_FINDING_CATEGORY,
-} from './findingAggregationCategories';
+import getFindingTypeLabel from './FindingTypeLabel';
+import { type FindingFacetCounts } from './useFindingFacetCounts';
 
-const CATEGORY_FILTER_KEY = 'finding_aggregation_category';
-const SOURCE_TYPE_FILTER_KEY = 'finding_source_type';
+const SEVERITY_FILTER_KEY = 'finding_severity';
+const TYPE_FILTER_KEY = 'finding_type';
+const PROVIDER_FILTER_KEY = 'finding_cloud_provider';
+const SOURCE_FILTER_KEY = 'finding_source';
+const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'];
+const CLOUD_PROVIDERS = [
+  {
+    value: 'aws',
+    label: 'AWS',
+  },
+  {
+    value: 'gcp',
+    label: 'GCP',
+  },
+  {
+    value: 'azure',
+    label: 'Azure',
+  },
+];
 
 interface Props {
   searchPaginationInput: SearchPaginationInput;
   filterHelpers: FilterHelpers;
-  sourceTypes: string[];
+  facetCounts: FindingFacetCounts | null;
 }
 
-const FindingSidebar = ({ searchPaginationInput, filterHelpers, sourceTypes }: Props) => {
+const FindingSidebar = ({ searchPaginationInput, filterHelpers, facetCounts }: Props) => {
   const { t } = useFormatter();
   const filters = useMemo(
     () => searchPaginationInput.filterGroup?.filters ?? [],
     [searchPaginationInput.filterGroup],
   );
-  const categoryValues = useMemo(
-    () => filters.find((filter: Filter) => filter.key === CATEGORY_FILTER_KEY)?.values ?? [],
-    [filters],
-  );
-  const sourceTypeValues = useMemo(
-    () => filters.find((filter: Filter) => filter.key === SOURCE_TYPE_FILTER_KEY)?.values ?? [],
+
+  const valuesFor = useCallback(
+    (key: string) => filters.find((filter: Filter) => filter.key === key)?.values ?? [],
     [filters],
   );
 
@@ -57,63 +71,85 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, sourceTypes }: P
       key,
       operator: 'eq',
       values: next,
-      // Checkbox values within one facet are alternatives; separate facets remain combined by
-      // the enclosing filter group's AND mode.
       mode: 'or',
     });
   }, [filterHelpers, filters]);
 
-  const row = useCallback((category: typeof INFORMATIVE_FINDING_CATEGORY): FacetRow => {
-    const Icon = category.icon;
-    return {
-      value: category.value,
-      label: t(category.label),
-      checked: categoryValues.includes(category.value),
-      icon: () => <Icon />,
-      onToggle: () => setValues(
-        CATEGORY_FILTER_KEY,
-        categoryValues.includes(category.value)
-          ? categoryValues.filter(value => value !== category.value)
-          : [...categoryValues, category.value],
-      ),
-    };
-  }, [categoryValues, setValues, t]);
+  const toggle = useCallback((key: string, value: string) => {
+    const current = valuesFor(key);
+    setValues(
+      key,
+      current.includes(value)
+        ? current.filter(currentValue => currentValue !== value)
+        : [...current, value],
+    );
+  }, [setValues, valuesFor]);
 
-  const availableSourceTypes = useMemo(
-    () => [...new Set([...sourceTypes, ...sourceTypeValues])].sort((left, right) => left.localeCompare(right)),
-    [sourceTypeValues, sourceTypes],
-  );
+  const sections: FacetSection[] = useMemo(() => {
+    const severityValues = valuesFor(SEVERITY_FILTER_KEY);
+    const typeValues = valuesFor(TYPE_FILTER_KEY);
+    const providerValues = valuesFor(PROVIDER_FILTER_KEY);
+    const sourceValues = valuesFor(SOURCE_FILTER_KEY);
 
-  const sections: FacetSection[] = [
-    {
-      id: 'actionable',
-      label: t('Actionable'),
-      rows: ACTIONABLE_FINDING_CATEGORIES.map(row),
-    },
-    {
-      id: 'informative',
-      label: t('Informative'),
-      rows: [row(INFORMATIVE_FINDING_CATEGORY)],
-    },
-    {
-      id: 'source-type',
-      label: t('Source type'),
-      rows: availableSourceTypes.map(sourceType => ({
-        value: sourceType,
-        label: sourceType,
-        checked: sourceTypeValues.includes(sourceType),
-        icon: () => <InjectIcon type={sourceType} />,
-        onToggle: () => setValues(
-          SOURCE_TYPE_FILTER_KEY,
-          sourceTypeValues.includes(sourceType)
-            ? sourceTypeValues.filter(value => value !== sourceType)
-            : [...sourceTypeValues, sourceType],
-        ),
-      })),
-    },
-  ];
+    const severityRows: FacetRow[] = SEVERITIES.map(severity => ({
+      value: severity,
+      label: severity,
+      count: facetCounts?.severities[severity] ?? 0,
+      checked: severityValues.includes(severity),
+      onToggle: () => toggle(SEVERITY_FILTER_KEY, severity),
+    }));
+    const typeRows: FacetRow[] = Object.keys(facetCounts?.types ?? {})
+      .sort((left, right) => getFindingTypeLabel(t, left).localeCompare(getFindingTypeLabel(t, right)))
+      .map(type => ({
+        value: type,
+        label: getFindingTypeLabel(t, type),
+        count: facetCounts?.types[type],
+        icon: () => <FindingIcon findingType={type} />,
+        checked: typeValues.includes(type),
+        onToggle: () => toggle(TYPE_FILTER_KEY, type),
+      }));
+    const providerRows: FacetRow[] = CLOUD_PROVIDERS.map(provider => ({
+      value: provider.value,
+      label: provider.label,
+      count: facetCounts?.cloud_providers[provider.value] ?? 0,
+      icon: () => <CloudOutlined />,
+      checked: providerValues.includes(provider.value),
+      onToggle: () => toggle(PROVIDER_FILTER_KEY, provider.value),
+    }));
+    const sourceRows: FacetRow[] = (facetCounts?.sources ?? []).map(source => ({
+      value: source.source_id,
+      label: source.source_name,
+      count: source.source_count,
+      icon: () => <InjectIcon type={source.source_type} />,
+      checked: sourceValues.includes(source.source_id),
+      onToggle: () => toggle(SOURCE_FILTER_KEY, source.source_id),
+    }));
 
-  return <FacetSidebar sections={sections.filter(section => section.rows.length > 0)} />;
+    return [
+      {
+        id: 'severity',
+        label: t('Severity'),
+        rows: severityRows,
+      },
+      {
+        id: 'type',
+        label: t('Type'),
+        rows: typeRows,
+      },
+      {
+        id: 'cloud-provider',
+        label: t('Cloud provider'),
+        rows: providerRows,
+      },
+      {
+        id: 'source',
+        label: t('Source'),
+        rows: sourceRows,
+      },
+    ].filter(section => section.rows.length > 0);
+  }, [facetCounts, t, toggle, valuesFor]);
+
+  return <FacetSidebar sections={sections} />;
 };
 
 export default FindingSidebar;
