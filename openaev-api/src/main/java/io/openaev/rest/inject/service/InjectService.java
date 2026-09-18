@@ -1006,9 +1006,8 @@ public class InjectService {
     injectStatusService.deleteAllInjectStatusByInjects(injects);
     injects.forEach(
         inject -> {
-          inject.setStatus(null);
+          inject.clean();
           inject.setTriggerNowDate(null);
-          inject.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
         });
     injectRepository.saveAll(injects);
   }
