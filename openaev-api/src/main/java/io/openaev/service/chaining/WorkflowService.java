@@ -63,7 +63,6 @@ public class WorkflowService {
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
   private final AssetRepository assetRepository;
-  private final AssetAgentJobRepository assetAgentJobRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
@@ -990,52 +989,11 @@ public class WorkflowService {
 
   @Transactional(rollbackFor = Exception.class)
   public void cancelSimulationEndWorkflowRun(List<Workflow> workflows) {
-    List<Step> stepsToUpdate = new ArrayList<>();
-    List<String> injectsIds = new ArrayList<>();
     workflows.forEach(
         workflow -> {
           // Workflow -> END transition (also freezes the end scope snapshot - ADR-006):
           endWorkflow(workflow, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
-
-          // Step delay queue -> DELETE
-          stepDelayQueueService.deleteAllByWorkflowRun(workflow);
-
-          // Steps active -> END  active and get inject ids for remove asset agent jobs
-          List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
-          steps.forEach(
-              step -> {
-                String injectId =
-                    step.getData() != null
-                        ? StepService.getField(step.getData(), "inject_id")
-                        : null;
-                if (injectId != null) injectsIds.add(injectId);
-                step.setStatus(StepStatus.END);
-              });
-
-          stepsToUpdate.addAll(steps);
-
-          // Workflow States -> DELETE  (only use for execution)
-          deleteWorkflowStatesBySimulationId(workflow.getSimulation().getId());
         });
-
-    // Asset agent jobs -> DELETE all by inject id
-    deleteAllAssetAgentJobs(injectsIds, TenantContext.getCurrentTenant());
-
-    stepService.saveSteps(stepsToUpdate);
-  }
-
-  private void deleteAllAssetAgentJobs(List<String> injectsIds, String tenantId) {
-    if (CollectionUtils.isEmpty(injectsIds)) return;
-    assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(injectsIds, tenantId);
-  }
-
-  /**
-   * Deletes all workflow states associated with workflows of the given simulation.
-   *
-   * @param simulationId the ID of the simulation whose workflow states should be cleared
-   */
-  public void deleteWorkflowStatesBySimulationId(String simulationId) {
-    workflowStateService.deleteAllBySimulationId(simulationId);
   }
 
   // -- Configuration Update --
@@ -1095,6 +1053,20 @@ public class WorkflowService {
     }
 
     return new ConfigurationChange(rulesChanged || variablesChanged || changed, rulesChanged);
+  }
+
+  /**
+   * Deletes all workflow states of the given simulation as part of a reset. Called directly by
+   * simulation ID rather than via {@link #findWorkflowRunBySimulationId(String)}: the reset flows
+   * calling this fire only once the simulation is already CANCELED/FINISHED, at which point its
+   * chaining workflow(s) are already END - so a RUN-status lookup would always return empty and
+   * silently skip the cleanup.
+   *
+   * @param exerciseId the ID of the simulation whose workflow states should be cleared
+   */
+  public void resetSimulationDeleteWorkflow(String exerciseId) {
+    workflowEndService.deleteWorkflowStatesBySimulationId(
+        exerciseId, WorkflowEndService.WORKFLOW_END_CAUSE.DELETED);
   }
 
   /**
@@ -1651,7 +1623,7 @@ public class WorkflowService {
           "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
           workflowRun.getId());
-      workflowEndService.markWorkflowEnded(
+      workflowEndService.manageWorkflowEnd(
           workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
       return workflowRun;
     }
@@ -1675,7 +1647,7 @@ public class WorkflowService {
     if (!hasActiveSteps
         && !workflowRun.isKeepAlive()
         && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
-      workflowEndService.markWorkflowEnded(
+      workflowEndService.manageWorkflowEnd(
           workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
     }
 

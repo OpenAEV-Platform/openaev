@@ -184,7 +184,7 @@ class StepServiceTimeoutGuardsTest {
 
       ExternalUpdateEvent event = ExternalUpdateEvent.builder().stepId(stepRun.getId()).build();
 
-      when(stepService.findByIdAndStatus(stepRun.getId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.findById(stepRun.getId())).thenReturn(stepRun);
       when(workflowService.isWorkflowEnded(endedWorkflow.getId())).thenReturn(true);
 
       // Act
@@ -207,7 +207,7 @@ class StepServiceTimeoutGuardsTest {
 
       ExternalUpdateEvent event = ExternalUpdateEvent.builder().stepId(stepRun.getId()).build();
 
-      when(stepService.findByIdAndStatus(stepRun.getId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.findById(stepRun.getId())).thenReturn(stepRun);
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
       when(stepService.factoryAction(stepRun.getStepAction(), stepRun.getId()))
           .thenReturn(actionStep);
