@@ -26,7 +26,11 @@ public class RabbitMQTestListener implements TestExecutionListener {
       context.getBean(QueueChainingService.class).init();
       // Purge stale messages that were requeued by RabbitMQ after the previous connection close
       // Safe because the scheduler's initial delay (workerFrequency) hasn't elapsed yet
-      context.getBean(InjectApi.class).getInjectTraceQueueService().purge();
+      BatchQueueService<?> queueService =
+          context.getBean(InjectApi.class).getInjectTraceQueueService();
+      if (queueService != null) {
+        queueService.purge();
+      }
       consumersStopped = false;
       log.info("RabbitMQ consumers reinitialized for class: {}", testClass.getSimpleName());
     }
@@ -57,7 +61,11 @@ public class RabbitMQTestListener implements TestExecutionListener {
 
     // Closing RabbitMQ consumers
     ApplicationContext context = testContext.getApplicationContext();
-    context.getBean(InjectApi.class).getInjectTraceQueueService().stop();
+    BatchQueueService<?> queueService =
+        context.getBean(InjectApi.class).getInjectTraceQueueService();
+    if (queueService != null) {
+      queueService.stop();
+    }
     context.getBean(QueueChainingService.class).destroy();
     consumersStopped = true;
 
