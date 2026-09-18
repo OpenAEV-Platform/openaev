@@ -4,18 +4,35 @@ Lessons let you create customizable surveys that collect qualitative feedback fr
 
 ## Why use Lessons?
 
-- Capture qualitative feedback that complements the quantitative results of a Scenario or Simulation.
-- Identify gaps in processes, communication, or awareness that technical metrics alone cannot reveal.
-- Automate the lessons-learned step that is often overlooked in Breach and Attack Simulations.
+- Capture qualitative feedback that complements the quantitative results of a Scenario or Simulation
+- Identify gaps in processes, communication, or awareness that technical metrics alone cannot reveal
+- Automate the lessons-learned step that is often overlooked in Breach and Attack Simulations
+
+## Enable the Lessons module
+
+Lessons are an optional module. On a new Scenario or Simulation the module is **disabled**, and the **Lessons Learned** tab is not displayed.
+
+To enable it:
+
+1. Open the Scenario or the Simulation
+2. Click on the menu in the top right-hand corner, then select ‘Update’
+3. In the **Modules** section, turn on **Enable lessons learned**.
+4. The **Lessons learned** tab appears on the Scenario or Simulation
+
+!!! note
+
+    Scenarios and Simulations created before the module became optional keep Lessons enabled when they already had lesson categories, objectives, or an anonymised questionnaire. All others start disabled
+
+!!! tip
+
+    Managing lesson templates in **Settings > Customization > Lessons learned** requires the lessons-learned access capability. Without it the menu entry and the template picker are hidden, even when the module is enabled
 
 ## Use Lessons with Scenarios and Simulations
 
-Enable Lessons on the Scenario or Simulation details page to expose the Lessons learned tab.
+- **Time-based Scenarios and Simulations** use the Teams already configured on the Scenario or Simulation
+- **Chained Scenarios and Simulations** use the teams defined in the run scope, so the Lessons target picker shows the same audience you selected for the chain
 
-- **Time-based Scenarios and Simulations** use the Teams already configured on the Scenario or Simulation.
-- **Chained Scenarios and Simulations** use the teams defined in the run scope, so the Lessons target picker shows the same audience you selected for the chain.
-
-The rest of the workflow is the same: create categories and questions, apply a template, and send the survey to the selected Teams.
+The rest of the workflow is the same: create categories and questions, apply a template, and send the survey to the selected Teams
 
 ## Create a lesson template
 
@@ -32,8 +49,8 @@ Once completed, your new lesson will appear in the lesson learned list.
 
 To create a new category, follow these steps:
 
-1. Click the + button at the bottom right corner of the screen.
-2. Give your new category a name and an order to organize your categories.
+1. Click the + button at the bottom right corner of the screen
+2. Give your new category a name and an order to organize your categories
 
 ![lesson-category-creation.png](../../assets/components/lesson-category-creation.png)
 
@@ -41,8 +58,8 @@ To create a new category, follow these steps:
 
 To create a new question, follow these steps:
 
-1. Click the + button at the bottom of your category.
-2. Give your new question a content and an order to organize your questions.
+1. Click the + button at the bottom of your category
+2. Give your new question a content and an order to organize your questions
 
 ![lesson-question-creation.png](../../assets/components/lesson-question-creation.png)
 
@@ -50,9 +67,9 @@ To create a new question, follow these steps:
 
 Use lesson templates in the **Lessons learned** tab:
 
-1. Apply a new template.
-2. Add relevant teams to the most pertinent categories.
-3. Send your survey to collect feedback.
+1. Apply a new template
+2. Add relevant teams to the most pertinent categories
+3. Send your survey to collect feedback
 
 By integrating lesson templates into your Simulations, you can gather valuable insights and improve the effectiveness of
 your Breach and Attack Simulations.
