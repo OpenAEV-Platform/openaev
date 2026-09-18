@@ -12,11 +12,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.command.CommandArgumentBinder;
 import jakarta.annotation.Resource;
@@ -26,6 +29,7 @@ import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -45,6 +49,8 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
+  private final AgentRepository agentRepository;
+  private final AssetGroupService assetGroupService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -296,7 +302,7 @@ public class ExecutableInjectService {
     // but it would require more changes in the implant code and change this endpoint from a get to
     // a post.
     Instant startTime = Instant.now();
-    Payload payloadToExecute = getExecutablePayloadInject(injectId);
+    Payload payloadToExecute = getExecutablePayloadInject(injectId, agentId);
     this.injectStatusService.addStartImplantExecutionTraceByInject(
         injectId, agentId, "Implant is up and starting execution", startTime);
     this.injectExpectationService.addStartDateSignatureToInjectExpectationsByAgent(
@@ -304,8 +310,44 @@ public class ExecutableInjectService {
     return payloadToExecute;
   }
 
-  private Payload getExecutablePayloadInject(String injectId) throws Exception {
+  /**
+   * Object-level authorization gate: a service-account bearer token carrying AGENT_RUNTIME_ACCESS
+   * is shared across every agent, so the {@code @AccessControl} capability check alone does not
+   * prove the caller is entitled to this specific inject's payload. Reject the request (403) unless
+   * the requesting agent's asset is actually targeted by the inject, either directly or through one
+   * of its asset groups (static or dynamic membership).
+   *
+   * <p>When the agent itself does not exist, this check is skipped: the request is already rejected
+   * downstream (404) once {@code addStartImplantExecutionTraceByInject} fails to resolve it, so
+   * there is nothing extra to enforce here.
+   */
+  private void assertAgentIsInjectTarget(Inject inject, String agentId) {
+    Optional<Agent> agent = agentRepository.findById(agentId);
+    if (agent.isEmpty()) {
+      return;
+    }
+    Asset agentAsset = agent.get().getAsset();
+    if (agentAsset == null) {
+      throw new ForbiddenException(
+          "Agent " + agentId + " is not a target of inject " + inject.getId());
+    }
+    String agentAssetId = agentAsset.getId();
+    boolean isDirectTarget =
+        inject.getAssets().stream().anyMatch(asset -> agentAssetId.equals(asset.getId()));
+    boolean isGroupTarget =
+        !isDirectTarget
+            && inject.getAssetGroups().stream()
+                .flatMap(group -> assetGroupService.assetsFromAssetGroup(group).stream())
+                .anyMatch(asset -> agentAssetId.equals(asset.getId()));
+    if (!isDirectTarget && !isGroupTarget) {
+      throw new ForbiddenException(
+          "Agent " + agentId + " is not a target of inject " + inject.getId());
+    }
+  }
+
+  private Payload getExecutablePayloadInject(String injectId, String agentId) throws Exception {
     Inject inject = injectService.inject(injectId);
+    assertAgentIsInjectTarget(inject, agentId);
     InjectorContract contract =
         inject
             .getInjectorContract()

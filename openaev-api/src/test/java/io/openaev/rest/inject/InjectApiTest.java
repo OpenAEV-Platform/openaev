@@ -1290,6 +1290,48 @@ class InjectApiTest extends IntegrationTest {
                       .hasSize(1));
     }
 
+    @DisplayName(
+        "Should return 403 when the requesting agent is not a target of the inject (F408690-41)")
+    @Test
+    void given_agentNotTargetedByInject_should_returnForbidden() throws Exception {
+      // -- PREPARE --
+      // Agent assigned to an endpoint that is NOT one of the inject's targets: a service-account
+      // token carrying AGENT_RUNTIME_ACCESS must not be able to read the payload of an inject it
+      // isn't a target of, even though the capability check alone would let the request through.
+      AgentComposer.Composer strangerAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpointComposer
+          .forEndpoint(EndpointFixture.createEndpoint())
+          .withAgent(strangerAgentWrapper)
+          .persist();
+
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(
+                          payloadComposer.forPayload(PayloadFixture.createDefaultCommand())))
+              .persist()
+              .get();
+
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              get(INJECT_URI
+                      + "/"
+                      + injectSaved.getId()
+                      + "/"
+                      + strangerAgentWrapper.get().getId()
+                      + "/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
     @DisplayName("Get obfuscate command")
     @Test
     void getExecutableObfuscatePayloadInject() throws Exception {

@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class ExecutableInjectServiceTest {
 
   private final ExecutableInjectService service =
-      new ExecutableInjectService(null, null, null, null, null);
+      new ExecutableInjectService(null, null, null, null, null, null, null);
 
   @Test
   @DisplayName("Should preserve reserved implant placeholders when replacing payload arguments")
