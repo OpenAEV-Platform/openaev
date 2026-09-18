@@ -209,6 +209,63 @@ class DocumentApiTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("Download document file for agent RBAC (GET /documents/{id}/agent-file)")
+  class DownloadDocumentAgentFileAccessControl {
+
+    private String agentFileUri(Document document) {
+      return tenantUri("/api/tenants/{tenantId}/documents/" + document.getId() + "/agent-file");
+    }
+
+    /**
+     * The dedicated agent route is gated by AGENT_DOCUMENT_READ (mapped to the hidden
+     * AGENT_DOCUMENT_ACCESS capability). A service-account token carrying the real service-account
+     * capability set {AGENT_RUNTIME_ACCESS, AGENT_DOCUMENT_ACCESS} must be able to download the
+     * file here, since it can no longer use the legacy /file route.
+     */
+    @Test
+    @DisplayName("Given a service-account capability set should download via /agent-file")
+    @WithMockUser(
+        withCapabilities = {Capability.AGENT_RUNTIME_ACCESS, Capability.AGENT_DOCUMENT_ACCESS})
+    void given_service_account_token_should_download_via_agent_endpoint() throws Exception {
+      Document document = getSimpleDocumentWithInMemoryFile();
+
+      byte[] response =
+          mvc.perform(get(agentFileUri(document)).with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      assertArrayEquals(FileFixture.getBadCoffeeFileContent().getContentBytes(), response);
+    }
+
+    /**
+     * Human-only capability: a user carrying ACCESS_DOCUMENTS (READ on DOCUMENT) but not the hidden
+     * AGENT_DOCUMENT_ACCESS must be forbidden on the agent route, which is gated by the distinct
+     * AGENT_DOCUMENT_READ action. This proves the agent route is not reachable with human document
+     * capabilities.
+     */
+    @Test
+    @DisplayName("Given a human user with ACCESS_DOCUMENTS should be forbidden on /agent-file")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_DOCUMENTS})
+    void given_human_user_with_access_documents_capability_should_be_forbidden() throws Exception {
+      Document document = getSimpleDocumentWithInMemoryFile();
+
+      mvc.perform(get(agentFileUri(document)).with(csrf())).andExpect(status().isForbidden());
+    }
+
+    /** A user without any relevant capability must be forbidden on the agent route. */
+    @Test
+    @DisplayName("Given a user without capabilities should be forbidden on /agent-file")
+    @WithMockUser
+    void given_user_without_capabilities_should_be_forbidden() throws Exception {
+      Document document = getSimpleDocumentWithInMemoryFile();
+
+      mvc.perform(get(agentFileUri(document)).with(csrf())).andExpect(status().isForbidden());
+    }
+  }
+
   /**
    * Non-regression for standard HUMAN users carrying the platform's REAL default "Observer" role
    * (as provisioned by {@link io.openaev.processor.datapack.PresetTenantData#DEFAULT_ROLES}), NOT a

@@ -6,6 +6,7 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -51,6 +52,22 @@ public class DocumentService {
   public Document document(@NotBlank final String documentId) {
     return documentRepository
         .findById(documentId)
+        .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+  }
+
+  /**
+   * Tenant-scoped resolution of a document id received from user input (e.g. a path variable).
+   * Hibernate's {@code tenantFilter} never applies to primary-key loads ({@link #document(String)}
+   * uses {@code findById}), so callers that must not read another tenant's document have to go
+   * through {@link DocumentRepository#findByIdAndTenantId(String, String)} instead.
+   *
+   * @param documentId the id received from user input
+   * @return the document belonging to the current tenant
+   * @throws ElementNotFoundException when no document with this id exists in the current tenant
+   */
+  public Document documentForCurrentTenant(@NotBlank final String documentId) {
+    return documentRepository
+        .findByIdAndTenantId(documentId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Document not found"));
   }
 

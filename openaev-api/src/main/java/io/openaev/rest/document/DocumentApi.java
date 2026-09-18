@@ -323,12 +323,14 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public ResponseEntity<InputStreamResource> downloadDocumentForAgent(
       TxCtx ctx, @PathVariable String documentId) {
-    return buildDocumentDownloadResponse(documentId);
+    return buildDocumentDownloadResponse(documentService.documentForCurrentTenant(documentId));
   }
 
   private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(String documentId) {
-    Document document = documentService.document(documentId);
+    return buildDocumentDownloadResponse(documentService.document(documentId));
+  }
 
+  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(Document document) {
     String encodedFilename = DocumentService.encodeFileName(document.getName());
     InputStream in =
         fileService
