@@ -10,7 +10,14 @@
 # little duplication.
 
 OPENAEV_URL="${OPENAEV_URL:-http://localhost:8080}"
-TOKEN="${TOKEN:-5ccddea0-613c-4a91-a602-6a4eb243d21c}"
+# Falls back to OPENAEV_TOKEN in openaev-dev/.env (gitignored, per-developer) so
+# a dev stack started the normal way needs no extra setup. Override TOKEN to
+# use a different admin token.
+if [ -z "${TOKEN:-}" ]; then
+  ENV_FILE="$(dirname "$0")/../../../../openaev-dev/.env"
+  [ -f "$ENV_FILE" ] && TOKEN="$(grep -E '^OPENAEV_TOKEN=' "$ENV_FILE" | tail -n1 | cut -d= -f2-)"
+fi
+TOKEN="${TOKEN:?set TOKEN, or OPENAEV_TOKEN in openaev-dev/.env, to a valid admin API token}"
 TENANT="${TENANT:-2cffad3a-0001-4078-b0e2-ef74274022c3}"
 
 admin=(-H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json")

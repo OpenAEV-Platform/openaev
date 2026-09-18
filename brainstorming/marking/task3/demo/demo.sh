@@ -29,7 +29,14 @@
 set -euo pipefail
 
 OPENAEV_URL="${OPENAEV_URL:-http://localhost:8080}"
-TOKEN="${TOKEN:-5ccddea0-613c-4a91-a602-6a4eb243d21c}"
+# Falls back to OPENAEV_TOKEN in openaev-dev/.env (gitignored, per-developer) so
+# a dev stack started the normal way needs no extra setup. Override TOKEN to
+# use a different admin token.
+if [ -z "${TOKEN:-}" ]; then
+  ENV_FILE="$(dirname "$0")/../../../../openaev-dev/.env"
+  [ -f "$ENV_FILE" ] && TOKEN="$(grep -E '^OPENAEV_TOKEN=' "$ENV_FILE" | tail -n1 | cut -d= -f2-)"
+fi
+TOKEN="${TOKEN:?set TOKEN, or OPENAEV_TOKEN in openaev-dev/.env, to a valid admin API token}"
 # Resolved from the database rather than hardcoded: a dev stack rebuilt from
 # scratch gets a fresh tenant id, and a stale literal here fails as
 # TENANT_ACCESS_DENIED - which used to surface as an opaque Python KeyError.
