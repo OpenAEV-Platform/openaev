@@ -2,8 +2,11 @@ package io.openaev.service.marking_definition;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.api.marking_definition.MarkingDefinitionMapper;
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
+import io.openaev.config.MarkedTables;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
@@ -21,15 +24,26 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
+@AllowRawJdbc(
+    reason =
+        "delete-time scrub of marking_ids arrays across every marking-active table (§3.2 of"
+            + " tech-design-option-c.md): the table names come from MarkedTables at runtime, so this"
+            + " cannot be expressed through JPA/Specification. Safe without an explicit tenant filter:"
+            + " a marking definition belongs to exactly one tenant, so its id can never appear in"
+            + " another tenant's rows in the first place - the id itself is what scopes the update.")
 public class MarkingDefinitionService {
 
   private final MarkingDefinitionRepository repository;
+  private final MarkedTables markedTables;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final JdbcTemplate jdbcTemplate;
 
   // -- SEARCH --
 
@@ -121,16 +135,32 @@ public class MarkingDefinitionService {
     }
     validateUniqueOrThrow(
         input.type(), input.definition(), existing.getTenant().getId(), existing.getId());
+    boolean orderChanged = !Objects.equals(existing.getOrder(), input.order());
     existing.setDefinition(input.definition());
     existing.setColor(input.color());
     existing.setOrder(input.order());
-    return repository.save(existing);
+    MarkingDefinition saved = repository.save(existing);
+    if (orderChanged) {
+      // MarkingScopeResolver expands ordinality from `order`, per type: a clearance cached before
+      // this change may now resolve to a different id set for every user holding a grant on this
+      // type, not just this definition's own id - narrow eviction cannot express that, so this is
+      // the one case that always pays for evictAll().
+      markingClearanceCacheManager.evictAll();
+    }
+    return saved;
   }
 
   // -- DELETE --
 
   /**
    * Deletes a marking definition when it is not protected.
+   *
+   * <p>Option 2 has no FK on {@code marking_ids} (tech-design-option-c.md §3.2), so nothing
+   * cascades into the arrays: {@code groups_markings} grants are removed by the schema's {@code ON
+   * DELETE CASCADE}, but the deleted id would otherwise survive inside every row's array forever,
+   * hiding those rows from the entire platform with no error and no way back through the API. The
+   * PO decision is that a definition must stay hard-deletable even while still assigned, so the
+   * scrub below - not archiving - is the chosen mitigation.
    *
    * @param ctx transaction context containing tenant scope
    * @param markingDefinitionId identifier of the marking definition
@@ -141,6 +171,34 @@ public class MarkingDefinitionService {
       throw new BadRequestException("Protected marking definitions cannot be deleted");
     }
     repository.delete(existing);
+    scrubMarkingIds(markingDefinitionId);
+    // groups_markings grants are already gone via the FK cascade; a clearance derived from them
+    // before the delete is still cached and would otherwise keep granting access to this id.
+    markingClearanceCacheManager.evictAll();
+  }
+
+  /**
+   * Removes {@code markingDefinitionId} from the {@code marking_ids} array of every currently
+   * marking-active table.
+   *
+   * <p>Schema-driven off {@link MarkedTables}, the same allowlist-narrowed set the statement
+   * inspector filters against, so this can never drift out of sync with which tables are actually
+   * marking-active - a table added to the allowlist later is scrubbed automatically, with no second
+   * list to maintain.
+   *
+   * <p>The {@code @>} containment guard (tech-design-option-c.md §3.2, mitigation 2) lets the GIN
+   * index select candidate rows; without it every row of every marked table would be rewritten
+   * regardless of whether it holds the id.
+   */
+  private void scrubMarkingIds(String markingDefinitionId) {
+    for (String table : markedTables.tableNames()) {
+      jdbcTemplate.update(
+          "UPDATE "
+              + table
+              + " SET marking_ids = array_remove(marking_ids, ?) WHERE marking_ids @> ARRAY[?]::text[]",
+          markingDefinitionId,
+          markingDefinitionId);
+    }
   }
 
   private void validateUniqueOrThrow(
