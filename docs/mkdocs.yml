@@ -218,6 +218,7 @@ nav:
     - Rest API: usage/rest-api.md
   - Administration:
     - Introduction: administration/introduction.md
+    - User profile: administration/profile.md
     - Enterprise edition: administration/enterprise.md
     - Multi-tenancy: administration/multi-tenancy.md
     - Debug mode: administration/debug-mode.md
