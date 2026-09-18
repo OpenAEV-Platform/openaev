@@ -78,7 +78,7 @@ public class WorkflowEndService {
    *
    * @param simulationId the simulation ID
    * @param cause the reason the workflow is ending; skipped entirely for {@code
-   *     DELETED_SIMULATION_RESET} and {@code DELETED_SIMULATION}
+   *     DELETED_BY_RESET_SIMULATION} and {@code DELETED_BY_SIMULATION_DELETION}
    */
   public void stopActiveInjects(String simulationId, WORKFLOW_END_CAUSE cause) {
     if (cause == WORKFLOW_END_CAUSE.DELETED_BY_RESET_SIMULATION
