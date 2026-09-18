@@ -43,7 +43,12 @@ class PasswordFormComponent extends Component {
               label={t('Confirmation')}
               style={{ marginTop: 20 }}
             />
-            <div style={{ marginTop: 20 }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              marginTop: 20,
+            }}
+            >
               <Button type="submit" disabled={pristine || submitting}>
                 {t('Update')}
               </Button>

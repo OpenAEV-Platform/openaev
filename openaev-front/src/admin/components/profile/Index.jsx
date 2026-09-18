@@ -65,7 +65,7 @@ const Index = () => {
   const userToken = tokens.length > 0 ? R.head(tokens) : undefined;
   return (
     <div style={{
-      width: 800,
+      width: 900,
       margin: '0 auto',
       display: 'grid',
       gap: theme.spacing(3),
@@ -116,11 +116,17 @@ const Index = () => {
           {t('Token key')}
         </Typography>
         <pre>{userToken?.token_value}</pre>
-        <Button asChild onClick={() => onRenew(userToken?.token_id)}>
-          <a>
-            {t('RENEW')}
-          </a>
-        </Button>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+        >
+          <Button asChild onClick={() => onRenew(userToken?.token_id)}>
+            <a>
+              {t('RENEW')}
+            </a>
+          </Button>
+        </div>
         <Typography
           gutterBottom={true}
           sx={{
@@ -143,11 +149,17 @@ const Index = () => {
           {userToken?.token_value}
         </pre>
 
-        <Button asChild>
-          <a href="/swagger-ui/index.html">
-            {t('API specifications')}
-          </a>
-        </Button>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+        >
+          <Button asChild>
+            <a href="/swagger-ui/index.html">
+              {t('API specifications')}
+            </a>
+          </Button>
+        </div>
       </Paper>
       <XtmOneMcpAccess />
     </div>

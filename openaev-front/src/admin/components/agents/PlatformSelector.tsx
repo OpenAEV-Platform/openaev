@@ -36,10 +36,10 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({ selectedExecutor, s
         && selectedExecutor?.executor_platforms.map(platform => (
           <Card
             key={platform}
-            variant="outlined"
             style={{
               height: 150,
               margin: theme.spacing(2),
+              border: 'none',
             }}
           >
             <CardActionArea onClick={() => handlePlatformSelection(platform)} classes={{ root: classes.area }}>

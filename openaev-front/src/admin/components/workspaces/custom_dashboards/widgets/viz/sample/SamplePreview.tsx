@@ -1,8 +1,9 @@
 import { Chip } from '@filigran/design-system';
 import { Box } from '@mui/material';
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
+import { useReportSample } from './SampleContext';
 
 interface Props {
   active: boolean;
@@ -23,6 +24,12 @@ interface Props {
  */
 const SamplePreview = ({ active, children, variant = 'full' }: Props) => {
   const { t } = useFormatter();
+  const reportSample = useReportSample();
+
+  useEffect(() => {
+    reportSample?.(active);
+    return () => reportSample?.(false);
+  }, [active, reportSample]);
 
   if (!active) {
     return <>{children}</>;
@@ -48,15 +55,19 @@ const SamplePreview = ({ active, children, variant = 'full' }: Props) => {
       >
         {children}
       </Box>
-      <Chip
-        label={t('Sample')}
-        severity="neutral"
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-        }}
-      />
+      {/* Inside a widget card the marker is drawn by the title row instead
+          (SampleContext), so it sits in the card's corner level with the title. */}
+      {!reportSample && (
+        <Chip
+          label={t('Sample')}
+          severity="neutral"
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+          }}
+        />
+      )}
     </Box>
   );
 };

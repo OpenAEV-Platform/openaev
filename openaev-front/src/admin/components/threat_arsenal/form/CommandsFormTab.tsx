@@ -222,6 +222,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
                 <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.check_command` as const} label={t('Check command')} />
                 <IconButton
                   icon={<DeleteOutlined />}
+                  variant="destructive"
                   aria-label={t('Delete')}
                   onClick={() => prerequisitesRemove(prerequisitesIndex)}
                   priority="tertiary"

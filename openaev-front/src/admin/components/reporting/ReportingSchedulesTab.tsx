@@ -305,6 +305,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                               <TooltipTrigger asChild>
                                 <IconButton
                                   icon={<DeleteOutlined fontSize="small" />}
+                                  variant="destructive"
                                   aria-label={t('Delete')}
                                   onClick={() => setScheduleToDelete(schedule)}
                                   priority="tertiary"

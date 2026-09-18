@@ -440,6 +440,7 @@ const ChallengeForm: FunctionComponent<Props> = ({
                 {flagFields.length > 1 && (
                   <IconButton
                     icon={<DeleteOutlined />}
+                    variant="destructive"
                     aria-label={t('Delete')}
                     onClick={() => removeFlag(index)}
                     aria-haspopup="true"

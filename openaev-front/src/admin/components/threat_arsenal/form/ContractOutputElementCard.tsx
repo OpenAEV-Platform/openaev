@@ -97,6 +97,7 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
       <SelectFieldController name={`${prefixName}.${index}.contract_output_element_type` as const} label={t('Type')} items={outputParserTypeList} required />
       <IconButton
         icon={<DeleteOutlined />}
+        variant="destructive"
         aria-label={t('Delete')}
         onClick={() => remove(index)}
         priority="tertiary"

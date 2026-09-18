@@ -37,7 +37,6 @@ const TriggerCreate: FunctionComponent<Props> = ({ onCreate }) => {
         onClick={() => setTriggerType('DIGEST')}
         data-testid="button-create-digest"
         style={{
-          marginRight: 8,
           whiteSpace: 'nowrap',
           flexShrink: 0,
         }}

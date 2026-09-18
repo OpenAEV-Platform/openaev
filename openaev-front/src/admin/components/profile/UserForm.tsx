@@ -78,7 +78,11 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <SelectFieldController name="user_theme" label={t('Theme')} items={themeItems(t)} />
         <SelectFieldController name="user_lang" label={t('Language')} items={langItems(t)} />
         <CustomDashboardAutocompleteFieldController name="user_home_dashboard" label={t('Home dashboard')} disabled={false} withPlatformDefault />
-        <div>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+        >
           <Button type="submit" disabled={!isDirty || isSubmitting}>
             {t('Update')}
           </Button>

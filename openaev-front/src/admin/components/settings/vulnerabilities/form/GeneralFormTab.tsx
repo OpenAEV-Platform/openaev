@@ -79,6 +79,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
           <TextFieldController name={`vulnerability_cwes.${cwesIndex}.cwe_source` as const} label={t('Source')} />
           <IconButton
             icon={<DeleteOutlined />}
+            variant="destructive"
             aria-label={t('Delete')}
             onClick={() => cwesRemove(cwesIndex)}
             priority="tertiary"
@@ -117,6 +118,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
           <TextFieldController name={`vulnerability_reference_urls.${referencesIndex}` as const} label={t('Url')} />
           <IconButton
             icon={<DeleteOutlined />}
+            variant="destructive"
             aria-label={t('Delete')}
             onClick={() => referencesRemove(referencesIndex)}
             priority="tertiary"

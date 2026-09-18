@@ -252,6 +252,7 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
                 </div>
                 <IconButton
                   icon={<DeleteOutline fontSize="small" />}
+                  variant="destructive"
                   aria-label={t('Remove file')}
                   onClick={() => removeFile(index)}
                   priority="tertiary"

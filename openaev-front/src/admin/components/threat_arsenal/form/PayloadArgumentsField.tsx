@@ -133,6 +133,7 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
       )}
       <IconButton
         icon={<DeleteOutlined />}
+        variant="destructive"
         aria-label={t('Delete')}
         onClick={onArgumentRemoveClick}
         data-testid={`${argumentName}.delete-btn`}

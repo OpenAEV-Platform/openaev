@@ -1,4 +1,4 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   ArrowDownwardOutlined,
   ArrowForwardOutlined,
@@ -25,9 +25,11 @@ interface WidgetTitleProps {
   vizData: WidgetVizData;
   /** Extra content rendered at the right end of the title row (e.g. list pagination). */
   rightSlot?: ReactNode;
+  /** The body is previewing sample data: the marker belongs in this row. */
+  sample?: boolean;
 }
 
-const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData, rightSlot }: WidgetTitleProps) => {
+const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData, rightSlot, sample = false }: WidgetTitleProps) => {
   const { t } = useFormatter();
 
   const { customDashboardParameters, customDashboard } = useContext(CustomDashboardContext);
@@ -139,6 +141,7 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       >
         {widgetTitle}
       </Typography>
+      {sample && <Chip label={t('Sample')} severity="neutral" size="sm" />}
       {rightSlot}
       {isNumberWidget && numberTooltipContent && (
         <Tooltip>

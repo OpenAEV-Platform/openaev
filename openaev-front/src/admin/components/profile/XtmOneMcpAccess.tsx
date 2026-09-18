@@ -79,12 +79,19 @@ const XtmOneMcpAccess = () => {
       <Typography variant="body2" style={{ marginTop: 20 }}>
         {t('Authenticate with a personal XTM One API key passed as a bearer token. Your endpoint, connection status and ready-to-copy client configuration are available in your XTM One profile.')}
       </Typography>
-      <Button asChild style={{ marginTop: 20 }}>
-        <a href={xtmOneProfileUrl} target="_blank" rel="noopener noreferrer">
-          {t('Manage in XTM One')}
-          <OpenInNewOutlined fontSize="small" />
-        </a>
-      </Button>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        marginTop: 20,
+      }}
+      >
+        <Button asChild>
+          <a href={xtmOneProfileUrl} target="_blank" rel="noopener noreferrer">
+            {t('Manage in XTM One')}
+            <OpenInNewOutlined fontSize="small" />
+          </a>
+        </Button>
+      </div>
     </Paper>
   );
 };

@@ -33,7 +33,12 @@ class ProfileFormComponent extends Component {
               label={t('PGP public key')}
               style={{ marginTop: 20 }}
             />
-            <div style={{ marginTop: 20 }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              marginTop: 20,
+            }}
+            >
               <Button type="submit" disabled={pristine || submitting}>
                 {t('Update')}
               </Button>

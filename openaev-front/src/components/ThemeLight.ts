@@ -25,7 +25,9 @@ const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--bg-elevation-default-layer
 // flag: this specific, visibly-notable white -> #f2f2f3 shift is not signed off.
 const THEME_LIGHT_DEFAULT_NAV = '#ffffff';
 const THEME_LIGHT_DEFAULT_TEXT = '#18191B';
-export const THEME_LIGHT_DIALOG_BACKGROUND = '#FFFFFF';
+// Modal surface: the design system's layer-2 elevation, the light counterpart of
+// the dark modal ground.
+export const THEME_LIGHT_DIALOG_BACKGROUND = FDS.colors.light['--bg-elevation-default-layer-2'];
 
 const getAppBodyGradientEndColor = (background: string | null): string => {
   if (background && background !== THEME_LIGHT_DEFAULT_BACKGROUND) {
@@ -592,6 +594,15 @@ const ThemeLight = (
       },
     },
     MuiPaper: { styleOverrides: { root: { color: text_color } } },
+    // An alert's body is text, so it reads in the primary ink like any other
+    // text; the severity is carried by the icon and the border, not by a
+    // tinted paragraph.
+    MuiAlert: {
+      styleOverrides: {
+        root: { color: text_color },
+        message: { color: text_color },
+      },
+    },
     // Design-system icon buttons are squared (4px radius) - never MUI's
     // default circle/oval ripple.
     MuiIconButton: { styleOverrides: { root: { borderRadius: 4 } } },

@@ -556,7 +556,7 @@ const ReportingForm: FunctionComponent<Props> = ({
               sx={{
                 display: 'flex',
                 alignItems: 'flex-start',
-                gap: 0.5,
+                gap: 1,
                 padding: 1,
                 borderRadius: 1,
                 cursor: 'pointer',
@@ -612,7 +612,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                       >
                         <Box sx={{
                           display: 'flex',
-                          alignItems: 'center',
+                          alignItems: 'flex-start',
                           gap: 1,
                         }}
                         >
@@ -640,35 +640,17 @@ const ReportingForm: FunctionComponent<Props> = ({
                           >
                             {`${index + 1}. ${t(MODULE_TYPE_LABELS[type])}`}
                           </Typography>
-                          {/* The kill chain section carries two fields: they get their own row below. */}
-                          {type !== 'MITRE_COVERAGE' && (
-                            <>
+                          {/* The kill chain section carries two fields: they stack to the
+                              right of the block title, which stays level with the first label. */}
+                          {type === 'MITRE_COVERAGE' && (
+                            <Box sx={{
+                              flex: 1,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 1,
+                            }}
+                            >
                               <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <IconButton
-                                    icon={<DeleteOutlined fontSize="small" />}
-                                    aria-label={t('Remove')}
-                                    onClick={() => removeModule(index)}
-                                    variant="destructive"
-                                    priority="tertiary"
-                                    size="sm"
-                                  />
-                                </TooltipTrigger>
-                                <TooltipContent>{t('Remove')}</TooltipContent>
-                              </Tooltip>
-                            </>
-                          )}
-                        </Box>
-                        {type === 'MITRE_COVERAGE' && (
-                          <Box sx={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: 1,
-                          }}
-                          >
-                            <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
-                            <Box sx={{ flex: 1 }}>
                               <Controller
                                 control={control}
                                 name={`modules.${index}.kill_chains`}
@@ -686,21 +668,26 @@ const ReportingForm: FunctionComponent<Props> = ({
                                 )}
                               />
                             </Box>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <IconButton
-                                  icon={<DeleteOutlined fontSize="small" />}
-                                  aria-label={t('Remove')}
-                                  onClick={() => removeModule(index)}
-                                  variant="destructive"
-                                  priority="tertiary"
-                                  size="sm"
-                                />
-                              </TooltipTrigger>
-                              <TooltipContent>{t('Remove')}</TooltipContent>
-                            </Tooltip>
-                          </Box>
-                        )}
+                          )}
+                          {type !== 'MITRE_COVERAGE' && (
+                            <>
+                              <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
+                            </>
+                          )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <IconButton
+                                icon={<DeleteOutlined fontSize="small" />}
+                                aria-label={t('Remove')}
+                                onClick={() => removeModule(index)}
+                                variant="destructive"
+                                priority="tertiary"
+                                size="sm"
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent>{t('Remove')}</TooltipContent>
+                          </Tooltip>
+                        </Box>
                         {type === 'CUSTOM_MARKDOWN' && (
                           <MarkDownFieldController
                             name={`modules.${index}.content`}

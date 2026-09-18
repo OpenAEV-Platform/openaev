@@ -538,6 +538,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                   <span className="inline-flex">
                     <IconButton
                       icon={<DeleteOutlined fontSize="small" />}
+                      variant="destructive"
                       aria-label="delete"
                       disabled={numberOfSelectedElements === 0 || this.state.processing}
                       onClick={this.handleOpenBulkDelete.bind(this)}

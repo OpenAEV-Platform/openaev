@@ -238,7 +238,7 @@ const DefaultHomeDashboard = () => {
               aria-label={t('Refresh')}
               onClick={() => setRefreshCount(c => c + 1)}
               priority="tertiary"
-              size="sm"
+              size="md"
             />
           </TooltipTrigger>
           <TooltipContent>{t('Refresh')}</TooltipContent>

@@ -23,7 +23,9 @@ const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--bg-elevation-default-layer-
 const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--bg-elevation-default-layer-1'];
 const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--bg-elevation-heading-layer-0'];
 const THEME_DARK_DEFAULT_TEXT = '#F2F2F3';
-export const THEME_DARK_DIALOG_BACKGROUND = '#0F1D34';
+// Modal surface: the design system's layer-2 elevation, the same ground OpenCTI's
+// modals sit on. Read from the token map, never retyped.
+export const THEME_DARK_DIALOG_BACKGROUND = FDS.colors.dark['--bg-elevation-default-layer-2'];
 
 const getAppBodyGradientEndColor = (background: string | null): string => {
   if (background && background !== THEME_DARK_DEFAULT_BACKGROUND) {
@@ -589,6 +591,15 @@ const ThemeDark = (
       },
     },
     MuiPaper: { styleOverrides: { root: { color: text_color } } },
+    // An alert's body is text, so it reads in the primary ink like any other
+    // text; the severity is carried by the icon and the border, not by a
+    // tinted paragraph.
+    MuiAlert: {
+      styleOverrides: {
+        root: { color: text_color },
+        message: { color: text_color },
+      },
+    },
     // Design-system icon buttons are squared (4px radius) - never MUI's
     // default circle/oval ripple.
     MuiIconButton: { styleOverrides: { root: { borderRadius: 4 } } },

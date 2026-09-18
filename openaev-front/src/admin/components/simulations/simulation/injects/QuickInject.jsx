@@ -588,6 +588,7 @@ class QuickInjectComponent extends Component {
                                 {field.cardinality === 'n' && (
                                   <IconButton
                                     icon={<DeleteOutlined />}
+                                    variant="destructive"
                                     aria-label={t('Delete')}
                                     onClick={() => fields.remove(index)}
                                     aria-haspopup="true"
