@@ -94,6 +94,7 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
       <ButtonGroup
         value={view}
         size="md"
+        usecase="isolated"
         onValueChange={(next) => {
           const value = next as MarketplaceView;
           if (value) onViewChange(value);

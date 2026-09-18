@@ -279,6 +279,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
             topBarButtons={(
               <ButtonGroup
                 size="md"
+                usecase="isolated"
                 value={viewMode}
                 onValueChange={handleViewMode}
                 style={{ marginLeft: 1.5 }}

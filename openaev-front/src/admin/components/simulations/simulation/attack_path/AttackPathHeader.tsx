@@ -625,6 +625,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
       </div>
       <ButtonGroup
         size="md"
+        usecase="isolated"
         value={view}
         onValueChange={v => onViewChange(v as 'graph' | 'table')}
         aria-label={t('View')}
