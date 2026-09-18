@@ -274,6 +274,13 @@ const ReportingPage = () => {
               <TooltipContent>{`${t('Download latest generation')} (${latestDownloadable.reporting_generation_format ?? ''})`}</TooltipContent>
             </Tooltip>
           )}
+          {/* The overflow menu precedes the generate button so the primary action
+              closes the row. */}
+          <ReportingPopover
+            reporting={reporting}
+            onUpdate={result => setReporting(result)}
+            onDelete={() => navigate('/admin/reporting')}
+          />
           {canManage && (
             <>
               <ButtonGroup variant="contained" size="small" disabled={generating}>
@@ -304,11 +311,6 @@ const ReportingPage = () => {
               </Menu>
             </>
           )}
-          <ReportingPopover
-            reporting={reporting}
-            onUpdate={result => setReporting(result)}
-            onDelete={() => navigate('/admin/reporting')}
-          />
         </Box>
       </Box>
 

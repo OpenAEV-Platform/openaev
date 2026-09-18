@@ -68,15 +68,17 @@ const CustomDashboardEditHeader: FunctionComponent = () => {
           gap: theme.spacing(1),
         }}
         >
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
-            <WidgetCreation />
-          </Can>
+          {/* The primary action closes the row: the kebab of secondary actions
+              sits before it, never after. */}
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
             <CustomDashboardPopover
               customDashboard={customDashboard}
               onUpdate={handleUpdate}
               onDelete={() => navigate('/admin/workspaces/custom_dashboards')}
             />
+          </Can>
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
+            <WidgetCreation />
           </Can>
         </div>
       </div>

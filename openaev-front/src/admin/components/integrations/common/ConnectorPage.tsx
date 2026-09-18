@@ -225,20 +225,10 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         )}
         actions={(
           <>
-            {showMigrateButton && (
-              <MigrateButton onMigrateBtnClick={() => createInstanceDrawer.handleOpen()} />
-            )}
-            {canManage && instance?.connector_instance_id && (
-              <ActionButton
-                onUpdate={onUpdateRequestedStatusClick}
-                disabled={disabledUpdateButtons}
-                status={instanceRequestedStatus}
-              />
-            )}
-            {/* Kebab always LAST, like every other detail hero in the app. Kept
-                openable when the Integration Manager is down: the Update drawer
-                shows the warning inside and disables the form, so the action
-                surface stays reachable (OpenCTI pattern). */}
+            {/* Kebabs first, like every other detail hero in the app: the primary
+                action closes the row. Kept openable when the Integration Manager
+                is down: the Update drawer shows the warning inside and disables
+                the form, so the action surface stays reachable (OpenCTI pattern). */}
             {canManage && instance?.connector_instance_id && (
               <ConnectorPopover
                 connectorInstanceId={instance.connector_instance_id}
@@ -254,6 +244,16 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
                   action: () => setIsDeleteOpen(true),
                   userRight: true,
                 }]}
+              />
+            )}
+            {showMigrateButton && (
+              <MigrateButton onMigrateBtnClick={() => createInstanceDrawer.handleOpen()} />
+            )}
+            {canManage && instance?.connector_instance_id && (
+              <ActionButton
+                onUpdate={onUpdateRequestedStatusClick}
+                disabled={disabledUpdateButtons}
+                status={instanceRequestedStatus}
               />
             )}
           </>

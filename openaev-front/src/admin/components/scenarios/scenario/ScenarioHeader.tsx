@@ -898,9 +898,9 @@ const ScenarioHeader = ({
               )}
               {/* Launch actions (suppressed while a run is active - the lifecycle controls own the
                   hero then). Resolved into `launchActions` above to avoid nested ternaries here. */}
-              {!isRunActive && canLaunch && launchActions}
               {/* Everything else - analyze, setup, and CRUD - in one overflow menu. Hidden entirely
-                  for grant-only users without any manage / launch / delete permission. */}
+                  for grant-only users without any manage / launch / delete permission. The menu
+                  sits before the launch actions so the primary button closes the row. */}
               {canDisplayScenarioActions && (
                 <ScenarioPopover
                   scenario={scenario}
@@ -908,6 +908,7 @@ const ScenarioHeader = ({
                   onDelete={() => navigate('/admin/scenarios')}
                 />
               )}
+              {!isRunActive && canLaunch && launchActions}
             </>
           )}
           stats={(

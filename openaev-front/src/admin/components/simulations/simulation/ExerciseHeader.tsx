@@ -570,20 +570,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   </Tooltip>
                 </>
               )}
-              {/* Lifecycle CTAs (start / pause / resume / stop / reset) for a manual simulation. An
-                  autonomous run exposes none of them here: the simulation is observe-only and all
-                  control lives on the parent scenario. */}
-              {!isAutonomous && (
-                <Buttons
-                  exerciseId={exercise.exercise_id}
-                  exerciseStatus={exercise.exercise_status}
-                  exerciseName={exercise.exercise_name}
-                  onLoading={onLoading}
-                  isLoading={isLoading}
-                  isScopeMissing={isScopeMissing}
-                  isChaining={isSimulationChaining}
-                />
-              )}
               {/* Unified parent-scenario pivot: whenever a simulation was run from a scenario (manual
                   or autonomous), the top-right hero action is an outlined button carrying the scenario
                   name. For autonomous runs the parent scenario is also where the full control surface
@@ -643,6 +629,21 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   exercise={exercise}
                   actions={actions}
                   onDelete={() => navigate('/admin/simulations')}
+                />
+              )}
+              {/* Lifecycle CTAs (start / pause / resume / stop / reset) for a manual simulation. An
+                  autonomous run exposes none of them here: the simulation is observe-only and all
+                  control lives on the parent scenario. They close the cluster: the primary action
+                  is always the rightmost control. */}
+              {!isAutonomous && (
+                <Buttons
+                  exerciseId={exercise.exercise_id}
+                  exerciseStatus={exercise.exercise_status}
+                  exerciseName={exercise.exercise_name}
+                  onLoading={onLoading}
+                  isLoading={isLoading}
+                  isScopeMissing={isScopeMissing}
+                  isChaining={isSimulationChaining}
                 />
               )}
             </>

@@ -298,12 +298,14 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
           {t('Stop')}
         </Button>
       )}
-      {hasAbility && getActionButton(injectResultOverview)}
+      {/* The overflow menu precedes the launch button so the primary action
+          closes the cluster. */}
       <AtomicTestingPopover
         atomic={injectResultOverview}
         actions={['Export', 'Update', 'Duplicate', 'Delete']}
         onDelete={() => navigate('/admin/atomic_testings')}
       />
+      {hasAbility && getActionButton(injectResultOverview)}
       {getDialog(injectResultOverview)}
       <SchedulingDialog
         open={openScheduling}
