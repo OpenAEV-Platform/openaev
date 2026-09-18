@@ -1,3 +1,4 @@
+import { LensOutlined } from '@mui/icons-material';
 import { Chip, Tooltip } from '@mui/material';
 import { useMemo } from 'react';
 
@@ -57,6 +58,16 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
         <Tooltip key={marking.marking_definition_id} title={`${marking.marking_definition_type}:${marking.marking_definition_definition}`}>
           <Chip
             variant="outlined"
+            // The dot mirrors the "Color" column of the marking definitions admin list, so a
+            // marking reads the same way wherever it is shown - definition list, group list, or
+            // here on the entity it is attached to.
+            icon={(
+              <LensOutlined sx={{
+                color: `${marking.marking_definition_color} !important`,
+                fontSize: variant === 'list' ? 12 : 14,
+              }}
+              />
+            )}
             sx={{
               ...chipSx,
               color: marking.marking_definition_color,

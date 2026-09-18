@@ -19,6 +19,13 @@ interface Props {
 // Markings are a small, effectively-static set (nine seeded TLP/PAP levels per tenant, see
 // useMarkingDefinitions), so unlike GroupManageRoles this picker has no server-side pagination:
 // the whole set is loaded once and filtered/sorted client-side by SelectListPicker.
+//
+// Marking grants are ordinal and cumulative within a type (TLP:RED implies TLP:AMBER implies
+// TLP:GREEN implies TLP:CLEAR - see MarkingScopeResolver). Rather than let independent checkboxes
+// misrepresent that as "pick any combination", clicking a level here checks it and every less
+// restrictive level of the same type, and unchecks every more restrictive one - so the picker
+// always shows a single cumulative cutoff per type, matching what is actually granted. Clicking
+// the already-topmost checked level again clears the whole type.
 const GroupManageMarkings: FunctionComponent<Props> = ({
   initialState,
   open,
@@ -29,8 +36,15 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const markingDefinitions = useMarkingDefinitions({ skip: !open });
+  // Most restrictive first within a type (TLP:RED at the top), so the cumulative cutoff a user
+  // picks reads top-down as "this and everything below it".
   const markingValues = useMemo(
-    () => Object.values(markingDefinitions).sort((a, b) => a.marking_definition_order - b.marking_definition_order),
+    () => Object.values(markingDefinitions).sort((a, b) => {
+      if (a.marking_definition_type !== b.marking_definition_type) {
+        return a.marking_definition_type.localeCompare(b.marking_definition_type);
+      }
+      return b.marking_definition_order - a.marking_definition_order;
+    }),
     [markingDefinitions],
   );
 
@@ -43,9 +57,32 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   }, [open, initialState]);
 
   const toggleMarking = (markingId: string) => {
-    setSelectedIds(prev => (prev.includes(markingId)
-      ? prev.filter(id => id !== markingId)
-      : [...prev, markingId]));
+    const marking = markingDefinitions[markingId];
+    if (!marking) {
+      return;
+    }
+    const sameTypeIds = new Set(
+      markingValues
+        .filter(m => m.marking_definition_type === marking.marking_definition_type)
+        .map(m => m.marking_definition_id),
+    );
+    const otherTypesSelected = selectedIds.filter(id => !sameTypeIds.has(id));
+    const currentTypeSelected = selectedIds.filter(id => sameTypeIds.has(id));
+    const currentHighestOrder = currentTypeSelected.length > 0
+      ? Math.max(...currentTypeSelected.map(id => markingDefinitions[id]?.marking_definition_order ?? 0))
+      : undefined;
+
+    // Clicking the current cutoff again clears the whole type instead of doing nothing - it is
+    // the only way to bring a type back to "no grant" once something has been checked.
+    if (currentHighestOrder === marking.marking_definition_order) {
+      setSelectedIds(otherTypesSelected);
+      return;
+    }
+
+    const cumulativeIds = Array.from(sameTypeIds).filter(
+      id => (markingDefinitions[id]?.marking_definition_order ?? 0) <= marking.marking_definition_order,
+    );
+    setSelectedIds([...otherTypesSelected, ...cumulativeIds]);
   };
 
   const elements: SelectListPickerElements<MarkingDefinitionOutput> = useMemo(() => ({
@@ -62,14 +99,12 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
       {
         field: 'marking_definition_type',
         label: 'Type',
-        isSortable: true,
         value: (marking: MarkingDefinitionOutput) => marking.marking_definition_type,
         width: 40,
       },
       {
         field: 'marking_definition_definition',
         label: 'Definition',
-        isSortable: true,
         value: (marking: MarkingDefinitionOutput) => (
           <Box sx={{
             display: 'flex',
@@ -83,6 +118,8 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
         width: 60,
       },
     ],
+    // Deliberately not sortable: the fixed most-restrictive-first order is what makes the
+    // cumulative cutoff readable. A column sort (e.g. alphabetical) would scramble it.
   }), []);
 
   const handleClose = () => {
