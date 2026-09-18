@@ -1835,6 +1835,108 @@ export type AverageConfiguration = UtilRequiredKeys<
   series: Series[];
 };
 
+export type AwsAccessKey = Value & {
+  aws_access_key_id?: string;
+  aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  aws_secret_access_key?: string;
+  aws_session_token?: string;
+};
+
+export type AwsAssumeRole = Value & {
+  aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  aws_external_id?: string;
+  aws_role_arn?: string;
+  aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
+  aws_source_profile_access_key_id?: string;
+  aws_source_profile_secret_access_key?: string;
+};
+
+export type AzureManagedIdentity = Value & {
+  azure_client_id?: string;
+  azure_environment?: string;
+  azure_subscription_id?: string;
+};
+
+export type AzureServicePrincipal = Value & {
+  azure_client_id?: string;
+  azure_client_secret?: string;
+  azure_environment?: string;
+  azure_subscription_id?: string;
+  azure_tenant_id?: string;
+};
+
 interface BaseEsBase {
   /** @format date-time */
   base_created_at?: string;
@@ -5982,6 +6084,21 @@ export interface FullTextSearchResult {
   tags?: Tag[];
 }
 
+export type GcpOAuth2 = Value & {
+  gcp_oauth_client_id?: string;
+  gcp_oauth_client_secret?: string;
+  gcp_oauth_refresh_token?: string;
+  gcp_project_id?: string;
+  gcp_scope?: string;
+};
+
+export type GcpServiceAccount = Value & {
+  /** @format byte */
+  gcp_private_key_json?: Blob;
+  gcp_project_id?: string;
+  gcp_scope?: string;
+};
+
 export interface GetExercisesInput {
   exercise_ids?: string[];
 }
@@ -6046,6 +6163,11 @@ export interface GroupUpdateRolesInput {
 export interface GroupUpdateUsersInput {
   group_users?: string[];
 }
+
+export type Hash = Value & {
+  hash?: string;
+  hash_algorithm?: "SHA" | "NTLM";
+};
 
 export interface HealthCheck {
   /**
@@ -6262,6 +6384,13 @@ export interface InjectAssistantInput {
    * @format int32
    */
   inject_by_ttp_number: number;
+}
+
+export interface InjectAttachmentInput {
+  /** @minLength 1 */
+  attachment_id: string;
+  /** @minLength 1 */
+  authorisation: string;
 }
 
 export interface InjectAuthorisation {
@@ -11142,6 +11271,27 @@ export interface SearchTerm {
   searchTerm?: string;
 }
 
+export interface SecretResolvedValue {
+  type?:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
+  value?:
+    | AwsAccessKey
+    | AwsAssumeRole
+    | AzureManagedIdentity
+    | AzureServicePrincipal
+    | GcpOAuth2
+    | GcpServiceAccount
+    | Hash
+    | UsernamePassword;
+}
+
 export interface SecretsProvider {
   external?: boolean;
   listened?: boolean;
@@ -12881,6 +13031,11 @@ export interface UserTenantOutput {
   tenant_name?: string;
 }
 
+export type UsernamePassword = Value & {
+  password?: string;
+  username?: string;
+};
+
 export interface ValidationContent {
   /** A list of errors */
   errors?: string[];
@@ -12902,6 +13057,8 @@ export interface ValidationErrorBag {
   /** Return message */
   message?: string;
 }
+
+export type Value = any;
 
 export interface Variable {
   listened?: boolean;
