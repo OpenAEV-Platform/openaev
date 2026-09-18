@@ -31,7 +31,7 @@ Authorization: Bearer <API_KEY>
 Session-based authentication is useful for scripts that simulate browser interactions.
 
 1. Send a `POST` request to `/api/login` with your credentials in the request body.
-2. Extract the `JSESSIONID` cookie from the response.
+2. Extract the `openaev_session` cookie from the response.
 3. Include the cookie in subsequent requests. The session remains valid as long as the cookie is active.
 
 ## API documentation (Swagger UI)
@@ -200,6 +200,9 @@ When multi-tenancy is enabled, the API exposes two sets of endpoints:
 - **Tenant-scoped endpoints** are prefixed with `/api/tenants/{tenantId}/...` where `{tenantId}` is the UUID of the target Tenant.
 
 Most resource endpoints (Scenarios, Simulations, Assets, Teams) support both patterns. The Tenant ID determines which workspace the request operates on. Accessing a Tenant you are not authorized for returns a `403` response.
+
+## Rate limiting
+The API is globally rate limited (TODO: complete this section)
 
 ## What's next?
 
