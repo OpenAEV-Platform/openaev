@@ -1,5 +1,5 @@
 import { ContentCopyOutlined, TerminalOutlined } from '@mui/icons-material';
-import { Alert, Button, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
+import { Alert, Button, CircularProgress, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
 import { useEffect, useState } from 'react';
@@ -459,15 +459,31 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
 
           {/* OAEV */}
           {selectedExecutor && selectedExecutor.executor_type === OPENAEV_AGENT && (
-            <div>
-              <Tabs
-                entries={tabEntries}
-                currentTab={currentTab}
-                onChange={newValue => handleChangeTab(newValue)}
-              />
-              {currentTab === 'Standard Installation' && (buildStandardInstallation())}
-              {currentTab === 'Advanced Installation' && (buildAdvancedInstallation())}
-            </div>
+            installerToken
+              ? (
+                  <div>
+                    <Tabs
+                      entries={tabEntries}
+                      currentTab={currentTab}
+                      onChange={newValue => handleChangeTab(newValue)}
+                    />
+                    {currentTab === 'Standard Installation' && (buildStandardInstallation())}
+                    {currentTab === 'Advanced Installation' && (buildAdvancedInstallation())}
+                  </div>
+                )
+              : (
+                  // The install command embeds the service-account token fetched above;
+                  // rendering it before that fetch resolves would produce a command with an
+                  // empty bearer token.
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    padding: theme.spacing(4),
+                  }}
+                  >
+                    <CircularProgress size={24} />
+                  </div>
+                )
           )}
         </div>
       )}
