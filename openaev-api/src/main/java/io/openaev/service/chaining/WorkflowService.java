@@ -826,6 +826,11 @@ public class WorkflowService {
         simulationId, WorkflowStatus.RUN);
   }
 
+  public List<Workflow> findAllWorkflowExecutionBySimulationId(String simulationId) {
+    return this.workflowRepository.findAllBySimulation_IdAndStatusIn(
+        simulationId, List.of(WorkflowStatus.RUN, WorkflowStatus.END, WorkflowStatus.STOP));
+  }
+
   /**
    * Finds the workflow template for a scenario.
    *
@@ -991,6 +996,7 @@ public class WorkflowService {
   public void cancelSimulationEndWorkflowRun(List<Workflow> workflows) {
     workflows.forEach(
         workflow -> {
+          if (workflow.getStatus() == WorkflowStatus.TEMPLATE) return;
           // Workflow -> END transition (also freezes the end scope snapshot - ADR-006):
           endWorkflow(workflow, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
         });
@@ -1055,18 +1061,28 @@ public class WorkflowService {
     return new ConfigurationChange(rulesChanged || variablesChanged || changed, rulesChanged);
   }
 
-  /**
-   * Deletes all workflow states of the given simulation as part of a reset. Called directly by
-   * simulation ID rather than via {@link #findWorkflowRunBySimulationId(String)}: the reset flows
-   * calling this fire only once the simulation is already CANCELED/FINISHED, at which point its
-   * chaining workflow(s) are already END - so a RUN-status lookup would always return empty and
-   * silently skip the cleanup.
-   *
-   * @param exerciseId the ID of the simulation whose workflow states should be cleared
-   */
-  public void resetSimulationDeleteWorkflow(String exerciseId) {
-    workflowEndService.deleteWorkflowStatesBySimulationId(
-        exerciseId, WorkflowEndService.WORKFLOW_END_CAUSE.DELETED);
+  private void deleteWorkflowExecution(
+      List<Workflow> workflows, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
+    workflows.forEach(
+        workflow -> {
+          workflowEndService.manageWorkflowEnd(workflow, cause);
+        });
+  }
+
+  public void deleteSimulationDeleteWorkflows(String simulationId) {
+    List<Workflow> workflows = findAllWorkflowExecutionBySimulationId(simulationId);
+    deleteWorkflowExecution(
+        workflows, WorkflowEndService.WORKFLOW_END_CAUSE.DELETED_BY_SIMULATION_DELETION);
+  }
+
+  public void resetSimulationDeleteWorkflowExecution(String simulationId) {
+    List<Workflow> workflows = findAllWorkflowExecutionBySimulationId(simulationId);
+    // Delete workflows execution
+    deleteWorkflowExecution(
+        workflows, WorkflowEndService.WORKFLOW_END_CAUSE.DELETED_BY_RESET_SIMULATION);
+
+    // Clean workflow template scope rules of the simulation
+    cleanScopeRulesSimulation(simulationId);
   }
 
   /**
