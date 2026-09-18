@@ -67,4 +67,7 @@ jobs:
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-arm64-infra-multitenant"}
         ]' }}
       vulnerability-scan-fail-on-error: false
+      # TEMPORARY (branch issue/7741): cold-cache worst-case measurement. Flip to false, or
+      # revert the no-cache plumbing entirely, before this branch is merged.
+      no-cache: true
     secrets: inherit

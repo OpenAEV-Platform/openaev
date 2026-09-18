@@ -8,6 +8,10 @@ inputs:
     description: Whether to download the release-assets artifact
     required: false
     default: "false"
+  no-cache:
+    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    required: false
+    default: "false"
 
 outputs:
   jar-size:
@@ -22,7 +26,7 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: maven
+        cache: ${{ inputs.no-cache != 'true' && 'maven' || '' }}
     - name: Download frontend build artifact
       uses: ./.github/actions/download-artifact-retry
       with:

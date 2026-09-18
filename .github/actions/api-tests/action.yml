@@ -52,6 +52,10 @@ inputs:
       per-class activation needs a context customizer and is tracked separately.
     required: false
     default: ""
+  no-cache:
+    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -69,6 +73,7 @@ runs:
         distribution: temurin
 
     - name: Cache API test Maven dependencies
+      if: ${{ inputs.no-cache != 'true' }}
       uses: actions/cache@v6
       with:
         path: ~/.m2/repository

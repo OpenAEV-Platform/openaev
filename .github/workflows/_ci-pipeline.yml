@@ -22,6 +22,14 @@ on:
         type: boolean
         required: false
         default: false
+      no-cache:
+        description: >
+          Bypass every Maven, Yarn, Playwright, buildx and scanner cache. Temporary
+          switch for measuring the cold-cache worst case; a re-run of the same run
+          otherwise reuses whatever the previous attempt warmed.
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -56,6 +64,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-compile
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   frontend-build:
     name: "🎨 Frontend Build"
@@ -64,6 +74,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   prepare-bundled-assets:
     name: "📦 Prepare Bundled Assets"
@@ -88,6 +100,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/spotless-check
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
@@ -96,6 +110,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-quality
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # API Tests — matrix passed from caller
@@ -133,6 +149,7 @@ jobs:
           search-engine: ${{ matrix.search_engine }}
           artifact-suffix: ${{ matrix.artifact_suffix }}
           tenant-mode: ${{ matrix.tenant_mode }}
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # E2E Tests — matrix passed from caller
@@ -176,6 +193,7 @@ jobs:
           includes: ${{ matrix.includes }}
           excludes: ${{ matrix.excludes }}
           artifact-suffix: ${{ matrix.artifact_suffix }}
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # API Types Check
@@ -205,6 +223,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/api-types-check
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # Coverage Merge & Upload
@@ -326,6 +346,7 @@ jobs:
       - uses: ./.github/actions/backend-package
         with:
           download-release-assets: ${{ needs.prepare-bundled-assets.result == 'success' }}
+          no-cache: ${{ inputs.no-cache }}
 
   backend-package-musl:
     name: "📦 Backend Package (musl)"
@@ -404,6 +425,7 @@ jobs:
           jar-path: ${{ matrix.jar-path }}
           cache-scope: ${{ matrix.cache-scope }}
           tags: ${{ matrix.tags }}
+          no-cache: ${{ inputs.no-cache }}
 
   # No `needs: [docker-build]`: that waits for job completion, i.e. ~2.5 min of
   # gzip/validate/upload this job never consumes. Build jobs publish tiny registry
@@ -449,6 +471,7 @@ jobs:
       - uses: ./.github/actions/container-vulnerability-scan
         with:
           fail-on-error: ${{ inputs.vulnerability-scan-fail-on-error }}
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate

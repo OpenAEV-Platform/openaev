@@ -6,13 +6,22 @@ catch-all: it runs everything **not** listed in any `api-*.txt`, so a newly adde
 package starts there and never goes untested.
 
 The current layout is **9 explicit shards + catch-all 10**, shared by Core and
-all four Nightly API modes. The catch-all intentionally retains only the three
-root-level `*Test.java` files, leaving headroom for new packages.
+all four Nightly API modes. The catch-all is kept the smallest and fastest API
+job, so it always has headroom for new packages.
 
 The redistribution based on [run 35204808360](https://github.com/OpenAEV-Platform/openaev/actions/runs/35204808360)
 moves `rest/inject` from shard 4 to shard 8 and top-level `config` tests from
 shard 5 to shard 9. Previously unclaimed non-root test packages are split between
 shards 8 and 9; shards 1, 2, 3, 6, and 7 are unchanged.
+
+Shards 2 and 3 were the two slowest jobs across the ten attempts of
+[run 35364059584](https://github.com/OpenAEV-Platform/openaev/actions/runs/35364059584)
+(9.1 and 9.2 min median, against 7.5 min for the fastest explicit shard), so
+`api/notification_trigger` and `database` were unclaimed from shard 3 and
+`rest/asset` from shard 2. They now run in the catch-all, which stays the
+smallest job by a ~1.5 min margin. Shard 3 keeps `rest/*Test.java`: those 36
+top-level classes are 90% of its remaining measured class time, and `*` does not
+cross a `/`, so the package cannot be split further without listing files.
 
 Custom exclusion files must preserve Surefire's default `**/*$*` exclusion.
 Otherwise nested classes can be discovered again in the catch-all even when

@@ -51,6 +51,10 @@ inputs:
     description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
     required: false
     default: ""
+  no-cache:
+    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -74,6 +78,7 @@ runs:
       shell: bash
       working-directory: openaev-front
     - name: Cache Yarn dependencies
+      if: ${{ inputs.no-cache != 'true' }}
       uses: actions/cache@v6
       with:
         path: ${{ steps.yarn-cache-dir.outputs.dir }}
@@ -95,6 +100,7 @@ runs:
       working-directory: openaev-front
     - name: Cache Playwright browsers
       id: playwright-cache
+      if: ${{ inputs.no-cache != 'true' }}
       uses: actions/cache@v6
       with:
         path: ~/.cache/ms-playwright
