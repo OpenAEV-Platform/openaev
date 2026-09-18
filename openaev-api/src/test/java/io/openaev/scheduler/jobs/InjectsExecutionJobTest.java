@@ -204,10 +204,10 @@ class InjectsExecutionJobTest extends IntegrationTest {
     } finally {
       // Committed rows (job opens its own transactions via TenantScopedTransaction, which refuses
       // to run inside the class-level @Transactional): sweep them explicitly, no auto-rollback.
+      // Deleting the exercise cascades to its injects and their statuses; removing a status here
+      // as well would make that cascade hit an already-removed row and poison the transaction.
       inTransaction(
           () -> {
-            deleteStatusOf(ids[1]);
-            deleteStatusOf(ids[2]);
             exerciseRepository.deleteById(ids[0]);
             endpointRepository.deleteAll(endpointComposer.generatedItems);
           });
