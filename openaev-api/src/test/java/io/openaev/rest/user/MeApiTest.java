@@ -5,6 +5,9 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -24,7 +27,9 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.me.UpdateMeEmailInput;
 import io.openaev.rest.user.form.me.UpdateMePasswordInput;
 import io.openaev.rest.user.form.me.UpdateProfileInput;
+import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
+import io.openaev.utils.RandomUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
@@ -34,10 +39,14 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -55,6 +64,13 @@ public class MeApiTest extends IntegrationTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private io.openaev.utils.mockUser.TestUserHolder testUserHolder;
   @Autowired private UserComposer userComposer;
+  @MockitoBean private RandomUtils mockRandomUtils;
+  @MockitoBean private MailingService mockMailingService;
+
+  @BeforeEach
+  void before() {
+    reset(mockRandomUtils, mockMailingService);
+  }
 
   @Nested
   @WithMockUser
@@ -221,12 +237,14 @@ public class MeApiTest extends IntegrationTest {
     private static final String URI = ME_URI + "/email";
 
     @Test
-    @DisplayName("Given correct current password field in update, then accept update")
+    @DisplayName(
+        "Given correct current password field in update, then accept request but do not change email")
     void given_correctPasswordInUpdate_then_acceptUpdate() throws Exception {
       String currentPassword = "current_user_password";
       String newEmail = "new@good.invalid";
 
       User me = testUserHolder.get();
+      String expectedEmail = me.getEmail();
       me.setPassword(userService.encodeUserPassword(currentPassword));
       userComposer.forUser(me).persist();
       entityManager.flush();
@@ -250,7 +268,119 @@ public class MeApiTest extends IntegrationTest {
       assertThat(refetched)
           .isNotEmpty()
           .get()
+          .satisfies(user -> assertThat(user.getEmail()).isEqualTo(expectedEmail));
+    }
+
+    @Test
+    // Disable transactionality;
+    // the following tests go through async code that can't share transaction scopes
+    @Transactional(propagation = Propagation.NEVER)
+    @DisplayName("Given confirmation, then effect change")
+    void given_confirmedUpdate_then_acceptUpdate() throws Exception {
+      String currentPassword = "current_user_password";
+      String newEmail = "new@good.invalid";
+      String superSecretConfirmationCode = "JUST_DO_IT";
+
+      User me = testUserHolder.get();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userRepository.save(me);
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(newEmail);
+
+      when(mockRandomUtils.getRandomAlphanumeric(anyInt())).thenReturn(superSecretConfirmationCode);
+
+      // put in request
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isOk());
+
+      // not ideal, but the actual reset happens in a background thread!
+      Awaitility.await()
+          .atMost(15, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                try {
+                  verify(mockMailingService, times(1)).sendEmail(anyString(), anyString(), any());
+                  return true;
+                } catch (Exception e) {
+                  return false;
+                }
+              });
+
+      mvc.perform(
+              get(ME_URI + "/confirm-email-change/" + superSecretConfirmationCode)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isFound());
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
           .satisfies(user -> assertThat(user.getEmail()).isEqualTo(newEmail));
+    }
+
+    @Test
+    // Disable transactionality;
+    // the following tests go through async code that can't share transaction scopes
+    @Transactional(propagation = Propagation.NEVER)
+    @DisplayName("Given wrong confirmation, then reject change")
+    void given_wrongConfirmation_then_rejectUpdate() throws Exception {
+      String currentPassword = "current_user_password";
+      String newEmail = "new@good.invalid";
+      String superSecretConfirmationCode = "JUST_DO_IT";
+      String badConfirmationCode = "DONT_DO_IT";
+
+      User me = testUserHolder.get();
+      String expectedEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userRepository.save(me);
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(newEmail);
+
+      when(mockRandomUtils.getRandomAlphanumeric(anyInt())).thenReturn(superSecretConfirmationCode);
+
+      // put in request
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isOk());
+
+      // not ideal, but the actual reset happens in a background thread!
+      Awaitility.await()
+          .atMost(15, TimeUnit.SECONDS)
+          .until(
+              () -> {
+                try {
+                  verify(mockMailingService, times(1)).sendEmail(anyString(), anyString(), any());
+                  return true;
+                } catch (Exception e) {
+                  return false;
+                }
+              });
+
+      mvc.perform(
+              get(ME_URI + "/confirm-email-change/" + badConfirmationCode)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
+
+      Optional<User> refetched = userRepository.findById(me.getId());
+
+      assertThat(refetched)
+          .isNotEmpty()
+          .get()
+          .satisfies(user -> assertThat(user.getEmail()).isEqualTo(expectedEmail));
     }
 
     @Test

@@ -8,6 +8,7 @@ import static io.openaev.helper.DatabaseHelper.updateRelation;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.SessionManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -33,9 +34,12 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -47,6 +51,7 @@ public class MeApi extends RestBehavior {
   private static final String TENANT_ME_URI = TENANT_PREFIX + "/me";
 
   private final SessionManager sessionManager;
+  private final OpenAEVConfig openAEVConfig;
   private final OrganizationRepository organizationRepository;
   private final TokenRepository tokenRepository;
   private final UserRepository userRepository;
@@ -137,6 +142,20 @@ public class MeApi extends RestBehavior {
           return user;
         },
         httpRequest.getSession().getId());
+  }
+
+  @GetMapping(ME_URI + "/confirm-email-change/{confirmationCode}")
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @Transactional
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  public ResponseEntity<Void> confirmEmailChange(
+      TxCtx ctx, HttpServletRequest httpRequest, @PathVariable String confirmationCode) {
+    userService.confirmEmailChange(currentUser().getId(), confirmationCode);
+    sessionManager.invalidateOtherUserSessions(
+        currentUser().getId(), httpRequest.getSession().getId());
+    MultiValueMap<String, String> headers = new HttpHeaders();
+    headers.add("Location", openAEVConfig.getBaseUrl());
+    return new ResponseEntity<>(headers, HttpStatus.FOUND);
   }
 
   private User doSecuritySensitiveUpdate(

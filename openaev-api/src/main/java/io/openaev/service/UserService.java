@@ -12,11 +12,7 @@ import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
-import io.openaev.config.DefaultOpenAEVPrincipal;
-import io.openaev.config.OpenAEVAnonymous;
-import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.config.SessionHelper;
-import io.openaev.config.SessionManager;
+import io.openaev.config.*;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -41,7 +37,6 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
@@ -85,9 +80,12 @@ public class UserService {
   @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
   private String adminEmail;
 
+  private record EmailChangeRequest(String confirmationCode, String newEmail) {}
+
   private static final long tenMinutes = 1000L * 60L * 10L;
   private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
-  private final Map<String, String> emailChangeConfirmationTokenMap = new PassiveExpiringMap<>(tenMinutes);
+  private final Map<String, EmailChangeRequest> emailChangeConfirmationTokenMap =
+      new PassiveExpiringMap<>(tenMinutes);
 
   /** Password encoder using Argon2 algorithm (Spring Security 5.8 defaults). */
   private final Argon2PasswordEncoder passwordEncoder =
@@ -97,7 +95,6 @@ public class UserService {
   @PersistenceContext private EntityManager entityManager;
 
   private final UserRepository userRepository;
-  private final UserEmailChangeConfirmationRepository userEmailChangeConfirmationRepository;
   private final TagRepository tagRepository;
   private final GroupRepository groupRepository;
   private final TokenRepository tokenRepository;
@@ -110,6 +107,7 @@ public class UserService {
   private final TenantScopedTransaction tenantTx;
   private final ApplicationEventPublisher eventPublisher;
   private final ObjectProvider<AuditLogger> auditLoggerProvider;
+  private final OpenAEVConfig openAEVConfig;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -393,44 +391,67 @@ public class UserService {
   }
 
   public void requestEmailChange(User user, String newEmail) {
-    eventPublisher.publishEvent(new UserEmailChangeRequestedEvent(user, newEmail));
+    eventPublisher.publishEvent(
+        new UserEmailChangeRequestedEvent(user, randomUtils.getRandomAlphanumeric(64), newEmail));
   }
 
   @Async
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
   public void onUserEmailChangeRequested(UserEmailChangeRequestedEvent event) {
-    String confirmationCode = randomUtils.getRandomAlphanumeric(64);
+    synchronized (emailChangeConfirmationTokenMap) {
+      emailChangeConfirmationTokenMap.put(
+          event.user().getId(), new EmailChangeRequest(event.confirmationCode(), event.newEmail()));
+    }
 
-    UserEmailChangeConfirmation confirmation = new UserEmailChangeConfirmation();
-    confirmation.setId(event.user().getId());
-    confirmation.setCode(confirmationCode);
-    confirmation.setEmail(event.newEmail());
-    confirmation.setValidUntil(Instant.now().plus(10, ChronoUnit.MINUTES));
-    userEmailChangeConfirmationRepository.save(confirmation);
+    String subject = "OpenAEV email change to " + event.newEmail() + " requested";
+    String body =
+        """
+            Hi %s,<br/>
+            <br/>
+            A request to change your account's email address on OpenAEV was submitted. The change will only
+            take effect after you confirm the request.<br/>
+            <br/>
+            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            <br/>
+            Follow this link to confirm and apply the email address change: <a href="%s">confirm email change</a>.<br/>
+            <br/>
+            The link is valid for %s minutes.
+            """
+            .formatted(
+                event.user().getName(),
+                openAEVConfig.getBaseUrl()
+                    + "/api/me/confirm-email-change/"
+                    + event.confirmationCode(),
+                String.valueOf(Math.ceilDivExact(tenMinutes, 60000)));
+    tenantTx.execute(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> mailingService.sendEmail(subject, body, List.of(event.user())));
+  }
 
-//    String subject = "Email change requested: " + resetToken;
-//    String body =
-//            "Bonjour "
-//                    + username
-//                    + ",</br>"
-//                    + "Nous avons reçu une demande de réinitialisation de votre mot de passe OpenAEV.</br>"
-//                    + "Entrez le code de réinitialisation du mot de passe suivant : "
-//                    + resetToken;
-//    tenantTx.execute(
-//            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-//            () -> mailingService.sendEmail(subject, body, List.of(user)));
-//  } else {
-//    String subject = "OpenAEV account recovery code: " + resetToken;
-//    String body =
-//            "Hi "
-//                    + username
-//                    + ",</br>"
-//                    + "A request has been made to reset your OpenAEV password.</br>"
-//                    + "Enter the following password recovery code: "
-//                    + resetToken;
-//    tenantTx.execute(
-//            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-//            () -> mailingService.sendEmail(subject, body, List.of(user)));
+  public void confirmEmailChange(String userId, String confirmationCode) {
+    EmailChangeRequest ecr = null;
+    synchronized (emailChangeConfirmationTokenMap) {
+      if (emailChangeConfirmationTokenMap.containsKey(userId)) {
+        ecr = emailChangeConfirmationTokenMap.get(userId);
+        emailChangeConfirmationTokenMap.remove(userId);
+      }
+    }
+
+    if (ecr == null) {
+      throw new ElementNotFoundException("Email change request not found");
+    }
+
+    if (!confirmationCode.equals(ecr.confirmationCode())) {
+      throw new AccessDeniedException("Confirmation code denied");
+    }
+
+    Optional<User> user = userRepository.findById(userId);
+    if (user.isEmpty()) {
+      throw new ElementNotFoundException("Could not find user");
+    }
+
+    user.get().setEmail(ecr.newEmail());
+    userRepository.save(user.get());
   }
 
   /**
