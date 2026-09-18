@@ -341,6 +341,25 @@ public class Inject implements GrantableBase, Injection, TenantBase {
     this.assetGroups = assetGroups;
   }
 
+  @Schema(implementation = String[].class)
+  @Getter
+  @ManyToMany(fetch = FetchType.LAZY)
+  @Fetch(FetchMode.SUBSELECT)
+  @JoinTable(
+      name = "injects_secret_references",
+      joinColumns = @JoinColumn(name = "inject_id"),
+      inverseJoinColumns = @JoinColumn(name = "secret_reference_id"))
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
+  @JsonProperty("inject_secret_references")
+  @Queryable(filterable = true, dynamicValues = true, path = "secretReferences.id")
+  private List<SecretReference> secretReferences = new ArrayList<>();
+
+  public void setSecretReferences(List<SecretReference> secretReferences) {
+    this.updatedAt = now();
+    this.secretReferences = secretReferences;
+  }
+
   // CascadeType.ALL is required here because of complex relationships
   @Schema(implementation = String[].class)
   @Getter
@@ -389,6 +408,15 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @Getter
   @OneToMany(mappedBy = "inject", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<Finding> findings = new ArrayList<>();
+
+  @Getter
+  @OneToOne(
+      mappedBy = "inject",
+      fetch = FetchType.LAZY,
+      cascade = CascadeType.ALL,
+      orphanRemoval = true)
+  @JsonProperty("inject_authorisation")
+  private InjectAuthorisation authorisation;
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

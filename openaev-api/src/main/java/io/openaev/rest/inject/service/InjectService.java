@@ -7,6 +7,7 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
@@ -32,6 +33,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.execution.ExecutableInject;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -46,6 +48,7 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
@@ -103,6 +106,8 @@ import org.springframework.util.CollectionUtils;
 @Service
 @Slf4j
 public class InjectService {
+  private static final String CREDENTIAL_ACCESS_DENIED = "CREDENTIAL_ACCESS_DENIED";
+  private static final String CREDENTIAL_INACTIVE = "CREDENTIAL_INACTIVE";
 
   private final TeamRepository teamRepository;
   private final ExecutionTraceRepository executionTraceRepository;
@@ -113,7 +118,7 @@ public class InjectService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
-  private final InjectDependenciesRepository injectDependenciesRepository;
+  private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
@@ -1635,5 +1640,108 @@ public class InjectService {
       log.warn("Invalid JSON in inject content", e);
     }
     return null;
+  }
+
+  /**
+   * Creates and stores a fresh authorisation code when the inject carries secret references.
+   *
+   * @param executableInject the executable inject to check for secret references
+   * @return the raw authorisation code, or {@code null} when the inject has no secret references
+   */
+  public String getAuthorisationCodeIfNeeded(ExecutableInject executableInject) {
+    if (executableInject.getSecretReferenceIds() == null
+        || executableInject.getSecretReferenceIds().isEmpty()) {
+      return null;
+    }
+    Inject inject = executableInject.getInjection().getInject();
+    String rawCode = UUID.randomUUID().toString();
+    String hashedCode = hashWithSHA256(rawCode);
+
+    injectAuthorisationRepository.deleteAllByInjectId(inject.getId());
+
+    InjectAuthorisation authorisation = new InjectAuthorisation();
+    authorisation.setInject(inject);
+    authorisation.setCode(hashedCode);
+    authorisation.setIssuedAt(Instant.now());
+    injectAuthorisationRepository.save(authorisation);
+
+    return rawCode;
+  }
+
+  private boolean verifyAuthorisationCode(String injectId, String code) {
+    Optional<InjectAuthorisation> authorisationOpt =
+        injectAuthorisationRepository.findByInjectId(injectId);
+    if (authorisationOpt.isEmpty()) {
+      return false;
+    }
+
+    InjectAuthorisation authorisation = authorisationOpt.get();
+    return authorisation.getCode().equals(hashWithSHA256(code));
+  }
+
+  private boolean isCredentialAccessDeniedStatus(SecretReference.SECRET_STATUS status) {
+    return status == SecretReference.SECRET_STATUS.AUTH_FAILED
+        || status == SecretReference.SECRET_STATUS.PERMISSION_DENIED;
+  }
+
+  private boolean isCredentialInactiveStatus(SecretReference.SECRET_STATUS status) {
+    return status == SecretReference.SECRET_STATUS.TIMEOUT
+        || status == SecretReference.SECRET_STATUS.NETWORK_ERROR
+        || status == SecretReference.SECRET_STATUS.UNSUPPORTED
+        || status == SecretReference.SECRET_STATUS.FORMAT_ERROR
+        || status == SecretReference.SECRET_STATUS.UNKNOWN;
+  }
+
+  private SecretReference getResolvableInjectSecretReferenceOrThrow(
+      Inject inject, String attachmentId) {
+    SecretReference secretReference =
+        inject.getSecretReferences().stream()
+            .filter(ref -> ref.getId().equals(attachmentId))
+            .findFirst()
+            .orElseThrow(() -> new ElementNotFoundException("CREDENTIAL_NOT_FOUND"));
+
+    SecretReference.SECRET_STATUS status = secretReference.getStatus();
+    if (isCredentialAccessDeniedStatus(status)) {
+      throw new ForbiddenException(CREDENTIAL_ACCESS_DENIED);
+    }
+    if (isCredentialInactiveStatus(status)) {
+      throw new BadRequestException(CREDENTIAL_INACTIVE);
+    }
+    return secretReference;
+  }
+
+  private boolean verifyInjectStatusIsInProgress(Inject inject) {
+    return inject.getStatus().isPresent()
+        && ExecutionStatus.INJECT_EXECUTION_IN_PROGRESS_STATUSES.contains(
+            inject.getStatus().get().getName());
+  }
+
+  /**
+   * Resolves and validates the credential reference targeted by an inject attachment request.
+   *
+   * <p>This method validates the inject-scoped authorisation and ensures the attachment belongs to
+   * the inject and is in a resolvable state. The actual plaintext secret resolution is delegated to
+   * {@code CredentialService}.
+   *
+   * @param injectId the identifier of the owning inject
+   * @param input the attachment identifier and authorisation code supplied by the injector
+   * @return the validated credential reference to resolve
+   * @throws ElementNotFoundException when the inject or credential cannot be found in this scope
+   * @throws ForbiddenException when the authorisation is invalid or the credential is access denied
+   * @throws BadRequestException when the credential exists but is currently inactive
+   */
+  public CredentialSecretReference getSecretReferenceOrThrow(
+      String injectId, InjectAttachmentInput input) {
+    Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+
+    if (!verifyInjectStatusIsInProgress(inject)
+        || !verifyAuthorisationCode(injectId, input.getAuthorisation())) {
+      throw new ForbiddenException(CREDENTIAL_ACCESS_DENIED);
+    }
+
+    SecretReference secretReference =
+        getResolvableInjectSecretReferenceOrThrow(inject, input.getAttachmentId());
+
+    return (CredentialSecretReference) secretReference;
   }
 }

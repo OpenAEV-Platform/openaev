@@ -93,7 +93,7 @@ public class AppSecurityConfig {
             csrf ->
                 csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                    .ignoringRequestMatchers("/api/health", "/api/login", "/actuator/**")
+                    .ignoringRequestMatchers("/api/health", "/api/login")
                     // Public phishing tracking is hit by an unauthenticated victim browser (token
                     // authenticated), so it cannot carry a CSRF token.
                     .ignoringRequestMatchers("/api/phishing/tracking/**")
@@ -153,8 +153,6 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated()
-                    .requestMatchers("/actuator/**")
-                    .permitAll()
                     .anyRequest()
                     .permitAll())
         .logout(

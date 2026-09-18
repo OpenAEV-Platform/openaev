@@ -16,7 +16,8 @@ public class ExecutableInjectDTOMapper {
   final EndpointMapper endpointMapper;
   final AssetGroupMapper assetGroupMapper;
 
-  public ExecutableInjectDTO toExecutableInjectDTO(ExecutableInject executableInject) {
+  public ExecutableInjectDTO toExecutableInjectDTO(
+      ExecutableInject executableInject, String authorisationCode) {
     return ExecutableInjectDTO.builder()
         .injection(executableInject.getInjection())
         .assets(
@@ -36,6 +37,14 @@ public class ExecutableInjectDTOMapper {
             executableInject.getAssetGroups().stream()
                 .map(assetGroupMapper::toAssetGroupSimple)
                 .collect(Collectors.toSet()))
+        .attachments(
+            executableInject.getSecretReferenceIds() != null
+                    && !executableInject.getSecretReferenceIds().isEmpty()
+                ? ExecutableInjectDTO.Attachments.builder()
+                    .credentialReferences(executableInject.getSecretReferenceIds())
+                    .authorisationCode(authorisationCode)
+                    .build()
+                : null)
         .build();
   }
 }

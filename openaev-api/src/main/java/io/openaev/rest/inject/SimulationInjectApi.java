@@ -339,6 +339,7 @@ public class SimulationInjectApi extends RestBehavior {
             List.of(),
             savedInject.getAssets(),
             savedInject.getAssetGroups(),
+            savedInject.getSecretReferences(),
             userInjectContexts);
     file.ifPresent(injection::addDirectAttachment);
     try {

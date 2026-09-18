@@ -11,6 +11,7 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.chaining.ConditionService;
 import java.time.Instant;
 import java.util.List;
@@ -92,6 +93,29 @@ class ConditionApiTest {
     assertEquals("c-upd", result.getId());
     assertEquals("event-upd", result.getName());
     verify(conditionService).updateConditionTree("c-upd", input);
+  }
+
+  @Test
+  void create_shouldPropagateFormatRejectionAsBadRequest() {
+    // Arrange - the service refuses an operand that could never match at runtime
+    EventInput input = eventInput();
+    when(conditionService.createConditionTree(input))
+        .thenThrow(new BadRequestException("Invalid value"));
+
+    // Act & Assert - the controller lets it bubble up to the handler that maps it to a 400
+    assertThrows(BadRequestException.class, () -> conditionApi.create(TxCtx.missing(), input));
+  }
+
+  @Test
+  void update_shouldPropagateFormatRejectionAsBadRequest() {
+    // Arrange
+    EventInput input = eventInput();
+    when(conditionService.updateConditionTree("c-upd", input))
+        .thenThrow(new BadRequestException("Invalid value"));
+
+    // Act & Assert
+    assertThrows(
+        BadRequestException.class, () -> conditionApi.update(TxCtx.missing(), "c-upd", input));
   }
 
   @Test

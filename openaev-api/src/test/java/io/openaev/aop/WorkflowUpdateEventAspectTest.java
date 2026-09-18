@@ -120,7 +120,7 @@ class WorkflowUpdateEventAspectTest {
 
       // -------- Assert --------
       verifyNoInteractions(queueChainingService);
-      verify(stepService, never()).findStepIdByInjectId(any());
+      verify(stepService, never()).findStepIdActiveByInjectId(any());
     }
 
     static Stream<Arguments> emptyInjectIdScenarios() {
@@ -132,12 +132,12 @@ class WorkflowUpdateEventAspectTest {
       // -------- Prepare --------
       String injectId = "inject-123";
       setupJoinPoint(injectId);
-      when(stepService.findStepIdByInjectId(injectId)).thenReturn(Optional.empty());
+      when(stepService.findStepIdActiveByInjectId(injectId)).thenReturn(Optional.empty());
       // -------- Act --------
       assertDoesNotThrow(() -> aspect.afterEventProcessed(joinPoint, annotation));
 
       // -------- Assert --------
-      verify(stepService).findStepIdByInjectId(injectId);
+      verify(stepService).findStepIdActiveByInjectId(injectId);
       verifyNoInteractions(queueChainingService);
     }
 
@@ -148,13 +148,13 @@ class WorkflowUpdateEventAspectTest {
       String stepId = "step-success";
       setupJoinPoint(injectId);
 
-      when(stepService.findStepIdByInjectId(injectId)).thenReturn(Optional.of(stepId));
+      when(stepService.findStepIdActiveByInjectId(injectId)).thenReturn(Optional.of(stepId));
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(stepService).findStepIdByInjectId(injectId);
+      verify(stepService).findStepIdActiveByInjectId(injectId);
       verify(queueChainingService).updateStep(stepIdCaptor.capture());
       assertEquals(stepId, stepIdCaptor.getValue());
     }
@@ -166,7 +166,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId = "step-cache";
       setupJoinPoint(injectId);
 
-      when(stepService.findStepIdByInjectId(injectId)).thenReturn(Optional.of(stepId));
+      when(stepService.findStepIdActiveByInjectId(injectId)).thenReturn(Optional.of(stepId));
 
       IOException ioException = new IOException("Queue error");
       doThrow(ioException).when(queueChainingService).updateStep(stepId);
@@ -207,14 +207,14 @@ class WorkflowUpdateEventAspectTest {
       setupJoinPoint(injectIds);
 
       Set<String> stepIds = Set.of("step-1", "step-2");
-      when(stepService.findStepIdsByInjectIds(Set.of("inject-1", "inject-2", "inject-3")))
+      when(stepService.findStepIdsActiveByInjectIds(Set.of("inject-1", "inject-2", "inject-3")))
           .thenReturn(stepIds);
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(stepService).findStepIdsByInjectIds(Set.of("inject-1", "inject-2", "inject-3"));
+      verify(stepService).findStepIdsActiveByInjectIds(Set.of("inject-1", "inject-2", "inject-3"));
       verify(queueChainingService, times(2)).updateStep(stepIdCaptor.capture());
       assertTrue(stepIdCaptor.getAllValues().containsAll(stepIds));
     }
@@ -226,13 +226,13 @@ class WorkflowUpdateEventAspectTest {
       setupJoinPoint(injectId);
 
       Set<String> stepIds = Set.of("step-1");
-      when(stepService.findStepIdsByInjectIds(Set.of(injectId))).thenReturn(stepIds);
+      when(stepService.findStepIdsActiveByInjectIds(Set.of(injectId))).thenReturn(stepIds);
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(stepService).findStepIdsByInjectIds(Set.of(injectId));
+      verify(stepService).findStepIdsActiveByInjectIds(Set.of(injectId));
       verify(queueChainingService).updateStep("step-1");
     }
 
@@ -249,7 +249,7 @@ class WorkflowUpdateEventAspectTest {
 
       assertTrue(ex.getMessage().contains("must return a Collection or a String"));
       verifyNoInteractions(queueChainingService);
-      verify(stepService, never()).findStepIdsByInjectIds(any());
+      verify(stepService, never()).findStepIdsActiveByInjectIds(any());
     }
 
     @Test
@@ -264,7 +264,8 @@ class WorkflowUpdateEventAspectTest {
       stepIds.add("step-1");
       stepIds.add("step-2");
       stepIds.add("step-3");
-      when(stepService.findStepIdsByInjectIds(Set.of("inject-1", "inject-2"))).thenReturn(stepIds);
+      when(stepService.findStepIdsActiveByInjectIds(Set.of("inject-1", "inject-2")))
+          .thenReturn(stepIds);
 
       doThrow(new IOException("Queue error")).when(queueChainingService).updateStep(any());
 
@@ -301,14 +302,14 @@ class WorkflowUpdateEventAspectTest {
       setupJoinPoint(expectationIds);
 
       Set<String> stepIds = Set.of("step-1", "step-2");
-      when(stepService.findStepIdsByExpectationIds(Set.of("exp-1", "exp-2", "exp-3")))
+      when(stepService.findStepIdsActiveByExpectationIds(Set.of("exp-1", "exp-2", "exp-3")))
           .thenReturn(stepIds);
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(stepService).findStepIdsByExpectationIds(Set.of("exp-1", "exp-2", "exp-3"));
+      verify(stepService).findStepIdsActiveByExpectationIds(Set.of("exp-1", "exp-2", "exp-3"));
       verify(queueChainingService, times(2)).updateStep(stepIdCaptor.capture());
       assertTrue(stepIdCaptor.getAllValues().containsAll(stepIds));
     }
@@ -320,13 +321,14 @@ class WorkflowUpdateEventAspectTest {
       setupJoinPoint(expectationId);
 
       Set<String> stepIds = Set.of("step-1");
-      when(stepService.findStepIdsByExpectationIds(Set.of(expectationId))).thenReturn(stepIds);
+      when(stepService.findStepIdsActiveByExpectationIds(Set.of(expectationId)))
+          .thenReturn(stepIds);
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(stepService).findStepIdsByExpectationIds(Set.of(expectationId));
+      verify(stepService).findStepIdsActiveByExpectationIds(Set.of(expectationId));
       verify(queueChainingService).updateStep("step-1");
     }
 
@@ -351,13 +353,14 @@ class WorkflowUpdateEventAspectTest {
       String expectationId = "exp-no-steps";
       setupJoinPoint(expectationId);
 
-      when(stepService.findStepIdsByExpectationIds(Set.of(expectationId))).thenReturn(Set.of());
+      when(stepService.findStepIdsActiveByExpectationIds(Set.of(expectationId)))
+          .thenReturn(Set.of());
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(stepService).findStepIdsByExpectationIds(Set.of(expectationId));
+      verify(stepService).findStepIdsActiveByExpectationIds(Set.of(expectationId));
       verifyNoInteractions(queueChainingService);
     }
 
@@ -372,7 +375,8 @@ class WorkflowUpdateEventAspectTest {
       stepIds.add("step-1");
       stepIds.add("step-2");
       stepIds.add("step-3");
-      when(stepService.findStepIdsByExpectationIds(Set.of(expectationId))).thenReturn(stepIds);
+      when(stepService.findStepIdsActiveByExpectationIds(Set.of(expectationId)))
+          .thenReturn(stepIds);
 
       // Fail on the first call
       IOException ioException = new IOException("Queue error");
@@ -394,13 +398,13 @@ class WorkflowUpdateEventAspectTest {
       setupJoinPoint(expectationIds);
 
       Set<String> stepIds = Set.of("step-1", "step-2", "step-3");
-      when(stepService.findStepIdsByExpectationIds(expectationIds)).thenReturn(stepIds);
+      when(stepService.findStepIdsActiveByExpectationIds(expectationIds)).thenReturn(stepIds);
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(stepService).findStepIdsByExpectationIds(expectationIds);
+      verify(stepService).findStepIdsActiveByExpectationIds(expectationIds);
       verify(queueChainingService, times(3)).updateStep(stepIdCaptor.capture());
       assertTrue(stepIdCaptor.getAllValues().containsAll(stepIds));
     }
@@ -435,7 +439,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId1 = "step-1";
       setupInjectIdJoinPoint(injectId1);
 
-      when(stepService.findStepIdByInjectId(injectId1)).thenReturn(Optional.of(stepId1));
+      when(stepService.findStepIdActiveByInjectId(injectId1)).thenReturn(Optional.of(stepId1));
       doThrow(new IOException("Queue error")).when(queueChainingService).updateStep(stepId1);
 
       // First call - should cache stepId1
@@ -447,7 +451,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId2 = "step-2";
       setupInjectIdJoinPoint(injectId2);
 
-      when(stepService.findStepIdByInjectId(injectId2)).thenReturn(Optional.of(stepId2));
+      when(stepService.findStepIdActiveByInjectId(injectId2)).thenReturn(Optional.of(stepId2));
       // Now updateStep succeeds
 
       // -------- Act --------
@@ -468,7 +472,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId1 = "step-1";
       setupInjectIdJoinPoint(injectId1);
 
-      when(stepService.findStepIdByInjectId(injectId1)).thenReturn(Optional.of(stepId1));
+      when(stepService.findStepIdActiveByInjectId(injectId1)).thenReturn(Optional.of(stepId1));
       doThrow(new IOException("Queue error")).when(queueChainingService).updateStep(stepId1);
 
       // First call - caches stepId1
@@ -480,7 +484,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId2 = "step-2";
       setupInjectIdJoinPoint(injectId2);
 
-      when(stepService.findStepIdByInjectId(injectId2)).thenReturn(Optional.of(stepId2));
+      when(stepService.findStepIdActiveByInjectId(injectId2)).thenReturn(Optional.of(stepId2));
 
       // Second call - sends both and clears cache
       aspect.afterEventProcessed(joinPoint, annotation);
@@ -491,7 +495,7 @@ class WorkflowUpdateEventAspectTest {
       setupInjectIdJoinPoint(injectId3);
 
       // -------- Act --------
-      when(stepService.findStepIdByInjectId(injectId3)).thenReturn(Optional.empty());
+      when(stepService.findStepIdActiveByInjectId(injectId3)).thenReturn(Optional.empty());
 
       assertDoesNotThrow(() -> aspect.afterEventProcessed(joinPoint, annotation));
 
@@ -507,7 +511,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId1 = "step-1";
       setupInjectIdJoinPoint(injectId1);
 
-      when(stepService.findStepIdByInjectId(injectId1)).thenReturn(Optional.of(stepId1));
+      when(stepService.findStepIdActiveByInjectId(injectId1)).thenReturn(Optional.of(stepId1));
       doThrow(new IOException("Queue error")).when(queueChainingService).updateStep(any());
 
       aspect.afterEventProcessed(joinPoint, annotation);
@@ -518,7 +522,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId2 = "step-2";
       setupInjectIdJoinPoint(injectId2);
 
-      when(stepService.findStepIdByInjectId(injectId2)).thenReturn(Optional.of(stepId2));
+      when(stepService.findStepIdActiveByInjectId(injectId2)).thenReturn(Optional.of(stepId2));
 
       aspect.afterEventProcessed(joinPoint, annotation);
 
@@ -528,7 +532,7 @@ class WorkflowUpdateEventAspectTest {
       String stepId3 = "step-3";
       setupInjectIdJoinPoint(injectId3);
 
-      when(stepService.findStepIdByInjectId(injectId3)).thenReturn(Optional.of(stepId3));
+      when(stepService.findStepIdActiveByInjectId(injectId3)).thenReturn(Optional.of(stepId3));
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
@@ -550,7 +554,7 @@ class WorkflowUpdateEventAspectTest {
       stepIds.add("step-1");
       stepIds.add("step-2");
       stepIds.add("step-3");
-      when(stepService.findStepIdsByExpectationIds(Set.of("exp-1"))).thenReturn(stepIds);
+      when(stepService.findStepIdsActiveByExpectationIds(Set.of("exp-1"))).thenReturn(stepIds);
 
       // First call succeeds, second fails
       doNothing()
@@ -587,13 +591,14 @@ class WorkflowUpdateEventAspectTest {
       when(joinPoint.getArgs()).thenReturn(new Object[] {request});
 
       String stepId = "step-for-nested";
-      when(stepService.findStepIdByInjectId("nested-inject-123")).thenReturn(Optional.of(stepId));
+      when(stepService.findStepIdActiveByInjectId("nested-inject-123"))
+          .thenReturn(Optional.of(stepId));
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(stepService).findStepIdByInjectId("nested-inject-123");
+      verify(stepService).findStepIdActiveByInjectId("nested-inject-123");
       verify(queueChainingService).updateStep(stepId);
     }
 
@@ -609,14 +614,14 @@ class WorkflowUpdateEventAspectTest {
       when(methodSignature.getParameterNames()).thenReturn(new String[] {"request"});
       when(joinPoint.getArgs()).thenReturn(new Object[] {request});
 
-      when(stepService.findStepIdsByExpectationIds(Set.of("exp-a", "exp-b")))
+      when(stepService.findStepIdsActiveByExpectationIds(Set.of("exp-a", "exp-b")))
           .thenReturn(Set.of("step-x"));
 
       // -------- Act --------
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(stepService).findStepIdsByExpectationIds(Set.of("exp-a", "exp-b"));
+      verify(stepService).findStepIdsActiveByExpectationIds(Set.of("exp-a", "exp-b"));
       verify(queueChainingService).updateStep("step-x");
     }
   }

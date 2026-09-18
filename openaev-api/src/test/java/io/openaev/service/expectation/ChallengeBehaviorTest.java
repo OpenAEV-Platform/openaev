@@ -99,7 +99,7 @@ class ChallengeBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(team), List.of(), List.of(), List.of());
+              false, false, inject, List.of(team), List.of(), List.of(), List.of(), List.of());
       Challenge challenge =
           challengeComposer.forChallenge(ChallengeFixture.createDefaultChallenge()).persist().get();
       executableInject.cacheExpectationContext(List.of(challenge));

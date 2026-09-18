@@ -5,6 +5,7 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.audit.AuditLoggedService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -32,7 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-public class CollectorService extends AbstractConnectorService<Collector, CollectorOutput> {
+public class CollectorService extends AbstractConnectorService<Collector, CollectorOutput>
+    implements AuditLoggedService {
 
   @Resource protected ObjectMapper mapper;
 
@@ -274,6 +276,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     Collector collector =
         collectorRepository.findById(ConnectorCompositeId.of(id, tenantId)).orElse(null);
 
+    Map<String, Object> before = collector != null ? collector.significantState(mapper) : null;
+
     SecurityPlatform securityPlatform =
         securityPlatformId != null
             ? securityPlatformRepository
@@ -307,6 +311,12 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     if (securityPlatform != null) {
       collector.setSecurityPlatform(securityPlatform);
     }
+
+    // Suppress audit logging for heartbeat-only updates (no significant change)
+    if (before != null) {
+      suppressAuditIfUnchanged(before, collector.significantState(mapper));
+    }
+
     return collectorRepository.save(collector);
   }
 

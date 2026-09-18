@@ -3,6 +3,7 @@ package io.openaev.secrets.provider.impl.handlers;
 import io.openaev.database.model.*;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheck;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +62,18 @@ public class AzureManagedIdentityHandler implements SecretHandler {
   public SecretMetadata toMetadata(Secret secret) {
     if (secret instanceof AzureManagedIdentitySecret azureManagedIdentitySecret) {
       return SecretMetadata.forAzureManagedIdentity(
+          azureManagedIdentitySecret.getAzureEnvironment(),
+          azureManagedIdentitySecret.getAzureClientId(),
+          azureManagedIdentitySecret.getAzureSubscriptionId());
+    }
+    throw new IllegalArgumentException(
+        "Secret type mismatch: expected AZURE_MANAGED_IDENTITY secret");
+  }
+
+  @Override
+  public SecretResolvedValue toResolvedValue(Secret secret) {
+    if (secret instanceof AzureManagedIdentitySecret azureManagedIdentitySecret) {
+      return SecretResolvedValue.forAzureManagedIdentity(
           azureManagedIdentitySecret.getAzureEnvironment(),
           azureManagedIdentitySecret.getAzureClientId(),
           azureManagedIdentitySecret.getAzureSubscriptionId());
