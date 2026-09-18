@@ -81,7 +81,11 @@ public enum ContractFieldType {
 
   /** Targeted asset selector with property selection. */
   @JsonProperty("targeted-asset")
-  TargetedAsset("targeted-asset");
+  TargetedAsset("targeted-asset"),
+
+  /** Credential reference field. */
+  @JsonProperty("credential-reference")
+  CredentialReference("credential-reference");
 
   /** The JSON/UI label for this field type. */
   public final String label;

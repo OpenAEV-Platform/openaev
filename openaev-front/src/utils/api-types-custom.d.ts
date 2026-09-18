@@ -68,7 +68,9 @@ export type ContractType
     | 'asset-group'
     | 'ai-target'
     | 'payload'
-    | 'targeted-asset' | 'password';
+    | 'targeted-asset'
+    | 'password'
+    | 'credential-reference';
 
 export interface ChoiceItem {
   label: string;
