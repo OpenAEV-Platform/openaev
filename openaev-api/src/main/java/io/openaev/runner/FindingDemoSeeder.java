@@ -60,9 +60,9 @@ public class FindingDemoSeeder implements CommandLineRunner {
   private static final String NATIVE_INJECT_TITLE = "OpenAEV categorized findings demo";
   private static final List<DemoAsset> DEMO_ASSETS =
       List.of(
-          new DemoAsset("e1000000-0000-4000-8000-000000000001", "internet-gateway"),
-          new DemoAsset("e1000000-0000-4000-8000-000000000002", "identity-server"),
-          new DemoAsset("e1000000-0000-4000-8000-000000000003", "file-server"));
+          new DemoAsset("finding-demo:internet-gateway", "internet-gateway"),
+          new DemoAsset("finding-demo:identity-server", "identity-server"),
+          new DemoAsset("finding-demo:file-server", "file-server"));
 
   private static final String ACCOUNT_ID = "123456789012";
   private static final String REGION = "eu-west-1";
@@ -263,13 +263,13 @@ public class FindingDemoSeeder implements CommandLineRunner {
 
   private Asset ensureAsset(DemoAsset demoAsset) {
     return assetRepository
-        .findByIdAndTenantId(demoAsset.id(), DEFAULT_TENANT_UUID)
+        .findByExternalReferenceAndTenantId(demoAsset.externalReference(), DEFAULT_TENANT_UUID)
         .orElseGet(
             () -> {
               Asset asset = new Asset();
-              asset.setId(demoAsset.id());
               asset.setName(demoAsset.name());
               asset.setDescription("Synthetic asset used only by the opt-in Findings demo seed.");
+              asset.setExternalReference(demoAsset.externalReference());
               asset.setCategory(AssetCategory.GENERIC_ASSET);
               asset.setTenant(new Tenant(DEFAULT_TENANT_UUID));
               return assetRepository.save(asset);
@@ -583,5 +583,5 @@ public class FindingDemoSeeder implements CommandLineRunner {
       String remediation,
       String remediationReference) {}
 
-  private record DemoAsset(String id, String name) {}
+  private record DemoAsset(String externalReference, String name) {}
 }

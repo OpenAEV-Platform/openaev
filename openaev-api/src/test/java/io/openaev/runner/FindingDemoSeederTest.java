@@ -89,10 +89,15 @@ class FindingDemoSeederTest {
           .runInTenant(eq(DEFAULT_TENANT_UUID), any(Runnable.class));
       when(injectorRepository.findByTypeAndTenantId(anyString(), anyString()))
           .thenReturn(Optional.empty());
-      when(assetRepository.findByIdAndTenantId(anyString(), eq(DEFAULT_TENANT_UUID)))
+      when(assetRepository.findByExternalReferenceAndTenantId(anyString(), eq(DEFAULT_TENANT_UUID)))
           .thenReturn(Optional.empty());
       when(assetRepository.save(any(Asset.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
+          .thenAnswer(
+              invocation -> {
+                Asset asset = invocation.getArgument(0);
+                asset.setId(java.util.UUID.randomUUID().toString());
+                return asset;
+              });
       when(injectorRepository.save(any(Injector.class)))
           .thenAnswer(
               invocation -> {

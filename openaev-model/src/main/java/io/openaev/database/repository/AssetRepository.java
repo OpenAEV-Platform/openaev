@@ -27,6 +27,9 @@ public interface AssetRepository
    */
   Optional<Asset> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  Optional<Asset> findByExternalReferenceAndTenantId(
+      @NotNull String externalReference, @NotNull String tenantId);
+
   /**
    * Feeds the {@code asset} search index with the whole asset inventory: every asset type except
    * security platforms, which have their own index and never surface in the inventory (mirrors
