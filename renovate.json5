@@ -10,9 +10,17 @@
         'filigran team',
     ],
     minimumReleaseAge: '3 days',
+    // high hourly limit so that all PRs are created at once during the schedule window rather than
+    // being drip-fed across multiple runs
     prHourlyLimit: 100,
-    prConcurrentLimit: 100,
-    branchConcurrentLimit: 100,
+    // The concurrency ceiling is a blast-radius guard, not a volume lever. Over the 90 days to
+    // 2026-09-08 the peak was 53 simultaneously open Renovate PRs and the median 33, so 100 was never
+    // reached and never throttled anything. 60 keeps headroom over that measured peak while capping a
+    // runaway. It is deliberately not lower: the long-lived major PRs occupy part of the pool
+    // permanently, and a ceiling below the measured peak would silently stop Renovate opening
+    // anything new. Revisit once majors move off the PR list.
+    prConcurrentLimit: 60,
+    branchConcurrentLimit: 60,
     timezone: 'Europe/Paris',
     schedule: [
         '* 0-4,22-23 * * 1-5',
@@ -159,6 +167,250 @@
                 'digest',
             ],
             rebaseWhen: 'auto',
+        },
+
+        // ── Weekly batches, continued ────────────────────────────────────────────────────────
+        // Rule order matters: Renovate applies packageRules in order and a later rule wins. The
+        // batches come first, then the rules that pull a dependency back out of a batch. Anything no
+        // batch matches keeps its own PR, which is the safe default.
+        //
+        // The invariant a batch buys is one PR per batch per week at most, whatever the upstream
+        // release cadence. The measured before and after volumes live in the ADR and the pull request
+        // that introduced this, not here: a count written into a config file is a count nobody
+        // updates.
+
+        // GitHub Actions only ever run in CI, so a bad version fails the workflow that uses it on the
+        // same push. OpenCTI already batches actions weekly.
+        {
+            groupName: 'ci tooling (non-major)',
+            groupSlug: 'ci-tooling-non-major',
+            description: 'Batch non-major GitHub Actions updates once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchManagers: [
+                'github-actions',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
+        // Maven build, test and provided scopes never reach a shipped artifact. Matching on depType
+        // rather than on an artifact list means a new test dependency joins the batch on its own.
+        // depType for the maven manager is the declared scope, and 'build' for plugins and extensions.
+        {
+            groupName: 'build and test tooling (non-major)',
+            groupSlug: 'build-test-tooling-non-major',
+            description: 'Batch non-major Maven build, test and provided scope updates once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchManagers: [
+                'maven',
+            ],
+            matchDepTypes: [
+                'build',
+                'test',
+                'provided',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
+        // Production dependencies, one PR at a time before this change and the bulk of the volume.
+        // Batched because reviewing the same SDK over and over in a quarter is what stops the Jackson
+        // bump from being read. The cost is that one bad member holds the whole batch, and the exit is
+        // a rule placed after this one with groupName: null for that dependency.
+        {
+            groupName: 'front-end production dependencies (non-major)',
+            groupSlug: 'front-prod-non-major',
+            description: 'Batch non-major npm production updates once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchManagers: [
+                'npm',
+            ],
+            matchDepTypes: [
+                'dependencies',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
+        {
+            groupName: 'back-end production dependencies (non-major)',
+            groupSlug: 'back-prod-non-major',
+            description: 'Batch non-major Maven compile, runtime and import scope updates once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchManagers: [
+                'maven',
+            ],
+            matchDepTypes: [
+                'compile',
+                'runtime',
+                'import',
+                'optional',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
+
+        // ── Out of every batch, one PR each ──────────────────────────────────────────────────
+        // These rules come after the batches on purpose, so they win. Two reasons to be here. Either
+        // the dependency changes behaviour at runtime through defaults that no test asserts (pool
+        // sizing, HTTP timeouts, serialisation, transaction semantics), or it is one of the 17
+        // versions this pom holds by hand over the Spring Boot BOM.
+        //
+        // The second reason is about attribution, not about Renovate moving a version backwards:
+        // Renovate only ever proposes an upgrade, so it cannot realign a property on the BOM.
+        // Someone chose those 17 versions for a reason, so a change to one of them has to be visible
+        // and has to map to a single commit that can be reverted on its own. A batch takes both away.
+        //
+        // This list has to stay in step with the properties in pom.xml. Every BOM override that
+        // governs a runtime artifact is covered below. maven-compiler-plugin.version is the one that
+        // is not, and it stays in the build and test batch on purpose: it is a build plugin, it ships
+        // nothing, and the BOM versions no dependency through it.
+
+        // A yarn patch can stop applying, or keep applying against changed code, with no error. This
+        // rule also has to sit after the batches for a second reason: a batched PR takes its title
+        // from groupName, so the [DANGER] prefix set above would stop appearing.
+        //
+        // Two members, two reasons, so the rule says both rather than implying they are the same.
+        //
+        // react-apexcharts is the patched one, and it is the only patched dependency in the
+        // repository: `ls openaev-front/patches/` returns react-apexcharts.patch and nothing else,
+        // and the resolutions block in openaev-front/package.json references only that one.
+        // html-to-image is deliberately not here, despite the [DANGER] rule still on main claiming it
+        // carries a patch. It does not. That rule is wrong and is removed separately.
+        //
+        // apexcharts carries no patch. It is here because react-apexcharts is pinned below 1.8.0 to
+        // stay on an apexcharts 4.x that is still MIT, so the two move as a pair. Batching one and
+        // not the other is how they end up out of step.
+        {
+            description: 'The patched dependency and the one it moves with keep their own PR',
+            matchDepNames: [
+                'react-apexcharts',
+                'apexcharts',
+            ],
+            groupName: null,
+        },
+        // resolutions pin a transitive version on purpose, form-data among them. Changing one is a
+        // decision, not a routine bump.
+        {
+            description: 'Yarn resolutions keep their own PR',
+            matchDepTypes: [
+                'resolutions',
+            ],
+            groupName: null,
+        },
+        {
+            description: 'Runtime-behaviour and BOM-override Maven dependencies keep their own PR',
+            matchDatasources: [
+                'maven',
+            ],
+            matchPackageNames: [
+                '/^org\\.springframework/',
+                '/^org\\.apache\\.tomcat/',
+                '/^org\\.apache\\.httpcomponents/',
+                '/^org\\.hibernate/',
+                // registers Hibernate UserTypes for JSON and array columns, so it decides how those
+                // columns serialise. Same family as Hibernate itself, on the line above.
+                '/^io\\.hypersistence/',
+                '/^com\\.fasterxml\\.jackson/',
+                '/^tools\\.jackson/',
+                '/^co\\.elastic\\.clients/',
+                '/^org\\.opensearch/',
+                '/^org\\.elasticsearch/',
+                '/^com\\.rabbitmq/',
+                '/^org\\.quartz-scheduler/',
+                '/^ch\\.qos\\.logback/',
+                '/^org\\.apache\\.logging\\.log4j/',
+                '/^io\\.netty/',
+                '/^io\\.micrometer/',
+                '/^org\\.jetbrains\\.kotlin/',
+                '/^org\\.apache\\.velocity/',
+                // BOM overrides that were missing from this list while the comment above claimed
+                // to cover them: opentelemetry 1.65.0 over Boot's 1.49.0, commons-lang3 3.20.0 over
+                // 3.17.0, gson 2.14.0 over 2.13.2
+                '/^io\\.opentelemetry/',
+                'org.apache.commons:commons-lang3',
+                'com.google.code.gson:gson',
+                'com.zaxxer:HikariCP',
+                'org.postgresql:postgresql',
+                'com.squareup.okhttp3:okhttp',
+                // wraps the DataSource in main code (io.openaev.debug.DataSourceProxyBeanPostProcessor),
+                // so it sits on the path of every SQL statement the platform issues
+                'net.ttddyy:datasource-proxy',
+                // The group prefixes above also match Maven plugins that share the coordinate, for
+                // instance org.springframework.boot:spring-boot-maven-plugin. A plugin ships nothing,
+                // so it belongs in the build and test batch. Negating the suffix rather than adding
+                // matchDepTypes here is deliberate: the nine dependencies the customManagers track
+                // carry no depType, so a depType filter would drop them out of this rule and they are
+                // the ones that most need to be seen.
+                '!/-maven-plugin$/',
+            ],
+            groupName: null,
+            addLabels: [
+                'review:runtime-behaviour',
+            ],
+        },
+        // Front-end dependencies that parse, sanitise or transport untrusted input. A regression here
+        // is a security bug the E2E suite passes straight through, dompurify most of all: it is the
+        // XSS boundary of the UI.
+        {
+            description: 'Parsers, sanitisers and HTTP clients on the front keep their own PR',
+            matchDepNames: [
+                'dompurify',
+                'qs',
+                'axios',
+                'form-data',
+                'http-proxy-middleware',
+                'ipaddr.js',
+                '@filigran/chatbot',
+            ],
+            groupName: null,
+            addLabels: [
+                'review:runtime-behaviour',
+            ],
+        },
+        // Base images carry the runtime the product executes on, and Renovate cannot know whether a
+        // new Postgres or Elasticsearch major is supported by the code.
+        {
+            description: 'Runtime infrastructure images keep their own PR',
+            matchDatasources: [
+                'docker',
+            ],
+            groupName: null,
+        },
+        // Lock file maintenance rewrites transitive versions with no diff a human can read, and over
+        // the 90 days to 2026-09-08 it had both the worst first-attempt CI record and the most
+        // human commits of any class here.
+        {
+            description: 'Lock file maintenance keeps its own PR',
+            matchUpdateTypes: [
+                'lockFileMaintenance',
+            ],
+            groupName: null,
         },
     ],
     // do lock file maintenance once a week on Sunday
