@@ -17,7 +17,7 @@ import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { countryOption } from '../../../utils/Option';
-import EmailForm from './EmailForm.jsx';
+import EmailForm from './EmailForm';
 import PasswordForm from './PasswordForm';
 import ProfileForm from './ProfileForm';
 import UserForm from './UserForm';
