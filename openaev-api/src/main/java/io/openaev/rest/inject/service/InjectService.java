@@ -1000,11 +1000,15 @@ public class InjectService {
     }
   }
 
-  public void resetInjectByExerciseId(String simulationId) {
+  public void resetInjectByExercise(String simulationId) {
     List<Inject> injects = injectRepository.findAllInjectBySimulationId(simulationId);
     if (injects.isEmpty()) return;
-    injects.forEach(Inject::clean);
     injectStatusService.deleteAllInjectStatusByInjects(injects);
+    injects.forEach(
+        inject -> {
+          inject.clean();
+          inject.setTriggerNowDate(null);
+        });
     injectRepository.saveAll(injects);
   }
 

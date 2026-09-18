@@ -109,6 +109,7 @@ class InjectApiTest extends IntegrationTest {
 
   @Autowired private AgentComposer agentComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
@@ -195,6 +196,65 @@ class InjectApiTest extends IntegrationTest {
     AGENT = agentRepository.save(agent);
 
     domainComposer.reset();
+  }
+
+  @Nested
+  @Transactional
+  @DisplayName("Inject lifecycle cleanup")
+  class InjectLifecycleCleanupTest {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given inject callback complete should delete authorisation when terminal status is reached")
+    void given_injectCallbackComplete_should_deleteAuthorisationWhenInjectEnds() throws Exception {
+      // Arrange
+      InjectStatus status = new InjectStatus();
+      status.setName(ExecutionStatus.PENDING);
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withExercise(exerciseComposer.forExercise(EXERCISE))
+              .withInjectStatus(injectStatusComposer.forInjectStatus(status))
+              .persist()
+              .get();
+
+      InjectAuthorisation authorisation = new InjectAuthorisation();
+      authorisation.setInject(inject);
+      authorisation.setCode(io.openaev.helper.CryptoHelper.hashWithSHA256("auth-code"));
+      authorisation.setIssuedAt(Instant.now());
+      injectAuthorisationRepository.save(authorisation);
+
+      InjectExecutionInput input = new InjectExecutionInput();
+      input.setAction(InjectExecutionAction.complete);
+      input.setStatus("SUCCESS");
+      input.setMessage("completed");
+      input.setDuration(0);
+
+      injectApi.setInjectTraceQueueService(null);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvc.perform(
+              post(INJECT_URI + "/execution/callback/" + inject.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      Inject reloadedInject = injectRepository.findById(inject.getId()).orElseThrow();
+      assertTrue(reloadedInject.getStatus().isPresent());
+      assertEquals(ExecutionStatus.EXECUTED, reloadedInject.getStatus().orElseThrow().getName());
+      assertTrue(injectAuthorisationRepository.findByInjectId(reloadedInject.getId()).isEmpty());
+    }
   }
 
   @Nested

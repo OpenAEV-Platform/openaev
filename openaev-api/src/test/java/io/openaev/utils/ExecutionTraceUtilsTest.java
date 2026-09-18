@@ -5,7 +5,9 @@ import static io.openaev.database.model.ExecutionTraceStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +16,7 @@ import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.ExecutionTraceStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.repository.InjectAuthorisationRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.inject.service.InjectStatusService;
 import java.util.List;
@@ -35,6 +38,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ExecutionTraceUtilsTest {
   @Mock private InjectStatusRepository injectStatusRepository;
+  @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
   @InjectMocks private InjectStatusService injectStatusService;
 
   private static ExecutionTrace buildTrace(
@@ -133,6 +137,45 @@ class ExecutionTraceUtilsTest {
    * Delete inject statuses for a list of injects
    * ============================================================ */
   @Nested
+  @DisplayName("Clean-up on terminal status")
+  class CleanupOnTerminalStatusTest {
+
+    @Test
+    @DisplayName("given terminal status should delete inject authorisation")
+    void given_terminal_status_should_delete_inject_authorisation() {
+      // -- ARRANGE --
+      Inject inject = mock(Inject.class);
+      when(inject.getId()).thenReturn("inject-terminated");
+      InjectStatus status = new InjectStatus();
+      status.setInject(inject);
+      status.setName(io.openaev.database.model.ExecutionStatus.EXECUTED);
+
+      // -- ACT --
+      injectStatusService.deleteInjectAuthorisationIfExecutionEnded(status);
+
+      // -- ASSERT --
+      verify(injectAuthorisationRepository).deleteAllByInjectId("inject-terminated");
+    }
+
+    @Test
+    @DisplayName("given in-progress status should not delete inject authorisation")
+    void given_in_progress_status_should_not_delete_inject_authorisation() {
+      // -- ARRANGE --
+      Inject inject = mock(Inject.class);
+      when(inject.getId()).thenReturn("inject-running");
+      InjectStatus status = new InjectStatus();
+      status.setInject(inject);
+      status.setName(io.openaev.database.model.ExecutionStatus.PENDING);
+
+      // -- ACT --
+      injectStatusService.deleteInjectAuthorisationIfExecutionEnded(status);
+
+      // -- ASSERT --
+      verify(injectAuthorisationRepository, never()).deleteAllByInjectId(any());
+    }
+  }
+
+  @Nested
   @DisplayName("deleteAllInjectStatusByInjects")
   class DeleteAllInjectStatusByInjectsTest {
 
@@ -151,6 +194,29 @@ class ExecutionTraceUtilsTest {
       assertEquals(
           expectedIds.size(), capturedIds.size(), "Size mismatch for scenario: " + description);
       assertTrue(capturedIds.containsAll(expectedIds), "IDs mismatch for scenario: " + description);
+    }
+
+    @Test
+    @DisplayName("given list of injects should delete both status rows and authorisations")
+    void given_inject_list_should_delete_status_rows_and_authorisations() {
+      // -- ARRANGE --
+      Inject inject1 = mock(Inject.class);
+      Inject inject2 = mock(Inject.class);
+      InjectStatus status1 = mock(InjectStatus.class);
+      InjectStatus status2 = mock(InjectStatus.class);
+      when(inject1.getId()).thenReturn("inject-1");
+      when(inject2.getId()).thenReturn("inject-2");
+      when(inject1.getStatus()).thenReturn(Optional.of(status1));
+      when(inject2.getStatus()).thenReturn(Optional.of(status2));
+      when(status1.getId()).thenReturn("status-1");
+      when(status2.getId()).thenReturn("status-2");
+
+      // -- ACT --
+      injectStatusService.deleteAllInjectStatusByInjects(List.of(inject1, inject2));
+
+      // -- ASSERT --
+      verify(injectAuthorisationRepository).deleteAllByInjectIds(List.of("inject-1", "inject-2"));
+      verify(injectStatusRepository).deleteAllByIds(List.of("status-1", "status-2"));
     }
 
     private static Stream<Arguments> injectsProvider() {

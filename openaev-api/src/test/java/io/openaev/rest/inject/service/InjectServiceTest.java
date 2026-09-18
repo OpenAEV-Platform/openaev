@@ -211,6 +211,31 @@ class InjectServiceTest {
         new HashSet<>(capturedInject.getAssetGroups()));
   }
 
+  @DisplayName("resetInjectByExercise should reset execution state for a next run")
+  @Test
+  void given_resetInjectByExercise_should_clear_status_and_trigger_now_and_collect_status() {
+    // -- ARRANGE --
+    Inject inject = new Inject();
+    inject.setId("inject-reset");
+    InjectStatus status = new InjectStatus();
+    status.setId("status-reset");
+    inject.setStatus(status);
+    inject.setTriggerNowDate(now());
+    inject.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
+    when(injectRepository.findAllInjectBySimulationId("exercise-reset"))
+        .thenReturn(List.of(inject));
+
+    // -- ACT --
+    injectService.resetInjectByExercise("exercise-reset");
+
+    // -- ASSERT --
+    verify(injectAuthorisationRepository).deleteAllByInjectIds(List.of("inject-reset"));
+    verify(injectStatusRepository).deleteAllByIds(List.of("status-reset"));
+    assertNull(inject.getStatus());
+    assertNull(inject.getTriggerNowDate());
+    assertEquals(CollectExecutionStatus.COLLECTING, inject.getCollectExecutionStatus());
+  }
+
   @Test
   public void testApplyDefaultAssetGroupsToInject_WITH_no_change() {
     AssetGroup assetGroup1 = getAssetGroup("assetgroup1");
