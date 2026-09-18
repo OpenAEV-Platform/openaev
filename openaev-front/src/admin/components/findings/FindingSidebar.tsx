@@ -46,7 +46,10 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, sourceTypes }: P
       return;
     }
     if (existing?.id) {
-      filterHelpers.handleUpdateValuesById(existing.id, next);
+      filterHelpers.handleUpdateFilterById(existing.id, {
+        values: next,
+        mode: 'or',
+      });
       return;
     }
     filterHelpers.handleAddFilterWithEmptyValue({
@@ -54,7 +57,9 @@ const FindingSidebar = ({ searchPaginationInput, filterHelpers, sourceTypes }: P
       key,
       operator: 'eq',
       values: next,
-      mode: 'and',
+      // Checkbox values within one facet are alternatives; separate facets remain combined by
+      // the enclosing filter group's AND mode.
+      mode: 'or',
     });
   }, [filterHelpers, filters]);
 

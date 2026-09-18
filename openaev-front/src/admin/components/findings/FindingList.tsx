@@ -23,7 +23,6 @@ import { useHelper } from '../../../store';
 import { type AggregatedFindingOutput, type FindingArchiveBulkItemOutput, type FindingTriageBulkItemOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import InjectIcon from '../common/injects/InjectIcon';
-import { getFindingAggregationCategory } from './findingAggregationCategories';
 import FindingBulkActionBar from './FindingBulkActionBar';
 import FindingCard from './FindingCard';
 import FindingHero from './FindingHero';
@@ -73,7 +72,6 @@ interface Props {
 
 const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '10%' },
-  finding_aggregation_category: { width: '14%' },
   finding_value: { width: '18%' },
   finding_assets: { width: '20%' },
   finding_source: { width: '8%' },
@@ -283,26 +281,6 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
           {getFindingTypeLabel(t, finding.finding_type, finding.finding_cloud_provider)}
         </span>
       ),
-    },
-    {
-      field: 'finding_aggregation_category',
-      label: 'Category',
-      isSortable: true,
-      value: (finding: StableFindingListItem) => {
-        const category = getFindingAggregationCategory(finding.finding_aggregation_category);
-        const CategoryIcon = category.icon;
-        return (
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.75,
-          }}
-          >
-            <CategoryIcon sx={{ fontSize: 16 }} />
-            <Typography variant="caption">{t(category.label)}</Typography>
-          </Box>
-        );
-      },
     },
     {
       field: 'finding_value',

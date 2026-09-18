@@ -18,6 +18,21 @@ type CardFinding = AggregatedFindingOutput & {
   finding_occurrences?: number;
 };
 
+const severityAccent = (severity: string | null | undefined, fallback: string): string => {
+  switch (severity?.toLowerCase()) {
+    case 'critical':
+      return '#f44336';
+    case 'high':
+      return '#ff9800';
+    case 'medium':
+      return '#facc15';
+    case 'low':
+      return '#4caf50';
+    default:
+      return fallback;
+  }
+};
+
 interface Props {
   finding: CardFinding;
   checked: boolean;
@@ -32,7 +47,7 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity, onTriageCh
   const navigate = useNavigate();
   const category = getFindingAggregationCategory(finding.finding_aggregation_category);
   const CategoryIcon = category.icon;
-  const accent = theme.palette.primary.main;
+  const accent = severityAccent(finding.finding_severity, theme.palette.primary.main);
   const showCheckbox = checked || anySelected;
   const location = finding.finding_location ?? finding.finding_location_key;
 
@@ -47,6 +62,7 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity, onTriageCh
         'flexDirection': 'column',
         'overflow': 'hidden',
         'borderRadius': 1,
+        'borderColor': checked ? accent : theme.palette.divider,
         'transition': theme.transitions.create(['border-color', 'box-shadow', 'transform']),
         '&:hover': {
           borderColor: alpha(accent, 0.3),
@@ -77,6 +93,7 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity, onTriageCh
           border: `1px solid ${alpha(accent, 0.35)}`,
           borderRadius: 1.5,
           backgroundColor: 'background.paper',
+          boxShadow: `0 4px 12px -4px ${alpha(accent, 0.4)}`,
         }}
         >
           <FindingIcon findingType={finding.finding_type} />
@@ -90,6 +107,9 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity, onTriageCh
               top: 12,
               right: 12,
               height: 22,
+              border: `1px solid ${alpha(accent, 0.45)}`,
+              backgroundColor: alpha(accent, 0.2),
+              color: accent,
               fontSize: 10,
               fontWeight: 700,
               textTransform: 'uppercase',
