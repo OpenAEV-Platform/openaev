@@ -7,6 +7,7 @@ import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.impl.validators.GcpCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
@@ -91,6 +92,17 @@ public class GcpServiceAccountHandler implements SecretHandler {
     if (secret instanceof GcpServiceAccountSecret gcpSecret) {
       return SecretMetadata.forGcpServiceAccount(
           gcpSecret.getScope(), gcpSecret.getProjectId(), gcpSecret.getPrivateKeyJson() != null);
+    }
+    throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
+  }
+
+  @Override
+  public SecretResolvedValue toResolvedValue(Secret secret) {
+    if (secret instanceof GcpServiceAccountSecret gcpSecret) {
+      return SecretResolvedValue.forGcpServiceAccount(
+          gcpSecret.getScope(),
+          gcpSecret.getProjectId(),
+          nativeEncryptionService.decrypt(gcpSecret.getPrivateKeyJson()));
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
   }

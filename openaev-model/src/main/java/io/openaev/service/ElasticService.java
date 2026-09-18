@@ -1230,6 +1230,36 @@ public class ElasticService implements EngineService {
     return driver.getObjectMapper();
   }
 
+  @Override
+  public Long getIndexesUsedSize() {
+    try {
+      // Restricted to the "store" metric: the full stats payload of a wildcard pattern is heavy
+      // and everything else is useless here. Primaries only, so replicas are not counted twice.
+      var stats =
+          elasticClient
+              .indices()
+              .stats(s -> s.index(engineConfig.getIndexPattern()).metric("store"));
+      var all = stats.all();
+      if (all == null || all.primaries() == null || all.primaries().store() == null) {
+        return null;
+      }
+      return all.primaries().store().sizeInBytes();
+    } catch (IOException | ElasticsearchException e) {
+      throw new AnalyticsEngineException("Unable to retrieve engine used size", e);
+    }
+  }
+
+  @Override
+  public void ping() {
+    try {
+      if (!elasticClient.ping().value()) {
+        throw new AnalyticsEngineException("Engine ping returned a negative response");
+      }
+    } catch (IOException | ElasticsearchException e) {
+      throw new AnalyticsEngineException("Unable to reach the engine", e);
+    }
+  }
+
   // endregion
 
   private String toElasticField(@NotBlank final String field) {

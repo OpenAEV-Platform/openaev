@@ -13,10 +13,7 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.ScopeVariableRepository;
-import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -67,6 +64,7 @@ class WorkflowServiceTest {
   @Mock private ScopeService scopeService;
   @Mock private LessonsService lessonsService;
   @Mock private WorkflowStateService workflowStateService;
+  @Mock private WorkflowStateRepository workflowStateRepository;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
   @Mock private ResultsMetricCollector resultsMetricCollector;
@@ -88,7 +86,9 @@ class WorkflowServiceTest {
             injectStatusService,
             resultsMetricCollector,
             workflowRepository,
-            scopeSnapshotService);
+            scopeSnapshotService,
+            assetAgentJobRepository,
+            workflowStateRepository);
 
     workflowService =
         new WorkflowService(
@@ -103,7 +103,6 @@ class WorkflowServiceTest {
             workflowScopeRuleRepository,
             scopeVariableRepository,
             assetRepository,
-            assetAgentJobRepository,
             assetGroupRepository,
             teamRepository,
             userRepository,
@@ -1268,7 +1267,6 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
-              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -1619,7 +1617,6 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
-              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -1810,7 +1807,6 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
-              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -2081,7 +2077,6 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
-              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -2859,7 +2854,7 @@ class WorkflowServiceTest {
     @Test
     @DisplayName(
         "ends the run, deletes its delay queue and states, and removes its asset agent"
-            + " jobs by inject id")
+            + " jobs of the simulation")
     void given_singleRunWithActiveSteps_should_endItAndCleanUpDependencies() {
       // Arrange
       Exercise simulation = exerciseWithId("sim-1");
@@ -2870,17 +2865,6 @@ class WorkflowServiceTest {
               .simulation(simulation)
               .build();
 
-      Step activeStepWithInject =
-          Step.builder()
-              .id("step-1")
-              .status(StepStatus.RUN)
-              .data("{\"inject_id\": \"inject-1\"}")
-              .build();
-      Step activeStepWithoutInject =
-          Step.builder().id("step-2").status(StepStatus.READY).data("{}").build();
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
-          .thenReturn(new ArrayList<>(List.of(activeStepWithInject, activeStepWithoutInject)));
-
       // Act
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
@@ -2889,18 +2873,20 @@ class WorkflowServiceTest {
 
       // Assert
       assertEquals(WorkflowStatus.END, run.getStatus());
+      verify(scopeSnapshotService).freezeEnd(run);
+      verify(stepService)
+          .endActiveStepsByWorkflowId("wf-run-1", WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+      verify(stepDelayQueueService)
+          .deleteAllByWorkflowRun(run, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+      verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
+      verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-1");
       verify(workflowRepository).save(run);
-      verify(stepDelayQueueService).deleteAllByWorkflowRun(run);
-      verify(workflowStateService).deleteAllBySimulationId("sim-1");
-      assertEquals(StepStatus.END, activeStepWithInject.getStatus());
-      assertEquals(StepStatus.END, activeStepWithoutInject.getStatus());
-      verify(assetAgentJobRepository).deleteAllByInjectIdsAndTenantId(List.of("inject-1"), TENANT);
-      verify(stepService).saveSteps(List.of(activeStepWithInject, activeStepWithoutInject));
+      verifyNoInteractions(exerciseRepository);
     }
 
     @Test
-    @DisplayName("aggregates inject ids and ended steps across multiple workflow runs")
-    void given_multipleRuns_should_aggregateInjectIdsAndSaveAllStepsOnce() {
+    @DisplayName("ends each workflow run independently and cleans up its own simulation")
+    void given_multipleRuns_should_endEachRunIndependently() {
       // Arrange
       Exercise simulation1 = exerciseWithId("sim-1");
       Exercise simulation2 = exerciseWithId("sim-2");
@@ -2917,35 +2903,24 @@ class WorkflowServiceTest {
               .simulation(simulation2)
               .build();
 
-      Step step1 =
-          Step.builder()
-              .id("step-1")
-              .status(StepStatus.RUN)
-              .data("{\"inject_id\": \"inject-1\"}")
-              .build();
-      Step step2 =
-          Step.builder()
-              .id("step-2")
-              .status(StepStatus.RUN)
-              .data("{\"inject_id\": \"inject-2\"}")
-              .build();
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
-          .thenReturn(new ArrayList<>(List.of(step1)));
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-2"))
-          .thenReturn(new ArrayList<>(List.of(step2)));
-
       // Act
+      WorkflowEndService.WORKFLOW_END_CAUSE cause = WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED;
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
         workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
       }
 
       // Assert
-      verify(workflowStateService).deleteAllBySimulationId("sim-1");
-      verify(workflowStateService).deleteAllBySimulationId("sim-2");
-      verify(assetAgentJobRepository)
-          .deleteAllByInjectIdsAndTenantId(List.of("inject-1", "inject-2"), TENANT);
-      verify(stepService).saveSteps(List.of(step1, step2));
+      assertEquals(WorkflowStatus.END, run1.getStatus());
+      assertEquals(WorkflowStatus.END, run2.getStatus());
+      verify(stepService).endActiveStepsByWorkflowId("wf-run-1", cause);
+      verify(stepService).endActiveStepsByWorkflowId("wf-run-2", cause);
+      verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
+      verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-2", TENANT);
+      verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-1");
+      verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-2");
+      verify(workflowRepository).save(run1);
+      verify(workflowRepository).save(run2);
     }
 
     @Test
@@ -2959,7 +2934,6 @@ class WorkflowServiceTest {
               .status(WorkflowStatus.END)
               .simulation(simulation)
               .build();
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1")).thenReturn(new ArrayList<>());
 
       // Act
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
@@ -2969,7 +2943,8 @@ class WorkflowServiceTest {
 
       // Assert
       assertEquals(WorkflowStatus.END, run.getStatus());
-      verifyNoInteractions(scopeSnapshotService);
+      verifyNoInteractions(
+          scopeSnapshotService, stepService, stepDelayQueueService, exerciseRepository);
       verify(workflowRepository).save(run);
     }
   }

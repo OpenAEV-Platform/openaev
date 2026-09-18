@@ -58,12 +58,14 @@ io.openaev.debug.DebugSqlLogFileConfigurer  # touches-no-tenant-table: routes de
 io.openaev.debug.JfrRecordingManager  # touches-no-tenant-table: manages a JDK JFR recording and its dump files on a daemon scheduler, no entity access
 io.openaev.service.xtm_auth.XtmAuthKeyService  # touches-no-tenant-table: @PostConstruct only derives Ed25519 keys from config via HKDF, no DB access
 io.openaev.search.FullTextSearchService  # touches-no-tenant-table: @PostConstruct only wires in-memory class-to-repository maps; the seeding path does no DB access (runtime search pins TenantSpecification on the request thread)
+io.openaev.health.DependencyHealthMetrics  # touches-no-tenant-table: @PostConstruct only registers Micrometer gauges over the in-memory DependencyHealthStore, no DB access
 
 # --- @Scheduled pollers, lifecycle threads and framework-table cleanup: no TenantBase entity -------
 io.openaev.diagnostics.PoolExhaustionWatchdog  # touches-no-tenant-table: @Scheduled sampler reads the Hikari pool MXBean and logs a thread dump on sustained saturation, no entity access
 io.openaev.config.CachingConfig  # touches-no-tenant-table: @Scheduled @CacheEvict clears the in-memory adminUsers cache and only logs, no DB access
 io.openaev.config.SessionManager  # touches-no-tenant-table: @Scheduled raw-JDBC cleanup of the framework spring_session / spring_session_attributes tables (no tenant_id, not TenantBase) and a session_expired audit event, no tenant-scoped entity
 io.openaev.config.ShutdownService  # touches-no-tenant-table: initiateShutdown spawns a daemon thread (new Thread) that closes the Spring context and exits the JVM, no entity access
+io.openaev.health.DependencyProbeService  # touches-no-tenant-table: @Scheduled connectivity and storage probes run select 1 and pg_database_size (no table), plus RabbitMQ, object storage and engine client calls, no entity access
 io.openaev.service.EsAttackPathService  # delegates-to-EsAttackPathService#attackPaths until-active:attack_patterns: the detached CompletableFuture.supplyAsync tasks issue Elasticsearch queries via EngineService scoped by the explicit RawUserAuth argument (no thread-local tenant scope is lost on the pool thread); its only JPA read (attackPatternRepository.findAllById on attack_patterns, TenantBase) runs synchronously on the calling request thread under that request's scope, not in the detached task. Safe only while attack_patterns stays v1; when it activates the request-thread read must be re-checked to carry the v2 request scope
 
 # --- Messaging / queue infrastructure: brokers and thread pools, no entity access -----------------
