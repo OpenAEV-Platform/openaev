@@ -6,6 +6,7 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -14,6 +15,7 @@ import io.openaev.rest.document.form.DocumentCreateInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
+import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import java.io.ByteArrayInputStream;
@@ -290,20 +292,38 @@ public class DocumentService {
     return this.documentRepository.findAllDistinctBySimulationId(simulationId);
   }
 
-  public List<RawDocument> documentsForChannel(@NotBlank String channelId) {
-    return this.documentRepository.rawAllDocumentsByChannelId(channelId);
+  public List<RawDocument> documentsForChannel(TxCtx ctx, @NotBlank String channelId) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      return this.documentRepository.rawAllDocumentsByChannelId(channelId);
+    }
+    return this.documentRepository.rawAllDocumentsByChannelIdAndTenantIds(channelId, scope);
   }
 
-  public List<RawDocument> documentsForSecurityPlatform(@NotBlank String securityPlatformId) {
-    return this.documentRepository.rawAllDocumentsBySecurityPlatformId(securityPlatformId);
+  public List<RawDocument> documentsForSecurityPlatform(
+      TxCtx ctx, @NotBlank String securityPlatformId) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      return this.documentRepository.rawAllDocumentsBySecurityPlatformId(securityPlatformId);
+    }
+    return this.documentRepository.rawAllDocumentsBySecurityPlatformIdAndTenantIds(
+        securityPlatformId, scope);
   }
 
-  public List<RawDocument> documentsForChallenge(@NotBlank String challengeId) {
-    return this.documentRepository.rawAllDocumentsByChallengeId(challengeId);
+  public List<RawDocument> documentsForChallenge(TxCtx ctx, @NotBlank String challengeId) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      return this.documentRepository.rawAllDocumentsByChallengeId(challengeId);
+    }
+    return this.documentRepository.rawAllDocumentsByChallengeIdAndTenantIds(challengeId, scope);
   }
 
-  public List<RawDocument> documentsForPayload(@NotBlank String payloadId) {
-    return this.documentRepository.rawAllDocumentsByPayloadId(payloadId);
+  public List<RawDocument> documentsForPayload(TxCtx ctx, @NotBlank String payloadId) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      return this.documentRepository.rawAllDocumentsByPayloadId(payloadId);
+    }
+    return this.documentRepository.rawAllDocumentsByPayloadIdAndTenantIds(payloadId, scope);
   }
 
   public List<Document> findAllDistinctOnInjectsByScenarioId(@NotBlank String scenarioId) {

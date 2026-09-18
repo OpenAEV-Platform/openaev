@@ -67,4 +67,13 @@ public interface RawDocument {
    * @return list of scenario IDs
    */
   List<String> getDocument_scenarios();
+
+  /**
+   * Returns the tenant id owning this document, used to enforce request-scope tenant isolation on
+   * list-by-parent-resource queries that are not covered by the Hibernate tenant filter (native
+   * SQL).
+   *
+   * @return the owning tenant id
+   */
+  String getTenant_id();
 }
