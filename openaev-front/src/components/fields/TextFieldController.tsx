@@ -18,6 +18,7 @@ interface Props {
   rows?: number;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   style?: CSSProperties;
   variant?: TextFieldVariants;
   placeholder?: string;
@@ -25,6 +26,8 @@ interface Props {
   endAdornmentLabel?: string;
   startAdornmentLabel?: string;
   type?: 'number' | 'text' | 'password';
+  min?: number;
+  step?: number;
   defaultValue?: string;
   noHelperText?: boolean;
   writeOnly?: boolean;
@@ -39,6 +42,7 @@ const TextFieldController = ({
   rows,
   required = false,
   disabled = false,
+  readOnly = false,
   style = {},
   variant = 'standard',
   placeholder = '',
@@ -46,6 +50,8 @@ const TextFieldController = ({
   endAdornmentLabel,
   startAdornmentLabel,
   type = 'text',
+  min,
+  step,
   defaultValue = '',
   noHelperText = false,
   writeOnly = false,
@@ -133,6 +139,11 @@ const TextFieldController = ({
                       ),
                     }
                   : {}),
+              },
+              htmlInput: {
+                readOnly,
+                ...(min !== undefined ? { min } : {}),
+                ...(step !== undefined ? { step } : {}),
               },
             }}
           />

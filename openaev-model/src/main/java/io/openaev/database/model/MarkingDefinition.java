@@ -54,8 +54,9 @@ public class MarkingDefinition implements TenantBase, Auditable {
   private String definition;
 
   @Queryable(filterable = true, sortable = true)
-  @Column(name = "marking_definition_color")
+  @Column(name = "marking_definition_color", nullable = false)
   @JsonProperty("marking_definition_color")
+  @NotBlank
   private String color;
 
   @Queryable(filterable = true, sortable = true)

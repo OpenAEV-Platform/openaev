@@ -7903,8 +7903,11 @@ export interface MapperConditionOutput {
 }
 
 export interface MarkingDefinitionInput {
-  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
-  marking_definition_color?: string;
+  /**
+   * @minLength 1
+   * @pattern ^#[0-9a-fA-F]{6}$
+   */
+  marking_definition_color: string;
   /** @minLength 1 */
   marking_definition_definition: string;
   /**
@@ -7917,7 +7920,8 @@ export interface MarkingDefinitionInput {
 }
 
 export interface MarkingDefinitionOutput {
-  marking_definition_color?: string;
+  /** @minLength 1 */
+  marking_definition_color: string;
   /** @format date-time */
   marking_definition_created_at: string;
   /** @minLength 1 */
