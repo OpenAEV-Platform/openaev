@@ -37,10 +37,15 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </ThemeProvider>
 );
 
-const renderControl = (status: TriageStatus, onStatusChange = vi.fn()) => {
+const renderControl = (
+  status: TriageStatus,
+  onStatusChange = vi.fn(),
+  legacyFindingId?: string,
+) => {
   render(
     <FindingTriageControl
-      findingId="finding-1"
+      findingId="stable-finding-1"
+      legacyFindingId={legacyFindingId}
       status={status}
       onStatusChange={onStatusChange}
     />,
@@ -167,7 +172,26 @@ describe('FindingTriageControl', () => {
       fireEvent.click(screen.getByText('Confirm').closest('button')!);
 
       // Assert
-      await waitFor(() => expect(mockUpdateFindingTriage).toHaveBeenCalledWith('finding-1', 'CONFIRMED', 'confirmed after review'));
+      await waitFor(() => expect(mockUpdateFindingTriage).toHaveBeenCalledWith('stable-finding-1', 'CONFIRMED', 'confirmed after review'));
+      await waitFor(() => expect(onStatusChange).toHaveBeenCalledWith('CONFIRMED'));
+    });
+
+    it('uses the associated legacy finding id when triaging a stable finding', async () => {
+      // Arrange
+      const { onStatusChange } = renderControl('UNTRIAGED', vi.fn(), 'legacy-finding-1');
+      openMenuFor('UNTRIAGED');
+      fireEvent.click(screen.getByText('CONFIRMED'));
+      fireEvent.change(screen.getByLabelText('Justification'), { target: { value: 'confirmed after review' } });
+
+      // Act
+      fireEvent.click(screen.getByText('Confirm').closest('button')!);
+
+      // Assert
+      await waitFor(() => expect(mockUpdateFindingTriage).toHaveBeenCalledWith(
+        'legacy-finding-1',
+        'CONFIRMED',
+        'confirmed after review',
+      ));
       await waitFor(() => expect(onStatusChange).toHaveBeenCalledWith('CONFIRMED'));
     });
   });

@@ -228,59 +228,81 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
   };
 
-  const selectedFindingIds = () => (selectAll
-    ? findings.map(f => f.finding_id).filter(id => !(id in (deSelectedElements || {})))
-    : Object.keys(selectedElements));
+  const loadSelectedFindings = (): Promise<StableFindingListItem[]> => {
+    if (!selectAll) {
+      return Promise.resolve(Object.values(selectedElements));
+    }
+
+    const pageSize = 1000;
+    const loadPage = (page: number) => searchDistinctFindings({
+      ...facetInput,
+      page,
+      size: pageSize,
+    });
+    return loadPage(0).then(async (firstPage) => {
+      const remainingPages = await Promise.all(
+        Array.from(
+          { length: Math.max(firstPage.data.totalPages - 1, 0) },
+          (_, index) => loadPage(index + 1),
+        ),
+      );
+      return [firstPage, ...remainingPages]
+        .flatMap(response => response.data.content)
+        .filter(finding => !(finding.finding_id in (deSelectedElements || {})));
+    });
+  };
 
   const bulkTriage = (status: TriageStatus, justification: string): Promise<FindingTriageBulkItemOutput[]> => {
-    const selectedIds = new Set(selectedFindingIds());
-    const legacyToStableId = new Map(
-      findings
-        .filter(f => selectedIds.has(f.finding_id) && f.finding_legacy_id)
-        .map(f => [f.finding_legacy_id as string, f.finding_id]),
-    );
-    return triageFindingsBulk([...legacyToStableId.keys()], status, justification).then((res: { data: FindingTriageBulkItemOutput[] }) => {
-      const successIds = new Set(
-        res.data
-          .filter(r => r.success && r.finding_id)
-          .map(r => legacyToStableId.get(r.finding_id as string))
-          .filter((id): id is string => Boolean(id)),
+    return loadSelectedFindings().then((selectedFindings) => {
+      const legacyToStableId = new Map(
+        selectedFindings
+          .filter(finding => finding.finding_legacy_id)
+          .map(finding => [finding.finding_legacy_id as string, finding.finding_id]),
       );
-      setFindings(current => current.map(f => (successIds.has(f.finding_id)
-        ? {
-            ...f,
-            finding_triage_status: status,
-          }
-        : f)));
-      handleClearSelectedElements();
-      return res.data;
+      return triageFindingsBulk([...legacyToStableId.keys()], status, justification).then((res: { data: FindingTriageBulkItemOutput[] }) => {
+        const successIds = new Set(
+          res.data
+            .filter(r => r.success && r.finding_id)
+            .map(r => legacyToStableId.get(r.finding_id as string))
+            .filter((id): id is string => Boolean(id)),
+        );
+        setFindings(current => current.map(f => (successIds.has(f.finding_id)
+          ? {
+              ...f,
+              finding_triage_status: status,
+            }
+          : f)));
+        handleClearSelectedElements();
+        return res.data;
+      });
     });
   };
 
   const bulkArchive = (archived: boolean): Promise<FindingArchiveBulkItemOutput[]> => {
-    const selectedIds = new Set(selectedFindingIds());
-    const legacyToStableId = new Map(
-      findings
-        .filter(f => selectedIds.has(f.finding_id) && f.finding_legacy_id)
-        .map(f => [f.finding_legacy_id as string, f.finding_id]),
-    );
-    return archiveFindingsBulk({
-      finding_ids: [...legacyToStableId.keys()],
-      archived,
-    }).then((res: { data: FindingArchiveBulkItemOutput[] }) => {
-      const byId = new Map(
-        res.data
-          .filter(r => r.success && r.finding_id)
-          .map(r => [legacyToStableId.get(r.finding_id as string), r.finding_archived_at ?? null]),
+    return loadSelectedFindings().then((selectedFindings) => {
+      const legacyToStableId = new Map(
+        selectedFindings
+          .filter(finding => finding.finding_legacy_id)
+          .map(finding => [finding.finding_legacy_id as string, finding.finding_id]),
       );
-      setFindings(current => current.map(f => (byId.has(f.finding_id)
-        ? {
-            ...f,
-            finding_archived_at: byId.get(f.finding_id) ?? undefined,
-          }
-        : f)));
-      handleClearSelectedElements();
-      return res.data;
+      return archiveFindingsBulk({
+        finding_ids: [...legacyToStableId.keys()],
+        archived,
+      }).then((res: { data: FindingArchiveBulkItemOutput[] }) => {
+        const byId = new Map(
+          res.data
+            .filter(r => r.success && r.finding_id)
+            .map(r => [legacyToStableId.get(r.finding_id as string), r.finding_archived_at ?? null]),
+        );
+        setFindings(current => current.map(f => (byId.has(f.finding_id)
+          ? {
+              ...f,
+              finding_archived_at: byId.get(f.finding_id) ?? undefined,
+            }
+          : f)));
+        handleClearSelectedElements();
+        return res.data;
+      });
     });
   };
 
@@ -289,7 +311,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       field: 'finding_type',
       label: 'Type',
       isSortable: true,
-      value: (finding: AggregatedFindingOutput) => (
+      value: (finding: StableFindingListItem) => (
         <span style={{
           fontWeight: 600,
           textTransform: 'uppercase',
@@ -392,10 +414,11 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       field: 'finding_triage_status',
       label: 'Triage status',
       isSortable: true,
-      value: (finding: AggregatedFindingOutput) => (
+      value: (finding: StableFindingListItem) => (
         <FindingTriageControl
           variant="inList"
           findingId={finding.finding_id}
+          legacyFindingId={finding.finding_legacy_id}
           status={finding.finding_triage_status}
           onStatusChange={(newStatus) => {
             // Optimistic local update: avoids a full page refetch for a single-row change.

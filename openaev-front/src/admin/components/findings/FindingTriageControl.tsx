@@ -30,6 +30,7 @@ const ALLOWED_TRANSITIONS: Record<NonNullable<TriageStatus>, NonNullable<TriageS
 
 interface Props {
   findingId: string;
+  legacyFindingId?: string;
   status: NonNullable<TriageStatus>;
   variant?: 'inList';
   /** Called with the new status once the PATCH has succeeded, so the caller can update its
@@ -37,7 +38,13 @@ interface Props {
   onStatusChange: (newStatus: NonNullable<TriageStatus>) => void;
 }
 
-const FindingTriageControl: FunctionComponent<Props> = ({ findingId, status, variant, onStatusChange }) => {
+const FindingTriageControl: FunctionComponent<Props> = ({
+  findingId,
+  legacyFindingId,
+  status,
+  variant,
+  onStatusChange,
+}) => {
   const { t } = useFormatter();
   // Confirmed pattern for the current-user admin check, matching root.tsx and
   // PlayerPopover.tsx (both use `me.user_admin === true` off useAuth()).
@@ -83,7 +90,9 @@ const FindingTriageControl: FunctionComponent<Props> = ({ findingId, status, var
 
   const handleConfirm = () => {
     if (!pendingTarget || !isJustificationValid) return undefined;
-    return updateFindingTriage(findingId, pendingTarget, justification).then(() => {
+    // Stable Finding rows navigate with their aggregate id, while the existing triage API still
+    // owns the human state on the associated legacy Finding.
+    return updateFindingTriage(legacyFindingId ?? findingId, pendingTarget, justification).then(() => {
       onStatusChange(pendingTarget);
       closeDialog();
     });

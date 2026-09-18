@@ -11,6 +11,7 @@ import FindingTriageControl from './FindingTriageControl';
 import getFindingTypeLabel from './FindingTypeLabel';
 
 type CardFinding = AggregatedFindingOutput & {
+  finding_legacy_id?: string;
   finding_location?: string;
   finding_location_key?: string;
   finding_occurrences?: number;
@@ -214,6 +215,7 @@ const FindingCard = ({ finding, checked, anySelected, onToggleEntity, onTriageCh
         <FindingTriageControl
           variant="inList"
           findingId={finding.finding_id}
+          legacyFindingId={finding.finding_legacy_id}
           status={finding.finding_triage_status}
           onStatusChange={onTriageChange}
         />
