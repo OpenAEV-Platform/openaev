@@ -447,11 +447,21 @@ const ThemeDark = (
     MuiDialog: {
       styleOverrides: {
         paper: {
-          backgroundImage: 'none',
-          backgroundColor: paper === THEME_DARK_DEFAULT_PAPER
+          // A dialog is a layer-2 surface, but a var() inside a custom-property
+          // declaration is substituted where it is DECLARED (the root), so the
+          // three input aliases keep their layer-0 value however deep the layer
+          // class is applied - and layer-0's input colour is the very colour
+          // this surface is painted with, which leaves every field inside a
+          // dialog looking like it has no background. Declared here once, for
+          // every dialog, wrapped or raw. Same mechanism as utils/fdsLayer.ts.
+          '--bg-input-default': 'var(--bg-elevation-highlight-layer-2)',
+          '--bg-input-disabled': 'var(--bg-elevation-disabled-layer-2)',
+          '--bg-input-hover': 'var(--bg-elevation-hover-layer-2)',
+          'backgroundImage': 'none',
+          'backgroundColor': paper === THEME_DARK_DEFAULT_PAPER
             ? THEME_DARK_DIALOG_BACKGROUND
             : (paper ?? THEME_DARK_DIALOG_BACKGROUND),
-          borderRadius: 4,
+          'borderRadius': 4,
         },
       },
     },
