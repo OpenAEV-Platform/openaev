@@ -266,6 +266,23 @@ class PaloAltoCortexExecutorContextServiceTest {
             + "."
             + Endpoint.PLATFORM_ARCH.x86_64.name(),
         "x86_64 $x=a location=b;[Environment]::CurrentDirectory #{inject} #{agent} #{tenant} #{token} #{baseUrl}");
+    // Unix now reads executor-prefixed keys too, like Windows already did: the detached command
+    // returns the Live Terminal session as soon as the implant is launched. The generic entries
+    // below stay in the fixture because the native OpenAEV agent and Caldera still read them.
+    commands.put(
+        PALOALTOCORTEX_EXECUTOR_NAME
+            + "."
+            + Endpoint.PLATFORM_TYPE.Linux.name()
+            + "."
+            + Endpoint.PLATFORM_ARCH.x86_64.name(),
+        "x86_64 $x=a location=b;filename=#{inject} #{agent} #{tenant} #{token} #{baseUrl}");
+    commands.put(
+        PALOALTOCORTEX_EXECUTOR_NAME
+            + "."
+            + Endpoint.PLATFORM_TYPE.MacOS.name()
+            + "."
+            + Endpoint.PLATFORM_ARCH.x86_64.name(),
+        "x86_64 $x=a location=b;filename=#{inject} #{agent} #{tenant} #{token} #{baseUrl}");
     commands.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name(),
         "x86_64 $x=a location=b;filename=#{inject} #{agent} #{tenant} #{token} #{baseUrl}");
