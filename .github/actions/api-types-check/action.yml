@@ -11,6 +11,12 @@ description: >
   OPENAEV_ADMIN_ENCRYPTION_KEY, OPENAEV_ADMIN_ENCRYPTION_SALT,
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
 
+inputs:
+  no-cache:
+    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
@@ -39,6 +45,7 @@ runs:
       working-directory: openaev-front
 
     - name: Cache Yarn dependencies
+      if: ${{ inputs.no-cache != 'true' }}
       uses: actions/cache@v6
       with:
         path: ${{ steps.yarn-cache-dir.outputs.dir }}
@@ -46,6 +53,7 @@ runs:
         restore-keys: |
           ${{ runner.os }}-yarn-
 
+    # Yarn 4.18.0 can crash during resolution (yarnpkg/berry#7245); retrying in-job never recovered.
     - name: Install frontend dependencies
       run: yarn install --immutable
       shell: bash
@@ -59,7 +67,7 @@ runs:
         wait-seconds: "900"
 
     - name: Download backend JAR artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: openaev-api-jar
         path: openaev-api/target

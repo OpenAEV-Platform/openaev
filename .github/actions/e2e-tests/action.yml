@@ -51,6 +51,10 @@ inputs:
     description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
     required: false
     default: ""
+  no-cache:
+    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -74,12 +78,14 @@ runs:
       shell: bash
       working-directory: openaev-front
     - name: Cache Yarn dependencies
+      if: ${{ inputs.no-cache != 'true' }}
       uses: actions/cache@v6
       with:
         path: ${{ steps.yarn-cache-dir.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-yarn-
+    # Yarn 4.18.0 can crash during resolution (yarnpkg/berry#7245); retrying in-job never recovered.
     - name: Install frontend dependencies
       run: yarn install --immutable
       shell: bash
@@ -94,6 +100,7 @@ runs:
       working-directory: openaev-front
     - name: Cache Playwright browsers
       id: playwright-cache
+      if: ${{ inputs.no-cache != 'true' }}
       uses: actions/cache@v6
       with:
         path: ~/.cache/ms-playwright
@@ -102,20 +109,39 @@ runs:
         key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
         restore-keys: |
           playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-
+    # `playwright install --with-deps` shells out to apt-get, which fails the whole job when an
+    # Ubuntu mirror is mid-sync ("File has unexpected size"). The browser download is what we
+    # actually need; system deps are already present on the GitHub runner images, so they are
+    # refreshed on a best-effort basis behind an apt retry.
+    - name: Install Playwright system dependencies
+      run: |
+        BROWSER="${{ inputs.browser }}"
+        [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
+        for attempt in 1 2 3; do
+          if sudo apt-get update; then
+            break
+          fi
+          echo "⚠️ apt-get update failed (attempt $attempt/3)"
+          sleep $((attempt * 10))
+        done
+        yarn playwright install-deps chromium $BROWSER \
+          || echo "⚠️ System dependency refresh failed; continuing with the runner image's own libraries"
+      shell: bash
+      working-directory: openaev-front
     - name: Install Playwright browsers (${{ inputs.browser }} + chromium for setup)
       if: steps.playwright-cache.outputs.cache-hit != 'true'
       run: |
         BROWSER="${{ inputs.browser }}"
         [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
-        yarn playwright install --with-deps chromium $BROWSER
-      shell: bash
-      working-directory: openaev-front
-    - name: Install Playwright system dependencies (cache hit)
-      if: steps.playwright-cache.outputs.cache-hit == 'true'
-      run: |
-        BROWSER="${{ inputs.browser }}"
-        [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
-        yarn playwright install-deps chromium $BROWSER
+        for attempt in 1 2 3; do
+          if yarn playwright install chromium $BROWSER; then
+            exit 0
+          fi
+          echo "⚠️ Browser download failed (attempt $attempt/3)"
+          sleep $((attempt * 10))
+        done
+        echo "❌ Could not download Playwright browsers after 3 attempts"
+        exit 1
       shell: bash
       working-directory: openaev-front
 

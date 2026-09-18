@@ -2,11 +2,10 @@ import { expect } from '@playwright/test';
 
 import TenantApiHelpers from '../../api-helpers/TenantApiHelpers';
 import { test } from '../../fixtures';
-import CatalogPage from '../../model/integrations/CatalogPage';
-import InjectorInstancePage from '../../model/integrations/InjectorInstancePage';
 import InjectorsListPage from '../../model/integrations/InjectorsListPage';
 import LeftMenuComponent from '../../model/LeftMenuComponent';
 import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
+import deployAndStartInjector from '../../utils/injector';
 import { tenantUrl } from '../../utils/url';
 
 /**
@@ -36,44 +35,11 @@ test.describe('Catalog — injector installation per tenant', () => {
 
   test('should be able to install an external injector in a new tenant', async ({ page }) => {
     expect(newTenantId).not.toBeNull();
-    // ─────────────────────────────────────────────────
-    // Step - Install Nmap Injector from the Catalog in Tenant A
-    // ─────────────────────────────────────────────────
-    // Arrange
-    const catalogPage = new CatalogPage(page);
-    await page.goto(tenantUrl('/admin/integrations/available', newTenantId!));
-    await catalogPage.waitForLoad();
-    // Act: search for Nmap and click Deploy
-    await catalogPage.searchConnector('Nmap');
-    await catalogPage.clickDeployOnConnector('Nmap');
-    // Fill the instance display name and submit
-    await catalogPage.fillDisplayName(NMAP_INJECTOR_NAME);
-    await catalogPage.submitInstall();
-
-    // ─────────────────────────────────────────────────
-    // Step — Navigate to the deployed injector and start it
-    // ─────────────────────────────────────────────────
-    // Navigate to the injectors list (catalog may or may not auto-redirect)
-    const injectorsListPage = new InjectorsListPage(page);
-    await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
-    await injectorsListPage.waitForLoad();
-    // Wait for the connector instance to appear as a (possibly pending) card
-    await injectorsListPage.waitForConnectorToAppear(NMAP_INJECTOR_NAME);
-    // Click the card to open the injector detail page
-    await injectorsListPage.clickOnInjector(NMAP_INJECTOR_NAME);
-
-    // ─────────────────────────────────────────────────
-    // Step — Start the injector; wait for "Started"
-    // ─────────────────────────────────────────────────
-    // Arrange
-    const injectorInstancePage = new InjectorInstancePage(page);
-    await injectorInstancePage.waitForLoad();
-    // Act: click "Start" (sets requestedStatus = starting)
-    await injectorInstancePage.clickStart();
-    // Assert: wait for currentStatus to reach "started"
-    // This is async and driven by the actual Nmap container start-up sequence.
-    await injectorInstancePage.waitForStarted();
-    await expect(injectorInstancePage.startedChip).toBeVisible();
+    await deployAndStartInjector(page, {
+      connectorTitle: 'Nmap',
+      displayName: NMAP_INJECTOR_NAME,
+      tenantId: newTenantId!,
+    });
 
     // ─────────────────────────────────────────────────
     // Step — Verify Threat Arsenal shows injector's contracts
@@ -92,6 +58,7 @@ test.describe('Catalog — injector installation per tenant', () => {
     // Step — Verify "Nmap - Tenant A" is NOT visible in the default tenant
     // ─────────────────────────────────────────────────
     // Arrange: navigate to the injectors list in the default tenant
+    const injectorsListPage = new InjectorsListPage(page);
     await page.goto(tenantUrl('/admin/integrations/deployed'));
     await injectorsListPage.waitForLoad();
     // Assert: the collector name from Tenant A must not appear here

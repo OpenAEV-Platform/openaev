@@ -51,6 +51,10 @@ inputs:
       is then handed to downstream jobs as an artifact only.
     required: false
     default: "true"
+  no-cache:
+    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    required: false
+    default: "false"
 
 outputs:
   digest:
@@ -142,8 +146,8 @@ runs:
         outputs: |
           type=oci,dest=${{ steps.names.outputs.artifact_name }}.tar,name=${{ inputs.tags }}
         labels: ${{ inputs.labels }}
-        cache-from: type=gha,scope=${{ steps.names.outputs.cache_scope }}
-        cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
+        cache-from: ${{ inputs.no-cache != 'true' && format('type=gha,scope={0}', steps.names.outputs.cache_scope) || '' }}
+        cache-to: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
 
     - name: Push image to CI registry
       id: registry-push

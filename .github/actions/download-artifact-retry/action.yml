@@ -1,0 +1,58 @@
+name: Download Artifact (with retry)
+description: >
+  Download a workflow artifact, falling back to the gh CLI when the artifact API
+  answers a transient error. actions/download-artifact classifies 403 from the
+  artifact endpoints as non-retryable and fails the job outright, which has taken
+  down otherwise healthy test shards.
+
+inputs:
+  name:
+    description: "Artifact name"
+    required: true
+  path:
+    description: "Destination directory"
+    required: true
+  attempts:
+    description: "Number of gh fallback attempts"
+    required: false
+    default: "3"
+
+runs:
+  using: composite
+  steps:
+    - name: Download ${{ inputs.name }}
+      id: download
+      continue-on-error: true
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+
+    - name: Retry ${{ inputs.name }} download
+      if: steps.download.outcome == 'failure'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        ARTIFACT_NAME: ${{ inputs.name }}
+        DEST: ${{ inputs.path }}
+        ATTEMPTS: ${{ inputs.attempts }}
+      run: |
+        set -uo pipefail
+        echo "::warning title=Artifact download retried::'${ARTIFACT_NAME}' failed through actions/download-artifact; falling back to gh."
+        # download-artifact expands a leading ~ itself; gh receives the path verbatim.
+        case "$DEST" in
+          "~") DEST="$HOME" ;;
+          "~/"*) DEST="$HOME/${DEST#\~/}" ;;
+        esac
+        # gh writes the artifact contents straight into --dir, matching the action's layout.
+        mkdir -p "$DEST"
+        for attempt in $(seq 1 "$ATTEMPTS"); do
+          if gh run download "${{ github.run_id }}" --name "$ARTIFACT_NAME" --dir "$DEST"; then
+            echo "✅ '${ARTIFACT_NAME}' downloaded on gh attempt ${attempt}"
+            exit 0
+          fi
+          echo "⚠️ '${ARTIFACT_NAME}' download failed (attempt ${attempt}/${ATTEMPTS})"
+          sleep $((attempt * 15))
+        done
+        echo "❌ Could not download '${ARTIFACT_NAME}' after ${ATTEMPTS} gh attempts"
+        exit 1

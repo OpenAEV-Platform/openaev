@@ -3,6 +3,12 @@ description: >
   Run TypeScript checks, ESLint, i18n validation, and Vitest unit tests.
   Uploads coverage report as an artifact.
 
+inputs:
+  no-cache:
+    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
@@ -19,12 +25,14 @@ runs:
       shell: bash
       working-directory: openaev-front
     - name: Cache Yarn dependencies
+      if: ${{ inputs.no-cache != 'true' }}
       uses: actions/cache@v6
       with:
         path: ${{ steps.yarn-cache-dir.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-yarn-
+    # Yarn 4.18.0 can crash during resolution (yarnpkg/berry#7245); retrying in-job never recovered.
     - name: Install dependencies
       run: yarn install --immutable
       shell: bash
@@ -57,4 +65,3 @@ runs:
       with:
         name: vitest-coverage
         path: openaev-front/coverage/
-

@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import os from 'node:os';
 
 import { expect } from '@playwright/test';
@@ -11,18 +10,11 @@ import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingList
 import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
 import TenantsPage from '../../model/platform/TenantsPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
+import { executeAgentInstall, getAgentPlatform } from '../../utils/agent';
 import { AUTH_FILE, TIMEOUT } from '../../utils/constants';
 import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
-
-const getOsPlatform = (): string => {
-  switch (os.platform()) {
-    case 'win32': return 'Windows';
-    case 'darwin': return 'MacOS';
-    default: return 'Linux';
-  }
-};
 
 /**
  * End-to-end test: OpenAEV agent executor running atomic test on a new tenant.
@@ -40,7 +32,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
 
   test.beforeAll(async ({ browser }) => {
     hostname = os.hostname().toLowerCase();
-    const platform = getOsPlatform();
+    const platform = getAgentPlatform();
 
     const context = await browser.newContext({
       storageState: AUTH_FILE,
@@ -93,14 +85,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await context.close();
 
     // ─── Execute the install command ───
-    const commandToExecute = os.platform() === 'win32'
-      ? installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing')
-      : installCommand;
-    execSync(commandToExecute, {
-      stdio: 'inherit',
-      timeout: 60_000,
-      shell: os.platform() === 'win32' ? 'powershell' : undefined,
-    });
+    executeAgentInstall(installCommand);
   });
 
   test.afterAll(async ({ request }) => {

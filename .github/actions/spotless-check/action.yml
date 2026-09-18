@@ -1,6 +1,12 @@
 name: Spotless Check
 description: Check Java code formatting with Spotless (Google Java Format)
 
+inputs:
+  no-cache:
+    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
@@ -9,8 +15,7 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: maven
+        cache: ${{ inputs.no-cache != 'true' && 'maven' || '' }}
     - name: Check formatting
       run: mvn -B -ntp spotless:check
       shell: bash
-
