@@ -1,23 +1,37 @@
 package io.openaev.service.organization;
 
+import static io.openaev.database.specification.OrganizationSpecification.byName;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
+import static java.time.Instant.now;
 
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Organization;
+import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.raw.RawOrganization;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
+import io.openaev.rest.organization.form.OrganizationCreateInput;
+import io.openaev.rest.organization.form.OrganizationUpdateInput;
+import io.openaev.rest.tag.TagService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Session;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -27,8 +41,59 @@ import org.springframework.util.CollectionUtils;
 public class OrganizationService {
 
   private final OrganizationRepository organizationRepository;
-
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final TagService tagService;
+  private final EntityManager entityManager;
+
+  /** Lists organizations in the legacy tenant scope, bounded by the caller's authorized scope. */
+
+  public List<RawOrganization> organizations(TxCtx ctx) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    return tenantIds.isEmpty() ? List.of() : organizationRepository.rawAll(tenantIds);
+  }
+
+  /** Resolves an organization only when it belongs to the authorized request scope. */
+
+  public Organization findById(TxCtx ctx, String organizationId) {
+    return findAccessibleById(ctx, organizationId);
+  }
+
+  /** Searches within the intersection of the legacy tenant filter and the authorized scope. */
+  public Page<Organization> organizationPagination(
+      TxCtx ctx, @NotNull SearchPaginationInput searchPaginationInput) {
+    Specification<Organization> scope = inTenantScope(ctx);
+    return buildPaginationJPA(
+        (specification, pageable) ->
+            organizationRepository.findAll(scope.and(specification), pageable),
+        searchPaginationInput,
+        Organization.class);
+  }
+
+  /** Creates an organization in the tenant explicitly resolved by the API write-scope resolver. */
+  public Organization createOrganization(OrganizationCreateInput input, String tenantId) {
+    Set<Tag> tags = resolveTags(input.getTagIds(), tenantId);
+    Organization organization = new Organization();
+    organization.setUpdateAttributes(input);
+    organization.setTenant(new Tenant(tenantId));
+    organization.setTags(tags);
+    return organizationRepository.save(organization);
+  }
+
+  /** Checks ownership and associations before changing any managed organization attributes. */
+  public Organization updateOrganization(
+      TxCtx ctx, String organizationId, OrganizationUpdateInput input) {
+    Organization organization = findAccessibleById(ctx, organizationId);
+    Set<Tag> tags = resolveTags(input.getTagIds(), organization.getTenant().getId());
+    organization.setUpdateAttributes(input);
+    organization.setUpdatedAt(now());
+    organization.setTags(tags);
+    return organizationRepository.save(organization);
+  }
+
+  /** Deletes an authorized organization through the ORM to preserve lifecycle events. */
+  public void deleteOrganization(TxCtx ctx, String organizationId) {
+    organizationRepository.delete(findAccessibleById(ctx, organizationId));
+  }
 
   /**
    * Finds an organization by name within the current tenant, creating it if missing. Single source
@@ -73,6 +138,7 @@ public class OrganizationService {
       throw new BadRequestException(
           "Either organization_ids_to_process or search_pagination_input must be provided, and not both at the same time");
     }
+    Specification<Organization> scope = inTenantScope(ctx);
     List<String> organizationIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
             ctx,
@@ -93,7 +159,7 @@ public class OrganizationService {
                 specification =
                     specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
               }
-              return organizationRepository.findAll(specification).stream()
+              return organizationRepository.findAll(scope.and(specification)).stream()
                   .map(Organization::getId)
                   .toList();
             });
@@ -101,17 +167,67 @@ public class OrganizationService {
         ctx,
         "organizations",
         organizationIdsToDelete,
-        chunk -> organizationRepository.deleteAll(organizationRepository.findAllById(chunk)));
+        chunk ->
+            organizationRepository.deleteAll(
+                organizationRepository.findAll(scope.and(SpecificationUtils.hasIdIn(chunk)))));
   }
 
-  public Page<Organization> organizationPagination(
-      @NotNull SearchPaginationInput searchPaginationInput) {
-    // Visibility is capability-gated at the API layer (@AccessControl SEARCH) and tenant-scoped by
-    // the Hibernate tenant filter, like every other organization endpoint (raw list, options,
-    // single read). The former per-group grant scoping joined Organization.groups, a mapping
-    // removed along with the groups_organizations table (V4_38): keeping it made every non-admin
-    // search fail with "Could not resolve attribute 'groups'".
-    return buildPaginationJPA(
-        this.organizationRepository::findAll, searchPaginationInput, Organization.class);
+  /** Resolves autocomplete labels without exposing organizations outside the request scope. */
+  public List<FilterUtilsJpa.Option> optionsByName(TxCtx ctx, String searchText) {
+    return organizationRepository
+        .findAll(inTenantScope(ctx).and(byName(searchText)), Sort.by(Sort.Direction.ASC, "name"))
+        .stream()
+        .map(
+            organization -> new FilterUtilsJpa.Option(organization.getId(), organization.getName()))
+        .toList();
+  }
+
+  /** Resolves supplied option identifiers only within the authorized legacy tenant scope. */
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, List<String> ids) {
+    return organizationRepository
+        .findAll(inTenantScope(ctx).and(SpecificationUtils.hasIdIn(ids)))
+        .stream()
+        .map(
+            organization -> new FilterUtilsJpa.Option(organization.getId(), organization.getName()))
+        .toList();
+  }
+
+  private Organization findAccessibleById(TxCtx ctx, String organizationId) {
+    Specification<Organization> specification =
+        inTenantScope(ctx).and((root, query, cb) -> cb.equal(root.get("id"), organizationId));
+    Session session = entityManager.unwrap(Session.class);
+    boolean tenantFilterEnabled = session.getEnabledFilter("tenantFilter") != null;
+    session.disableFilter("tenantFilter");
+    try {
+      return organizationRepository
+          .findOne(specification)
+          .orElseThrow(ElementNotFoundException::new);
+    } finally {
+      if (tenantFilterEnabled) {
+        session
+            .enableFilter("tenantFilter")
+            .setParameter("tenantId", TenantContext.getCurrentTenant());
+      }
+    }
+  }
+
+  private Specification<Organization> inTenantScope(TxCtx ctx) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    return (root, query, cb) ->
+        tenantIds.isEmpty() ? cb.disjunction() : root.get("tenant").get("id").in(tenantIds);
+  }
+
+  private Set<Tag> resolveTags(List<String> tagIds, String tenantId) {
+    if (tagIds == null) {
+      throw new BadRequestException("organization_tags must not be null");
+    }
+    Set<Tag> tags = tagService.tagSet(tagIds);
+    if (tags.size() != new HashSet<>(tagIds).size()
+        || tags.stream()
+            .anyMatch(
+                tag -> tag.getTenant() == null || !tenantId.equals(tag.getTenant().getId()))) {
+      throw new ElementNotFoundException();
+    }
+    return tags;
   }
 }
