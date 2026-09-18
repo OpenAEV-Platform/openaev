@@ -1,0 +1,151 @@
+name: Technical improvement
+description: Propose technical work that has a cost and does not directly add a feature
+title: "refactor(scope): "
+labels: ["needs triage", "technical improvement"]
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **What belongs here.** Work that has a cost and does not directly add a feature.
+        It gives the product a capability, or it lowers one of three costs: risk of incident,
+        slower delivery, support load. If your topic fits none of the three, it does not need
+        to be planned. That is a fine answer, and you can stop here.
+
+        A topic that unlocks a later capability — a refactor needed before another piece of
+        work can start — shows up as **slower delivery** until it is done.
+
+        **What does not belong here.** Security findings. They follow their own path and their
+        own SLA. Plain bugs and features have their own templates.
+
+        **Title.** Same format as the rest of the repository: `type(scope): description`,
+        lowercase, no trailing period. Pick the type that fits the work: `refactor`, `perf`,
+        `test`, `build`, `ci` or `chore`.
+
+        **A filled example**, on a hard topic:
+        [TECHNICAL_IMPROVEMENT_EXAMPLE.md](https://github.com/OpenAEV-Platform/openaev/blob/main/.github/TECHNICAL_IMPROVEMENT_EXAMPLE.md).
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What we propose to do
+      description: >
+        A few lines. What changes, and where. If the work is phased, say so. If it is already
+        started, say what is done and what is left. If you cannot yet say whether this is staff
+        work or vertical work, say here why the call is hard.
+      placeholder: |
+        Finish moving expectation results off the old inline model and onto the result store.
+        Half of it is done: the write path is migrated, the read path and the export still use
+        the old shape.
+        What is left: migrate the read path and the export, then drop the old columns in a
+        later release, once no instance reads them.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Effort estimate
+      description: >
+        A rough size, not a number of days. Pick the closest one. "Not sized yet" is honest,
+        but expect the topic to come back for sizing before it can be planned.
+      options:
+        - a few days
+        - a few weeks
+        - a few months
+        - more than a quarter
+        - not sized yet
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cost_avoided
+    attributes:
+      label: Cost avoided
+      description: >
+        These three are the only values. If none of them fits, the topic does not need to be
+        planned and this issue does not need to exist.
+      options:
+        - risk of incident
+        - slower delivery
+        - support load
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact_if_nothing
+    attributes:
+      label: Impact if we do nothing
+      description: >
+        Short, mid and long term. Keep the three lines even when one of them is
+        "nothing visible" — that is useful to read.
+      placeholder: |
+        Short term: nothing visible for customers. Every change on expectations costs about
+        twice what it should, because both shapes have to be updated.
+        Mid term: the two features planned on expectations carry that same tax, and the two
+        shapes drift a little further apart with each release.
+        Long term: nobody wants to touch the read path, we keep the old columns for good, and
+        the next person pays for a migration we chose not to finish.
+    validations:
+      required: true
+
+  # Deliberately not required, and the cap of four required fields is not the only reason.
+  # GitHub can force a non-empty box, it cannot force a real answer, and a forced box is how
+  # "technical debt" ends up in this field. The Technical improvements page has the triage
+  # agent check effort, cost avoided and impact — not this one. What holds the bar here is
+  # the help text plus the triage pass sending a weak answer back.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: >
+        Numbers, or the measurement we are missing. Both are valid answers. "Hard to maintain"
+        and "technical debt" are not: tie the topic to a risk or to a user impact. Put the
+        links that back it here too — GitHub issues, Jira tickets, the Notion page.
+      placeholder: |
+        With numbers:
+        4 bugs in the last two cycles came from the two shapes drifting apart (#4412, #4480,
+        #4511, #4533). Each of the last three changes on expectations needed a double write.
+
+        Or, when we do not have them:
+        We do not measure how much time goes into that double write. What we need: a tag on
+        the pull requests that touch both shapes, over one cycle, so we can count them.
+        Nobody owns that today.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where the work lands. Pick several if it spreads.
+      multiple: true
+      options:
+        - simulation engine and execution
+        - injectors and collectors
+        - expectations and results
+        - api and data model
+        - front end
+        - authentication, tenancy and permissions
+        - build, ci and dependencies
+        - deployment and infrastructure
+        - cross product (OpenCTI, XTM One)
+
+  - type: dropdown
+    id: ownership
+    attributes:
+      label: Staff driven or vertical
+      description: >
+        Work with no direct customer or feature impact can stay staff driven. Work with a
+        direct customer or feature impact belongs to a vertical. "To be decided" is a normal
+        answer — if you pick it, say above why the call is hard.
+      options:
+        - staff driven
+        - vertical
+        - to be decided
+      default: 2
+
+  - type: checkboxes
+    id: not_security
+    attributes:
+      label: Security check
+      options:
+        - label: This is not a security finding. Security findings follow their own path and their own SLA.
