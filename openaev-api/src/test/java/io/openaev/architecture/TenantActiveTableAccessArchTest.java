@@ -543,7 +543,6 @@ class TenantActiveTableAccessArchTest {
               io.openaev.rest.asset_group.AssetGroupApi.class,
               io.openaev.rest.document.DocumentApi.class,
               io.openaev.rest.challenge.ChallengeApi.class,
-              io.openaev.api.chaining.ChainingApi.class,
               io.openaev.rest.asset.ai_targets.AiTargetApi.class,
               io.openaev.rest.asset.security_platforms.SecurityPlatformApi.class,
               // Services behind the entrypoints above and import/export paths using explicit

@@ -110,7 +110,7 @@ public class ExportService {
     zipEntry.setComment(EXPORT_ENTRY_EXERCISE);
     zipExport.putNextEntry(zipEntry);
     ObjectNode exportNode = importExport.getObjectMapper().valueToTree(importExport);
-    workflowExportInitializer.enrichWorkflowStepDataForExport(
+    workflowExportInitializer.enrichWorkflowDataForExport(
         exportNode, "exercise_workflow", importExport.getObjectMapper());
     zipExport.write(
         importExport

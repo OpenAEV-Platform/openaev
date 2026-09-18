@@ -187,6 +187,29 @@ public interface EngineService {
   String getEngineVersion();
 
   /**
+   * Size actually used by the platform indexes on the engine, in bytes.
+   *
+   * <p>Only the primary shards are accounted for: replicas hold a copy of the very same documents,
+   * so including them would report the filesystem footprint of the cluster (multiplied by the
+   * replication factor) instead of the real data volume.
+   *
+   * <p>This call hits the engine cluster; it is not meant to be issued on a hot path (see the
+   * periodic storage probe of the health subsystem).
+   *
+   * @return the used size in bytes, or {@code null} if it cannot be retrieved
+   */
+  Long getIndexesUsedSize();
+
+  /**
+   * Checks the engine is reachable, with the cheapest call the client offers. Unlike {@link
+   * #getIndexesUsedSize()} it does not walk the index stats, so it can be issued on a short
+   * connectivity probe schedule.
+   *
+   * @throws io.openaev.exception.AnalyticsEngineException if the engine cannot be contacted
+   */
+  void ping();
+
+  /**
    * Returns the ObjectMapper used by the search engine client for document serialization. Other
    * components (e.g. audit log service) can reuse this to ensure consistent serialization between
    * the log appender and the search engine transport.
