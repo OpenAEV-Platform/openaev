@@ -543,7 +543,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                         gap: theme.spacing(0.5),
                       }}
                       >
-                        <FormatIcon fontSize="small" />
+                        <FormatIcon fontSize="small" style={{ color: 'var(--text-default-secondary)' }} />
                         {format}
                       </span>
                     )}
