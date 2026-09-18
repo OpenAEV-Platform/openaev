@@ -38,6 +38,9 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({ selectedExecutor, s
           sx={{
             minWidth: 0,
             textAlign: 'center',
+            // No outline on a choice card: the outlined variant is kept only to
+            // hold the geometry, its border is transparent.
+            borderColor: 'transparent',
           }}
         >
           <CardActionArea

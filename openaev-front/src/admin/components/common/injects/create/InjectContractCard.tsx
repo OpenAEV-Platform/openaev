@@ -81,7 +81,8 @@ const InjectContractCard: FunctionComponent<Props> = ({
         'height': '100%',
         'borderRadius': 1,
         'overflow': 'hidden',
-        'borderColor': checked ? accent : theme.palette.divider,
+        // A choice card carries no outline: only the selected one does.
+        'borderColor': checked ? accent : 'transparent',
         'backgroundColor': checked
           ? alpha(accent, 0.06)
           : theme.palette.background.paper,

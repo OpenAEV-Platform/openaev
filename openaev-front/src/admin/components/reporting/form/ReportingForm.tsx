@@ -1,7 +1,7 @@
-import { Button, Checkbox, IconButton, Paper as FdsPaper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Checkbox, IconButton, Paper as FdsPaper, Radio, RadioGroup, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/icons-material';
+import { CodeOutlined, DeleteOutlined, DragIndicatorOutlined, PictureAsPdfOutlined, RestartAltOutlined } from '@mui/icons-material';
 // fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
 import { Box, FormHelperText, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -175,6 +175,16 @@ const ModuleTitleField = ({ id, name }: {
     </Box>
   );
 };
+
+// The default-format group is named by the caption above it.
+const FORMAT_LABEL_ID = 'reporting-default-format-label';
+
+// One glyph per output: the page icon for the printed document, the markup
+// icon for the page served in a browser.
+const REPORTING_FORMAT_ICONS = {
+  PDF: PictureAsPdfOutlined,
+  HTML: CodeOutlined,
+} as const;
 
 const ReportingForm: FunctionComponent<Props> = ({
   onSubmit,
@@ -503,25 +513,39 @@ const ReportingForm: FunctionComponent<Props> = ({
         name="reporting_default_format"
         render={({ field }) => (
           <div>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {/* The group has no visible label of its own, so the caption above
+                names it through aria-labelledby. */}
+            <Typography id={FORMAT_LABEL_ID} variant="caption" sx={{ color: 'text.secondary' }}>
               {t('Default format')}
             </Typography>
-            <ToggleButtonGroup
-              exclusive
-              size="small"
-              color="primary"
+            <RadioGroup
+              orientation="horizontal"
+              aria-labelledby={FORMAT_LABEL_ID}
               value={field.value}
-              onChange={(_, value) => {
-                if (value) field.onChange(value);
-              }}
-              sx={{ display: 'flex' }}
+              onValueChange={value => field.onChange(value)}
+              style={{ marginTop: theme.spacing(1) }}
             >
-              {REPORTING_FORMATS.map(format => (
-                <ToggleButton key={format} value={format} sx={{ flex: 1 }}>
-                  {format}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
+              {REPORTING_FORMATS.map((format) => {
+                const FormatIcon = REPORTING_FORMAT_ICONS[format];
+                return (
+                  <Radio
+                    key={format}
+                    value={format}
+                    label={(
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: theme.spacing(0.5),
+                      }}
+                      >
+                        <FormatIcon fontSize="small" />
+                        {format}
+                      </span>
+                    )}
+                  />
+                );
+              })}
+            </RadioGroup>
           </div>
         )}
       />

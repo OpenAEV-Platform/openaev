@@ -29,7 +29,8 @@ const ThreatArsenalExecutionModeCardComponent = ({ executionMode }: Props) => {
           data-testid="threat-arsenal-execution-mode-card"
           sx={{
             borderRadius: 1,
-            borderColor: theme.palette.divider,
+            // A choice card in a drawer carries no outline; the hover accent stays.
+            borderColor: 'transparent',
             backgroundColor: theme.palette.background.paper,
             transition: theme.transitions.create(
               ['border-color', 'box-shadow', 'transform'],
