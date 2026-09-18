@@ -34,7 +34,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 @Service
@@ -47,20 +46,19 @@ public class OrganizationService {
   private final EntityManager entityManager;
 
   /** Lists organizations in the legacy tenant scope, bounded by the caller's authorized scope. */
-  @Transactional(readOnly = true)
+
   public List<RawOrganization> organizations(TxCtx ctx) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     return tenantIds.isEmpty() ? List.of() : organizationRepository.rawAll(tenantIds);
   }
 
   /** Resolves an organization only when it belongs to the authorized request scope. */
-  @Transactional(readOnly = true)
+
   public Organization findById(TxCtx ctx, String organizationId) {
     return findAccessibleById(ctx, organizationId);
   }
 
   /** Searches within the intersection of the legacy tenant filter and the authorized scope. */
-  @Transactional(readOnly = true)
   public Page<Organization> organizationPagination(
       TxCtx ctx, @NotNull SearchPaginationInput searchPaginationInput) {
     Specification<Organization> scope = inTenantScope(ctx);
@@ -72,9 +70,7 @@ public class OrganizationService {
   }
 
   /** Creates an organization in the tenant explicitly resolved by the API write-scope resolver. */
-  @Transactional(rollbackFor = Exception.class)
-  public Organization createOrganization(
-      TxCtx ctx, OrganizationCreateInput input, String tenantId) {
+  public Organization createOrganization(OrganizationCreateInput input, String tenantId) {
     Set<Tag> tags = resolveTags(input.getTagIds(), tenantId);
     Organization organization = new Organization();
     organization.setUpdateAttributes(input);
@@ -84,7 +80,6 @@ public class OrganizationService {
   }
 
   /** Checks ownership and associations before changing any managed organization attributes. */
-  @Transactional(rollbackFor = Exception.class)
   public Organization updateOrganization(
       TxCtx ctx, String organizationId, OrganizationUpdateInput input) {
     Organization organization = findAccessibleById(ctx, organizationId);
@@ -96,7 +91,6 @@ public class OrganizationService {
   }
 
   /** Deletes an authorized organization through the ORM to preserve lifecycle events. */
-  @Transactional(rollbackFor = Exception.class)
   public void deleteOrganization(TxCtx ctx, String organizationId) {
     organizationRepository.delete(findAccessibleById(ctx, organizationId));
   }
@@ -179,7 +173,6 @@ public class OrganizationService {
   }
 
   /** Resolves autocomplete labels without exposing organizations outside the request scope. */
-  @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByName(TxCtx ctx, String searchText) {
     return organizationRepository
         .findAll(inTenantScope(ctx).and(byName(searchText)), Sort.by(Sort.Direction.ASC, "name"))
@@ -190,7 +183,6 @@ public class OrganizationService {
   }
 
   /** Resolves supplied option identifiers only within the authorized legacy tenant scope. */
-  @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, List<String> ids) {
     return organizationRepository
         .findAll(inTenantScope(ctx).and(SpecificationUtils.hasIdIn(ids)))
@@ -205,7 +197,6 @@ public class OrganizationService {
         inTenantScope(ctx).and((root, query, cb) -> cb.equal(root.get("id"), organizationId));
     Session session = entityManager.unwrap(Session.class);
     boolean tenantFilterEnabled = session.getEnabledFilter("tenantFilter") != null;
-    // ID access follows the authorized scope, not the legacy single-tenant scope used by lists.
     session.disableFilter("tenantFilter");
     try {
       return organizationRepository
