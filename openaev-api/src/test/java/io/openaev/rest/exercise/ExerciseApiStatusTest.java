@@ -8,8 +8,13 @@ import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,6 +30,7 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.rest.exercise.form.ExerciseUpdateStatusInput;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
@@ -41,13 +47,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
@@ -91,7 +95,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
 
   @Autowired private InjectRepository injectRepository;
 
-  @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private InjectAuthorisationRepository injectAuthorisationRepository;
 
   @Autowired private InjectStatusRepository injectStatusRepository;
 
@@ -119,6 +123,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private CacheManager cacheManager;
   @Autowired private PlatformTransactionManager transactionManager;
 
+  @SpyBean private io.openaev.service.chaining.WorkflowEndService workflowEndService;
+
   private void inTransaction(Runnable work) {
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
   }
@@ -126,6 +132,118 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @BeforeEach
   void beforeAll() {
     inTransaction(this::createFixtures);
+  }
+
+  @Nested
+  @DisplayName("simulation reset and stop cleanup")
+  class SimulationResetAndStopCleanupTest {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given closed exercise reset should clear status and authorisation")
+    void given_closedExerciseReset_should_clearStatusAndInjectAuthorisation() throws Exception {
+      // Arrange
+      Exercise exercise = ExerciseFixture.createCanceledAttackExercise(REFERENCE_TIME);
+      exercise.setName("reset-cleanup-" + UUID.randomUUID());
+      exercise = exerciseRepository.save(exercise);
+
+      Inject inject =
+          getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject.setExercise(exercise);
+      inject.setTeams(new ArrayList<>(List.of(TEAM)));
+      inject = injectRepository.save(inject);
+
+      InjectStatus status = new InjectStatus();
+      status.setInject(inject);
+      status.setName(ExecutionStatus.PENDING);
+      status = injectStatusRepository.save(status);
+      inject.setStatus(status);
+      inject.setTriggerNowDate(Instant.now());
+      inject.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
+      injectRepository.save(inject);
+
+      InjectAuthorisation authorisation = new InjectAuthorisation();
+      authorisation.setInject(inject);
+      authorisation.setCode("hashed-code");
+      authorisation.setIssuedAt(Instant.now());
+      injectAuthorisationRepository.save(authorisation);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+      input.setStatus(ExerciseStatus.SCHEDULED);
+
+      // Act
+      mvc.perform(
+              put(EXERCISE_URI + "/" + exercise.getId() + "/status")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      Inject reloadedInject = injectRepository.findById(inject.getId()).orElseThrow();
+      assertTrue(injectStatusRepository.findByInjectId(inject.getId()).isEmpty());
+      assertTrue(injectAuthorisationRepository.findByInjectId(inject.getId()).isEmpty());
+      assertNull(reloadedInject.getTriggerNowDate());
+      assertEquals(CollectExecutionStatus.COLLECTING, reloadedInject.getCollectExecutionStatus());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given running exercise stop should delegate active inject finalization to workflowEndService")
+    void given_runningExerciseStop_should_delegateActiveInjectFinalizationToWorkflowEndService()
+        throws Exception {
+      // Arrange
+      Exercise exercise = ExerciseFixture.createRunningAttackExercise(REFERENCE_TIME);
+      exercise.setName("stop-cleanup-" + UUID.randomUUID());
+      exercise = exerciseRepository.save(exercise);
+
+      Inject inject =
+          getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject.setExercise(exercise);
+      inject.setTeams(new ArrayList<>(List.of(TEAM)));
+      inject = injectRepository.save(inject);
+
+      InjectStatus status = new InjectStatus();
+      status.setInject(inject);
+      status.setName(ExecutionStatus.PENDING);
+      status = injectStatusRepository.save(status);
+      inject.setStatus(status);
+      injectRepository.save(inject);
+
+      InjectAuthorisation authorisation = new InjectAuthorisation();
+      authorisation.setInject(inject);
+      authorisation.setCode("hashed-code");
+      authorisation.setIssuedAt(Instant.now());
+      injectAuthorisationRepository.save(authorisation);
+
+      doNothing()
+          .when(workflowEndService)
+          .stopActiveInjects(anyString(), any(WorkflowEndService.WORKFLOW_END_CAUSE.class));
+
+      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+      input.setStatus(ExerciseStatus.CANCELED);
+
+      // Act
+      mvc.perform(
+              put(EXERCISE_URI + "/" + exercise.getId() + "/status")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      verify(workflowEndService)
+          .stopActiveInjects(
+              eq(exercise.getId()), eq(WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED));
+    }
   }
 
   private void createFixtures() {

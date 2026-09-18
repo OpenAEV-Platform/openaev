@@ -18,6 +18,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.EventType;
 import io.openaev.database.repository.AgentRepository;
+import io.openaev.database.repository.InjectAuthorisationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -50,6 +51,7 @@ public class InjectStatusService {
   private final AgentRepository agentRepository;
   private final InjectService injectService;
   private final InjectUtils injectUtils;
+  private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectStatusRepository injectStatusRepository;
   private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
   private final Optional<AuditLogger> auditLogger;
@@ -102,6 +104,7 @@ public class InjectStatusService {
     // Save status for inject
     inject.setStatus(injectStatus);
     Inject saved = injectRepository.save(inject);
+    deleteInjectAuthorisationIfExecutionEnded(injectStatus);
     if (previousStatus != newStatus) {
       logInjectStatusTransition(inject, previousStatus, newStatus, null);
     }
@@ -170,6 +173,7 @@ public class InjectStatusService {
     injectStatus.setTrackingEndDate(Instant.now());
     injectStatus.setName(finalStatus);
     injectStatus.getInject().setUpdatedAt(Instant.now());
+    deleteInjectAuthorisationIfExecutionEnded(injectStatus);
 
     // Audit log: final inject status
     if (previousStatus != finalStatus) {
@@ -347,6 +351,13 @@ public class InjectStatusService {
     return injectUtils.getStatusPayloadFromInject(inject);
   }
 
+  public InjectStatus finalizeAsError(@NotNull InjectStatus injectStatus) {
+    injectStatus.setName(ExecutionStatus.ERROR);
+    injectStatus.setTrackingEndDate(Instant.now());
+    deleteInjectAuthorisationIfExecutionEnded(injectStatus);
+    return injectStatusRepository.save(injectStatus);
+  }
+
   @Transactional
   public InjectStatus failInjectStatus(@NotNull String injectId, @Nullable String message) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
@@ -355,10 +366,8 @@ public class InjectStatusService {
     if (message != null) {
       injectStatus.addErrorTrace(message, ExecutionTraceAction.COMPLETE);
     }
-    injectStatus.setName(ExecutionStatus.ERROR);
-    injectStatus.setTrackingEndDate(Instant.now());
     injectStatus.setPayloadOutput(getPayloadOutput(inject));
-    InjectStatus saved = injectStatusRepository.save(injectStatus);
+    InjectStatus saved = finalizeAsError(injectStatus);
     // Stream the ERROR transition so the execution board moves the inject to "completed" live.
     inject.setStatus(saved);
     publishInjectStatusUpdate(inject);
@@ -386,6 +395,13 @@ public class InjectStatusService {
       logInjectStatusTransition(inject, previousStatus, status, null);
     }
     return saved;
+  }
+
+  public void deleteInjectAuthorisationIfExecutionEnded(@NotNull InjectStatus injectStatus) {
+    ExecutionStatus status = injectStatus.getName();
+    if (status != null && !ExecutionStatus.INJECT_EXECUTION_IN_PROGRESS_STATUSES.contains(status)) {
+      injectAuthorisationRepository.deleteAllByInjectId(injectStatus.getInject().getId());
+    }
   }
 
   public Iterable<InjectStatus> saveAll(@NotNull List<InjectStatus> injectStatuses) {
@@ -447,11 +463,13 @@ public class InjectStatusService {
    * @param injects the list of injects
    */
   public void deleteAllInjectStatusByInjects(List<Inject> injects) {
+    List<String> injectIds = injects.stream().map(Inject::getId).toList();
     List<String> injectStatusIds =
         injects.stream()
             .map(Inject::getStatus)
             .flatMap(i -> i.map(InjectStatus::getId).stream())
             .toList();
+    injectAuthorisationRepository.deleteAllByInjectIds(injectIds);
     injectStatusRepository.deleteAllByIds(injectStatusIds);
   }
 
