@@ -2014,6 +2014,7 @@
   "Install the agent as a user or a system service. This installation requires local administrator privileges.": "Installieren Sie den Agenten als Benutzer oder als Systemdienst. Diese Installation erfordert lokale Administrator-Rechte.",
   "Install the agent using your own user account.": "Installieren Sie den Agenten unter Ihrem eigenen Benutzerkonto.",
   "Install Windows Agent": "Windows-Agent installieren",
+  "INSTALL_AGENT": "Agent installieren",
   "Installation Instructions": "Anweisungen zur Installation",
   "Installation path": "Installationspfad",
   "Installing it as a system grants system-wide privileges.": "Die Installation als System gewährt systemweite Privilegien.",

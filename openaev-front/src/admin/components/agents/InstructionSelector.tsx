@@ -1,9 +1,10 @@
 import { ContentCopyOutlined, TerminalOutlined } from '@mui/icons-material';
-import { Alert, Button, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
+import { Alert, Button, CircularProgress, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
 import { useEffect, useState } from 'react';
 
+import { fetchOpenAevAgentInstallerToken } from '../../../actions/executors/executor-action';
 import { fetchCalderaSettings } from '../../../actions/settings/settings-action';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
@@ -34,6 +35,7 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
   const [agentFolder] = useState<null | string>(null);
   const [arch, setArch] = useState<string>(x86_64);
   const [calderaSettings, setCalderaSettings] = useState<null | CalderaSettings[]>(null);
+  const [installerToken, setInstallerToken] = useState<string>('');
 
   // Fetching data
   useEffect(() => {
@@ -65,6 +67,12 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
 
   const { settings, currentUserTenant } = useAuth();
   const tenantPrefix = `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}`;
+
+  useEffect(() => {
+    fetchOpenAevAgentInstallerToken(tenantPrefix).then(({ data }) => {
+      setInstallerToken(data);
+    });
+  }, [tenantPrefix]);
 
   const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedOption(platform === MACOS ? SYSTEM : event.target.value);
@@ -179,12 +187,16 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
       }
       return result;
     };
+    // The installer endpoint now requires the INSTALL_AGENT capability, so the copy-pasted
+    // command must carry the tenant's service-account token itself to authenticate.
     const buildUrlScript2Windows = () => {
       if (currentTab === 'Advanced Installation' && selectedOption === USER) {
-        return `&([scriptblock]::Create((iwr ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}))) ${buildExtraParams('-User USER -Password PASSWORD', '', '')}`;
+        return `&([scriptblock]::Create((iwr -Headers @{Authorization="Bearer ${installerToken}"} ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}))) ${buildExtraParams('-User USER -Password PASSWORD', '', '')}`;
       }
-      return `iex (iwr ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}).Content`;
+      return `iex (iwr -Headers @{Authorization="Bearer ${installerToken}"} ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}).Content`;
     };
+    const buildUrlScript2Unix = (baseUrl: string) =>
+      `curl -s -H "Authorization: Bearer ${installerToken}" ${buildInstallationUrl(baseUrl)} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`;
 
     switch (platform) {
       case WINDOWS:
@@ -200,24 +212,24 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
           icon: <Bash />,
           label: 'sh',
           exclusions: '',
-          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
-          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          displayedCode: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux'),
+          code: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux'),
         };
       case MACOS:
         return {
           icon: <TerminalOutlined />,
           label: 'sh',
           exclusions: '',
-          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
-          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          displayedCode: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos'),
+          code: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos'),
         };
       default:
         return {
           icon: <Bash />,
           label: 'sh',
           exclusions: '',
-          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
-          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          displayedCode: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux'),
+          code: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux'),
         };
     }
   };
@@ -447,15 +459,31 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
 
           {/* OAEV */}
           {selectedExecutor && selectedExecutor.executor_type === OPENAEV_AGENT && (
-            <div>
-              <Tabs
-                entries={tabEntries}
-                currentTab={currentTab}
-                onChange={newValue => handleChangeTab(newValue)}
-              />
-              {currentTab === 'Standard Installation' && (buildStandardInstallation())}
-              {currentTab === 'Advanced Installation' && (buildAdvancedInstallation())}
-            </div>
+            installerToken
+              ? (
+                  <div>
+                    <Tabs
+                      entries={tabEntries}
+                      currentTab={currentTab}
+                      onChange={newValue => handleChangeTab(newValue)}
+                    />
+                    {currentTab === 'Standard Installation' && (buildStandardInstallation())}
+                    {currentTab === 'Advanced Installation' && (buildAdvancedInstallation())}
+                  </div>
+                )
+              : (
+                  // The install command embeds the service-account token fetched above;
+                  // rendering it before that fetch resolves would produce a command with an
+                  // empty bearer token.
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    padding: theme.spacing(4),
+                  }}
+                  >
+                    <CircularProgress size={24} />
+                  </div>
+                )
           )}
         </div>
       )}

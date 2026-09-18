@@ -487,6 +487,14 @@ public enum Capability {
       pair(ResourceType.PLATFORM_SESSION, Action.READ),
       pair(ResourceType.PLATFORM_SESSION, Action.WRITE)),
 
+  // Agent installation (F408690-14 quick fix: the agent installer command embeds a service-account
+  // bearer token, so it must not be reachable by unauthenticated/uncapable users).
+  INSTALL_AGENT(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.AGENT_INSTALLER, Action.READ)),
+
   // STIX
   MANAGE_STIX_BUNDLE(
       null,

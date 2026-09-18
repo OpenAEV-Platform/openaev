@@ -19,6 +19,10 @@ export const fetchExecutorRelatedIds = (executorId: string) => {
   return simpleCall(`${EXECUTOR_URI}/${executorId}/related-ids`);
 };
 
+export const fetchOpenAevAgentInstallerToken = (tenantPrefix: string) => {
+  return simpleCall(`${tenantPrefix}/agent/installer/openaev/token`);
+};
+
 export const deleteExecutor = (executorId: string) => (dispatch: Dispatch) => {
   return delReferential(`${EXECUTOR_URI}/${executorId}`, 'executors', executorId)(dispatch);
 };
