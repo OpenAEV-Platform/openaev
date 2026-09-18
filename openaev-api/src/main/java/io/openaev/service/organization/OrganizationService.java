@@ -23,11 +23,13 @@ import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Session;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -42,6 +44,7 @@ public class OrganizationService {
   private final OrganizationRepository organizationRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
   private final TagService tagService;
+  private final EntityManager entityManager;
 
   /** Lists organizations in the legacy tenant scope, bounded by the caller's authorized scope. */
   @Transactional(readOnly = true)
@@ -60,7 +63,7 @@ public class OrganizationService {
   @Transactional(readOnly = true)
   public Page<Organization> organizationPagination(
       TxCtx ctx, @NotNull SearchPaginationInput searchPaginationInput) {
-    Specification<Organization> scope = inScope(ctx);
+    Specification<Organization> scope = inTenantScope(ctx);
     return buildPaginationJPA(
         (specification, pageable) ->
             organizationRepository.findAll(scope.and(specification), pageable),
@@ -141,7 +144,7 @@ public class OrganizationService {
       throw new BadRequestException(
           "Either organization_ids_to_process or search_pagination_input must be provided, and not both at the same time");
     }
-    Specification<Organization> scope = inScope(ctx);
+    Specification<Organization> scope = inTenantScope(ctx);
     List<String> organizationIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
             ctx,
@@ -179,7 +182,7 @@ public class OrganizationService {
   @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByName(TxCtx ctx, String searchText) {
     return organizationRepository
-        .findAll(inScope(ctx).and(byName(searchText)), Sort.by(Sort.Direction.ASC, "name"))
+        .findAll(inTenantScope(ctx).and(byName(searchText)), Sort.by(Sort.Direction.ASC, "name"))
         .stream()
         .map(
             organization -> new FilterUtilsJpa.Option(organization.getId(), organization.getName()))
@@ -190,7 +193,7 @@ public class OrganizationService {
   @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, List<String> ids) {
     return organizationRepository
-        .findAll(inScope(ctx).and(SpecificationUtils.hasIdIn(ids)))
+        .findAll(inTenantScope(ctx).and(SpecificationUtils.hasIdIn(ids)))
         .stream()
         .map(
             organization -> new FilterUtilsJpa.Option(organization.getId(), organization.getName()))
@@ -198,21 +201,26 @@ public class OrganizationService {
   }
 
   private Organization findAccessibleById(TxCtx ctx, String organizationId) {
-    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    if (tenantIds.isEmpty()) {
-      throw new ElementNotFoundException();
+    Specification<Organization> specification =
+        inTenantScope(ctx).and((root, query, cb) -> cb.equal(root.get("id"), organizationId));
+    Session session = entityManager.unwrap(Session.class);
+    boolean tenantFilterEnabled = session.getEnabledFilter("tenantFilter") != null;
+    // ID access follows the authorized scope, not the legacy single-tenant scope used by lists.
+    session.disableFilter("tenantFilter");
+    try {
+      return organizationRepository
+          .findOne(specification)
+          .orElseThrow(ElementNotFoundException::new);
+    } finally {
+      if (tenantFilterEnabled) {
+        session
+            .enableFilter("tenantFilter")
+            .setParameter("tenantId", TenantContext.getCurrentTenant());
+      }
     }
-    // Hibernate's v1 filter does not apply to primary-key loads, including cached entities.
-    return organizationRepository
-        .findById(organizationId)
-        .filter(
-            organization ->
-                organization.getTenant() != null
-                    && tenantIds.contains(organization.getTenant().getId()))
-        .orElseThrow(ElementNotFoundException::new);
   }
 
-  private Specification<Organization> inScope(TxCtx ctx) {
+  private Specification<Organization> inTenantScope(TxCtx ctx) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     return (root, query, cb) ->
         tenantIds.isEmpty() ? cb.disjunction() : root.get("tenant").get("id").in(tenantIds);

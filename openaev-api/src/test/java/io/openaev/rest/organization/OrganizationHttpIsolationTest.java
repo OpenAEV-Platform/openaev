@@ -5,6 +5,7 @@ import static io.openaev.rest.organization.OrganizationApi.ORGANIZATION_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,14 +16,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
 import io.openaev.rest.organization.form.OrganizationCreateInput;
 import io.openaev.rest.organization.form.OrganizationUpdateInput;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.OrganizationFixture;
@@ -39,6 +43,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.hibernate.Session;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,6 +73,7 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
   @Autowired private OrganizationComposer organizationComposer;
   @Autowired private TagComposer tagComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private OrganizationService organizationService;
 
   private Tenant tenantA;
   private Tenant tenantB;
@@ -112,6 +118,70 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @DisplayName("ID-based ownership checks")
   class IdAccess {
+
+    @ParameterizedTest
+    @ValueSource(strings = {"read", "update", "delete"})
+    @DisplayName("Foreign ID operations reject the organization without hydrating it")
+    void given_foreignOrganization_should_rejectBeforeHydration(String operation) {
+      // Arrange
+      TenantContext.setCurrentTenant(tenantA.getId());
+      TxCtx ctx = TxCtx.forTenant(tenantA.getId());
+      Session session = entityManager.unwrap(Session.class);
+      Statistics statistics = session.getSessionFactory().getStatistics();
+      boolean statisticsEnabled = statistics.isStatisticsEnabled();
+      statistics.setStatisticsEnabled(true);
+      long loadCount = statistics.getEntityStatistics(Organization.class.getName()).getLoadCount();
+      try {
+        // Act
+        assertThatThrownBy(
+                () -> {
+                  switch (operation) {
+                    case "read" -> organizationService.findById(ctx, organizationB.getId());
+                    case "update" ->
+                        organizationService.updateOrganization(
+                            ctx, organizationB.getId(), updateInput());
+                    case "delete" ->
+                        organizationService.deleteOrganization(ctx, organizationB.getId());
+                    default -> throw new IllegalArgumentException(operation);
+                  }
+                })
+            .isInstanceOf(ElementNotFoundException.class);
+
+        // Assert
+        assertThat(statistics.getEntityStatistics(Organization.class.getName()).getLoadCount())
+            .isEqualTo(loadCount);
+        assertThat(session.getEnabledFilter("tenantFilter")).isNotNull();
+        assertThat(
+                entityManager
+                    .createQuery("select o.id from Organization o where o.id in :ids", String.class)
+                    .setParameter("ids", List.of(organizationA.getId(), organizationB.getId()))
+                    .getResultList())
+            .containsExactly(organizationA.getId());
+      } finally {
+        statistics.setStatisticsEnabled(statisticsEnabled);
+      }
+    }
+
+    @Test
+    @DisplayName("An authorized lookup outside the ambient tenant restores the legacy filter")
+    void given_multiTenantScope_should_findOrganizationAndRestoreLegacyFilter() {
+      // Arrange
+      TenantContext.setCurrentTenant(tenantA.getId());
+      TxCtx ctx = TxCtx.forTenants(List.of(tenantA.getId(), tenantB.getId()));
+
+      // Act
+      Organization organization = organizationService.findById(ctx, organizationB.getId());
+
+      // Assert
+      assertThat(organization.getId()).isEqualTo(organizationB.getId());
+      assertThat(entityManager.unwrap(Session.class).getEnabledFilter("tenantFilter")).isNotNull();
+      assertThat(
+              entityManager
+                  .createQuery("select o.id from Organization o where o.id in :ids", String.class)
+                  .setParameter("ids", List.of(organizationA.getId(), organizationB.getId()))
+                  .getResultList())
+          .containsExactly(organizationA.getId());
+    }
 
     @ParameterizedTest
     @ValueSource(strings = {"plain", "header", "path"})
