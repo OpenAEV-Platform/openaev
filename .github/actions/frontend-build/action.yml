@@ -23,40 +23,14 @@ runs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-yarn-
+    # Yarn 4.18.0 can crash during resolution (yarnpkg/berry#7245); an in-job retry reproduces it
+    # under the same conditions and has never recovered a run, so failures surface immediately.
     - name: Install dependencies
-      run: |
-        for attempt in 1 2; do
-          echo "::group::Attempt $attempt of 2"
-          if yarn install --immutable; then
-            echo "::endgroup::"
-            echo "✅ Install succeeded on attempt $attempt"
-            exit 0
-          fi
-          echo "::endgroup::"
-          if [ "$attempt" -lt 2 ]; then
-            echo "⚠️ Attempt $attempt failed, retrying…"
-          fi
-        done
-        echo "❌ Install failed after 2 attempts"
-        exit 1
+      run: yarn install --immutable
       shell: bash
       working-directory: openaev-front
     - name: Build frontend
-      run: |
-        for attempt in 1 2; do
-          echo "::group::Attempt $attempt of 2"
-          if yarn build; then
-            echo "::endgroup::"
-            echo "✅ Build succeeded on attempt $attempt"
-            exit 0
-          fi
-          echo "::endgroup::"
-          if [ "$attempt" -lt 2 ]; then
-            echo "⚠️ Attempt $attempt failed, retrying…"
-          fi
-        done
-        echo "❌ Build failed after 2 attempts"
-        exit 1
+      run: yarn build
       shell: bash
       working-directory: openaev-front
     - name: Upload frontend build artifact
