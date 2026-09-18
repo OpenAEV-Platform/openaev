@@ -30,6 +30,7 @@ export const entitiesInitializer = Map({
     logs: Map({}),
     tags: Map({}),
     documents: Map({}),
+    credentials: Map({}),
     platformParameters: Map({}),
     publicPlatformParameters: Map({}),
     channels: Map({}),

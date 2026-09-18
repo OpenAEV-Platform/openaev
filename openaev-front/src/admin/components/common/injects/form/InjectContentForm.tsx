@@ -20,12 +20,12 @@ import type { ExpectationInput } from '../expectations/Expectation';
 import InjectExpectations from '../expectations/InjectExpectations';
 import InjectArticlesList from './articles/InjectArticlesList';
 import InjectChallengesList from './challenges/InjectChallengesList';
+import InjectCredentialReferencesList from './credential-references/InjectCredentialReferencesList';
 import InjectDocumentsList from './documents/InjectDocumentsList';
 import InjectEndpointsList from './endpoints/InjectEndpointsList';
 import InjectContentFieldComponent from './InjectContentFieldComponent';
 import InjectFormSection from './InjectFormSection';
 import InjectTeamsList from './teams/InjectTeamsList';
-import InjectCredentialReferencesList from "./credential-references/InjectCredentialReferencesList";
 
 interface Props {
   enhancedFields: EnhancedContractElement[];
@@ -182,15 +182,14 @@ const InjectContentForm = ({
 
   // -- CREDENTIAL REFERENCES --
   const renderCredentialReferences = (err?: string | null) => (
-      <div key="credential-reference">
-        <InputLabel required={enhancedFieldsMapByType.get('credential-reference')?.settings?.required} error={!!err}>{t(enhancedFieldsMapByType.get('credential-reference')?.label || 'Credential reference')}</InputLabel>
-        <InjectCredentialReferencesList
-            name="inject_assets"
-            disabled={enhancedFieldsMapByType.get('credential-reference')?.readOnly || readOnly}
-            credentialReferences={getValues('inject_secret_references')}
-            errorLabel={err}
-        />
-      </div>
+    <div key="credential-reference">
+      <InputLabel required={enhancedFieldsMapByType.get('credential-reference')?.settings?.required} error={!!err}>{t(enhancedFieldsMapByType.get('credential-reference')?.label || 'Credential reference')}</InputLabel>
+      <InjectCredentialReferencesList
+        name="inject_secret_references"
+        disabled={enhancedFieldsMapByType.get('credential-reference')?.readOnly || readOnly}
+        errorLabel={err}
+      />
+    </div>
   );
 
   const renderDynamicFields = () => (

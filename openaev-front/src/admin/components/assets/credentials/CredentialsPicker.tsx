@@ -1,25 +1,17 @@
-import { Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { normalize } from 'normalizr';
-import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
-import { searchEndpoints } from '../../../../actions/assets/endpoint-actions';
-import { buildFilter } from '../../../../components/common/queryable/filter/FilterUtils';
+import { findCredentialsByIds, searchCredentials } from '../../../../actions/assets/credential-actions';
+import { arrayOfCredentials } from '../../../../actions/Schema';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
-import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
-import PlatformIcon from '../../../../components/PlatformIcon';
 import * as Constants from '../../../../constants/ActionTypes';
-import {CredentialOutput, type EndpointOutput, type FilterGroup} from '../../../../utils/api-types';
-import { getActiveMsgTooltip, getExecutorsCount } from '../../../../utils/endpoints/utils';
+import { type CredentialOutput, type FilterGroup } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
-import { buildTenantApiPath } from '../../../../utils/url-helper';
 import AssetCategoryIcon from '../AssetCategoryIcon';
-import AssetStatus from '../AssetStatus';
 
 interface Props {
   initialState: string[];
@@ -40,16 +32,13 @@ const CredentialsPicker: FunctionComponent<Props> = ({
   title,
 }) => {
   // Standard hooks
-  const { t } = useFormatter();
-  const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [credentialValues, setCredentialValues] = useState<CredentialOutput[]>([]);
 
   useEffect(() => {
     if (open) {
-      findCredentials(initialState).then(result => setCredentialValues(result.data));
+      findCredentialsByIds(initialState).then(result => setCredentialValues(result.data));
     }
   }, [open, initialState]);
 
@@ -74,7 +63,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
       type: Constants.DATA_FETCH_SUCCESS,
       payload: normalize(credentialValues, arrayOfCredentials),
     });
-    onSubmit(credentialValues.map(v => v.credential_id));
+    onSubmit(credentialValues.map(v => v.credential_id!));
     handleClose();
   };
 
@@ -82,12 +71,14 @@ const CredentialsPicker: FunctionComponent<Props> = ({
   const elements: SelectListPickerElements<CredentialOutput> = useMemo(() => ({
     // Category-aware glyph (same as the assets inventory page) so non-host assets
     // (web applications, cloud resources, ...) don't show the generic device icon.
-    icon: { value: (credential: CredentialOutput) =>
-      <AssetCategoryIcon
-        category={credential?.credential_type ?? null}
-        scope="credential"
-        color="primary"
-      />
+    icon: {
+      value: (credential: CredentialOutput) => (
+        <AssetCategoryIcon
+          category={credential?.credential_type ?? null}
+          scope="credential"
+          color="primary"
+        />
+      ),
     },
     headers: [
       // Widths must total 100: each cell renders as `width: N%` in a flex row,
@@ -96,7 +87,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
         field: 'asset_name',
         label: 'Name',
         isSortable: true,
-        value: (credential: CredentialOutput) => credential.credential_name,
+        value: (credential: CredentialOutput) => credential.credential_name ?? '',
         width: 30,
       },
       {
@@ -128,7 +119,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
 
   const paginationComponent = (
     <PaginationComponentV2
-      fetch={searchEndpoints}
+      fetch={searchCredentials}
       searchPaginationInput={searchPaginationInput}
       setContent={setCredentials}
       setLoading={setIsLoading}
