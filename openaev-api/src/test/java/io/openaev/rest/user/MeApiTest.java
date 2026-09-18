@@ -279,9 +279,9 @@ public class MeApiTest extends IntegrationTest {
     void given_confirmedUpdate_then_acceptUpdate() throws Exception {
       String currentPassword = "current_user_password";
       String newEmail = "new@good.invalid";
-      String superSecretConfirmationCode = "JUST_DO_IT";
-
+      String superSecretConfirmationCode = "JUST_DO_IT_GOOD";
       User me = testUserHolder.get();
+
       me.setPassword(userService.encodeUserPassword(currentPassword));
       userRepository.save(me);
 
@@ -334,10 +334,11 @@ public class MeApiTest extends IntegrationTest {
     void given_wrongConfirmation_then_rejectUpdate() throws Exception {
       String currentPassword = "current_user_password";
       String newEmail = "new@good.invalid";
-      String superSecretConfirmationCode = "JUST_DO_IT";
+      String superSecretConfirmationCode = "JUST_DO_IT_BAD";
       String badConfirmationCode = "DONT_DO_IT";
 
       User me = testUserHolder.get();
+
       String expectedEmail = me.getEmail();
       me.setPassword(userService.encodeUserPassword(currentPassword));
       userRepository.save(me);

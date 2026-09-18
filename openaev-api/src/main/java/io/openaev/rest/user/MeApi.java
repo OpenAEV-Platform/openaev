@@ -150,9 +150,8 @@ public class MeApi extends RestBehavior {
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public ResponseEntity<Void> confirmEmailChange(
       TxCtx ctx, HttpServletRequest httpRequest, @PathVariable String confirmationCode) {
-    userService.confirmEmailChange(currentUser().getId(), confirmationCode);
-    sessionManager.invalidateOtherUserSessions(
-        currentUser().getId(), httpRequest.getSession().getId());
+    User user = userService.confirmEmailChange(confirmationCode);
+    sessionManager.invalidateOtherUserSessions(user.getId(), httpRequest.getSession().getId());
     MultiValueMap<String, String> headers = new HttpHeaders();
     headers.add("Location", openAEVConfig.getBaseUrl());
     return new ResponseEntity<>(headers, HttpStatus.FOUND);

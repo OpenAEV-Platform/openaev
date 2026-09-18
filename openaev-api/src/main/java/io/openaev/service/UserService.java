@@ -428,12 +428,15 @@ public class UserService {
         () -> mailingService.sendEmail(subject, body, List.of(event.user())));
   }
 
-  public void confirmEmailChange(String userId, String confirmationCode) {
-    EmailChangeRequest ecr = null;
+  public User confirmEmailChange(String confirmationCode) {
+    Map.Entry<String, EmailChangeRequest> ecr = null;
     synchronized (emailChangeConfirmationTokenMap) {
-      if (emailChangeConfirmationTokenMap.containsKey(userId)) {
-        ecr = emailChangeConfirmationTokenMap.get(userId);
-        emailChangeConfirmationTokenMap.remove(userId);
+      for (Map.Entry<String, EmailChangeRequest> entry :
+          emailChangeConfirmationTokenMap.entrySet()) {
+        if (entry.getValue().confirmationCode().equals(confirmationCode)) {
+          ecr = entry;
+          break;
+        }
       }
     }
 
@@ -441,17 +444,13 @@ public class UserService {
       throw new ElementNotFoundException("Email change request not found");
     }
 
-    if (!confirmationCode.equals(ecr.confirmationCode())) {
-      throw new AccessDeniedException("Confirmation code denied");
-    }
-
-    Optional<User> user = userRepository.findById(userId);
+    Optional<User> user = userRepository.findById(ecr.getKey());
     if (user.isEmpty()) {
       throw new ElementNotFoundException("Could not find user");
     }
 
-    user.get().setEmail(ecr.newEmail());
-    userRepository.save(user.get());
+    user.get().setEmail(ecr.getValue().newEmail());
+    return userRepository.save(user.get());
   }
 
   /**

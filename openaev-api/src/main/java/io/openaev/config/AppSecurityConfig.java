@@ -147,6 +147,8 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/reset/**")
                     .permitAll()
+                    .requestMatchers("/api/me/confirm-email-change/**")
+                    .permitAll()
                     .requestMatchers("/xtm/auth/jwks")
                     .permitAll()
                     .requestMatchers("/api/**")
