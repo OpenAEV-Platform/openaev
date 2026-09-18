@@ -1,19 +1,17 @@
 package io.openaev.executors;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.database.model.ExecutionStatus;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectStatus;
-import io.openaev.database.model.Injection;
+import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.execution.ExecutableInjectDTO;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
@@ -30,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -72,7 +71,7 @@ class ExecutorTest {
   private ExecutableInject executableInject;
 
   @BeforeEach
-  void setUp() throws Exception {
+  void setUp() {
     // executor.mapper is a @Resource field, not constructor-injected: @InjectMocks never touches
     // it, so it must be wired manually to avoid a NullPointerException in executeExternal.
     ObjectMapper mapper = new ObjectMapper();
@@ -174,6 +173,59 @@ class ExecutorTest {
 
       // -------- Assert --------
       verifyNoInteractions(injectorRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("execute - inject injector authorisation and attachments")
+  class InjectAuthorisationAndAttachments {
+    @Test
+    @DisplayName("External inject execution should publish attachments and persist authorisation")
+    void
+        given_externalInjectWithSecretReferences_should_publishAttachments_and_persistAuthorisation()
+            throws Exception {
+      Injector injector = new Injector();
+      injector.setId("injector-002");
+      injector.setTenantId(TENANT_ID);
+      injector.setType("openaev_test_injector");
+      injector.setExternal(true);
+      when(inject.getInjector()).thenReturn(injector);
+      when(executableInject.getSecretReferenceIds()).thenReturn(List.of("secret-ref-1"));
+      ExecutableInjectDTO dto =
+          ExecutableInjectDTO.builder()
+              .injection(null)
+              .assets(java.util.Set.of())
+              .assetGroups(java.util.Set.of())
+              .attachments(
+                  ExecutableInjectDTO.Attachments.builder()
+                      .credentialReferences(List.of("secret-ref-1"))
+                      .authorisationCode("auth-code")
+                      .build())
+              .build();
+
+      when(connectorInstanceService.hasStartedConnectorInstanceForInjector("injector-002"))
+          .thenReturn(true);
+      when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
+          .thenReturn(mock(InjectStatus.class));
+      when(injectStatusRepository.findByInjectId(INJECT_ID))
+          .thenReturn(Optional.of(mock(InjectStatus.class)));
+      when(injectService.resolveAllAssetsToExecute(inject)).thenReturn(List.of());
+      when(injectService.getAuthorisationCodeIfNeeded(executableInject)).thenReturn("auth-code");
+      when(executableInjectDTOMapper.toExecutableInjectDTO(executableInject, "auth-code"))
+          .thenReturn(dto);
+
+      ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
+
+      executor.execute(executableInject);
+
+      verify(injectService).getAuthorisationCodeIfNeeded(executableInject);
+      verify(rabbitmqService).publish(any(), jsonCaptor.capture());
+
+      JsonNode payload = new ObjectMapper().readTree(jsonCaptor.getValue());
+      assertThat(payload.path("attachments").path("credential_references").toString())
+          .contains("secret-ref-1");
+      assertThat(payload.path("attachments").path("authorisation_code").asText())
+          .isEqualTo("auth-code");
     }
   }
 }

@@ -1,8 +1,9 @@
 package io.openaev.executors.model;
 
+import static io.openaev.database.model.Agent.ACTIVE_THRESHOLD_MILLIS;
+
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
-import io.openaev.helper.AgentHelper;
 import io.openaev.utils.mapper.EndpointMapper;
 import java.time.Instant;
 import lombok.Data;
@@ -42,6 +43,8 @@ public class AgentRegisterInput {
   }
 
   public boolean isActive() {
-    return new AgentHelper().isAgentActiveFromLastSeen(this.getLastSeen());
+    return this.getLastSeen() != null
+        && (Instant.now().toEpochMilli() - this.getLastSeen().toEpochMilli())
+            < ACTIVE_THRESHOLD_MILLIS;
   }
 }

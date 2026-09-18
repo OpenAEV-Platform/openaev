@@ -6,6 +6,7 @@ import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.impl.validators.AwsCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
@@ -86,6 +87,26 @@ public class AwsAccessKeyHandler implements SecretHandler {
         "Secret type mismatch: expected "
             + CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY
             + " secret");
+  }
+
+  @Override
+  public SecretResolvedValue toResolvedValue(Secret secret) {
+    if (!(secret instanceof AwsAccessKeySecret awsAccessKeySecret)) {
+      throw new IllegalArgumentException(
+          "Secret type mismatch: expected "
+              + CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY
+              + " secret");
+    }
+    String sessionToken = null;
+    if (awsAccessKeySecret.getAwsSessionToken() != null
+        && !awsAccessKeySecret.getAwsSessionToken().isBlank()) {
+      sessionToken = nativeEncryptionService.decrypt(awsAccessKeySecret.getAwsSessionToken());
+    }
+    return SecretResolvedValue.forAwsAccessKey(
+        awsAccessKeySecret.getAwsDefaultRegion(),
+        awsAccessKeySecret.getAwsAccessKeyId(),
+        nativeEncryptionService.decrypt(awsAccessKeySecret.getAwsSecretAccessKey()),
+        sessionToken);
   }
 
   @Override

@@ -1,4 +1,4 @@
-import { LensOutlined, SecurityOutlined } from '@mui/icons-material';
+import { CenterFocusStrongOutlined, Lens } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -16,6 +16,7 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../../components/common/SortHeadersList';
+import DangerZone from '../../../../components/common/tag/DangerZone';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type MarkingDefinitionInput,
@@ -79,7 +80,22 @@ const MarkingDefinitions = () => {
         field: 'marking_definition_type',
         label: 'Type',
         isSortable: true,
-        value: (item: MarkingDefinitionOutput) => item.marking_definition_type,
+        value: (item: MarkingDefinitionOutput) => (
+          <Box
+            sx={{
+              alignItems: 'center',
+              display: 'flex',
+              gap: 1,
+            }}
+          >
+            <span>{item.marking_definition_type}</span>
+            {item.marking_definition_protected ? (
+              <DangerZone
+                tooltip={t('This marking definition is protected. It cannot be updated or deleted.')}
+              />
+            ) : null}
+          </Box>
+        ),
       },
       {
         field: 'marking_definition_definition',
@@ -99,9 +115,9 @@ const MarkingDefinitions = () => {
           }}
           >
             {item.marking_definition_color ? (
-              <LensOutlined sx={{
+              <Lens sx={{
                 color: item.marking_definition_color,
-                fontSize: 14,
+                fontSize: 'small',
               }}
               />
             ) : null}
@@ -122,7 +138,7 @@ const MarkingDefinitions = () => {
         value: (item: MarkingDefinitionOutput) => fldt(item.marking_definition_created_at),
       },
     ],
-    [fldt],
+    [fldt, t],
   );
 
   const submitCreate = (input: MarkingDefinitionInput) => {
@@ -198,7 +214,7 @@ const MarkingDefinitions = () => {
               divider
             >
               <ListItemIcon>
-                <SecurityOutlined color="primary" />
+                <CenterFocusStrongOutlined sx={{ color: item.marking_definition_color }} />
               </ListItemIcon>
               <ListItemText
                 primary={(
