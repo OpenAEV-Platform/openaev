@@ -5,6 +5,7 @@ import io.openaev.database.model.HashSecret;
 import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import java.util.Objects;
@@ -54,6 +55,15 @@ public class HashHandler implements SecretHandler {
   public SecretMetadata toMetadata(Secret secret) {
     if (secret instanceof HashSecret hashSecret) {
       return SecretMetadata.forHashAlgorithm(hashSecret.getHashAlgorithm());
+    }
+    throw new IllegalArgumentException("Secret type mismatch: expected HASH secret");
+  }
+
+  @Override
+  public SecretResolvedValue toResolvedValue(Secret secret) {
+    if (secret instanceof HashSecret hashSecret) {
+      return SecretResolvedValue.forHash(
+          hashSecret.getHashAlgorithm(), nativeEncryptionService.decrypt(hashSecret.getHash()));
     }
     throw new IllegalArgumentException("Secret type mismatch: expected HASH secret");
   }
