@@ -53,11 +53,11 @@ public final class PrimitiveTypePolicy {
   /**
    * Everything declared about one primitive type.
    *
-   * @param numericValue the values are numbers. The backend compares {@code GT} / {@code GTE} /
+   * @param isNumericValue the values are numbers. The backend compares {@code GT} / {@code GTE} /
    *     {@code LT} / {@code LTE} with {@code Double.parseDouble}, so this single flag decides both
    *     that those operators may be offered and that the value must be numeric.
-   * @param caseSensitivity comparing the value is case-dependent, so the case-sensitivity toggle is
-   *     meaningful. False for values whose canonical form carries no case distinction, where the
+   * @param isCaseSensitivity comparing the value is case-dependent, so the case-sensitivity toggle
+   *     is meaningful. False for values whose canonical form carries no case distinction, where the
    *     toggle could only ever produce a false negative.
    * @param rules alternative format rules, combined with OR semantics. Empty when the type
    *     constrains no format, in which case any value is accepted.
@@ -65,8 +65,8 @@ public final class PrimitiveTypePolicy {
    *     FormatEnforcement#INPUT_ONLY}, when there is no rule.
    */
   public record TypePolicy(
-      boolean numericValue,
-      boolean caseSensitivity,
+      boolean isNumericValue,
+      boolean isCaseSensitivity,
       List<FormatRuleKind> rules,
       FormatEnforcement enforcement) {
 

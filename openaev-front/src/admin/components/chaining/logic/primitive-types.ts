@@ -93,11 +93,11 @@ export const buildDescriptorsByType = (
 /**
  * Capabilities assumed while the descriptors are loading or when the call failed: the permissive
  * text behaviour, which is what every non-numeric type resolves to anyway. Never assume
- * `numeric_value`, or the UI would offer comparison operators the backend cannot evaluate.
+ * `is_numeric_value`, or the UI would offer comparison operators the backend cannot evaluate.
  */
 export const FALLBACK_CAPABILITIES = {
-  numeric_value: false,
-  case_sensitivity: true,
+  is_numeric_value: false,
+  is_case_sensitivity: true,
 } as const;
 
 export const capabilitiesOf = (

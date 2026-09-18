@@ -2422,11 +2422,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface ChainingOutput {
-  conditions?: EventOutput[];
-  steps?: StepOutput[];
-}
-
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -10111,12 +10106,10 @@ export interface PolicyInput {
 
 /** Operator capabilities of a primitive chaining type. */
 export interface PrimitiveTypeCapabilitiesOutput {
-  caseSensitivity?: boolean;
   /** Comparing values depends on case: the case-sensitivity toggle is meaningful and must be offered. */
-  case_sensitivity?: boolean;
-  numericValue?: boolean;
+  is_case_sensitivity?: boolean;
   /** Values are numbers: the greater-than / less-than operators are meaningful and must be offered, and a value must be numeric whatever the operator. */
-  numeric_value?: boolean;
+  is_numeric_value?: boolean;
 }
 
 /** Operator capabilities and value format rules of a primitive chaining type, so the UI can offer the right operators and validate values without duplicating backend rules. */

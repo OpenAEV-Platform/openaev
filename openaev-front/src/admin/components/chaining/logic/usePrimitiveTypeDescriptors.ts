@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { fetchPrimitiveTypeDescriptors } from '../../../../actions/chaining/primitive-type-actions';
+import { fetchPrimitiveTypeDescriptors } from '../../../../actions/payloads/primitive-type-actions';
 import {
   buildDescriptorsByType,
   type DescriptorsByPrimitiveType,

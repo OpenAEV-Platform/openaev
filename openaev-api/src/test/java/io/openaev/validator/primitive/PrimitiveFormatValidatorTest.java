@@ -110,9 +110,9 @@ class PrimitiveFormatValidatorTest {
       // Assert - the UI offers >, <, >= and <= on a numeric type, and the backend parses the
       // operand with Double.parseDouble: a numeric type that accepts non-numeric values would
       // offer an operator that can only ever return false
-      if (policy.numericValue()) {
+      if (policy.isNumericValue()) {
         assertThat(policy.hasRules()).isTrue();
-        assertThat(policy.caseSensitivity()).isFalse();
+        assertThat(policy.isCaseSensitivity()).isFalse();
       }
     }
 

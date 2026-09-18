@@ -1,4 +1,4 @@
-package io.openaev.api.chaining.dto;
+package io.openaev.api.threat_arsenal.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.ConditionType;

@@ -1,9 +1,9 @@
-package io.openaev.api.chaining;
+package io.openaev.api.threat_arsenal;
 
-import io.openaev.api.chaining.dto.PrimitiveTypeCapabilitiesOutput;
-import io.openaev.api.chaining.dto.PrimitiveTypeDescriptorOutput;
-import io.openaev.api.chaining.dto.PrimitiveTypeFormatRuleOutput;
-import io.openaev.api.chaining.dto.PrimitiveTypeValidationOutput;
+import io.openaev.api.threat_arsenal.dto.PrimitiveTypeCapabilitiesOutput;
+import io.openaev.api.threat_arsenal.dto.PrimitiveTypeDescriptorOutput;
+import io.openaev.api.threat_arsenal.dto.PrimitiveTypeFormatRuleOutput;
+import io.openaev.api.threat_arsenal.dto.PrimitiveTypeValidationOutput;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.validator.primitive.FormatRuleKind;
 import io.openaev.validator.primitive.PrimitiveFormatValidator;
@@ -38,8 +38,8 @@ public final class PrimitiveTypeDescriptorMapper {
         .primitiveType(type)
         .capabilities(
             PrimitiveTypeCapabilitiesOutput.builder()
-                .isNumericValue(policy.numericValue())
-                .isCaseSensitivity(policy.caseSensitivity())
+                .isNumericValue(policy.isNumericValue())
+                .isCaseSensitivity(policy.isCaseSensitivity())
                 .build())
         .validation(toValidation(policy))
         .build();

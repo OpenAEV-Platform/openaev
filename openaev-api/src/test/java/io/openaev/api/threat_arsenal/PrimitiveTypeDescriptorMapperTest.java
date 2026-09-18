@@ -1,10 +1,10 @@
-package io.openaev.api.chaining;
+package io.openaev.api.threat_arsenal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.api.chaining.dto.PrimitiveTypeCapabilitiesOutput;
-import io.openaev.api.chaining.dto.PrimitiveTypeDescriptorOutput;
-import io.openaev.api.chaining.dto.PrimitiveTypeFormatRuleOutput;
+import io.openaev.api.threat_arsenal.dto.PrimitiveTypeCapabilitiesOutput;
+import io.openaev.api.threat_arsenal.dto.PrimitiveTypeDescriptorOutput;
+import io.openaev.api.threat_arsenal.dto.PrimitiveTypeFormatRuleOutput;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.validator.primitive.FormatRuleKind;
@@ -81,7 +81,7 @@ class PrimitiveTypeDescriptorMapperTest {
       Map<PrimitiveType, PrimitiveTypeDescriptorOutput> descriptors = descriptorsByType();
       List<PrimitiveType> numeric =
           descriptors.entrySet().stream()
-              .filter(entry -> entry.getValue().getCapabilities().isNumericValue())
+              .filter(entry -> entry.getValue().getCapabilities().getIsNumericValue())
               .map(Map.Entry::getKey)
               .toList();
 
@@ -97,7 +97,7 @@ class PrimitiveTypeDescriptorMapperTest {
           PrimitiveTypeDescriptorMapper.toOutput(PrimitiveType.Severity);
 
       // Assert - the backend compares with Double.parseDouble, so "> medium" could never match
-      assertThat(descriptor.getCapabilities().isNumericValue()).isFalse();
+      assertThat(descriptor.getCapabilities().getIsNumericValue()).isFalse();
     }
 
     @Test
@@ -107,7 +107,7 @@ class PrimitiveTypeDescriptorMapperTest {
       Map<PrimitiveType, PrimitiveTypeDescriptorOutput> descriptors = descriptorsByType();
       List<PrimitiveType> caseless =
           descriptors.entrySet().stream()
-              .filter(entry -> !entry.getValue().getCapabilities().isCaseSensitivity())
+              .filter(entry -> !entry.getValue().getCapabilities().getIsCaseSensitivity())
               .map(Map.Entry::getKey)
               .toList();
 
@@ -133,12 +133,12 @@ class PrimitiveTypeDescriptorMapperTest {
       assertThat(
               PrimitiveTypeDescriptorMapper.toOutput(PrimitiveType.Text)
                   .getCapabilities()
-                  .isCaseSensitivity())
+                  .getIsCaseSensitivity())
           .isTrue();
       assertThat(
               PrimitiveTypeDescriptorMapper.toOutput(PrimitiveType.Username)
                   .getCapabilities()
-                  .isCaseSensitivity())
+                  .getIsCaseSensitivity())
           .isTrue();
     }
 
@@ -148,11 +148,11 @@ class PrimitiveTypeDescriptorMapperTest {
       // Act
       Map<PrimitiveType, PrimitiveTypeDescriptorOutput> descriptors = descriptorsByType();
 
-      // Assert - a caseless, non-numeric type proves caseSensitivity is declared per type rather
-      // than computed as !numericValue
+      // Assert - a caseless, non-numeric type proves isCaseSensitivity is declared per type rather
+      // than computed as !isNumericValue
       PrimitiveTypeCapabilitiesOutput hash = descriptors.get(PrimitiveType.Hash).getCapabilities();
-      assertThat(hash.isNumericValue()).isFalse();
-      assertThat(hash.isCaseSensitivity()).isFalse();
+      assertThat(hash.getIsNumericValue()).isFalse();
+      assertThat(hash.getIsCaseSensitivity()).isFalse();
       // ... and it carries no format rule at all, being credential material rather than a digest
       assertThat(descriptors.get(PrimitiveType.Hash).getValidation().getRules()).isEmpty();
     }

@@ -43,13 +43,13 @@ export const NUMERIC_OPERATORS: ComparisonOperator[] = ['GT', 'GTE', 'LT', 'LTE'
 export const isNumericField = (
   field: ConditionKeyType,
   descriptorsByType: DescriptorsByPrimitiveType,
-): boolean => capabilitiesOf(field, descriptorsByType).numeric_value === true;
+): boolean => capabilitiesOf(field, descriptorsByType).is_numeric_value === true;
 
 /** Whether the case-sensitivity toggle carries any meaning for this field. */
 export const supportsCaseSensitivity = (
   field: ConditionKeyType,
   descriptorsByType: DescriptorsByPrimitiveType,
-): boolean => capabilitiesOf(field, descriptorsByType).case_sensitivity !== false;
+): boolean => capabilitiesOf(field, descriptorsByType).is_case_sensitivity !== false;
 
 /**
  * Case sensitivity to store for a field, given the one currently set.
