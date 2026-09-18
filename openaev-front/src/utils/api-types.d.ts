@@ -10327,6 +10327,7 @@ export interface RawDocument {
   document_tags?: string[];
   document_target?: string;
   document_type?: string;
+  tenant_id?: string;
 }
 
 export interface RawPaginationDocument {

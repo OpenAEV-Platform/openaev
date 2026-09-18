@@ -431,6 +431,6 @@ public class ChannelApi extends RestBehavior {
             description = "The list of Documents used in the Channel")
       })
   public List<RawDocument> documentsFromChannel(TxCtx ctx, @PathVariable String channelId) {
-    return documentService.documentsForChannel(channelId);
+    return documentService.documentsForChannel(ctx, channelId);
   }
 }
