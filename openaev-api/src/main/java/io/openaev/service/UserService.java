@@ -21,17 +21,14 @@ import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.GroupRepository;
-import io.openaev.database.repository.TagRepository;
-import io.openaev.database.repository.TenantRepository;
-import io.openaev.database.repository.TokenRepository;
-import io.openaev.database.repository.UserRepository;
+import io.openaev.database.repository.*;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.user_events.UserEmailChangeRequestedEvent;
 import io.openaev.service.user_events.UserPasswordSetupRequestedEvent;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
@@ -44,6 +41,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
@@ -89,6 +87,7 @@ public class UserService {
 
   private static final long tenMinutes = 1000L * 60L * 10L;
   private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
+  private final Map<String, String> emailChangeConfirmationTokenMap = new PassiveExpiringMap<>(tenMinutes);
 
   /** Password encoder using Argon2 algorithm (Spring Security 5.8 defaults). */
   private final Argon2PasswordEncoder passwordEncoder =
@@ -98,6 +97,7 @@ public class UserService {
   @PersistenceContext private EntityManager entityManager;
 
   private final UserRepository userRepository;
+  private final UserEmailChangeConfirmationRepository userEmailChangeConfirmationRepository;
   private final TagRepository tagRepository;
   private final GroupRepository groupRepository;
   private final TokenRepository tokenRepository;
@@ -390,6 +390,47 @@ public class UserService {
         resetTokenMap.put(user.getId(), resetToken);
       }
     }
+  }
+
+  public void requestEmailChange(User user, String newEmail) {
+    eventPublisher.publishEvent(new UserEmailChangeRequestedEvent(user, newEmail));
+  }
+
+  @Async
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+  public void onUserEmailChangeRequested(UserEmailChangeRequestedEvent event) {
+    String confirmationCode = randomUtils.getRandomAlphanumeric(64);
+
+    UserEmailChangeConfirmation confirmation = new UserEmailChangeConfirmation();
+    confirmation.setId(event.user().getId());
+    confirmation.setCode(confirmationCode);
+    confirmation.setEmail(event.newEmail());
+    confirmation.setValidUntil(Instant.now().plus(10, ChronoUnit.MINUTES));
+    userEmailChangeConfirmationRepository.save(confirmation);
+
+//    String subject = "Email change requested: " + resetToken;
+//    String body =
+//            "Bonjour "
+//                    + username
+//                    + ",</br>"
+//                    + "Nous avons reçu une demande de réinitialisation de votre mot de passe OpenAEV.</br>"
+//                    + "Entrez le code de réinitialisation du mot de passe suivant : "
+//                    + resetToken;
+//    tenantTx.execute(
+//            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+//            () -> mailingService.sendEmail(subject, body, List.of(user)));
+//  } else {
+//    String subject = "OpenAEV account recovery code: " + resetToken;
+//    String body =
+//            "Hi "
+//                    + username
+//                    + ",</br>"
+//                    + "A request has been made to reset your OpenAEV password.</br>"
+//                    + "Enter the following password recovery code: "
+//                    + resetToken;
+//    tenantTx.execute(
+//            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+//            () -> mailingService.sendEmail(subject, body, List.of(user)));
   }
 
   /**

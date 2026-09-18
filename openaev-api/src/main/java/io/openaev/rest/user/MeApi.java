@@ -34,10 +34,12 @@ import java.util.List;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@EnableAsync
 @RequiredArgsConstructor
 public class MeApi extends RestBehavior {
 
@@ -131,7 +133,7 @@ public class MeApi extends RestBehavior {
         currentUser().getId(),
         input.getCurrentPassword(),
         user -> {
-          user.setEmail(input.getEmail());
+          userService.requestEmailChange(user, input.getEmail());
           return user;
         },
         httpRequest.getSession().getId());
@@ -151,8 +153,7 @@ public class MeApi extends RestBehavior {
       User moddedUser = updateFunc.apply(user);
       User savedUser = userRepository.save(moddedUser);
       // Security: a security sensitive change kills every other live session of the user; the
-      // session
-      // that performed the change stays alive.
+      // session that performed the change stays alive.
       sessionManager.invalidateOtherUserSessions(user.getId(), stayAliveSessionId);
       return savedUser;
     } else {
