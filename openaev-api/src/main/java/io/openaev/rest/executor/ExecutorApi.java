@@ -470,8 +470,15 @@ public class ExecutorApi extends RestBehavior {
       })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
-    String token =
-        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
-    return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(token);
+    try {
+      String token =
+          privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+      return ResponseEntity.ok()
+          .contentType(MediaType.TEXT_PLAIN)
+          .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, private")
+          .body(token);
+    } catch (UnsupportedOperationException e) {
+      return ResponseEntity.notFound().build();
+    }
   }
 }
