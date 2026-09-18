@@ -11,6 +11,12 @@ export const fetchCredential = (credentialId: string) => {
   return simpleCall(`${CREDENTIAL_URI}/${credentialId}`);
 };
 
+// Resolves a known set of credentials (e.g. the ones referenced by an inject) in a single call.
+// The backend restricts the resolution to the caller's tenant scope.
+export const findCredentialsByIds = (credentialIds: string[]) => {
+  return simplePostCall(`${CREDENTIAL_URI}/find`, credentialIds);
+};
+
 export const fetchCredentialContracts = () => {
   return simpleCall(`${CREDENTIAL_URI}/contracts`);
 };
