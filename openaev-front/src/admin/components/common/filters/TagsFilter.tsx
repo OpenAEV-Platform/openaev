@@ -40,7 +40,8 @@ const TagsFilter: FunctionComponent<Props> = ({
       <Autocomplete<Option>
         sx={{
           width: fullWidth ? '100%' : 250,
-          flexShrink: 0,
+          flexShrink: fullWidth ? 1 : 0,
+          minWidth: 0,
         }}
         selectOnFocus
         openOnFocus
