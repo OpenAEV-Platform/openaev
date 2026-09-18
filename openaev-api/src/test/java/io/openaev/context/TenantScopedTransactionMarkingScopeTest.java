@@ -197,13 +197,14 @@ class TenantScopedTransactionMarkingScopeTest extends IntegrationTest {
   private void seedMarking(String tenantId, String type, String name, int order) {
     jdbc.update(
         "INSERT INTO marking_definitions (marking_definition_id, marking_definition_type,"
-            + " marking_definition_definition, marking_definition_order,"
+            + " marking_definition_definition, marking_definition_order, marking_definition_color,"
             + " marking_definition_created_at, marking_definition_updated_at, tenant_id)"
-            + " VALUES (?, ?, ?, ?, now(), now(), ?)",
+            + " VALUES (?, ?, ?, ?, ?, now(), now(), ?)",
         UUID.randomUUID().toString(),
         type,
         name,
         order,
+        "#000000",
         tenantId);
   }
 }
