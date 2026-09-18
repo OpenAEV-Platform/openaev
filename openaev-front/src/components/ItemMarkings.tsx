@@ -28,11 +28,13 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
 
   // An id with no matching definition is dropped rather than rendered raw: marking ids are stored
   // inline as text[] with no foreign key, so a deleted definition can leave a dangling id behind.
+  // Highest order (most restrictive, e.g. TLP:RED) first - same convention as the assign-marking
+  // picker, so the most sensitive grant is always the first thing a reader sees.
   const resolved = useMemo(
     () => (markingIds ?? [])
       .map(id => definitions[id])
       .filter((marking): marking is MarkingDefinitionOutput => !!marking)
-      .sort((a, b) => a.marking_definition_order - b.marking_definition_order),
+      .sort((a, b) => b.marking_definition_order - a.marking_definition_order),
     [markingIds, definitions],
   );
 
