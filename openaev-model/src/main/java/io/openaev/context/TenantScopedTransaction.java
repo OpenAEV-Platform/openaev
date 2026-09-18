@@ -120,6 +120,10 @@ public class TenantScopedTransaction {
    * caller (the create-tenant HTTP transaction) rolls back everything, tenant row included.
    *
    * <p>Refuses to run outside an active transaction: there is no ambient scope to join.
+   *
+   * <p>Also sets the marking scope, same as {@link #run}: joining an ambient transaction is still a
+   * scope boundary for both dimensions, and the marking GUC is transaction-local like the tenant
+   * one, so it must be (re)set here too rather than inherited from whatever ran before.
    */
   public void setScopeOnCurrentTransaction(TxCtx ctx) {
     if (!TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -128,7 +132,9 @@ public class TenantScopedTransaction {
               + " transaction is active. It only makes sense inside an ambient transaction opened"
               + " by the caller.");
     }
-    setScope(intentionResolver.resolve(ctx).toGuc());
+    TxCtx resolved = intentionResolver.resolve(ctx);
+    setScope(resolved.toGuc());
+    setMarkingScope(systemClearance(resolved).toGuc());
   }
 
   /**
