@@ -214,35 +214,44 @@ const DefaultHomeDashboard = () => {
           {t('Adversarial exposure overview')}
         </Typography>
         <div style={{ flex: 1 }} />
-        <Select
-          value={timeRange}
-          onValueChange={next => setTimeRange(next as DefaultTimeRange)}
+        {/* Refresh then range: the two share their own 8px gap, tighter than the
+            row's, so they read as one control pair. */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing(1),
+        }}
         >
-          <SelectTrigger style={{ minWidth: 160 }}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {getTimeRangeItems()
-              .filter(item => item.value !== 'CUSTOM')
-              .map(item => (
-                <SelectItem key={item.value} value={item.value}>
-                  {t(item.label_key)}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <IconButton
-              icon={<RefreshOutlined fontSize="small" />}
-              aria-label={t('Refresh')}
-              onClick={() => setRefreshCount(c => c + 1)}
-              priority="tertiary"
-              size="md"
-            />
-          </TooltipTrigger>
-          <TooltipContent>{t('Refresh')}</TooltipContent>
-        </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                icon={<RefreshOutlined fontSize="small" />}
+                aria-label={t('Refresh')}
+                onClick={() => setRefreshCount(c => c + 1)}
+                priority="tertiary"
+                size="md"
+              />
+            </TooltipTrigger>
+            <TooltipContent>{t('Refresh')}</TooltipContent>
+          </Tooltip>
+          <Select
+            value={timeRange}
+            onValueChange={next => setTimeRange(next as DefaultTimeRange)}
+          >
+            <SelectTrigger style={{ minWidth: 160 }}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {getTimeRangeItems()
+                .filter(item => item.value !== 'CUSTOM')
+                .map(item => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {t(item.label_key)}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       {/*
         Mounted only once the Human Response probe has resolved - with the grid
