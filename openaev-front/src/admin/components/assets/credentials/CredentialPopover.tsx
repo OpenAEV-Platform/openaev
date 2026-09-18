@@ -15,7 +15,7 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CredentialForm from './CredentialForm';
 import { type CredentialFormInitialValues } from './credentialUtils';
 
-interface CredentialPopoverProps {
+export interface CredentialPopoverProps {
   credentialId: string;
   credentialName: string;
   resolveInitialValues?: () => Promise<CredentialFormInitialValues>;

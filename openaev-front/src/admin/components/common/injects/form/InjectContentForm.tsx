@@ -24,6 +24,7 @@ import InjectEndpointsList from './endpoints/InjectEndpointsList';
 import InjectContentFieldComponent from './InjectContentFieldComponent';
 import InjectFormSection from './InjectFormSection';
 import InjectTeamsList from './teams/InjectTeamsList';
+import InjectCredentialReferencesList from "./credential-references/InjectCredentialReferencesList";
 
 interface Props {
   enhancedFields: EnhancedContractElement[];
@@ -178,6 +179,19 @@ const InjectContentForm = ({
       });
   };
 
+  // -- CREDENTIAL REFERENCES --
+  const renderCredentialReferences = (err?: string | null) => (
+      <div key="credential-reference">
+        <InputLabel required={enhancedFieldsMapByType.get('credential-reference')?.settings?.required} error={!!err}>{t(enhancedFieldsMapByType.get('credential-reference')?.label || 'Credential reference')}</InputLabel>
+        <InjectCredentialReferencesList
+            name="inject_assets"
+            disabled={enhancedFieldsMapByType.get('credential-reference')?.readOnly || readOnly}
+            credentialReferences={getValues('inject_secret_references')}
+            errorLabel={err}
+        />
+      </div>
+  );
+
   const renderDynamicFields = () => (
     <div style={{
       display: 'flex',
@@ -193,6 +207,9 @@ const InjectContentForm = ({
           } else if (field.type === 'asset-group') {
             const key = enhancedFieldsMapByType.get('asset-group')?.key;
             return renderSourceAssetGroups(key ? errors[key]?.message as string : null, enhancedFieldsMapByType.get('asset-group')?.isInMandatoryGroup, enhancedFieldsMapByType.get('asset-group')?.mandatoryGroupContractElementLabels);
+          } else if (field.type === 'credential-reference') {
+            const key = enhancedFieldsMapByType.get('credential-reference')?.key;
+            return renderCredentialReferences(key ? errors[key]?.message as string : null);
           }
 
           return (
