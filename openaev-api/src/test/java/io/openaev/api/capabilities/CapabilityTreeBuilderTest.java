@@ -218,7 +218,11 @@ class CapabilityTreeBuilderTest {
     // -- ASSERT --
     // MANAGE_FINDINGS, DELETE_FINDINGS and MANAGE_STIX_BUNDLE are hidden
     assertThat(flattenValues(tree))
-        .doesNotContain(MANAGE_FINDINGS.name(), DELETE_FINDINGS.name(), MANAGE_STIX_BUNDLE.name());
+        .doesNotContain(
+            MANAGE_FINDINGS.name(),
+            DELETE_FINDINGS.name(),
+            MANAGE_STIX_BUNDLE.name(),
+            AGENT_DOCUMENT_ACCESS.name());
     // ACCESS_FINDINGS should still be visible
     assertThat(flattenValues(tree)).contains(ACCESS_FINDINGS.name());
     // STIX category should not appear (no visible children)
@@ -237,12 +241,13 @@ class CapabilityTreeBuilderTest {
 
   @Test
   @DisplayName(
-      "Service role capabilities should contain AGENT_RUNTIME_ACCESS, ACCESS_DOCUMENTS and INSTALL_AGENT")
+      "Service role capabilities should contain AGENT_RUNTIME_ACCESS, INSTALL_AGENT and AGENT_DOCUMENT_ACCESS")
   void given_serviceRoleCapabilities_should_containExpectedCapabilities() {
     // -- ASSERT --
     assertThat(Constants.SERVICE_ROLE_CAPABILITIES)
         .containsExactlyInAnyOrder(
-            Capability.AGENT_RUNTIME_ACCESS, Capability.ACCESS_DOCUMENTS, Capability.INSTALL_AGENT);
+            Capability.AGENT_RUNTIME_ACCESS, Capability.AGENT_DOCUMENT_ACCESS, Capability.INSTALL_AGENT);
+
   }
 
   @Test

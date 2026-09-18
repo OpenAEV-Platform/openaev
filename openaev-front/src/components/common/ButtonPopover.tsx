@@ -24,6 +24,7 @@ interface Props {
   /** @deprecated kept for API compatibility; every kebab renders the same OpenCTI-style compact squared button now. */
   variant?: VariantButtonPopover;
   disabled?: boolean;
+  disabledTooltip?: string;
   className?: string;
   /** @deprecated kept for API compatibility; the icon kebab is always compact now. */
   size?: 'small' | 'medium' | 'large';
@@ -33,6 +34,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
   entries,
   style,
   disabled = false,
+  disabledTooltip,
   className,
 }) => {
   // Standard hooks
@@ -42,6 +44,29 @@ const ButtonPopover: FunctionComponent<Props> = ({
 
   const visibleEntries = entries.filter(entry => entry.userRight);
   const allDisabled = disabled || visibleEntries.every(entry => entry.disabled);
+  const button = (
+    <IconButton
+      className={className}
+      value="popover"
+      size="small"
+      color="primary"
+      aria-label={t('More actions')}
+      onClick={(ev) => {
+        // The kebab may live inside a real link (card / row wrapped in a
+        // router <Link> for ctrl+click support): stopPropagation() alone
+        // does not cancel the browser's native anchor navigation, so
+        // preventDefault() is mandatory here.
+        ev.preventDefault();
+        ev.stopPropagation();
+        setAnchorEl(ev.currentTarget);
+      }}
+      style={{ ...style }}
+      disabled={allDisabled}
+      sx={{ borderRadius: 1 }}
+    >
+      <MoreVert fontSize="small" color={allDisabled ? 'disabled' : 'primary'} />
+    </IconButton>
+  );
 
   return (
     <>
@@ -51,27 +76,13 @@ const ButtonPopover: FunctionComponent<Props> = ({
           bordered ToggleButton. */}
       {visibleEntries.length > 0
         && (
-          <IconButton
-            className={className}
-            value="popover"
-            size="small"
-            color="primary"
-            aria-label={t('More actions')}
-            onClick={(ev) => {
-              // The kebab may live inside a real link (card / row wrapped in a
-              // router <Link> for ctrl+click support): stopPropagation() alone
-              // does not cancel the browser's native anchor navigation, so
-              // preventDefault() is mandatory here.
-              ev.preventDefault();
-              ev.stopPropagation();
-              setAnchorEl(ev.currentTarget);
-            }}
-            style={{ ...style }}
-            disabled={allDisabled}
-            sx={{ borderRadius: 1 }}
-          >
-            <MoreVert fontSize="small" color={allDisabled ? 'disabled' : 'primary'} />
-          </IconButton>
+          allDisabled && disabledTooltip
+            ? (
+                <Tooltip title={t(disabledTooltip)}>
+                  <span>{button}</span>
+                </Tooltip>
+              )
+            : button
         )}
       <Menu
         anchorEl={anchorEl}

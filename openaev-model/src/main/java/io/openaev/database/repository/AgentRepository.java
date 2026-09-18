@@ -1,19 +1,21 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.AgentStatus;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface AgentRepository
-    extends CrudRepository<Agent, String>, JpaSpecificationExecutor<Agent> {
+    extends JpaRepository<Agent, String>, JpaSpecificationExecutor<Agent> {
 
   @Query(
       value =
@@ -48,11 +50,12 @@ public interface AgentRepository
 
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 
-  // Count agents whose last heartbeat is recent enough to be considered active. Used by the
-  // autonomous capability resolver to tell the orchestrator whether a crafted Command payload has
-  // any live host to execute on (tenant filter applies via the enclosing transactional session).
-  @Query("SELECT COUNT(a) FROM Agent a WHERE a.lastSeen > :since")
-  long countByLastSeenAfter(@Param("since") java.time.Instant since);
+  long countByStatus(AgentStatus status);
+
+  @Query(
+      "SELECT a FROM Agent a WHERE a.status = :status AND (a.lastSeen IS NULL OR a.lastSeen < :threshold)")
+  List<Agent> findStaleAgentsByStatus(
+      @Param("threshold") Instant threshold, @Param("status") AgentStatus status);
 
   @Modifying
   @Query(value = "DELETE FROM agents agent where agent.agent_id = :agentId;", nativeQuery = true)

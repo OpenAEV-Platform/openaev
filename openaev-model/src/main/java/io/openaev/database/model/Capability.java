@@ -162,20 +162,11 @@ public enum Capability {
       pair(ResourceType.CREDENTIAL, Action.CREATE),
       pair(ResourceType.CREDENTIAL, Action.DUPLICATE)),
   DELETE_CREDENTIALS(MANAGE_CREDENTIALS, pair(ResourceType.CREDENTIAL, Action.DELETE)),
-
-  // Marking definitions
-  ACCESS_MARKING_DEFINITION(
+  RESOLVE_INJECT_SECRET(
       null,
-      CapabilityGroup.MARKING,
+      CapabilityGroup.CREDENTIALS,
       EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.MARKING_DEFINITION, Action.READ),
-      pair(ResourceType.MARKING_DEFINITION, Action.SEARCH)),
-  MANAGE_MARKING_DEFINITION(
-      ACCESS_MARKING_DEFINITION,
-      pair(ResourceType.MARKING_DEFINITION, Action.WRITE),
-      pair(ResourceType.MARKING_DEFINITION, Action.CREATE)),
-  DELETE_MARKING_DEFINITION(
-      MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
+      pair(ResourceType.INJECT_SECRET, Action.RESOLVE)),
 
   // Dashboards
   ACCESS_DASHBOARDS(
@@ -443,6 +434,27 @@ public enum Capability {
       pair(ResourceType.GROUP_ROLE, Action.DELETE),
       pair(ResourceType.USER, Action.DELETE)),
 
+  // Sessions
+  MANAGE_SESSIONS(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.SESSION, Action.READ),
+      pair(ResourceType.SESSION, Action.WRITE)),
+
+  // Marking definitions
+  ACCESS_MARKING_DEFINITION(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.MARKING_DEFINITION, Action.READ),
+      pair(ResourceType.MARKING_DEFINITION, Action.SEARCH)),
+  MANAGE_MARKING_DEFINITION(
+      ACCESS_MARKING_DEFINITION,
+      pair(ResourceType.MARKING_DEFINITION, Action.WRITE),
+      pair(ResourceType.MARKING_DEFINITION, Action.CREATE)),
+  DELETE_MARKING_DEFINITION(
+      MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
       null,
@@ -467,14 +479,6 @@ public enum Capability {
       pair(ResourceType.PLATFORM_GROUP, Action.DELETE),
       pair(ResourceType.PLATFORM_ROLE, Action.DELETE),
       pair(ResourceType.PLATFORM_USER, Action.DELETE)),
-
-  // Sessions
-  MANAGE_SESSIONS(
-      null,
-      CapabilityGroup.SECURITY,
-      EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.SESSION, Action.READ),
-      pair(ResourceType.SESSION, Action.WRITE)),
 
   MANAGE_PLATFORM_SESSIONS(
       null,
@@ -508,7 +512,21 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.JOB, Action.READ),
       pair(ResourceType.JOB, Action.WRITE),
-      pair(ResourceType.AGENT, Action.CREATE));
+      pair(ResourceType.AGENT, Action.CREATE)),
+
+  /**
+   * TEMPORARY (see #294): dedicated capability so the service-account (implant) token can download
+   * a document by known ID without holding ACCESS_DOCUMENTS (which also grants SEARCH, i.e.
+   * platform-wide document listing). Must remain hidden=true: never assignable manually via the
+   * RBAC UI or API. Remove once #294 lands.
+   */
+  AGENT_DOCUMENT_ACCESS(
+      null,
+      CapabilityGroup.SERVICE,
+      true,
+      true,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.DOCUMENT, Action.AGENT_DOCUMENT_READ));
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 
@@ -704,6 +722,9 @@ public enum Capability {
   }
 
   public boolean isCredentialCapability() {
-    return this == ACCESS_CREDENTIALS || this == MANAGE_CREDENTIALS || this == DELETE_CREDENTIALS;
+    return this == ACCESS_CREDENTIALS
+        || this == MANAGE_CREDENTIALS
+        || this == DELETE_CREDENTIALS
+        || this == RESOLVE_INJECT_SECRET;
   }
 }

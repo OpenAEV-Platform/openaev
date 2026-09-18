@@ -1,6 +1,7 @@
 package io.openaev.rest.inject.service;
 
 import static java.time.Instant.now;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -15,6 +16,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
@@ -85,6 +87,7 @@ class InjectServiceTest {
   @Mock private TeamRepository teamRepository;
 
   @Mock private ExecutionTraceRepository executionTraceRepository;
+  @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
 
   @Mock private InjectStatusRepository injectStatusRepository;
 
@@ -1313,6 +1316,46 @@ class InjectServiceTest {
       assertEquals(simulationId, simulationIdCaptor.getValue());
       assertEquals(teamIds, teamIdsCaptor.getValue());
       verifyNoMoreInteractions(injectRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("InjectAuthorisation")
+  class InjectAuthorisationTests {
+    @Test
+    @DisplayName("Inject with secret references should persist an authorisation code")
+    void given_secretReferences_should_persistInjectAuthorisation() {
+      Inject inject = mock(Inject.class);
+      when(inject.getId()).thenReturn("inject-1");
+      when(injectAuthorisationRepository.save(any()))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      ExecutableInject executableInject = mock(ExecutableInject.class);
+      Injection injection = mock(Injection.class);
+      when(injection.getInject()).thenReturn(inject);
+      when(executableInject.getInjection()).thenReturn(injection);
+      when(executableInject.getSecretReferenceIds()).thenReturn(List.of("secret-1"));
+
+      String code = injectService.getAuthorisationCodeIfNeeded(executableInject);
+
+      assertThat(code).isNotBlank();
+      verify(injectAuthorisationRepository).deleteAllByInjectId("inject-1");
+      ArgumentCaptor<InjectAuthorisation> authorisationCaptor =
+          ArgumentCaptor.forClass(InjectAuthorisation.class);
+      verify(injectAuthorisationRepository).save(authorisationCaptor.capture());
+      assertThat(authorisationCaptor.getValue().getCode()).isNotEqualTo(code);
+    }
+
+    @Test
+    @DisplayName("Inject without secret references should not persist an authorisation code")
+    void given_noSecretReferences_should_notPersistInjectAuthorisation() {
+      ExecutableInject executableInject = mock(ExecutableInject.class);
+      when(executableInject.getSecretReferenceIds()).thenReturn(List.of());
+
+      String code = injectService.getAuthorisationCodeIfNeeded(executableInject);
+
+      assertThat(code).isNull();
+      verifyNoInteractions(injectAuthorisationRepository);
     }
   }
 }

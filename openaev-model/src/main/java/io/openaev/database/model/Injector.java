@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.MonoIdSerializer;
@@ -34,7 +36,7 @@ import org.hibernate.annotations.Type;
  * inspector scopes every query, and write attribution is explicit via TenantWriteScopeResolver. Do
  * not re-add either.
  */
-public class Injector extends BaseConnectorEntity implements TenantIdBase {
+public class Injector extends BaseConnectorEntity implements TenantIdBase, AuditStateCapturable {
 
   @Id
   @Column(name = "injector_id")
@@ -86,11 +88,13 @@ public class Injector extends BaseConnectorEntity implements TenantIdBase {
   @Column(name = "injector_created_at")
   @JsonProperty("injector_created_at")
   @NotNull
+  @AuditStateIgnore
   private Instant createdAt = now();
 
   @Column(name = "injector_updated_at")
   @JsonProperty("injector_updated_at")
   @NotNull
+  @AuditStateIgnore
   private Instant updatedAt = now();
 
   @Queryable(filterable = true, searchable = true)
@@ -109,6 +113,7 @@ public class Injector extends BaseConnectorEntity implements TenantIdBase {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("injector_security_platform")
   @Schema(implementation = String.class)
+  @AuditStateIgnore
   private SecurityPlatform securityPlatform;
 
   @OneToMany(mappedBy = "injector", fetch = FetchType.LAZY)

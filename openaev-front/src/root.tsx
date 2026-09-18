@@ -16,6 +16,7 @@ import Loader from './components/Loader';
 import Message from './components/Message';
 import NoTenantAlert from './components/NoTenantAlert';
 import NotFound from './components/NotFound';
+import TenantAccessDeniedAlert from './components/TenantAccessDeniedAlert';
 import TimeoutLock from './components/TimeoutLock';
 import SystemBanners from './public/components/systembanners/SystemBanners';
 import LicenseBanner from './public/components/trialbanners/LicenseBanner';
@@ -46,11 +47,12 @@ const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenario
 const ReportingRender = lazy(() => import('./admin/components/reporting/render/ReportingRender'));
 
 const Root = () => {
-  const { logged, me, settings } = useHelper((helper: LoggedHelper) => {
+  const { logged, me, settings, tenantAccessDenied } = useHelper((helper: LoggedHelper) => {
     return {
       logged: helper.logged(),
       me: helper.getMe(),
       settings: helper.getPlatformSettings(),
+      tenantAccessDenied: helper.isTenantAccessDenied(),
     };
   });
   const dispatch = useAppDispatch();
@@ -85,6 +87,22 @@ const Root = () => {
     switchUserTenant,
     reloadUserTenants,
   }), [me, settings, isReachable, userTenants, currentUserTenant, switchUserTenant, reloadUserTenants]);
+
+  // The tenant referenced by the URL is not one the current user belongs to: '/me' never
+  // resolves in that case, so this must be checked before the 'logged' placeholder guard
+  // below, which would otherwise leave the app on a permanent blank screen.
+  if (tenantAccessDenied) {
+    return (
+      <StyledEngineProvider injectFirst>
+        <ConnectedIntlProvider>
+          <ConnectedThemeProvider>
+            <CssBaseline />
+            <TenantAccessDeniedAlert />
+          </ConnectedThemeProvider>
+        </ConnectedIntlProvider>
+      </StyledEngineProvider>
+    );
+  }
 
   if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
     return <div />;
