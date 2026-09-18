@@ -324,23 +324,21 @@ public class DocumentApi extends RestBehavior {
     return buildDocumentDownloadResponse(document);
   }
 
-    @GetMapping(TENANT_DOCUMENT_API + "/{documentId}/agent-file")
-    @Transactional
-    // TEMPORARY (#294): dedicated download route for the service-account (implant) token,
-    // scoped via AGENT_DOCUMENT_ACCESS/AGENT_DOCUMENT_READ instead of ACCESS_DOCUMENTS/READ,
-    // so the service-account never needs SEARCH. Remove once #294's durable per-document
-    // scoping solution replaces this workaround. Coordinated with implant repo route change.
-    @AccessControl(
-            resourceId = "#documentId",
-            actionPerformed = Action.AGENT_DOCUMENT_READ,
-            resourceType = ResourceType.DOCUMENT)
-    public ResponseEntity<InputStreamResource> downloadDocumentForAgent(
-            TxCtx ctx, @PathVariable String documentId) {
-        return buildDocumentDownloadResponse(documentService.documentForCurrentTenant(documentId));
-    }
-
-  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(String documentId) {
-    return buildDocumentDownloadResponse(documentService.document(documentId));
+  @GetMapping(TENANT_DOCUMENT_API + "/{documentId}/agent-file")
+  @Transactional
+  // TEMPORARY (#294): dedicated download route for the service-account (implant) token,
+  // scoped via AGENT_DOCUMENT_ACCESS/AGENT_DOCUMENT_READ instead of ACCESS_DOCUMENTS/READ,
+  // so the service-account never needs SEARCH. Remove once #294's durable per-document
+  // scoping solution replaces this workaround. Coordinated with implant repo route change.
+  @AccessControl(
+      resourceId = "#documentId",
+      actionPerformed = Action.AGENT_DOCUMENT_READ,
+      resourceType = ResourceType.DOCUMENT)
+  public ResponseEntity<InputStreamResource> downloadDocumentForAgent(
+      TxCtx ctx, @PathVariable String documentId) {
+    Document document = documentService.document(documentId);
+    assertDocumentInRequestScope(ctx, document);
+    return buildDocumentDownloadResponse(document);
   }
 
   private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(Document document) {
@@ -383,9 +381,9 @@ public class DocumentApi extends RestBehavior {
             .findById(assetId)
             .orElseThrow(() -> new ElementNotFoundException("Security platform not found"));
     if (theme.equals("dark") && securityPlatform.getLogoDark() != null) {
-      return buildDocumentDownloadResponse(securityPlatform.getLogoDark().getId());
+      return buildDocumentDownloadResponse(securityPlatform.getLogoDark());
     } else if (securityPlatform.getLogoLight() != null) {
-      return buildDocumentDownloadResponse(securityPlatform.getLogoLight().getId());
+      return buildDocumentDownloadResponse(securityPlatform.getLogoLight());
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
@@ -412,9 +410,9 @@ public class DocumentApi extends RestBehavior {
     Channel channel = channelService.channel(channelId);
 
     if (theme.equals("dark") && channel.getLogoDark() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoDark().getId());
+      return buildDocumentDownloadResponse(channel.getLogoDark());
     } else if (channel.getLogoLight() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoLight().getId());
+      return buildDocumentDownloadResponse(channel.getLogoLight());
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
