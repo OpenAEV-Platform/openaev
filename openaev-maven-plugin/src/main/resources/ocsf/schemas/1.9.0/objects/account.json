@@ -1,0 +1,173 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the account (e.g. <code> GCP Project name </code>, <code> Linux Account name </code> or <code> AWS Account name</code>).",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String",
+      "observable" : 34
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The account type, normalized to the caption of 'account_type_id'. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the account (e.g. <code> AWS Account ID </code>, <code> OCID </code>, <code> GCP Project ID </code>, <code> Azure Subscription ID </code>, <code> Google Workspace Customer ID </code>, or <code> M365 Tenant UID</code>).",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String",
+      "observable" : 35
+    },
+    "labels" : {
+      "type" : "string_t",
+      "description" : "The list of labels associated to the account.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Labels",
+      "type_name" : "String"
+    },
+    "tags" : {
+      "type" : "object_t",
+      "description" : "The list of tags; <code>{key:value}</code> pairs associated to the account.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Tags",
+      "object_type" : "key_value_object",
+      "object_name" : "Key:Value object"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "AWS IAM User",
+          "@deprecated" : {
+            "message" : "Utilize <code>user.type_id</code> to represent this information.",
+            "since" : "1.6.0",
+            "superseded_by" : [ "user.type_id" ]
+          }
+        },
+        "6" : {
+          "description" : "Note: The new product name for Azure AD is Microsoft Entra ID.",
+          "caption" : "Azure AD Account"
+        },
+        "0" : {
+          "description" : "The account type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "LDAP Account"
+        },
+        "2" : {
+          "caption" : "Windows Account"
+        },
+        "99" : {
+          "description" : "The account type is not mapped.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "AWS IAM Role",
+          "@deprecated" : {
+            "message" : "Utilize <code>user.type_id</code> to represent this information.",
+            "since" : "1.6.0",
+            "superseded_by" : [ "user.type_id" ]
+          }
+        },
+        "5" : {
+          "caption" : "GCP Account"
+        },
+        "7" : {
+          "caption" : "Mac OS Account"
+        },
+        "8" : {
+          "caption" : "Apple Account"
+        },
+        "9" : {
+          "caption" : "Linux Account"
+        },
+        "10" : {
+          "caption" : "AWS Account"
+        },
+        "11" : {
+          "caption" : "GCP Project"
+        },
+        "12" : {
+          "caption" : "OCI Compartment"
+        },
+        "14" : {
+          "caption" : "Salesforce Account"
+        },
+        "15" : {
+          "caption" : "Google Workspace"
+        },
+        "16" : {
+          "caption" : "Servicenow Instance"
+        },
+        "17" : {
+          "caption" : "M365 Tenant"
+        },
+        "18" : {
+          "caption" : "Email Account"
+        },
+        "13" : {
+          "caption" : "Azure Subscription"
+        },
+        "19" : {
+          "caption" : "ActiveDirectory Account"
+        }
+      },
+      "description" : "The normalized account type identifier.",
+      "requirement" : "recommended",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "is_disabled" : {
+      "type" : "boolean_t",
+      "description" : "Indicates if the account is disabled.",
+      "requirement" : "optional",
+      "caption" : "Disabled",
+      "type_name" : "Boolean"
+    },
+    "is_locked" : {
+      "type" : "boolean_t",
+      "description" : "Indicates if the account is locked. For example, due to the amount of failed logins.",
+      "requirement" : "optional",
+      "caption" : "Locked",
+      "type_name" : "Boolean"
+    },
+    "is_on_premises_sync_enabled" : {
+      "type" : "boolean_t",
+      "description" : "Indicates whether synchronization with an on-premises directory service is enabled. For example, Microsoft Entra Connect.",
+      "requirement" : "optional",
+      "caption" : "On-Premises Sync Enabled",
+      "type_name" : "Boolean"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "account",
+  "description" : "The Account object contains details about the account that initiated or performed a specific activity within a system or application. Additionally, the Account object refers to logical Cloud and Software-as-a-Service (SaaS) based containers such as AWS Accounts, Azure Subscriptions, Oracle Cloud Compartments, Google Cloud Projects, and otherwise.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:UserAccount.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:UserAccount/"
+  }, {
+    "description" : "D3FEND™ Ontology d3f:CloudUserAccount.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:CloudUserAccount/"
+  } ],
+  "caption" : "Account",
+  "_links" : [ ]
+}

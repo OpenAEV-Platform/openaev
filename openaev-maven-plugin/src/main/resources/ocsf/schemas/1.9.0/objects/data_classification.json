@@ -1,0 +1,202 @@
+{
+  "attributes" : {
+    "size" : {
+      "type" : "long_t",
+      "description" : "Size of the data classified.",
+      "requirement" : "optional",
+      "caption" : "Size",
+      "type_name" : "Long"
+    },
+    "status" : {
+      "type" : "string_t",
+      "description" : "The resultant status of the classification job normalized to the caption of the <code>status_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "recommended",
+      "caption" : "Status",
+      "type_name" : "String"
+    },
+    "total" : {
+      "type" : "integer_t",
+      "description" : "The total count of discovered entities, by the classification job.",
+      "requirement" : "optional",
+      "caption" : "Total",
+      "type_name" : "Integer"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the classification job.",
+      "requirement" : "optional",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "category" : {
+      "type" : "string_t",
+      "description" : "The name of the data classification category that data matched into, e.g. Financial, Personal, Governmental, etc.",
+      "requirement" : "optional",
+      "caption" : "Category",
+      "type_name" : "String"
+    },
+    "category_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Any financially-related sensitive information or Cardholder Data (CHD). E.g., banking account numbers, credit card numbers, International Banking Account Numbers (IBAN), SWIFT codes, etc.",
+          "caption" : "Financial"
+        },
+        "6" : {
+          "description" : "Any sensitive security-related data such as passwords, passkeys, IP addresses, API keys, credentials and similar secrets. E.g., AWS Access Secret Key, SaaS API Keys, user passwords, database credentials, etc.",
+          "caption" : "Security"
+        },
+        "0" : {
+          "description" : "The type is not mapped. See the <code>data_type</code> attribute, which contains a data source specific value.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Any Personally Identifiable Information (PII), Electronic Personal Health Information (ePHI), or similarly personal information. E.g., full name, home address, date of birth, etc.",
+          "caption" : "Personal"
+        },
+        "2" : {
+          "description" : "Any sensitive government identification number related to a person or other classified material. E.g., Passport numbers, driver license numbers, business identification, taxation identifiers, etc.",
+          "caption" : "Governmental"
+        },
+        "99" : {
+          "description" : "Any other type of data classification or a multi-variate classification made up of several other classification categories.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Any business-specific sensitive data such as intellectual property, trademarks, copyrights, human resource data, Board of Directors meeting minutes, and similar.",
+          "caption" : "Business"
+        },
+        "5" : {
+          "description" : "Any mission-specific sensitive data for military, law enforcement, or other government agencies such as specifically classified data, weapon systems information, or other planning data.",
+          "caption" : "Military and Law Enforcement"
+        }
+      },
+      "description" : "The normalized identifier of the data classification category.",
+      "requirement" : "recommended",
+      "caption" : "Category ID",
+      "sibling" : "category",
+      "type_name" : "Integer"
+    },
+    "classifier_details" : {
+      "type" : "object_t",
+      "description" : "Describes details about the classifier used for data classification.",
+      "requirement" : "recommended",
+      "caption" : "Classifier Details",
+      "object_type" : "classifier_details",
+      "object_name" : "Classifier Details"
+    },
+    "confidentiality" : {
+      "type" : "string_t",
+      "description" : "The file content confidentiality, normalized to the confidentiality_id value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Confidentiality",
+      "type_name" : "String"
+    },
+    "confidentiality_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "Secret"
+        },
+        "6" : {
+          "caption" : "Restricted"
+        },
+        "0" : {
+          "description" : "The confidentiality is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Not Confidential"
+        },
+        "2" : {
+          "caption" : "Confidential"
+        },
+        "99" : {
+          "description" : "The confidentiality is not mapped. See the <code>confidentiality</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "Top Secret"
+        },
+        "5" : {
+          "caption" : "Private"
+        }
+      },
+      "description" : "The normalized identifier of the file content confidentiality indicator.",
+      "requirement" : "recommended",
+      "caption" : "Confidentiality ID",
+      "sibling" : "confidentiality",
+      "type_name" : "Integer"
+    },
+    "discovery_details" : {
+      "type" : "object_t",
+      "description" : "Details about the data discovered by classification job.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Discovery Details",
+      "object_type" : "discovery_details",
+      "object_name" : "Discovery Details"
+    },
+    "policy" : {
+      "type" : "object_t",
+      "description" : "Details about the data policy that governs data handling and security measures related to classification.",
+      "requirement" : "optional",
+      "caption" : "Policy",
+      "object_type" : "policy",
+      "object_name" : "Policy"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The source URL pointing towards the full classification job details.",
+      "requirement" : "optional",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    },
+    "status_details" : {
+      "type" : "string_t",
+      "description" : "The contextual description of the <code>status, status_id</code> value.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Status Details",
+      "type_name" : "String"
+    },
+    "status_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The classification job failed for the evaluated resource.",
+          "caption" : "Fail"
+        },
+        "0" : {
+          "description" : "The status is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The classification job completed for the evaluated resource.",
+          "caption" : "Complete"
+        },
+        "2" : {
+          "description" : "The classification job partially completed for the evaluated resource.",
+          "caption" : "Partial"
+        },
+        "99" : {
+          "description" : "The classification job type id is not mapped.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized status identifier of the classification job.",
+      "requirement" : "recommended",
+      "caption" : "Status ID",
+      "sibling" : "status",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "data_classification",
+  "description" : "The Data Classification object includes information about data classification levels and data category types.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "category_id", "confidentiality_id" ]
+  },
+  "caption" : "Data Classification",
+  "_links" : [ ]
+}

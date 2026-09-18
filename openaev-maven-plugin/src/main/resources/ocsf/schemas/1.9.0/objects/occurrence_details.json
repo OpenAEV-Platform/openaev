@@ -1,0 +1,75 @@
+{
+  "attributes" : {
+    "end_line" : {
+      "type" : "integer_t",
+      "description" : "The line number of the last line of the file, where the information was discovered.",
+      "requirement" : "optional",
+      "caption" : "End Line",
+      "type_name" : "Integer"
+    },
+    "cell_name" : {
+      "type" : "string_t",
+      "description" : "The cell name/reference in a spreadsheet. e.g <code>A2</code>",
+      "requirement" : "optional",
+      "caption" : "Cell Name",
+      "type_name" : "String"
+    },
+    "column_name" : {
+      "type" : "string_t",
+      "description" : "The column name in a spreadsheet, where the information was discovered.",
+      "requirement" : "optional",
+      "caption" : "Column Name",
+      "type_name" : "String"
+    },
+    "column_number" : {
+      "type" : "integer_t",
+      "description" : "The column number in a spreadsheet or a plain text document, where the information was discovered.",
+      "requirement" : "optional",
+      "caption" : "Column Number",
+      "type_name" : "Integer"
+    },
+    "json_path" : {
+      "type" : "string_t",
+      "description" : "The JSON path of the attribute in a json record, where the information was discovered",
+      "requirement" : "optional",
+      "caption" : "JSON Path",
+      "type_name" : "String"
+    },
+    "page_number" : {
+      "type" : "integer_t",
+      "description" : "The page number in a document, where the information was discovered.",
+      "requirement" : "optional",
+      "caption" : "Page Number",
+      "type_name" : "Integer"
+    },
+    "record_index_in_array" : {
+      "type" : "integer_t",
+      "description" : "The index of the record in the array of records, where the information was discovered. e.g. the index of a record in an array of JSON records in a file.",
+      "requirement" : "optional",
+      "caption" : "Record Index in Array",
+      "type_name" : "Integer"
+    },
+    "row_number" : {
+      "type" : "integer_t",
+      "description" : "The row number in a spreadsheet, where the information was discovered.",
+      "requirement" : "optional",
+      "caption" : "Row Number",
+      "type_name" : "Integer"
+    },
+    "start_line" : {
+      "type" : "integer_t",
+      "description" : "The line number of the first line of the file, where the information was discovered.",
+      "requirement" : "optional",
+      "caption" : "Start Line",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "occurrence_details",
+  "description" : "Details about where in the target entity, specified information was discovered. Only the attributes, relevant to the target entity type should be populated.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "cell_name", "column_name", "column_number", "end_line", "json_path", "page_number", "record_index_in_array", "row_number", "start_line" ]
+  },
+  "caption" : "Occurrence Details",
+  "_links" : [ ]
+}

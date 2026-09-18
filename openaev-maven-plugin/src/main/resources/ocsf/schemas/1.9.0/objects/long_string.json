@@ -1,0 +1,30 @@
+{
+  "attributes" : {
+    "value" : {
+      "type" : "string_t",
+      "description" : "The string value, truncated if <code>is_truncated</code> is <code>true</code>.",
+      "requirement" : "required",
+      "caption" : "Value",
+      "type_name" : "String"
+    },
+    "is_truncated" : {
+      "type" : "boolean_t",
+      "description" : "Indicates that <code>value</code> has been truncated. May be omitted if truncation has not occurred.",
+      "requirement" : "optional",
+      "caption" : "Is Truncated",
+      "type_name" : "Boolean"
+    },
+    "untruncated_size" : {
+      "type" : "integer_t",
+      "description" : "The size in bytes of the string represented by <code>value</code> before truncation. Should be omitted if truncation has not occurred.",
+      "requirement" : "optional",
+      "caption" : "Untruncated Size",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "long_string",
+  "description" : "This object is a used to capture strings which may be truncated by a security product due to their length.",
+  "extends" : "object",
+  "caption" : "Long String",
+  "_links" : [ ]
+}

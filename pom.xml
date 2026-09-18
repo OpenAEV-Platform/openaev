@@ -244,5 +244,6 @@
         <module>openaev-framework</module>
         <module>openaev-api</module>
         <module>openaev-maven-plugin</module>
+        <module>openaev-ocsf</module>
     </modules>
 </project>

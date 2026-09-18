@@ -1,0 +1,37 @@
+{
+  "attributes" : {
+    "mime_type" : {
+      "type" : "string_t",
+      "description" : "The Multipurpose Internet Mail Extensions (MIME) type of the item's data. For example: <code>text/plain</code>.",
+      "requirement" : "required",
+      "caption" : "MIME type",
+      "type_name" : "String"
+    },
+    "binary_data" : {
+      "type" : "bytestring_t",
+      "description" : "The item's data in binary form, used when the clipboard content cannot be represented as text or when preserving the exact binary representation is required.",
+      "requirement" : "optional",
+      "caption" : "Binary Data",
+      "type_name" : "Byte String"
+    },
+    "clipboard_native_type" : {
+      "type" : "string_t",
+      "description" : "The type of the item's data, in an operating specific form. For example: <code>CF_TEXT</code> or <code>public.utf8-plain-text</code>.",
+      "requirement" : "optional",
+      "caption" : "Data Type",
+      "type_name" : "String"
+    },
+    "string_data" : {
+      "type" : "string_t",
+      "description" : "The item's data if it can be represented as a UTF-8 string.",
+      "requirement" : "optional",
+      "caption" : "String Data",
+      "type_name" : "String"
+    }
+  },
+  "name" : "clipboard_item",
+  "description" : "A piece of data on the system clipboard.",
+  "extends" : "object",
+  "caption" : "Clipboard Item",
+  "_links" : [ ]
+}

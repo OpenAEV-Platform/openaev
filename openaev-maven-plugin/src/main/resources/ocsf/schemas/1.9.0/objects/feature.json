@@ -1,0 +1,40 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the feature.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The version of the feature.",
+      "requirement" : "recommended",
+      "caption" : "Version",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the feature.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "feature",
+  "description" : "The Feature object provides information about the software product feature that generated a specific event. It encompasses details related to the capabilities, components, user interface (UI) design, and performance upgrades associated with the feature.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Feature",
+  "_links" : [ ]
+}

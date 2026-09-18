@@ -1,0 +1,123 @@
+{
+  "attributes" : {
+    "bus_type" : {
+      "type" : "string_t",
+      "description" : "The attachment bus or interface standard, normalized to the caption of the bus_type_id value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Bus Type",
+      "type_name" : "String"
+    },
+    "bus_type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Peripheral Component Interconnect Express slot with 8 lanes; common for high‑performance NICs, storage controllers, and accelerators.",
+          "caption" : "PCIe x8"
+        },
+        "6" : {
+          "description" : "M.2 (NGFF) internal module form factor/connector exposing PCIe (and/or SATA/USB) for SSDs and add‑in modules.",
+          "caption" : "M.2"
+        },
+        "0" : {
+          "description" : "The bus type is unknown or not reported.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The device is attached directly on the motherboard or SoC (often referred to as 'integrated' or 'onboard').",
+          "caption" : "Onboard"
+        },
+        "2" : {
+          "description" : "Peripheral Component Interconnect Express slot with 16 lanes, typically used for high‑bandwidth add‑in devices.",
+          "caption" : "PCIe x16"
+        },
+        "99" : {
+          "description" : "A bus or interface standard not covered by the defined values; the exact value is reported by the event source.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Mobile PCI Express Module (MXM) Type A form factor (compact laptop/embedded GPU module).",
+          "caption" : "MXM Type A"
+        },
+        "5" : {
+          "description" : "Mobile PCI Express Module (MXM) Type B form factor (larger laptop/embedded GPU module).",
+          "caption" : "MXM Type B"
+        },
+        "7" : {
+          "description" : "Compute Express Link (CXL), an open cache‑coherent interconnect for processors, memory expansion, and accelerators built on the PCIe physical layer.",
+          "caption" : "CXL"
+        }
+      },
+      "description" : "The normalized identifier of the attachment bus or interface standard.",
+      "requirement" : "optional",
+      "caption" : "Bus Type ID",
+      "sibling" : "bus_type",
+      "type_name" : "Integer"
+    },
+    "cores" : {
+      "type" : "integer_t",
+      "description" : "The number of processing cores or compute units for the component.",
+      "requirement" : "optional",
+      "caption" : "Cores",
+      "type_name" : "Integer"
+    },
+    "model" : {
+      "type" : "string_t",
+      "description" : "The model name of the GPU. For example: <code>GeForce RTX A6000</code>, <code>Radeon PRO W7900</code>, or <code>Intel Data Center GPU Max 1550</code>.",
+      "requirement" : "recommended",
+      "caption" : "Model",
+      "type_name" : "String"
+    },
+    "vendor_name" : {
+      "type" : "string_t",
+      "description" : "The name of the vendor of the GPU. For example: <code>NVIDIA</code>, <code>AMD</code>, or <code>Intel</code>.",
+      "requirement" : "recommended",
+      "caption" : "Vendor Name",
+      "type_name" : "String"
+    },
+    "vram_mode" : {
+      "type" : "string_t",
+      "description" : "The video memory attachment mode, indicating how the VRAM hardware is integrated with the system (e.g., shared or dedicated), normalized to the caption of the vram_mode_id value. For 'Other', the exact attachment mode is defined by the event source.",
+      "requirement" : "recommended",
+      "caption" : "VRAM Mode",
+      "type_name" : "String"
+    },
+    "vram_mode_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "0" : {
+          "description" : "The VRAM mode is unknown or not reported.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Video memory is allocated from system memory.",
+          "caption" : "Shared"
+        },
+        "2" : {
+          "description" : "Video memory is physically separate from system memory.",
+          "caption" : "Dedicated"
+        },
+        "99" : {
+          "description" : "A VRAM mode not covered by the defined values; the exact value is reported by the event source.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized identifier of the video memory attachment mode.",
+      "requirement" : "recommended",
+      "caption" : "VRAM Mode ID",
+      "sibling" : "vram_mode",
+      "type_name" : "Integer"
+    },
+    "vram_size" : {
+      "type" : "integer_t",
+      "description" : "The total amount of installed video RAM.",
+      "requirement" : "recommended",
+      "caption" : "VRAM Size",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "gpu_info",
+  "description" : "The GPU information object contains attributes describing graphical processing hardware.",
+  "extends" : "object",
+  "caption" : "GPU Information",
+  "_links" : [ ]
+}

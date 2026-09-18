@@ -18,6 +18,7 @@ COPY openaev-model ./openaev-model
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api
 COPY openaev-maven-plugin ./openaev-maven-plugin
+COPY openaev-ocsf ./openaev-ocsf
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev
