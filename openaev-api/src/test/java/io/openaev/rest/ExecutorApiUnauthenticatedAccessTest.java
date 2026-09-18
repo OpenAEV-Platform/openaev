@@ -24,6 +24,16 @@ import org.springframework.transaction.annotation.Transactional;
  * sends no Authorization header at all, which is what broke the infra-agent/infra-multitenant E2E
  * specs: the bundled installer script's internal executable download has no auth header and was
  * getting a 401 from this exact endpoint, with no test coverage catching the regression risk.
+ *
+ * <p>These tests deliberately live in their own file rather than inside {@link ExecutorApiTest}:
+ * that class carries a class-level {@code @WithMockUser}, and its custom {@code
+ * WithMockUserTestExecutionListener} authenticates the request through a channel that {@code
+ * SecurityContextHolder.clearContext()}, {@code .with(anonymous())} and even an explicit fresh
+ * {@code MockHttpSession} all failed to override in testing — the mock user kept resolving
+ * (verified with debug instrumentation: SecurityContextHolder was null on the test thread both
+ * before and after the call, yet the response still carried the mock user's identity). Only
+ * omitting the annotation from the whole class hierarchy, as done here, reliably reproduces zero
+ * authentication.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -31,19 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
 class ExecutorApiUnauthenticatedAccessTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
-
-  @Test
-  @DisplayName("GET agent executable without any Authorization header should be unauthorized")
-  void givenNoAuthentication_shouldRejectExecutableDownload() throws Exception {
-    mvc.perform(
-            get("%s/executable/openaev/%s/%s"
-                    .formatted(
-                        AGENT_URI,
-                        Endpoint.PLATFORM_TYPE.Linux.name(),
-                        Endpoint.PLATFORM_ARCH.x86_64.name()))
-                .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
-        .andExpect(status().isUnauthorized());
-  }
 
   @Test
   @DisplayName("GET agent package without any Authorization header should be unauthorized")
