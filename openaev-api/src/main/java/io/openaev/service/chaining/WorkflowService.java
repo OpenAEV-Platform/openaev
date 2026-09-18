@@ -338,7 +338,6 @@ public class WorkflowService {
    * Only allow/deny rules are considered; the referenced entity is probed with the same current
    * resolution used by the snapshot diff (null = no longer exists).
    */
-  @Transactional(rollbackFor = Exception.class)
   public void cleanScopeRulesSimulation(@NotBlank String simulationId) {
     Workflow template =
         workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
@@ -1075,6 +1074,7 @@ public class WorkflowService {
         workflows, WorkflowEndService.WORKFLOW_END_CAUSE.DELETED_BY_SIMULATION_DELETION);
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public void resetSimulationDeleteWorkflowExecution(String simulationId) {
     List<Workflow> workflows = findAllWorkflowExecutionBySimulationId(simulationId);
     // Delete workflows execution
