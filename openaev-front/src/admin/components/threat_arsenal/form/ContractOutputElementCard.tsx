@@ -27,6 +27,11 @@ const useStyles = makeStyles()(theme => ({
     rowGap: theme.spacing(2),
     padding: theme.spacing(2),
     alignItems: 'start',
+    // Outline only, no fill: measured at #0d172b inside a #13213e drawer, the
+    // block read as a dark well cut into its surface. Outlined means the
+    // border carries the shape, like the collapsible blocks of the other
+    // drawers.
+    backgroundColor: 'transparent',
   },
   outputValueTitle: {
     marginBottom: 0,

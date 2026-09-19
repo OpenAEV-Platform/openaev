@@ -45,10 +45,19 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
       sx={{
         'width': 200,
         '& .MuiDrawer-paper': {
+          // One layer above the page, so the panel reads as a panel. The nav
+          // token resolves to the page ground itself (#070d18 on both), which
+          // left the bar indistinguishable from the content beside it and only
+          // a 1px hairline to separate them — the sibling product's bar is
+          // lighter than its page, which is the same step said in tokens.
+          backgroundColor: 'var(--bg-elevation-default-layer-1)',
+          backgroundImage: 'none',
+          // The elevation carries the separation; the docked hairline MUI adds
+          // on top of it reads as a second, harder edge.
+          borderLeft: 'none',
           width: 200,
           top: topOffset,
           height: `calc(100% - ${topOffset})`,
-          backgroundColor: theme.palette.background.nav,
         },
       }}
     >
