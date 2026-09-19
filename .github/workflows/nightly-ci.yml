@@ -105,4 +105,7 @@ jobs:
           {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64-infra"}
         ]
       vulnerability-scan-fail-on-error: true
+      # Nightly is allowed to be slow, and it exercises browsers and image variants Core CI
+      # never touches. Caching here only evicts the entries PR runs depend on.
+      no-cache: true
     secrets: inherit

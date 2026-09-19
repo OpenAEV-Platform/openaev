@@ -53,7 +53,7 @@ inputs:
     required: false
     default: ""
   no-cache:
-    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
     required: false
     default: "false"
 
@@ -72,9 +72,10 @@ runs:
         java-version: "21"
         distribution: temurin
 
-    - name: Cache API test Maven dependencies
+    - name: Restore API test Maven dependencies
+      id: maven-cache
       if: ${{ inputs.no-cache != 'true' }}
-      uses: actions/cache@v6
+      uses: actions/cache/restore@v6
       with:
         path: ~/.m2/repository
         key: maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
@@ -294,6 +295,16 @@ runs:
           initialize surefire:test@default-test jacoco:report@report \
           ${{ steps.suite.outputs.surefire_arg }} \
           ${{ steps.tenant.outputs.args }}
+
+    # Only main writes, and only from one shard: every shard resolves the same dependency
+    # set, so the other nine uploads would be ~800 MB each and rejected as duplicates.
+    # Saved even on test failure, since the dependencies are already resolved by then.
+    - name: Save API test Maven dependencies
+      if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
 
     - name: Diagnose surefire dump files (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       if: ${{ failure() && steps.run-tests.outcome == 'failure' }}

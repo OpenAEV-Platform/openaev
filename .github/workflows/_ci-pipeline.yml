@@ -24,9 +24,9 @@ on:
         default: false
       no-cache:
         description: >
-          Bypass every Maven, Yarn, Playwright, buildx and scanner cache. Temporary
-          switch for measuring the cold-cache worst case; a re-run of the same run
-          otherwise reuses whatever the previous attempt warmed.
+          Bypass every Maven, Yarn, Playwright, buildx and scanner cache, for both reads and
+          writes. Set by Nightly, which may run slow and whose entries would only evict the
+          ones Core CI PRs read.
         type: boolean
         required: false
         default: false
@@ -244,7 +244,16 @@ jobs:
         with:
           java-version: "21"
           distribution: temurin
-          cache: maven
+
+      # Read-only: backend-compile is the sole writer of maven-v1.
+      - name: Restore Maven dependencies
+        if: ${{ !inputs.no-cache }}
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Download compiled Maven artifacts
         if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
@@ -393,6 +402,8 @@ jobs:
             jar-path: /openaev-api.jar
             cache-scope: docker-standard
             tags: openaev:ci-${{ github.run_id }}
+          # ubi9 is nightly-only for E2E, so its layers never speed up a PR run.
+          # Caching them cost ~3 GB of the 10 GB quota and evicted caches PRs do read.
           - variant: ubi9
             arch: amd64
             runner: ubuntu-latest
@@ -400,7 +411,7 @@ jobs:
             dockerfile: ./Dockerfile_ubi9
             artifact-name: openaev-ubi9-image
             jar-path: /opt/openaev/openaev-api.jar
-            cache-scope: docker-ubi9
+            cache-scope: ""
             tags: openaev-ubi9:ci-${{ github.run_id }}
           - variant: ubi9
             arch: arm64
@@ -409,7 +420,7 @@ jobs:
             dockerfile: ./Dockerfile_ubi9
             artifact-name: openaev-ubi9-image
             jar-path: /opt/openaev/openaev-api.jar
-            cache-scope: docker-ubi9
+            cache-scope: ""
             tags: openaev-ubi9:ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7

@@ -52,7 +52,7 @@ inputs:
     required: false
     default: ""
   no-cache:
-    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
     required: false
     default: "false"
 
@@ -65,31 +65,10 @@ runs:
         search-engine: ${{ inputs.search-engine }}
         search-engine-image: ${{ inputs.search-engine-image }}
 
-    - name: Set up Node.js 24
-      uses: actions/setup-node@v7
-      with:
-        node-version: "24.20.0"
-    - name: Install corepack
-      run: npm install -g corepack
-      shell: bash
-    - name: Get Yarn cache directory
-      id: yarn-cache-dir
-      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
-      shell: bash
-      working-directory: openaev-front
-    - name: Cache Yarn dependencies
-      if: ${{ inputs.no-cache != 'true' }}
-      uses: actions/cache@v6
-      with:
-        path: ${{ steps.yarn-cache-dir.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
-    # Yarn 4.18.0 can crash during resolution (yarnpkg/berry#7245); retrying in-job never recovered.
     - name: Install frontend dependencies
-      run: yarn install --immutable
-      shell: bash
-      working-directory: openaev-front
+      uses: ./.github/actions/yarn-install
+      with:
+        no-cache: ${{ inputs.no-cache }}
     - name: Resolve Playwright version
       id: pw-version
       run: |
@@ -98,10 +77,10 @@ runs:
         echo "Playwright $VERSION"
       shell: bash
       working-directory: openaev-front
-    - name: Cache Playwright browsers
+    - name: Restore Playwright browsers
       id: playwright-cache
       if: ${{ inputs.no-cache != 'true' }}
-      uses: actions/cache@v6
+      uses: actions/cache/restore@v6
       with:
         path: ~/.cache/ms-playwright
         # Browser builds track the Playwright version, not the whole lockfile, so an
@@ -144,6 +123,14 @@ runs:
         exit 1
       shell: bash
       working-directory: openaev-front
+
+    # Only main writes; PR-scoped caches are readable solely by that PR.
+    - name: Save Playwright browsers
+      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.playwright-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
 
     - name: Obtain Docker image
       id: image-source

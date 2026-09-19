@@ -5,38 +5,17 @@ description: >
 
 inputs:
   no-cache:
-    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
     required: false
     default: "false"
 
 runs:
   using: composite
   steps:
-    - name: Set up Node.js 24
-      uses: actions/setup-node@v7
-      with:
-        node-version: "24.20.0"
-    - name: Install corepack
-      run: npm install -g corepack
-      shell: bash
-    - name: Get Yarn cache directory
-      id: yarn-cache-dir
-      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
-      shell: bash
-      working-directory: openaev-front
-    - name: Cache Yarn dependencies
-      if: ${{ inputs.no-cache != 'true' }}
-      uses: actions/cache@v6
-      with:
-        path: ${{ steps.yarn-cache-dir.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
-    # Yarn 4.18.0 can crash during resolution (yarnpkg/berry#7245); retrying in-job never recovered.
     - name: Install dependencies
-      run: yarn install --immutable
-      shell: bash
-      working-directory: openaev-front
+      uses: ./.github/actions/yarn-install
+      with:
+        no-cache: ${{ inputs.no-cache }}
     - name: TypeScript check
       run: yarn check-ts
       shell: bash

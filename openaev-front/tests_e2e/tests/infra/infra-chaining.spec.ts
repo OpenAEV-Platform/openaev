@@ -31,6 +31,18 @@ const muiSelect = (page: Page, label: string) => page
   .getByRole('combobox')
   .first();
 
+// The menu unmounts on a Grow transition, and until it finishes the modal backdrop
+// still covers the form, so a click aimed at the next select is swallowed.
+const selectMuiOption = async (page: Page, label: string, option: string): Promise<void> => {
+  await muiSelect(page, label).click();
+  const item = page.getByRole('option', {
+    name: option,
+    exact: true,
+  });
+  await item.click();
+  await expect(item).toBeHidden();
+};
+
 const attackPathNode = (page: Page, label: string) => page
   .getByTestId('attack-path-node')
   .filter({ hasText: label })
@@ -100,16 +112,8 @@ const addTextTrigger = async (page: Page, name: string, value: string): Promise<
   await page.getByRole('button', { name: /^Event\s/ }).click();
   // The field is required, so its accessible name carries a trailing asterisk.
   await page.locator('[name="event_name"]').fill(name);
-  await muiSelect(page, 'Field to Check').click();
-  await page.getByRole('option', {
-    name: 'Text',
-    exact: true,
-  }).click();
-  await muiSelect(page, 'Operator').click();
-  await page.getByRole('option', {
-    name: 'Equals',
-    exact: true,
-  }).click();
+  await selectMuiOption(page, 'Field to Check', 'Text');
+  await selectMuiOption(page, 'Operator', 'Equals');
   await page.getByLabel('Expected Value', { exact: true }).fill(value);
   await page.getByRole('button', {
     name: 'Add trigger',

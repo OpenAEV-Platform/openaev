@@ -3,7 +3,7 @@ description: Check Java code formatting with Spotless (Google Java Format)
 
 inputs:
   no-cache:
-    description: "true bypasses every cache in this action, to measure cold-cache CI cost"
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
     required: false
     default: "false"
 
@@ -15,7 +15,17 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: ${{ inputs.no-cache != 'true' && 'maven' || '' }}
+
+    # Read-only: backend-compile is the sole writer of maven-v1.
+    - name: Restore Maven dependencies
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-v1-${{ runner.os }}-${{ runner.arch }}-
+
     - name: Check formatting
       run: mvn -B -ntp spotless:check
       shell: bash
