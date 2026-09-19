@@ -99,7 +99,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
     };
     if (score < 75) return {
       label: t('High exposure'),
-      color: '#ff7043',
+      color: 'var(--color-feedback-warning-primary)',
     };
     return {
       label: t('Critical exposure'),
@@ -139,7 +139,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
     {
       range: '50 - 74',
       label: t('High exposure'),
-      color: '#ff7043',
+      color: 'var(--color-feedback-warning-primary)',
       desc: t('More than half of the validated attacks were not stopped.'),
     },
     {

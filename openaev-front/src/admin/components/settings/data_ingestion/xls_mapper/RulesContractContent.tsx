@@ -28,7 +28,7 @@ const useStyles = makeStyles()(() => ({
     alignItems: 'center',
   },
   redStar: {
-    color: 'rgb(244, 67, 54)',
+    color: 'var(--color-feedback-error-primary)',
     marginLeft: '2px',
   },
   red: { borderColor: 'rgb(244, 67, 54)' },

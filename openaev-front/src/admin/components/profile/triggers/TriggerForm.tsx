@@ -168,7 +168,7 @@ const TriggerForm: FunctionComponent<Props> = ({
           </div>
           {eventTypesError && (
             <div style={{
-              color: '#f44336',
+              color: 'var(--color-feedback-error-primary)',
               fontSize: 12,
             }}
             >

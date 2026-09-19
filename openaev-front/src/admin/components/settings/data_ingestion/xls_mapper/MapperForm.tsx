@@ -23,7 +23,7 @@ const useStyles = makeStyles()(() => ({
   },
   importersErrorMessage: {
     fontSize: 13,
-    color: '#f44336',
+    color: 'var(--color-feedback-error-primary)',
   },
 }));
 

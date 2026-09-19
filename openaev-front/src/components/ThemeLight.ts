@@ -588,7 +588,7 @@ const ThemeLight = (
         root: {
           'color': text_color,
           // Shrink = when at the top of the input in small size.
-          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#494A50' },
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: 'var(--text-default-secondary)' },
         },
       },
     },
@@ -812,7 +812,7 @@ const ThemeLight = (
       styleOverrides: {
         root: {
           // Shrink = when at the top of the input in small size.
-          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#494A50' },
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: 'var(--text-default-secondary)' },
           '& .MuiOutlinedInput-root': {
             // the only way for now to know if we should apply the paper color or not
             'backgroundColor': paper === THEME_LIGHT_DEFAULT_PAPER

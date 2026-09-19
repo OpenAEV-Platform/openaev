@@ -28,7 +28,7 @@ const useStyles = makeStyles()(() => ({
   },
   subtitle: {
     width: '100%',
-    color: '#ffffff',
+    color: 'var(--text-default-primary)',
     fontWeight: 400,
     fontSize: 18,
     textAlign: 'center',

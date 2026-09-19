@@ -112,7 +112,7 @@ const ExposureScoreWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
     if (overall < 75) {
       return {
         label: t('High exposure'),
-        color: '#ff7043',
+        color: 'var(--color-feedback-warning-primary)',
       };
     }
     return {

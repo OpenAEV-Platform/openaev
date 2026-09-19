@@ -105,7 +105,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
     };
     if (score >= 25) return {
       label: t('Weak posture'),
-      color: '#ff7043',
+      color: 'var(--color-feedback-warning-primary)',
       desc: t('More than half of the validated expectations were missed.'),
     };
     return {
@@ -133,7 +133,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
     {
       range: '25 - 49',
       label: t('Weak posture'),
-      color: '#ff7043',
+      color: 'var(--color-feedback-warning-primary)',
       desc: t('More than half of the validated expectations were missed.'),
     },
     {

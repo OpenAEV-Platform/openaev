@@ -62,7 +62,7 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
     <div style={{
       position: 'fixed',
       zIndex: 1202,
-      color: '#000000',
+      color: 'var(--text-negative-primary)',
       width: '100%',
       padding: theme.spacing(0.5),
       borderRadius: 0,

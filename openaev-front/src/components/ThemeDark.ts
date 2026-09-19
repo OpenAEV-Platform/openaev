@@ -585,7 +585,7 @@ const ThemeDark = (
         root: {
           'color': text_color,
           // Shrink = when at the top of the input in small size.
-          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#AFB0B6' },
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: 'var(--text-default-secondary)' },
         },
       },
     },
@@ -805,7 +805,7 @@ const ThemeDark = (
       styleOverrides: {
         root: {
           // Shrink = when at the top of the input in small size.
-          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#AFB0B6' },
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: 'var(--text-default-secondary)' },
           '& .MuiOutlinedInput-root': {
             // the only way for now to know if we should apply the paper color or not
             'backgroundColor': paper === THEME_DARK_DEFAULT_PAPER
