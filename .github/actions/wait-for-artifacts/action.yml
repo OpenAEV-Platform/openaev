@@ -14,10 +14,20 @@ inputs:
     description: "Maximum time to wait for all artifacts"
     required: false
     default: "900"
-  poll-interval-seconds:
-    description: "Interval between artifact and producer checks"
+  initial-delay-seconds:
+    description: >
+      Quiet period before the first poll. Producers have never delivered in under 50s on this
+      pipeline, so polling earlier only burns API quota.
     required: false
-    default: "15"
+    default: "45"
+  poll-min-seconds:
+    description: "Lower bound of the randomised interval between polls"
+    required: false
+    default: "10"
+  poll-max-seconds:
+    description: "Upper bound of the randomised interval between polls"
+    required: false
+    default: "20"
 
 runs:
   using: composite
@@ -28,7 +38,9 @@ runs:
         ARTIFACT_NAMES: ${{ inputs.artifact-names }}
         PRODUCER_JOB_NAMES: ${{ inputs.producer-job-names }}
         WAIT_SECONDS: ${{ inputs.wait-seconds }}
-        POLL_INTERVAL_SECONDS: ${{ inputs.poll-interval-seconds }}
+        INITIAL_DELAY_SECONDS: ${{ inputs.initial-delay-seconds }}
+        POLL_MIN_SECONDS: ${{ inputs.poll-min-seconds }}
+        POLL_MAX_SECONDS: ${{ inputs.poll-max-seconds }}
       run: |
         set -euo pipefail
 
@@ -41,7 +53,7 @@ runs:
           echo "artifact-names and producer-job-names must not be empty" >&2
           exit 1
         fi
-        for value_name in WAIT_SECONDS POLL_INTERVAL_SECONDS; do
+        for value_name in WAIT_SECONDS POLL_MIN_SECONDS POLL_MAX_SECONDS; do
           value="${!value_name}"
           if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -eq 0 ]; then
             input_name=$(printf '%s' "${value_name,,}" | tr '_' '-')
@@ -49,6 +61,15 @@ runs:
             exit 1
           fi
         done
+        if ! [[ "$INITIAL_DELAY_SECONDS" =~ ^[0-9]+$ ]]; then
+          echo "initial-delay-seconds must be a non-negative integer" >&2
+          exit 1
+        fi
+        if [ "$POLL_MAX_SECONDS" -lt "$POLL_MIN_SECONDS" ]; then
+          echo "poll-max-seconds must not be lower than poll-min-seconds" >&2
+          exit 1
+        fi
+        JITTER_SPAN=$((POLL_MAX_SECONDS - POLL_MIN_SECONDS + 1))
 
         required_artifacts_ready() {
           local artifact names="$1"
@@ -78,6 +99,21 @@ runs:
         DEADLINE=$((SECONDS + WAIT_SECONDS))
         echo "Waiting for workflow artifacts: ${ARTIFACTS[*]}"
 
+        # Every consumer job polls the same run, so an immediate synchronised poll storm is what
+        # pushed the artifact endpoints into 403s. Hold past the point where an artifact could
+        # plausibly exist, then stagger the first request.
+        if [ "$INITIAL_DELAY_SECONDS" -gt 0 ]; then
+          FIRST_POLL=$((INITIAL_DELAY_SECONDS + RANDOM % JITTER_SPAN))
+          REMAINING=$((DEADLINE - SECONDS))
+          if [ "$FIRST_POLL" -gt "$REMAINING" ]; then
+            FIRST_POLL=$REMAINING
+          fi
+          if [ "$FIRST_POLL" -gt 0 ]; then
+            echo "Holding ${FIRST_POLL}s before the first poll"
+            sleep "$FIRST_POLL"
+          fi
+        fi
+
         while true; do
           REMAINING=$((DEADLINE - SECONDS))
           if [ "$REMAINING" -le 0 ]; then
@@ -106,6 +142,9 @@ runs:
             echo "Timed out after ${WAIT_SECONDS}s waiting for artifacts: ${ARTIFACTS[*]}" >&2
             exit 1
           fi
-          SLEEP_SECONDS=$((REMAINING < POLL_INTERVAL_SECONDS ? REMAINING : POLL_INTERVAL_SECONDS))
+          SLEEP_SECONDS=$((POLL_MIN_SECONDS + RANDOM % JITTER_SPAN))
+          if [ "$REMAINING" -lt "$SLEEP_SECONDS" ]; then
+            SLEEP_SECONDS=$REMAINING
+          fi
           sleep "$SLEEP_SECONDS"
         done

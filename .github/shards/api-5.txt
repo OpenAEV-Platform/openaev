@@ -1,5 +1,4 @@
 io/openaev/api/attack_pattern/**/*Test.java
-io/openaev/config/*Test.java
 io/openaev/config/tls/**/*Test.java
 io/openaev/driver/**/*Test.java
 io/openaev/importer/**/*Test.java

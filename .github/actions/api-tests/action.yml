@@ -52,6 +52,10 @@ inputs:
       per-class activation needs a context customizer and is tracked separately.
     required: false
     default: ""
+  no-cache:
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -67,7 +71,16 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: maven
+
+    - name: Restore API test Maven dependencies
+      id: maven-cache
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Wait for compiled artifacts
       uses: ./.github/actions/wait-for-artifacts
@@ -86,13 +99,13 @@ runs:
         rm -rf ~/.m2/repository/io/openaev/
 
     - name: Download backend-compiled artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
 
     - name: Download api-build-output artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: api-build-output
         path: openaev-api/target
@@ -196,6 +209,7 @@ runs:
           # Excludes are derived from the shard files, so they can never drift
           # out of sync and silently drop a package from the run.
           cat "$SHARD_DIR"/api-*.txt > /tmp/surefire-excludes.txt
+          printf '%s\n' '**/*$*' >> /tmp/surefire-excludes.txt
           echo "surefire_arg=-Dsurefire.excludesFile=/tmp/surefire-excludes.txt" >> "$GITHUB_OUTPUT"
           echo "🔄 Catch-all shard: everything not claimed by $SHARD_DIR/api-*.txt"
           cat /tmp/surefire-excludes.txt
@@ -215,6 +229,7 @@ runs:
           ARGS="-Dsurefire.includesFile=/tmp/surefire-includes.txt"
           if [ -n "$SHARD_EXCLUDES" ]; then
             echo "$SHARD_EXCLUDES" > /tmp/surefire-excludes.txt
+            printf '%s\n' '**/*$*' >> /tmp/surefire-excludes.txt
             ARGS="$ARGS -Dsurefire.excludesFile=/tmp/surefire-excludes.txt"
             echo "📋 Include patterns:"
             cat /tmp/surefire-includes.txt
@@ -272,16 +287,25 @@ runs:
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
       shell: bash
-      # Run the 'test' lifecycle phase so that JaCoCo's prepare-agent
-      # execution (bound to 'initialize' in pom.xml) fires through the
-      # normal lifecycle and properly sets the argLine property BEFORE
-      # Surefire reads it.  Compilation is skipped because the classes
-      # are already downloaded from the backend-compile job.
-      run: >-
-        mvn -B -ntp -pl openaev-api test
-        -Dmaven.compiler.skip=true
-        ${{ steps.suite.outputs.surefire_arg }}
-        ${{ steps.tenant.outputs.args }}
+      # Initialize JaCoCo, then run the existing test/report executions directly.
+      # The test lifecycle would recompile the downloaded classes and test classes;
+      # maven.compiler.skip is not a supported compiler-plugin property.
+      run: |
+        mvn -B -ntp -pl openaev-api \
+          initialize surefire:test@default-test jacoco:report@report \
+          ${{ steps.suite.outputs.surefire_arg }} \
+          ${{ steps.tenant.outputs.args }}
+
+    # Only main writes, and only from one shard: every shard resolves the same dependency
+    # set, so the other nine uploads would be ~800 MB each and rejected as duplicates.
+    # Saved even on test failure, since the dependencies are already resolved by then.
+    - name: Save API test Maven dependencies
+      if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+
     - name: Diagnose surefire dump files (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
       shell: bash

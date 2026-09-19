@@ -27,7 +27,7 @@ jobs:
       # without changing anything on main. Both turn the fail-closed detector on.
       # Reports, not gates: continue_on_error keeps a red one from failing the workflow.
       # Retire both when the migration is done; shadow-prod may then become a core gate.
-      # ── API Tests: 7 balanced shards + catch-all, × Elasticsearch and OpenSearch ──
+      # ── API Tests: 9 balanced shards + catch-all, × Elasticsearch and OpenSearch ──
       # Patterns live in .github/shards/api-<n>.txt.
       api-matrix: >
         [
@@ -38,7 +38,9 @@ jobs:
           {"shard":"5","shard_name":"5","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"6","shard_name":"6","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"7","shard_name":"7","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"8","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""},
+          {"shard":"8","shard_name":"8","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"9","shard_name":"9","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"10","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""},
           {"shard":"1","shard_name":"1-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"2","shard_name":"2-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"3","shard_name":"3-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
@@ -46,7 +48,9 @@ jobs:
           {"shard":"5","shard_name":"5-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"6","shard_name":"6-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
           {"shard":"7","shard_name":"7-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
-          {"shard":"8","shard_name":"remaining-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""},
+          {"shard":"8","shard_name":"8-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
+          {"shard":"9","shard_name":"9-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"shardfile","excludes":""},
+          {"shard":"10","shard_name":"remaining-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""},
 
           {"shard":"1","shard_name":"1-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
           {"shard":"2","shard_name":"2-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
@@ -55,7 +59,9 @@ jobs:
           {"shard":"5","shard_name":"5-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
           {"shard":"6","shard_name":"6-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
           {"shard":"7","shard_name":"7-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
-          {"shard":"8","shard_name":"remaining-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"catchall","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"8","shard_name":"8-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"9","shard_name":"9-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"shardfile","excludes":"","tenant_mode":"production","continue_on_error":true},
+          {"shard":"10","shard_name":"remaining-shadow-prod","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-prod","includes":"catchall","excludes":"","tenant_mode":"production","continue_on_error":true},
           {"shard":"1","shard_name":"1-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
           {"shard":"2","shard_name":"2-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
           {"shard":"3","shard_name":"3-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
@@ -63,7 +69,9 @@ jobs:
           {"shard":"5","shard_name":"5-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
           {"shard":"6","shard_name":"6-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
           {"shard":"7","shard_name":"7-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
-          {"shard":"8","shard_name":"remaining-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"catchall","excludes":"","tenant_mode":"all","continue_on_error":true}
+          {"shard":"8","shard_name":"8-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
+          {"shard":"9","shard_name":"9-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"shardfile","excludes":"","tenant_mode":"all","continue_on_error":true},
+          {"shard":"10","shard_name":"remaining-shadow-all","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"-shadow-all","includes":"catchall","excludes":"","tenant_mode":"all","continue_on_error":true}
         ]
       # ── E2E: OpenSearch (Chrome/WebKit/Chromium) + ES Firefox/Edge + expanded infra ──
       # artifact_suffix must be unique per cell: the report artifact is named
@@ -97,4 +105,7 @@ jobs:
           {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64-infra"}
         ]
       vulnerability-scan-fail-on-error: true
+      # Nightly is allowed to be slow, and it exercises browsers and image variants Core CI
+      # never touches. Caching here only evicts the entries PR runs depend on.
+      no-cache: true
     secrets: inherit

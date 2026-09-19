@@ -8,6 +8,10 @@ inputs:
     description: Whether to download the release-assets artifact
     required: false
     default: "false"
+  no-cache:
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
 
 outputs:
   jar-size:
@@ -22,20 +26,30 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: maven
+
+    # Read-only: backend-compile is the sole writer of maven-v1.
+    - name: Restore Maven dependencies
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-v1-${{ runner.os }}-${{ runner.arch }}-
+
     - name: Download frontend build artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: frontend-build
         path: openaev-front/builder/prod/build
     - name: Download compiled Maven artifacts
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
     - name: Download release assets (agents, implants, catalog)
       if: ${{ inputs.download-release-assets == 'true' }}
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: release-assets
         path: openaev-api/src/main/resources

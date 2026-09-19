@@ -22,6 +22,14 @@ on:
         type: boolean
         required: false
         default: false
+      no-cache:
+        description: >
+          Bypass every Maven, Yarn, Playwright, buildx and scanner cache, for both reads and
+          writes. Set by Nightly, which may run slow and whose entries would only evict the
+          ones Core CI PRs read.
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -56,6 +64,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-compile
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   frontend-build:
     name: "🎨 Frontend Build"
@@ -64,6 +74,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   prepare-bundled-assets:
     name: "📦 Prepare Bundled Assets"
@@ -88,6 +100,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/spotless-check
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
@@ -96,6 +110,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-quality
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # API Tests — matrix passed from caller
@@ -133,6 +149,7 @@ jobs:
           search-engine: ${{ matrix.search_engine }}
           artifact-suffix: ${{ matrix.artifact_suffix }}
           tenant-mode: ${{ matrix.tenant_mode }}
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # E2E Tests — matrix passed from caller
@@ -176,6 +193,7 @@ jobs:
           includes: ${{ matrix.includes }}
           excludes: ${{ matrix.excludes }}
           artifact-suffix: ${{ matrix.artifact_suffix }}
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # API Types Check
@@ -205,6 +223,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/api-types-check
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # Coverage Merge & Upload
@@ -224,7 +244,16 @@ jobs:
         with:
           java-version: "21"
           distribution: temurin
-          cache: maven
+
+      # Read-only: backend-compile is the sole writer of maven-v1.
+      - name: Restore Maven dependencies
+        if: ${{ !inputs.no-cache }}
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Download compiled Maven artifacts
         if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
@@ -257,19 +286,23 @@ jobs:
           echo "📦 Merging JaCoCo exec files from all shards..."
           EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
           if [ -z "$EXEC_FILES" ]; then
-            echo "⚠️ No JaCoCo exec files found"
-            exit 1
+            # Expected when a shard failed before uploading: report no coverage rather than
+            # turning one red shard into a second red job.
+            echo "⚠️ No JaCoCo exec files found — skipping coverage report"
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           SHARD_COUNT=$(echo "$EXEC_FILES" | wc -l)
           cat jacoco-exec/jacoco-exec-shard-*/jacoco.exec > openaev-api/target/jacoco.exec
+          echo "merged=true" >> "$GITHUB_OUTPUT"
           echo "✅ Merged $SHARD_COUNT shard(s)"
 
       - name: Coverage report & threshold check
-        if: steps.jacoco-merge.outcome == 'success'
+        if: steps.jacoco-merge.outputs.merged == 'true'
         run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage threshold check ⚠️"
 
       - name: Upload API coverage
-        if: ${{ !cancelled() && steps.jacoco-merge.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.jacoco-merge.outputs.merged == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-api
@@ -322,6 +355,7 @@ jobs:
       - uses: ./.github/actions/backend-package
         with:
           download-release-assets: ${{ needs.prepare-bundled-assets.result == 'success' }}
+          no-cache: ${{ inputs.no-cache }}
 
   backend-package-musl:
     name: "📦 Backend Package (musl)"
@@ -368,6 +402,8 @@ jobs:
             jar-path: /openaev-api.jar
             cache-scope: docker-standard
             tags: openaev:ci-${{ github.run_id }}
+          # ubi9 is nightly-only for E2E, so its layers never speed up a PR run.
+          # Caching them cost ~3 GB of the 10 GB quota and evicted caches PRs do read.
           - variant: ubi9
             arch: amd64
             runner: ubuntu-latest
@@ -375,7 +411,7 @@ jobs:
             dockerfile: ./Dockerfile_ubi9
             artifact-name: openaev-ubi9-image
             jar-path: /opt/openaev/openaev-api.jar
-            cache-scope: docker-ubi9
+            cache-scope: ""
             tags: openaev-ubi9:ci-${{ github.run_id }}
           - variant: ubi9
             arch: arm64
@@ -384,7 +420,7 @@ jobs:
             dockerfile: ./Dockerfile_ubi9
             artifact-name: openaev-ubi9-image
             jar-path: /opt/openaev/openaev-api.jar
-            cache-scope: docker-ubi9
+            cache-scope: ""
             tags: openaev-ubi9:ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7
@@ -400,6 +436,7 @@ jobs:
           jar-path: ${{ matrix.jar-path }}
           cache-scope: ${{ matrix.cache-scope }}
           tags: ${{ matrix.tags }}
+          no-cache: ${{ inputs.no-cache }}
 
   # No `needs: [docker-build]`: that waits for job completion, i.e. ~2.5 min of
   # gzip/validate/upload this job never consumes. Build jobs publish tiny registry
@@ -445,6 +482,7 @@ jobs:
       - uses: ./.github/actions/container-vulnerability-scan
         with:
           fail-on-error: ${{ inputs.vulnerability-scan-fail-on-error }}
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate

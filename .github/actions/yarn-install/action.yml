@@ -1,0 +1,54 @@
+name: Yarn Install
+description: >
+  Set up Node and Corepack, restore the Yarn cache, and run `yarn install --immutable`
+  with exponential backoff and full jitter between attempts.
+
+inputs:
+  no-cache:
+    description: "true bypasses the Yarn cache; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js 24
+      uses: actions/setup-node@v7
+      with:
+        node-version: "24.20.0"
+
+    - name: Install corepack
+      run: npm install -g corepack
+      shell: bash
+
+    - name: Get Yarn cache directory
+      id: yarn-cache-dir
+      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+      shell: bash
+      working-directory: openaev-front
+
+    # runner.arch is part of the key because the cache holds platform-specific packages:
+    # one key shared across amd64 and arm64 restores a hit that still refetches native deps.
+    - name: Restore Yarn cache
+      id: yarn-cache
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ steps.yarn-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-${{ runner.arch }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-yarn-
+
+    - name: Install dependencies
+      run: sh ../.github/scripts/yarn-install-retry.sh --immutable
+      shell: bash
+      working-directory: openaev-front
+
+    # Only main writes: a PR-scoped cache is readable solely by that same PR, so it burns
+    # the shared 10 GB quota without warming anything else.
+    - name: Save Yarn cache
+      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.yarn-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ steps.yarn-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-${{ runner.arch }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
