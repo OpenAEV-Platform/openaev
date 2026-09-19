@@ -52,24 +52,28 @@ const headerStyles: {
     width: '30%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   article_author: {
     float: 'left',
     width: '20%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   article_channel: {
     float: 'left',
     width: '25%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   article_is_scheduled: {
     float: 'left',
     width: '25%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
 };
 

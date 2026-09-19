@@ -50,30 +50,35 @@ const inlineStylesHeaders: Record<string, CSSProperties> = {
     width: '12%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   user_email: {
     float: 'left',
     width: '30%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   user_options: {
     float: 'left',
     width: '15%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   user_organization: {
     float: 'left',
     width: '18%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   user_tags: {
     float: 'left',
     width: '25%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
 
   },
 };

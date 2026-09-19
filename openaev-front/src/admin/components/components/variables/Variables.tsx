@@ -37,18 +37,21 @@ const headerStyles: {
     width: '20%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   variable_description: {
     float: 'left',
     width: '40%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   variable_value: {
     float: 'left',
     width: '40%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
 };
 

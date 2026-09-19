@@ -52,15 +52,18 @@ const headerStyles: Record<string, CSSProperties> = {
     width: '15%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   channel_name: {
     width: '25%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   channel_description: {
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
 };
 

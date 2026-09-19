@@ -65,18 +65,21 @@ const inlineStylesHeaders: Record<string, CSSProperties> = {
     width: '35%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   document_type: {
     float: 'left',
     width: '20%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   document_tags: {
     float: 'left',
     width: '30%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
 };
 

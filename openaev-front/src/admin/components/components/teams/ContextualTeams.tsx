@@ -45,30 +45,35 @@ const headerStylesContextual: Record<string, CSSProperties> = {
     width: '35%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   team_users_number: {
     float: 'left',
     width: '10%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   team_users_enabled_number: {
     float: 'left',
     width: '10%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   team_tags: {
     float: 'left',
     width: '29%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   team_contextual: {
     float: 'left',
     width: '8%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
 };
 
