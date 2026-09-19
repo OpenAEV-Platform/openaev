@@ -7,9 +7,7 @@ io/openaev/datapack/**/*Test.java
 io/openaev/killChainPhase/**/*Test.java
 io/openaev/output_processor/**/*Test.java
 io/openaev/rest/asset_group/**/*Test.java
-io/openaev/rest/executor/**/*Test.java
-io/openaev/rest/kill_chain_phase/**/*Test.java
-io/openaev/rest/tag/**/*Test.java
+io/openaev/rest/inject/**/*Test.java
 io/openaev/rest/vulnerability/**/*Test.java
 io/openaev/service/account/**/*Test.java
 io/openaev/service/attackpath/**/*Test.java

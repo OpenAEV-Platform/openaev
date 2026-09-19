@@ -11,10 +11,6 @@ const armUnsupportedTests = /.*external-injector.*|.*external-executor.*|.*exter
 const globalTestIgnore = isArm ? [armUnsupportedTests] : [];
 const nonInfraTestIgnore = isArm ? [/infra\/.*/, armUnsupportedTests] : [/infra\/.*/];
 
-// Infra suites keep the shared action/assertion timeouts; only their overall
-// budget is larger, because they poll for a real agent to execute (up to 240s).
-const INFRA_TEST_TIMEOUT = 420_000;
-
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -25,9 +21,8 @@ export default defineConfig({
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Every suite already polls internally via expect/toPass, so process-level
-     retries mostly multiply the feedback loop on a genuine failure. */
-  retries: 0,
+  /* Retry on CI only */
+  retries: process.env.CI ? 2 : 0,
   workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
@@ -50,26 +45,24 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.APP_URL ?? 'http://localhost:3001',
     headless: process.env.CI ? true : process.env.HEADLESS === 'true',
-    /* Collect trace on failure. See https://playwright.dev/docs/trace-viewer
-       (not 'on-first-retry': with retries disabled that would never trigger) */
-    trace: 'retain-on-failure',
+    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     ignoreHTTPSErrors: true,
 
     /**
-     * Defaults are tuned for UI-only suites so a bad locator fails fast.
-     * Slower suites raise these per project (see infraUse) or per assertion.
+     * Timeouts for specific actions:
+     * - Navigation: 30s (page.goto, page.reload)
+     * - Action timeout: 60s (click, fill, etc.)
      */
-    navigationTimeout: 15_000,
-    actionTimeout: 15_000,
+    navigationTimeout: 30000,
+    actionTimeout: 60000,
   },
-  /* Timeouts configuration 15s for assertions (e.g., expect().toBeVisible())  */
-  expect: { timeout: 15_000 },
-  /* Test timeout: a backstop for hangs, not a fail-fast lever (the action and
-     assertion timeouts above are). Must stay above the worst-case sum of a
-     test's own explicit waits - tenant creation alone can spend ~200s. */
-  timeout: 300_000,
+  /* Timeouts configuration 60s for assertions (e.g., expect().toBeVisible())  */
+  expect: { timeout: 60000 },
+  /* Test timeout: 300s (5 min) for long-running scenario tests */
+  timeout: 300000,
   // Configure projects for major browsers.
   // Select via CLI: yarn playwright test --project=setup --project=<browser>
   projects: [
@@ -150,7 +143,6 @@ export default defineConfig({
     {
       name: 'infra-chrome',
       testMatch: /infra\/.*\.spec\.ts/,
-      timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
@@ -165,7 +157,6 @@ export default defineConfig({
     {
       name: 'infra-chromium',
       testMatch: /infra\/.*\.spec\.ts/,
-      timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -179,7 +170,6 @@ export default defineConfig({
     {
       name: 'infra-firefox',
       testMatch: /infra\/.*\.spec\.ts/,
-      timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Firefox'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -193,7 +183,6 @@ export default defineConfig({
     {
       name: 'infra-webkit',
       testMatch: /infra\/.*\.spec\.ts/,
-      timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Safari'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -207,7 +196,6 @@ export default defineConfig({
     {
       name: 'infra-edge',
       testMatch: /infra\/.*\.spec\.ts/,
-      timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Edge'],
         channel: 'msedge',

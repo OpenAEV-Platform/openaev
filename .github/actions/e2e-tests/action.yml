@@ -51,10 +51,6 @@ inputs:
     description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
     required: false
     default: ""
-  no-cache:
-    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
-    required: false
-    default: "false"
 
 runs:
   using: composite
@@ -65,10 +61,29 @@ runs:
         search-engine: ${{ inputs.search-engine }}
         search-engine-image: ${{ inputs.search-engine-image }}
 
-    - name: Install frontend dependencies
-      uses: ./.github/actions/yarn-install
+    - name: Set up Node.js 24
+      uses: actions/setup-node@v7
       with:
-        no-cache: ${{ inputs.no-cache }}
+        node-version: "24.20.0"
+    - name: Install corepack
+      run: npm install -g corepack
+      shell: bash
+    - name: Get Yarn cache directory
+      id: yarn-cache-dir
+      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+      shell: bash
+      working-directory: openaev-front
+    - name: Cache Yarn dependencies
+      uses: actions/cache@v6
+      with:
+        path: ${{ steps.yarn-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-yarn-
+    - name: Install frontend dependencies
+      run: yarn install --immutable
+      shell: bash
+      working-directory: openaev-front
     - name: Resolve Playwright version
       id: pw-version
       run: |
@@ -77,10 +92,9 @@ runs:
         echo "Playwright $VERSION"
       shell: bash
       working-directory: openaev-front
-    - name: Restore Playwright browsers
+    - name: Cache Playwright browsers
       id: playwright-cache
-      if: ${{ inputs.no-cache != 'true' }}
-      uses: actions/cache/restore@v6
+      uses: actions/cache@v6
       with:
         path: ~/.cache/ms-playwright
         # Browser builds track the Playwright version, not the whole lockfile, so an
@@ -88,49 +102,22 @@ runs:
         key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
         restore-keys: |
           playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-
-    # `playwright install --with-deps` shells out to apt-get, which fails the whole job when an
-    # Ubuntu mirror is mid-sync ("File has unexpected size"). The browser download is what we
-    # actually need; system deps are already present on the GitHub runner images, so they are
-    # refreshed on a best-effort basis behind an apt retry.
-    - name: Install Playwright system dependencies
-      run: |
-        BROWSER="${{ inputs.browser }}"
-        [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
-        for attempt in 1 2 3; do
-          if sudo apt-get update; then
-            break
-          fi
-          echo "⚠️ apt-get update failed (attempt $attempt/3)"
-          sleep $((attempt * 10))
-        done
-        yarn playwright install-deps chromium $BROWSER \
-          || echo "⚠️ System dependency refresh failed; continuing with the runner image's own libraries"
-      shell: bash
-      working-directory: openaev-front
     - name: Install Playwright browsers (${{ inputs.browser }} + chromium for setup)
       if: steps.playwright-cache.outputs.cache-hit != 'true'
       run: |
         BROWSER="${{ inputs.browser }}"
         [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
-        for attempt in 1 2 3; do
-          if yarn playwright install chromium $BROWSER; then
-            exit 0
-          fi
-          echo "⚠️ Browser download failed (attempt $attempt/3)"
-          sleep $((attempt * 10))
-        done
-        echo "❌ Could not download Playwright browsers after 3 attempts"
-        exit 1
+        yarn playwright install --with-deps chromium $BROWSER
       shell: bash
       working-directory: openaev-front
-
-    # Only main writes; PR-scoped caches are readable solely by that PR.
-    - name: Save Playwright browsers
-      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.playwright-cache.outputs.cache-hit != 'true' }}
-      uses: actions/cache/save@v6
-      with:
-        path: ~/.cache/ms-playwright
-        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
+    - name: Install Playwright system dependencies (cache hit)
+      if: steps.playwright-cache.outputs.cache-hit == 'true'
+      run: |
+        BROWSER="${{ inputs.browser }}"
+        [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
+        yarn playwright install-deps chromium $BROWSER
+      shell: bash
+      working-directory: openaev-front
 
     - name: Obtain Docker image
       id: image-source

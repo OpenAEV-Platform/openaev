@@ -540,31 +540,29 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   @DisplayName("Injector techniques resolve in one batched query, not one per injector")
   void injector_techniques_resolve_in_a_single_query() {
     String externalId = "C-INJ-BATCH";
-    seedContractWithPattern(externalId, "T1110");
-    Statistics stats =
-        entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
-    stats.setStatisticsEnabled(true);
-
-    seedInjectorRun("INJ-0", "t-0", "T-0", externalId, "openaev_nmap", at(20));
-    entityManager.flush();
-    stats.clear();
-    service.buildGraph(SIM);
-    long few = stats.getPrepareStatementCount();
-
+    injectorContractComposer
+        .forInjectorContract(
+            InjectorContractFixture.createDefaultInjectorContractWithExternalId(externalId))
+        .withAttackPattern(
+            attackPatternComposer.forAttackPattern(
+                AttackPatternFixture.createAttackPatternsWithExternalId("T1110")))
+        .persist();
     // Many injector nodes, all resolving their techniques: the batch must stay one query.
-    for (int i = 1; i < 20; i++) {
+    for (int i = 0; i < 20; i++) {
       seedInjectorRun("INJ-" + i, "t-" + i, "T-" + i, externalId, "openaev_nmap", at(20 + i));
     }
     entityManager.flush();
+
+    Statistics stats =
+        entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+    stats.setStatisticsEnabled(true);
     stats.clear();
     service.buildGraph(SIM);
-    long many = stats.getPrepareStatementCount();
 
-    // Asserting the invariant rather than a literal count: an extra constant read (such as the
-    // applyContractNames label resolution, #6647) is not an N+1 regression and must not break this.
-    assertThat(many)
-        .as("technique resolution must not scale queries with the injector count")
-        .isEqualTo(few);
+    // Two flat reads + the batched technique query + the contract-name resolution
+    // (applyContractNames), constant regardless of the execution count (all runs share one
+    // contract). Follow-up (#6647): applyContractNames could JOIN FETCH labels to save a read.
+    assertThat(stats.getPrepareStatementCount()).isEqualTo(5);
   }
 
   @Test
@@ -613,11 +611,10 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     service.buildGraph(SIM);
     long large = stats.getPrepareStatementCount();
 
-    // Asserting the invariant rather than a literal count: an extra constant read is not a
-    // graph-size scaling regression and must not break this.
-    assertThat(large)
-        .as("the read path must not scale queries with the graph size")
-        .isEqualTo(small);
+    // Two flat reads + the batched contract-name resolution; still constant regardless of graph
+    // size.
+    assertThat(small).isEqualTo(3);
+    assertThat(large).isEqualTo(3);
   }
 
   @Test

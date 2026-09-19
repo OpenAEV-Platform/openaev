@@ -1,12 +1,6 @@
 name: Backend Compile
 description: Compile all Maven modules and upload compiled artifacts
 
-inputs:
-  no-cache:
-    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
-    required: false
-    default: "false"
-
 runs:
   using: composite
   steps:
@@ -15,20 +9,7 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-
-    # Sole writer of the shared maven-v1 cache: this job resolves the widest dependency set,
-    # so spotless/package/codecov restore it read-only instead of racing on one key with
-    # narrower contents. setup-java's built-in cache is not used because it always saves.
-    - name: Restore Maven dependencies
-      id: maven-cache
-      if: ${{ inputs.no-cache != 'true' }}
-      uses: actions/cache/restore@v6
-      with:
-        path: ~/.m2/repository
-        key: maven-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          maven-v1-${{ runner.os }}-${{ runner.arch }}-
-
+        cache: maven
     - name: Compile and install all modules (skip tests)
       run: |
         for attempt in 1 2; do
@@ -48,18 +29,6 @@ runs:
         echo "❌ Build failed after 2 attempts"
         exit 1
       shell: bash
-
-    # io/openaev is excluded: those are this run's own modules, rebuilt every time, and a
-    # stale copy restored into a later run is exactly what api-tests has to rm -rf.
-    - name: Save Maven dependencies
-      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.maven-cache.outputs.cache-hit != 'true' }}
-      uses: actions/cache/save@v6
-      with:
-        path: |
-          ~/.m2/repository
-          !~/.m2/repository/io/openaev
-        key: maven-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
-
     - name: Upload compiled Maven artifacts
       uses: actions/upload-artifact@v7
       with:

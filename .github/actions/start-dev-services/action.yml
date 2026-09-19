@@ -30,40 +30,6 @@ runs:
         RABBITMQ_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images openaev-dev-rabbitmq)
         MINIO_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images openaev-test-minio)
 
-        SEARCH_IMAGE="$SEARCH_ENGINE_IMAGE"
-        if [ -z "$SEARCH_IMAGE" ]; then
-          SEARCH_SERVICE=$([ "$SEARCH_ENGINE" = "opensearch" ] && echo "openaev-dev-opensearch" || echo "openaev-dev-elasticsearch")
-          SEARCH_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images "$SEARCH_SERVICE")
-        fi
-
-        # Pulling up front: the implicit pull inside `docker run` has no retry, so a registry
-        # blip (docker.elastic.co timeouts, auth.docker.io connection resets) killed the job
-        # with a bare exit 125.
-        pull_with_retry() {
-          local image="$1" attempt delay
-          for attempt in 1 2 3 4 5; do
-            if docker pull --quiet "$image"; then
-              return 0
-            fi
-            if [ "$attempt" -eq 5 ]; then
-              break
-            fi
-            # Exponential backoff capped at 60s, jittered so parallel jobs stop retrying in lockstep.
-            delay=$((10 * 2 ** (attempt - 1)))
-            if [ "$delay" -gt 60 ]; then
-              delay=60
-            fi
-            delay=$((delay + RANDOM % 11))
-            echo "⚠️ Pull of '$image' failed (attempt $attempt/5) — retrying in ${delay}s"
-            sleep "$delay"
-          done
-          echo "❌ Could not pull '$image' after 5 attempts"
-          return 1
-        }
-        for image in "$POSTGRES_IMAGE" "$SEARCH_IMAGE" "$RABBITMQ_IMAGE" "$MINIO_IMAGE"; do
-          pull_with_retry "$image"
-        done
-
         docker run -d --name pgsql \
           -p 5432:5432 \
           -e POSTGRES_USER=openaev \
@@ -71,6 +37,11 @@ runs:
           -e POSTGRES_DB=openaev \
           "$POSTGRES_IMAGE" \
           -c max_connections=1000
+        SEARCH_IMAGE="$SEARCH_ENGINE_IMAGE"
+        if [ -z "$SEARCH_IMAGE" ]; then
+          SEARCH_SERVICE=$([ "$SEARCH_ENGINE" = "opensearch" ] && echo "openaev-dev-opensearch" || echo "openaev-dev-elasticsearch")
+          SEARCH_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images "$SEARCH_SERVICE")
+        fi
         if [ "$SEARCH_ENGINE" = "opensearch" ]; then
           docker run -d --name search-engine \
             -p 9200:9200 \

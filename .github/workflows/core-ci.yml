@@ -21,7 +21,7 @@ jobs:
   pipeline:
     uses: ./.github/workflows/_ci-pipeline.yml
     with:
-      # ── API Tests: 9 balanced shards + catch-all ──
+      # ── API Tests: 7 balanced shards + catch-all ──
       # Patterns live in .github/shards/api-<n>.txt, balanced from measured
       # per-class runtimes; "remaining" runs whatever no shard file claims, so a
       # new package is never silently untested.
@@ -34,32 +34,30 @@ jobs:
           {"shard":"5","shard_name":"5","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"6","shard_name":"6","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
           {"shard":"7","shard_name":"7","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"8","shard_name":"8","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"9","shard_name":"9","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"10","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""}
+          {"shard":"8","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""}
         ]
-      # ── E2E Tests: standard image only, portable UI + AMD64 integrations + infra ──
+      # ── E2E Tests: standard image only, chrome/chromium × 3 shards + infra ──
       # ubi9 and webkit are nightly-only: they exercise the same JAR and were
-      # doubling the critical path. Portable UI splits into arsenals plus a
-      # catch-all, including portable multitenant specs. External integrations
-      # have a dedicated amd64-only shard.
+      # doubling the critical path. Shards mirror the API split — two explicit
+      # buckets plus a catch-all that picks up any newly added spec.
       #
-      # PRs partition every suite once across 6 Chromium jobs on amd64 runners.
-      # Push to main/tags keeps both arches for supported suites; infra-chaining is amd64-only.
+      # PRs run the arm64/chromium half only (6 cells); push to main/tags runs
+      # both arches (11 cells). infra-chaining is amd64-only: it is excluded on arm64.
       e2e-matrix: >-
         ${{ github.event_name == 'pull_request' && '[
-        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-amd64-arsenals"},
-        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"external-integrations","includes":"tests_e2e/tests/multitenant/catalog-external-","excludes":"","artifact_suffix":"-std-amd64-external-integrations"},
-        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-amd64-remaining"},
-        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts$","excludes":"","artifact_suffix":"-std-amd64-infra-agent"},
-        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-remaining","includes":"catchall","excludes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts$\ntests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts$","artifact_suffix":"-std-amd64-infra-remaining"},
-        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts$","excludes":"","artifact_suffix":"-std-amd64-infra-multitenant"}
+        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-arm64-arsenals"},
+        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"multitenant","includes":"tests_e2e/tests/multitenant","excludes":"","artifact_suffix":"-std-arm64-multitenant"},
+        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant\ntests_e2e/tests/infra","artifact_suffix":"-std-arm64-remaining"},
+        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-arm64-infra-agent"},
+        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-arm64-infra-multitenant"},
+        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-chaining","includes":"tests_e2e/tests/infra/infra-chaining\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-chaining"}
         ]' || '[
         {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-amd64-arsenals"},
-        {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"external-integrations","includes":"tests_e2e/tests/multitenant/catalog-external-","excludes":"","artifact_suffix":"-std-amd64-external-integrations"},
-        {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-amd64-remaining"},
+        {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"multitenant","includes":"tests_e2e/tests/multitenant","excludes":"","artifact_suffix":"-std-amd64-multitenant"},
+        {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant\ntests_e2e/tests/infra","artifact_suffix":"-std-amd64-remaining"},
         {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-arm64-arsenals"},
-        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-arm64-remaining"},
+        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"multitenant","includes":"tests_e2e/tests/multitenant","excludes":"","artifact_suffix":"-std-arm64-multitenant"},
+        {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant\ntests_e2e/tests/infra","artifact_suffix":"-std-arm64-remaining"},
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-agent"},
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-chaining","includes":"tests_e2e/tests/infra/infra-chaining\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-chaining"},
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-multitenant"},

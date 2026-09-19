@@ -1,9 +1,0 @@
-io/openaev/api/credentials/**/*Test.java
-io/openaev/api/marking_definition/**/*Test.java
-io/openaev/api/notification/**/*Test.java
-io/openaev/api/platform/**/*Test.java
-io/openaev/api/xtmhub/**/*Test.java
-io/openaev/config/*Test.java
-io/openaev/rest/atomic_testing/**/*Test.java
-io/openaev/rest/channel/**/*Test.java
-io/openaev/service/catalog_connectors/**/*Test.java
