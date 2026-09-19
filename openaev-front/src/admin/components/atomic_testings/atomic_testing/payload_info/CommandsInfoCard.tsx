@@ -24,7 +24,7 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
   const theme = useTheme();
 
   const headerCellSx = {
-    fontWeight: 700,
+    fontWeight: 400,
     textTransform: 'uppercase',
     fontSize: 10.5,
     color: 'text.secondary',

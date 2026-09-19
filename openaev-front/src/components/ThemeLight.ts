@@ -747,6 +747,7 @@ const ThemeLight = (
         head: ({ theme }) => ({
           borderBottom: '1px solid rgba(0, 0, 0, 0.15)',
           color: theme.palette.text.secondary,
+          fontWeight: 400,
         }),
         body: {
           borderTop: '1px solid rgba(0, 0, 0, 0.15)',

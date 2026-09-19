@@ -741,6 +741,7 @@ const ThemeDark = (
         head: ({ theme }) => ({
           borderBottom: '1px solid rgba(255, 255, 255, 0.15)',
           color: theme.palette.text.secondary,
+          fontWeight: 400,
         }),
         body: {
           borderTop: '1px solid rgba(255, 255, 255, 0.15)',

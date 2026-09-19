@@ -68,30 +68,30 @@ const headerStyles: Record<string, CSSProperties> = {
   challenge_name: {
     width: '25%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     color: 'var(--text-default-secondary)',
   },
   challenge_category: {
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     color: 'var(--text-default-secondary)',
   },
   challenge_score: {
     width: '10%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     color: 'var(--text-default-secondary)',
   },
   challenge_exercises: {
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     color: 'var(--text-default-secondary)',
   },
   challenge_tags: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     color: 'var(--text-default-secondary)',
   },
 };

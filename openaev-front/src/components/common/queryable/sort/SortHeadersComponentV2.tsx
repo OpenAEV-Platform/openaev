@@ -15,14 +15,16 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     cursor: 'pointer',
     alignItems: 'center',
-    fontWeight: '700',
+    // Regular weight: a column heading names its column, the values under it
+    // are what carries the emphasis.
+    fontWeight: 400,
     color: theme.palette.text.secondary,
   },
   headerItemText: {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    fontWeight: '700',
+    fontWeight: 400,
   },
   headerItem: { color: theme.palette.text.secondary },
 }));

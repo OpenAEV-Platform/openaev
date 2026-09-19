@@ -12,7 +12,7 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     height: 20,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: 400,
     cursor: 'pointer',
     paddingRight: 10,
     alignItems: 'center',
@@ -22,7 +22,7 @@ const useStyles = makeStyles()(theme => ({
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    fontWeight: '700',
+    fontWeight: 400,
   },
 }));
 
