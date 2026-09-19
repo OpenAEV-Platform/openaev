@@ -5,7 +5,7 @@ import { type FunctionComponent, useContext, useState } from 'react';
 import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { deletePlayer, updatePlayer } from '../../../../actions/users/User';
-import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type PopoverEntry, type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
@@ -21,6 +21,9 @@ import { type PlayerInputForm, type UserStore } from './Player';
 import PlayerForm from './PlayerForm';
 
 interface PlayerPopoverProps {
+  /** Placement, forwarded to the kebab: `icon` in a list row, `toggle` in a
+      detail header, where the controls are 36px. */
+  variant?: VariantButtonPopover;
   user: UserStore;
   teamId?: string;
   openEditOnInit?: boolean;
@@ -29,6 +32,7 @@ interface PlayerPopoverProps {
 }
 
 const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
+  variant = 'icon',
   user,
   teamId,
   openEditOnInit = false,
@@ -158,7 +162,7 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
 
   return (
     <div>
-      <ButtonPopover entries={entries} variant="icon" />
+      <ButtonPopover entries={entries} variant={variant} />
       <DialogDelete
         open={openDelete}
         handleClose={handleCloseDelete}

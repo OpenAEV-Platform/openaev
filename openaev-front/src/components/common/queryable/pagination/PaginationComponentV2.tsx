@@ -33,19 +33,20 @@ const useStyles = makeStyles<{ topPagination?: boolean }>()((theme, props) => ({
     flexShrink: 0,
   },
   topPagination: { display: 'block' },
-  // 16px between this row and the table under it. The list contributes 8px of
-  // its own top padding, so the row carries the other 8.
+  // 16px between this row and the list under it, measured box to box: the
+  // list's own top padding is inside its box and does not count towards the
+  // gap, so the whole 16 sits here.
   parameters: {
     display: props.topPagination ? 'block' : 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing(1),
+    marginBottom: theme.spacing(2),
   },
   parametersWithoutPagination: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing(1),
+    marginBottom: theme.spacing(2),
   },
   TTPMitreContainer: {
     padding: theme.spacing(2),

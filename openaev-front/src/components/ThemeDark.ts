@@ -715,7 +715,12 @@ const ThemeDark = (
     },
     MuiTableCell: {
       styleOverrides: {
-        head: { borderBottom: '1px solid rgba(255, 255, 255, 0.15)' },
+        // A column heading names its column: secondary ink, like every other
+        // heading of a surface.
+        head: ({ theme }) => ({
+          borderBottom: '1px solid rgba(255, 255, 255, 0.15)',
+          color: theme.palette.text.secondary,
+        }),
         body: {
           borderTop: '1px solid rgba(255, 255, 255, 0.15)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.15)',

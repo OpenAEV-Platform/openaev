@@ -22,15 +22,18 @@ const useStyles = makeStyles()(() => ({
     display: 'flex',
     alignItems: 'center',
   },
+  // Same 16px, box to box, as the V2 list.
   parameters: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   parametersWithoutPagination: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   filters: {
     marginTop: 5,

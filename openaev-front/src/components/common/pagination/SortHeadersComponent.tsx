@@ -6,7 +6,8 @@ import { type SearchPaginationInput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
 import useBodyItemsStyles from '../queryable/style/style';
 
-const useStyles = makeStyles()(() => ({
+// Same rule as the V2 list: a column heading reads in secondary ink.
+const useStyles = makeStyles()(theme => ({
   sortableHeaderItem: {
     display: 'flex',
     height: 20,
@@ -15,6 +16,7 @@ const useStyles = makeStyles()(() => ({
     cursor: 'pointer',
     paddingRight: 10,
     alignItems: 'center',
+    color: theme.palette.text.secondary,
   },
   headerItemText: {
     whiteSpace: 'nowrap',

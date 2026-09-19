@@ -229,6 +229,7 @@ const TeamDetail = () => {
                 entityName={team.team_name}
               />
               <TeamPopover
+                variant="toggle"
                 team={team}
                 managePlayers={() => setManaging(true)}
                 onUpdate={() => dispatch(fetchTeam(teamId))}

@@ -341,6 +341,7 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         chips={<ItemSecurityPlatformType type={platform.security_platform_type} size="medium" />}
         action={(
           <SecurityPlatformPopover
+            variant="toggle"
             securityPlatform={{
               ...platform,
               type: 'security-platform',

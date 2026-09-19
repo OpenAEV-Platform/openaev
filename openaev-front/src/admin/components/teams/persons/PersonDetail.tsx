@@ -166,6 +166,7 @@ const PersonDetail = () => {
               entityName={displayName}
             />
             <PlayerPopover
+              variant="toggle"
               user={user}
               onDelete={() => navigate(PERSON_BASE_URL)}
             />

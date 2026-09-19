@@ -43,7 +43,10 @@ const LessonsTemplateHeader = () => {
       title={lessonsTemplate.lessons_template_name}
       action={(
         <>
-          <LessonsTemplatePopover lessonsTemplate={lessonsTemplate} />
+          <LessonsTemplatePopover
+            variant="toggle"
+            lessonsTemplate={lessonsTemplate}
+          />
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
             <CreateLessonsTemplateCategory
               lessonsTemplateId={lessonsTemplateId}

@@ -9,9 +9,12 @@ import { type SxProps, type Theme } from '@mui/material';
 export const SECTION_LABEL_SX: SxProps<Theme> = {
   fontFamily: '"Geologica", sans-serif',
   fontWeight: 600,
-  fontSize: 11,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
+  fontSize: 12,
+  // Title case as authored, not an uppercase transform: the label reads as a
+  // title above its surface rather than as an all-caps eyebrow, so it keeps
+  // the string's own capitals and drops the wide tracking that went with them.
+  letterSpacing: 'normal',
+  textTransform: 'none',
   color: 'text.secondary',
   marginBottom: 1.5,
 };

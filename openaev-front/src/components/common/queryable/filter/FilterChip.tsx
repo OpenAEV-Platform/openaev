@@ -91,7 +91,12 @@ const FilterChip: FunctionComponent<Props> = ({
             <TooltipContent>{t('Clear all')}</TooltipContent>
           </Tooltip>
         )}
-        sx={{ borderRadius: 1 }}
+        sx={{
+          'borderRadius': 1,
+          // 8px between the clear cross and the chip's right edge: MUI's own
+          // 5px leaves it hugging the border.
+          '& .MuiChip-deleteIcon': { marginRight: 1 },
+        }}
         ref={chipRef}
       />
 

@@ -9,14 +9,25 @@ import { compactNumber } from '../../../utils/number';
 // not trip react-refresh/only-export-components on this component file.
 import { SECTION_LABEL_SX } from './detailStyles';
 
-// A single labelled field inside an information section.
+// A single labelled field inside an information section. One shape for every
+// label/value pair in the product: the label in 12px secondary ink, 8px of
+// gap, the value under it in 14px primary ink.
 export const Field = ({ label, children }: {
   label: string;
   children: ReactNode;
 }) => (
   <div>
-    <Typography variant="h3" gutterBottom sx={{ fontSize: 12 }}>{label}</Typography>
-    <div>{children}</div>
+    <Typography
+      variant="h3"
+      sx={{
+        fontSize: 12,
+        color: 'text.secondary',
+        marginBottom: 1,
+      }}
+    >
+      {label}
+    </Typography>
+    <Typography component="div" sx={{ fontSize: 14 }}>{children}</Typography>
   </div>
 );
 

@@ -187,6 +187,7 @@ const Mails = () => {
             </TeamContext.Provider>
           )}
           <ButtonGroup
+            usecase="isolated"
             value={viewMode}
             size="md"
             onValueChange={handleViewModeChange}
