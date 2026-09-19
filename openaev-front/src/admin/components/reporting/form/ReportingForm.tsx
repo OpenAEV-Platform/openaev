@@ -870,7 +870,10 @@ const ReportingForm: FunctionComponent<Props> = ({
           marginBottom: 2,
         }}
         >
-          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+          {/* Three buttons in a row: Cancel steps down to tertiary so the row
+              carries one primary and one secondary, and the way out does not
+              compete with the way back. */}
+          <Button type="button" priority={activeStep > 0 ? 'tertiary' : 'secondary'} onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           {activeStep > 0 && (

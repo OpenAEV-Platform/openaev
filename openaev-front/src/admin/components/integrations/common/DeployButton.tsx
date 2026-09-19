@@ -53,7 +53,7 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
           <TooltipContent>{t('This connector has {count} deployed instance(s). Manage them from the Deployed tab.', { count: deploymentCount })}</TooltipContent>
         </Tooltip>
       )}
-      <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" startIcon={isEnterpriseEdition ? null : <RocketLaunchOutlined fontSize="small" />} onClick={onDeployClickAction}>
+      <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="md" startIcon={isEnterpriseEdition ? null : <RocketLaunchOutlined fontSize="small" />} onClick={onDeployClickAction}>
         {t('Deploy')}
         {!isEnterpriseEdition && <EEChip />}
       </Button>

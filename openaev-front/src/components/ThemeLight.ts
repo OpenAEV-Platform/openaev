@@ -558,6 +558,9 @@ const ThemeLight = (
       },
     },
     // The date picker draws its own outlined input (MUI X), so the same paint as above.
+    // The picker draws its own field, so MuiTextField's outlined default never
+    // reaches it and the control fell back to the underlined standard variant.
+    MuiPickersTextField: { defaultProps: { variant: 'outlined' } },
     MuiPickersOutlinedInput: {
       styleOverrides: {
         root: {
@@ -662,25 +665,23 @@ const ThemeLight = (
             fontWeight: 400,
             borderRadius: 4,
           },
+          // The editor is a field like any other: the input surface, a 4px
+          // radius and the same transparent-to-hover-to-focus border as an
+          // outlined input — not the underlined standard look it kept from
+          // before the form fields moved.
           '.w-md-editor': {
             'boxShadow': 'none',
-            'background': 'transparent',
-            'borderBottom': '1px solid rgba(0, 0, 0, 0.87) !important',
-            'transition': 'borderBottom .3s',
-            '&:hover': { borderBottom: '2px solid #000000 !important' },
-            '&:focus-within': { borderBottom: `2px solid ${primary || THEME_LIGHT_DEFAULT_PRIMARY} !important` },
+            'background': 'var(--bg-input-default)',
+            'borderRadius': 'var(--radius-sm)',
+            'border': '1px solid transparent',
+            'transition': 'border-color .3s',
+            '&:hover': { borderColor: 'var(--border-input-hover)' },
+            '&:focus-within': { borderColor: 'var(--border-input-focus)' },
           },
           '.error .w-md-editor': {
-            'border': '0 !important',
-            'borderBottom': '2px solid #F14337 !important',
-            '&:hover': {
-              border: '0 !important',
-              borderBottom: '2px solid #F14337 !important',
-            },
-            '&:focus': {
-              border: '0 !important',
-              borderBottom: '2px solid #F14337 !important',
-            },
+            'border': '1px solid var(--border-input-error) !important',
+            '&:hover': { border: '1px solid var(--border-input-error) !important' },
+            '&:focus-within': { border: '1px solid var(--border-input-error) !important' },
           },
           '.w-md-editor-toolbar': {
             border: '0 !important',

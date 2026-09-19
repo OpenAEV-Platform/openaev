@@ -246,7 +246,9 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                 />
                 {canManage && <ButtonCreate label={t('Add schedule')} onClick={() => setDrawer('create')} />}
               </Box>
-              <List>
+              {/* 16px between the toolbar row and the list, the same gap every
+                  other datatable-looking list keeps. */}
+              <List sx={{ marginTop: 2 }}>
                 <ListItem
                   classes={{ root: classes.itemHead }}
                   divider={false}

@@ -69,18 +69,21 @@ const inlineStylesHeaders: Record<string, CSSProperties> = {
     width: '35%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   document_type: {
     float: 'left',
     width: '20%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
   document_tags: {
     float: 'left',
     width: '30%',
     fontSize: 12,
     fontWeight: '700',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -320,17 +323,8 @@ const ChallengeForm: FunctionComponent<Props> = ({
             style={{ paddingTop: 0 }}
             secondaryAction={<>&nbsp;</>}
           >
-            <ListItemIcon>
-              <span
-                style={{
-                  padding: '0 8px 0 8px',
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                &nbsp;
-              </span>
-            </ListItemIcon>
+            {/* No icon spacer on the heading row: the first column heading is
+                flush with the block's left edge. */}
             <ListItemText
               primary={(
                 <div>
@@ -404,21 +398,25 @@ const ChallengeForm: FunctionComponent<Props> = ({
           />
         </List>
         <div style={{ marginTop: 30 }}>
-          <Typography variant="h2" style={{ float: 'left' }}>
-            {t('Flags')}
-          </Typography>
-          <IconButton
-            icon={<ControlPointOutlined />}
-            aria-label={t('Add')}
-            onClick={() => appendFlag(EMPTY_FLAG)}
-            style={{
-              float: 'left',
-              margin: '-8px 0 0 10px',
-            }}
-            priority="tertiary"
-            size="sm"
-          />
-          <div className="clearfix" />
+          {/* A row, not two floats pulled back by a negative margin: the title
+              and its add button share one baseline that way. */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+          >
+            <Typography variant="h2" sx={{ marginBottom: 0 }}>
+              {t('Flags')}
+            </Typography>
+            <IconButton
+              icon={<ControlPointOutlined />}
+              aria-label={t('Add')}
+              onClick={() => appendFlag(EMPTY_FLAG)}
+              priority="tertiary"
+              size="sm"
+            />
+          </div>
           <List>
             {flagFields.map((flagField, index) => (
               <ListItem

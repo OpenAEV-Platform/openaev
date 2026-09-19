@@ -176,7 +176,12 @@ export const SectionBlock = ({ title, action, children, disablePadding, centerCo
     // `minmax(0, 1fr)`, not `1fr` — see Section above.
     gridTemplateColumns: 'minmax(0, 1fr)',
     gridTemplateRows: '1fr',
-    height: '100%',
+    // No `height: 100%` here. As a GRID item under DetailSections the block
+    // is already stretched to its row by `alignItems: stretch`, so the
+    // declaration bought nothing there — while inside a FLEX COLUMN (the
+    // channel page stacks two of these) every block claimed the whole column
+    // height at once and they drew on top of each other, hiding the first
+    // one's submit button under the next block.
     minHeight: 0,
   }}
   >

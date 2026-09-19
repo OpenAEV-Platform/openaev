@@ -65,6 +65,11 @@ const SamplePreview = ({ active, children, variant = 'full' }: Props) => {
             position: 'absolute',
             top: 0,
             right: 0,
+            // Above the preview it labels, always: the faded content below can
+            // carry its own positioned children, and a positioned sibling with
+            // no z-index paints in DOM order only until one of them raises
+            // itself.
+            zIndex: 1,
           }}
         />
       )}

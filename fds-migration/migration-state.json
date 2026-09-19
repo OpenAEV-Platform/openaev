@@ -844,7 +844,6 @@
         "openaev-front/src/components/common/overview/Section.tsx",
         "openaev-front/src/components/common/pagination/PaginationComponent.tsx",
         "openaev-front/src/components/common/queryable/pagination/PaginationComponentV2.tsx",
-        "openaev-front/src/components/fields/FileFieldController.tsx",
         "openaev-front/src/public/components/challenges/ChallengesPlayer.tsx",
         "openaev-front/src/public/components/channels/ChannelMicroblogging.jsx",
         "openaev-front/src/public/components/channels/ChannelNewspaper.jsx",
@@ -870,6 +869,17 @@
       "reason": "The single product breadcrumb wrapper renders the library component: the call sites keep their `elements` / `variant` shape and the component owns the nav > ol > li markup, the separators, the truncation with its title attribute and `aria-current=\"page\"`. The router Link goes in through `linkComponent`, so an ancestor entry stays a real link. The pre-truncation at 26 characters and the per-entry tooltip that replaced it are gone: the library truncates by CSS and keeps the full label readable.",
       "files": [
         "openaev-front/src/components/Breadcrumbs.tsx"
+      ]
+    },
+    {
+      "component": "FileSelect",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The document form's file picker. The field is single-choice while the form keeps a File[] — every consumer and the submit path read it that way — so the two are bridged in the controller. The mime fragments the product filters on go in as the native accept attribute, and a rejected type is reported through the component's own rejection message rather than a helper text beside it.",
+      "files": [
+        "openaev-front/src/components/fields/FileFieldController.tsx"
       ]
     }
   ],

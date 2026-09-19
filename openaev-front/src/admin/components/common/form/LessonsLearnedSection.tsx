@@ -24,7 +24,8 @@ const LessonsLearnedSection = <TFieldValues extends FieldValues>({
     <div style={style}>
       <Typography
         variant="h2"
-        gutterBottom
+        // 8px under the subtitle, not the h2's own 10px bottom margin.
+        sx={{ marginBottom: 1 }}
       >
         {t('Modules')}
       </Typography>
