@@ -621,14 +621,34 @@ const ThemeLight = (
     MuiIconButton: { styleOverrides: { root: { borderRadius: 4 } } },
     MuiCssBaseline: {
       styleOverrides: {
-        html: {
+        // SPACING BETWEEN NEIGHBOURING CONTROLS. Two quiet controls — an icon
+        // button or a tertiary button, the ones the library draws with no fill
+        // and no border — sit 4px apart; any pair involving a primary or a
+        // secondary keeps 8px. The rows themselves declare the 8px gap, so the
+        // quiet pair pulls back the difference rather than every row having to
+        // know the rule. `bg-transparent` + `border-0` is what both quiet
+        // kinds emit and neither of the two loud ones does: a secondary
+        // carries a border, a primary a fill.
+        'button.bg-transparent.border-0:not([class*="before:bg-"]) + button.bg-transparent.border-0:not([class*="before:bg-"])': { marginLeft: -4 },
+        'button.bg-transparent.border-0:not([class*="before:bg-"]) + span:has(> button.bg-transparent.border-0:not([class*="before:bg-"]))': { marginLeft: -4 },
+        'span:has(> button.bg-transparent.border-0:not([class*="before:bg-"])) + button.bg-transparent.border-0:not([class*="before:bg-"])': { marginLeft: -4 },
+        'span:has(> button.bg-transparent.border-0:not([class*="before:bg-"])) + span:has(> button.bg-transparent.border-0:not([class*="before:bg-"]))': { marginLeft: -4 },
+        // Runs that are flush BY CONSTRUCTION are quiet too, and must not pull
+        // on each other: a segmented control, a tab bar, a split button, the
+        // pagination arrows.
+        // Written with the same two classes as the rule above so it is strictly
+        // more specific than it — a shorter selector would lose the cascade
+        // and the tab bar would pull its own triggers together.
+        ':is([role="radiogroup"], [role="tablist"], .MuiTabs-root, .MuiButtonGroup-root, .MuiTablePagination-actions, .MuiPagination-root) button.bg-transparent.border-0:not([class*="before:bg-"]) + button.bg-transparent.border-0:not([class*="before:bg-"])': { marginLeft: 0 },
+        ':is([role="radiogroup"], [role="tablist"], .MuiTabs-root, .MuiButtonGroup-root, .MuiTablePagination-actions, .MuiPagination-root) span:has(> button.bg-transparent.border-0:not([class*="before:bg-"])) + span:has(> button.bg-transparent.border-0:not([class*="before:bg-"]))': { marginLeft: 0 },
+        'html': {
           scrollbarColor: `${accent || THEME_LIGHT_DEFAULT_ACCENT} ${paper || THEME_LIGHT_DEFAULT_PAPER}`,
           scrollbarWidth: 'thin',
           background: `linear-gradient(100deg, ${background || THEME_LIGHT_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
           backgroundAttachment: 'fixed',
           backgroundColor: background || THEME_LIGHT_DEFAULT_BACKGROUND,
         },
-        body: {
+        'body': {
           'background': `linear-gradient(100deg, ${background || THEME_LIGHT_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
           'backgroundAttachment': 'fixed',
           'scrollbarColor': `${accent || THEME_LIGHT_DEFAULT_ACCENT} ${paper || THEME_LIGHT_DEFAULT_PAPER}`,

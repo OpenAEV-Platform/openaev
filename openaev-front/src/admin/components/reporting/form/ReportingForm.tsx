@@ -141,6 +141,11 @@ interface Props {
  * branding and - on creation only - an optional first schedule (schedules are
  * then managed from the report detail page).
  */
+// Both rows of a module block put their label on the left, so both reserve the
+// same column for it: the labels end on the same x and the fields start there,
+// which is what makes the two rows read as one block.
+const MODULE_FIELD_LABEL_WIDTH = 180;
+
 /** The optional title, its label on the left: the row stays one line high. */
 const ModuleTitleField = ({ id, name }: {
   id: string;
@@ -162,16 +167,21 @@ const ModuleTitleField = ({ id, name }: {
         variant="body2"
         sx={{
           color: 'text.secondary',
-          whiteSpace: 'nowrap',
+          width: MODULE_FIELD_LABEL_WIDTH,
+          flexShrink: 0,
         }}
       >
         {t('Custom title (optional)')}
       </Typography>
-      <Controller
-        control={control}
-        name={name}
-        render={({ field }) => <TextFieldFds {...field} id={id} value={field.value ?? ''} />}
-      />
+      <Box sx={{ flex: 1 }}>
+        <Controller
+          control={control}
+          name={name}
+          render={({ field }) => (
+            <TextFieldFds {...field} id={id} value={field.value ?? ''} style={{ width: '100%' }} />
+          )}
+        />
+      </Box>
     </Box>
   );
 };
@@ -688,6 +698,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                                     multiple
                                     label={t('Kill chains')}
                                     labelPosition="left"
+                                    labelWidth={MODULE_FIELD_LABEL_WIDTH}
                                     options={killChainOptions}
                                     value={killChains.value}
                                     onChange={killChains.onChange}
