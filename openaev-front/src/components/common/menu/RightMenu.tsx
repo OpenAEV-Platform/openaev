@@ -52,9 +52,9 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
           // lighter than its page, which is the same step said in tokens.
           backgroundColor: 'var(--bg-elevation-default-layer-1)',
           backgroundImage: 'none',
-          // The elevation carries the separation; the docked hairline MUI adds
-          // on top of it reads as a second, harder edge.
-          borderLeft: 'none',
+          // Same edge as the sibling product's right panel: the soft subtle
+          // border, not MUI's own docked hairline.
+          borderLeft: '1px solid var(--border-elevation-subtle-soft)',
           width: 200,
           top: topOffset,
           height: `calc(100% - ${topOffset})`,
