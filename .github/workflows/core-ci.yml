@@ -45,7 +45,7 @@ jobs:
       # have a dedicated amd64-only shard.
       #
       # PRs partition every suite once across 6 Chromium jobs on amd64 runners.
-      # Push to main/tags keeps both arches for supported suites.
+      # Push to main/tags keeps both arches for supported suites; infra-chaining is amd64-only.
       e2e-matrix: >-
         ${{ github.event_name == 'pull_request' && '[
         {"browser":"chromium","project":"chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-amd64-arsenals"},
@@ -61,6 +61,7 @@ jobs:
         {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"arsenals","includes":"tests_e2e/tests/threat-arsenals","excludes":"","artifact_suffix":"-std-arm64-arsenals"},
         {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"remaining","includes":"catchall","excludes":"tests_e2e/tests/threat-arsenals\ntests_e2e/tests/multitenant/catalog-external-\ntests_e2e/tests/infra","artifact_suffix":"-std-arm64-remaining"},
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-agent"},
+        {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-chaining","includes":"tests_e2e/tests/infra/infra-chaining\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-chaining"},
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-amd64-infra-multitenant"},
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"infra-agent","includes":"tests_e2e/tests/infra/agent-implant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-arm64-infra-agent"},
         {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","shard_name":"infra-multitenant","includes":"tests_e2e/tests/infra/agent-implant-multitenant\\.spec\\.ts","excludes":"","artifact_suffix":"-std-arm64-infra-multitenant"}
