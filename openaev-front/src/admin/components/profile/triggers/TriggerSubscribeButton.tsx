@@ -1,4 +1,4 @@
-import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Badge, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { NotificationAddOutlined, NotificationsActiveOutlined } from '@mui/icons-material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
@@ -117,16 +117,20 @@ const TriggerSubscribeButton: FunctionComponent<Props> = ({
     <>
       <Tooltip>
         <TooltipTrigger asChild>
-          <IconButton
-            icon={instanceTrigger
-              ? <NotificationsActiveOutlined fontSize="small" />
-              : <NotificationAddOutlined fontSize="small" />}
-            aria-label={instanceTrigger ? t('Manage notifications on this entity') : t('Subscribe to notifications on this entity')}
-            onClick={instanceTrigger ? () => setOpenEdit(true) : subscribe}
-            active={!!instanceTrigger}
-            priority="tertiary"
-            size="md"
-          />
+          {/* A subscription is a fact about the entity, not a pressed state: the badge
+              carries it. `accessibleText={false}` because the anchor's own name already
+              says which of the two states it is in. */}
+          <Badge invisible={!instanceTrigger} bareAnchor="md" accessibleText={false}>
+            <IconButton
+              icon={instanceTrigger
+                ? <NotificationsActiveOutlined fontSize="small" />
+                : <NotificationAddOutlined fontSize="small" />}
+              aria-label={instanceTrigger ? t('Manage notifications on this entity') : t('Subscribe to notifications on this entity')}
+              onClick={instanceTrigger ? () => setOpenEdit(true) : subscribe}
+              priority="tertiary"
+              size="md"
+            />
+          </Badge>
         </TooltipTrigger>
         <TooltipContent>{instanceTrigger ? t('Manage notifications on this entity') : t('Subscribe to notifications on this entity')}</TooltipContent>
       </Tooltip>

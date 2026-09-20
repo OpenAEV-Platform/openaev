@@ -373,6 +373,7 @@
       ],
       "reason": "Status dots on an anchor: the unread mark on a notification icon and the \"advanced setting set\" mark on the rule cog of the XLS mapper form. Both dots use the default tone (one colour for badges, by ruling) and carry an `accessibleText` so the state is announced; the cog badge wraps its button with `bareAnchor=\"md\"`.",
       "files": [
+        "openaev-front/src/admin/components/profile/triggers/TriggerSubscribeButton.tsx",
         "openaev-front/src/admin/components/profile/notifications/Notifications.tsx",
         "openaev-front/src/admin/components/settings/data_ingestion/xls_mapper/RulesContractContent.tsx"
       ]
