@@ -825,6 +825,36 @@ appeared anywhere in the namespace since §8.6.
 
 ---
 
+
+---
+
+## 10. A token is a CSS value, not a JavaScript one
+
+Recorded 2026-09-20, after the status and criticality ladders moved onto
+`--color-feedback-*`.
+
+MUI's `alpha()` parses its argument **in JavaScript** and throws on a custom
+property — `Unsupported var(--color-feedback-neutral-primary) color` — which
+takes the whole component down rather than degrading. Thirteen attack-path
+tests went red the moment the ladder became a token, and the pattern reached
+five surfaces: the score explainer dialog, the status pill, the two threat
+arsenal surfaces and the atomic-testing score tiles.
+
+**The rule.** A colour that may be a token is tinted in CSS, never in JS:
+`utils/tint.ts` (`color-mix(in srgb, <colour> N%, transparent)`) accepts both a
+token and a hex. `alpha()` stays legitimate on a value that is a hex by
+construction — a theme palette entry, a user's branding colour.
+
+**The other half of the same rule.** The library `Chip`'s `color` prop takes a
+`#rgb`/`#rrggbb` hex and rejects anything else by design (a dev warning, then a
+fallback to neutral). A chip whose colour came from a ladder therefore takes a
+TONE instead: `severity` for the CVSS band of a drawer, `entity` for the
+expectation source. That is the better shape anyway — the tone is the token.
+
+No gate catches either half: `check-ts` sees a `string`, the conformity script
+reads imports and classes, and the failure only appears when the component
+renders.
+
 ## Deferred to a later phase (confirmed, same pattern as OpenCTI)
 
 Dynamic themes: OpenAEV stores admin/tenant theme overrides in a generic
