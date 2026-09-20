@@ -1,7 +1,7 @@
 import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined, KeyboardArrowRight } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -31,6 +31,7 @@ import {
 } from '../../../utils/api-types';
 import { type Option } from '../../../utils/Option';
 import { computeInjectExpectationLabel, computeStatusStyle } from '../../../utils/statusUtils';
+import { tint } from '../../../utils/tint';
 import { buildTenantApiPath } from '../../../utils/url-helper';
 import expectationIconByType, { expectationTypeIcon } from '../common/ExpectationIconByType';
 import ExpectationTypeChip from '../workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip';
@@ -272,7 +273,7 @@ const ExpectationList: FunctionComponent<Props> = ({
               alignItems: 'center',
               justifyContent: 'center',
               gap: 0.5,
-              backgroundColor: alpha(statusColor, 0.12),
+              backgroundColor: tint(statusColor, 12),
               color: statusColor,
               fontSize: 12,
               fontWeight: 700,

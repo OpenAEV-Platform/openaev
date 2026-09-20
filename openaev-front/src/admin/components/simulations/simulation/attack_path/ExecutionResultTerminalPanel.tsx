@@ -1,7 +1,7 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
 import { Box, Paper, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
 import { useContext, useEffect, useRef, useState } from 'react';
@@ -19,6 +19,7 @@ import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEditio
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { getStatusColor } from '../../../../../utils/statusUtils';
+import { tint } from '../../../../../utils/tint';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import StatusPill from '../../../atomic_testings/atomic_testing/target_result/StatusPill';
 import EEChip from '../../../common/entreprise_edition/EEChip';
@@ -525,7 +526,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: alpha(iconColor, 0.12),
+              backgroundColor: tint(iconColor, 12),
               color: iconColor,
               flexShrink: 0,
             }}
@@ -567,7 +568,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: alpha(iconColor, 0.12),
+                backgroundColor: tint(iconColor, 12),
                 color: iconColor,
                 fontSize: 12,
                 fontWeight: 700,

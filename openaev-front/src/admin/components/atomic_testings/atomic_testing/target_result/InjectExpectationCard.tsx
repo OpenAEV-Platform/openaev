@@ -13,6 +13,7 @@ import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permi
 import { computeInjectExpectationLabel, computeStatusStyle } from '../../../../../utils/statusUtils';
 import { emptyFilled } from '../../../../../utils/String';
 import { isAssets } from '../../../../../utils/target/TargetUtils';
+import { tint } from '../../../../../utils/tint';
 import { PermissionsContext } from '../../../common/Context';
 import { expectationTypeIcon } from '../../../common/ExpectationIconByType';
 import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
@@ -203,7 +204,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    backgroundColor: alpha(statusColor, 0.12),
+                    backgroundColor: tint(statusColor, 12),
                     color: statusColor,
                     fontSize: 12,
                     fontWeight: 700,

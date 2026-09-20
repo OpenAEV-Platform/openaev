@@ -9,6 +9,7 @@ import { SECURITY_PLATFORM_TYPE_COLORS } from '../../../../../../../components/s
 import useCountUp from '../../../../../../../utils/hooks/useCountUp';
 import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
 import { compactNumber } from '../../../../../../../utils/number';
+import { tint } from '../../../../../../../utils/tint';
 
 interface OrbitPlatform {
   id: string;
@@ -239,8 +240,8 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
               <stop offset="100%" stopColor={theme.palette.error.main} />
             </linearGradient>
             <radialGradient id={glassId} cx="38%" cy="30%" r="75%">
-              <stop offset="0%" stopColor={alpha(color, 0.32)} />
-              <stop offset="55%" stopColor={alpha(color, 0.1)} />
+              <stop offset="0%" stopColor={tint(color, 32)} />
+              <stop offset="55%" stopColor={tint(color, 10)} />
               <stop offset="100%" stopColor={alpha(dark ? '#000000' : '#ffffff', 0.06)} />
             </radialGradient>
             {/* soft-edged gloss: a radial gradient instead of a blur() filter, which would
@@ -253,10 +254,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           </defs>
 
           {/* glassy translucent sphere */}
-          <circle cx={cx} cy={cy} r={rRing - 6} fill={`url(#${glassId})`} stroke={alpha(color, 0.18)} strokeWidth={1} />
+          <circle cx={cx} cy={cy} r={rRing - 6} fill={`url(#${glassId})`} stroke={tint(color, 18)} strokeWidth={1} />
           {/* inner hairline rings for depth */}
           <circle cx={cx} cy={cy} r={rRing - 24} fill="none" stroke={dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} strokeWidth={1} />
-          <ellipse cx={cx} cy={cy} rx={rRing - 10} ry={(rRing - 10) / 3} fill="none" stroke={alpha(color, 0.12)} strokeWidth={1} />
+          <ellipse cx={cx} cy={cy} rx={rRing - 10} ry={(rRing - 10) / 3} fill="none" stroke={tint(color, 12)} strokeWidth={1} />
           {/* glossy top highlight */}
           <ellipse cx={cx - 14} cy={cy - 34} rx={40} ry={20} fill={`url(#${glossId})`} />
 
@@ -378,7 +379,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             }}
           >
             {/* halo ring drawn as geometry instead of a drop-shadow filter */}
-            <circle cx={markerBase.x} cy={markerBase.y} r={8.5} fill={alpha(color, 0.3)} />
+            <circle cx={markerBase.x} cy={markerBase.y} r={8.5} fill={tint(color, 30)} />
             <circle cx={markerBase.x} cy={markerBase.y} r={4.5} fill={color} />
           </g>
 
@@ -429,10 +430,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
               'height': 22,
               'borderRadius': 999,
               'cursor': 'pointer',
-              'border': `1px solid ${alpha(color, 0.3)}`,
-              'background': alpha(color, 0.1),
+              'border': `1px solid ${tint(color, 30)}`,
+              'background': tint(color, 10),
               'transition': 'background-color 0.15s ease',
-              '&:hover': { background: alpha(color, 0.2) },
+              '&:hover': { background: tint(color, 20) },
             }}
           >
             <Box sx={{
@@ -493,8 +494,8 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             padding: 2,
             borderRadius: 1,
             marginBottom: 2,
-            border: `1px solid ${alpha(color, 0.3)}`,
-            background: alpha(color, 0.08),
+            border: `1px solid ${tint(color, 30)}`,
+            background: tint(color, 8),
           }}
           >
             <Typography sx={{
@@ -675,8 +676,8 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                   paddingBlock: 0.75,
                   paddingInline: 1,
                   borderRadius: 1,
-                  background: isCurrent ? alpha(b.color, 0.1) : 'transparent',
-                  border: `1px solid ${isCurrent ? alpha(b.color, 0.4) : 'transparent'}`,
+                  background: isCurrent ? tint(b.color, 10) : 'transparent',
+                  border: `1px solid ${isCurrent ? tint(b.color, 40) : 'transparent'}`,
                 }}
               >
                 <Box sx={{
@@ -686,7 +687,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                   marginTop: 0.5,
                   flexShrink: 0,
                   background: b.color,
-                  boxShadow: `0 0 6px ${alpha(b.color, 0.7)}`,
+                  boxShadow: `0 0 6px ${tint(b.color, 70)}`,
                 }}
                 />
                 <Box>

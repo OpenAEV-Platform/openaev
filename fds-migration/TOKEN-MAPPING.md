@@ -851,9 +851,22 @@ fallback to neutral). A chip whose colour came from a ladder therefore takes a
 TONE instead: `severity` for the CVSS band of a drawer, `entity` for the
 expectation source. That is the better shape anyway — the tone is the token.
 
-No gate catches either half: `check-ts` sees a `string`, the conformity script
-reads imports and classes, and the failure only appears when the component
-renders.
+**A second wave, found on the running app.** The first pass only fixed what the
+unit tests happened to cover. The home dashboard then went behind its error
+boundary — `An unknown error occurred` — because the command-center console
+reads a token for its `High exposure` band and tinted it with `alpha()`. The
+same shape was live in five more places: the posture score hero, the three
+surfaces that tint `computeStatusStyle(...).color` (asset expectations, the
+security-platform detail, the atomic-testing expectation card) and the
+attack-path terminal panel, which tints `getStatusColor(...)`.
+
+**The gate.** `src/__tests__/utils/tokenColoursNotInAlpha.test.ts` scans the
+sources for a JS colour call whose argument is declared from a token producer
+(`var(--…)`, `computeStatusStyle`, `getStatusColor`, `criticalityColor`,
+`colorStyles`) and names each offender. Two render tests hold the two band
+components across all four of their bands. Nothing else catches it: `check-ts`
+sees a `string`, the conformity script reads imports and classes, and the
+failure only appears when the component renders.
 
 ## Deferred to a later phase (confirmed, same pattern as OpenCTI)
 

@@ -5,6 +5,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type KeyboardEvent, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { tint } from '../../../utils/tint';
 import { type PostureBreakdownEntry } from './useExpectationPosture';
 
 // Human label per expectation-type pillar (same taxonomy as the home
@@ -185,7 +186,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
               'borderRadius': 1,
               'cursor': 'pointer',
               'transition': 'background-color 120ms',
-              '&:hover': { backgroundColor: alpha(color, 0.08) },
+              '&:hover': { backgroundColor: tint(color, 8) },
             }}
           >
             {/* Ring gauge instead of the standard tinted icon box: the posture
@@ -202,7 +203,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                   cx={ringSize / 2}
                   cy={ringSize / 2}
                   r={ringRadius}
-                  fill={alpha(color, 0.1)}
+                  fill={tint(color, 10)}
                   stroke={alpha(theme.palette.text.primary, 0.12)}
                   strokeWidth={2.5}
                 />
@@ -232,7 +233,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                   height: 6,
                   borderRadius: '50%',
                   background: color,
-                  boxShadow: `0 0 6px ${alpha(color, 0.8)}`,
+                  boxShadow: `0 0 6px ${tint(color, 80)}`,
                 }}
                 />
               </Box>
@@ -289,8 +290,8 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
             padding: 2,
             borderRadius: 1,
             marginBottom: 2,
-            border: `1px solid ${alpha(color, 0.3)}`,
-            background: alpha(color, 0.08),
+            border: `1px solid ${tint(color, 30)}`,
+            background: tint(color, 8),
           }}
           >
             <Typography sx={{
@@ -467,8 +468,8 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                   paddingBlock: 0.75,
                   paddingInline: 1,
                   borderRadius: 1,
-                  background: isCurrent ? alpha(entry.color, 0.1) : 'transparent',
-                  border: `1px solid ${isCurrent ? alpha(entry.color, 0.4) : 'transparent'}`,
+                  background: isCurrent ? tint(entry.color, 10) : 'transparent',
+                  border: `1px solid ${isCurrent ? tint(entry.color, 40) : 'transparent'}`,
                 }}
               >
                 <Box sx={{
@@ -478,7 +479,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                   marginTop: 0.5,
                   flexShrink: 0,
                   background: entry.color,
-                  boxShadow: `0 0 6px ${alpha(entry.color, 0.7)}`,
+                  boxShadow: `0 0 6px ${tint(entry.color, 70)}`,
                 }}
                 />
                 <Box>
