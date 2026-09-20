@@ -495,29 +495,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   placement="warning"
                 />
               )}
-              {/* Configuration promoted to a first-class button (not buried in the
-                  overflow) so teams/players setup is discoverable, with an
-                  explicit tooltip describing what it configures. */}
-              {canOpenConfiguration && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      priority="secondary"
-                      startIcon={<TuneOutlined fontSize="small" />}
-                      onClick={() => {
-                        setConfigurationInitialTab(SimulationConfigurationTab.TEAMS);
-                        setOpenConfiguration(true);
-                      }}
-                    >
-                      {t('Configuration')}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('Configure the teams, players and audience involved in this simulation')}</TooltipContent>
-                </Tooltip>
-              )}
-              {/* Dismissed drift downgraded to a discreet icon after Configuration -
-                  the drift is acknowledged but still reviewable. */}
+              {/* Dismissed drift downgraded to a discreet icon - the drift is
+                  acknowledged but still reviewable. */}
               {permissions.canManage && !isAutonomous && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
@@ -553,17 +532,18 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 <>
                   <Tooltip>
                     <TooltipTrigger asChild>
+                      {/* One wrapper, not two: a disabled button fires no pointer event, so the
+                          tooltip needs a host — and the spacing rule between quiet controls
+                          matches a span whose DIRECT child is the button. */}
                       <span style={{ display: 'inline-flex' }}>
-                        <span className="inline-flex">
-                          <IconButton
-                            icon={<UpdateOutlined fontSize="small" />}
-                            aria-label={t('Scheduling')}
-                            onClick={() => setOpenDateDialog(true)}
-                            disabled={exercise.exercise_status !== 'SCHEDULED'}
-                            priority="tertiary"
-                            size="md"
-                          />
-                        </span>
+                        <IconButton
+                          icon={<UpdateOutlined fontSize="small" />}
+                          aria-label={t('Scheduling')}
+                          onClick={() => setOpenDateDialog(true)}
+                          disabled={exercise.exercise_status !== 'SCHEDULED'}
+                          priority="tertiary"
+                          size="md"
+                        />
                       </span>
                     </TooltipTrigger>
                     <TooltipContent>{t('Modify the scheduling')}</TooltipContent>
@@ -630,6 +610,27 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   actions={actions}
                   onDelete={() => navigate('/admin/simulations')}
                 />
+              )}
+              {/* Configuration promoted to a first-class button (not buried in the
+                  overflow) so teams/players setup is discoverable, with an
+                  explicit tooltip describing what it configures. */}
+              {canOpenConfiguration && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      priority="secondary"
+                      startIcon={<TuneOutlined fontSize="small" />}
+                      onClick={() => {
+                        setConfigurationInitialTab(SimulationConfigurationTab.TEAMS);
+                        setOpenConfiguration(true);
+                      }}
+                    >
+                      {t('Configuration')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Configure the teams, players and audience involved in this simulation')}</TooltipContent>
+                </Tooltip>
               )}
               {/* Lifecycle CTAs (start / pause / resume / stop / reset) for a manual simulation. An
                   autonomous run exposes none of them here: the simulation is observe-only and all
