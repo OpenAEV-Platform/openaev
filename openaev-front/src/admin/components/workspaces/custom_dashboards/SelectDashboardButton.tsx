@@ -38,11 +38,12 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'outlined', 
             <Button
               type="button"
               priority="secondary"
-              size="sm"
               startIcon={<InsertChartOutlined fontSize="small" />}
               onClick={handleOpenSelectDashboardDialog}
               style={{
-                alignSelf: 'center',
+                // The parameters beside it are label-above-input: the button sits on the
+                // inputs' baseline, not in the middle of the label + input block.
+                alignSelf: 'end',
                 flexShrink: 0,
               }}
             >
