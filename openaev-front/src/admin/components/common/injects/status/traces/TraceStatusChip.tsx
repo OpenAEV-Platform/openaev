@@ -6,7 +6,7 @@ import { type FunctionComponent } from 'react';
 import { useFormatter } from '../../../../../../components/i18n';
 import { getStatusIconComponent } from '../../../../../../utils/statusIcons';
 import { getAgentStatusTooltip, getStatusLabel } from '../../../../../../utils/statusLabels';
-import { getStatusColor } from '../../../../../../utils/statusUtils';
+import { statusSeverity } from '../../../../../../utils/statusUtils';
 
 // -- STATUS TOOLTIP --
 
@@ -43,7 +43,6 @@ interface TraceStatusChipProps { status: string }
 const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({ status }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const statusColor = getStatusColor(theme, status);
   const label = t(getStatusLabel(status));
 
   const tooltip = getAgentStatusTooltip(status);
@@ -53,7 +52,7 @@ const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({ status }) =>
     <Chip
       label={label}
       startIcon={<StatusIcon sx={{ fontSize: theme.typography.caption.fontSize }} />}
-      color={statusColor}
+      severity={statusSeverity(status)}
     />
   );
 

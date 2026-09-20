@@ -45,12 +45,7 @@ const CommunicationForm = ({ onSubmit, handleClose, initialValues }) => {
             fullWidth={true}
             style={{ marginTop: 20 }}
           />
-          <FileField
-            variant="standard"
-            type="file"
-            name="communication_file"
-            label={t('File')}
-          />
+          <FileField name="communication_file" />
           <div style={{
             float: 'right',
             marginTop: 20,

@@ -7,7 +7,7 @@ import { Field } from 'react-final-form';
 import { bytesFormat } from '../utils/number';
 import { useFormatter } from './i18n';
 
-const FileFieldInput = ({ input, filters, ...props }) => {
+const FileFieldInput = ({ input, filters, disabled }) => {
   const [acceptedFiles, setAcceptedFiles] = useState([]);
   const inputRef = useRef();
   const { t } = useFormatter();
@@ -53,7 +53,7 @@ const FileFieldInput = ({ input, filters, ...props }) => {
       }}
     >
       <input ref={inputRef} style={{ display: 'none' }} type="file" onInput={onChange} />
-      <Button priority="secondary" {...props}>
+      <Button type="button" priority="secondary" disabled={disabled}>
         {t('Select a file')}
       </Button>
       {files}

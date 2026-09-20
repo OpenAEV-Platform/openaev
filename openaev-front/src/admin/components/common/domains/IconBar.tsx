@@ -44,7 +44,19 @@ const IconBar: FunctionComponent<Props> = ({ elements }) => {
         return (
           <Card
             key={element.name}
+            // The card is the click target: it carries the button semantics itself, so the icon
+            // inside stays decorative (it used to be an unlabelled IconButton).
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSelected}
             onClick={element.function}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                element.function();
+              }
+            }}
+            className="focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-focus"
             sx={{
               'flexGrow': 1,
               'flexShrink': 0,

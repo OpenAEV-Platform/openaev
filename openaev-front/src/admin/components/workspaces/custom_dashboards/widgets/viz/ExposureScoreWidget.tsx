@@ -5,6 +5,7 @@ import { type FunctionComponent, memo, useEffect, useMemo, useState } from 'reac
 import { useFormatter } from '../../../../../../components/i18n';
 import { type EsSeries } from '../../../../../../utils/api-types';
 import useCountUp from '../../../../../../utils/hooks/useCountUp';
+import { tint } from '../../../../../../utils/tint';
 import { isSeriesEmpty, sampleExposureSeries } from './sample/sampleData';
 import SamplePreview from './sample/SamplePreview';
 
@@ -167,7 +168,7 @@ const ExposureScoreWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
               width: 260,
               height: 260,
               borderRadius: '50%',
-              background: `conic-gradient(from 0deg, transparent 0deg, ${band.color}22 40deg, transparent 80deg)`,
+              background: `conic-gradient(from 0deg, transparent 0deg, ${tint(band.color, 13)} 40deg, transparent 80deg)`,
               animation: 'exposure-sweep 6s linear infinite',
             },
             '@keyframes exposure-sweep': { to: { transform: 'rotate(360deg)' } },
@@ -205,7 +206,7 @@ const ExposureScoreWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
               strokeLinecap="round"
               style={{
                 transition: 'all 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
-                filter: `drop-shadow(0 0 6px ${band.color}88)`,
+                filter: `drop-shadow(0 0 6px ${tint(band.color, 53)})`,
               }}
             />
             {/* needle dot */}
@@ -280,7 +281,7 @@ const ExposureScoreWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
             const bucketColor = (() => {
               if (b.exposure < 25) return theme.palette.success.main;
               if (b.exposure < 50) return theme.palette.warning.main;
-              if (b.exposure < 75) return '#ff7043';
+              if (b.exposure < 75) return 'var(--color-feedback-warning-primary)';
               return theme.palette.error.main;
             })();
             return (

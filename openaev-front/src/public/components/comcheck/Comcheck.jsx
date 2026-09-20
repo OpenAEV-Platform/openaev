@@ -28,7 +28,9 @@ const useStyles = makeStyles()(() => ({
   },
   subtitle: {
     width: '100%',
-    color: 'var(--text-default-primary)',
+    // Inside a filled `AppBar color="primary"`: the ink has to be the one MUI computes
+    // against that fill (`primary.contrastText`), not the ground ink of the page.
+    color: 'inherit',
     fontWeight: 400,
     fontSize: 18,
     textAlign: 'center',
