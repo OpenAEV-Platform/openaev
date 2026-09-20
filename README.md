@@ -124,3 +124,5 @@ usage and health.
 
 You can find all the details on collected data and associated usage in
 the [usage telemetry documentation](https://docs.openaev.io/latest/reference/deployment/telemetry/).
+
+<!-- ci-trigger-count: 1/20 -->
