@@ -751,30 +751,8 @@ const ScenarioHeader = ({
                   placement="warning"
                 />
               )}
-              {/* Configuration promoted to a first-class button (not buried in the
-                  overflow) so teams/players setup is discoverable, with an
-                  explicit tooltip describing what it configures. */}
-              {canOpenConfiguration && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      priority="secondary"
-                      startIcon={<TuneOutlined fontSize="small" />}
-                      onClick={() => {
-                        setConfigurationInitialTab(ScenarioConfigurationTab.TEAMS);
-                        setOpenConfiguration(true);
-                      }}
-                      data-testid="scenario-configuration-button"
-                    >
-                      {t('Configuration')}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('Configure the teams, players and audience targeted by this scenario')}</TooltipContent>
-                </Tooltip>
-              )}
-              {/* Dismissed drift downgraded to a discreet icon after Configuration -
-                  the drift is acknowledged but still reviewable. */}
+              {/* Dismissed drift downgraded to a discreet icon - the drift is
+                  acknowledged but still reviewable. */}
               {canManage && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
@@ -900,13 +878,35 @@ const ScenarioHeader = ({
                   hero then). Resolved into `launchActions` above to avoid nested ternaries here. */}
               {/* Everything else - analyze, setup, and CRUD - in one overflow menu. Hidden entirely
                   for grant-only users without any manage / launch / delete permission. The menu
-                  sits before the launch actions so the primary button closes the row. */}
+                  closes the run of icon buttons; the two named actions follow it. */}
               {canDisplayScenarioActions && (
                 <ScenarioPopover
                   scenario={scenario}
                   actions={scenarioPopoverActions}
                   onDelete={() => navigate('/admin/scenarios')}
                 />
+              )}
+              {/* Configuration promoted to a first-class button (not buried in the
+                  overflow) so teams/players setup is discoverable, with an
+                  explicit tooltip describing what it configures. */}
+              {canOpenConfiguration && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      priority="secondary"
+                      startIcon={<TuneOutlined fontSize="small" />}
+                      onClick={() => {
+                        setConfigurationInitialTab(ScenarioConfigurationTab.TEAMS);
+                        setOpenConfiguration(true);
+                      }}
+                      data-testid="scenario-configuration-button"
+                    >
+                      {t('Configuration')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Configure the teams, players and audience targeted by this scenario')}</TooltipContent>
+                </Tooltip>
               )}
               {!isRunActive && canLaunch && launchActions}
             </>

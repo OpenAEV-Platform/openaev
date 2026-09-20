@@ -125,7 +125,7 @@ const TriggerSubscribeButton: FunctionComponent<Props> = ({
             onClick={instanceTrigger ? () => setOpenEdit(true) : subscribe}
             active={!!instanceTrigger}
             priority="tertiary"
-            size="sm"
+            size="md"
           />
         </TooltipTrigger>
         <TooltipContent>{instanceTrigger ? t('Manage notifications on this entity') : t('Subscribe to notifications on this entity')}</TooltipContent>

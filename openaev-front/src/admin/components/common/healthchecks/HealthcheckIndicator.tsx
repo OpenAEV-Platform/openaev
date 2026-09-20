@@ -69,7 +69,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
 
   return (
     <>
-      <Button type="button" priority="secondary" size="sm" startIcon={<Icon sx={{ fontSize: 16 }} />} onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}>
+      <Button type="button" priority="tertiary" startIcon={<Icon fontSize="small" />} onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}>
         {healthchecks.length === 1
           ? t('1 to configure')
           : t('{count} to configure', { count: healthchecks.length })}
