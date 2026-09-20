@@ -6,24 +6,24 @@ import { type CSSProperties } from 'react';
 // palette: green = low risk, escalating to red for the most critical assets (UNKNOWN is a neutral grey).
 const CRITICALITY_STYLE: Record<string, CSSProperties> = {
   LOW: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
+    backgroundColor: 'var(--color-feedback-success-secondary-transparency-30)',
+    color: 'var(--color-feedback-success-primary)',
   },
   MEDIUM: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
+    backgroundColor: 'var(--color-feedback-info-secondary-transparency-30)',
+    color: 'var(--color-feedback-info-primary)',
   },
   HIGH: {
-    backgroundColor: 'rgba(255, 152, 0, 0.08)',
-    color: '#ff9800',
+    backgroundColor: 'var(--color-feedback-warning-secondary-transparency-30)',
+    color: 'var(--color-feedback-warning-primary)',
   },
   VERY_HIGH: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
+    backgroundColor: 'var(--color-feedback-error-secondary-transparency-30)',
+    color: 'var(--color-feedback-error-primary)',
   },
   UNKNOWN: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
-    color: '#607d8b',
+    backgroundColor: 'var(--color-feedback-neutral-secondary-transparency-30)',
+    color: 'var(--color-feedback-neutral-primary)',
     fontStyle: 'italic',
   },
 };

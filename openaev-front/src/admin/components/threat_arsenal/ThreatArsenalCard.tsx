@@ -10,6 +10,7 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
+import { tint } from '../../../utils/tint';
 import InjectIcon from '../common/injects/InjectIcon';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
@@ -148,9 +149,9 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
                   fontWeight: 700,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  backgroundColor: alpha(statusColor, 0.2),
+                  backgroundColor: tint(statusColor, 20),
                   color: statusColor,
-                  border: `1px solid ${alpha(statusColor, 0.45)}`,
+                  border: `1px solid ${tint(statusColor, 45)}`,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 0.5,
@@ -164,7 +165,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
                     height: 6,
                     borderRadius: '50%',
                     backgroundColor: statusColor,
-                    boxShadow: `0 0 6px ${alpha(statusColor, 0.8)}`,
+                    boxShadow: `0 0 6px ${tint(statusColor, 80)}`,
                   }}
                 />
                 {t(statusLabel)}

@@ -49,9 +49,9 @@ const useStyles = makeStyles()(theme => ({
   },
   points: {
     height: 20,
-    backgroundColor: 'rgba(236, 64, 122, 0.08)',
-    border: '1px solid #ec407a',
-    color: '#ec407a',
+    backgroundColor: 'var(--color-entities-events-transparency-20)',
+    border: '1px solid var(--color-entities-events)',
+    color: 'var(--color-entities-events)',
   },
   validationType: {
     height: 20,

@@ -92,19 +92,23 @@ const ThemeLight = (
     },
     pagination: { main: '#000000' },
     chip: { main: '#000000' },
+    // The three label tones a user can pick, on the library's feedback tokens
+    // rather than on MUI's own hues — the name is the user's, the colour is
+    // the design system's, and it now differs per mode instead of being one
+    // value for both.
     labelChipMap: new Map<string, LabelColor>([
       [
         LabelColorDict.Red, {
-          backgroundColor: 'rgba(244, 67, 54, 0.08)',
-          color: '#f44336',
+          backgroundColor: FDS.colors.light['--color-feedback-error-secondary-transparency-30'],
+          color: FDS.colors.light['--color-feedback-error-primary'],
         }], [
         LabelColorDict.Green, {
-          backgroundColor: 'rgba(76, 175, 80, 0.08)',
-          color: '#4caf50',
+          backgroundColor: FDS.colors.light['--color-feedback-success-secondary-transparency-30'],
+          color: FDS.colors.light['--color-feedback-success-primary'],
         }], [
         LabelColorDict.Orange, {
-          backgroundColor: 'rgba(246,177,27,0.08)',
-          color: '#f19710',
+          backgroundColor: FDS.colors.light['--color-feedback-alert-secondary-transparency-30'],
+          color: FDS.colors.light['--color-feedback-alert-primary'],
         }],
     ]),
     ai: {
@@ -506,8 +510,10 @@ const ThemeLight = (
     },
     MuiTooltip: {
       styleOverrides: {
-        tooltip: { backgroundColor: 'rgba(0,0,0,0.7)' },
-        arrow: { color: 'rgba(0,0,0,0.7)' },
+        // The few MUI tooltips left read on the same surface as the library's,
+        // instead of a black at 70% beside them.
+        tooltip: { backgroundColor: 'var(--border-elevation-subtle)' },
+        arrow: { color: 'var(--border-elevation-subtle)' },
         popper: {
           'textTransform': 'lowercase',
           '&::first-letter': { textTransform: 'uppercase' },

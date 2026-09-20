@@ -5,7 +5,7 @@ import { cloneElement, type CSSProperties, type FunctionComponent, type ReactEle
 import { makeStyles } from 'tss-react/mui';
 
 import { computeBannerSettings } from '../../public/components/systembanners/utils';
-import { getSeverityAndColor } from '../../utils/Colors';
+import { CVSS_SEVERITY, getSeverityAndColor } from '../../utils/Colors';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../utils/fdsLayer';
 import useAuth from '../../utils/hooks/useAuth';
 
@@ -111,7 +111,8 @@ const Drawer: FunctionComponent<DrawerProps> = ({
     }
   }
 
-  const { color } = getSeverityAndColor(additionalChipLabel);
+  // The chip takes the tone, not a colour: its `color` prop is hex-only.
+  const { severity } = getSeverityAndColor(additionalChipLabel);
 
   return (
     <DrawerMUI
@@ -166,7 +167,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
           {headerActions}
           {additionalTitle && (<Typography variant="subtitle1">{additionalTitle}</Typography>)}
           {additionalChipLabel && (
-            <Chip label={additionalChipLabel} color={color} />
+            <Chip label={additionalChipLabel} severity={CVSS_SEVERITY[severity]} />
           )}
           <IconButton icon={<Close />} aria-label="Close" onClick={handleClose} priority="tertiary" size="md" />
         </div>

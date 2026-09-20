@@ -7,6 +7,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type ExpectationResultsByType } from '../../../../utils/api-types';
 import { computeInjectExpectationLabel, getStatusColor } from '../../../../utils/statusUtils';
 import { capitalize } from '../../../../utils/String';
+import { tint } from '../../../../utils/tint';
 import { expectationTypeIcon } from '../../common/ExpectationIconByType';
 import { expectationResultTypes } from '../../common/injects/expectations/Expectation';
 
@@ -84,7 +85,7 @@ const InjectScoreTiles: FunctionComponent<Props> = ({ expectationResultsByTypes 
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: alpha(statusColor, 0.12),
+                  backgroundColor: tint(statusColor, 12),
                 }}
               >
                 <Icon sx={{
