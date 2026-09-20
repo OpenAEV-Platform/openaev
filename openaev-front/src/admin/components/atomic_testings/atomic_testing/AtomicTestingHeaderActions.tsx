@@ -187,7 +187,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     } else if (hasManageAbility) {
       return (
         <>
-          <Button type="button" variant="destructive" startIcon={<SettingsOutlined fontSize="small" />} onClick={handleOpenEdit}>
+          <Button type="button" variant="destructive" priority="secondary" startIcon={<SettingsOutlined fontSize="small" />} onClick={handleOpenEdit}>
             {t('Configure')}
           </Button>
           <AtomicTestingUpdate open={edition} handleClose={handleCloseEdit} atomic={injectResultOverviewOutput} />
