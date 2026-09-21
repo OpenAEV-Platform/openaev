@@ -337,7 +337,7 @@ public class DocumentApi extends RestBehavior {
       TxCtx ctx, @PathVariable String documentId) {
     Document document = documentService.document(documentId);
     assertDocumentInRequestScope(ctx, document);
-    return buildDocumentDownloadResponse(document);
+    return buildDocumentDownloadResponse(document, tenantIdOrNull(document));
   }
 
   @GetMapping(TENANT_DOCUMENT_API + "/{documentId}/agent-file")
@@ -354,14 +354,19 @@ public class DocumentApi extends RestBehavior {
       TxCtx ctx, @PathVariable String documentId) {
     Document document = documentService.document(documentId);
     assertDocumentInRequestScope(ctx, document);
-    return buildDocumentDownloadResponse(document);
+    return buildDocumentDownloadResponse(document, tenantIdOrNull(document));
   }
 
-  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(Document document) {
+  private static String tenantIdOrNull(TenantBase entity) {
+    return entity.getTenant() == null ? null : entity.getTenant().getId();
+  }
+
+  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(
+      Document document, String owningTenantId) {
     String encodedFilename = DocumentService.encodeFileName(document.getName());
     InputStream in =
         fileService
-            .getFile(document)
+            .getFile(document, owningTenantId)
             .orElseThrow(() -> new ElementNotFoundException("File not found"));
 
     return ResponseEntity.ok()
@@ -396,10 +401,14 @@ public class DocumentApi extends RestBehavior {
         this.securityPlatformRepository
             .findById(assetId)
             .orElseThrow(() -> new ElementNotFoundException("Security platform not found"));
+    // The logo is served under the security platform's tenant, the parent it is reached through: a
+    // document bound from another tenant is treated as missing, never streamed to this caller.
     if (theme.equals("dark") && securityPlatform.getLogoDark() != null) {
-      return buildDocumentDownloadResponse(securityPlatform.getLogoDark());
+      return buildDocumentDownloadResponse(
+          securityPlatform.getLogoDark(), tenantIdOrNull(securityPlatform));
     } else if (securityPlatform.getLogoLight() != null) {
-      return buildDocumentDownloadResponse(securityPlatform.getLogoLight());
+      return buildDocumentDownloadResponse(
+          securityPlatform.getLogoLight(), tenantIdOrNull(securityPlatform));
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
@@ -425,10 +434,12 @@ public class DocumentApi extends RestBehavior {
       TxCtx ctx, @PathVariable String channelId, @PathVariable String theme) {
     Channel channel = channelService.channel(channelId);
 
+    // The logo is served under the channel's tenant, the parent it is reached through: a document
+    // bound from another tenant is treated as missing, never streamed to this caller.
     if (theme.equals("dark") && channel.getLogoDark() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoDark());
+      return buildDocumentDownloadResponse(channel.getLogoDark(), tenantIdOrNull(channel));
     } else if (channel.getLogoLight() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoLight());
+      return buildDocumentDownloadResponse(channel.getLogoLight(), tenantIdOrNull(channel));
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
@@ -617,8 +628,18 @@ public class DocumentApi extends RestBehavior {
     }
 
     Document doc = document.orElseThrow(() -> new ElementNotFoundException("File not found"));
+    // Serve the player document under the tenant of the exercise or scenario it is reached through,
+    // never under the document's own tenant: a document bound to a parent in another tenant must
+    // not
+    // have its bytes served to a player of this one.
+    String owningTenantId =
+        exerciseOpt
+            .map(DocumentApi::tenantIdOrNull)
+            .orElseGet(() -> scenarioOpt.map(DocumentApi::tenantIdOrNull).orElse(null));
     InputStream in =
-        fileService.getFile(doc).orElseThrow(() -> new ElementNotFoundException("File not found"));
+        fileService
+            .getFile(doc, owningTenantId)
+            .orElseThrow(() -> new ElementNotFoundException("File not found"));
 
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + doc.getName())

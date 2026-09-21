@@ -976,7 +976,12 @@ public class ScenarioService {
         .forEach(
             docId -> {
               Document doc = this.documentRepository.findById(docId).orElseThrow();
-              Optional<InputStream> docStream = this.fileService.getFile(doc);
+              // Include a document's bytes only when it belongs to the scenario's tenant: a
+              // document
+              // bound from another tenant is skipped, as if the object were missing.
+              Optional<InputStream> docStream =
+                  this.fileService.getFile(
+                      doc, scenario.getTenant() == null ? null : scenario.getTenant().getId());
               if (docStream.isPresent()) {
                 try {
                   ZipEntry zipDoc = new ZipEntry(doc.getTarget());

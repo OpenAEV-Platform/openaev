@@ -180,13 +180,31 @@ public class FileService {
   }
 
   /**
-   * Retrieves a document file from MinIO.
+   * Retrieves a document file from MinIO, but only when the document belongs to the given owning
+   * tenant.
+   *
+   * <p>The caller passes the tenant of the parent it serves the document through (the exercise or
+   * scenario of a player download, the inject of an attachment, the exported parent, the reporting
+   * generation, or the document's own tenant for an id-addressed read that already checked the
+   * request scope). A document whose tenant differs from that owning tenant was reached through a
+   * parent in another tenant, so its bytes are not served: the result is empty, the same as a
+   * missing object. A document with no tenant is a platform asset with no boundary and keeps the
+   * ambient-path resolution.
    *
    * @param document the document entity containing the file target path
-   * @return an Optional containing the file input stream, or empty if not found
+   * @param owningTenantId the tenant the document is served under; the object is returned only if
+   *     the document belongs to it
+   * @return an Optional containing the file input stream, or empty if not found or out of tenant
    */
-  public Optional<InputStream> getFile(Document document) {
-    return getFilePath(document.getTarget());
+  public Optional<InputStream> getFile(Document document, String owningTenantId) {
+    Tenant tenant = document.getTenant();
+    if (tenant == null || tenant.getId() == null) {
+      return getFilePath(document.getTarget());
+    }
+    if (!tenant.getId().equals(owningTenantId)) {
+      return Optional.empty();
+    }
+    return minioService.getFilePathForTenant(tenant.getId(), document.getTarget());
   }
 
   public ResponseEntity<InputStreamResource> getConnectorImage(
