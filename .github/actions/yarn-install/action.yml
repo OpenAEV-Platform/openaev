@@ -1,7 +1,6 @@
 name: Yarn Install
 description: >
-  Set up Node and Corepack, restore the Yarn cache, and run `yarn install --immutable`
-  with exponential backoff and full jitter between attempts.
+  Set up Node and Corepack, restore the Yarn cache, and run `yarn install --immutable`.
 
 inputs:
   no-cache:

@@ -59,7 +59,6 @@ export default defineConfig({
 
     /**
      * Defaults are tuned for UI-only suites so a bad locator fails fast.
-     * Slower suites raise these per project (see infraUse) or per assertion.
      */
     navigationTimeout: 15_000,
     actionTimeout: 15_000,
