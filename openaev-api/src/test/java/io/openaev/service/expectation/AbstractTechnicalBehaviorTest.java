@@ -1,5 +1,6 @@
 package io.openaev.service.expectation;
 
+import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -148,7 +149,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act & Assert
       List<BaseInjectExpectation> saved =
@@ -183,7 +184,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -193,6 +194,112 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
       assertThat(saved).hasSize(3);
       assertThat(countAgentExpectations(saved)).isEqualTo(2);
       assertThat(countAssetOnlyExpectations(saved)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "given no security platform collector can answer, should create leaves resolved as failed")
+    void given_no_matching_collector_should_create_failed_leaves() {
+      // Arrange
+      Endpoint endpoint =
+          endpointComposer
+              .forEndpoint(EndpointFixture.createEndpoint())
+              .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
+              .persist()
+              .get();
+
+      Exercise exercise = persistDefaultExercise();
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointComposer.forEndpoint(endpoint))
+              .withExercise(exerciseComposer.forExercise(exercise))
+              .withInjectorContract(
+                  injectorContractComposer.forInjectorContract(
+                      InjectorContractFixture.createDefaultInjectorContract()))
+              .persist()
+              .get();
+
+      DetectionInjectExpectation template = createTemplate(inject);
+      // Only an EDR collector is persisted (see setUp), so an XDR-restricted detection expectation
+      // can never be answered by any collector on this tenant.
+      template.setExpectedSecurityPlatforms(List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.XDR));
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
+
+      // Act
+      List<BaseInjectExpectation> saved =
+          actAndGetSavedExpectations(executableInject, template, "oaev");
+
+      // Assert — expectations are still created (1 agent + 1 asset) and resolved as failure
+      assertThat(saved).hasSize(2);
+      assertThat(saved).allSatisfy(e -> assertThat(e.getScore()).isEqualTo(FAILED_SCORE_VALUE));
+      // Every row is stamped with the frozen no-collector marker so the verdict stays explainable.
+      assertThat(saved)
+          .allSatisfy(
+              e ->
+                  assertThat(((TechnicalInjectExpectation) e).isCollectorMissingAtInit()).isTrue());
+
+      // Leaves keep empty results so they stay manually fillable: the failure is carried by the
+      // score alone, not by a synthetic result row.
+      TechnicalInjectExpectation agentExpectation =
+          (TechnicalInjectExpectation)
+              saved.stream()
+                  .filter(e -> ((TechnicalInjectExpectation) e).getAgent() != null)
+                  .findFirst()
+                  .orElseThrow();
+      assertThat(agentExpectation.getResults()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given a matching collector is connected, should not flag the expectation as"
+            + " collector-missing-at-init")
+    void given_matching_collector_should_not_flag_collector_missing_at_init() {
+      // Arrange
+      Endpoint endpoint =
+          endpointComposer
+              .forEndpoint(EndpointFixture.createEndpoint())
+              .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
+              .persist()
+              .get();
+
+      Exercise exercise = persistDefaultExercise();
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointComposer.forEndpoint(endpoint))
+              .withExercise(exerciseComposer.forExercise(exercise))
+              .withInjectorContract(
+                  injectorContractComposer.forInjectorContract(
+                      InjectorContractFixture.createDefaultInjectorContract()))
+              .persist()
+              .get();
+
+      DetectionInjectExpectation template = createTemplate(inject);
+      // An EDR collector is persisted in setUp, so an EDR-restricted detection expectation can be
+      // answered: the gate must not trip.
+      template.setExpectedSecurityPlatforms(List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR));
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
+
+      // Act
+      List<BaseInjectExpectation> saved =
+          actAndGetSavedExpectations(executableInject, template, "oaev");
+
+      // Assert — the frozen marker stays false, so a later collector removal cannot fabricate the
+      // "no automated security platform" state after the fact.
+      assertThat(saved)
+          .allSatisfy(
+              e ->
+                  assertThat(((TechnicalInjectExpectation) e).isCollectorMissingAtInit())
+                      .isFalse());
     }
 
     @Test
@@ -215,7 +322,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act & Assert
       List<BaseInjectExpectation> saved =
@@ -250,7 +357,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act & Assert
       List<BaseInjectExpectation> saved =
@@ -306,6 +413,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
               List.of(),
               List.of(),
               List.of(assetGroupA, assetGroupB),
+              List.of(),
               List.of());
 
       // Act
@@ -363,7 +471,14 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(assetGroup), List.of());
+              false,
+              false,
+              inject,
+              List.of(),
+              List.of(endpoint),
+              List.of(assetGroup),
+              List.of(),
+              List.of());
 
       // Act
       List<BaseInjectExpectation> allSaved =
@@ -412,7 +527,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -481,7 +596,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -539,7 +654,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =
@@ -591,7 +706,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
 
       // Act
       List<BaseInjectExpectation> saved =

@@ -99,19 +99,15 @@ public class V20260101_Starter_pack extends DataPack {
       return true;
     }
 
-    // TODO v2: once tags get v2 activated
-    // https://github.com/OpenAEV-Platform/openaev/issues/6424, and tag_rules get v2 activated
-    // https://github.com/OpenAEV-Platform/openaev/issues/6407, remove this call - the SQL
-    // rewriter will scope both entities independently of the v1 filter
-    enableV1TenantFilter(tenant);
-
     // unconditionally run this code
-    Set<Tag> tags = tagService.ensureWellKnownTags();
-    Set<TagRule> tagRules = tagRuleService.ensurePresetRules();
+    TxCtx ctx = TxCtx.forTenant(tenant.getId());
+    Set<Tag> tags = tagService.ensureWellKnownTags(ctx);
+    Set<TagRule> tagRules = tagRuleService.ensurePresetRules(ctx);
 
     try {
       Endpoint honeyScanMeEndpoint =
           this.createHoneyScanMeAgentlessEndpoint(
+              tenant.getId(),
               new ArrayList<>(
                   tags.stream()
                       .filter(
@@ -130,8 +126,7 @@ public class V20260101_Starter_pack extends DataPack {
       this.tagRuleService.updateTagRule(
           openCTITagRule.getId(),
           openCTITagRule.getTag().getName(),
-          new ArrayList<>(List.of(allEndpointAssetGroup.getId())),
-          tenant.getId());
+          new ArrayList<>(List.of(allEndpointAssetGroup.getId())));
 
       this.importScenariosFromResources(tenant.getId(), honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources(tenant);
@@ -142,7 +137,7 @@ public class V20260101_Starter_pack extends DataPack {
     }
   }
 
-  private Endpoint createHoneyScanMeAgentlessEndpoint(List<String> tags) {
+  private Endpoint createHoneyScanMeAgentlessEndpoint(String tenantId, List<String> tags) {
     EndpointInput endpointInput = new EndpointInput();
     endpointInput.setName(HoneyScanMeEndpoint.HOSTNAME);
     endpointInput.setHostname(HoneyScanMeEndpoint.HOSTNAME);
@@ -151,7 +146,8 @@ public class V20260101_Starter_pack extends DataPack {
     endpointInput.setPlatform(HoneyScanMeEndpoint.PLATFORM);
     endpointInput.setEol(HoneyScanMeEndpoint.END_OF_LIFE);
     endpointInput.setTagIds(tags);
-    return this.endpointService.createEndpoint(endpointInput);
+    // Tenant provisioning: the pack runs for one tenant, so the write carries it.
+    return this.endpointService.createEndpoint(endpointInput, tenantId);
   }
 
   private AssetGroup createAllEndpointsAssetGroup(String tenantId) {
@@ -208,7 +204,9 @@ public class V20260101_Starter_pack extends DataPack {
                             resourceToAdd.getContentAsByteArray(),
                             "custom_dashboard_name",
                             null,
-                            CustomDashboardService::sanityCheck,
+                            customDashboard ->
+                                CustomDashboardService.prepareForTenantWrite(
+                                    customDashboard, tenant.getId()),
                             "")
                         .jsonApiDocument();
                 this.setDefaultDashboard(

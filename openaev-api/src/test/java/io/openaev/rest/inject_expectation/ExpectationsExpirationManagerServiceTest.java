@@ -5,34 +5,52 @@ import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNIC
 import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
 import static io.openaev.utils.fixtures.ExpectationFixture.*;
 import static java.util.Collections.emptyList;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.engine.model.log.LogEvent;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.LogService;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @WithMockUser(isAdmin = true)
+@TestPropertySource(
+    properties = {
+      "openaev.audit-logs.transports=console",
+      "openaev.audit-logs.halt-on-failure=false"
+    })
 public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
@@ -41,6 +59,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
   @Autowired private EntityManager em;
   @Autowired private AssetGroupRepository assetGroupRepository;
+  @Autowired private AssetRepository assetRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private AgentRepository agentRepository;
   @Autowired private InjectRepository injectRepository;
@@ -53,6 +72,10 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   @Autowired private ExpectationsExpirationManagerJob expectationsExpirationManagerJob;
   @Autowired private CollectorRepository collectorRepository;
   @Autowired private CollectorTypeRepository collectorTypeRepository;
+
+  @MockitoSpyBean private AuditLogger auditLogger;
+  @MockitoSpyBean private LogService logService;
+  @MockitoSpyBean private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
 
   // Saved entities for test setup
   private Injector savedInjector;
@@ -67,14 +90,20 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
+    reset(auditLogger);
+    reset(logService);
+    reset(auditLogTransportDispatcherUtils);
+    doReturn(true).when(auditLogger).isAuditLoggingEnabled();
+    doReturn(true).when(logService).isEnabled();
+
     // Register the builtin collector for the test tenant (builtins are only registered
     // for tenants that exist at startup, not for the test tenant created by @WithMockUser)
-    expectationsExpirationManagerJob.registerForTenant(TenantContext.getCurrentTenant());
+    expectationsExpirationManagerJob.registerForTenant(Tenant.DEFAULT_TENANT_UUID);
 
     // Use the builtin injector if already registered, otherwise create it
     savedInjector =
         injectorRepository
-            .findByIdAndTenantId(OPENAEV_INJECTOR_ID, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(OPENAEV_INJECTOR_ID, Tenant.DEFAULT_TENANT_UUID)
             .orElseGet(
                 () ->
                     injectorRepository.save(
@@ -132,6 +161,195 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   @Nested
   @DisplayName("Update injectExpectations with expectationsExpirationManagerService")
   class ComputeExpectationsWithExpectationExpiredManagerService {
+
+    @Test
+    @DisplayName("Expired agent expectations emit automatic expectation-result audit events")
+    void given_expiredAgentExpectations_should_emitAutomaticExpectationResultAuditEvents() {
+      // Arrange
+      ExecutableInject executableInject = newExecutableInjectWithTargets();
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
+
+      em.flush();
+      em.clear();
+
+      List<String> agentExpectationIds =
+          injectExpectationRepository
+              .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
+              .stream()
+              .map(BaseInjectExpectation::getId)
+              .toList();
+      List<String> secondAgentExpectationIds =
+          injectExpectationRepository
+              .findAllByInjectAndAgent(savedInject.getId(), savedAgent2.getId())
+              .stream()
+              .map(BaseInjectExpectation::getId)
+              .toList();
+      List<String> allAgentExpectationIds = new ArrayList<>(agentExpectationIds);
+      allAgentExpectationIds.addAll(secondAgentExpectationIds);
+
+      expireExpectationsInDbByInjectId(savedInject.getId());
+      reset(auditLogTransportDispatcherUtils);
+
+      // Act
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
+
+      // Assert
+      List<LogEvent> expectationEvents =
+          captureExpectationResultEvents(allAgentExpectationIds.size());
+      List<String> loggedIds =
+          expectationEvents.stream()
+              .map(event -> extractExpectationId(event))
+              .filter(java.util.Objects::nonNull)
+              .toList();
+      assertThat(loggedIds).containsAll(allAgentExpectationIds);
+      assertThat(expectationEvents)
+          .allSatisfy(
+              event -> {
+                assertThat(event.getEventScope()).isEqualTo("expectation_result");
+                assertThat(extractContextValue(event, "source_type")).isEqualTo("collector");
+              });
+    }
+
+    @Test
+    @DisplayName("Directly answerable expired leaf emits automatic expectation-result audit event")
+    void given_expiredDirectLeaf_should_emitAutomaticExpectationResultAuditEvent() {
+      // Arrange: a plain (non-endpoint) asset never has agent children, so its expectation IS
+      // the leaf and is answered directly by the expiration manager, with no parent-recompute
+      // involved. Endpoints can't be used here: as soon as they carry active agents (as
+      // savedEndpoint does), their asset-level expectation becomes a parent of those agent
+      // expectations instead of a leaf.
+      Asset leafAsset = assetRepository.save(AssetFixture.createDefaultAsset("leaf asset"));
+      AssetGroup leafAssetGroup =
+          assetGroupRepository.save(
+              AssetGroupFixture.createAssetGroupWithAssets("leaf asset group", List.of(leafAsset)));
+      savedInject.setAssetGroups(List.of(leafAssetGroup));
+      injectRepository.save(savedInject);
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false,
+              true,
+              savedInject,
+              emptyList(),
+              emptyList(),
+              List.of(leafAssetGroup),
+              emptyList(),
+              emptyList());
+      Expectation expectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Vulnerability Expectation");
+      expectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(expectation), "implantType");
+
+      em.flush();
+      em.clear();
+
+      String assetExpectationId =
+          injectExpectationRepository
+              .findAllByInjectAndAsset(savedInject.getId(), leafAsset.getId())
+              .getFirst()
+              .getId();
+
+      expireExpectationsInDbByInjectId(savedInject.getId());
+      reset(auditLogTransportDispatcherUtils);
+
+      // Act
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
+
+      // Assert
+      List<LogEvent> expectationEvents = captureExpectationResultEvents(1);
+      assertThat(expectationEvents.stream().map(event -> extractExpectationId(event)).toList())
+          .contains(assetExpectationId);
+      assertThat(expectationEvents)
+          .anySatisfy(
+              event -> {
+                assertThat(extractExpectationId(event)).isEqualTo(assetExpectationId);
+                assertThat(extractContextValue(event, "source_type")).isEqualTo("collector");
+              });
+    }
+
+    @Test
+    @DisplayName("Recomputed expired parents emit automatic expectation-result audit events")
+    void given_recomputedExpiredParents_should_emitAutomaticExpectationResultAuditEvents() {
+      // Arrange
+      ExecutableInject executableInject = newExecutableInjectWithTargets();
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
+
+      em.flush();
+      em.clear();
+
+      List<BaseInjectExpectation> agentExpectations =
+          List.of(
+              injectExpectationRepository
+                  .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
+                  .getFirst(),
+              injectExpectationRepository
+                  .findAllByInjectAndAgent(savedInject.getId(), savedAgent2.getId())
+                  .getFirst());
+      agentExpectations.forEach(
+          e -> {
+            e.setResults(
+                List.of(
+                    InjectExpectationResult.builder()
+                        .sourceId(COLLECTOR_ID)
+                        .sourceName("collector-name")
+                        .sourceType("collector")
+                        .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                        .result("result")
+                        .sourceAssetId(UUID.randomUUID().toString())
+                        .score(100.0)
+                        .build()));
+            e.setScore(100.0);
+          });
+      injectExpectationRepository.saveAll(agentExpectations);
+
+      String parentAssetExpectationId =
+          injectExpectationRepository
+              .findAllByInjectAndAsset(savedInject.getId(), savedEndpoint.getId())
+              .getFirst()
+              .getId();
+      String parentGroupExpectationId =
+          injectExpectationRepository
+              .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
+              .getFirst()
+              .getId();
+
+      expireExpectationsInDbByInjectId(savedInject.getId());
+      reset(auditLogTransportDispatcherUtils);
+
+      // Act
+      expectationsExpirationManagerService.computeExpectations(savedInject.getTenant().getId());
+
+      // Assert: both the asset parent and the asset-group parent must be recomputed and logged
+      List<LogEvent> expectationEvents = captureExpectationResultEvents(2);
+      List<String> loggedIds =
+          expectationEvents.stream()
+              .map(event -> extractExpectationId(event))
+              .filter(java.util.Objects::nonNull)
+              .toList();
+      assertThat(loggedIds).contains(parentAssetExpectationId, parentGroupExpectationId);
+      assertThat(expectationEvents)
+          .anySatisfy(
+              event -> {
+                assertThat(extractExpectationId(event)).isEqualTo(parentAssetExpectationId);
+              });
+      assertThat(expectationEvents)
+          .anySatisfy(
+              event -> {
+                assertThat(extractExpectationId(event)).isEqualTo(parentGroupExpectationId);
+              });
+    }
 
     @Test
     @DisplayName("All injectExpectations are expired")
@@ -910,6 +1128,36 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
   // -- PRIVATE HELPERS --
 
+  private List<LogEvent> captureExpectationResultEvents(int expectedMinimumEvents) {
+    // Audit dispatch runs on AuditLogger's own executor (CompletableFuture.supplyAsync), not on
+    // the calling thread: verify() must wait for the full expected count, not just one
+    // invocation, or a slower/loaded CI runner can race ahead and capture only the events that
+    // happened to complete first.
+    ArgumentCaptor<LogEvent> eventCaptor = ArgumentCaptor.forClass(LogEvent.class);
+    verify(auditLogTransportDispatcherUtils, timeout(5000).atLeast(expectedMinimumEvents))
+        .dispatch(eventCaptor.capture(), any());
+    List<LogEvent> expectationEvents =
+        eventCaptor.getAllValues().stream()
+            .filter(event -> "expectation_result".equals(event.getEventScope()))
+            .toList();
+    assertThat(expectationEvents).hasSizeGreaterThanOrEqualTo(expectedMinimumEvents);
+    return expectationEvents;
+  }
+
+  private String extractExpectationId(LogEvent event) {
+    Object value =
+        event.getContextData() != null ? event.getContextData().get("expectation_id") : null;
+    return value != null ? String.valueOf(value) : null;
+  }
+
+  private String extractContextValue(LogEvent event, String key) {
+    Map<String, Object> contextData = event.getContextData();
+    if (contextData == null || !contextData.containsKey(key) || contextData.get(key) == null) {
+      return null;
+    }
+    return String.valueOf(contextData.get(key));
+  }
+
   /** Backdates all expectations for the given inject so the SQL expiration filter picks them up. */
   private void expireExpectationsInDbByInjectId(String injectId) {
     em.flush();
@@ -930,6 +1178,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
         emptyList(),
         List.of(savedEndpoint),
         List.of(savedAssetGroup),
+        emptyList(),
         emptyList());
   }
 
@@ -941,6 +1190,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
         emptyList(),
         List.of(savedAgentlessAsset),
         List.of(savedAssetGroup),
+        emptyList(),
         emptyList());
   }
 }

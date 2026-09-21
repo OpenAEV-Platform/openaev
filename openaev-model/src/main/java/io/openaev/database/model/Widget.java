@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.engine.api.WidgetConfiguration;
 import io.openaev.engine.api.WidgetType;
 import io.openaev.jsonapi.InnerRelationship;
@@ -16,7 +15,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -24,9 +22,13 @@ import org.hibernate.annotations.UuidGenerator;
 @Data
 @Entity
 @Table(name = "widgets")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
 @InnerRelationship
+/**
+ * Fully activated on multi-tenancy v2: reads are scoped by {@code TenantStatementInspector} and
+ * writes are attributed explicitly before persist, so the v1 Hibernate filter and listener must not
+ * come back.
+ */
 public class Widget implements TenantBase {
 
   @Id

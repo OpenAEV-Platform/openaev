@@ -3,7 +3,6 @@ package io.openaev.rest.exercise;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ExerciseSpecification.findGrantedFor;
-import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.exercise.form.SimulationDetails.fromRawExercise;
@@ -17,6 +16,8 @@ import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -125,6 +126,7 @@ public class ExerciseApi extends RestBehavior {
   private final WorkflowService workflowService;
   private final ExpectationsDriftService expectationsDriftService;
   private final EnterpriseEditionService enterpriseEditionService;
+  private final TenantWriteScopeResolver writeScopeResolver;
   private final LicenseCacheManager licenseCacheManager;
 
   // endregion
@@ -339,7 +341,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<TeamOutput> getExerciseTeams(TxCtx ctx, @PathVariable String exerciseId) {
-    return this.teamService.find(fromExercise(exerciseId));
+    return this.exerciseService.getExerciseTeams(exerciseId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -516,11 +518,10 @@ public class ExerciseApi extends RestBehavior {
       exercise.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       exercise.setCustomDashboard(
           this.tenantSettingsService
-              .findSetting(
-                  TenantContext.getCurrentTenant(),
-                  TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
+              .findSetting(tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)
@@ -1039,8 +1040,8 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public ImportResult exerciseImport(TxCtx ctx, @RequestPart("file") MultipartFile file)
-      throws Exception {
+  public ImportResult exerciseImport(
+      @RequireTenantSelector TxCtx ctx, @RequestPart("file") MultipartFile file) throws Exception {
     return importService.handleFileImport(ctx, file, null, null);
   }
 

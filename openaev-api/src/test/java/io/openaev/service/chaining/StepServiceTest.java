@@ -1,17 +1,26 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.service.chaining.StepService.ACTIVE_STEP_STATUS;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.isNull;
 
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.StepDelayQueue;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -20,6 +29,7 @@ import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.scheduler.jobs.QueueChainingJob;
 import java.io.IOException;
 import java.util.*;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,8 +42,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class StepServiceTest {
@@ -49,10 +59,10 @@ class StepServiceTest {
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;
   @Mock private SimulationRateLimitService simulationRateLimitService;
+  @Mock private TenantScopedTransaction tenantScopedTransaction;
 
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
-  private TransactionTemplate transactionTemplate;
 
   private Workflow workflow;
 
@@ -65,19 +75,23 @@ class StepServiceTest {
 
   @BeforeEach
   void setUp() {
-    transactionTemplate = mock(TransactionTemplate.class);
+    queueChainingJob =
+        new QueueChainingJob(
+            stepDelayQueueService, stepService, workflowService, tenantScopedTransaction);
     lenient()
         .doAnswer(
             invocation -> {
-              ((java.util.function.Consumer<Object>) invocation.getArgument(0)).accept(null);
+              ((Runnable) invocation.getArgument(1)).run();
               return null;
             })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
-    queueChainingJob =
-        new QueueChainingJob(
-            stepDelayQueueService, stepService, workflowService, transactionTemplate);
+        .when(tenantScopedTransaction)
+        .execute(any(), any(Runnable.class));
     workflow = mock(Workflow.class);
+  }
+
+  @org.junit.jupiter.api.AfterEach
+  void tearDown() {
+    TenantContext.clearCurrentTenant();
   }
 
   /* ============================================================
@@ -931,15 +945,16 @@ class StepServiceTest {
       String injectId = UUID.randomUUID().toString();
       String stepId = UUID.randomUUID().toString();
 
-      when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.of(stepId));
+      when(stepRepository.findStepIdActiveByInjectId(injectId, ACTIVE_STEP_STATUS))
+          .thenReturn(Optional.of(stepId));
 
       // Act
-      Optional<String> result = stepService.findStepIdByInjectId(injectId);
+      Optional<String> result = stepService.findStepIdActiveByInjectId(injectId);
 
       // Assert
       assertTrue(result.isPresent());
       assertEquals(stepId, result.get());
-      verify(stepRepository).findStepIdByInjectId(injectId);
+      verify(stepRepository).findStepIdActiveByInjectId(injectId, ACTIVE_STEP_STATUS);
       verifyNoMoreInteractions(stepRepository);
     }
 
@@ -948,14 +963,15 @@ class StepServiceTest {
       // Arrange
       String injectId = UUID.randomUUID().toString();
 
-      when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.empty());
+      when(stepRepository.findStepIdActiveByInjectId(injectId, ACTIVE_STEP_STATUS))
+          .thenReturn(Optional.empty());
 
       // Act
-      Optional<String> result = stepService.findStepIdByInjectId(injectId);
+      Optional<String> result = stepService.findStepIdActiveByInjectId(injectId);
 
       // Assert
       assertTrue(result.isEmpty());
-      verify(stepRepository).findStepIdByInjectId(injectId);
+      verify(stepRepository).findStepIdActiveByInjectId(injectId, ACTIVE_STEP_STATUS);
       verifyNoMoreInteractions(stepRepository);
     }
   }
@@ -983,6 +999,11 @@ class StepServiceTest {
             .thenReturn(stepFound ? List.of(stepDelayQueue) : new ArrayList<>());
 
         if (stepFound) {
+          Exercise simulation = mock(Exercise.class);
+          Tenant tenant = mock(Tenant.class);
+          when(tenant.getId()).thenReturn("tenant-1");
+          when(simulation.getTenant()).thenReturn(tenant);
+          when(workflowRun.getSimulation()).thenReturn(simulation);
           when(stepDelayQueue.getWorkflowRun()).thenReturn(workflowRun);
           when(stepDelayQueue.getStepTemplate()).thenReturn(step);
 
@@ -1966,6 +1987,116 @@ class StepServiceTest {
       assertEquals(0, updated);
       verify(stepTargetingService, never()).isAssetCentric(any());
       verify(stepRepository, never()).saveAll(anyList());
+    }
+  }
+
+  /* ============================================================
+   * QueueChainingJob - tenant scope
+   * ============================================================ */
+  @Nested
+  class DelayedStepTenantScope {
+
+    @Test
+    @DisplayName("a tenant-less entry does not inherit the previous entry's scope")
+    void given_aTenantLessEntryAfterAScopedOne_should_notInheritItsScope() throws Exception {
+      // Every entry shares one transaction, so the scope set for entry 1 is still active when
+      // entry 2 is reached. Leaving it there would read tenant A's rows for an entry that belongs
+      // to nobody, which is a cross-tenant read, not the empty read the warning promises.
+      String tenantId = UUID.randomUUID().toString();
+      Exercise simulation = mock(Exercise.class);
+      when(simulation.getTenant()).thenReturn(new Tenant(tenantId));
+      Workflow scopedRun = mock(Workflow.class);
+      when(scopedRun.getSimulation()).thenReturn(simulation);
+      when(scopedRun.getId()).thenReturn(UUID.randomUUID().toString());
+      StepDelayQueue scopedEntry = mock(StepDelayQueue.class);
+      when(scopedEntry.getWorkflowRun()).thenReturn(scopedRun);
+
+      Workflow orphanRun = mock(Workflow.class);
+      when(orphanRun.getSimulation()).thenReturn(null);
+      when(orphanRun.getScenario()).thenReturn(null);
+      when(orphanRun.getId()).thenReturn(UUID.randomUUID().toString());
+      StepDelayQueue orphanEntry = mock(StepDelayQueue.class);
+      when(orphanEntry.getWorkflowRun()).thenReturn(orphanRun);
+
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(scopedEntry, orphanEntry));
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      verify(tenantScopedTransaction).setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+      verify(tenantScopedTransaction).setScopeOnCurrentTransaction(TxCtx.missing());
+    }
+
+    @Test
+    @DisplayName("each delayed step is processed under its own simulation's tenant scope")
+    void given_aDelayedStep_should_scopeTheTransactionToItsTenant() throws Exception {
+      // The job runs ONE transaction so a processing failure rolls the DELETE back, and
+      // popNextPerWorkflowRun spans tenants. Without a per-entry scope the whole transaction has
+      // none, and createReadySteps reaches assets - activated - through ScopeService, reads empty,
+      // and the delayed inject fires with no per-asset target. Silently.
+      String tenantId = UUID.randomUUID().toString();
+      Exercise simulation = mock(Exercise.class);
+      when(simulation.getTenant()).thenReturn(new Tenant(tenantId));
+      Workflow run = mock(Workflow.class);
+      when(run.getSimulation()).thenReturn(simulation);
+      when(run.getId()).thenReturn(UUID.randomUUID().toString());
+      StepDelayQueue entry = mock(StepDelayQueue.class);
+      when(entry.getWorkflowRun()).thenReturn(run);
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(entry));
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      verify(tenantScopedTransaction).setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    }
+
+    @Test
+    @DisplayName("a scenario-backed run is scoped to its scenario's tenant")
+    void given_aScenarioBackedRun_should_scopeToTheScenarioTenant() throws Exception {
+      // chk_workflow_simulation_or_scenario allows exactly one of the two, so a workflow with no
+      // simulation still has a tenant, through its scenario. Reading only the simulation left every
+      // scenario-backed run unscoped.
+      String tenantId = UUID.randomUUID().toString();
+      Scenario scenario = mock(Scenario.class);
+      when(scenario.getTenant()).thenReturn(new Tenant(tenantId));
+      Workflow run = mock(Workflow.class);
+      when(run.getSimulation()).thenReturn(null);
+      when(run.getScenario()).thenReturn(scenario);
+      when(run.getId()).thenReturn(UUID.randomUUID().toString());
+      StepDelayQueue entry = mock(StepDelayQueue.class);
+      when(entry.getWorkflowRun()).thenReturn(run);
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(entry));
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      verify(tenantScopedTransaction).setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    }
+
+    @Test
+    @DisplayName("a delayed step whose run has no simulation tenant gets no invented scope")
+    void given_noTenant_should_processWithoutInventingAScope() throws Exception {
+      Workflow run = mock(Workflow.class);
+      when(run.getSimulation()).thenReturn(null);
+      when(run.getScenario()).thenReturn(null);
+      StepDelayQueue entry = mock(StepDelayQueue.class);
+      when(entry.getWorkflowRun()).thenReturn(run);
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(entry));
+      // Ended, so the loop short-circuits before createReadySteps: this test is about the scope
+      // decision, not about step creation.
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+      when(run.getId()).thenReturn(UUID.randomUUID().toString());
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      // Processed, not skipped: dropping the step would be the same silent loss the scoping
+      // exists to prevent. What must not happen is a TENANT being invented for it: the scope is
+      // set to missing(), which denies every row, rather than left at whatever the previous entry
+      // put there.
+      verify(tenantScopedTransaction).setScopeOnCurrentTransaction(TxCtx.missing());
+      verify(tenantScopedTransaction, never())
+          .setScopeOnCurrentTransaction(any(TxCtx.Restricted.class));
+      verify(workflowService).isWorkflowEnded(any());
     }
   }
 }

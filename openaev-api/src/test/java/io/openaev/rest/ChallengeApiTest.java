@@ -1,7 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
-import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ChallengeFixture.createDefaultChallenge;
 import static io.openaev.utils.fixtures.InjectFixture.createDefaultInjectChallenge;
@@ -17,7 +17,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -37,12 +36,14 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(PER_CLASS)
 @Transactional
+@TestPropertySource(properties = "openaev.tenant.active-tables=challenges")
 class ChallengeApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -63,15 +64,17 @@ class ChallengeApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void retrieveChallengesVariableForScenarioTest() throws Exception {
     // -- PREPARE --
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        TenantContext.getCurrentTenant());
-
     Scenario scenario = createDefaultCrisisScenario();
     Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
     assertNotNull(scenarioCreated, "Scenario should be successfully created");
+    tenantIsolationHelper.grantCapabilitiesInTenant(
+        scenarioCreated.getTenant().getId(), Set.of(Capability.ACCESS_ASSESSMENT));
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        scenarioCreated.getTenant().getId());
     String SCENARIO_ID = scenarioCreated.getId();
 
     Challenge challenge = createDefaultChallenge();
+    challenge.setTenant(scenarioCreated.getTenant());
     Challenge challengeCreated = this.challengeRepository.save(challenge);
     assertNotNull(challengeCreated, "Challenge should be successfully created");
     String CHALLENGE_ID = challengeCreated.getId();
@@ -84,13 +87,15 @@ class ChallengeApiTest extends IntegrationTest {
     inject.setScenario(scenarioCreated);
     Inject injectCreated = this.injectRepository.save(inject);
     assertNotNull(injectCreated, "Inject should be successfully created");
-    String INJECT_ID = injectCreated.getId();
 
     // -- EXECUTE --
     String response =
         this.mvc
             .perform(
-                get(SCENARIO_URI + "/" + SCENARIO_ID + "/challenges")
+                get(
+                        TENANT_SCENARIO_URI + "/{scenarioId}/challenges",
+                        scenarioCreated.getTenant().getId(),
+                        SCENARIO_ID)
                     .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().is2xxSuccessful())
             .andReturn()

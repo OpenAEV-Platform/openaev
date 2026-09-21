@@ -9,7 +9,7 @@ import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { ATOMIC_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrls';
-import type { Finding, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
+import type { FindingOutput, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { buildOccurrencesFilter, occurrenceTargets } from './FindingOccurrencesUtils';
@@ -26,7 +26,7 @@ const TIMELINE_FETCH_SIZE = 500;
 
 interface Props {
   searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
-  finding: Pick<Finding, 'finding_type' | 'finding_value'>;
+  finding: Pick<FindingOutput, 'finding_type' | 'finding_value'>;
 }
 
 // Horizontal occurrence timeline: every detection of this finding is plotted on a single time

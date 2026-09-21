@@ -40,7 +40,7 @@ cp ./openaev-api/src/main/resources/application.properties ./openaev-api/src/mai
 
 **Start the development dependencies docker stack**
 
-Preconfigured containers for all the needed support containers (PostgreSQL, MinIO, RabbitMQ, Elasticsearch...)
+Preconfigured containers for all the needed support containers (PostgreSQL, Silo, RabbitMQ, Elasticsearch...)
 can be found as a docker compose file in `./openaev/openaev-dev`.
 
 Create a file a this location: `./openaev/openaev-dev/.env` and populate it with a minimal set of keys:
@@ -69,7 +69,7 @@ and any additional configuration. Make sure the file contains settings for at th
 the following dependencies:
 
 - PostgreSQL
-- MinIO
+- S3 object storage (Silo in the development stack)
 - RabbitMQ
 - Engine (Elasticsearch or OpenSearch)
 
@@ -79,9 +79,10 @@ All required settings are listed in the [Configuration documentation](../deploym
 ### Building and running
 Maven is used for package management and building the main server binary.
 OpenAEV is a Spring Boot application and thus can be built and started
-in one fell swoop with
+in one (two) fell swoop(s) with
 ```shell
-mvn spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.main-class=io.openaev.App
+mvn clean install -DskipTests=true
+java -jar openaev-api/target/openaev-api.jar --spring.config.import=file:openaev-api/target/classes/application-dev.properties
 ```
 
 !!! tip "IntelliJ IDEA run configuration"

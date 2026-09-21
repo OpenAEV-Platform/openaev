@@ -99,6 +99,7 @@ class SecretValidationServiceTest extends IntegrationTest {
       case AZURE_SERVICE_PRINCIPAL, AZURE_MANAGED_IDENTITY ->
           CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AZURE;
       case AWS_ACCESS_KEY, AWS_ASSUME_ROLE -> CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS;
+      case GCP_SERVICE_ACCOUNT, GCP_OAUTH2 -> CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP;
       case USERNAME_PASSWORD, HASH -> CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY;
     };
   }
@@ -154,6 +155,35 @@ class SecretValidationServiceTest extends IntegrationTest {
 
       // Assert
       assertThat(dueIds).doesNotContain(reference.getId());
+    }
+
+    @Test
+    @DisplayName("A GCP service account credential enters the run")
+    void given_gcpServiceAccountCredential_should_beDue() {
+      // Arrange: adding the method to VALIDATABLE_AUTH_METHODS is the single switch that puts a
+      // validator in the run — without it both handlers are wired and never selected.
+      CredentialSecretReference reference = seedReference(GCP_SERVICE_ACCOUNT, UNSET, null);
+
+      // Act
+      List<String> dueIds = dueReferenceIds(LARGE_BUDGET);
+
+      // Assert
+      assertThat(dueIds).contains(reference.getId());
+      assertThat(VALIDATABLE_AUTH_METHODS).contains(GCP_SERVICE_ACCOUNT);
+    }
+
+    @Test
+    @DisplayName("A GCP OAuth2 credential enters the run")
+    void given_gcpOAuth2Credential_should_beDue() {
+      // Arrange
+      CredentialSecretReference reference = seedReference(GCP_OAUTH2, UNSET, null);
+
+      // Act
+      List<String> dueIds = dueReferenceIds(LARGE_BUDGET);
+
+      // Assert
+      assertThat(dueIds).contains(reference.getId());
+      assertThat(VALIDATABLE_AUTH_METHODS).contains(GCP_OAUTH2);
     }
 
     @Test

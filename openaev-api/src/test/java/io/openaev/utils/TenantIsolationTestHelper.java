@@ -73,6 +73,31 @@ public class TenantIsolationTestHelper {
   }
 
   /**
+   * Attaches the current mock user to an EXISTING tenant, membership only, no role or group.
+   *
+   * <p>{@code @WithMockUser} builds a user with no row in {@code users_tenants}, so every scope it
+   * resolves is {@link io.openaev.context.TxCtx#missing()}. Production never has that state: the
+   * {@code V4_95__Migrate_users_to_default_tenant} migration attaches every pre-existing user to
+   * the default tenant, and service accounts are attached explicitly when they are created. A test
+   * whose endpoint attributes a write from the request scope therefore fails for a reason that
+   * cannot happen in production unless it provisions the membership the platform would have.
+   *
+   * <p>Use this when the test only needs a caller that resolves a single-tenant scope. Use {@link
+   * #grantCapabilitiesInTenant} instead when the caller also needs real capabilities, and {@link
+   * #createTenantWithCurrentUser} when the test needs a tenant of its own to isolate against.
+   *
+   * @param tenantId the existing tenant to attach the current mock user to
+   */
+  @Transactional
+  public void attachCurrentUserToTenant(String tenantId) {
+    String userId = testUserHolder.get().getId();
+    tenantRepository.addUserToTenant(userId, tenantId);
+    tenantMembershipCacheManager.evict(userId, tenantId);
+    entityManager.flush();
+    entityManager.clear();
+  }
+
+  /**
    * Creates a tenant, attaches the current mock user, and grants them specific capabilities.
    *
    * <p>This sets up a full Role → Group → User chain in the new tenant so that the {@code

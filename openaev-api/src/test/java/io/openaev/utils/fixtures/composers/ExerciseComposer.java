@@ -3,7 +3,6 @@ package io.openaev.utils.fixtures.composers;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.rest.exercise.service.ExerciseService;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class ExerciseComposer extends ComposerBase<Exercise> {
   @Autowired private ExerciseRepository exerciseRepository;
-  @Autowired private ExerciseService exerciseService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private EntityManager entityManager;
 
@@ -173,7 +171,6 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
       this.securityCoverageComposer.ifPresent(SecurityCoverageComposer.Composer::persist);
       this.securityCoverageSendJobComposer.ifPresent(
           SecurityCoverageSendJobComposer.Composer::persist);
-      exerciseService.createExercise(exercise);
       return this;
     }
 

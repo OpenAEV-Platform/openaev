@@ -191,8 +191,9 @@ class AssetGroupHttpIsolationTest extends IntegrationTest {
   void createWithoutSelectorIsRejected() throws Exception {
     // An unscoped create must be refused loudly rather than attributed to whichever tenant the v1
     // thread-local happens to hold. The refusal happens upstream, in TenantWriteScopeResolver,
-    // before the row is ever built, so it is a 400 and not a constraint violation on the NOT NULL
-    // tenant column that TenantBaseListener's removal would otherwise surface.
+    // before the row is ever built, so it is a 400 rather than a row quietly landing in the ambient
+    // tenant (AssetGroup still carries TenantBaseListener, which #7844 removes) or, once that
+    // listener is gone, a constraint violation on the NOT NULL tenant column.
     AssetGroupInput input = new AssetGroupInput();
     input.setName("no-selector-" + UUID.randomUUID());
     mvc.perform(

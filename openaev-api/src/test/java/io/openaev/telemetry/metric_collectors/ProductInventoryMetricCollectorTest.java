@@ -7,8 +7,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -224,6 +226,70 @@ class ProductInventoryMetricCollectorTest {
 
       verify(metricRegistry).registerGauge(eq("asset_groups_total"), any(), gaugeCaptor.capture());
       assertThat(gaugeCaptor.getValue().get()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName(
+        "the vulnerable-endpoint gauge is wired to the scoped supplier, not the repository")
+    void vulnerableEndpointGaugeGoesThroughTheScope() {
+      // The defect this pins was a correctly scoped counting method sitting unused beside a gauge
+      // still wired to the raw repository. Asserting the count alone cannot see that; asserting
+      // that the REGISTERED supplier reaches the primitive can.
+      when(vulnerableEndpointRepository.count()).thenReturn(7L);
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerGauge(eq("vulnerable_endpoints_total"), any(), gaugeCaptor.capture());
+      Supplier<Long> gauge = gaugeCaptor.getValue();
+      clearInvocations(tenantTx);
+      assertThat(gauge.get()).isEqualTo(7L);
+      verify(tenantTx).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
+    @DisplayName(
+        "the notification-triggers gauge is wired to the scoped supplier, not the repository")
+    void notificationTriggerGaugeGoesThroughTheScope() {
+      // notification_triggers is v2-active, so a gauge left on the raw repository publishes zero
+      // under the inspector's fail-closed scope. Asserting the count alone cannot see that; only
+      // asserting that the REGISTERED supplier reaches the primitive can.
+      when(notificationTriggerRepository.count()).thenReturn(4L);
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerGauge(eq("notification_triggers_total"), any(), gaugeCaptor.capture());
+      Supplier<Long> gauge = gaugeCaptor.getValue();
+      clearInvocations(tenantTx);
+      assertThat(gauge.get()).isEqualTo(4L);
+      verify(tenantTx).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
+    @DisplayName("channels gauge uses the all-tenants scoped transaction for v2 tables")
+    void given_channelsGauge_should_runInAllTenantsScope() {
+      when(channelRepository.count()).thenReturn(11L);
+
+      collector.init();
+
+      verify(metricRegistry).registerGauge(eq("channels_total"), any(), gaugeCaptor.capture());
+      assertThat(gaugeCaptor.getValue().get()).isEqualTo(11L);
+      verify(channelRepository).count();
+      verify(tenantTx, times(1)).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
+    @DisplayName("mappers gauge uses the all-tenants scoped transaction for v2 tables")
+    void given_mappersGauge_should_runInAllTenantsScope() {
+      when(importMapperRepository.count()).thenReturn(5L);
+
+      collector.init();
+
+      verify(metricRegistry).registerGauge(eq("mappers_total"), any(), gaugeCaptor.capture());
+      assertThat(gaugeCaptor.getValue().get()).isEqualTo(5L);
+      verify(importMapperRepository).count();
+      verify(tenantTx, times(1)).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
     }
 
     @Test

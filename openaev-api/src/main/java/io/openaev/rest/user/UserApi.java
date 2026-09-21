@@ -127,8 +127,7 @@ public class UserApi extends RestBehavior {
   @NoTenantScope
   // No TxCtx here either: permitAll, pre-auth, see the comment on login() above.
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
-    // async execution; check method annotation
-    userService.requestPasswordReset(input);
+    userService.requestPasswordSetup(input.getLogin(), input.getLang());
     // force a 200 OK response even if no user was found
     // to avoid enumeration via status code
     return ResponseEntity.ok().build();

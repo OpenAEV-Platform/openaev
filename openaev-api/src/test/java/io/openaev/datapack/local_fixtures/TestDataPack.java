@@ -2,6 +2,7 @@ package io.openaev.datapack.local_fixtures;
 
 import static io.openaev.utils.StringUtils.generateRandomColor;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.processor.datapack.DataPack;
 import io.openaev.rest.tag.TagService;
@@ -26,7 +27,7 @@ public class TestDataPack extends DataPack {
     TagCreateInput input = new TagCreateInput();
     input.setName(tagName);
     input.setColor(generateRandomColor());
-    tagService.upsertTag(input);
+    tagService.upsertTag(TxCtx.forTenant(tenant.getId()), input);
     return true;
   }
 }

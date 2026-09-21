@@ -2,8 +2,12 @@ package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -12,6 +16,7 @@ import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagUpdateInput;
 import java.util.*;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,10 +32,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class TagServiceTest {
 
   @Mock private TagRepository tagRepository;
+  @Mock private TenantWriteScopeResolver writeScopeResolver;
 
   @Spy @InjectMocks private TagService tagService;
 
   @Captor private ArgumentCaptor<Tag> tagCaptor;
+
+  private static final String TENANT_ID = "tenant-test-id";
+  private static final TxCtx TX_CTX = TxCtx.forTenant(TENANT_ID);
+
+  @BeforeEach
+  void setup() {
+    lenient().when(writeScopeResolver.tenantForWrite(eq(TX_CTX), isNull())).thenReturn(TENANT_ID);
+  }
 
   /* ============================================================
    * tagSet — Retrieve tags by IDs
@@ -111,17 +125,18 @@ public class TagServiceTest {
 
       Tag existingOrNewTag = createTag(UUID.randomUUID().toString(), wellKnownName, expectedColor);
 
-      // upsertTag will be called; mock findByName to return empty so new tag is created
-      when(tagRepository.findByName(wellKnownName.toLowerCase())).thenReturn(Optional.empty());
+      // upsertTag will be called; mock tenant-scoped find to return empty so new tag is created
+      when(tagRepository.findByNameAndTenantId(wellKnownName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class))).thenReturn(existingOrNewTag);
 
       // -------- Act --------
-      Tag result = tagService.createTag(wellKnownName);
+      Tag result = tagService.createTag(TX_CTX, wellKnownName);
 
       // -------- Assert --------
       assertNotNull(result);
 
-      verify(tagRepository).findByName(wellKnownName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(wellKnownName.toLowerCase(), TENANT_ID);
       verify(tagRepository).save(tagCaptor.capture());
 
       Tag savedTag = tagCaptor.getValue();
@@ -134,16 +149,17 @@ public class TagServiceTest {
       String unknownName = "unknown-tag-name";
       Tag newTag = createTag(UUID.randomUUID().toString(), unknownName, "#abcdef");
 
-      when(tagRepository.findByName(unknownName.toLowerCase())).thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId(unknownName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Tag result = tagService.createTag(unknownName);
+      Tag result = tagService.createTag(TX_CTX, unknownName);
 
       // -------- Assert --------
       assertNotNull(result);
 
-      verify(tagRepository).findByName(unknownName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(unknownName.toLowerCase(), TENANT_ID);
       verify(tagRepository).save(tagCaptor.capture());
 
       Tag savedTag = tagCaptor.getValue();
@@ -157,15 +173,16 @@ public class TagServiceTest {
       String tagName = "existing-tag";
       Tag existingTag = createTag(UUID.randomUUID().toString(), tagName, "#123456");
 
-      when(tagRepository.findByName(tagName.toLowerCase())).thenReturn(Optional.of(existingTag));
+      when(tagRepository.findByNameAndTenantId(tagName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.of(existingTag));
 
       // -------- Act --------
-      Tag result = tagService.createTag(tagName);
+      Tag result = tagService.createTag(TX_CTX, tagName);
 
       // -------- Assert --------
       assertSame(existingTag, result);
 
-      verify(tagRepository).findByName(tagName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(tagName.toLowerCase(), TENANT_ID);
       verify(tagRepository, never()).save(any());
     }
   }
@@ -184,15 +201,16 @@ public class TagServiceTest {
 
       Tag existingTag = createTag(UUID.randomUUID().toString(), tagName, "#aabbcc");
 
-      when(tagRepository.findByName(tagName.toLowerCase())).thenReturn(Optional.of(existingTag));
+      when(tagRepository.findByNameAndTenantId(tagName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.of(existingTag));
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(TX_CTX, input);
 
       // -------- Assert --------
       assertSame(existingTag, result);
 
-      verify(tagRepository).findByName(tagName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(tagName.toLowerCase(), TENANT_ID);
       verify(tagRepository, never()).save(any());
     }
 
@@ -205,16 +223,17 @@ public class TagServiceTest {
 
       Tag newTag = createTag(UUID.randomUUID().toString(), tagName, tagColor);
 
-      when(tagRepository.findByName(tagName.toLowerCase())).thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId(tagName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(TX_CTX, input);
 
       // -------- Assert --------
       assertNotNull(result);
 
-      verify(tagRepository).findByName(tagName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(tagName.toLowerCase(), TENANT_ID);
       verify(tagRepository).save(tagCaptor.capture());
 
       Tag savedTag = tagCaptor.getValue();
@@ -230,15 +249,16 @@ public class TagServiceTest {
 
       Tag existingTag = createTag(UUID.randomUUID().toString(), tagName.toLowerCase(), "#123456");
 
-      when(tagRepository.findByName(tagName.toLowerCase())).thenReturn(Optional.of(existingTag));
+      when(tagRepository.findByNameAndTenantId(tagName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.of(existingTag));
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(TX_CTX, input);
 
       // -------- Assert --------
       assertSame(existingTag, result);
 
-      verify(tagRepository).findByName(tagName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(tagName.toLowerCase(), TENANT_ID);
     }
   }
 
@@ -305,7 +325,7 @@ public class TagServiceTest {
       Set<String> names = null;
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(TX_CTX, names);
 
       // -------- Assert --------
       assertTrue(result.isEmpty());
@@ -319,7 +339,7 @@ public class TagServiceTest {
       Set<String> names = Collections.emptySet();
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(TX_CTX, names);
 
       // -------- Assert --------
       assertTrue(result.isEmpty());
@@ -336,7 +356,7 @@ public class TagServiceTest {
       names.add(invalidName);
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(TX_CTX, names);
 
       // -------- Assert --------
       assertTrue(result.isEmpty());
@@ -354,8 +374,10 @@ public class TagServiceTest {
       Tag tag1 = createTag(UUID.randomUUID().toString(), name1, "#111111");
       Tag tag2 = createTag(UUID.randomUUID().toString(), name2, "#222222");
 
-      when(tagRepository.findByName(name1.toLowerCase())).thenReturn(Optional.empty());
-      when(tagRepository.findByName(name2.toLowerCase())).thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId(name1.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId(name2.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class)))
           .thenAnswer(
               invocation -> {
@@ -368,14 +390,14 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(TX_CTX, names);
 
       // -------- Assert --------
       assertEquals(2, result.size());
       assertTrue(result.contains(tag1));
       assertTrue(result.contains(tag2));
 
-      verify(tagRepository, times(2)).findByName(any());
+      verify(tagRepository, times(2)).findByNameAndTenantId(any(), eq(TENANT_ID));
       verify(tagRepository, times(2)).save(any(Tag.class));
     }
 
@@ -387,17 +409,17 @@ public class TagServiceTest {
 
       Tag existingTag = createTag(UUID.randomUUID().toString(), existingName, "#333333");
 
-      when(tagRepository.findByName(existingName.toLowerCase()))
+      when(tagRepository.findByNameAndTenantId(existingName.toLowerCase(), TENANT_ID))
           .thenReturn(Optional.of(existingTag));
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(TX_CTX, names);
 
       // -------- Assert --------
       assertEquals(1, result.size());
       assertTrue(result.contains(existingTag));
 
-      verify(tagRepository).findByName(existingName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(existingName.toLowerCase(), TENANT_ID);
       verify(tagRepository, never()).save(any());
     }
 
@@ -411,20 +433,21 @@ public class TagServiceTest {
       Tag existingTag = createTag(UUID.randomUUID().toString(), existingName, "#444444");
       Tag newTag = createTag(UUID.randomUUID().toString(), newName, "#555555");
 
-      when(tagRepository.findByName(existingName.toLowerCase()))
+      when(tagRepository.findByNameAndTenantId(existingName.toLowerCase(), TENANT_ID))
           .thenReturn(Optional.of(existingTag));
-      when(tagRepository.findByName(newName.toLowerCase())).thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId(newName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(TX_CTX, names);
 
       // -------- Assert --------
       assertEquals(2, result.size());
       assertTrue(result.contains(existingTag));
       assertTrue(result.contains(newTag));
 
-      verify(tagRepository, times(2)).findByName(any());
+      verify(tagRepository, times(2)).findByNameAndTenantId(any(), eq(TENANT_ID));
       verify(tagRepository, times(1)).save(any(Tag.class));
     }
 
@@ -440,17 +463,18 @@ public class TagServiceTest {
 
       Tag validTag = createTag(UUID.randomUUID().toString(), validName, "#666666");
 
-      when(tagRepository.findByName(validName.toLowerCase())).thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId(validName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class))).thenReturn(validTag);
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(TX_CTX, names);
 
       // -------- Assert --------
       assertEquals(1, result.size());
       assertTrue(result.contains(validTag));
 
-      verify(tagRepository).findByName(validName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(validName.toLowerCase(), TENANT_ID);
       verify(tagRepository).save(any(Tag.class));
     }
   }
@@ -466,8 +490,8 @@ public class TagServiceTest {
       // -------- Prepare --------
       int wellKnownTagCount = Tag.WellKnown.size();
 
-      // All findByName calls return empty
-      when(tagRepository.findByName(any())).thenReturn(Optional.empty());
+      // All tenant-scoped lookups return empty.
+      when(tagRepository.findByNameAndTenantId(any(), eq(TENANT_ID))).thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class)))
           .thenAnswer(
               invocation -> {
@@ -477,12 +501,12 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.ensureWellKnownTags();
+      Set<Tag> result = tagService.ensureWellKnownTags(TX_CTX);
 
       // -------- Assert --------
       assertEquals(wellKnownTagCount, result.size());
 
-      verify(tagRepository, times(wellKnownTagCount)).findByName(any());
+      verify(tagRepository, times(wellKnownTagCount)).findByNameAndTenantId(any(), eq(TENANT_ID));
       verify(tagRepository, times(wellKnownTagCount)).save(any(Tag.class));
     }
 
@@ -495,7 +519,7 @@ public class TagServiceTest {
         existingTags.put(entry.getKey(), tag);
       }
 
-      when(tagRepository.findByName(any()))
+      when(tagRepository.findByNameAndTenantId(any(), eq(TENANT_ID)))
           .thenAnswer(
               invocation -> {
                 String name = invocation.getArgument(0);
@@ -503,12 +527,13 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.ensureWellKnownTags();
+      Set<Tag> result = tagService.ensureWellKnownTags(TX_CTX);
 
       // -------- Assert --------
       assertEquals(Tag.WellKnown.size(), result.size());
 
-      verify(tagRepository, times(Tag.WellKnown.size())).findByName(any());
+      verify(tagRepository, times(Tag.WellKnown.size()))
+          .findByNameAndTenantId(any(), eq(TENANT_ID));
       verify(tagRepository, never()).save(any());
     }
 
@@ -532,7 +557,7 @@ public class TagServiceTest {
         count++;
       }
 
-      when(tagRepository.findByName(any()))
+      when(tagRepository.findByNameAndTenantId(any(), eq(TENANT_ID)))
           .thenAnswer(
               invocation -> {
                 String name = invocation.getArgument(0);
@@ -548,12 +573,13 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.ensureWellKnownTags();
+      Set<Tag> result = tagService.ensureWellKnownTags(TX_CTX);
 
       // -------- Assert --------
       assertEquals(Tag.WellKnown.size(), result.size());
 
-      verify(tagRepository, times(Tag.WellKnown.size())).findByName(any());
+      verify(tagRepository, times(Tag.WellKnown.size()))
+          .findByNameAndTenantId(any(), eq(TENANT_ID));
       verify(tagRepository, times(missingNames.size())).save(any(Tag.class));
     }
 
@@ -561,7 +587,7 @@ public class TagServiceTest {
     @MethodSource("wellKnownTagsProvider")
     void shouldCreateCorrectWellKnownTag(String tagName, String expectedColor) {
       // -------- Prepare --------
-      when(tagRepository.findByName(any())).thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId(any(), eq(TENANT_ID))).thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class)))
           .thenAnswer(
               invocation -> {
@@ -571,7 +597,7 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.ensureWellKnownTags();
+      Set<Tag> result = tagService.ensureWellKnownTags(TX_CTX);
 
       // -------- Assert --------
       // Find the tag with the expected name
@@ -618,16 +644,17 @@ public class TagServiceTest {
 
       Tag newTag = createTag(UUID.randomUUID().toString(), specialName, "#abcdef");
 
-      when(tagRepository.findByName(specialName.toLowerCase())).thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId(specialName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(TX_CTX, input);
 
       // -------- Assert --------
       assertNotNull(result);
 
-      verify(tagRepository).findByName(specialName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(specialName.toLowerCase(), TENANT_ID);
       verify(tagRepository).save(any(Tag.class));
     }
 
@@ -639,16 +666,17 @@ public class TagServiceTest {
 
       Tag newTag = createTag(UUID.randomUUID().toString(), unicodeName, "#ffffff");
 
-      when(tagRepository.findByName(unicodeName.toLowerCase())).thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId(unicodeName.toLowerCase(), TENANT_ID))
+          .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(TX_CTX, input);
 
       // -------- Assert --------
       assertNotNull(result);
 
-      verify(tagRepository).findByName(unicodeName.toLowerCase());
+      verify(tagRepository).findByNameAndTenantId(unicodeName.toLowerCase(), TENANT_ID);
     }
   }
 

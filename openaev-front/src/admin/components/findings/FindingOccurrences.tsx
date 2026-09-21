@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import type { Page } from '../../../components/common/queryable/Page';
 import { useFormatter } from '../../../components/i18n';
-import type { Finding, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
+import type { FindingOutput, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
 import FindingOccurrencesList from './FindingOccurrencesList';
 import FindingOccurrencesTimeline from './FindingOccurrencesTimeline';
 
@@ -19,7 +19,7 @@ const initialViewMode = (): ViewMode => (
 
 interface Props {
   searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
-  finding: Pick<Finding, 'finding_type' | 'finding_value'>;
+  finding: Pick<FindingOutput, 'finding_type' | 'finding_value'>;
   contextId?: string;
 }
 

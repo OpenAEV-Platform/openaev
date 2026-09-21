@@ -5,7 +5,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
-import co.elastic.clients.util.VisibleForTesting;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
@@ -39,9 +38,11 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.UserService;
+import io.openaev.service.credential.CredentialService;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.targets.TargetService;
@@ -66,6 +67,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -93,6 +95,7 @@ public class InjectApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
+  private final CredentialService credentialService;
   private final InjectExecutionService injectExecutionService;
   private final InjectExportService injectExportService;
   private final TargetService targetService;
@@ -112,7 +115,7 @@ public class InjectApi extends RestBehavior {
   private final PreviewFeatureService previewFeatureService;
 
   // For testing purpose, we add a setter
-  @Setter private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
+  @Getter @Setter private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
 
   @PostConstruct
   public void init() throws IOException, TimeoutException {
@@ -704,8 +707,21 @@ public class InjectApi extends RestBehavior {
     return documentService.documentsForPayload(payloadId);
   }
 
-  @VisibleForTesting
-  public BatchQueueService<InjectExecutionCallback> getInjectTraceQueueService() {
-    return injectTraceQueueService;
+  @Operation(description = "Resolve an inject attachment secret")
+  @PostMapping({
+    INJECT_URI + "/{injectId}/attachment/secret",
+    TENANT_INJECT_URI + "/{injectId}/attachment/secret"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.RESOLVE,
+      resourceType = ResourceType.INJECT_SECRET)
+  public SecretResolvedValue resolveInjectAttachmentSecret(
+      TxCtx ctx,
+      @PathVariable @NotBlank String injectId,
+      @RequestBody @Valid InjectAttachmentInput input) {
+    return credentialService.resolveCredentialSecret(
+        injectService.getSecretReferenceOrThrow(injectId, input));
   }
 }

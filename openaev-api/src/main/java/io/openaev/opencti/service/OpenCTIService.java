@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.*;
@@ -289,7 +290,7 @@ public class OpenCTIService {
       ResponseFile octiResponseFile = downloadFile(uri, tenantId);
 
       if (octiResponseFile != null) {
-        Tag openCtiTag = getOpenCTITag();
+        Tag openCtiTag = getOpenCTITag(tenantId);
         DocumentCreateInput documentCreateInput = new DocumentCreateInput();
         documentCreateInput.setDescription(name);
         if (openCtiTag != null) {
@@ -323,10 +324,10 @@ public class OpenCTIService {
         config.getToken());
   }
 
-  private Tag getOpenCTITag() {
+  private Tag getOpenCTITag(String tenantId) {
     TagCreateInput tagCreateInput = new TagCreateInput();
     tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
-    return tagService.upsertTag(tagCreateInput);
+    return tagService.upsertTag(TxCtx.forTenant(tenantId), tagCreateInput);
   }
 
   private OpenCTIConfig resolveConfig(final String tenantId) throws ConnectorError {

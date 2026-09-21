@@ -26,6 +26,13 @@ io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService.pers
 # degradation a lost scope would cause. Same shape as InjectExpectationHandler.fetch above.
 io.openaev.engine.model.assetgroup.AssetGroupHandler.fetch
 
+# SCOPED-OK - asset_groups activation (#6435). handlePendingInject resolves the group through
+# TenantScopedJobRunner; the waived read is PendingInjectAssetGroupScopeTest.unscopedLookupThrows
+# calling the service with no scope on purpose, asserting that it throws. Its sibling
+# scopedLookupResolvesTheGroup shows the production shape. The waiver belongs on this branch
+# because the test that triggers it does.
+io.openaev.service.AssetGroupService.assetGroup
+
 # TEST-ARTIFACT / latent - tags is not active in production; this JSON serializer would fail closed
 # only if tags is ever activated (serialization runs after the request transaction closes).
 io.openaev.helper.MultiIdSetSerializer.serialize

@@ -4,6 +4,7 @@ import static io.openaev.database.model.ChallengeFlag.FLAG_TYPE.VALUE;
 
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.ChallengeFlag;
+import io.openaev.database.model.Tenant;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,13 +34,9 @@ public class ChallengeFixture {
   }
 
   private static Challenge createChallengeWithDefaultName() {
-    return createChallengeWithName(null);
-  }
-
-  private static Challenge createChallengeWithName(String name) {
-    String new_name = name == null ? "challenge-%s".formatted(UUID.randomUUID()) : name;
     Challenge challenge = new Challenge();
-    challenge.setName(new_name);
+    challenge.setName("challenge-%s".formatted(UUID.randomUUID()));
+    challenge.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     return challenge;
   }
 }

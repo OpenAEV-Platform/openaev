@@ -21,13 +21,16 @@ import { useHelper } from '../../../../store';
 import { type CreateExerciseInput, type PlatformSettings } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
 import DefaultKillChainSelectField from '../../common/filters/DefaultKillChainSelectField';
+import LessonsLearnedSection from '../../common/form/LessonsLearnedSection';
 import { scenarioCategories } from '../../scenarios/constants';
 import { EXERCISE_NAME_MAX_LENGTH, EXERCISE_NAME_MIN_LENGTH } from '../constants';
 
+export type ExerciseFormInput = CreateExerciseInput & { exercise_lessons_enabled?: boolean };
+
 interface Props {
-  onSubmit: SubmitHandler<CreateExerciseInput>;
+  onSubmit: SubmitHandler<ExerciseFormInput>;
   handleClose: () => void;
-  initialValues?: CreateExerciseInput;
+  initialValues?: ExerciseFormInput;
   disabled?: boolean;
   edit: boolean;
   simulationId?: string;
@@ -68,10 +71,10 @@ const ExerciseForm: FunctionComponent<Props> = ({
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
     setValue,
-  } = useForm<CreateExerciseInput>({
+  } = useForm<ExerciseFormInput>({
     mode: 'onTouched',
     resolver: zodResolver(
-      zodImplement<CreateExerciseInput>().with({
+      zodImplement<ExerciseFormInput>().with({
         exercise_name: z.string().min(EXERCISE_NAME_MIN_LENGTH, { message: t('Should not be empty') })
           .max(EXERCISE_NAME_MAX_LENGTH, { message: t('Should not exceed {max_length} characters', { max_length: EXERCISE_NAME_MAX_LENGTH.toString() }) }),
         exercise_subtitle: z.string().optional(),
@@ -88,6 +91,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         exercise_message_footer: z.string().optional(),
         exercise_custom_dashboard: z.string().optional(),
         exercise_is_chaining: z.boolean().optional(),
+        exercise_lessons_enabled: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -256,6 +260,13 @@ const ExerciseForm: FunctionComponent<Props> = ({
             error={error}
           />
         )}
+      />
+
+      <LessonsLearnedSection
+        control={control}
+        name="exercise_lessons_enabled"
+        disabled={disabled}
+        style={{ marginTop: 40 }}
       />
 
       {!isChaining && (

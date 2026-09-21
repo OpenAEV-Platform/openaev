@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
@@ -33,12 +35,16 @@ class WorkflowEndServiceTest {
   @Mock private WorkflowRepository workflowRepository;
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private ScopeSnapshotService scopeSnapshotService;
+  @Mock private AssetAgentJobRepository assetAgentJobRepository;
+  @Mock private WorkflowStateRepository workflowStateRepository;
 
   @InjectMocks private WorkflowEndService workflowEndService;
 
   @Nested
   @DisplayName("forceCompleteWorkflowByTimeout")
   class ForceCompleteWorkflowTests {
+    static WorkflowEndService.WORKFLOW_END_CAUSE cause =
+        WorkflowEndService.WORKFLOW_END_CAUSE.TIMEOUT;
 
     @Test
     @DisplayName(
@@ -50,7 +56,6 @@ class WorkflowEndServiceTest {
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
-      when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(3);
 
       Inject activeInject = buildInjectWithStatus(ExecutionStatus.PENDING);
       Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
@@ -63,18 +68,24 @@ class WorkflowEndServiceTest {
       // Assert — verify ordering
       InOrder inOrder =
           inOrder(
+              scopeSnapshotService,
+              exerciseRepository,
               stepService,
               stepDelayQueueService,
-              workflowRepository,
               injectService,
               injectStatusService,
-              exerciseRepository);
-      inOrder.verify(stepService).endActiveStepsByWorkflowId(workflowRun.getId());
-      inOrder.verify(stepDelayQueueService).deleteAllByWorkflowRun(workflowRun);
-      inOrder.verify(workflowRepository).save(workflowRun);
+              workflowRepository);
+      inOrder.verify(scopeSnapshotService).freezeEnd(workflowRun);
+
+      inOrder.verify(exerciseRepository).save(simulation);
+
+      inOrder.verify(stepService).endActiveStepsByWorkflowId(workflowRun.getId(), cause);
+      inOrder.verify(stepDelayQueueService).deleteAllByWorkflowRun(workflowRun, cause);
+
       inOrder.verify(injectService).findBySimulationId(simulation.getId());
       inOrder.verify(injectStatusService).save(activeInject.getStatus().get());
-      inOrder.verify(exerciseRepository).save(simulation);
+
+      inOrder.verify(workflowRepository).save(workflowRun);
 
       // Assert — active inject status was set to SUCCESS with info trace
       assertEquals(ExecutionStatus.ERROR, activeInject.getStatus().get().getName());
@@ -95,12 +106,12 @@ class WorkflowEndServiceTest {
     @Test
     @DisplayName("should_completeAllActiveInjectStatuses_queuingExecutingPending")
     void should_completeAllActiveInjectStatuses_queuingExecutingPending() {
+
       // Arrange
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
-      when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(0);
 
       Inject queuingInject = buildInjectWithStatus(ExecutionStatus.QUEUING);
       Inject executingInject = buildInjectWithStatus(ExecutionStatus.EXECUTING);
@@ -123,12 +134,12 @@ class WorkflowEndServiceTest {
     @Test
     @DisplayName("given_noActiveInjects_should_stillFinishSimulation")
     void given_noActiveInjects_should_stillFinishSimulation() {
+
       // Arrange
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
-      when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(0);
 
       Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
       when(injectService.findBySimulationId(simulation.getId()))
@@ -146,16 +157,16 @@ class WorkflowEndServiceTest {
     @Test
     @DisplayName("given_noSimulation_should_stillEndWorkflowWithoutError")
     void given_noSimulation_should_stillEndWorkflowWithoutError() {
+
       // Arrange
       Workflow workflowRun = buildRunWorkflow();
-      when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(0);
 
       // Act
       workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert — workflow ended, no simulation interaction
-      verify(stepService).endActiveStepsByWorkflowId(workflowRun.getId());
-      verify(stepDelayQueueService).deleteAllByWorkflowRun(workflowRun);
+      verify(stepService).endActiveStepsByWorkflowId(workflowRun.getId(), cause);
+      verify(stepDelayQueueService).deleteAllByWorkflowRun(workflowRun, cause);
       verify(workflowRepository).save(workflowRun);
       verifyNoInteractions(exerciseRepository);
       verifyNoInteractions(injectService);
@@ -166,6 +177,8 @@ class WorkflowEndServiceTest {
   @Nested
   @DisplayName("endWorkflow / stopSimulationByEndWorkflow")
   class EndWorkflowSimulationSyncTests {
+    static WorkflowEndService.WORKFLOW_END_CAUSE cause =
+        WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS;
 
     @Test
     @DisplayName("given NO_MORE_PROGRESS should end workflow and finish its simulation")
@@ -180,8 +193,7 @@ class WorkflowEndServiceTest {
           .thenReturn(List.of(finishedInject));
 
       // Act
-      workflowEndService.endWorkflow(
-          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
+      workflowEndService.endWorkflow(workflowRun, cause);
 
       // Assert
       assertEquals(WorkflowStatus.END, workflowRun.getStatus());
@@ -191,21 +203,19 @@ class WorkflowEndServiceTest {
     }
 
     @Test
-    @DisplayName(
-        "given workflow already END should finish simulation via stopSimulationByEndWorkflow")
-    void given_workflowAlreadyEnd_should_finishAssociatedSimulation() {
+    @DisplayName("given workflow with no more process should be set to END and finish simulation")
+    void given_workflow_with_no_more_process_should_finishAssociatedSimulation() {
       // Arrange
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
-      workflowRun.setStatus(WorkflowStatus.END);
       Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
       when(injectService.findBySimulationId(simulation.getId()))
           .thenReturn(List.of(finishedInject));
 
       // Act
-      workflowEndService.stopSimulationByEndWorkflow(workflowRun);
+      workflowEndService.endWorkflow(workflowRun, cause);
 
       // Assert
       assertEquals(ExerciseStatus.FINISHED, simulation.getStatus());

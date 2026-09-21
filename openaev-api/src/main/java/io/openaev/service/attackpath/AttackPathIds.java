@@ -2,6 +2,8 @@ package io.openaev.service.attackpath;
 
 import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 
+import io.openaev.utils.SensitiveValueMaskingUtils;
+
 /**
  * Deterministic, collision-safe IDs for the attack-path graph (issue 6647). Every node and edge
  * carries a stable string ID built from its columns, so the same inputs always produce the same ID
@@ -88,8 +90,25 @@ public final class AttackPathIds {
     return encode("NODE_FINDINGS_TYPE", type, endpointKey);
   }
 
-  /** {@code NODE_FINDING}: a single finding, deduped by (type, value) across endpoints. */
+  /**
+   * {@code NODE_FINDING}: a single finding, deduped by (type, value) across endpoints.
+   *
+   * <p>The value of a sensitive finding is a secret, and an id is not a display field: it travels
+   * in the graph payload, in {@code findingsNodeIds} and in {@code matchedFindingIds}, so encoding
+   * the raw value here would hand the cleartext out even though every {@code value} field is
+   * masked. For a sensitive type the value is therefore hashed with SHA-256 under the distinct
+   * {@code NODE_FINDING_H} kind - the same construction as {@link #findingRow}'s {@code
+   * FINDING_ROW_H} variant. The two kinds are distinct prefixes, so the namespaces can never
+   * collide, and the hash is deterministic, so deduplication by (type, value) is preserved.
+   *
+   * <p>Unlike {@code FINDING_ROW}, this id is never persisted: it is recomputed on every read, so
+   * switching a type to the hashed form breaks no stored reference. The front never rebuilds these
+   * ids either - it always carries the id the backend emitted.
+   */
   public static String findingNode(String type, String value) {
+    if (SensitiveValueMaskingUtils.isSensitive(type)) {
+      return encode("NODE_FINDING_H", type, value == null ? null : hashWithSHA256(value));
+    }
     return encode("NODE_FINDING", type, value);
   }
 
@@ -140,8 +159,22 @@ public final class AttackPathIds {
     return encode("EDGE_ENDPOINT_FINDINGS_TYPE", type, endpointKey);
   }
 
-  /** {@code EDGE_FINDINGS_TYPE_FINDING}: a finding-type node to a specific finding. */
+  /**
+   * {@code EDGE_FINDINGS_TYPE_FINDING}: a finding-type node to a specific finding.
+   *
+   * <p>Encodes a finding value, so it hashes it under the distinct {@code
+   * EDGE_FINDINGS_TYPE_FINDING_H} kind for a sensitive type, for the same reason as {@link
+   * #findingNode}: an edge id travels in the graph payload and would otherwise disclose the very
+   * secret the node's value masks.
+   */
   public static String findingTypeFindingEdge(String type, String endpointKey, String value) {
+    if (SensitiveValueMaskingUtils.isSensitive(type)) {
+      return encode(
+          "EDGE_FINDINGS_TYPE_FINDING_H",
+          type,
+          endpointKey,
+          value == null ? null : hashWithSHA256(value));
+    }
     return encode("EDGE_FINDINGS_TYPE_FINDING", type, endpointKey, value);
   }
 

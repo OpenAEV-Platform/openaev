@@ -103,14 +103,9 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     });
   });
 
-  test.afterAll(async ({ browser }) => {
+  test.afterAll(async ({ request }) => {
     if (newTenantId) {
-      const context = await browser.newContext({
-        storageState: 'tests_e2e/.auth/user.json',
-        baseURL: APP_URL,
-      });
-      await new TenantApiHelpers(context.request).softDeleteTenant(newTenantId);
-      await context.close();
+      await new TenantApiHelpers(request).softDeleteTenant(newTenantId);
       newTenantId = null;
     }
   });

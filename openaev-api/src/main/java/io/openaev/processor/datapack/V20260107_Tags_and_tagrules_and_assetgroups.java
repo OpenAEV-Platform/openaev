@@ -1,5 +1,6 @@
 package io.openaev.processor.datapack;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.tag.TagService;
@@ -51,14 +52,9 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
   @Override
   public boolean doProcess(Tenant tenant) {
     try {
-      // TODO v2: once tags get v2 activated
-      // https://github.com/OpenAEV-Platform/openaev/issues/6424, and tag_rules get v2 activated
-      // https://github.com/OpenAEV-Platform/openaev/issues/6407, remove this call - the SQL
-      // rewriter will scope both entities independently of the v1 filter
-      enableV1TenantFilter(tenant);
-
-      tagService.ensureWellKnownTags();
-      Set<TagRule> presetRules = tagRuleService.ensurePresetRules();
+      TxCtx ctx = TxCtx.forTenant(tenant.getId());
+      tagService.ensureWellKnownTags(ctx);
+      Set<TagRule> presetRules = tagRuleService.ensurePresetRules(ctx);
 
       Set<Endpoint.PLATFORM_TYPE> platformsToConsider =
           Set.of(

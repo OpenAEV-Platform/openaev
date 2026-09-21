@@ -90,13 +90,16 @@ class ScenarioInjectApiTest extends IntegrationTest {
     ATTACKPATTERN = attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
     LINUX_X86_64 =
         endpointService.createEndpoint(
-            EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64));
+            EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64),
+            Tenant.DEFAULT_TENANT_UUID);
     WINDOWS_X86_64 =
         endpointService.createEndpoint(
-            EndpointFixture.createDefaultWindowsEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64));
+            EndpointFixture.createDefaultWindowsEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64),
+            Tenant.DEFAULT_TENANT_UUID);
     WINDOWS_ARM64 =
         endpointService.createEndpoint(
-            EndpointFixture.createDefaultWindowsEndpointWithArch(Endpoint.PLATFORM_ARCH.arm64));
+            EndpointFixture.createDefaultWindowsEndpointWithArch(Endpoint.PLATFORM_ARCH.arm64),
+            Tenant.DEFAULT_TENANT_UUID);
     ALL_ASSETGROUP =
         assetGroupService.createAssetGroup(
             AssetGroupFixture.createAssetGroupWithAssets(

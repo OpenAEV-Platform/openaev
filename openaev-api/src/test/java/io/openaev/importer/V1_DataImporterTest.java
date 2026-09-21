@@ -28,6 +28,7 @@ import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.KillChainPhaseFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -68,6 +69,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private TenantRepository tenantRepository;
   @Autowired private DomainRepository domainRepository;
   @Autowired private DomainService domainService;
   @Autowired private WorkflowRepository workflowRepository;
@@ -97,12 +99,19 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @BeforeEach
   void cleanBefore() throws IOException {
-    killChainPhaseRepository.deleteAll();
-    attackPatternRepository.deleteAll();
-    exerciseRepository.deleteAll();
-    scenarioRepository.deleteAll();
+    entityManager.clear();
     injectRepository.deleteAll();
+    entityManager.clear();
     injectorContractRepository.deleteAll();
+    entityManager.clear();
+    attackPatternRepository.deleteAll();
+    entityManager.clear();
+    killChainPhaseRepository.deleteAll();
+    entityManager.clear();
+    scenarioRepository.deleteAll();
+    entityManager.clear();
+    exerciseRepository.deleteAll();
+    entityManager.clear();
     injectorRepository.deleteAll();
     MockitoAnnotations.openMocks(this);
     when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
@@ -150,6 +159,48 @@ class V1_DataImporterTest extends IntegrationTest {
     List<Tag> tag = this.tagRepository.findByNameIgnoreCase(TAG_NAME);
     assertFalse(tag.isEmpty());
     assertEquals(TAG_NAME, tag.getFirst().getName());
+  }
+
+  @Test
+  @Transactional
+  void testScenario_import_preserves_lessons_flags() {
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode root = mapper.createObjectNode();
+    ObjectNode scenarioNode = root.putObject("scenario_information");
+    scenarioNode.put("scenario_name", "Lessons scenario");
+    scenarioNode.put("scenario_description", "Lessons scenario");
+    scenarioNode.put("scenario_subtitle", "Lessons scenario");
+    scenarioNode.put("scenario_category", "crisis-communication");
+    scenarioNode.put("scenario_main_focus", "crisis-communication");
+    scenarioNode.put("scenario_message_header", "HEADER");
+    scenarioNode.put("scenario_message_footer", "FOOTER");
+    scenarioNode.put("scenario_mail_from", "scenario@mail.fr");
+    scenarioNode.put("scenario_lessons_enabled", true);
+    scenarioNode.put("scenario_lessons_anonymized", true);
+    root.putArray("scenario_tags");
+    root.putArray("scenario_documents");
+    root.putArray("scenario_organizations");
+    root.putArray("scenario_users");
+    root.putArray("scenario_teams");
+    root.putArray("scenario_challenges");
+    root.putArray("scenario_channels");
+    root.putArray("scenario_articles");
+    root.putArray("scenario_objectives");
+    root.putArray("scenario_lessons_categories");
+    root.putArray("scenario_lessons_questions");
+    root.putArray("scenario_variables");
+    root.putArray("scenario_injects");
+
+    this.importer.importData(
+        txCtx(), root, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    Scenario imported =
+        this.scenarioRepository.findAll().stream()
+            .filter(s -> s.getName().startsWith("Lessons scenario"))
+            .findFirst()
+            .orElseThrow();
+    assertTrue(imported.isLessonsEnabled());
+    assertTrue(imported.isLessonsAnonymized());
   }
 
   @Test
@@ -769,18 +820,26 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   @WithMockUser
-  void given_stepDataWithSourceTeams_when_importing_should_stripInjectTeams() throws Exception {
+  void given_stepDataWithSourceTeams_when_importing_should_rewriteInjectTeams() throws Exception {
     // -- Arrange --
     ObjectMapper om = new ObjectMapper();
-    String scenarioName = "wf teams stripped " + UUID.randomUUID();
+    String scenarioName = "wf teams rewritten " + UUID.randomUUID();
+    String sourceTeamId = UUID.randomUUID().toString();
+    String teamName = "imported team " + UUID.randomUUID();
+    ObjectNode sourceTeam = om.createObjectNode();
+    sourceTeam.put("team_id", sourceTeamId);
+    sourceTeam.put("team_name", teamName);
+    sourceTeam.put("team_description", "");
+    sourceTeam.set("team_tags", om.createArrayNode());
+    sourceTeam.set("team_users", om.createArrayNode());
     ObjectNode importData =
         buildScenarioWorkflowWithStepTags(
             om, scenarioName, om.createArrayNode(), om.createArrayNode(), om.createArrayNode());
+    ((ArrayNode) importData.get("scenario_teams")).add(sourceTeam);
     ObjectNode stepData =
         (ObjectNode)
             importData.get("scenario_workflow").get("workflow_steps").get(0).get("step_data");
-    stepData.set(
-        "inject_teams", tagIdArray(om, UUID.randomUUID().toString(), UUID.randomUUID().toString()));
+    stepData.set("inject_teams", tagIdArray(om, sourceTeamId));
 
     // -- Act --
     this.importer.importData(
@@ -794,10 +853,71 @@ class V1_DataImporterTest extends IntegrationTest {
         Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
+    Team importedTeam =
+        teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).stream()
+            .findFirst()
+            .orElseThrow();
     JsonNode storedData = readStoredStepData(scenarioName, om);
-    assertFalse(
-        storedData.has("inject_teams"),
-        "runtime inject_teams must be stripped exactly like inject_assets/inject_asset_groups");
+    assertEquals(
+        List.of(importedTeam.getId()),
+        tagIdList(storedData.get("inject_teams")),
+        "runtime inject_teams must be rewritten to the resolved target team id");
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void given_workflowScopeTeam_when_importing_should_seedAudienceStepTargets() throws Exception {
+    // -- Arrange --
+    ObjectMapper om = new ObjectMapper();
+    String scenarioName = "wf scope seeded " + UUID.randomUUID();
+    String teamName = "scope team " + UUID.randomUUID();
+    String sourceTeamId = UUID.randomUUID().toString();
+
+    ObjectNode sourceTeam = om.createObjectNode();
+    sourceTeam.put("team_id", sourceTeamId);
+    sourceTeam.put("team_name", teamName);
+    sourceTeam.put("team_description", "");
+    sourceTeam.set("team_tags", om.createArrayNode());
+    sourceTeam.set("team_users", om.createArrayNode());
+
+    ArrayNode scopeRules = om.createArrayNode();
+    scopeRules.add(workflowScopeRuleNode(om, "TEAM", sourceTeamId, teamName));
+
+    String contractId = UUID.randomUUID().toString();
+    persistResolvableStepContract(contractId);
+
+    ArrayNode steps = om.createArrayNode();
+    steps.add(buildInjectExecutionStep(om, "scope-step-1", 1, contractId, om.createArrayNode()));
+
+    ObjectNode workflowNode = om.createObjectNode();
+    workflowNode.set("workflow_scope_rules", scopeRules);
+    workflowNode.set("workflow_steps", steps);
+
+    ObjectNode importData = buildScenarioImportWithWorkflow(om, scenarioName, workflowNode);
+    ((ArrayNode) importData.get("scenario_teams")).add(sourceTeam);
+
+    // -- Act --
+    this.importer.importData(
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    Team importedTeam =
+        teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).stream()
+            .findFirst()
+            .orElseThrow();
+    JsonNode storedData = readStoredStepData(scenarioName, om);
+    assertEquals(
+        List.of(importedTeam.getId()),
+        tagIdList(storedData.get("inject_teams")),
+        "scope-driven audience steps must inherit the resolved workflow team targets");
   }
 
   @Test
@@ -1136,10 +1256,7 @@ class V1_DataImporterTest extends IntegrationTest {
     // source id to the existing target tag, and the nested injector_contract_tags / inject_tags in
     // step_data must be rewritten to that existing tag id (no duplicate tag created).
     String tagName = "v1-import-shared-tag-" + UUID.randomUUID();
-    Tag existingTag = new Tag();
-    existingTag.setName(tagName);
-    existingTag.setColor("#112233");
-    existingTag = tagRepository.save(existingTag);
+    Tag existingTag = tagRepository.save(TagFixture.getTagWithTextAndColour(tagName, "#112233"));
     String targetTagId = existingTag.getId();
     String sourceTagId = UUID.randomUUID().toString();
     assertNotEquals(targetTagId, sourceTagId);
@@ -1410,10 +1527,7 @@ class V1_DataImporterTest extends IntegrationTest {
     // importTags expects a PREFIX (ending with '_'). For contract_output_element tags, the correct
     // prefix is "contract_output_element_", which resolves "contract_output_element_tags".
     String tagName = "contract-output-element-import-tag-" + UUID.randomUUID();
-    Tag existingTag = new Tag();
-    existingTag.setName(tagName);
-    existingTag.setColor("#00AAFF");
-    existingTag = tagRepository.save(existingTag);
+    Tag existingTag = tagRepository.save(TagFixture.getTagWithTextAndColour(tagName, "#00AAFF"));
 
     String sourceTagId = UUID.randomUUID().toString();
     ObjectMapper om = new ObjectMapper();
@@ -1430,7 +1544,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     ReflectionTestUtils.invokeMethod(
-        importer, "importTags", outputElementNode, "contract_output_element_", baseIds);
+        importer, "importTags", txCtx(), outputElementNode, "contract_output_element_", baseIds);
 
     // -- Assert --
     assertTrue(baseIds.containsKey(sourceTagId), "source tag id must be resolved in baseIds");
@@ -1820,6 +1934,204 @@ class V1_DataImporterTest extends IntegrationTest {
     assertFalse(workflow.isSafeModeEnabled());
   }
 
+  @Test
+  @Transactional
+  @WithMockUser
+  void given_chainedWorkflowScopeRules_when_importing_should_reuseExistingTeamAndPlayerByLabel()
+      throws Exception {
+    // -- Arrange --
+    String scenarioName = "wf scope reuse " + UUID.randomUUID();
+    String teamName = "scope-team-" + UUID.randomUUID();
+    Team existingTeam = new Team();
+    existingTeam.setName(teamName);
+    existingTeam.setContextual(false);
+    existingTeam.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    existingTeam = teamRepository.save(existingTeam);
+
+    User existingPlayer = new User();
+    existingPlayer.setFirstname("Scope");
+    existingPlayer.setLastname("Player");
+    existingPlayer.setEmail("scope.player@" + UUID.randomUUID().toString().substring(0, 8) + ".io");
+    existingPlayer = userRepository.save(existingPlayer);
+
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode workflowNode = om.createObjectNode();
+    ArrayNode scopeRules = om.createArrayNode();
+    scopeRules.add(workflowScopeRuleNode(om, "TEAM", UUID.randomUUID().toString(), teamName));
+    scopeRules.add(
+        workflowScopeRuleNode(
+            om, "PLAYER", UUID.randomUUID().toString(), existingPlayer.getNameOrEmail()));
+    workflowNode.set("workflow_scope_rules", scopeRules);
+    workflowNode.set("workflow_steps", om.createArrayNode());
+    ObjectNode importData = buildScenarioImportWithWorkflow(om, scenarioName, workflowNode);
+
+    // -- Act --
+    this.importer.importData(
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    Workflow workflow = findImportedWorkflow(scenarioName);
+    assertEquals(2, workflow.getWorkflowScopeRules().size());
+
+    WorkflowScopeRule teamRule =
+        workflow.getWorkflowScopeRules().stream()
+            .filter(rule -> ScopeRuleSource.TEAM.equals(rule.getRuleSource()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(existingTeam.getId(), teamRule.getRuleValue());
+    assertEquals(teamName, teamRule.getRuleValueLabel());
+
+    WorkflowScopeRule playerRule =
+        workflow.getWorkflowScopeRules().stream()
+            .filter(rule -> ScopeRuleSource.PLAYER.equals(rule.getRuleSource()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(existingPlayer.getId(), playerRule.getRuleValue());
+    assertEquals(existingPlayer.getNameOrEmail(), playerRule.getRuleValueLabel());
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void given_chainedWorkflowScopeRules_when_importing_should_createMissingTeamAndPlayerFromLabels()
+      throws Exception {
+    // -- Arrange --
+    String scenarioName = "wf scope create " + UUID.randomUUID();
+    String teamName = "new-scope-team-" + UUID.randomUUID();
+    String playerEmail = "new-scope-player-" + UUID.randomUUID() + "@example.org";
+
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode workflowNode = om.createObjectNode();
+    ArrayNode scopeRules = om.createArrayNode();
+    scopeRules.add(workflowScopeRuleNode(om, "TEAM", UUID.randomUUID().toString(), teamName));
+    scopeRules.add(workflowScopeRuleNode(om, "PLAYER", UUID.randomUUID().toString(), playerEmail));
+    workflowNode.set("workflow_scope_rules", scopeRules);
+    workflowNode.set("workflow_steps", om.createArrayNode());
+    ObjectNode importData = buildScenarioImportWithWorkflow(om, scenarioName, workflowNode);
+
+    // -- Act --
+    this.importer.importData(
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    Workflow workflow = findImportedWorkflow(scenarioName);
+    assertEquals(2, workflow.getWorkflowScopeRules().size());
+
+    Team createdTeam = teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).getFirst();
+    assertEquals(teamName, createdTeam.getName());
+
+    User createdPlayer = userRepository.findByEmailIgnoreCase(playerEmail).orElseThrow();
+    assertEquals(playerEmail, createdPlayer.getEmail());
+    assertEquals(1, createdPlayer.getTenants().size());
+    assertEquals(TenantContext.getCurrentTenant(), createdPlayer.getTenants().getFirst().getId());
+
+    WorkflowScopeRule teamRule =
+        workflow.getWorkflowScopeRules().stream()
+            .filter(rule -> ScopeRuleSource.TEAM.equals(rule.getRuleSource()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(createdTeam.getId(), teamRule.getRuleValue());
+    assertEquals(teamName, teamRule.getRuleValueLabel());
+
+    WorkflowScopeRule playerRule =
+        workflow.getWorkflowScopeRules().stream()
+            .filter(rule -> ScopeRuleSource.PLAYER.equals(rule.getRuleSource()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(createdPlayer.getId(), playerRule.getRuleValue());
+    assertEquals(playerEmail, playerRule.getRuleValueLabel());
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
+  void given_chainedWorkflowScopeRuleWithTeamMembers_when_importing_should_recreateTeamMembership()
+      throws Exception {
+    // -- Arrange --
+    String scenarioName = "wf scope members " + UUID.randomUUID();
+    String teamName = "scope-members-team-" + UUID.randomUUID();
+
+    User existingMember = new User();
+    existingMember.setFirstname("Existing");
+    existingMember.setLastname("Member");
+    existingMember.setEmail("existing.scope.member@" + UUID.randomUUID() + ".io");
+    existingMember = userRepository.save(existingMember);
+    String existingMemberEmail = existingMember.getEmail();
+
+    String createdMemberEmail = "new.scope.member@" + UUID.randomUUID() + ".io";
+
+    ObjectMapper om = new ObjectMapper();
+    ObjectNode workflowNode = om.createObjectNode();
+    ArrayNode scopeRules = om.createArrayNode();
+    ObjectNode teamRule = workflowScopeRuleNode(om, "TEAM", UUID.randomUUID().toString(), teamName);
+    ArrayNode teamUsers = om.createArrayNode();
+    teamUsers.add(
+        workflowScopeMemberNode(
+            om,
+            UUID.randomUUID().toString(),
+            existingMember.getEmail(),
+            existingMember.getFirstname(),
+            existingMember.getLastname()));
+    teamUsers.add(
+        workflowScopeMemberNode(
+            om, UUID.randomUUID().toString(), createdMemberEmail, "Created", "Member"));
+    scopeRules.add(teamRule);
+    ArrayNode teamMembers = om.createArrayNode();
+    ObjectNode teamMembersEntry = om.createObjectNode();
+    teamMembersEntry.put(
+        "workflow_scope_rule_value", teamRule.get("workflow_scope_rule_value").asText());
+    teamMembersEntry.set("workflow_scope_rule_team_member", teamUsers);
+    teamMembers.add(teamMembersEntry);
+    workflowNode.set("workflow_scope_rules", scopeRules);
+    workflowNode.set("workflow_scope_rule_team_members", teamMembers);
+    workflowNode.set("workflow_steps", om.createArrayNode());
+    ObjectNode importData = buildScenarioImportWithWorkflow(om, scenarioName, workflowNode);
+
+    // -- Act --
+    this.importer.importData(
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    Workflow workflow = findImportedWorkflow(scenarioName);
+    Team createdTeam = teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).getFirst();
+    assertEquals(2, createdTeam.getUsers().size());
+    assertTrue(
+        createdTeam.getUsers().stream()
+            .anyMatch(user -> existingMemberEmail.equalsIgnoreCase(user.getEmail())));
+    User createdMember = userRepository.findByEmailIgnoreCase(createdMemberEmail).orElseThrow();
+    assertEquals(1, createdMember.getTenants().size());
+    assertEquals(TenantContext.getCurrentTenant(), createdMember.getTenants().getFirst().getId());
+
+    WorkflowScopeRule teamRuleResult =
+        workflow.getWorkflowScopeRules().stream()
+            .filter(rule -> ScopeRuleSource.TEAM.equals(rule.getRuleSource()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(createdTeam.getId(), teamRuleResult.getRuleValue());
+    assertEquals(teamName, teamRuleResult.getRuleValueLabel());
+  }
+
   // ---------------------------------------------------------------------------
   // step_data nested attack pattern rewriting (injector_contract_attack_patterns and the nested
   // injector_contract_payload.payload_attack_patterns).
@@ -2127,10 +2439,10 @@ class V1_DataImporterTest extends IntegrationTest {
     // Re-import on the same instance: injector_contract_tags references a tag that exists on the
     // target but is NOT carried as a root tag object (so importTags never seeds baseIds with it).
     // The id must be kept as a safe fallback (it exists), not dropped as if unresolvable.
-    Tag existing = new Tag();
-    existing.setName("v1-import-existing-not-in-export-" + UUID.randomUUID());
-    existing.setColor("#778899");
-    existing = tagRepository.save(existing);
+    Tag existing =
+        tagRepository.save(
+            TagFixture.getTagWithTextAndColour(
+                "v1-import-existing-not-in-export-" + UUID.randomUUID(), "#778899"));
     String existingTagId = existing.getId();
 
     ObjectMapper om = new ObjectMapper();
@@ -3528,10 +3840,10 @@ class V1_DataImporterTest extends IntegrationTest {
     // bare tag ids (no root tag object seeds baseIds on this path); an id that already exists on
     // the target tenant must land on the recreated payload's contract instead of being dropped.
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    Tag existing = new Tag();
-    existing.setName("v1-import-recreated-payload-tag-" + UUID.randomUUID());
-    existing.setColor("#127796");
-    existing = tagRepository.save(existing);
+    Tag existing =
+        tagRepository.save(
+            TagFixture.getTagWithTextAndColour(
+                "v1-import-recreated-payload-tag-" + UUID.randomUUID(), "#127796"));
     String existingTagId = existing.getId();
 
     ObjectMapper om = new ObjectMapper();
@@ -4375,6 +4687,27 @@ class V1_DataImporterTest extends IntegrationTest {
     contract.setNeedsExecutor(false);
     contract.setPlatforms(new Endpoint.PLATFORM_TYPE[0]);
     injectorContractRepository.save(contract);
+  }
+
+  private ObjectNode workflowScopeRuleNode(
+      ObjectMapper om, String source, String value, String label) {
+    ObjectNode rule = om.createObjectNode();
+    rule.put("workflow_scope_rule_selected_mode", "ALLOWLIST");
+    rule.put("workflow_scope_rule_source", source);
+    rule.put("workflow_scope_rule_value", value);
+    rule.put("workflow_scope_rule_value_type", "TEAM".equals(source) ? "TEAM_ID" : "PLAYER_ID");
+    rule.put("workflow_scope_rule_value_label", label);
+    return rule;
+  }
+
+  private ObjectNode workflowScopeMemberNode(
+      ObjectMapper om, String id, String email, String firstname, String lastname) {
+    ObjectNode member = om.createObjectNode();
+    member.put("user_id", id);
+    member.put("user_email", email);
+    member.put("user_firstname", firstname);
+    member.put("user_lastname", lastname);
+    return member;
   }
 
   /** Builds a minimal scenario export wrapping the provided scenario_workflow node as-is. */

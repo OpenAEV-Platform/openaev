@@ -94,11 +94,12 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @DisplayName("Create simulation succeed with default dashboard")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_exercise_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboard defaultDashboard = new CustomDashboard();
     defaultDashboard.setName("Default scenario dashboard");
+    defaultDashboard.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
 
     ExerciseInput exerciseInput = new ExerciseInput();
@@ -145,7 +146,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @DisplayName("Create chained exercise fails without enterprise edition")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void given_chainedExerciseCreationWithoutEE_should_fail() throws Exception {
     // Arrange
     CreateExerciseInput exerciseInput = new CreateExerciseInput();
@@ -283,6 +286,7 @@ public class ExerciseApiTest extends IntegrationTest {
     TagRule tagRule = new TagRule();
     tagRule.setTag(tag2);
     tagRule.setAssetGroups(List.of(assetGroup));
+    tagRule.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     this.tagRuleRepository.save(tagRule);
 
     Exercise exercise = this.exerciseRepository.save(ExerciseFixture.createDefaultCrisisExercise());

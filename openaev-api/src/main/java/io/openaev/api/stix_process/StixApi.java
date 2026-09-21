@@ -59,7 +59,7 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent, TxCtx ctx)
+  public ResponseEntity<?> processBundle(TxCtx ctx, @RequestBody @Validated CTIEvent ctiEvent)
       throws ParsingException, ConnectorError, IOException {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     String workId = ctiEvent.getInternal().getWorkId();
@@ -71,7 +71,7 @@ public class StixApi extends RestBehavior {
       openCTIService.acknowledgeReceivedOfCoverage(
           workId, "OpenAEV ready to process the operation", tenantId);
 
-      Scenario scenario = stixService.processBundle(stixBundle, tenantId);
+      Scenario scenario = stixService.processBundle(ctx, stixBundle);
 
       openCTIService.acknowledgeProcessedOfCoverage(
           workId, "Coverage successfully created or updated", false, tenantId);
