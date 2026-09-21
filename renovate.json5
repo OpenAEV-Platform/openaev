@@ -169,16 +169,11 @@
             rebaseWhen: 'auto',
         },
 
-        // Majors are not merged from a bot pull request here, and the queue proves it: 19 of the 40
-        // open Renovate PRs are majors, four of them have been open for more than 280 days, and two
-        // were already closed by hand in May and came back on their own. Closing one only holds
-        // until the dependency publishes again, because Renovate recreates a closed PR when the
-        // target version moves.
-        //
-        // dependencyDashboardApproval stops the PR being opened at all. The major is listed on the
-        // Dependency Dashboard with a checkbox instead, so the upgrade starts when someone decides
-        // to do the work rather than sitting in the review queue for months. Nothing is ignored and
-        // nothing is lost: ticking the box opens the PR.
+        // Majors sat in the queue instead of being merged: 19 of the 40 open Renovate PRs were
+        // majors, four of them older than 280 days. Closing one does not hold either, because
+        // Renovate recreates it when the target version moves. Listing it on the Dependency
+        // Dashboard instead means the upgrade starts when someone decides to do the work. Nothing
+        // is lost: ticking the box opens the PR.
         {
             description: 'Majors are proposed on the Dependency Dashboard, not as a standing PR',
             matchUpdateTypes: [
@@ -188,14 +183,9 @@
         },
 
         // ── Weekly batches, continued ────────────────────────────────────────────────────────
-        // Rule order matters: Renovate applies packageRules in order and a later rule wins. The
-        // batches come first, then the rules that pull a dependency back out of a batch. Anything no
-        // batch matches keeps its own PR, which is the safe default.
-        //
-        // The invariant a batch buys is one PR per batch per week at most, whatever the upstream
-        // release cadence. The measured before and after volumes live in the ADR and the pull request
-        // that introduced this, not here: a count written into a config file is a count nobody
-        // updates.
+        // Order matters: Renovate applies packageRules in order and a later rule wins. Batches come
+        // first, then the rules that pull a dependency back out of one. A batch caps a class at one
+        // PR a week whatever the upstream cadence. Before and after volumes are in the ADR.
 
         // GitHub Actions only ever run in CI, so a bad version fails the workflow that uses it on the
         // same push. OpenCTI already batches actions weekly.
@@ -243,10 +233,8 @@
             ],
             rebaseWhen: 'auto',
         },
-        // Production dependencies, one PR at a time before this change and the bulk of the volume.
-        // Batched because reviewing the same SDK over and over in a quarter is what stops the Jackson
-        // bump from being read. The cost is that one bad member holds the whole batch, and the exit is
-        // a rule placed after this one with groupName: null for that dependency.
+        // The bulk of the volume, one PR at a time before this change. The cost of batching is that
+        // one bad member holds the whole batch, and the exit is a rule below with groupName: null.
         {
             groupName: 'front-end production dependencies (non-major)',
             groupSlug: 'front-prod-non-major',
@@ -294,36 +282,15 @@
         },
 
         // ── Out of every batch, one PR each ──────────────────────────────────────────────────
-        // These rules come after the batches on purpose, so they win. Two reasons to be here. Either
-        // the dependency changes behaviour at runtime through defaults that no test asserts (pool
-        // sizing, HTTP timeouts, serialisation, transaction semantics), or it is one of the 17
-        // versions this pom holds by hand over the Spring Boot BOM.
-        //
-        // The second reason is about attribution, not about Renovate moving a version backwards:
-        // Renovate only ever proposes an upgrade, so it cannot realign a property on the BOM.
-        // Someone chose those 17 versions for a reason, so a change to one of them has to be visible
-        // and has to map to a single commit that can be reverted on its own. A batch takes both away.
-        //
-        // This list has to stay in step with the properties in pom.xml. Every BOM override that
-        // governs a runtime artifact is covered below. maven-compiler-plugin.version is the one that
-        // is not, and it stays in the build and test batch on purpose: it is a build plugin, it ships
-        // nothing, and the BOM versions no dependency through it.
+        // These come after the batches so they win, pulling a dependency back out of the batch it
+        // would otherwise land in. Anything no batch matches already gets its own PR by default, so
+        // docker images, yarn resolutions and lock file maintenance need no rule here.
 
-        // A yarn patch can stop applying, or keep applying against changed code, with no error. This
-        // rule also has to sit after the batches for a second reason: a batched PR takes its title
-        // from groupName, so the [DANGER] prefix set above would stop appearing.
-        //
-        // Two members, two reasons, so the rule says both rather than implying they are the same.
-        //
-        // react-apexcharts is the patched one, and it is the only patched dependency in the
-        // repository: `ls openaev-front/patches/` returns react-apexcharts.patch and nothing else,
-        // and the resolutions block in openaev-front/package.json references only that one.
-        // html-to-image is deliberately not here, despite the [DANGER] rule still on main claiming it
-        // carries a patch. It does not. That rule is wrong and is removed separately.
-        //
-        // apexcharts carries no patch. It is here because react-apexcharts is pinned below 1.8.0 to
-        // stay on an apexcharts 4.x that is still MIT, so the two move as a pair. Batching one and
-        // not the other is how they end up out of step.
+        // react-apexcharts carries the only yarn patch in the repository, and a patch can stop
+        // applying, or keep applying against changed code, with no error. apexcharts is pinned with
+        // it below the 5.x that is no longer MIT, so the two move as a pair. Both are in
+        // dependencies, so the front batch would take them, and a batched PR takes its title from
+        // groupName, which would drop the [DANGER] prefix set above.
         {
             description: 'The patched dependency and the one it moves with keep their own PR',
             matchDepNames: [
@@ -332,15 +299,12 @@
             ],
             groupName: null,
         },
-        // resolutions pin a transitive version on purpose, form-data among them. Changing one is a
-        // decision, not a routine bump.
-        {
-            description: 'Yarn resolutions keep their own PR',
-            matchDepTypes: [
-                'resolutions',
-            ],
-            groupName: null,
-        },
+        // Either the dependency changes behaviour at runtime through defaults no test asserts (pool
+        // sizing, HTTP timeouts, serialisation, transaction semantics), or it is one of the 17
+        // versions this pom holds by hand over the Spring Boot BOM. Those were chosen deliberately,
+        // so a change to one has to map to a single commit that can be reverted on its own.
+        // maven-compiler-plugin.version is the one override not covered here: it is a build plugin,
+        // it ships nothing, and the BOM versions no dependency through it.
         {
             description: 'Runtime-behaviour and BOM-override Maven dependencies keep their own PR',
             matchDatasources: [
@@ -379,60 +343,26 @@
                 // wraps the DataSource in main code (io.openaev.debug.DataSourceProxyBeanPostProcessor),
                 // so it sits on the path of every SQL statement the platform issues
                 'net.ttddyy:datasource-proxy',
-                // The group prefixes above also match Maven plugins that share the coordinate, for
-                // instance org.springframework.boot:spring-boot-maven-plugin. A plugin ships nothing,
-                // so it belongs in the build and test batch. Negating the suffix rather than adding
-                // matchDepTypes here is deliberate: the nine dependencies the customManagers track
-                // carry no depType, so a depType filter would drop them out of this rule and they are
-                // the ones that most need to be seen.
+                // The prefixes above also match Maven plugins sharing the coordinate, and a plugin
+                // ships nothing, so it belongs in the build batch. Negating the suffix rather than
+                // filtering on depType is deliberate: the nine customManager dependencies carry no
+                // depType and a depType filter would drop them out of this rule.
                 '!/-maven-plugin$/',
             ],
             groupName: null,
-            addLabels: [
-                'review:runtime-behaviour',
-            ],
         },
-        // Front-end dependencies that parse, sanitise or transport untrusted input. A regression here
-        // is a security bug the E2E suite passes straight through, dompurify most of all: it is the
-        // XSS boundary of the UI.
-        //
-        // Six of the seven are declared in dependencies in openaev-front/package.json, so the
-        // front-end batch above matches them and this rule is what pulls them back out.
-        // form-data is the exception and is named below for the label only: it is a yarn
-        // resolution, so the resolutions rule above already keeps it out of the batch.
+        // These parse, sanitise or transport untrusted input, dompurify most of all: it is the XSS
+        // boundary of the UI and a regression there is a security bug the E2E suite passes straight
+        // through. All six are in dependencies, so the front batch would otherwise take them.
         {
             description: 'Parsers, sanitisers and HTTP clients on the front keep their own PR',
             matchDepNames: [
                 'dompurify',
                 'qs',
                 'axios',
-                // label only, already out of the batch as a resolution
-                'form-data',
                 'http-proxy-middleware',
                 'ipaddr.js',
                 '@filigran/chatbot',
-            ],
-            groupName: null,
-            addLabels: [
-                'review:runtime-behaviour',
-            ],
-        },
-        // Base images carry the runtime the product executes on, and Renovate cannot know whether a
-        // new Postgres or Elasticsearch major is supported by the code.
-        {
-            description: 'Runtime infrastructure images keep their own PR',
-            matchDatasources: [
-                'docker',
-            ],
-            groupName: null,
-        },
-        // Lock file maintenance rewrites transitive versions with no diff a human can read, and over
-        // the 90 days to 2026-09-08 it had both the worst first-attempt CI record and the most
-        // human commits of any class here.
-        {
-            description: 'Lock file maintenance keeps its own PR',
-            matchUpdateTypes: [
-                'lockFileMaintenance',
             ],
             groupName: null,
         },
