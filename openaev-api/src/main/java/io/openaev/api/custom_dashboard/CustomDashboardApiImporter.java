@@ -55,7 +55,8 @@ public class CustomDashboardApiImporter extends RestBehavior {
                 "custom_dashboard_name",
                 null,
                 customDashboard ->
-                    CustomDashboardService.prepareForTenantWrite(customDashboard, tenantId))
+                    CustomDashboardService.prepareForTenantWrite(customDashboard, tenantId),
+                tenantId)
             .jsonApiDocument());
   }
 }

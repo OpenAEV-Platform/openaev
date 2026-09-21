@@ -13,6 +13,8 @@ import static org.springframework.util.StringUtils.hasText;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Document;
+import io.openaev.database.model.Tenant;
 import io.openaev.service.FileService;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
@@ -47,7 +49,8 @@ public class GenericJsonApiImporter<T extends Base> {
   public T handleImportEntity(
       JsonApiDocument<ResourceObject> doc,
       IncludeOptions includeOptions,
-      Function<T, T> sanityCheck) {
+      Function<T, T> sanityCheck,
+      String writeTenantId) {
     if (doc == null || doc.data() == null) {
       throw new IllegalArgumentException("Data is required to import document");
     }
@@ -70,6 +73,13 @@ public class GenericJsonApiImporter<T extends Base> {
             true,
             false);
     T toPersist = Optional.ofNullable(sanityCheck).map(check -> check.apply(entity)).orElse(entity);
+
+    // documents is v2-active with a non-nullable tenant_id, and the TenantBaseListener no longer
+    // stamps it. A Document reached reflectively through this generic importer would insert with a
+    // null tenant and violate the constraint, so attribute every built document to the resolved
+    // write tenant (the request scope) rather than the ambient TenantContext of the import thread.
+    stampDocumentTenant(toPersist, writeTenantId);
+    entityCache.values().forEach(value -> stampDocumentTenant(value.getLeft(), writeTenantId));
 
     // Persist included entities that not inner relationship
     for (Pair<T, Boolean> value : entityCache.values()) {
@@ -104,7 +114,7 @@ public class GenericJsonApiImporter<T extends Base> {
   }
 
   public void handleImportDocument(
-      JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras) {
+      JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras, String writeTenantId) {
     if (doc.included() != null) {
       for (Object o : doc.included()) {
         if (o instanceof ResourceObject ro && "document".equals(ro.type())) {
@@ -114,8 +124,15 @@ public class GenericJsonApiImporter<T extends Base> {
             byte[] fileBytes = extras.get(target);
             if (fileBytes != null) {
               try (InputStream in = new ByteArrayInputStream(fileBytes)) {
-                fileService.uploadFile(
-                    target, in, fileBytes.length, Files.probeContentType(Path.of(target)));
+                String contentType = Files.probeContentType(Path.of(target));
+                // Store the object under the resolved write tenant, so it stays co-located with the
+                // document row attributed to the same tenant and a later read resolves it whatever
+                // the ambient TenantContext. A null write tenant keeps the ambient-path upload.
+                if (writeTenantId != null) {
+                  fileService.uploadFile(writeTenantId, target, in, fileBytes.length, contentType);
+                } else {
+                  fileService.uploadFile(target, in, fileBytes.length, contentType);
+                }
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
@@ -123,6 +140,19 @@ public class GenericJsonApiImporter<T extends Base> {
           }
         }
       }
+    }
+  }
+
+  /**
+   * Attributes a reflectively built {@link Document} with no tenant to the resolved write tenant.
+   * Only documents are stamped and only when their tenant is unset: an entity whose tenant a {@code
+   * sanityCheck} already set (the imported root) is left untouched.
+   */
+  private void stampDocumentTenant(Object entity, String writeTenantId) {
+    if (writeTenantId != null
+        && entity instanceof Document document
+        && document.getTenant() == null) {
+      document.setTenant(new Tenant(writeTenantId));
     }
   }
 

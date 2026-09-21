@@ -146,6 +146,25 @@ public class FileService {
   }
 
   /**
+   * Deletes a document's stored object under the tenant that owns it, the delete-side counterpart
+   * of {@link #getFile(Document, String)}. The caller passes the tenant of the row being deleted,
+   * so the object is removed from the same tenant path it was written under, whatever the ambient
+   * {@link io.openaev.context.TenantContext}. A {@code null} tenant is a platform asset with no
+   * boundary and keeps the ambient-path deletion.
+   *
+   * @param tenantId the owning tenant, or {@code null} for a platform asset with no tenant
+   * @param name the object name/path to delete
+   * @throws Exception if the deletion fails
+   */
+  public void deleteFile(String tenantId, String name) throws Exception {
+    if (tenantId == null) {
+      minioService.deleteFileInTenantPath(name);
+    } else {
+      minioService.deleteFileForTenant(tenantId, name);
+    }
+  }
+
+  /**
    * Deletes all files in a directory recursively.
    *
    * <p>This method lists all objects with the given directory prefix and deletes them. Errors

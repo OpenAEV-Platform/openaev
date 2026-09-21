@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.jsonapi.*;
@@ -37,6 +38,7 @@ public class PayloadImportService {
   private final AttackPatternService attackPatternService;
   private final DomainService domainService;
   private final TagService tagService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @Resource protected ObjectMapper mapper;
 
@@ -64,8 +66,12 @@ public class PayloadImportService {
    *     contract
    */
   public PayloadImportResult importPayload(TxCtx ctx, MultipartFile file) throws Exception {
+    // A payload bundle can carry documents (file drop, executable). Attribute any imported
+    // document to the request's write tenant, so an active documents table gets a valid tenant_id
+    // whatever the ambient TenantContext of the import.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     ZipJsonService.ImportOutput<Payload> response =
-        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
+        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null, tenantId);
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(

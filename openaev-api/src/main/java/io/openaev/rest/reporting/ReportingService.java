@@ -309,8 +309,19 @@ public class ReportingService {
    * @throws BadRequestException if the generation is not in SUCCESS status
    * @throws ElementNotFoundException if the generation or its document is missing
    */
+  /**
+   * Returns a successful generation ready for its document to be downloaded: it resolves the
+   * generation, checks read access to the subject, and rejects a non-successful or document-less
+   * generation. The download route needs the generation itself (not only its document) to serve the
+   * object under the generation's tenant, the owner of the report output's lifecycle.
+   *
+   * @param generationId the generation id
+   * @return the successful {@link ReportingGeneration} carrying a non-null document
+   * @throws BadRequestException if the generation is not in SUCCESS status
+   * @throws ElementNotFoundException if the generation or its document is missing
+   */
   @Transactional(readOnly = true)
-  public Document generationDocument(@NotBlank final String generationId) {
+  public ReportingGeneration successfulGeneration(@NotBlank final String generationId) {
     ReportingGeneration generation = resolveGeneration(generationId);
     // The produced document contains the subject's actual data: downloading it requires read
     // access to the subject, exactly like reading the reporting itself.
@@ -319,11 +330,23 @@ public class ReportingService {
     if (!ReportingGenerationStatus.SUCCESS.equals(generation.getStatus())) {
       throw new BadRequestException("Generation is not successful: " + generationId);
     }
-    Document document = generation.getDocument();
-    if (document == null) {
+    if (generation.getDocument() == null) {
       throw new ElementNotFoundException("Generation has no document: " + generationId);
     }
-    return document;
+    return generation;
+  }
+
+  /**
+   * Returns the stored {@link Document} of a successful generation, for download streaming.
+   *
+   * @param generationId the generation id
+   * @return the produced {@link Document}
+   * @throws BadRequestException if the generation is not in SUCCESS status
+   * @throws ElementNotFoundException if the generation or its document is missing
+   */
+  @Transactional(readOnly = true)
+  public Document generationDocument(@NotBlank final String generationId) {
+    return successfulGeneration(generationId).getDocument();
   }
 
   // -- SCHEDULES --

@@ -9,6 +9,7 @@ import io.openaev.database.model.Document;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DocumentRepository;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.inject.exports.InjectsFileExport;
@@ -21,6 +22,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.extern.slf4j.Slf4j;
@@ -72,15 +75,20 @@ public class InjectExportService {
             .writerWithDefaultPrettyPrinter()
             .writeValueAsBytes(importExport));
     zipExport.closeEntry();
-    // The injects of one export share the request's tenant; a document attached from another tenant
-    // is skipped rather than having its bytes bundled into the archive.
-    String owningTenantId =
+    // The injects of one export belong to a single exercise or scenario, hence a single tenant. A
+    // set spanning tenants is only reachable by crafting a cross-tenant selection on the header
+    // route; picking the first inject's tenant would silently drop the other tenants' attachments
+    // while leaving their ids in the JSON, producing a corrupt archive. Refuse it explicitly.
+    Set<String> injectTenantIds =
         injects.stream()
             .map(Inject::getTenant)
             .filter(tenant -> tenant != null && tenant.getId() != null)
             .map(Tenant::getId)
-            .findFirst()
-            .orElse(null);
+            .collect(Collectors.toSet());
+    if (injectTenantIds.size() > 1) {
+      throw new BadRequestException("Cannot export injects that span multiple tenants.");
+    }
+    String owningTenantId = injectTenantIds.stream().findFirst().orElse(null);
     // Add the actual files for the documents
     importExport.getAllDocumentIds().stream()
         .distinct()
