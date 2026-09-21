@@ -626,6 +626,19 @@ const ThemeLight = (
     // Design-system icon buttons are squared (4px radius) - never MUI's
     // default circle/oval ripple.
     MuiIconButton: { styleOverrides: { root: { borderRadius: 4 } } },
+    // A card that is a CHOICE — one that wraps its content in a clickable action
+    // area — lights up on hover. The fill belongs to the card, not to the action
+    // area: MUI paints its own hover overlay inside the card's 1px border, which
+    // leaves a ring of the resting surface all around it and reads as a border.
+    MuiCard: { styleOverrides: { root: { '&:has(.MuiCardActionArea-root:hover)': { backgroundColor: 'var(--bg-elevation-default-layer-3)' } } } },
+    MuiCardActionArea: {
+      styleOverrides: {
+        root: {
+          // The overlay would tint the card's own hover colour on top of it.
+          '&:hover .MuiCardActionArea-focusHighlight': { opacity: 0 },
+        },
+      },
+    },
     MuiCssBaseline: {
       styleOverrides: {
         ...quietControlSpacing,
