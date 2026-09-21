@@ -246,8 +246,9 @@ class CapabilityTreeBuilderTest {
     // -- ASSERT --
     assertThat(Constants.SERVICE_ROLE_CAPABILITIES)
         .containsExactlyInAnyOrder(
-            Capability.AGENT_RUNTIME_ACCESS, Capability.AGENT_DOCUMENT_ACCESS, Capability.INSTALL_AGENT);
-
+            Capability.AGENT_RUNTIME_ACCESS,
+            Capability.AGENT_DOCUMENT_ACCESS,
+            Capability.INSTALL_AGENT);
   }
 
   @Test

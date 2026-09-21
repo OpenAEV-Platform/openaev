@@ -19,11 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
  * {@code /api/agent/**} is permitAll at the Spring Security filter-chain level (agents call these
  * before they hold any session), so the only gate left is {@code @AccessControl(...
  * AGENT_INSTALLER)} resolving a principal from the request's own bearer token. This class
- * intentionally carries no {@code @WithMockUser} (class or method) so requests here run as
- * whatever the filter chain assigns a truly anonymous caller — reproducing an install script that
- * sends no Authorization header at all, which is what broke the infra-agent/infra-multitenant E2E
- * specs: the bundled installer script's internal executable download has no auth header and was
- * getting a 401 from this exact endpoint, with no test coverage catching the regression risk.
+ * intentionally carries no {@code @WithMockUser} (class or method) so requests here run as whatever
+ * the filter chain assigns a truly anonymous caller — reproducing an install script that sends no
+ * Authorization header at all, which is what broke the infra-agent/infra-multitenant E2E specs: the
+ * bundled installer script's internal executable download has no auth header and was getting a 401
+ * from this exact endpoint, with no test coverage catching the regression risk.
  *
  * <p>These tests deliberately live in their own file rather than inside {@link ExecutorApiTest}:
  * that class carries a class-level {@code @WithMockUser}, and its custom {@code
@@ -69,8 +69,7 @@ class ExecutorApiUnauthenticatedAccessTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName(
-      "GET agent installer token without any Authorization header should be unauthorized")
+  @DisplayName("GET agent installer token without any Authorization header should be unauthorized")
   void givenNoAuthentication_shouldRejectInstallerToken() throws Exception {
     mvc.perform(get(AGENT_URI + "/installer/openaev/token").accept(MediaType.TEXT_PLAIN_VALUE))
         .andExpect(status().isUnauthorized());
