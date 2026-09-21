@@ -6,6 +6,7 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -45,6 +46,7 @@ public class DocumentService {
   private final TagRepository tagRepository;
   private final ReportingGenerationRepository reportingGenerationRepository;
   private final FileService fileService;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   // -- CRUD --
 
@@ -67,6 +69,22 @@ public class DocumentService {
    * @throws Exception when an upload issue occur
    */
   public Document upsert(
+      String fileName,
+      InputStream fileIS,
+      long fileSize,
+      String fileContentType,
+      DocumentCreateInput input,
+      String tenantId)
+      throws Exception {
+    // Simulations and scenarios are still scoped by the ambient tenant, which may differ from the
+    // write tenant: resolve the ids the caller supplies in the write tenant, so the document is
+    // only bound to parents of its own tenant.
+    return ambientTenantBridge.callInTenantChecked(
+        tenantId,
+        () -> upsertInTenant(fileName, fileIS, fileSize, fileContentType, input, tenantId));
+  }
+
+  private Document upsertInTenant(
       String fileName,
       InputStream fileIS,
       long fileSize,

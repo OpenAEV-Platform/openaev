@@ -12,6 +12,7 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -87,6 +88,7 @@ public class DocumentApi extends RestBehavior {
   private final InjectService injectService;
   private final ChannelService channelService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   @PostMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
@@ -100,6 +102,15 @@ public class DocumentApi extends RestBehavior {
     // must be refused with 400 whether the uploaded bytes match an existing document or not, not
     // only on the new-document branch. The new document below is attributed to this tenant.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
+    // the non-prefixed route: resolve the ids the caller supplies in the write tenant, so the
+    // document is only bound to parents of its own tenant.
+    return ambientTenantBridge.callInTenantChecked(
+        tenantId, () -> uploadDocumentInTenant(tenantId, input, file));
+  }
+
+  private Document uploadDocumentInTenant(
+      String tenantId, DocumentCreateInput input, MultipartFile file) throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
     // Scope the duplicate lookup to the resolved write tenant: an unscoped lookup runs under the
@@ -271,6 +282,15 @@ public class DocumentApi extends RestBehavior {
     // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
     // ordinary document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
+    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
+    // the non-prefixed route: resolve the ids the caller supplies in the tenant of the document, so
+    // it keeps the parents of its own tenant and is never bound to those of another one.
+    return ambientTenantBridge.callInTenant(
+        document.getTenant().getId(), () -> updateDocumentInTenant(document, input));
+  }
+
+  private Document updateDocumentInTenant(Document document, DocumentUpdateInput input) {
+    String documentId = document.getId();
     document.setUpdateAttributes(input);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
 
