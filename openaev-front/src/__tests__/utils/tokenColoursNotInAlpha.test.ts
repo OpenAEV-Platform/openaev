@@ -39,5 +39,7 @@ describe('design-system tokens and JavaScript colour maths', () => {
       }
     }
     expect(offenders).toEqual([]);
-  });
+    // Walking the whole source tree is I/O bound: under a full parallel run it takes
+    // several seconds, well past the 5s default.
+  }, 60_000);
 });
