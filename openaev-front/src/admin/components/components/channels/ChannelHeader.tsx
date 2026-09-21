@@ -48,7 +48,7 @@ const ChannelHeader = () => {
       chips={(
         <Chip label={t(channel.channel_type ?? 'Unknown')} color={typeColor} />
       )}
-      action={<ChannelPopover channel={channel} />}
+      action={<ChannelPopover channel={channel} variant="toggle" />}
       footer={channel.channel_description
         ? (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>

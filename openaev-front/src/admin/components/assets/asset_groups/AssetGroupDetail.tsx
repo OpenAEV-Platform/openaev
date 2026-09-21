@@ -203,6 +203,7 @@ const AssetGroupDetail = () => {
               entityName={assetGroup.asset_group_name}
             />
             <AssetGroupPopover
+              variant="toggle"
               assetGroup={assetGroup}
               onUpdate={() => {
                 dispatch(fetchAssetGroup(assetGroupId));

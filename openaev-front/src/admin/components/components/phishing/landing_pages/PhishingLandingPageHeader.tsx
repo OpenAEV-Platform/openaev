@@ -44,7 +44,7 @@ const PhishingLandingPageHeader = () => {
               <TooltipContent>{t('Create an atomic testing that sends a phishing campaign using this landing page')}</TooltipContent>
             </Tooltip>
           )}
-          <PhishingLandingPagePopover landingPage={landingPage} />
+          <PhishingLandingPagePopover landingPage={landingPage} variant="toggle" />
         </>
       )}
     />

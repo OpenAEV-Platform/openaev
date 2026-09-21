@@ -1,7 +1,7 @@
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { deleteAssetGroup, updateAssetGroup, updateAssetsOnAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
@@ -16,6 +16,8 @@ import AssetGroupForm from './AssetGroupForm';
 import AssetGroupManagement from './AssetGroupManagement';
 
 export interface AssetGroupPopoverProps {
+  /** `toggle` in a detail header — the 36px kebab that lines up with the header controls. */
+  variant?: VariantButtonPopover;
   inline?: boolean;
   assetGroup: AssetGroup | AssetGroupOutput;
   onRemoveAssetGroupFromList?: (assetGroupId: string) => void;
@@ -29,6 +31,7 @@ export interface AssetGroupPopoverProps {
 }
 
 const AssetGroupPopover: FunctionComponent<AssetGroupPopoverProps> = ({
+  variant = 'icon',
   inline,
   assetGroup,
   onRemoveAssetGroupFromList,
@@ -133,7 +136,7 @@ const AssetGroupPopover: FunctionComponent<AssetGroupPopoverProps> = ({
 
   return (
     <>
-      <ButtonPopover disabled={disabled} entries={entries} variant="icon" />
+      <ButtonPopover disabled={disabled} entries={entries} variant={variant} />
 
       <DialogDelete
         open={deletion}
