@@ -32,7 +32,7 @@
              HttpClient for the resource probe. BSD-3-Clause. -->
         <google-auth-library.version>1.52.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.55.0</aws-sts.version>
+        <aws-sts.version>2.55.1</aws-sts.version>
     </properties>
 
     <profiles>
