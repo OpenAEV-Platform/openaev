@@ -302,14 +302,6 @@ public class ReportingService {
   }
 
   /**
-   * Returns the stored {@link Document} of a successful generation, for download streaming.
-   *
-   * @param generationId the generation id
-   * @return the produced {@link Document}
-   * @throws BadRequestException if the generation is not in SUCCESS status
-   * @throws ElementNotFoundException if the generation or its document is missing
-   */
-  /**
    * Returns a successful generation ready for its document to be downloaded: it resolves the
    * generation, checks read access to the subject, and rejects a non-successful or document-less
    * generation. The download route needs the generation itself (not only its document) to serve the
@@ -322,6 +314,15 @@ public class ReportingService {
    */
   @Transactional(readOnly = true)
   public ReportingGeneration successfulGeneration(@NotBlank final String generationId) {
+    return resolveSuccessfulGeneration(generationId);
+  }
+
+  /**
+   * Shared body of {@link #successfulGeneration(String)} and {@link #generationDocument(String)}.
+   * It carries no {@code @Transactional}: both entry points are annotated, and one calling the
+   * other inside the class would bypass the proxy and run outside the transaction they declare.
+   */
+  private ReportingGeneration resolveSuccessfulGeneration(final String generationId) {
     ReportingGeneration generation = resolveGeneration(generationId);
     // The produced document contains the subject's actual data: downloading it requires read
     // access to the subject, exactly like reading the reporting itself.
@@ -346,7 +347,7 @@ public class ReportingService {
    */
   @Transactional(readOnly = true)
   public Document generationDocument(@NotBlank final String generationId) {
-    return successfulGeneration(generationId).getDocument();
+    return resolveSuccessfulGeneration(generationId).getDocument();
   }
 
   // -- SCHEDULES --
