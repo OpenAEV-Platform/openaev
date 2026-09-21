@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -116,6 +117,8 @@ public class V1_DataImporter implements Importer {
   private final InjectorService injectorService;
 
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
+
+  private final AmbientTenantBridge ambientTenantBridge;
 
   // endregion
 
@@ -224,6 +227,37 @@ public class V1_DataImporter implements Importer {
       Asset asset,
       AssetGroup assetGroup,
       String suffix) {
+    // Resolve the write tenant from the request scope once. Documents, tags, challenges and
+    // channels are attributed to it explicitly; the roots that are not tenant-active yet
+    // (exercise, scenario, injects, teams, payloads) are still stamped from the ambient tenant and
+    // matched against existing rows through it. Running the whole import with the ambient tenant
+    // aligned on the write tenant keeps the bundle in one tenant on every route.
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+    return ambientTenantBridge.callInTenant(
+        writeTenant,
+        () ->
+            importBundle(
+                ctx,
+                importNode,
+                docReferences,
+                exercise,
+                scenario,
+                asset,
+                assetGroup,
+                suffix,
+                writeTenant));
+  }
+
+  private ImportResult importBundle(
+      TxCtx ctx,
+      JsonNode importNode,
+      Map<String, ImportEntry> docReferences,
+      Exercise exercise,
+      Scenario scenario,
+      Asset asset,
+      AssetGroup assetGroup,
+      String suffix,
+      String writeTenant) {
     Map<String, Base> baseIds = new HashMap<>();
 
     String prefix = "inject_";
@@ -235,10 +269,9 @@ public class V1_DataImporter implements Importer {
       prefix = "payload_";
     }
     importTags(ctx, importNode, prefix, baseIds);
-    // Resolve the write tenant from the request scope once: the imported documents are created off
-    // it and stored under it, so a removed TenantBaseListener never has to stamp them, and the
-    // create/update decision is scoped to the write tenant rather than the ambient filter.
-    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+    // The imported documents are created off the write tenant and stored under it, so a removed
+    // TenantBaseListener never has to stamp them, and the create/update decision is scoped to the
+    // write tenant rather than the ambient filter.
     Exercise savedExercise =
         Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
     Scenario savedScenario =
