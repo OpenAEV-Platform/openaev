@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -68,6 +69,10 @@ public class ChallengeService {
             .distinct()
             .toList();
     challenge.setScenarioIds(scenarioIds);
+    // challenge_documents is a lazy @ManyToMany serialized open-in-view: force it inside this
+    // scoped transaction so it does not fail-closed to an empty array once documents is v2-active
+    // (the challenge read endpoints return the raw entity). See the activate-tenant-table skill.
+    Hibernate.initialize(challenge.getDocuments());
     return challenge;
   }
 
