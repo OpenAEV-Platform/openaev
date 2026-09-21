@@ -72,8 +72,13 @@ runs:
         echo "✅ Maven artifacts found"
       shell: bash
     - name: Package backend JAR
-      run: mvn -B -ntp -q -pl openaev-api package -DskipTests
+      run: sh .github/scripts/retry-with-backoff.sh mvn -B -ntp -q -pl openaev-api package -DskipTests
       shell: bash
+      env:
+        RETRY_LABEL: maven package
+        RETRY_ATTEMPTS: "3"
+        RETRY_BASE: "15"
+        RETRY_CAP: "60"
     - name: Verify packaged JAR
       id: verify-jar
       run: |
