@@ -26,4 +26,4 @@ durable content promoted to `docs/docs/development/`.
 
 | Folder | Feature | Decision |
 | --- | --- | --- |
-| [`marking/`](./marking/) | Marking-based access control (STIX TLP/PAP) for assets | [ADR-007](../adr/ADR-007-Marking-based-access-control.md) — Proposed |
+| [`marking/`](./marking/) | Marking-based access control (STIX TLP/PAP) for assets | [ADR-009](../adr/ADR-009-Marking-based-access-control.md) — Proposed |
