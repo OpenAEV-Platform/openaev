@@ -31,6 +31,10 @@ import org.springframework.transaction.annotation.Transactional;
  * write tenant and store its object under the same tenant, independently of the ambient {@link
  * TenantContext} of the import thread. This pins both: with the ambient tenant set to a different
  * tenant than the write scope, the row and the object land under the write scope.
+ *
+ * <p>It does not arm {@code documents}: the attribution is the explicit write tenant (the listener
+ * is gone), read back with a native query the statement inspector never rewrites, so arming would
+ * not change the outcome.
  */
 @Transactional
 @WithMockUser(isAdmin = true)

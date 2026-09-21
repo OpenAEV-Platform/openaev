@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +40,16 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>The logo association is seeded directly (out of band): forming a cross-tenant binding through
  * the API is a separate concern, and this pins that the read stays closed however the row was
  * formed. The MinIO objects are removed on teardown; the test transaction rolls back.
+ *
+ * <p>{@code @TestPropertySource} activates {@code documents} for this test only, so it runs under
+ * the production active-tables configuration. The refusal it pins is the application-level
+ * owning-tenant check in {@code FileService.getFile(Document, owningTenantId)}: the endpoint serves
+ * the logo under the parent's tenant, and a document of another tenant yields an empty result
+ * (404). That comparison runs on the loaded entity regardless of the statement inspector, so this
+ * class stays {@code @Transactional} (the persistence-context load does not mask the guard, unlike
+ * a fail-closed inspector read which requires committed seeding).
  */
+@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("A logo reached through an image endpoint holds the parent's tenant on both routes")

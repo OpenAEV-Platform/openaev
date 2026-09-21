@@ -34,6 +34,11 @@ import org.springframework.transaction.annotation.Transactional;
  * check tautological, always serving whatever tenant the document sits in). When the generation and
  * its document disagree on tenant, the object is treated as missing (a 404), fail-closed on the
  * anomaly. A generation and document in the same tenant still download normally.
+ *
+ * <p>It does not arm {@code documents}: the refusal is the application-level owning-tenant check in
+ * {@code FileService.getFile(Document, owningTenantId)}, passed the generation's tenant, which runs
+ * on the loaded entity regardless of the statement inspector, so arming would not change the
+ * outcome.
  */
 @Transactional
 @WithMockUser(isAdmin = true)

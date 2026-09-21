@@ -68,6 +68,10 @@ import org.springframework.transaction.annotation.Transactional;
  * association is out of scope here; this pins that the read stays closed however the row was
  * formed). Ground truth is read from the response; the test transaction rolls back and the MinIO
  * objects are removed on teardown.
+ *
+ * <p>It does not arm {@code documents}: the refusal is the application-level owning-tenant check in
+ * {@code FileService.getFile(Document, owningTenantId)}, which runs on the loaded entity regardless
+ * of the statement inspector, so arming would not change the outcome.
  */
 @Transactional
 @WithMockUser(isAdmin = true)

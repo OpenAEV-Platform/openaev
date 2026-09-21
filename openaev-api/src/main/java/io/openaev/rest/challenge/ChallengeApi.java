@@ -1,7 +1,6 @@
 package io.openaev.rest.challenge;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.ChallengeSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
@@ -63,12 +62,14 @@ public class ChallengeApi extends RestBehavior {
   @Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
       TxCtx ctx, @RequestBody @Valid @NotNull final List<String> challengeIds) {
-    // Return raw Challenge entities, so their lazy challenge_documents @ManyToMany would serialize
-    // open-in-view AFTER the scoped transaction commits and fail closed to an empty array once
-    // documents is v2-active. Force-initialize it inside the scope, exactly like the enrich path.
-    return this.challengeRepository.findAll(fromIds(challengeIds)).stream()
-        .map(challengeService::enrichChallengeWithExercisesOrScenarios)
-        .toList();
+    if (challengeIds.isEmpty()) {
+      return List.of();
+    }
+    // Return raw Challenge entities, whose lazy challenge_documents @ManyToMany would otherwise
+    // serialize open-in-view AFTER the scoped transaction commits and fail closed to an empty array
+    // once documents is v2-active. A single scoped query fetch-joins the documents inside the
+    // scope, instead of one lazy-initialization SELECT per challenge.
+    return this.challengeRepository.findAllByIdInFetchingDocuments(challengeIds);
   }
 
   @PutMapping({CHALLENGE_URI + "/{challengeId}", TENANT_CHALLENGE_URI + "/{challengeId}"})

@@ -36,6 +36,10 @@ import org.springframework.transaction.annotation.Transactional;
  * documents} is activated the {@code TenantBaseListener} no longer stamps the row, so the import
  * must attribute it explicitly. This pins that: with the ambient tenant set to another tenant than
  * the import's write scope, the row and its object still land under the write scope.
+ *
+ * <p>It does not arm {@code documents}: the attribution is the explicit write tenant (the listener
+ * is gone), read back with a native query the statement inspector never rewrites, so arming would
+ * not change the outcome.
  */
 @Transactional
 @WithMockUser(isAdmin = true)

@@ -498,7 +498,10 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
             });
   }
 
-  private void completeWithSuccess(final RenderJob job, final Document document) {
+  // Package-private so a test can pin, with documents armed, that attaching the stored document to
+  // the generation and saving it does not reach the documents table through the inspector on the
+  // render thread (which has no v2 scope), so it never fail-closes there.
+  void completeWithSuccess(final RenderJob job, final Document document) {
     this.reportingGenerationRepository
         .findByIdAndTenantId(job.generationId(), job.tenantId())
         .ifPresent(
