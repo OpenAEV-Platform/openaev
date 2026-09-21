@@ -2,8 +2,8 @@ package io.openaev.utilstest;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import io.openaev.engine.impl.opensearch.os3.OpenSearchUtils;
 import io.openaev.exception.InvalidDateRangeException;
-import io.openaev.utils.OpenSearchUtils;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

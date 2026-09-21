@@ -76,7 +76,7 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.utils.IpAddressUtils;
+import io.openaev.validator.IpAddressUtils;
 import io.openaev.xtmone.XtmOneClient;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;

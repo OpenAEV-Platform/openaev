@@ -1,0 +1,1389 @@
+package io.openaev.engine.impl.opensearch.os3;
+
+import static io.openaev.engine.impl.opensearch.os3.OpenSearchUtils.*;
+import static io.openaev.utils.CustomDashboardQueryUtils.*;
+import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
+import static java.util.Optional.ofNullable;
+import static org.springframework.util.StringUtils.hasText;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.EngineConfig;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.CustomDashboardParameters;
+import io.openaev.database.model.Filters;
+import io.openaev.database.model.IndexingStatus;
+import io.openaev.database.raw.RawGrant;
+import io.openaev.database.raw.RawUserAuth;
+import io.openaev.database.repository.IndexingStatusRepository;
+import io.openaev.engine.EngineContext;
+import io.openaev.engine.EsModel;
+import io.openaev.engine.Handler;
+import io.openaev.engine.api.*;
+import io.openaev.engine.api.WidgetConfigurationWithSeries.Series;
+import io.openaev.engine.facade.EngineService;
+import io.openaev.engine.model.EsBase;
+import io.openaev.engine.model.EsSearch;
+import io.openaev.engine.query.*;
+import io.openaev.exception.AnalyticsEngineException;
+import io.openaev.schema.PropertySchema;
+import io.openaev.service.CommonSearchService;
+import io.openaev.service.EsIndexingUtils;
+import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
+import os3.org.opensearch.client.json.JsonData;
+import os3.org.opensearch.client.opensearch.OpenSearchClient;
+import os3.org.opensearch.client.opensearch._types.*;
+import os3.org.opensearch.client.opensearch._types.aggregations.*;
+import os3.org.opensearch.client.opensearch._types.query_dsl.*;
+import os3.org.opensearch.client.opensearch.core.*;
+import os3.org.opensearch.client.opensearch.core.bulk.*;
+import os3.org.opensearch.client.opensearch.core.search.*;
+import os3.org.opensearch.client.opensearch.generic.*;
+
+@Slf4j
+public class OpenSearchService implements EngineService {
+
+  private final OpenSearchDriver driver;
+  private final EngineContext searchEngine;
+  private final OpenSearchClient openSearchClient;
+  private final IndexingStatusRepository indexingStatusRepository;
+  private final EngineConfig engineConfig;
+  private final CommonSearchService commonSearchService;
+
+  @Resource private ObjectMapper mapper;
+
+  static final String SIDE_CLEANUP_SCRIPT =
+      """
+          boolean changed = false;
+          // For each EsBase attribute of each document
+          for (String key : ctx._source.keySet().toArray()) {
+            // If it's a "base_XXX_side" (means String id or List of ids), remove all deleted ids from this field.
+            if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
+                if (ctx._source[key] instanceof List) {
+                    if (ctx._source[key].removeIf(item -> params.valuesToRemove.contains(item))) {
+                        changed = true;
+                    }
+                } else if (ctx._source[key] instanceof String && params.valuesToRemove.contains(ctx._source[key])) {
+                    ctx._source.remove(key);
+                    changed = true;
+                }
+            }
+          }
+          if (!changed) {
+            ctx.op = 'noop';
+          }
+          """;
+
+  /**
+   * Constructor for the opensearch engine
+   *
+   * @param searchEngine the context of the engine
+   * @param driver the driver
+   * @param indexingStatusRepository the repository for the indexing status
+   * @param engineConfig the config of the engine
+   * @param commonSearchService the common search service
+   * @throws Exception in case of an issue during the initialization of the opensearchclient
+   */
+  public OpenSearchService(
+      EngineContext searchEngine,
+      OpenSearchDriver driver,
+      IndexingStatusRepository indexingStatusRepository,
+      EngineConfig engineConfig,
+      CommonSearchService commonSearchService)
+      throws Exception {
+    this.driver = driver;
+    this.openSearchClient = driver.opensearchClient();
+    this.searchEngine = searchEngine;
+    this.indexingStatusRepository = indexingStatusRepository;
+    this.engineConfig = engineConfig;
+    this.commonSearchService = commonSearchService;
+  }
+
+  /**
+   * Convert a field to a FieldValue
+   *
+   * @param field the field
+   * @param value the value
+   * @param parameters the map of parameters
+   * @return the FieldValue
+   */
+  private FieldValue toVal(String field, String value, Map<String, String> parameters) {
+    FieldValue.Builder builder = new FieldValue.Builder();
+    String target = ofNullable(parameters.getOrDefault(value, value)).orElse("");
+    PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
+    if (propertyField == null) {
+      // A base field such as base_representative is a searchable analyzed-text string (see
+      // BASE_FIELDS / queryFromSearch) but carries no @Queryable annotation, so it is absent from
+      // the indexing schema. Treat its value as a string instead of failing, so filtering on it
+      // (e.g. the asset expectation list search box) works. Any other unknown field stays a hard
+      // error.
+      if (!BASE_FIELDS.contains(field)) {
+        throw new AnalyticsEngineException("Unknown field: " + field);
+      }
+      builder.stringValue(target);
+      return builder.build();
+    }
+    if (propertyField.getType().isAssignableFrom(String.class)
+        || (propertyField.getType().isAssignableFrom(Set.class)
+            && propertyField.getSubtype() instanceof ParameterizedType
+            && String.class.equals(
+                ((ParameterizedType) propertyField.getSubtype()).getActualTypeArguments()[0]))) {
+      builder.stringValue(target);
+    } else if (propertyField.getType().isAssignableFrom(Number.class)) {
+      builder.longValue(Long.parseLong(target));
+    } else if (propertyField.getType().isAssignableFrom(Boolean.class)) {
+      builder.booleanValue(Boolean.parseBoolean(target));
+    } else {
+      throw new AnalyticsEngineException("Unsupported field type: " + propertyField.getType());
+    }
+    return builder.build();
+  }
+
+  // region utils
+
+  /**
+   * Query an engine using the filter, parameters and definition
+   *
+   * @param filter the filter
+   * @param parameters the parameters
+   * @param definitionParameters the map of parameters
+   * @return the query
+   */
+  private Query queryFromBaseFilter(
+      Filters.Filter filter,
+      Map<String, String> parameters,
+      Map<String, CustomDashboardParameters> definitionParameters) {
+    Filters.FilterOperator operator = filter.getOperator();
+    BoolQuery.Builder boolQuery = new BoolQuery.Builder();
+    Filters.FilterMode filterMode = filter.getMode();
+    String field = filter.getKey();
+    String elasticField = toElasticField(field);
+    PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
+    boolean hasFilteringValues =
+        filter.getValues().stream()
+            .anyMatch(
+                value -> {
+                  CustomDashboardParameters parameter = definitionParameters.get(value);
+                  String computeValue = parameters.getOrDefault(value, "");
+                  return parameter == null
+                      || !parameter.getType().isInstance
+                      || hasText(computeValue);
+                });
+    switch (operator) {
+      case eq:
+        if (hasFilteringValues) {
+          List<Query> queryList =
+              filter.getValues().stream()
+                  .map(
+                      v ->
+                          TermQuery.of(
+                                  t -> t.field(elasticField).value(toVal(field, v, parameters)))
+                              .toQuery())
+                  .toList();
+          if (filterMode == Filters.FilterMode.and) {
+            boolQuery.must(queryList);
+          } else {
+            boolQuery.should(queryList).minimumShouldMatch("1");
+          }
+        }
+        break;
+      case not_eq:
+        if (hasFilteringValues) {
+          List<Query> queryNotList =
+              filter.getValues().stream()
+                  .map(
+                      v ->
+                          TermQuery.of(
+                                  t -> t.field(elasticField).value(toVal(field, v, parameters)))
+                              .toQuery())
+                  .toList();
+          boolQuery.mustNot(queryNotList);
+        }
+        break;
+      case contains:
+        List<Query> containsQueries =
+            filter.getValues().stream()
+                .map(
+                    v -> {
+                      FieldValue val = toVal(field, v, parameters);
+                      if (propertyField != null && propertyField.isKeyword()) {
+                        // Champ keyword : wildcard
+                        return WildcardQuery.of(
+                                w ->
+                                    w.field(toElasticField(field))
+                                        .value("*" + val.stringValue() + "*"))
+                            .toQuery();
+                      } else {
+                        // Champ text : match
+                        return MatchQuery.of(m -> m.field(toElasticField(field)).query(val))
+                            .toQuery();
+                      }
+                    })
+                .toList();
+
+        if (filterMode == Filters.FilterMode.and) {
+          boolQuery.must(containsQueries);
+        } else {
+          boolQuery.should(containsQueries).minimumShouldMatch("1");
+        }
+        break;
+      case not_contains:
+        List<Query> notContainsQueries =
+            filter.getValues().stream()
+                .map(
+                    v -> {
+                      FieldValue val = toVal(field, v, parameters);
+                      if (propertyField != null && propertyField.isKeyword()) {
+                        return WildcardQuery.of(
+                                w -> w.field(elasticField).value("*" + val.stringValue() + "*"))
+                            .toQuery();
+                      } else {
+                        return MatchQuery.of(m -> m.field(elasticField).query(val)).toQuery();
+                      }
+                    })
+                .toList();
+        boolQuery.mustNot(notContainsQueries);
+        break;
+      case gt:
+      case gte:
+      case lt:
+      case lte:
+        // Single-bound date comparisons: the filter UI only offers these operators
+        // for "instant" properties (e.g. the drill-down "created at" chip). Values
+        // are ISO dates, so toVal() is bypassed on purpose - it has no Instant case.
+        if (hasFilteringValues) {
+          List<Query> compareQueries =
+              filter.getValues().stream()
+                  .map(
+                      v ->
+                          buildDateCompareQuery(
+                              elasticField, operator, parameters.getOrDefault(v, v)))
+                  .toList();
+          if (filterMode == Filters.FilterMode.and) {
+            boolQuery.must(compareQueries);
+          } else {
+            boolQuery.should(compareQueries).minimumShouldMatch("1");
+          }
+        }
+        break;
+      case empty:
+        boolQuery
+            .should(List.of(notExistsQuery(elasticField), emptyFieldQuery(elasticField)))
+            .minimumShouldMatch("1");
+        break;
+      case not_empty:
+        boolQuery.must(List.of(existsQuery(elasticField), notEmptyFieldQuery(elasticField)));
+        break;
+      default:
+        throw new UnsupportedOperationException("Filter operator " + operator + " not supported");
+    }
+    return boolQuery.build().toQuery();
+  }
+
+  /**
+   * Build the query restrictions
+   *
+   * @param user the auth of the user
+   * @return the query
+   */
+  private Query buildQueryRestrictions(RawUserAuth user) {
+    // If user is admin, no need to check the ACL
+    if (user.getUser_admin()) {
+      return null;
+    }
+    Set<String> grantedResource =
+        user.getUser_grants().stream().map(RawGrant::getGrant_resource).collect(Collectors.toSet());
+    List<FieldValue> values = grantedResource.stream().map(FieldValue::of).toList();
+    BoolQuery.Builder authQuery = new BoolQuery.Builder();
+    Query compliantField =
+        TermsQuery.of(
+                t ->
+                    t.field("base_restrictions.keyword")
+                        .terms(TermsQueryField.of(tq -> tq.value(values))))
+            .toQuery();
+    BoolQuery.Builder emptyRestrictBuilder = new BoolQuery.Builder();
+    Query existField = ExistsQuery.of(b -> b.field("base_restrictions.keyword")).toQuery();
+    Query emptyRestrictQuery = emptyRestrictBuilder.mustNot(existField).build().toQuery();
+    return authQuery.should(compliantField, emptyRestrictQuery).build().toQuery();
+  }
+
+  /**
+   * Build the query from a search
+   *
+   * @param search the search
+   * @return the query
+   */
+  private Query queryFromSearch(String search) {
+    QueryStringQuery.Builder queryStringQuery = new QueryStringQuery.Builder();
+    queryStringQuery.query(search).analyzeWildcard(true).fields(BASE_FIELDS);
+    return queryStringQuery.build().toQuery();
+  }
+
+  /**
+   * Build the query from filter
+   *
+   * @param groupFilter the filter
+   * @param parameters the parameters to use
+   * @param definitionParameters the definition of the parameters
+   * @return the query generated
+   */
+  private Query queryFromFilter(
+      Filters.FilterGroup groupFilter,
+      Map<String, String> parameters,
+      Map<String, CustomDashboardParameters> definitionParameters) {
+    Filters.FilterMode filterMode = groupFilter.getMode();
+    BoolQuery.Builder filterQuery = new BoolQuery.Builder();
+    List<Query> filterQueries = new ArrayList<>();
+    List<Filters.Filter> filters = groupFilter.getFilters();
+    filters.forEach(
+        f -> filterQueries.add(queryFromBaseFilter(f, parameters, definitionParameters)));
+    if (filterMode == Filters.FilterMode.and) {
+      filterQuery.must(filterQueries);
+    } else {
+      filterQuery.should(filterQueries);
+      filterQuery.minimumShouldMatch("1");
+    }
+    return filterQuery.build().toQuery();
+  }
+
+  /**
+   * Build the query
+   *
+   * @param user the user auth to use
+   * @param search the search to use
+   * @param groupFilter the filter to use
+   * @param parameters the parameters to use
+   * @param definitionParameters the definition parameters to use
+   * @return the query built
+   */
+  private Query buildQuery(
+      RawUserAuth user,
+      String search,
+      Filters.FilterGroup groupFilter,
+      Map<String, String> parameters,
+      Map<String, CustomDashboardParameters> definitionParameters) {
+    BoolQuery.Builder mainQuery = new BoolQuery.Builder();
+    List<Query> mainMust = new ArrayList<>();
+    // TODO removing user specific restrictions -> issue/3768 will refactor this logic to have
+    // restriction based on markings
+    /*Query restrictionQuery = buildQueryRestrictions(user);
+    if (restrictionQuery != null) {
+      mainMust.add(restrictionQuery);
+    }*/
+    BoolQuery.Builder dataQueryBuilder = new BoolQuery.Builder();
+    List<Query> shouldList = new ArrayList<>();
+    if (search != null) {
+      Query searchQuery = queryFromSearch(search);
+      shouldList.add(searchQuery);
+    }
+    if (groupFilter != null && groupFilter.getFilters() != null) {
+      Query filterQuery = queryFromFilter(groupFilter, parameters, definitionParameters);
+      shouldList.add(filterQuery);
+    }
+    if (shouldList.isEmpty()) {
+      throw new IllegalArgumentException("One of search or filter must not be null");
+    }
+    Query dataQuery = dataQueryBuilder.should(shouldList).minimumShouldMatch("1").build().toQuery();
+    mainMust.add(dataQuery);
+
+    // Filter by current tenant: match tenant-scoped documents belonging to this tenant,
+    // or platform-level documents that have no tenant field at all.
+    Query matchesTenant =
+        TermQuery.of(
+                t ->
+                    t.field("base_tenant_side.keyword")
+                        .value(v -> v.stringValue(TenantContext.getCurrentTenant())))
+            .toQuery();
+    Query noTenantField =
+        BoolQuery.of(
+                b -> b.mustNot(ExistsQuery.of(e -> e.field("base_tenant_side.keyword")).toQuery()))
+            .toQuery();
+    Query tenantFilter =
+        BoolQuery.of(b -> b.should(matchesTenant, noTenantField).minimumShouldMatch("1")).toQuery();
+    mainQuery.filter(tenantFilter);
+    return mainQuery.must(mainMust).build().toQuery();
+  }
+
+  /**
+   * Resolve the ids of the representative
+   *
+   * @param user the user to use
+   * @param ids the ids to check
+   * @return a map of ids
+   */
+  private Map<String, String> resolveIdsRepresentative(RawUserAuth user, List<String> ids) {
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    Filters.Filter filter = new Filters.Filter();
+    filter.setKey("base_id");
+    filter.setOperator(Filters.FilterOperator.eq);
+    filter.setValues(ids);
+    filter.setMode(Filters.FilterMode.or);
+    filterGroup.setFilters(List.of(filter));
+    Query query = buildQuery(user, null, filterGroup, new HashMap<>(), new HashMap<>());
+    try {
+      SearchResponse<EsBase> response =
+          openSearchClient.search(
+              b -> b.index(engineConfig.getIndexPattern()).size(ids.size()).query(query),
+              EsBase.class);
+      List<Hit<EsBase>> hits = response.hits().hits();
+      return hits.stream()
+          .map(Hit::source)
+          .filter(Objects::nonNull)
+          .collect(Collectors.toMap(EsBase::getBase_id, EsBase::getBase_representative));
+    } catch (Exception e) {
+      log.error(String.format("resolveIdsRepresentative exception: %s", e.getMessage()), e);
+    }
+    return Map.of();
+  }
+
+  // endregion
+
+  // region indexing
+
+  public <T extends EsBase> void bulkProcessing(Stream<EsModel<T>> models) {
+    List<IndexingStatus> statuses =
+        models
+            .map(
+                model -> {
+                  Optional<IndexingStatus> indexingStatus =
+                      indexingStatusRepository.findByType(model.getName());
+                  Handler<? extends EsBase> handler = model.getHandler();
+                  String index = model.getIndex(engineConfig);
+                  Instant fetchInstant =
+                      indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
+                  long fetchStart = System.currentTimeMillis();
+                  List<? extends EsBase> results =
+                      handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
+                  long fetchMs = System.currentTimeMillis() - fetchStart;
+                  if (fetchMs > 1000) {
+                    log.warn(
+                        "Slow fetch for model {} ({}ms, from={})",
+                        model.getName(),
+                        fetchMs,
+                        fetchInstant);
+                  }
+                  if (!results.isEmpty()) {
+                    // Create bulk for the data
+                    BulkRequest.Builder br = new BulkRequest.Builder();
+                    for (EsBase result : results) {
+                      br.operations(
+                          op ->
+                              op.index(
+                                  idx ->
+                                      idx.index(index).id(result.getBase_id()).document(result)));
+                    }
+                    // Execute the bulk
+                    try {
+                      log.info("Indexing ({}) in progress for {}", results.size(), model.getName());
+                      BulkRequest bulkRequest = br.build();
+                      BulkResponse result = openSearchClient.bulk(bulkRequest);
+                      // Log errors, if any
+                      if (result.errors()) {
+                        long errorCount =
+                            result.items().stream().filter(item -> item.error() != null).count();
+                        boolean allPoison = true;
+                        for (BulkResponseItem item : result.items()) {
+                          if (item.error() != null) {
+                            log.error(
+                                "Bulk item error for model {} id={}: {}",
+                                model.getName(),
+                                item.id(),
+                                item.error().reason());
+                            allPoison =
+                                allPoison && EsIndexingUtils.isPoisonError(item.error().type());
+                          }
+                        }
+                        // Deterministic document-level failures (mapping/parsing) would fail
+                        // identically forever: retrying blocks the whole model's indexing
+                        // (head-of-line). Skip them by advancing the cursor; they will be retried
+                        // naturally the next time their row is updated. Transient failures keep
+                        // the cursor so the batch is retried.
+                        if (!allPoison) {
+                          log.error(
+                              "Bulk indexing failed for model {} ({}/{} items with transient errors, cursor not advanced, from={})",
+                              model.getName(),
+                              errorCount,
+                              result.items().size(),
+                              fetchInstant);
+                          return null;
+                        }
+                        log.error(
+                            "Bulk indexing skipped {} poison document(s) for model {} (deterministic mapping/parsing errors, cursor advanced, from={})",
+                            errorCount,
+                            model.getName(),
+                            fetchInstant);
+                      }
+                      // Update the status for the next round
+                      Instant newCursor =
+                          EsIndexingUtils.computeNewCursor(
+                              results, engineConfig.getIndexingBatchSize(), model.getName(), log);
+                      if (newCursor == null) {
+                        log.error(
+                            "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={})",
+                            model.getName(),
+                            fetchInstant);
+                        return null;
+                      }
+                      if (fetchInstant != null && !newCursor.isAfter(fetchInstant)) {
+                        log.error(
+                            "Stuck cursor detected for model {} — cursor did not advance (from={}, last_row={}). "
+                                + "This indicates a query bug: ranked rows have sort_ts <= cursor.",
+                            model.getName(),
+                            fetchInstant,
+                            newCursor);
+                      }
+                      // Rows flushed by a still-open transaction commit later with an already-past
+                      // updated_at: persisting a cursor beyond those timestamps would skip them
+                      // forever (the fetch is strictly greater-than). Keep the cursor at least the
+                      // grace window behind wall-clock; recent rows are re-fetched and re-upserted
+                      // (idempotent) on every round until they age past the window.
+                      Instant persistedCursor =
+                          EsIndexingUtils.capCursorToGraceWindow(
+                              newCursor,
+                              Instant.now(),
+                              engineConfig.getIndexingGraceWindowSeconds());
+                      if (persistedCursor.equals(fetchInstant)) {
+                        // The cap lands exactly on the current cursor: persisting would be a
+                        // no-op, keep it and re-process those rows next round.
+                        return null;
+                      }
+                      // persistedCursor may be BEHIND fetchInstant when the stored cursor is
+                      // closer to wall-clock than the grace window allows (e.g. persisted before
+                      // the window existed): saving it deliberately moves the cursor backwards so
+                      // rows committing late inside the window are fetched again.
+                      if (indexingStatus.isPresent()) {
+                        IndexingStatus status = indexingStatus.get();
+                        status.setLastIndexing(persistedCursor);
+                        return status;
+                      } else {
+                        IndexingStatus status = new IndexingStatus();
+                        status.setType(model.getName());
+                        status.setLastIndexing(persistedCursor);
+                        return status;
+                      }
+                    } catch (IOException e) {
+                      log.error(
+                          String.format("bulkParallelProcessing exception: %s", e.getMessage()), e);
+                    }
+                  } else {
+                    log.info("Indexing <up to date> for {}", model.getName());
+                  }
+                  return null;
+                })
+            .filter(Objects::nonNull)
+            .toList();
+    if (!statuses.isEmpty()) {
+      indexingStatusRepository.saveAll(statuses);
+    }
+  }
+
+  public void bulkDelete(List<String> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return;
+    }
+    // Batch internally: a bulk deletion cascade can journal thousands of ids in one flush, and
+    // both the terms clauses and the painless "valuesToRemove" params must stay bounded.
+    for (int start = 0; start < ids.size(); start += EngineService.BULK_DELETE_BATCH_SIZE) {
+      bulkDeleteBatch(
+          ids.subList(start, Math.min(start + EngineService.BULK_DELETE_BATCH_SIZE, ids.size())));
+    }
+  }
+
+  private void bulkDeleteBatch(List<String> ids) {
+    try {
+      List<FieldValue> values = ids.stream().map(FieldValue::of).toList();
+      // Delete the direct document corresponding to the id
+      Query directId =
+          TermsQuery.of(
+                  t -> t.field("base_id.keyword").terms(TermsQueryField.of(tq -> tq.value(values))))
+              .toQuery();
+      // Delete "cascade" the documents including the id in their "base_dependencies"
+      Query dependenciesId =
+          TermsQuery.of(
+                  t ->
+                      t.field("base_dependencies.keyword")
+                          .terms(TermsQueryField.of(tq -> tq.value(values))))
+              .toQuery();
+      Query query =
+          BoolQuery.of(b -> b.should(directId, dependenciesId).minimumShouldMatch("1")).toQuery();
+      openSearchClient.deleteByQuery(
+          new DeleteByQueryRequest.Builder()
+              .index(engineConfig.getIndexPattern())
+              .query(query)
+              .refresh(Refresh.True)
+              .conflicts(Conflicts.Proceed)
+              .build());
+      // Remove the deleted ids from the denormalized "base_XXX_side" attributes of the documents
+      // that reference them. The update-by-query MUST be scoped to those documents only: this
+      // runs synchronously after every entity delete (the HTTP response waits for it), and an
+      // unscoped request rewrites every document of every index - minutes on a production
+      // dataset (relaunching an atomic testing was observed blocking for over a minute).
+      Query sideReferences = sideReferencesQuery(values);
+      if (sideReferences == null) {
+        return;
+      }
+      openSearchClient.updateByQuery(
+          new UpdateByQueryRequest.Builder()
+              .index(engineConfig.getIndexPattern())
+              .query(sideReferences)
+              .script(
+                  Script.of(
+                      s ->
+                          s.inline(
+                              InlineScript.of(
+                                  is ->
+                                      is.source(SIDE_CLEANUP_SCRIPT)
+                                          .params("valuesToRemove", JsonData.of(ids))))))
+              .refresh(Refresh.True)
+              .conflicts(Conflicts.Proceed)
+              .build());
+    } catch (IOException e) {
+      // Propagate: callers decide resilience (the after-commit flush swallows and relies on the
+      // deletion journal + replay job; the replay job retries on its next pass).
+      throw new RuntimeException(
+          String.format("bulkDelete failed for %d id(s): %s", ids.size(), e.getMessage()), e);
+    }
+  }
+
+  /**
+   * Matches only the documents that reference one of the deleted ids in a denormalized {@code
+   * base_XXX_side} field, with one {@code terms} clause per concrete side field.
+   *
+   * <p>The field list comes from the indexed model classes instead of a {@code base_*_side.keyword}
+   * field wildcard on purpose: a {@code query_string} wildcard expands to (#ids x #fields) boolean
+   * clauses, which blows past the engine's {@code max_clause_count} on large deletion cascades
+   * (bulk scenario deletions were observed failing every shard with
+   * search_phase_execution_exception). A {@code terms} query is a single clause regardless of the
+   * number of ids.
+   *
+   * @return the scoped query, or {@code null} when no side field exists (nothing to clean)
+   */
+  private Query sideReferencesQuery(List<FieldValue> values) {
+    List<Query> perField =
+        commonSearchService.getSideFieldNames().stream()
+            .map(
+                field ->
+                    TermsQuery.of(
+                            t ->
+                                t.field(field + ".keyword")
+                                    .terms(TermsQueryField.of(tq -> tq.value(values))))
+                        .toQuery())
+            .toList();
+    if (perField.isEmpty()) {
+      return null;
+    }
+    return BoolQuery.of(b -> b.should(perField).minimumShouldMatch("1")).toQuery();
+  }
+
+  @Override
+  public void deleteByTenants(List<String> tenantIds) {
+    List<FieldValue> values =
+        tenantIds == null
+            ? List.of()
+            : tenantIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(FieldValue::of)
+                .toList();
+    if (values.isEmpty()) {
+      return;
+    }
+    try {
+      Query query =
+          TermsQuery.of(
+                  t ->
+                      t.field("base_tenant_side.keyword")
+                          .terms(TermsQueryField.of(tq -> tq.value(values))))
+              .toQuery();
+      openSearchClient.deleteByQuery(
+          new DeleteByQueryRequest.Builder()
+              .index(engineConfig.getIndexPattern())
+              .query(query)
+              .refresh(Refresh.True)
+              .conflicts(Conflicts.Proceed)
+              .build());
+    } catch (IOException e) {
+      log.error("deleteByTenants failed for tenants {}: {}", tenantIds, e.getMessage(), e);
+    }
+  }
+
+  // endregion
+
+  // region query
+
+  public EsCountInterval count(RawUserAuth user, CountRuntime runtime) {
+    FlatConfiguration widgetConfig = runtime.getConfig();
+    try {
+      Query countQuery =
+          buildQuery(
+              user,
+              null,
+              runtime
+                  .getConfig()
+                  .getSeries()
+                  .getFirst()
+                  .getFilter(), // 1 count = 1 serie limit = 1 filter group
+              runtime.getParameters(),
+              runtime.getDefinitionParameters());
+      if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
+        Query query = new BoolQuery.Builder().must(countQuery).build().toQuery();
+        long allTimeCount =
+            openSearchClient
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(query))
+                .count();
+        return new EsCountInterval(allTimeCount, 0L, allTimeCount);
+      } else {
+        Instant currentIntervalStart =
+            calcStartDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
+        Instant currentIntervalEnd =
+            calcEndDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
+        Query currentIntervalDateRangeQuery =
+            buildDateRangeQuery(
+                widgetConfig.getDateAttribute(), currentIntervalStart, currentIntervalEnd);
+        Query currentIntervalQuery =
+            new BoolQuery.Builder()
+                .must(currentIntervalDateRangeQuery, countQuery)
+                .build()
+                .toQuery();
+        long currentIntervalCount =
+            openSearchClient
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(currentIntervalQuery))
+                .count();
+
+        // In our case, to avoid any gap, currentIntervalStart = previousIntervalEnd
+        Duration intervalDuration = Duration.between(currentIntervalStart, currentIntervalEnd);
+        Instant previousIntervalStart = currentIntervalStart.minus(intervalDuration);
+
+        Query previousIntervalDateRangeQuery =
+            buildDateRangeQuery(
+                widgetConfig.getDateAttribute(), previousIntervalStart, currentIntervalStart);
+        Query previousIntervalQuery =
+            new BoolQuery.Builder()
+                .must(previousIntervalDateRangeQuery, countQuery)
+                .build()
+                .toQuery();
+        long previousIntervalCount =
+            openSearchClient
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(previousIntervalQuery))
+                .count();
+
+        return new EsCountInterval(
+            currentIntervalCount,
+            previousIntervalCount,
+            currentIntervalCount - previousIntervalCount);
+      }
+    } catch (IOException e) {
+      log.error(String.format("count exception: %s", e.getMessage()), e);
+    }
+    return new EsCountInterval(0L, 0L, 0L);
+  }
+
+  public EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime) {
+    AverageConfiguration widgetConfig = averageRuntime.getConfig();
+
+    BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
+    Query filterQuery =
+        buildQuery(
+            user,
+            null,
+            averageRuntime.getConfig().getSeries().getFirst().getFilter(),
+            averageRuntime.getParameters(),
+            averageRuntime.getDefinitionParameters());
+    Query query;
+    if (isAllTime(
+        widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters())) {
+      query = queryBuilder.must(filterQuery).build().toQuery();
+    } else {
+      Instant finalStart =
+          calcStartDate(
+              widgetConfig,
+              averageRuntime.getParameters(),
+              averageRuntime.getDefinitionParameters());
+      Instant finalEnd =
+          calcEndDate(
+              widgetConfig,
+              averageRuntime.getParameters(),
+              averageRuntime.getDefinitionParameters());
+      Query dateRangeQuery =
+          buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
+      query = queryBuilder.must(dateRangeQuery, filterQuery).build().toQuery();
+    }
+
+    try {
+      Map<String, String> fields = averageRuntime.getConfig().getField();
+
+      String domainField = toElasticField(fields.get("domainField"));
+      String domainAggregationKey = "by_security_domain";
+
+      String typeField = toElasticField(fields.get("typeField"));
+      String typeAggregationKey = "by_inject_expectation_type";
+
+      String statusField = toElasticField(fields.get("statusField"));
+      String statusAggregationKey = "by_inject_expectation_status";
+
+      SearchRequest request =
+          new SearchRequest.Builder()
+              .index(engineConfig.getIndexPattern())
+              .size(0)
+              .query(query)
+              .aggregations(
+                  domainAggregationKey,
+                  agg ->
+                      agg.terms(t -> t.field(domainField))
+                          .aggregations(
+                              typeAggregationKey,
+                              sub ->
+                                  sub.terms(t -> t.field(typeField))
+                                      .aggregations(
+                                          statusAggregationKey,
+                                          subAg -> subAg.terms(t -> t.field(statusField)))))
+              .build();
+
+      SearchResponse<Void> response = openSearchClient.search(request, Void.class);
+
+      Buckets<StringTermsBucket> domainBuckets =
+          response.aggregations().get(domainAggregationKey).sterms().buckets();
+
+      return averageSTerms(domainBuckets, user, typeAggregationKey, statusAggregationKey);
+
+    } catch (Exception e) {
+      log.error(String.format("Opensearch client failed to aggregate data: %s", e.getMessage()), e);
+    }
+    return new EsAvgs(new ArrayList<>());
+  }
+
+  private EsAvgs averageSTerms(
+      @NotNull Buckets<StringTermsBucket> domainBuckets,
+      @NotNull final RawUserAuth user,
+      String typeAggregationKey,
+      String statusAggregationKey) {
+    Map<String, String> resolutions = new HashMap<>();
+    List<String> ids =
+        domainBuckets.array().stream()
+            .flatMap(s -> Arrays.stream(s.key().split(",")))
+            .distinct()
+            .toList();
+    resolutions.putAll(resolveIdsRepresentative(user, ids));
+
+    List<EsDomainsAvgData> data =
+        domainBuckets.array().stream()
+            .map(
+                b -> {
+                  String key = b.key();
+                  String label = resolutions.get(key);
+                  Buckets<StringTermsBucket> typeBuckets =
+                      b.aggregations().get(typeAggregationKey).sterms().buckets();
+                  List<EsSeries> typesData =
+                      typeBuckets.array().stream()
+                          .map(
+                              t -> {
+                                String typeLabel = t.key();
+                                long typeCount = t.docCount();
+                                Buckets<StringTermsBucket> statusBuckets =
+                                    t.aggregations().get(statusAggregationKey).sterms().buckets();
+                                List<EsSeriesData> statusData =
+                                    statusBuckets.array().stream()
+                                        .map(
+                                            s -> {
+                                              String statusLabel = s.key();
+                                              return new EsSeriesData(
+                                                  statusLabel, statusLabel, s.docCount());
+                                            })
+                                        .toList();
+                                return new EsSeries(typeLabel, typeCount, statusData);
+                              })
+                          .toList();
+                  return new EsDomainsAvgData(label, typesData);
+                })
+            .toList();
+
+    return new EsAvgs(data);
+  }
+
+  public EsSeries termHistogram(
+      RawUserAuth user,
+      StructuralHistogramWidget widgetConfig,
+      Series config,
+      Map<String, String> parameters,
+      Map<String, CustomDashboardParameters> definitionParameters) {
+
+    BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
+    Query filterQuery =
+        buildQuery(user, null, config.getFilter(), parameters, definitionParameters);
+    Query query;
+    if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
+      query = queryBuilder.must(filterQuery).build().toQuery();
+    } else {
+      Instant finalStart = calcStartDate(widgetConfig, parameters, definitionParameters);
+      Instant finalEnd = calcEndDate(widgetConfig, parameters, definitionParameters);
+      Query dateRangeQuery =
+          buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
+      query = queryBuilder.must(dateRangeQuery, filterQuery).build().toQuery();
+    }
+    String aggregationKey = "term_histogram";
+    try {
+      String field = parameters.getOrDefault(widgetConfig.getField(), widgetConfig.getField());
+      PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
+      String elasticField = toElasticField(field);
+
+      SearchRequest.Builder searchBuilder =
+          new SearchRequest.Builder().index(engineConfig.getIndexPattern()).size(0).query(query);
+
+      // Avoid this exception
+      // co.elastic.clients.elasticsearch._types.ElasticsearchException: [es/search] failed:
+      // [x_content_parse_exception] [1:82] [terms] failed to parse field [size]
+      if (widgetConfig.getLimit() > 0) {
+        TermsAggregation termsAggregation =
+            new TermsAggregation.Builder()
+                .field(elasticField)
+                .size(widgetConfig.getLimit())
+                .build();
+
+        searchBuilder.aggregations(
+            aggregationKey, new Aggregation.Builder().terms(termsAggregation).build());
+      }
+
+      SearchResponse<Void> response = openSearchClient.search(searchBuilder.build(), Void.class);
+
+      if (widgetConfig.getLimit() == 0) {
+        return new EsSeries(config.getName());
+      }
+
+      Aggregate aggregate = response.aggregations().get(aggregationKey);
+      if (propertyField.getType() == Double.class) {
+        return termHistogramDTerms(config, aggregate);
+      } else if (propertyField.getType() == Long.class
+          || propertyField.getType() == Boolean.class) {
+        return termHistogramLTerms(config, aggregate);
+      } else {
+        return termHistogramSTerms(user, config, aggregate, field);
+      }
+    } catch (Exception e) {
+      log.error(String.format("termHistogram exception: %s", e.getMessage()), e);
+    }
+    return new EsSeries(config.getName());
+  }
+
+  /**
+   * Histogram for string type
+   *
+   * @param user the user to use
+   * @param config the config for a structural histogram
+   * @param aggregate the aggregate
+   * @param field the field
+   * @return the series to use
+   */
+  private EsSeries termHistogramSTerms(
+      @NotNull final RawUserAuth user,
+      @NotNull final Series config,
+      @NotNull final Aggregate aggregate,
+      @NotNull final String field) {
+    boolean isSideAggregation = field.endsWith("_side");
+    Buckets<StringTermsBucket> buckets = aggregate.sterms().buckets();
+    Map<String, String> resolutions = new HashMap<>();
+    if (isSideAggregation) {
+      List<String> ids =
+          buckets.array().stream()
+              .flatMap(s -> Arrays.stream(s.key().split(",")))
+              .distinct()
+              .toList();
+      resolutions.putAll(resolveIdsRepresentative(user, ids));
+    }
+    List<EsSeriesData> data =
+        buckets.array().stream()
+            .map(
+                b -> {
+                  String key = b.key();
+                  String label = isSideAggregation ? resolutions.get(key) : key;
+                  String seriesKey = label != null ? label : "deleted";
+                  return new EsSeriesData(key, seriesKey, b.docCount());
+                })
+            .toList();
+    return new EsSeries(config.getName(), data);
+  }
+
+  /**
+   * Histogram for double type
+   *
+   * @param config the config to use
+   * @param aggregate the aggregate to use
+   * @return a series
+   */
+  private EsSeries termHistogramDTerms(
+      @NotNull final Series config, @NotNull final Aggregate aggregate) {
+    Buckets<DoubleTermsBucket> buckets = aggregate.dterms().buckets();
+    List<EsSeriesData> data =
+        buckets.array().stream()
+            .map(
+                b -> {
+                  String key = String.valueOf(b.key());
+                  return new EsSeriesData(key, key, b.docCount());
+                })
+            .toList();
+    return new EsSeries(config.getName(), data);
+  }
+
+  /**
+   * Histogram for long type
+   *
+   * @param config the config to use
+   * @param aggregate the aggregate to use
+   * @return a series
+   */
+  private EsSeries termHistogramLTerms(
+      @NotNull final Series config, @NotNull final Aggregate aggregate) {
+    Buckets<LongTermsBucket> buckets = aggregate.lterms().buckets();
+    List<EsSeriesData> data =
+        buckets.array().stream()
+            .map(
+                b -> {
+                  String key = String.valueOf(b.key());
+                  return new EsSeriesData(key, key, b.docCount());
+                })
+            .toList();
+    return new EsSeries(config.getName(), data);
+  }
+
+  public List<EsSeries> multiTermHistogram(RawUserAuth user, StructuralHistogramRuntime runtime) {
+    Map<String, String> parameters = runtime.getParameters();
+    Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
+    return runtime.getWidget().getSeries().stream()
+        .map(c -> termHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
+        .toList();
+  }
+
+  public EsSeries dateHistogram(
+      RawUserAuth user,
+      DateHistogramWidget widgetConfig,
+      Series config,
+      Map<String, String> parameters,
+      Map<String, CustomDashboardParameters> definitionParameters) {
+    BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
+    Query filterQuery =
+        buildQuery(user, null, config.getFilter(), parameters, definitionParameters);
+
+    Instant finalStart = calcStartDate(widgetConfig, parameters, definitionParameters);
+    Instant finalEnd = calcEndDate(widgetConfig, parameters, definitionParameters);
+
+    Query query;
+    if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
+      query = queryBuilder.must(filterQuery).build().toQuery();
+    } else {
+      Query dateRangeQuery =
+          buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
+      query = queryBuilder.must(dateRangeQuery, filterQuery).build().toQuery();
+    }
+
+    try {
+      String aggregationKey = "date_histogram";
+      ExtendedBounds<FieldDateMath> extendedBounds;
+      if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
+        extendedBounds = null;
+      } else {
+        ExtendedBounds.Builder<FieldDateMath> bounds = new ExtendedBounds.Builder<>();
+        bounds.min(FieldDateMath.of(m -> m.value((double) finalStart.toEpochMilli())));
+        bounds.max(FieldDateMath.of(m -> m.value((double) finalEnd.toEpochMilli())));
+        extendedBounds = bounds.build();
+      }
+      SearchResponse<Void> response =
+          openSearchClient.search(
+              b ->
+                  b.index(engineConfig.getIndexPattern())
+                      .size(0)
+                      .query(query)
+                      .aggregations(
+                          aggregationKey,
+                          a ->
+                              buildDateHistogramAggregation(
+                                  a,
+                                  widgetConfig.getDateAttribute(),
+                                  widgetConfig.getInterval(),
+                                  extendedBounds)),
+              Void.class);
+      Buckets<DateHistogramBucket> buckets =
+          response.aggregations().get(aggregationKey).dateHistogram().buckets();
+      List<EsSeriesData> data =
+          buckets.array().stream()
+              .map(
+                  b ->
+                      new EsSeriesData(
+                          b.keyAsString(), Instant.ofEpochMilli(b.key()).toString(), b.docCount()))
+              .toList();
+      return new EsSeries(config.getName(), data);
+    } catch (IOException e) {
+      log.error(String.format("dateHistogram exception: %s", e.getMessage()), e);
+    }
+    return new EsSeries(config.getName());
+  }
+
+  public List<EsSeries> multiDateHistogram(RawUserAuth user, DateHistogramRuntime runtime) {
+    Map<String, String> parameters = runtime.getParameters();
+    Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
+    return runtime.getWidget().getSeries().stream()
+        .map(c -> dateHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
+        .toList();
+  }
+
+  public EsEntities entities(RawUserAuth user, ListRuntime runtime) {
+    Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
+    String entityName =
+        searchFilters.getFilters().stream()
+            .filter(filter -> "base_entity".equals(filter.getKey()))
+            .findAny()
+            .orElseThrow()
+            .getValues()
+            .getFirst();
+    List<EngineSortField> sorts = runtime.getWidget().getSorts();
+
+    List<SortOptions> engineSorts;
+    if (sorts != null && !sorts.isEmpty()) {
+      engineSorts =
+          sorts.stream()
+              .map(
+                  sort ->
+                      SortOptions.of(
+                          so ->
+                              so.field(
+                                  FieldSort.of(
+                                      fs ->
+                                          fs.field(toElasticField(sort.getFieldName()))
+                                              .order(
+                                                  sort.getDirection() == SortDirection.DESC
+                                                      ? SortOrder.Desc
+                                                      : SortOrder.Asc)))))
+              .toList();
+    } else {
+      engineSorts =
+          List.of(
+              SortOptions.of(
+                  so -> so.field(FieldSort.of(fs -> fs.field("_score").order(SortOrder.Desc)))));
+    }
+    BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
+    ListConfiguration widgetConfig = runtime.getWidget();
+    Query listQuery =
+        buildQuery(
+            user, "", searchFilters, runtime.getParameters(), runtime.getDefinitionParameters());
+    try {
+      Query query;
+      if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
+        query = queryBuilder.must(listQuery).build().toQuery();
+      } else {
+        Instant finalStart =
+            calcStartDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
+        Instant finalEnd =
+            calcEndDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
+        Query dateRangeQuery =
+            buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
+        query = queryBuilder.must(dateRangeQuery, listQuery).build().toQuery();
+      }
+      Query finalQuery = query;
+      SearchResponse<?> response =
+          openSearchClient.search(
+              b ->
+                  b.index(engineConfig.getIndexPattern())
+                      .size(runtime.getPagination().getSize())
+                      .from(runtime.getPagination().getPage() * runtime.getPagination().getSize())
+                      .query(finalQuery)
+                      .sort(engineSorts)
+                      // By default the engine stops counting at 10,000 and reports it as a lower
+                      // bound, which froze the pagination total of large result sets at "10000".
+                      .trackTotalHits(tth -> tth.enabled(true)),
+              getClassForEntity(entityName));
+      long total = response.hits().total() != null ? response.hits().total().value() : 0;
+      return new EsEntities(
+          response.hits().hits().stream()
+              .filter(hit -> hit.source() != null)
+              .map(hit -> (EsBase) hit.source())
+              .toList(),
+          total,
+          runtime.getPagination().getSize(),
+          runtime.getPagination().getPage(),
+          Math.ceilDiv(total, runtime.getPagination().getSize()));
+
+    } catch (IOException e) {
+      log.error("query exception: {}", e.getMessage(), e);
+    }
+    return new EsEntities(new ArrayList<>(), 0, 0, 0, 0);
+  }
+
+  /**
+   * Return the class for the entity
+   *
+   * @param entityName the name of the entity
+   * @return the class itself
+   */
+  private Class<?> getClassForEntity(String entityName) {
+    Optional<EsModel<EsBase>> model =
+        searchEngine.getModels().stream()
+            .filter(esBaseEsModel -> entityName.equals(esBaseEsModel.getName()))
+            .findAny();
+    return model.get().getModel();
+  }
+
+  public ListConfiguration createListConfiguration(
+      String entityName, Map<String, List<String>> filterValueMap) {
+    // Create filters
+    List<Filters.Filter> filters = new ArrayList<>();
+    filters.add(Filters.Filter.getNewDefaultEqualFilter("base_entity", List.of(entityName)));
+    filterValueMap.forEach((k, v) -> filters.add(Filters.Filter.getNewDefaultEqualFilter(k, v)));
+
+    // Create group filter
+    Filters.FilterGroup filterGroup = Filters.FilterGroup.defaultFilterGroup();
+    filterGroup.setFilters(filters);
+
+    // Create sort configuration
+    EngineSortField engineSortField = new EngineSortField();
+    engineSortField.setFieldName("base_updated_at");
+    engineSortField.setDirection(SortDirection.DESC);
+
+    // Create series
+    ListConfiguration.ListPerspective listPerspective = new ListConfiguration.ListPerspective();
+    listPerspective.setName("Attack Paths");
+    listPerspective.setFilter(filterGroup);
+
+    // Create list configuration
+    ListConfiguration listConfiguration = new ListConfiguration();
+    listConfiguration.setSorts(List.of(engineSortField));
+    listConfiguration.setPerspective(listPerspective);
+    return listConfiguration;
+  }
+
+  public List<EsSearch> search(RawUserAuth user, String search, Filters.FilterGroup filter) {
+    Query query = buildQuery(user, search, filter, new HashMap<>(), new HashMap<>());
+    try {
+      SearchResponse<EsSearch> response =
+          openSearchClient.search(
+              b ->
+                  b.index(engineConfig.getIndexPattern())
+                      .size(engineConfig.getSearchCap())
+                      .query(query)
+                      .sort(
+                          SortOptions.of(
+                              s ->
+                                  s.field(
+                                      FieldSort.of(f -> f.field("_score").order(SortOrder.Desc))))),
+              EsSearch.class);
+      return response.hits().hits().stream()
+          .filter(hit -> hit.source() != null)
+          .map(
+              hit -> {
+                EsSearch source = hit.source();
+                source.setScore(hit.score());
+                return source;
+              })
+          .toList();
+    } catch (IOException e) {
+      log.error(String.format("query exception: %s", e.getMessage()), e);
+    }
+    return List.of();
+  }
+
+  @Override
+  public String getEngineVersion() {
+    String endpoint = "/_nodes";
+    try (Response response =
+        openSearchClient
+            .generic()
+            .execute(Requests.builder().endpoint(endpoint).method("GET").build())) {
+      final int status = response.getStatus();
+      if (status == 200 && response.getBody().isPresent()) {
+        Set<String> versions = new HashSet<>();
+        mapper
+            .readTree(response.getBody().get().bodyAsBytes())
+            .get("nodes")
+            .elements()
+            .forEachRemaining(jsonNode -> versions.add(jsonNode.get("version").textValue()));
+        return Strings.join(versions, ',');
+      }
+    } catch (IOException e) {
+      log.warn("Unable to retrieve engine version", e);
+    }
+    return null;
+  }
+
+  @Override
+  public void cleanUpIndex(String model) throws IOException {
+    this.cleanUpIndex(model, true);
+  }
+
+  @Override
+  public void cleanUpIndex(String model, boolean withTemplate) throws IOException {
+    driver.cleanUpIndex(model, openSearchClient, withTemplate);
+  }
+
+  @Override
+  public ObjectMapper getObjectMapper() {
+    return driver.getObjectMapper();
+  }
+
+  @Override
+  public Long getIndexesUsedSize() {
+    // Restricted to the "store" metric: the full stats payload of a wildcard pattern is heavy and
+    // everything else is useless here. Primaries only, so replicas are not counted twice.
+    String endpoint = "/" + engineConfig.getIndexPattern() + "/_stats/store";
+    try (Response response =
+        openSearchClient
+            .generic()
+            .execute(Requests.builder().endpoint(endpoint).method("GET").build())) {
+      if (response.getStatus() == 200 && response.getBody().isPresent()) {
+        JsonNode size =
+            mapper
+                .readTree(response.getBody().get().bodyAsBytes())
+                .path("_all")
+                .path("primaries")
+                .path("store")
+                .path("size_in_bytes");
+        if (size.isNumber()) {
+          return size.asLong();
+        }
+      }
+    } catch (IOException e) {
+      throw new AnalyticsEngineException("Unable to retrieve engine used size", e);
+    }
+    return null;
+  }
+
+  @Override
+  public void ping() {
+    try {
+      if (!openSearchClient.ping().value()) {
+        throw new AnalyticsEngineException("Engine ping returned a negative response");
+      }
+    } catch (IOException | OpenSearchException e) {
+      throw new AnalyticsEngineException("Unable to reach the engine", e);
+    }
+  }
+
+  // endregion
+
+  /**
+   * Convert from a string to an elastic field
+   *
+   * @param field the field name
+   * @return the elastic field
+   */
+  private String toElasticField(@NotBlank final String field) {
+    PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
+    if (propertyField == null) {
+      // base_representative & co.: searchable analyzed-text base fields absent from the @Queryable
+      // indexing schema. They have no ".keyword" subfield, so target the raw text field instead of
+      // throwing a NullPointerException that 500s the whole search request. Other unknown fields
+      // stay a hard error.
+      if (!BASE_FIELDS.contains(field)) {
+        throw new AnalyticsEngineException("Unknown field: " + field);
+      }
+      return field;
+    }
+    return propertyField.isKeyword() ? (field + ".keyword") : field;
+  }
+}

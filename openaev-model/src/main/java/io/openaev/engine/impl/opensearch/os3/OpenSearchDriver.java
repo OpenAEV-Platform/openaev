@@ -1,0 +1,533 @@
+package io.openaev.engine.impl.opensearch.os3;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.EngineConfig;
+import io.openaev.database.model.IndexingStatus;
+import io.openaev.database.repository.IndexingStatusRepository;
+import io.openaev.driver.EngineObjectMapperFactory;
+import io.openaev.engine.EngineContext;
+import io.openaev.engine.EsModel;
+import io.openaev.engine.RetiredIndexes;
+import io.openaev.engine.model.EsBase;
+import io.openaev.exception.AnalyticsEngineException;
+import io.openaev.exception.StartupException;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.net.URISyntaxException;
+import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.util.*;
+import javax.net.ssl.SSLContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManager;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
+import org.apache.hc.core5.http.HttpHost;
+import org.apache.hc.core5.http.nio.ssl.TlsStrategy;
+import org.apache.hc.core5.reactor.ssl.TlsDetails;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.springframework.stereotype.Component;
+import os3.org.opensearch.client.json.JsonData;
+import os3.org.opensearch.client.json.jackson.JacksonJsonpMapper;
+import os3.org.opensearch.client.opensearch.OpenSearchClient;
+import os3.org.opensearch.client.opensearch._types.OpenSearchException;
+import os3.org.opensearch.client.opensearch._types.analysis.CustomNormalizer;
+import os3.org.opensearch.client.opensearch._types.analysis.Normalizer;
+import os3.org.opensearch.client.opensearch._types.mapping.*;
+import os3.org.opensearch.client.opensearch.cluster.PutComponentTemplateRequest;
+import os3.org.opensearch.client.opensearch.core.InfoResponse;
+import os3.org.opensearch.client.opensearch.generic.Body;
+import os3.org.opensearch.client.opensearch.generic.Requests;
+import os3.org.opensearch.client.opensearch.generic.Response;
+import os3.org.opensearch.client.opensearch.indices.*;
+import os3.org.opensearch.client.opensearch.indices.put_index_template.IndexTemplateMapping;
+import os3.org.opensearch.client.transport.OpenSearchTransport;
+import os3.org.opensearch.client.transport.aws.AwsSdk2Transport;
+import os3.org.opensearch.client.transport.aws.AwsSdk2TransportOptions;
+import os3.org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.regions.Region;
+
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class OpenSearchDriver {
+  public static final String ES_MODEL_VERSION = "1.0";
+  public static final String ES_ILM_POLICY = "-ilm-policy";
+  public static final String ES_CORE_SETTINGS = "-core-settings";
+
+  private final EngineContext searchEngine;
+  private final EngineConfig config;
+  private final IndexingStatusRepository indexingStatusRepository;
+
+  /**
+   * Shared ObjectMapper used by the OpenSearch client for JSON serialization. Exposed via {@link
+   * #getObjectMapper()} so that other components (e.g. audit log service) can reuse the exact same
+   * serialization settings.
+   */
+  private final ObjectMapper engineObjectMapper = EngineObjectMapperFactory.create();
+
+  /** Returns the ObjectMapper used by the OpenSearch client for document serialization. */
+  public ObjectMapper getObjectMapper() {
+    return engineObjectMapper;
+  }
+
+  /**
+   * Initializing the standard client
+   *
+   * @return the OpenSearchClient
+   * @throws URISyntaxException throw an exception in case of a malformed URI
+   */
+  private OpenSearchClient standardClient() throws URISyntaxException {
+    final HttpHost host = HttpHost.create(config.getUrl());
+    final ApacheHttpClient5TransportBuilder builder =
+        ApacheHttpClient5TransportBuilder.builder(host);
+    final BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+    if (config.getUsername() != null) {
+      credentialsProvider.setCredentials(
+          new AuthScope(host),
+          new UsernamePasswordCredentials(
+              config.getUsername(), config.getPassword().toCharArray()));
+    }
+    builder.setHttpClientConfigCallback(
+        httpClientBuilder -> {
+          PoolingAsyncClientConnectionManagerBuilder managerBuilder =
+              PoolingAsyncClientConnectionManagerBuilder.create();
+          if (!config.isRejectUnauthorized()) {
+            // Create an SSLContext that trusts all certificates
+            try {
+              SSLContext sslContext =
+                  SSLContextBuilder.create()
+                      .loadTrustMaterial(null, (X509Certificate[] chain, String authType) -> true)
+                      .build();
+              @SuppressWarnings("deprecation")
+              final TlsStrategy tlsStrategy =
+                  ClientTlsStrategyBuilder.create()
+                      .setSslContext(sslContext)
+                      .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                      // See https://issues.apache.org/jira/browse/HTTPCLIENT-2219
+                      .setTlsDetailsFactory(
+                          sslEngine ->
+                              new TlsDetails(
+                                  sslEngine.getSession(), sslEngine.getApplicationProtocol()))
+                      .build();
+              managerBuilder.setTlsStrategy(tlsStrategy);
+            } catch (Exception e) {
+              throw new StartupException(
+                  "Error during startup. Cannot initialize Opensearch - ", e);
+            }
+          }
+
+          final PoolingAsyncClientConnectionManager connectionManager = managerBuilder.build();
+          return httpClientBuilder
+              .setDefaultCredentialsProvider(credentialsProvider)
+              .setConnectionManager(connectionManager);
+        });
+    JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper(engineObjectMapper);
+    builder.setMapper(jsonpMapper);
+    final OpenSearchTransport transport = builder.build();
+    return new OpenSearchClient(transport);
+  }
+
+  /**
+   * Returns the opensearch client depending on the situation
+   *
+   * @return the opensearch client
+   * @throws URISyntaxException throw an exception in case of a malformed URI
+   */
+  private OpenSearchClient getOpensearchClient() throws URISyntaxException {
+    // If client is not AWS specific
+    if (config.getEngineAwsMode().equalsIgnoreCase("no")) {
+      return standardClient();
+    }
+    // If client is directly to AWS opensearch service
+    SdkHttpClient httpClient = ApacheHttpClient.builder().build();
+    return new OpenSearchClient(
+        new AwsSdk2Transport(
+            httpClient,
+            config.getEngineAwsHost(),
+            config.getEngineAwsMode(),
+            Region.of(config.getEngineAwsRegion()),
+            AwsSdk2TransportOptions.builder()
+                .setMapper(new JacksonJsonpMapper(engineObjectMapper))
+                .build()));
+  }
+
+  /**
+   * Create the rollover policy
+   *
+   * @param client the client to use
+   * @throws IOException in case of error during the call to opensearch
+   */
+  private void createRolloverPolicy(OpenSearchClient client) throws IOException {
+    String endpoint = "/_plugins/_ism/policies/" + config.getIndexPrefix() + ES_ILM_POLICY;
+    try (Response response =
+        client.generic().execute(Requests.builder().endpoint(endpoint).method("GET").build())) {
+      final int status = response.getStatus();
+      if (status != 404) {
+        return;
+      }
+    }
+    String jsonRequest =
+        String.format(
+            """
+                    {
+                      "policy": {
+                          "description": "OpenAEV ISM Policy",
+                          "default_state": "hot",
+                          "states": [
+                            {
+                              "name": "hot",
+                              "actions": [
+                                {
+                                  "rollover": {
+                                    "min_primary_shard_size": "%s",
+                                    "min_doc_count": %s
+                                  }
+                                }],
+                              "transitions": []
+                            }],
+                          "ism_template": {
+                            "index_patterns": ["%s*"],
+                            "priority": 100
+                          }
+                      }
+                   }
+                   """,
+            config.getMaxPrimaryShardsSize(),
+            config.getMaxPrimaryShardDocs(),
+            config.getIndexPrefix());
+
+    try (Response response =
+        client
+            .generic()
+            .execute(
+                Requests.builder().endpoint(endpoint).method("PUT").json(jsonRequest).build())) {
+      final int status = response.getStatus();
+      log.info("Create rollover policy: {}", status);
+      if (status != 201) {
+        Optional<Body> body = response.getBody();
+        String message = body.isPresent() ? body.get().bodyAsString() : "no response";
+        throw new IOException(message);
+      }
+    }
+  }
+
+  /**
+   * Creating the core settings
+   *
+   * @param client the client to use
+   * @throws IOException in case of error during the call to opensearch
+   */
+  private void createCoreSettings(OpenSearchClient client) throws IOException {
+    PutComponentTemplateRequest.Builder coreSettings = new PutComponentTemplateRequest.Builder();
+    coreSettings.name(config.getIndexPrefix() + ES_CORE_SETTINGS);
+    coreSettings.create(false);
+    coreSettings.template(
+        new IndexState.Builder()
+            .settings(
+                new IndexSettings.Builder()
+                    .maxResultWindow(config.getMaxResultWindow())
+                    .numberOfReplicas(Integer.parseInt(config.getNumberOfReplicas()))
+                    .numberOfShards(Integer.parseInt(config.getNumberOfShards()))
+                    .analysis(
+                        new IndexSettingsAnalysis.Builder()
+                            .normalizer(
+                                "string_normalizer",
+                                new Normalizer.Builder()
+                                    .custom(
+                                        new CustomNormalizer.Builder()
+                                            .filter("lowercase", "asciifolding")
+                                            .build())
+                                    .build())
+                            .build())
+                    .build())
+            .build());
+    client.cluster().putComponentTemplate(coreSettings.build());
+  }
+
+  /**
+   * Create the index
+   *
+   * @param client the client to use
+   * @param name the name of the index
+   * @param version the version
+   * @param mappings the mappings of the data
+   * @throws IOException in case of error during the call to opensearch
+   */
+  @SuppressWarnings("SameParameterValue")
+  private void setupIndex(
+      OpenSearchClient client, String name, String version, Map<String, Property> mappings)
+      throws IOException {
+    // Create template
+    String indexName = config.getIndexPrefix() + "_" + name;
+    String coreSettings = config.getIndexPrefix() + ES_CORE_SETTINGS;
+    PutIndexTemplateRequest.Builder template = new PutIndexTemplateRequest.Builder();
+    template.name(indexName);
+    template.meta("version", JsonData.of(version));
+    template.indexPatterns(indexName + "*");
+    // Overlapping templates must not share a priority: "asset" is a name prefix of "asset-group",
+    // so their patterns overlap and the engine refuses the second template at equal priority. The
+    // name length makes the more specific template win, whatever the model registration order.
+    template.priority(indexName.length());
+    template.composedOf(coreSettings);
+    TypeMapping indexMapping =
+        new TypeMapping.Builder()
+            .dynamic(DynamicMapping.Strict)
+            .dateDetection(false)
+            .numericDetection(false)
+            .properties(mappings)
+            .build();
+    template.template(
+        new IndexTemplateMapping.Builder()
+            .settings(
+                new IndexSettings.Builder()
+                    .customSettings(
+                        Map.of(
+                            "plugins",
+                            JsonData.of(
+                                String.format(
+                                    """
+                                  "index_state_management": {
+                                    "rollover_alias": "%s",
+                                  }
+                            """,
+                                    indexName))))
+                    .mapping(
+                        new IndexSettingsMapping.Builder()
+                            .totalFields(
+                                new IndexSettingsMappingLimitTotalFields.Builder()
+                                    .limit(Long.parseLong(config.getMaxFieldsSize()))
+                                    .build())
+                            .build())
+                    .build()
+                    .index())
+            .mappings(indexMapping)
+            .build());
+    try {
+      client.indices().putIndexTemplate(template.build());
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
+    // Create index
+    try {
+      client.indices().get(new GetIndexRequest.Builder().index(indexName).build());
+    } catch (OpenSearchException e) {
+      log.info("Creating index {}", indexName);
+      client
+          .indices()
+          .create(
+              new CreateIndexRequest.Builder()
+                  .index(indexName + config.getIndexSuffix())
+                  .aliases(indexName, new Alias.Builder().build())
+                  .build());
+      // A brand-new index must be reindexed from scratch: reset the cursor to epoch instead of
+      // deleting the row. The row's presence is what tells the next startup that the index is
+      // already initialized (a missing row means wipe & recreate at boot). Deleting the row
+      // here kept models with no data yet in a wipe/recreate loop at every single boot,
+      // because the indexing job only persists the row once a first document is indexed.
+      resetIndexingCursor(name);
+    }
+  }
+
+  /**
+   * Upserts the {@link IndexingStatus} row for a model with an epoch cursor (full reindex). Epoch
+   * is used instead of null because the column is NOT NULL, and every handler treats a null cursor
+   * as epoch anyway ({@code from != null ? from : Instant.ofEpochMilli(0)}).
+   */
+  private void resetIndexingCursor(String modelName) {
+    IndexingStatus status =
+        indexingStatusRepository
+            .findByType(modelName)
+            .orElseGet(
+                () -> {
+                  IndexingStatus newStatus = new IndexingStatus();
+                  newStatus.setType(modelName);
+                  return newStatus;
+                });
+    status.setLastIndexing(Instant.EPOCH);
+    indexingStatusRepository.save(status);
+  }
+
+  /**
+   * Mapping generator for the class representing the ES Model
+   *
+   * @param esModel the esmodel to use
+   * @return a map of properties
+   */
+  private Map<String, Property> mappingGeneratorForClass(EsModel<?> esModel) {
+    Property subKeyword =
+        new Property.Builder()
+            .keyword(
+                new KeywordProperty.Builder()
+                    .ignoreAbove(512)
+                    .normalizer("string_normalizer")
+                    .build())
+            .build();
+
+    Map<String, Property> mappings = new HashMap<>();
+    Class<?> model = esModel.getModel();
+    // Collect fields from the entire class hierarchy (not just the direct parent)
+    List<Field> allFields = new ArrayList<>();
+    for (Class<?> clazz = model;
+        clazz != null && clazz != Object.class;
+        clazz = clazz.getSuperclass()) {
+      allFields.addAll(List.of(clazz.getDeclaredFields()));
+    }
+    for (Field field : allFields) {
+      Class<?> fieldType = field.getType();
+      if (List.class.isAssignableFrom(field.getType()) || Set.class.isAssignableFrom(fieldType)) {
+        ParameterizedType fieldGenericType = (ParameterizedType) field.getGenericType();
+        fieldType = (Class<?>) fieldGenericType.getActualTypeArguments()[0];
+      }
+      if (fieldType == String.class) {
+        mappings.put(
+            field.getName(),
+            new Property.Builder()
+                .text(new TextProperty.Builder().fields("keyword", subKeyword).build())
+                .build());
+      } else if (fieldType == Instant.class) {
+        mappings.put(
+            field.getName(),
+            new Property.Builder().date(new DateProperty.Builder().build()).build());
+      } else if (fieldType == Boolean.class) {
+        mappings.put(
+            field.getName(),
+            new Property.Builder().boolean_(new BooleanProperty.Builder().build()).build());
+      } else if (fieldType == Double.class) {
+        mappings.put(
+            field.getName(),
+            new Property.Builder().double_(new DoubleNumberProperty.Builder().build()).build());
+      } else if (fieldType == Long.class) {
+        mappings.put(
+            field.getName(),
+            new Property.Builder().long_(new LongNumberProperty.Builder().build()).build());
+      } else {
+        throw new StartupException("Error with Opensearch - Unsupported field type: " + fieldType);
+      }
+    }
+    return mappings;
+  }
+
+  /**
+   * Creating the opensearchClient
+   *
+   * @return the client
+   * @param <T> a type extending EsBase
+   * @throws Exception in case of an exception during the calls to opensearch
+   */
+  public <T extends EsBase> OpenSearchClient opensearchClient() throws Exception {
+    log.info("Creating OpensearchClient");
+    OpenSearchClient openClient = getOpensearchClient();
+    // Try to client configuration
+    try {
+      InfoResponse info = openClient.info();
+      log.info("OpensearchClient ready for {} - {}", info.name(), info.version());
+    } catch (Exception e) {
+      log.error(String.format("Error activating Opensearch engine: %s", e.getMessage()), e);
+      throw new IllegalStateException("Failed to connect to Opensearch", e);
+    }
+    // TODO enable telemetry ?
+    // Initialize opensearch if needed.
+    createRolloverPolicy(openClient);
+    createCoreSettings(openClient);
+    // TODO Fetch the current model versions
+    // | type     | last_updated_at      | version db | search version
+    // | findings | 2024-12-04T12:00:00Z | 2.0        | 1.0
+    // If version of the model stored in opensearch is different from the db version
+    // Index + template must be removed and recreated
+    // last_updated_at for the type must be reset to reindex the full data.
+    // Sequential iteration is intentional: parallel stream caused a startup deadlock.
+    // Spring's MetricsRepositoryMethodInvocationListener acquires a ReentrantLock when recording
+    // repository call metrics. When multiple ForkJoinPool threads all hit a repository method
+    // (indexingStatusRepository.findByType) at the same time during startup, they contend on that
+    // same lock and deadlock — none can proceed and the application never finishes booting.
+    // Iterating sequentially eliminates the contention entirely at a negligible cost: the number
+    // of ES models is small and the bottleneck is network I/O, not CPU parallelism.
+    // Drop the indexes of retired models first: searches run against the index pattern, so a
+    // leftover index would still be matched (see RetiredIndexes).
+    for (String retiredIndex : RetiredIndexes.NAMES) {
+      try {
+        cleanUpIndex(retiredIndex, openClient);
+      } catch (IOException e) {
+        throw new AnalyticsEngineException(
+            "Error while cleaning up retired index " + retiredIndex + " with Opensearch", e);
+      }
+    }
+    List<EsModel<T>> models = this.searchEngine.getModels();
+    for (EsModel<T> esModel : models) {
+      Map<String, Property> mappings = mappingGeneratorForClass(esModel);
+      try {
+        // Initialize indexes sequentially to avoid startup lock contention in repository metrics.
+        // A missing IndexingStatus row means the index was never initialized (or a reindex was
+        // explicitly requested by deleting the row): wipe any leftover and start from scratch.
+        if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
+          log.info("No indexing status for {}: resetting index", esModel.getName());
+          cleanUpIndex(esModel.getName(), openClient);
+        }
+        log.debug("Ensuring index {}", esModel.getName());
+        setupIndex(openClient, esModel.getName(), ES_MODEL_VERSION, mappings);
+      } catch (IOException e) {
+        throw new AnalyticsEngineException(
+            "Error while setting up index " + esModel.getName() + " with Opensearch", e);
+      }
+    }
+    return openClient;
+  }
+
+  /**
+   * Clean up of the index
+   *
+   * @param indexName the name of the index
+   * @param client the client to use
+   * @throws IOException in case of an exception during the call to opensearch
+   */
+  public void cleanUpIndex(String indexName, OpenSearchClient client) throws IOException {
+    cleanUpIndex(indexName, client, true);
+  }
+
+  public void cleanUpIndex(String indexName, OpenSearchClient client, boolean withTemplate)
+      throws IOException {
+    try {
+      String fullIndexName = config.getIndexPrefix() + "_" + indexName;
+      String fullIndexWithSuffix = fullIndexName + config.getIndexSuffix();
+
+      deleteIndex(fullIndexName, fullIndexWithSuffix, client);
+
+      if (withTemplate) {
+        deleteIndexTemplate(fullIndexName, client);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to delete index " + indexName, e);
+    }
+  }
+
+  private void deleteIndex(String name, String nameWithSuffix, OpenSearchClient client)
+      throws IOException {
+    for (String idxName : List.of(nameWithSuffix, name)) {
+      if (!client.indices().exists(b -> b.index(idxName)).value()) {
+        continue;
+      }
+      try {
+        client.indices().delete(d -> d.index(idxName));
+        log.info("Deleted index: {}", idxName);
+      } catch (OpenSearchException e) {
+        log.warn("Index {} could not be deleted: {}", idxName, e.getMessage());
+      }
+    }
+  }
+
+  private void deleteIndexTemplate(String name, OpenSearchClient client) throws IOException {
+    if (client.indices().existsIndexTemplate(b -> b.name(name)).value()) {
+      client.indices().deleteIndexTemplate(d -> d.name(name));
+      log.info("Deleted index template: {}", name);
+    }
+  }
+}

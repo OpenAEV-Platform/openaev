@@ -177,6 +177,42 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName(
+      "Get endpoint jobs by external reference (GET /jobs/{externalReference}, deprecated)")
+  class GetEndpointJobsByExternalReference {
+
+    @Test
+    @DisplayName("should be forbidden with only MANAGE_ASSETS capability")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_manageAssetsOnly_should_forbidJobsByExternalReference() throws Exception {
+      // Act & Assert — regression check: this endpoint used to be gated on ResourceType.ASSET,
+      // which let any asset-management user (no agent capability) read/leak agent jobs.
+      mvc.perform(get(ENDPOINT_URI + "/jobs/ext-ref-test").accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName(
+        "should not be forbidden with AGENT_RUNTIME_ACCESS capability so old agents can upgrade")
+    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+    void given_agentRuntimeAccess_should_allowJobsByExternalReference() throws Exception {
+      // Act & Assert — old agents still authenticating with this deprecated API must keep
+      // working so they can fetch their upgrade job.
+      mvc.perform(get(ENDPOINT_URI + "/jobs/ext-ref-test").accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
+    @DisplayName("should be forbidden with no capabilities at all")
+    @WithMockUser
+    void given_noCapabilities_should_forbidJobsByExternalReference() throws Exception {
+      // Act & Assert
+      mvc.perform(get(ENDPOINT_URI + "/jobs/ext-ref-test").accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+  }
+
+  @Nested
   @DisplayName("Cleanup agent job (DELETE /jobs/{id})")
   class CleanupAgentJob {
 

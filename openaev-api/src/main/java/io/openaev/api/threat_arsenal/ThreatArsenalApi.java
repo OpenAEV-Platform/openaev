@@ -9,8 +9,6 @@ import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.ChainingTypeRegistry;
-import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
@@ -42,6 +40,7 @@ import org.springframework.web.bind.annotation.*;
 public class ThreatArsenalApi {
   public static final String THREAT_ARSENAL_URL = "/api/threat_arsenals";
   public static final String TENANT_THREAT_ARSENAL_URL = TENANT_PREFIX + "/threat_arsenals";
+  public static final String PRIMITIVE_TYPES_URI = "/primitive-types";
 
   private final ThreatArsenalService threatArsenalService;
   private final PreviewFeatureService previewFeatureService;
@@ -64,16 +63,26 @@ public class ThreatArsenalApi {
   }
 
   @Operation(
-      summary = "Get all primitive chaining types",
-      description = "Returns primitive types available for payload arguments.")
-  @GetMapping({
-    THREAT_ARSENAL_URL + "/argument-types/",
-    TENANT_THREAT_ARSENAL_URL + "/argument-types/"
+      summary = "Get the descriptors of every primitive type",
+      description =
+          "Returns, for each primitive type, the operators it supports and the format rules its"
+              + " values must satisfy. Lets payload argument forms, the condition editor and the"
+              + " scope page offer the right controls and validate values without restating any"
+              + " backend rule.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Primitive type descriptors retrieved")
   })
-  @Transactional
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public List<PrimitiveType> getArgumentTypes(TxCtx ctx) {
-    return resolveAvailableTypes();
+  @GetMapping({
+    THREAT_ARSENAL_URL + PRIMITIVE_TYPES_URI,
+    TENANT_THREAT_ARSENAL_URL + PRIMITIVE_TYPES_URI
+  })
+  // Static, tenant-independent, non-sensitive metadata: it describes the shape of a value, never
+  // any tenant data. Gating it behind a resource permission would make the payload argument form,
+  // the condition editor and the scope page depend on unrelated grants.
+  @AccessControl(skipRBAC = true)
+  @Transactional(readOnly = true)
+  public List<PrimitiveTypeDescriptorOutput> primitiveTypeDescriptors(TxCtx ctx) {
+    return PrimitiveTypeDescriptorMapper.toOutputs();
   }
 
   @Operation(summary = "Get filterable property schemas for threat arsenal")
@@ -181,10 +190,6 @@ public class ThreatArsenalApi {
       TxCtx ctx, @PathVariable String actionId) {
     return SecurityPlatformMapper.toSimpleOutputs(
         threatArsenalService.getSecurityPlatformsForActionRemediation(actionId));
-  }
-
-  private List<PrimitiveType> resolveAvailableTypes() {
-    return ChainingTypeRegistry.getPrimitiveTypes();
   }
 
   // -- CREATE --

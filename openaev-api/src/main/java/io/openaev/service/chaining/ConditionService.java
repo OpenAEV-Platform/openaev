@@ -16,6 +16,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionKeyTypesUtils;
 import io.openaev.utils.ConditionUtils;
+import io.openaev.validator.primitive.PrimitiveFormatValidator;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.util.*;
@@ -941,7 +942,48 @@ public class ConditionService {
         throw new BadRequestException(
             "Only mapper conditions can define multiple condition_key_types");
       }
+      assertConditionInputValueFormat(conditionInput);
     }
+  }
+
+  /**
+   * Rejects a condition whose value cannot match the format of the type it compares.
+   *
+   * <p>The editor performs the same check from the primitive type descriptors, but a direct API
+   * call bypasses it entirely. Without this guard a malformed operand is persisted silently and
+   * then simply never matches at evaluation time, which surfaces as a workflow that does not
+   * trigger rather than as an error.
+   *
+   * <p>The decision is delegated to {@link PrimitiveFormatValidator}, which is operator aware:
+   * grouping nodes (AND / OR), mappers, dependencies and unary operators carry no comparable value,
+   * and IN / NIN are evaluated as substring matches so a partial operand stays legitimate.
+   *
+   * @throws BadRequestException if the value does not satisfy the format of its key type
+   */
+  private void assertConditionInputValueFormat(ConditionCreateInput conditionInput) {
+    // Resolved exactly as persistence does rather than read raw: an empty key type list is stored
+    // as Text, so validating the raw list would either skip the check or target the wrong type.
+    List<PrimitiveType> keyTypes =
+        ConditionKeyTypesUtils.normalizeForConditionType(
+            conditionInput.getKeyTypes(),
+            conditionInput.getType(),
+            conditionInput.getMappingType());
+    if (keyTypes == null || keyTypes.isEmpty()) {
+      return;
+    }
+    PrimitiveType keyType = keyTypes.getFirst();
+    if (PrimitiveFormatValidator.isAccepted(
+        keyType, conditionInput.getType(), conditionInput.getValue())) {
+      return;
+    }
+    throw new BadRequestException(
+        "The condition on '"
+            + conditionInput.getKey()
+            + "' compares a '"
+            + keyType.label
+            + "' value, but '"
+            + conditionInput.getValue()
+            + "' does not match the expected format for that type.");
   }
 
   /**

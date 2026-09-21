@@ -10,7 +10,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
-import io.openaev.utils.IpAddressUtils;
+import io.openaev.validator.IpAddressUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;

@@ -44,6 +44,8 @@
         <logback.version>1.6.3</logback.version>
         <log4j2.version>2.26.1</log4j2.version>
         <httpclient5.version>5.6.4</httpclient5.version>
+        <jakarta-json.version>2.1.3</jakarta-json.version>
+        <parsson.version>1.1.9</parsson.version>
         <kotlin.version>2.1.21</kotlin.version>
         <hikaricp.version>7.1.0</hikaricp.version>
         <opentelemetry.version>1.65.0</opentelemetry.version>
@@ -188,6 +190,10 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpasyncclient</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -239,10 +245,13 @@
     </build>
 
     <modules>
-        <module>openaev-annotation-processor</module>
+        <module>openaev-build-services</module>
         <module>openaev-model</module>
         <module>openaev-framework</module>
         <module>openaev-api</module>
         <module>openaev-maven-plugin</module>
+        <module>openaev-es8-client</module>
+        <module>openaev-es9-client</module>
+        <module>openaev-opensearch-client</module>
     </modules>
 </project>

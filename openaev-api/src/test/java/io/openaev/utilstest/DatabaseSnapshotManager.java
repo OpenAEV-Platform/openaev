@@ -1,11 +1,14 @@
 package io.openaev.utilstest;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import io.openaev.config.EngineConfig;
+import io.openaev.engine.EngineContext;
+import io.openaev.engine.EsModel;
+import io.openaev.engine.facade.EngineService;
+import io.openaev.engine.model.EsBase;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,8 +20,8 @@ import org.springframework.stereotype.Component;
 public class DatabaseSnapshotManager {
 
   private final JdbcTemplate jdbcTemplate;
-  private final ElasticsearchClient esClient;
-  private final EngineConfig config;
+  private final ObjectProvider<io.openaev.engine.facade.EngineService> engineFacade;
+  private final EngineContext engineContext;
 
   private static final Map<String, List<Map<String, Object>>> startupData = new HashMap<>();
   private static final List<String> TABLE_WITHOUT_RESTORATION = List.of("indexing_status");
@@ -71,7 +74,7 @@ public class DatabaseSnapshotManager {
         tablesInOrder = getTablesInDependencyOrder();
       }
 
-      cleanElasticsearchIndices();
+      cleanElasticsearchIndices(engineContext.getModels());
 
       // Deactivate FK for now
       jdbcTemplate.execute("SET session_replication_role = 'replica';");
@@ -101,19 +104,16 @@ public class DatabaseSnapshotManager {
   }
 
   /** Delete ES indices */
-  private void cleanElasticsearchIndices() {
-    if (esClient == null) {
+  private void cleanElasticsearchIndices(List<EsModel<EsBase>> models) {
+    EngineService service = engineFacade.getIfAvailable();
+    if (service == null) {
       return;
     }
 
     try {
-      esClient
-          .indices()
-          .delete(
-              d ->
-                  d.index(config.getIndexPrefix() + "_*")
-                      .ignoreUnavailable(true)
-                      .allowNoIndices(true));
+      for (EsModel<EsBase> model : models) {
+        service.cleanUpIndex(model.getName(), false);
+      }
       log.info("Deleted all openaev_* Elasticsearch indices");
     } catch (Exception e) {
       log.warn("Could not clean Elasticsearch: {}", e.getMessage());
