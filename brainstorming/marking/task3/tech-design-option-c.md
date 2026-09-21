@@ -558,14 +558,14 @@ not wider. This is exactly the risk the class javadoc calls out: "a transaction 
 rows of any marking-active table — a partial, silent narrowing rather than an obvious empty
 result."
 
-## 6. Edge cases
+## 6. Edge cases / Open question (thoughts for task4 writing)
 
 Five ways the two independent knobs — the `MARKING` feature flag and per-table activation
 (`openaev.marking.active-tables`) — combine with the calling context to produce a result that
 looks wrong at first glance but is actually the mechanism behaving exactly as designed (or, in
 6.1, exactly as designed *until* a specific caller identity is accounted for).
 
-### 6.1 The service account (agent/implant) has no marking clearance of its own
+### ❓ 6.1 The service account (agent/implant) has no marking clearance of its own
 
 `ServiceAccountPrivilegeService` provisions one well-known account per tenant
 (`service-{tenantId}@openaev.invalid`), carrying only the `Service integration` role
@@ -605,7 +605,68 @@ retrying `list_jobs` forever — the execution/scenario stays pending.
 
 > ⚠️ ⚠️ All users (even with TLP:GREEN only clearance) can run a scenario that targets a TLP:RED asset, although the user cannot see the asset
 
-### 6.2 Table missing from `openaev.marking.active-tables`, feature flag ON
+### ❓ 6.2 A user with TLP:GREEN clearance can still launch a scenario that targets a TLP:RED asset
+
+Today, nothing at launch time compares the *launching* user's clearance against the markings of
+the assets a scenario's injects target. §6.6 below shows why the generic per-table SQL filter
+(§4.1.2/§4.2) does not close this gap by itself: by the time an inject actually fires, execution
+has moved to `InjectsExecutionJob`, a tenant-scoped Quartz job with no HTTP principal — there is no
+"current user" left for `HttpMarkingScopeSupplier` to derive a clearance from, no matter how
+generic the statement-inspector rewrite is. Closing this gap is a deliberate design decision, not a
+bug fix, and the three options below trade off differently on user experience, blast radius, and
+what has to be persisted.
+
+**Option A — restriction stays read-only; launch is unaffected**
+
+The status quo, made explicit as a chosen option rather than an oversight. A user with TLP:GREEN
+clearance cannot *see* the TLP:RED asset (row-level filtering already applies via §4.2), but the
+scenario still launches in full and the inject still fires against it. Nothing new to build, no
+new field to persist, no "who launched/scheduled it" needed. The trade-off: an operator can direct
+an action at an object they are not cleared to see, which is the exact asymmetry a PO/security
+reviewer is likely to reject once named — visibility and actionability diverge, which is not how
+mandatory access control is normally reasoned about (see the Bell-LaPadula-style framing earlier in
+this doc's brainstorming). Cheapest option; recorded here mainly as the baseline the other two are
+measured against.
+
+**Option B — all-or-nothing: one under-cleared asset blocks the whole launch**
+
+At launch time (`createRunningExerciseFromScenario`, and the recurrence path once it fires), resolve
+every asset targeted by the scenario's injects (directly via `Inject.assets`, and per-member-asset
+through `Inject.assetGroups` — `AssetGroup` itself carries no `marking_ids`, see §3). If **any**
+targeted asset's `marking_ids` is not covered by the launching/scheduling user's clearance, reject
+the whole launch with a clear error naming what's missing — mirroring
+`MarkingEscalationValidator.assertCanAssignMarkings`'s pattern of "resolve clearance, compare,
+throw." Simple mental model for the user ("you can't run this, period"), simple to implement (one
+guard, one call site per launch/schedule endpoint), but coarse: a scenario with 50 assets and one
+TLP:RED outlier cannot run at all for a GREEN-cleared operator, even against the 49 assets they are
+fully entitled to hit.
+
+**Option C — selective run: skip only the assets the user isn't cleared for**
+
+Same resolution step as Option B, but instead of rejecting the launch outright, only the
+injects/asset-targets outside the caller's clearance are skipped (marked as skipped with a reason,
+not silently dropped), while everything within clearance still executes normally. Best operator
+experience and blast radius — a partial team without TLP:RED clearance can still run their 49
+in-scope assets — but the most to build: the execution path (`InjectsExecutionJob`, and whatever
+resolves the per-inject/per-asset fan-out) needs a per-asset clearance check at the point it
+decides whether to dispatch an inject, not just a single up-front gate, plus a status/UI story for
+"this inject didn't run — insufficient clearance" so it isn't mistaken for a failure.
+
+**Why B and C both need to know who launched/scheduled it, and A does not**
+
+For an instant "launch now," the acting user is live in the HTTP request, so B/C could in principle
+check clearance synchronously without persisting anything new. But recurrence/schedule breaks that:
+`updateScenarioRecurrence` only sets up a cron; the `Exercise` is created and its injects actually
+fire later, from `InjectsExecutionJob`/`ScenarioExecutionJob` — a background job with no principal
+at all (confirmed in §6.6/§4.1.3: `entityManager.unwrap(Session.class).disableFilter("tenantFilter")`,
+no user-service dependency anywhere in the job). B and C both need clearance to be evaluated *at
+that later point*, and there is no user to derive it from unless one was recorded when the schedule
+was requested. So the "record who launched/requested the schedule" is not a generic audit ask — for
+B and C it is the specific, minimal piece of state that lets a background job re-resolve a
+`MarkingCtx` when it eventually runs. Option A needs none of this, because it never checks
+clearance at launch at all.
+
+### ✅ 6.3 Table missing from `openaev.marking.active-tables`, feature flag ON
 
 No marking is applied, full stop — `MarkingFilteringConfig.markedTables()` is what
 `MarkingDimension`/`ScopeStatementInspector` consult to decide *which* tables get the
@@ -617,15 +678,15 @@ intended per-table activation story from §5.2 (opt in one table at a time, opt 
 dropping the column) — but it means a table can silently carry markings that are pure metadata,
 enforced nowhere, until someone adds it to the list.
 
-### 6.3 Table listed in `openaev.marking.active-tables`, feature flag OFF
+### ✅ 6.4 Table listed in `openaev.marking.active-tables`, feature flag OFF
 
-Same outcome as 6.2, different knob: `MarkingFilteringConfig.isMarkingFeatureEnabled` gates whether
+Same outcome as 6.3, different knob: `MarkingFilteringConfig.isMarkingFeatureEnabled` gates whether
 `MarkingDimension` registers itself with the statement inspector at all (see §5.1). With the flag
 off, per-table activation is inert configuration — the property is read, but no predicate is ever
 rewritten in, on any table, regardless of what `active-tables` lists. Both knobs must be `true`/
 present together for enforcement to actually happen on a given table; either one alone is a no-op.
 
-### 6.4 Feature flag ON, table active, but the endpoint's `@Transactional` method has no `TxCtx` argument
+### ✅ 6.5 Feature flag ON, table active, but the endpoint's `@Transactional` method has no `TxCtx` argument
 
 Covered in detail in §5.3, restated here as the edge case it is: this is **not** "filtering
 skipped." `TenantScopeTransactionAspect` never calls `set_config('app.current_markings', ...)` for
@@ -636,7 +697,7 @@ because this is a SQL-level filter orthogonal to RBAC/admin bypass. The endpoint
 with a silently narrowed result set rather than an error, which is the dangerous part — nothing
 about the response shape tells the caller a marked row was dropped.
 
-### 6.5 Relationships: what `InjectsExecutionJob` actually creates when a scenario runs, and how each object relates to `assets`
+### ❓ 6.6 Relationships: what `InjectsExecutionJob` actually creates when a scenario runs, and how each object relates to `assets`
 
 Not theoretical — an inventory of every row a scenario execution produces off a marked asset today,
 read from the model classes directly, cross-checked against the current activation state
