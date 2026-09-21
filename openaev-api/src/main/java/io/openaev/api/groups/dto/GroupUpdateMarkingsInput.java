@@ -15,6 +15,6 @@ public record GroupUpdateMarkingsInput(
     @JsonProperty("group_markings") @NotNull List<String> markingIds) {
 
   public GroupUpdateMarkingsInput {
-    markingIds = markingIds == null ? List.of() : List.copyOf(markingIds);
+    markingIds = markingIds == null ? null : List.copyOf(markingIds);
   }
 }
