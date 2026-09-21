@@ -4,6 +4,7 @@ import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.User;
 import io.openaev.service.UserService;
 import java.util.LinkedHashSet;
@@ -49,7 +50,14 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
     if (currentUser == null) {
       return MarkingCtx.none();
     }
-    boolean bypass = currentUser.isAdminOrBypass();
+    // AGENT_RUNTIME_ACCESS is the well-known capability of the per-tenant agent/implant service
+    // account (ServiceAccountPrivilegeService). That account has no group-marking grants of its
+    // own — it exists only to run the agent/implant API surface — so without this it would lose
+    // sight of its own host asset the moment that asset is marked. An agent must always see the
+    // asset it is installed on, independent of what markings are later applied to it.
+    boolean bypass =
+        currentUser.isAdminOrBypass()
+            || currentUser.getCapabilities().contains(Capability.AGENT_RUNTIME_ACCESS);
 
     // A marking definition belongs to exactly one tenant, so ids cannot collide across them and the
     // union is unambiguous: acting on N tenants means holding each one's clearance in that tenant.
