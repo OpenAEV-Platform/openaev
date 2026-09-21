@@ -14,8 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.database.model.Base;
-import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.TenantBase;
 import io.openaev.service.FileService;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
@@ -25,6 +25,7 @@ import jakarta.persistence.metamodel.EntityType;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -58,10 +59,9 @@ public class GenericJsonApiImporter<T extends Base> {
     }
     IncludeOptions options =
         includeOptions == null ? IncludeOptions.of(emptyMap()) : includeOptions;
-    // Only documents are attributed explicitly below. Every other tenant-scoped entity of the
-    // bundle (the payload root, its nested entities) is still stamped from the ambient tenant and
-    // matched against existing rows through it, so the whole import runs with the ambient tenant
-    // aligned on the write tenant: one request, one tenant.
+    // The built entities are attributed explicitly below, but existing rows are still matched
+    // through the ambient tenant, as are the rows a cascade creates, so the whole import runs with
+    // the ambient tenant aligned on the write tenant: one request, one tenant.
     return ambientTenantBridge.callInTenant(
         writeTenantId, () -> importEntity(doc, options, sanityCheck, writeTenantId));
   }
@@ -88,12 +88,11 @@ public class GenericJsonApiImporter<T extends Base> {
             false);
     T toPersist = Optional.ofNullable(sanityCheck).map(check -> check.apply(entity)).orElse(entity);
 
-    // documents is v2-active with a non-nullable tenant_id, and the TenantBaseListener no longer
-    // stamps it. A Document reached reflectively through this generic importer would insert with a
-    // null tenant and violate the constraint, so attribute every built document to the resolved
-    // write tenant (the request scope) rather than the ambient TenantContext of the import thread.
-    stampDocumentTenant(toPersist, writeTenantId);
-    entityCache.values().forEach(value -> stampDocumentTenant(value.getLeft(), writeTenantId));
+    // An activated table has a non-nullable tenant_id and no TenantBaseListener to fill it, so a
+    // row built reflectively here would insert with a null tenant. Attribute every built entity to
+    // the resolved write tenant (the request scope), which the bundle has no say in.
+    stampTenant(toPersist, writeTenantId);
+    entityCache.values().forEach(value -> stampTenant(value.getLeft(), writeTenantId));
 
     // Persist included entities that not inner relationship
     for (Pair<T, Boolean> value : entityCache.values()) {
@@ -158,15 +157,15 @@ public class GenericJsonApiImporter<T extends Base> {
   }
 
   /**
-   * Attributes a reflectively built {@link Document} with no tenant to the resolved write tenant.
-   * Only documents are stamped and only when their tenant is unset: an entity whose tenant a {@code
-   * sanityCheck} already set (the imported root) is left untouched.
+   * Attributes a reflectively built tenant-scoped entity with no tenant to the resolved write
+   * tenant. Only an unset tenant is stamped: an entity whose tenant a {@code sanityCheck} already
+   * set (the imported root) or that was loaded from the database is left untouched.
    */
-  private void stampDocumentTenant(Object entity, String writeTenantId) {
+  private void stampTenant(Object entity, String writeTenantId) {
     if (writeTenantId != null
-        && entity instanceof Document document
-        && document.getTenant() == null) {
-      document.setTenant(new Tenant(writeTenantId));
+        && entity instanceof TenantBase tenantScoped
+        && tenantScoped.getTenant() == null) {
+      tenantScoped.setTenant(new Tenant(writeTenantId));
     }
   }
 
@@ -341,7 +340,7 @@ public class GenericJsonApiImporter<T extends Base> {
       }
 
       Field f = relations.get(e.getKey());
-      if (f == null) {
+      if (f == null || targetsTenant(f)) {
         continue;
       }
 
@@ -398,6 +397,20 @@ public class GenericJsonApiImporter<T extends Base> {
         }
       }
     }
+  }
+
+  /**
+   * A bundle never chooses a tenant. The exporter does not emit these relations, which are all
+   * {@code @JsonIgnore}, so a genuine bundle carries none and is re-imported into the write tenant
+   * of the request. Ignoring them leaves the tenant of every built entity to the importer, and
+   * keeps a bundle from creating a tenant or attaching a user to one.
+   */
+  private static boolean targetsTenant(Field field) {
+    if (Tenant.class.isAssignableFrom(field.getType())) {
+      return true;
+    }
+    return field.getGenericType() instanceof ParameterizedType parameterized
+        && Arrays.asList(parameterized.getActualTypeArguments()).contains(Tenant.class);
   }
 
   private T resolveOrBuildEntity(
