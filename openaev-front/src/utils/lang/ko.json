@@ -1569,6 +1569,7 @@
   "Failed to import CSV file": "CSV 파일을 가져오지 못했습니다",
   "Failed to launch the autonomous run": "자율 실행을 시작하지 못했습니다",
   "Failed to load argument types": "인수 유형을 불러오는 데 실패했습니다",
+  "Failed to load the agent installer token.": "에이전트 설치 토큰을 불러오지 못했습니다.",
   "Failed to load the attack-path graph. Check the simulation id or reload.": "Failed to load the attack-path graph. Check the simulation id or reload.",
   "Failed to load the attack-path graph. Check the simulation or reload the page.": "공격 경로 그래프를 불러오지 못했습니다. 시뮬레이션을 확인하거나 페이지를 새로 고치세요.",
   "Failed to save the AI configuration": "AI 구성을 저장하지 못했습니다",

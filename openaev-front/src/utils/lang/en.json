@@ -1569,6 +1569,7 @@
   "Failed to import CSV file": "Failed to import CSV file",
   "Failed to launch the autonomous run": "Failed to launch the autonomous run",
   "Failed to load argument types": "Failed to load argument types",
+  "Failed to load the agent installer token.": "Failed to load the agent installer token.",
   "Failed to load the attack-path graph. Check the simulation id or reload.": "Failed to load the attack-path graph. Check the simulation id or reload.",
   "Failed to load the attack-path graph. Check the simulation or reload the page.": "Failed to load the attack-path graph. Check the simulation or reload the page.",
   "Failed to save the AI configuration": "Failed to save the AI configuration",

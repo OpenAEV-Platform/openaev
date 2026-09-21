@@ -1569,6 +1569,7 @@
   "Failed to import CSV file": "CSVファイルのインポートに失敗",
   "Failed to launch the autonomous run": "自律実行の開始に失敗しました",
   "Failed to load argument types": "引数の型の読み込みに失敗しました",
+  "Failed to load the agent installer token.": "エージェントのインストールトークンを読み込めませんでした。",
   "Failed to load the attack-path graph. Check the simulation id or reload.": "Failed to load the attack-path graph. Check the simulation id or reload.",
   "Failed to load the attack-path graph. Check the simulation or reload the page.": "攻撃パスグラフの読み込みに失敗しました。シミュレーションを確認するか、ページを再読み込みしてください。",
   "Failed to save the AI configuration": "AI設定の保存に失敗しました",

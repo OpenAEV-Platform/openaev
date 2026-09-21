@@ -1569,6 +1569,7 @@
   "Failed to import CSV file": "导入 CSV 文件失败",
   "Failed to launch the autonomous run": "无法启动自主运行",
   "Failed to load argument types": "无法加载参数类型",
+  "Failed to load the agent installer token.": "无法加载代理安装令牌。",
   "Failed to load the attack-path graph. Check the simulation id or reload.": "Failed to load the attack-path graph. Check the simulation id or reload.",
   "Failed to load the attack-path graph. Check the simulation or reload the page.": "无法加载攻击路径图。请检查模拟或重新加载页面。",
   "Failed to save the AI configuration": "保存 AI 配置失败",

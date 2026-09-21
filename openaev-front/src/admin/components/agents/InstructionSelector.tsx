@@ -10,6 +10,7 @@ import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
 import { type BasePayload, type CalderaSettings, type ExecutorOutput } from '../../../utils/api-types';
+import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
 import { DEFAULT_TENANT_UUID } from '../../../utils/url-helper';
 import { copyToClipboard, download } from '../../../utils/utils';
@@ -36,6 +37,7 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
   const [arch, setArch] = useState<string>(x86_64);
   const [calderaSettings, setCalderaSettings] = useState<null | CalderaSettings[]>(null);
   const [installerToken, setInstallerToken] = useState<string>('');
+  const [installerTokenStatus, setInstallerTokenStatus] = useState<'error' | 'loading' | 'ready'>('loading');
 
   // Fetching data
   useEffect(() => {
@@ -69,9 +71,24 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
   const tenantPrefix = `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}`;
 
   useEffect(() => {
-    fetchOpenAevAgentInstallerToken(tenantPrefix).then(({ data }) => {
-      setInstallerToken(data);
-    });
+    let cancelled = false;
+    setInstallerTokenStatus('loading');
+    fetchOpenAevAgentInstallerToken(tenantPrefix)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setInstallerToken(data);
+        setInstallerTokenStatus('ready');
+      })
+      .catch(() => {
+        // The global error handler ignores 401/404, so raise the toast explicitly, and stop the
+        // spinner instead of leaving it spinning forever on a rejected promise.
+        if (cancelled) return;
+        setInstallerTokenStatus('error');
+        MESSAGING$.notifyError(t('Failed to load the agent installer token.'));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [tenantPrefix]);
 
   const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -439,6 +456,37 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
       </>
     );
   };
+  const buildOaevAgentPanel = () => {
+    if (installerTokenStatus === 'error') {
+      // The failure toast is raised in the fetch's catch; no token means no install command to show.
+      return null;
+    }
+    if (installerTokenStatus === 'loading') {
+      // The install command embeds the service-account token fetched above; rendering it before
+      // that fetch resolves would produce a command with an empty bearer token.
+      return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: theme.spacing(4),
+        }}
+        >
+          <CircularProgress size={24} />
+        </div>
+      );
+    }
+    return (
+      <div>
+        <Tabs
+          entries={tabEntries}
+          currentTab={currentTab}
+          onChange={newValue => handleChangeTab(newValue)}
+        />
+        {currentTab === 'Standard Installation' && (buildStandardInstallation())}
+        {currentTab === 'Advanced Installation' && (buildAdvancedInstallation())}
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -459,31 +507,7 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
 
           {/* OAEV */}
           {selectedExecutor && selectedExecutor.executor_type === OPENAEV_AGENT && (
-            installerToken
-              ? (
-                  <div>
-                    <Tabs
-                      entries={tabEntries}
-                      currentTab={currentTab}
-                      onChange={newValue => handleChangeTab(newValue)}
-                    />
-                    {currentTab === 'Standard Installation' && (buildStandardInstallation())}
-                    {currentTab === 'Advanced Installation' && (buildAdvancedInstallation())}
-                  </div>
-                )
-              : (
-                  // The install command embeds the service-account token fetched above;
-                  // rendering it before that fetch resolves would produce a command with an
-                  // empty bearer token.
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    padding: theme.spacing(4),
-                  }}
-                  >
-                    <CircularProgress size={24} />
-                  </div>
-                )
+            buildOaevAgentPanel()
           )}
         </div>
       )}

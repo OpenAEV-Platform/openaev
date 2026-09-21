@@ -20,7 +20,8 @@ export const fetchExecutorRelatedIds = (executorId: string) => {
 };
 
 export const fetchOpenAevAgentInstallerToken = (tenantPrefix: string) => {
-  return simpleCall(`${tenantPrefix}/agent/installer/openaev/token`);
+  // Error surfacing is handled by the caller (explicit toast): the global handler ignores 401/404.
+  return simpleCall(`${tenantPrefix}/agent/installer/openaev/token`, undefined, false);
 };
 
 export const deleteExecutor = (executorId: string) => (dispatch: Dispatch) => {

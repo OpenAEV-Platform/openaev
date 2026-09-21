@@ -1569,6 +1569,7 @@
   "Failed to import CSV file": "Échec de l'importation du fichier CSV",
   "Failed to launch the autonomous run": "Échec du lancement de l'exécution autonome",
   "Failed to load argument types": "Échec du chargement des types d'arguments",
+  "Failed to load the agent installer token.": "Impossible de charger le token d'installation de l'agent.",
   "Failed to load the attack-path graph. Check the simulation id or reload.": "Échec du chargement du graphe d'attaque. Vérifiez l'id de simulation ou rechargez.",
   "Failed to load the attack-path graph. Check the simulation or reload the page.": "Échec du chargement du graphe de chemin d'attaque. Vérifiez la simulation ou rechargez la page.",
   "Failed to save the AI configuration": "Échec de l'enregistrement de la configuration IA",

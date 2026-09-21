@@ -1569,6 +1569,7 @@
   "Failed to import CSV file": "Не удалось импортировать CSV-файл",
   "Failed to launch the autonomous run": "Не удалось запустить автономный запуск",
   "Failed to load argument types": "Не удалось загрузить типы аргументов",
+  "Failed to load the agent installer token.": "Не удалось загрузить токен установки агента.",
   "Failed to load the attack-path graph. Check the simulation id or reload.": "Failed to load the attack-path graph. Check the simulation id or reload.",
   "Failed to load the attack-path graph. Check the simulation or reload the page.": "Не удалось загрузить граф пути атаки. Проверьте симуляцию или перезагрузите страницу.",
   "Failed to save the AI configuration": "Не удалось сохранить конфигурацию ИИ",
