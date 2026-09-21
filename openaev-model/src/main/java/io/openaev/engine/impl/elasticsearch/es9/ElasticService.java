@@ -1,19 +1,19 @@
-package io.openaev.service;
+package io.openaev.engine.impl.elasticsearch.es9;
 
+import static io.openaev.engine.impl.elasticsearch.es9.ElasticUtils.*;
 import static io.openaev.utils.CustomDashboardQueryUtils.*;
-import static io.openaev.utils.ElasticUtils.*;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasText;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.*;
-import co.elastic.clients.elasticsearch._types.aggregations.*;
-import co.elastic.clients.elasticsearch._types.query_dsl.*;
-import co.elastic.clients.elasticsearch.core.*;
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
-import co.elastic.clients.elasticsearch.core.search.Hit;
-import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import es9.co.elastic.clients.elasticsearch.ElasticsearchClient;
+import es9.co.elastic.clients.elasticsearch._types.*;
+import es9.co.elastic.clients.elasticsearch._types.aggregations.*;
+import es9.co.elastic.clients.elasticsearch._types.query_dsl.*;
+import es9.co.elastic.clients.elasticsearch.core.*;
+import es9.co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
+import es9.co.elastic.clients.elasticsearch.core.search.Hit;
+import es9.co.elastic.clients.json.JsonData;
 import io.openaev.config.EngineConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboardParameters;
@@ -22,18 +22,19 @@ import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.IndexingStatusRepository;
-import io.openaev.driver.ElasticDriver;
 import io.openaev.engine.EngineContext;
-import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
 import io.openaev.engine.api.WidgetConfigurationWithSeries.Series;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.schema.PropertySchema;
+import io.openaev.service.CommonSearchService;
+import io.openaev.service.EsIndexingUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -500,7 +501,12 @@ public class ElasticService implements EngineService {
 
   @Override
   public void cleanUpIndex(String model) throws IOException {
-    driver.cleanUpIndex(model, elasticClient);
+    this.cleanUpIndex(model, true);
+  }
+
+  @Override
+  public void cleanUpIndex(String model, boolean withTemplate) throws IOException {
+    driver.cleanUpIndex(model, elasticClient, withTemplate);
   }
 
   public void bulkDelete(List<String> ids) {
@@ -555,7 +561,7 @@ public class ElasticService implements EngineService {
               .script(
                   Script.of(
                       s ->
-                          s.source(SIDE_CLEANUP_SCRIPT)
+                          s.source(src -> src.scriptString(SIDE_CLEANUP_SCRIPT))
                               .params("valuesToRemove", JsonData.of(ids))
                               .lang("painless")))
               .refresh(true)
@@ -1214,7 +1220,7 @@ public class ElasticService implements EngineService {
     try {
       Set<String> versions = new HashSet<>();
       mapper
-          .readTree(elasticClient.cluster().state().valueBody().toJson().toString())
+          .readTree(elasticClient.cluster().state().state().toJson().toString())
           .get("nodes")
           .elements()
           .forEachRemaining(jsonNode -> versions.add(jsonNode.get("version").textValue()));
@@ -1223,6 +1229,11 @@ public class ElasticService implements EngineService {
       log.warn("Unable to retrieve engine version", e);
     }
     return null;
+  }
+
+  /** The configured low-level client, for the few components needing raw index access. */
+  public ElasticsearchClient getElasticClient() {
+    return elasticClient;
   }
 
   @Override
@@ -1238,7 +1249,7 @@ public class ElasticService implements EngineService {
       var stats =
           elasticClient
               .indices()
-              .stats(s -> s.index(engineConfig.getIndexPattern()).metric("store"));
+              .stats(s -> s.index(engineConfig.getIndexPattern()).metric(CommonStatsFlag.Store));
       var all = stats.all();
       if (all == null || all.primaries() == null || all.primaries().store() == null) {
         return null;

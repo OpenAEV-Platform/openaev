@@ -13,8 +13,6 @@
     <description>OpenAEV model</description>
 
     <properties>
-        <elasticsearch.version>8.19.21</elasticsearch.version>
-        <opensearch.version>3.9.0</opensearch.version>
         <amqp-client.version>5.35.0</amqp-client.version>
         <azure-core-management.version>1.19.7</azure-core-management.version>
     </properties>
@@ -38,6 +36,21 @@
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>io.openaev</groupId>
+            <artifactId>openaev-es8-client</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.openaev</groupId>
+            <artifactId>openaev-es9-client</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.openaev</groupId>
+            <artifactId>openaev-opensearch-client</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -110,22 +123,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>co.elastic.clients</groupId>
-            <artifactId>elasticsearch-java</artifactId>
-            <version>${elasticsearch.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.opensearch.client</groupId>
-            <artifactId>opensearch-java</artifactId>
-            <version>${opensearch.version}</version>
-            <exclusions>
-              <exclusion>
-                <groupId>commons-logging</groupId>
-                <artifactId>commons-logging</artifactId>
-              </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
         </dependency>
@@ -152,6 +149,12 @@
             <version>2.2.55</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>3.0.2</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -163,7 +166,7 @@
                     <annotationProcessorPaths>
                         <path>
                             <groupId>io.openaev</groupId>
-                            <artifactId>openaev-annotation-processor</artifactId>
+                            <artifactId>openaev-build-services</artifactId>
                             <version>${project.parent.version}</version>
                         </path>
                         <path>

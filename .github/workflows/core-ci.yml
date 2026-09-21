@@ -27,14 +27,14 @@ jobs:
       # new package is never silently untested.
       api-matrix: >
         [
-          {"shard":"1","shard_name":"1","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"2","shard_name":"2","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"3","shard_name":"3","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"4","shard_name":"4","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"5","shard_name":"5","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"6","shard_name":"6","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"7","shard_name":"7","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
-          {"shard":"8","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""}
+          {"shard":"1","shard_name":"elk8-1","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"2","shard_name":"elk8-2","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"3","shard_name":"elk8-3","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"4","shard_name":"elk8-4","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"5","shard_name":"elk8-5","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"6","shard_name":"elk8-6","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"7","shard_name":"elk8-7","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
+          {"shard":"8","shard_name":"elk8-remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""}
         ]
       # ── E2E Tests: standard image only, chrome/chromium × 3 shards + infra ──
       # ubi9 and webkit are nightly-only: they exercise the same JAR and were
