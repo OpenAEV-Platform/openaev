@@ -18,6 +18,16 @@ interface Props {
   limit?: number;
 }
 
+// Seeded definitions already store the display value with its type baked in, e.g.
+// `marking_definition_definition: "TLP:RED"` for a `marking_definition_type: "TLP"`. Prefixing
+// unconditionally would render `TLP:TLP:RED`, so the type is only prepended when the definition
+// does not already carry it.
+const markingLabel = (marking: MarkingDefinitionOutput) => (
+  marking.marking_definition_definition.startsWith(`${marking.marking_definition_type}:`)
+    ? marking.marking_definition_definition
+    : `${marking.marking_definition_type}:${marking.marking_definition_definition}`
+);
+
 const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) => {
   const chipSx = {
     height: variant === 'list' ? 20 : 25,
@@ -57,7 +67,7 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
     }}
     >
       {visible.map((marking: MarkingDefinitionOutput) => (
-        <Tooltip key={marking.marking_definition_id} title={`${marking.marking_definition_type}:${marking.marking_definition_definition}`}>
+        <Tooltip key={marking.marking_definition_id} title={markingLabel(marking)}>
           <Chip
             variant="outlined"
             // The dot mirrors the "Color" column of the marking definitions admin list, so a
