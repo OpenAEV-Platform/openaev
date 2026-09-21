@@ -24,9 +24,12 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,24 +37,30 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The document endpoints that take a document id load the row with a primary-key {@code findById},
- * which is exempt from the Hibernate tenant filter, and {@code @AccessControl(DOCUMENT, ...)}
- * checks capabilities, not tenants. Without a request-scope check a caller on {@code
- * /api/tenants/A/documents/{id}} reaches the document, tags, relations, bytes, update or deletion
- * of a document owned by tenant B. This class pins the tenant-prefixed route for the seven by-id
- * endpoints: an out-of-scope caller is refused with the same 404 as a missing document, a
- * same-tenant caller keeps today's behaviour, and a refused write leaves the target row unchanged.
+ * The document endpoints that take a document id load the row with a primary-key {@code findById}.
+ * Now that {@code documents} is v2-active, the statement inspector scopes that load, so an
+ * out-of-scope caller on {@code /api/tenants/A/documents/{id}} reads an empty {@code Optional} and
+ * the endpoint answers the same 404 as for a missing document, with no application-level guard.
+ * This class pins the tenant-prefixed route for the seven by-id endpoints through the inspector
+ * alone: an out-of-scope caller is refused, a same-tenant caller keeps its access, and a refused
+ * write leaves the target row unchanged.
  *
- * <p>Ground truth is read with native queries so the assertions are independent of the tenant
- * filter in effect. Documents are seeded out of band with an explicit tenant, so the request under
- * test is the first to set the scope. The test transaction rolls back; objects written to real
- * object storage are a side effect and are removed in teardown.
+ * <p>{@code @TestPropertySource} activates {@code documents} for this test only (the test classpath
+ * keeps the allowlist empty). The class is {@code @Transactional}, so the scope the request
+ * resolved is still set when the assertions run; ground-truth reads of the {@code documents} table
+ * therefore go through raw JDBC on the test's own connection, which the inspector never rewrites,
+ * so a leaked request scope cannot make a cross-tenant survival check come back empty. Documents
+ * are seeded out of band with an explicit tenant, so the request under test is the first to set the
+ * scope. The test transaction rolls back; objects written to real object storage are a side effect
+ * and are removed in teardown.
  */
 @Transactional
+@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Document by-id endpoints hold the request tenant scope on the prefixed route")
 class DocumentByIdScopeTest extends IntegrationTest {
@@ -482,14 +491,28 @@ class DocumentByIdScopeTest extends IntegrationTest {
     return "{\"document_tags\":[\"" + tagId + "\"]}";
   }
 
+  /**
+   * Counts the document row with raw JDBC on the test's own connection. With {@code documents}
+   * active and the {@code @Transactional} test keeping the request's resolved scope set, an
+   * inspector-rewritten count would return 0 for a row owned by another tenant and mask the
+   * survival check; raw JDBC bypasses the inspector and reads the true ground truth.
+   */
   private long documentRowCount(String documentId) {
     entityManager.flush();
-    return ((Number)
-            entityManager
-                .createNativeQuery("SELECT count(*) FROM documents WHERE document_id = ?1")
-                .setParameter(1, documentId)
-                .getSingleResult())
-        .longValue();
+    return entityManager
+        .unwrap(Session.class)
+        .doReturningWork(
+            connection -> {
+              try (PreparedStatement statement =
+                  connection.prepareStatement(
+                      "SELECT count(*) FROM documents WHERE document_id = ?")) {
+                statement.setString(1, documentId);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                  resultSet.next();
+                  return resultSet.getLong(1);
+                }
+              }
+            });
   }
 
   private long documentTagCount(String documentId) {

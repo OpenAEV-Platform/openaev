@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -15,15 +14,18 @@ import java.util.Objects;
 import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Setter
 @Getter
 @Entity
 @Table(name = "documents")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
+/**
+ * Fully activated on multi-tenancy v2: reads are scoped by {@code TenantStatementInspector} and
+ * writes are attributed explicitly by {@code TenantWriteScopeResolver} in the API/service layer, so
+ * the v1 Hibernate filter and {@code TenantBaseListener} must not come back.
+ */
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Document.tags-scenarios-exercises",
