@@ -200,9 +200,8 @@ const SelectListPicker = <T extends object>({
     width: `${width}%`,
   });
 
-  const listContent = (
+  const listBody = (
     <>
-      {headerComponent}
       <List dense sx={{ paddingTop: 1 }}>
         {/* 44px = dense row right padding (16) + small checkbox with 4px
             padding (28), so header cells align exactly with body cells. */}
@@ -299,6 +298,13 @@ const SelectListPicker = <T extends object>({
     </>
   );
 
+  const listContent = (
+    <>
+      {headerComponent}
+      {listBody}
+    </>
+  );
+
   if (inline) {
     return (
       <Dialog
@@ -328,9 +334,33 @@ const SelectListPicker = <T extends object>({
           {title}
           {headerRightSlot}
         </DialogTitle>
-        <DialogContent>
-          <Box data-testid={containerTestId} sx={{ marginTop: 1 }}>
-            {listContent}
+        <DialogContent
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+
+            overflow: 'hidden',
+          }}
+        >
+          <Box
+            data-testid={containerTestId}
+            sx={{
+              marginTop: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
+            {headerComponent}
+            <Box sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+            }}
+            >
+              {listBody}
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>
