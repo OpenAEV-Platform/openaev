@@ -13,6 +13,7 @@ import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.*;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
