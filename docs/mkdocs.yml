@@ -149,11 +149,13 @@ nav:
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
         - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
+        - Elasticsearch 9: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:
       - Scenario and Simulations: usage/foundations/scenarios-and-simulations.md
       - Injects and Expectations: usage/foundations/injects-and-expectations.md
+      - Inject chaining and transfer: usage/inject-chaining.md
     - Evaluate your Security posture:
       - Overview: usage/evaluate/overview.md
       - Simulation: usage/evaluate/simulation/simulation.md
@@ -218,6 +220,7 @@ nav:
     - Rest API: usage/rest-api.md
   - Administration:
     - Introduction: administration/introduction.md
+    - User profile: administration/profile.md
     - Enterprise edition: administration/enterprise.md
     - Multi-tenancy: administration/multi-tenancy.md
     - Debug mode: administration/debug-mode.md

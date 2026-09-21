@@ -802,7 +802,7 @@ Trigger the inject normally from the OpenAEV platform and wait for it to reach a
 Navigate to the executor console and look for a trace of the execution attempt.
 
 !!! note "Executor-dependent"
-    The availability of an execution trace depends on the executor. See the [per-executor sections below](#per-executor-how-to-find-the-execution-trace).
+    The availability of an execution trace depends on the executor. See the [per-executor sections below](#step-2-check-the-executor-for-an-execution-trace).
 
 - ✅ **Trace found** → proceed to Step 3
 - ❌ **No trace** → the issue is upstream: check connectivity, API credentials, whether the endpoint agent is properly registered in the executor platform, whether the script/payload pushed to the executor is correct, or whether the executor itself is misconfigured

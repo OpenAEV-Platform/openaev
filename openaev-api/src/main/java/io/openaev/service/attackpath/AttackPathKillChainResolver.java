@@ -65,8 +65,10 @@ public class AttackPathKillChainResolver {
     if (condition.getKeyTypes() != null && !condition.getKeyTypes().isEmpty()) {
       for (var keyType : condition.getKeyTypes()) {
         out.add(
-            new ConsumedFindingKeyDTO(
-                keyType.label,
+            // A condition targeting a password/hash/key carries the secret as its value, so the
+            // factory masks what is serialized and keeps the cleartext for the matcher only.
+            ConsumedFindingKeyDTO.of(
+                keyType,
                 condition.getType() != null ? condition.getType().name() : null,
                 condition.getValue(),
                 eventName));

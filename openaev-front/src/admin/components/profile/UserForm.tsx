@@ -31,7 +31,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<UpdateProfileInput>().with({
-        user_email: z.email(t('Should be a valid email address')),
         user_firstname: z.string().min(1, { message: t('Should not be empty') }),
         user_lastname: z.string().min(1, { message: t('Should not be empty') }),
         user_organization: z.string().optional(),
@@ -69,7 +68,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
           gap: theme.spacing(2.5),
         }}
       >
-        <TextFieldController required name="user_email" label={t('Email address')} disabled={initialValues.user_is_external} />
         <TextFieldController required name="user_firstname" label={t('Firstname')} />
         <TextFieldController required name="user_lastname" label={t('Lastname')} />
         <OrganizationFieldController name="user_organization" label={t('Organization')} />

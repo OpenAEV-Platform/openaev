@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.AuditLoggedService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.Manager;
@@ -40,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-public class ConnectorInstanceService {
+public class ConnectorInstanceService implements AuditLoggedService {
 
   private final ObjectMapper objectMapper;
   private final ConnectorInstanceMapper connectorInstanceMapper;
@@ -787,10 +788,21 @@ public class ConnectorInstanceService {
     ConnectorInstancePersisted instance =
         this.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
 
+    // Capture only the fields that should drive audit suppression for healthcheck pings.
+    Map<String, Object> before = new HashMap<>();
+    before.put("inRebootLoop", instance.isInRebootLoop());
+    before.put("restartCount", instance.getRestartCount());
+
     instance.setInRebootLoop(input.isInRebootLoop());
     instance.setStartedAt(input.getStartedAt());
     instance.setRestartCount(input.getRestartCount());
 
+    Map<String, Object> after = new HashMap<>();
+    after.put("inRebootLoop", instance.isInRebootLoop());
+    after.put("restartCount", instance.getRestartCount());
+
+    // Suppress audit logging for heartbeat-only updates (no significant change)
+    suppressAuditIfUnchanged(before, after);
     return (ConnectorInstancePersisted) this.save(instance);
   }
 

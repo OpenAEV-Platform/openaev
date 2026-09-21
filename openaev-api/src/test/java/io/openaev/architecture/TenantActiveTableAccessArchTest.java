@@ -11,6 +11,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.custom_dashboard.CustomDashboardApiExporter;
 import io.openaev.api.custom_dashboard.CustomDashboardApiImporter;
+import io.openaev.api.marking_definition.MarkingDefinitionApi;
 import io.openaev.api.notification.NotificationApi;
 import io.openaev.api.notification_trigger.NotificationTriggerMapper;
 import io.openaev.api.notifier.NotifierApi;
@@ -43,6 +44,7 @@ import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
+import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.database.repository.MitigationRepository;
 import io.openaev.database.repository.NotificationEventRecordRepository;
 import io.openaev.database.repository.NotificationRepository;
@@ -91,6 +93,7 @@ import io.openaev.processor.core.V20260420_Migrate_rabbitmq_queues;
 import io.openaev.processor.datapack.V20260101_Starter_pack;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.processor.datapack.V20260708_Dynamic_injectors_base_url;
+import io.openaev.processor.datapack.V20260914_Default_tenant_markings;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.attack_pattern.AttackPatternApi;
@@ -178,6 +181,7 @@ import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.expectation.ChallengeBehavior;
+import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
@@ -252,6 +256,7 @@ class TenantActiveTableAccessArchTest {
           "autonomous_runs",
           "autonomous_events",
           "autonomous_directives",
+          "marking_definitions",
           "kill_chain_phases",
           "security_coverages",
           "widgets",
@@ -445,6 +450,29 @@ class TenantActiveTableAccessArchTest {
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
+  static final ArchRule marking_definitions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoint, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              MarkingDefinitionApi.class,
+              // Service behind the handler; every caller is a wired handler:
+              MarkingDefinitionService.class,
+              // Provisioning datapack: seeds protected defaults during tenant creation.
+              V20260330_Default_tenant_data.class,
+              // Provisioning datapack: seeds the default TLP markings. Runs under the same
+              // tenant-scoped transaction primitive as the datapack above (MigrationProcessor ->
+              // tenantTx.execute/setScopeOnCurrentTransaction with TxCtx.forTenant(...)), so it
+              // needs no waiver.
+              V20260914_Default_tenant_markings.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(MarkingDefinitionRepository.class)
+          .because(
+              "marking_definitions is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
   static final ArchRule tenant_xtmhub_registrations_repository_access_is_reviewed =
       noClasses()
           .that()
@@ -479,7 +507,6 @@ class TenantActiveTableAccessArchTest {
               io.openaev.rest.asset_group.AssetGroupApi.class,
               io.openaev.rest.document.DocumentApi.class,
               io.openaev.rest.challenge.ChallengeApi.class,
-              io.openaev.api.chaining.ChainingApi.class,
               io.openaev.rest.asset.ai_targets.AiTargetApi.class,
               io.openaev.rest.asset.security_platforms.SecurityPlatformApi.class,
               // Services behind the entrypoints above and import/export paths using explicit

@@ -109,6 +109,16 @@ incident. Do not trade them away to make a test pass.
     tests and integration tests, do not add `TenantContext.getCurrentTenant()`,
     `TenantContext.setCurrentTenant(...)`, or `enableFilter("tenantFilter")`.
     Use explicit tenant ids + `TxCtx`/`TenantScopedTransaction` helpers.
+12. **Repository extends `CrudRepository`, not `JpaRepository`.** The
+    convention for strict tenant-scoped repositories in this codebase (see
+    `TagRuleRepository`, `DomainRepository`, `NotificationRepository`) is
+    `extends CrudRepository<Entity, Id>, JpaSpecificationExecutor<Entity>`.
+    `JpaRepository` additionally exposes `findAll(Sort)` (every row, every
+    tenant, unbounded and unpaginated) plus `saveAndFlush`, `deleteInBatch`,
+    `deleteAllInBatch`, `getReferenceById` — none of them take a tenant
+    argument, so they are an easy accidental cross-tenant bypass. Only widen
+    to `JpaRepository` if the repository genuinely needs one of those extras,
+    and then scope every call site through a tenant-aware `Specification`.
 
 ## Baseline: controller entrypoints already carry `TxCtx`
 

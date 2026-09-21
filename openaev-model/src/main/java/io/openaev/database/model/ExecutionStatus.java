@@ -32,6 +32,9 @@ public enum ExecutionStatus {
   public static final Set<ExecutionStatus> ERROR_STATUSES =
       Set.of(ERROR, PARTIAL, MAYBE_PREVENTED, MAYBE_PARTIAL_PREVENTED);
 
+  public static final Set<ExecutionStatus> INJECT_EXECUTION_IN_PROGRESS_STATUSES =
+      Set.of(QUEUING, EXECUTING, PENDING);
+
   /** Legacy-aware parser: keeps backward compatibility for historical SUCCESS value. */
   public static ExecutionStatus fromName(String status) {
     if ("SUCCESS".equalsIgnoreCase(status)) {
