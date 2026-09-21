@@ -16,6 +16,6 @@ public record AssetUpdateMarkingsInput(
     @JsonProperty("asset_markings") @NotNull List<String> markingIds) {
 
   public AssetUpdateMarkingsInput {
-    markingIds = markingIds == null ? List.of() : List.copyOf(markingIds);
+    markingIds = markingIds == null ? null : List.copyOf(markingIds);
   }
 }

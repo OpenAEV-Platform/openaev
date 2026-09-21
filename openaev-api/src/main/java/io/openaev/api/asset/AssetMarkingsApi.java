@@ -4,11 +4,12 @@ import static io.openaev.api.asset.AssetOptionsApi.ASSET_URI;
 import static io.openaev.api.asset.AssetOptionsApi.TENANT_ASSET_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.asset.dto.AssetMarkingsOutput;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.Asset;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,6 +45,7 @@ public class AssetMarkingsApi extends RestBehavior {
 
   @PutMapping({ASSET_URI + "/{assetId}/markings", TENANT_ASSET_URI + "/{assetId}/markings"})
   @Transactional(rollbackFor = Exception.class)
+  @LogExecutionTime
   @AccessControl(
       resourceId = "#assetId",
       actionPerformed = Action.WRITE,
@@ -67,13 +69,14 @@ public class AssetMarkingsApi extends RestBehavior {
       })
   // TODO: replace with the "Assign marking" capability chain (design Q8) once Task 1 lands. The
   // asset's own WRITE control is the honest interim, matching the group markings endpoint.
-  public Asset updateAssetMarkings(
+  public AssetMarkingsOutput updateAssetMarkings(
       TxCtx ctx,
       @PathVariable @NotBlank final String assetId,
       @Valid @RequestBody final AssetUpdateMarkingsInput input) {
     // Tenant resolved here and passed down, per the multi-tenancy convention: the service never
     // touches TenantContext. It is the tenant whose clearance the caller is checked against.
-    return assetMarkingsService.updateAssetMarkings(
-        writeScopeResolver.tenantForWrite(ctx, null), assetId, input);
+    return AssetMarkingsOutput.from(
+        assetMarkingsService.updateAssetMarkings(
+            writeScopeResolver.tenantForWrite(ctx, null), assetId, input));
   }
 }
