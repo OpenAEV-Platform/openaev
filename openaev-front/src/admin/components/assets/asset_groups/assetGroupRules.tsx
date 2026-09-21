@@ -8,9 +8,12 @@ import { type Translate } from '../../../../components/i18n';
 import { type AssetGroup, type AssetGroupOutput } from '../../../../utils/api-types';
 import AssetGroupRulesCell from './AssetGroupRulesCell';
 
+// Every chip of the Rules column is the same height as the library's own.
+const RULES_CHIP_HEIGHT = 24;
+
 const CHIP_SX = {
   borderRadius: 1,
-  height: 20,
+  height: RULES_CHIP_HEIGHT,
 };
 
 // Shared rule rendering (dynamic filter chips + static managed assets count)
@@ -42,7 +45,7 @@ const computeRuleValues = (
           flexShrink: 0,
         }}
       >
-        {idx !== 0 && <ClickableModeChip mode={assetGroup.asset_group_dynamic_filter?.mode} />}
+        {idx !== 0 && <ClickableModeChip mode={assetGroup.asset_group_dynamic_filter?.mode} height={RULES_CHIP_HEIGHT} />}
         <Chip
           variant="filled"
           size="small"

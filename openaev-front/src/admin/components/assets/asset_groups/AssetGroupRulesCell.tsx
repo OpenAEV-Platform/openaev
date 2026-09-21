@@ -62,7 +62,7 @@ const AssetGroupRulesCell = ({ items, labels }: Props) => {
         <Tooltip>
           <TooltipTrigger asChild>
             <span data-overflow-counter="true" className="inline-flex shrink-0">
-              <FdsChip label={`+${hidden}`} severity="neutral" size="sm" />
+              <FdsChip label={`+${hidden}`} severity="neutral" />
             </span>
           </TooltipTrigger>
           <TooltipContent>{labels.join(' · ')}</TooltipContent>

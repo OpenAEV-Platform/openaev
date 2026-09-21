@@ -141,7 +141,9 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       >
         {widgetTitle}
       </Typography>
-      {sample && <Chip label={t('Sample')} severity="neutral" size="sm" />}
+      {/* `size="sm"` only exists for the EE symbol: the library refuses it elsewhere
+          and renders the default size, so it is not declared here. */}
+      {sample && <Chip label={t('Sample')} severity="neutral" />}
       {rightSlot}
       {isNumberWidget && numberTooltipContent && (
         <Tooltip>
