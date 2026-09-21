@@ -36,7 +36,7 @@ import org.springframework.stereotype.Component;
  * is therefore {@code STABLE}, and only {@code IMMUTABLE} expressions can be indexed.
  */
 @Component
-public class V6_20260917120000000__Mark_assets extends BaseJavaMigration {
+public class V6_20260921120000000__Mark_assets extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

@@ -530,7 +530,7 @@ removing the SQL column. Likely easier to test too.
 The endpoint must carry `@Transactional` **and** a `TxCtx` argument for filtering to activate. What
 happens if a REST endpoint has `@Transactional` but no `TxCtx` arg?
 
-Confirmed by the actual predicate function (`V6_20260917090000000__Add_is_marking_set_allowed_function.java`)
+Confirmed by the actual predicate function (`V6_20260921090000000__Add_is_marking_set_allowed_function.java`)
 — it's the inverse of what "no filtering" would look like: the filter still applies, and it fails
 closed.
 

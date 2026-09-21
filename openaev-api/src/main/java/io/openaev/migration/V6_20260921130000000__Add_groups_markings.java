@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  * marking_definition_id}, not the old {@code marking_id}).
  */
 @Component
-public class V6_20260917130000000__Add_groups_markings extends BaseJavaMigration {
+public class V6_20260921130000000__Add_groups_markings extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

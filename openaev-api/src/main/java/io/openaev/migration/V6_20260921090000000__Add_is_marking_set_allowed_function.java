@@ -42,7 +42,7 @@ import org.springframework.stereotype.Component;
  * plain containment test with no knowledge of marking types or orders.
  */
 @Component
-public class V6_20260917090000000__Add_is_marking_set_allowed_function extends BaseJavaMigration {
+public class V6_20260921090000000__Add_is_marking_set_allowed_function extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

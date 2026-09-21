@@ -105,7 +105,7 @@ choice expensive — that decision has now been made, on evidence, not on argume
 
    - **Delivered**:
      - `is_marking_set_allowed(text[])` migration
-       (`V6_20260917090000000__Add_is_marking_set_allowed_function`).
+       (`V6_20260921090000000__Add_is_marking_set_allowed_function`).
      - `MarkingDimension`'s `readPredicate` is the one-liner `is_marking_set_allowed(<alias>.marking_ids)`.
      - `MarkedTable` degenerated to `(table, markingColumn)` as sketched.
    - **DoD** — `MarkingRewriteHypothesisTest` (real rows, `<@`/containment predicate), all five criteria
@@ -316,7 +316,7 @@ hardening).**
   asset through `findByIdAndTenantId`, which the inspector already filters, so the asset 404s before the
   write is ever reached. Only direct SQL gets it back.
 - `groups_markings` is **not** part of this gap — its FK already has `ON DELETE CASCADE`
-  (`V6_20260917130000000__Add_groups_markings.java:33`), so the grants clean up correctly today.
+  (`V6_20260921130000000__Add_groups_markings.java:33`), so the grants clean up correctly today.
 - **PO decision**: hard delete must stay possible even while the marking is still assigned to rows or
   groups — the "archive instead of delete" mitigation in §3.2 is explicitly **not** the chosen path, so
   the scrub is mandatory, not optional.
