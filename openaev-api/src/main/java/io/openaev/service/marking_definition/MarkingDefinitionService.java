@@ -5,7 +5,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.api.marking_definition.MarkingDefinitionMapper;
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
-import io.openaev.config.MarkedTables;
+import io.openaev.config.AllTablesWithMarkingIds;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
@@ -41,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MarkingDefinitionService {
 
   private final MarkingDefinitionRepository repository;
-  private final MarkedTables markedTables;
+  private final AllTablesWithMarkingIds allTablesWithMarkingIds;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final JdbcTemplate jdbcTemplate;
 
@@ -178,20 +178,21 @@ public class MarkingDefinitionService {
   }
 
   /**
-   * Removes {@code markingDefinitionId} from the {@code marking_ids} array of every currently
-   * marking-active table.
+   * Removes {@code markingDefinitionId} from the {@code marking_ids} array of every table the
+   * schema marks — not just the currently active ones.
    *
-   * <p>Schema-driven off {@link MarkedTables}, the same allowlist-narrowed set the statement
-   * inspector filters against, so this can never drift out of sync with which tables are actually
-   * marking-active - a table added to the allowlist later is scrubbed automatically, with no second
-   * list to maintain.
+   * <p>Schema-driven off {@link AllTablesWithMarkingIds}, deliberately <b>not</b> the
+   * allowlist-narrowed {@link io.openaev.config.MarkedTables} the statement inspector filters
+   * against: a marking write is not feature-gated, so a table can carry {@code marking_ids} values
+   * while inactive, and this id must not survive as a dangling entry that resurfaces the moment the
+   * table is later activated.
    *
    * <p>The {@code @>} containment guard (tech-design-option-c.md §3.2, mitigation 2) lets the GIN
    * index select candidate rows; without it every row of every marked table would be rewritten
    * regardless of whether it holds the id.
    */
   private void scrubMarkingIds(String markingDefinitionId) {
-    for (String table : markedTables.tableNames()) {
+    for (String table : allTablesWithMarkingIds.tableNames()) {
       jdbcTemplate.update(
           "UPDATE "
               + table

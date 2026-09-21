@@ -64,6 +64,16 @@ public class MarkingFilteringConfig {
   }
 
   /**
+   * Unconditional counterpart to {@link #markedTables}: every schema table with a {@code
+   * marking_ids} column, regardless of the feature flag or the activation allowlist. See {@link
+   * AllTablesWithMarkingIds} for why delete-time scrubbing must use this set instead.
+   */
+  @Bean
+  public AllTablesWithMarkingIds allTablesWithMarkingIds(DataSource dataSource) {
+    return new AllTablesWithMarkingIds(deriveFromSchema(dataSource));
+  }
+
+  /**
    * Same semantics as {@code PreviewFeatureService.isFeatureEnabled}: {@code
    * openaev.enabled-dev-features} is a comma-separated, case-insensitive list, and {@link
    * PreviewFeature#FEATURE_FLAG_ALL} ({@code "*"}) enables every preview feature including {@link

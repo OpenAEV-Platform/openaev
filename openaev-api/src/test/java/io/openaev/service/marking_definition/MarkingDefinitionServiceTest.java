@@ -2,7 +2,6 @@ package io.openaev.service.marking_definition;
 
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createDefaultMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.toInput;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -13,7 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
-import io.openaev.config.MarkedTables;
+import io.openaev.config.AllTablesWithMarkingIds;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
@@ -44,13 +43,13 @@ class MarkingDefinitionServiceTest {
   private static final String TENANT_ID = "tenant-1";
 
   @Mock private MarkingDefinitionRepository repository;
-  @Mock private MarkedTables markedTables;
+  @Mock private AllTablesWithMarkingIds allTablesWithMarkingIds;
   @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
   @Mock private JdbcTemplate jdbcTemplate;
 
   private MarkingDefinitionService service() {
     return new MarkingDefinitionService(
-        repository, markedTables, markingClearanceCacheManager, jdbcTemplate);
+        repository, allTablesWithMarkingIds, markingClearanceCacheManager, jdbcTemplate);
   }
 
   private MarkingDefinition existingIn(String tenantId) {
@@ -117,7 +116,7 @@ class MarkingDefinitionServiceTest {
       MarkingDefinition existing = existingIn(TENANT_ID);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
       Set<String> markedTableNames = new LinkedHashSet<>(Set.of("assets", "asset_groups"));
-      when(markedTables.tableNames()).thenReturn(markedTableNames);
+      when(allTablesWithMarkingIds.tableNames()).thenReturn(markedTableNames);
 
       // Act
       service().delete(TxCtx.forTenant(TENANT_ID), existing.getId());
@@ -156,12 +155,42 @@ class MarkingDefinitionServiceTest {
     }
 
     @Test
-    @DisplayName("given_noMarkingActiveTables_should_skipScrubButStillEvict")
-    void given_noMarkingActiveTables_should_skipScrubButStillEvict() {
-      // Arrange - MARKING feature flag off / allowlist empty: MarkedTables is empty.
+    @DisplayName("given_tableNotInActivationAllowlist_should_stillScrubIt")
+    void given_tableNotInActivationAllowlist_should_stillScrubIt() {
+      // Arrange - the scrub must use every schema table with marking_ids, not the
+      // MARKING-feature/activation-allowlist-narrowed set: a marking write is not feature-gated,
+      // so a table can carry marking_ids values while inactive for read filtering, and a definition
+      // deleted at that point must not leave a dangling id behind.
       MarkingDefinition existing = existingIn(TENANT_ID);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
-      when(markedTables.tableNames()).thenReturn(Set.of());
+      Set<String> everyMarkedTable = new LinkedHashSet<>(Set.of("assets", "asset_groups"));
+      when(allTablesWithMarkingIds.tableNames()).thenReturn(everyMarkedTable);
+
+      // Act
+      service().delete(TxCtx.forTenant(TENANT_ID), existing.getId());
+
+      // Assert
+      for (String table : everyMarkedTable) {
+        verify(jdbcTemplate, times(1))
+            .update(
+                eq(
+                    "UPDATE "
+                        + table
+                        + " SET marking_ids = array_remove(marking_ids, ?) WHERE marking_ids @>"
+                        + " ARRAY[?]::text[]"),
+                eq(existing.getId()),
+                eq(existing.getId()));
+      }
+      verify(markingClearanceCacheManager, times(1)).evictAll();
+    }
+
+    @Test
+    @DisplayName("given_noMarkedTablesInSchema_should_skipScrubButStillEvict")
+    void given_noMarkedTablesInSchema_should_skipScrubButStillEvict() {
+      // Arrange - no table in the schema has a marking_ids column at all.
+      MarkingDefinition existing = existingIn(TENANT_ID);
+      when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      when(allTablesWithMarkingIds.tableNames()).thenReturn(Set.of());
 
       // Act
       service().delete(TxCtx.forTenant(TENANT_ID), existing.getId());
@@ -169,7 +198,6 @@ class MarkingDefinitionServiceTest {
       // Assert
       verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
       verify(markingClearanceCacheManager, times(1)).evictAll();
-      assertThat(markedTables.tableNames()).isEmpty();
     }
   }
 }
