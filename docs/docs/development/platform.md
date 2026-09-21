@@ -18,7 +18,7 @@ OpenAEV is a multi-module Maven project with a React frontend:
 | `openaev-model` | JPA entities, repositories, domain models |
 | `openaev-api` | REST API, services, Flyway migrations, main application |
 | `openaev-front` | React SPA (Single Page Application) |
-| `openaev-annotation-processor` | Compile-time annotation processing |
+| `openaev-build-services` | Compile-time annotation processing |
 | `openaev-maven-plugin` | Database migration tooling |
 | `openaev-framework` | Shared abstractions (deprecated -- do not add new code here) |
 

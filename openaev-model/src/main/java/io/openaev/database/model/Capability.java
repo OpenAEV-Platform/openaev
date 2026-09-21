@@ -487,6 +487,14 @@ public enum Capability {
       pair(ResourceType.PLATFORM_SESSION, Action.READ),
       pair(ResourceType.PLATFORM_SESSION, Action.WRITE)),
 
+  // Agent installation quick fix: the agent installer command embeds a service-account
+  // bearer token, so it must not be reachable by unauthenticated/uncapable users.
+  INSTALL_AGENT(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.AGENT_INSTALLER, Action.READ)),
+
   // STIX
   MANAGE_STIX_BUNDLE(
       null,
@@ -504,7 +512,21 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.JOB, Action.READ),
       pair(ResourceType.JOB, Action.WRITE),
-      pair(ResourceType.AGENT, Action.CREATE));
+      pair(ResourceType.AGENT, Action.CREATE)),
+
+  /**
+   * TEMPORARY (see #294): dedicated capability so the service-account (implant) token can download
+   * a document by known ID without holding ACCESS_DOCUMENTS (which also grants SEARCH, i.e.
+   * platform-wide document listing). Must remain hidden=true: never assignable manually via the
+   * RBAC UI or API. Remove once #294 lands.
+   */
+  AGENT_DOCUMENT_ACCESS(
+      null,
+      CapabilityGroup.SERVICE,
+      true,
+      true,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.DOCUMENT, Action.AGENT_DOCUMENT_READ));
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 

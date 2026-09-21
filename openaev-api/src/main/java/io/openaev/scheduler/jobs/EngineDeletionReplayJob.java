@@ -1,7 +1,7 @@
 package io.openaev.scheduler.jobs;
 
 import io.openaev.engine.EngineDeletionJournal;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
