@@ -48,7 +48,7 @@
         <parsson.version>1.1.9</parsson.version>
         <kotlin.version>2.1.21</kotlin.version>
         <hikaricp.version>7.1.0</hikaricp.version>
-        <opentelemetry.version>1.65.0</opentelemetry.version>
+        <opentelemetry.version>1.66.0</opentelemetry.version>
         <amqp-client.version>5.35.0</amqp-client.version>
         <rabbit-amqp-client.version>${amqp-client.version}</rabbit-amqp-client.version>
         <micrometer.version>1.17.1</micrometer.version>
