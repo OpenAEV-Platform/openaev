@@ -179,7 +179,7 @@ class GroupPopoverComponent extends Component {
     return (
       <>
 
-        <ButtonPopover entries={entries} variant="icon" />
+        <ButtonPopover entries={entries} variant={this.props.variant ?? 'icon'} />
         <Dialog
           open={this.state.openDelete}
           TransitionComponent={Transition}
@@ -242,6 +242,8 @@ class GroupPopoverComponent extends Component {
 
 GroupPopoverComponent.propTypes = {
   t: PropTypes.func,
+  /** `toggle` in a detail header — the 36px kebab that lines up with the header controls. */
+  variant: PropTypes.string,
   group: PropTypes.object,
   fetchGroup: PropTypes.func,
   updateGroupUsers: PropTypes.func,

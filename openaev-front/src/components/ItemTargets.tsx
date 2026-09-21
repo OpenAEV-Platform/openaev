@@ -13,24 +13,11 @@ import chipLinkClassName from './common/chips/chipLink';
 import { useFormatter } from './i18n';
 import PlatformIcon from './PlatformIcon';
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   inline: {
     display: 'flex',
     alignItems: 'center',
-  },
-  target: {
-    fontSize: 12,
-    height: 24,
-    float: 'left',
-    marginRight: 4,
-    borderRadius: 4,
-  },
-  clickable: {
-    'cursor': 'pointer',
-    '&:hover': {
-      borderColor: theme.palette.primary.main,
-      color: theme.palette.primary.main,
-    },
+    gap: 4,
   },
   tooltipTable: {
     'borderCollapse': 'collapse',
@@ -151,8 +138,11 @@ const ItemTargets: FunctionComponent<Props> = ({
     <div className={classes.inline}>
       {visibleTargets && visibleTargets.map((target: TargetSimple, index: number) => {
         const link = getTargetLink?.(target);
+        // inline-flex on the wrapper: an inline span is taller than the chip it holds,
+        // and the row centres the WRAPPER, which leaves the chip half a pixel off its
+        // neighbours.
         return (
-          <span key={index}>
+          <span key={index} className="inline-flex">
             <Tooltip>
               <TooltipTrigger asChild>
                 {link ? (

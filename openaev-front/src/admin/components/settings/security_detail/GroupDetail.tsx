@@ -293,6 +293,7 @@ const GroupDetail = () => {
                 )
               : (
                   <GroupPopover
+                    variant="toggle"
                     group={group!}
                     groupUsersIds={group!.group_users ?? []}
                     groupRolesIds={group!.group_roles ?? []}

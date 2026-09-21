@@ -69,7 +69,12 @@ const PolicyForm: FunctionComponent<Props> = ({
           inArticle={false}
           disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
         />
-        <div style={{ marginTop: 20 }}>
+        <div style={{
+          marginTop: 20,
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+        >
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <Button type="submit" disabled={!isDirty || isSubmitting}>
               {t('Update')}
