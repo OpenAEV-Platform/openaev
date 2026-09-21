@@ -72,6 +72,8 @@ public class ChallengeService {
     // challenge_documents is a lazy @ManyToMany serialized open-in-view: force it inside this
     // scoped transaction so it does not fail-closed to an empty array once documents is v2-active
     // (the challenge read endpoints return the raw entity). See the activate-tenant-table skill.
+    // Callers enriching several challenges fetch-join the documents, which makes this a no-op
+    // instead of one SELECT per challenge.
     Hibernate.initialize(challenge.getDocuments());
     return challenge;
   }
@@ -289,7 +291,10 @@ public class ChallengeService {
             .distinct()
             .toList();
 
-    return fromIterable(this.challengeRepository.findAllById(challenges)).stream();
+    if (challenges.isEmpty()) {
+      return Stream.empty();
+    }
+    return this.challengeRepository.findAllByIdInFetchingDocuments(challenges).stream();
   }
 
   private boolean checkFlag(ChallengeFlag flag, String value) {

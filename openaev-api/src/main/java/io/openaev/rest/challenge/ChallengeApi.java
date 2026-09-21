@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.*;
 public class ChallengeApi extends RestBehavior {
 
   public static final String CHALLENGE_URI = "/api/challenges";
-  private static final String TENANT_CHALLENGE_URI = TENANT_PREFIX + "/challenges";
+  public static final String TENANT_CHALLENGE_URI = TENANT_PREFIX + "/challenges";
 
   private final ChallengeRepository challengeRepository;
   private final ChallengeFlagRepository challengeFlagRepository;
@@ -51,7 +51,8 @@ public class ChallengeApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
   public Iterable<Challenge> challenges(TxCtx ctx) {
-    return fromIterable(challengeRepository.findAll()).stream()
+    // The documents are fetch-joined here, so the enrichment does not load them per challenge.
+    return challengeRepository.findAllFetchingDocuments().stream()
         .map(challengeService::enrichChallengeWithExercisesOrScenarios)
         .toList();
   }

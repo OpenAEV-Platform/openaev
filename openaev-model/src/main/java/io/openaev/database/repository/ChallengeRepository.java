@@ -34,6 +34,14 @@ public interface ChallengeRepository
   List<Challenge> findAllByIdInFetchingDocuments(@Param("ids") @NotNull final List<String> ids);
 
   /**
+   * Loads every in-scope challenge with its {@code challenge_documents} fetched in the same query,
+   * for the same reason as {@link #findAllByIdInFetchingDocuments(List)}.
+   */
+  @Query("select c from Challenge c left join fetch c.documents")
+  @NotNull
+  List<Challenge> findAllFetchingDocuments();
+
+  /**
    * Per-tenant business-key lookup for find-or-create paths (e.g. import): looking up by the bare
    * name under a multi-tenant read scope could match one row per in-scope tenant and silently reuse
    * another tenant's challenge. Callers must resolve the write tenant first and look up scoped to
