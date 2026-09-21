@@ -23,6 +23,8 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -46,7 +48,7 @@ import org.springframework.data.jpa.domain.Specification;
  *   <li>{@code not_starts_with} - Does not start with prefix
  *   <li>{@code empty} - Is null or empty
  *   <li>{@code not_empty} - Is not null or empty
- *   <li>{@code gt}, {@code gte}, {@code lt}, {@code lte} - Date/time comparisons
+ *   <li>{@code gt}, {@code gte}, {@code lt}, {@code lte} - Date/time and numeric comparisons
  * </ul>
  */
 public final class FilterUtilsJpa {
@@ -79,7 +81,6 @@ public final class FilterUtilsJpa {
    * @param <T> the entity type
    * @return a Specification representing the filter group, or an empty specification if null
    */
-  @SuppressWarnings("unchecked")
   public static <T> Specification<T> computeFilterGroupJpa(
       @Nullable final FilterGroup filterGroup) {
     return computeFilterGroupJpa(filterGroup, new HashMap<>());
@@ -131,7 +132,7 @@ public final class FilterUtilsJpa {
       return (Specification<T>) EMPTY_SPECIFICATION;
     }
 
-    Specification<T> result = specifications.get(0);
+    Specification<T> result = specifications.getFirst();
     for (int i = 1; i < specifications.size(); i++) {
       Specification<T> current = specifications.get(i);
       result = or.equals(mode) ? result.or(current) : result.and(current);
@@ -152,7 +153,7 @@ public final class FilterUtilsJpa {
       try {
         propertySchemas = SchemaUtils.schemaWithSubtypes(root.getJavaType());
       } catch (ClassNotFoundException e) {
-        throw new RuntimeException(e);
+        throw new IllegalStateException("Failed to resolve entity schema for filtering", e);
       }
       List<PropertySchema> filterableProperties = getFilterableProperties(propertySchemas);
       PropertySchema filterableProperty = retrieveProperty(filterableProperties, filterKey);
@@ -258,10 +259,26 @@ public final class FilterUtilsJpa {
           (paths, texts) -> startWithTexts((Expression<String>) paths, cb, texts, type);
       case empty -> (paths, texts) -> empty((Expression<String>) paths, cb, type);
       case not_empty -> (paths, texts) -> notEmpty((Expression<String>) paths, cb, type);
-      case gt -> (paths, texts) -> greaterThanTexts((Expression<Instant>) paths, cb, texts);
-      case gte -> (paths, texts) -> greaterThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
-      case lt -> (paths, texts) -> lessThanTexts((Expression<Instant>) paths, cb, texts);
-      case lte -> (paths, texts) -> lessThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
+      case gt ->
+          isNumericType(type)
+              ? (paths, texts) ->
+                  greaterThanNumbers((Expression<? extends Number>) paths, cb, texts, type)
+              : (paths, texts) -> greaterThanTexts((Expression<Instant>) paths, cb, texts);
+      case gte ->
+          isNumericType(type)
+              ? (paths, texts) ->
+                  greaterThanOrEqualNumbers((Expression<? extends Number>) paths, cb, texts, type)
+              : (paths, texts) -> greaterThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
+      case lt ->
+          isNumericType(type)
+              ? (paths, texts) ->
+                  lessThanNumbers((Expression<? extends Number>) paths, cb, texts, type)
+              : (paths, texts) -> lessThanTexts((Expression<Instant>) paths, cb, texts);
+      case lte ->
+          isNumericType(type)
+              ? (paths, texts) ->
+                  lessThanOrEqualNumbers((Expression<? extends Number>) paths, cb, texts, type)
+              : (paths, texts) -> lessThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
       case not_eq ->
           (paths, texts) ->
               joinRelation == null
@@ -361,6 +378,141 @@ public final class FilterUtilsJpa {
         .where(cb.equal(cb.lower(join.get(labelPath).as(String.class)), expectedValue));
 
     return cb.exists(subquery);
+  }
+
+  // -- NUMBER --
+
+  private static Predicate greaterThanNumbers(
+      Expression<? extends Number> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    if (texts == null || texts.isEmpty()) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream()
+            .map(value -> greaterThanNumber(paths, cb, value, type))
+            .toArray(Predicate[]::new);
+
+    return cb.or(predicates);
+  }
+
+  private static Predicate greaterThanNumber(
+      Expression<? extends Number> paths, CriteriaBuilder cb, String text, Class<?> type) {
+    if (text == null || text.isBlank()) {
+      return cb.conjunction();
+    }
+
+    return cb.gt(paths, parseNumericValue(text, type));
+  }
+
+  private static Predicate greaterThanOrEqualNumbers(
+      Expression<? extends Number> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    if (texts == null || texts.isEmpty()) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream()
+            .map(value -> greaterThanOrEqualNumber(paths, cb, value, type))
+            .toArray(Predicate[]::new);
+
+    return cb.or(predicates);
+  }
+
+  private static Predicate greaterThanOrEqualNumber(
+      Expression<? extends Number> paths, CriteriaBuilder cb, String text, Class<?> type) {
+    if (text == null || text.isBlank()) {
+      return cb.conjunction();
+    }
+
+    return cb.ge(paths, parseNumericValue(text, type));
+  }
+
+  private static Predicate lessThanNumbers(
+      Expression<? extends Number> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    if (texts == null || texts.isEmpty()) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream()
+            .map(value -> lessThanNumber(paths, cb, value, type))
+            .toArray(Predicate[]::new);
+
+    return cb.or(predicates);
+  }
+
+  private static Predicate lessThanNumber(
+      Expression<? extends Number> paths, CriteriaBuilder cb, String text, Class<?> type) {
+    if (text == null || text.isBlank()) {
+      return cb.conjunction();
+    }
+
+    return cb.lt(paths, parseNumericValue(text, type));
+  }
+
+  private static Predicate lessThanOrEqualNumbers(
+      Expression<? extends Number> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    if (texts == null || texts.isEmpty()) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream()
+            .map(value -> lessThanOrEqualNumber(paths, cb, value, type))
+            .toArray(Predicate[]::new);
+
+    return cb.or(predicates);
+  }
+
+  private static Predicate lessThanOrEqualNumber(
+      Expression<? extends Number> paths, CriteriaBuilder cb, String text, Class<?> type) {
+    if (text == null || text.isBlank()) {
+      return cb.conjunction();
+    }
+
+    return cb.le(paths, parseNumericValue(text, type));
+  }
+
+  static boolean isNumericType(Class<?> type) {
+    return type != null
+        && (Number.class.isAssignableFrom(type)
+            || type == int.class
+            || type == long.class
+            || type == double.class
+            || type == float.class
+            || type == short.class
+            || type == byte.class
+            || type == BigDecimal.class
+            || type == BigInteger.class);
+  }
+
+  static Number parseNumericValue(String text, Class<?> type) {
+    if (type == Integer.class || type == int.class) {
+      return Integer.valueOf(text);
+    }
+    if (type == Long.class || type == long.class) {
+      return Long.valueOf(text);
+    }
+    if (type == Double.class || type == double.class) {
+      return Double.valueOf(text);
+    }
+    if (type == Float.class || type == float.class) {
+      return Float.valueOf(text);
+    }
+    if (type == Short.class || type == short.class) {
+      return Short.valueOf(text);
+    }
+    if (type == Byte.class || type == byte.class) {
+      return Byte.valueOf(text);
+    }
+    if (type == BigDecimal.class) {
+      return new BigDecimal(text);
+    }
+    if (type == BigInteger.class) {
+      return new BigInteger(text);
+    }
+    throw new IllegalArgumentException("Unsupported numeric filter type: " + type.getName());
   }
 
   /**
