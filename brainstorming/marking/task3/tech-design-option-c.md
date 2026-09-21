@@ -558,4 +558,141 @@ not wider. This is exactly the risk the class javadoc calls out: "a transaction 
 rows of any marking-active table — a partial, silent narrowing rather than an obvious empty
 result."
 
+## 6. Edge cases
+
+Five ways the two independent knobs — the `MARKING` feature flag and per-table activation
+(`openaev.marking.active-tables`) — combine with the calling context to produce a result that
+looks wrong at first glance but is actually the mechanism behaving exactly as designed (or, in
+6.1, exactly as designed *until* a specific caller identity is accounted for).
+
+### 6.1 The service account (agent/implant) has no marking clearance of its own
+
+`ServiceAccountPrivilegeService` provisions one well-known account per tenant
+(`service-{tenantId}@openaev.invalid`), carrying only the `Service integration` role
+(`Capability.AGENT_RUNTIME_ACCESS`, `Capability.ACCESS_DOCUMENTS`). It is not admin, has no
+`BYPASS`, and — critically — its group has no `groups_markings` grant. Under
+`HttpMarkingScopeSupplier`, an empty grant resolves to `MarkingCtx.none()`, which (per §2.2/§5.3)
+still admits *unmarked* rows only.
+
+**Consequence, observed live**: the moment the asset an agent is installed on is marked (even
+`TLP:GREEN`, the lowest level), the agent's own service-account identity can no longer see that
+asset. `register_agent` fails with `Unable to find Asset with id ...`, and the agent is stuck
+retrying `list_jobs` forever — the execution/scenario stays pending.
+
+**Two ways to close the gap**, not mutually exclusive:
+
+1. **Grant the clearance explicitly**: add the `Service integration` group to `groups_markings`
+   for every marking level tenants expect agents to operate under. Correct in spirit (least
+   privilege, explicit grant) but operationally fragile — it must be redone every time a new
+   marking value is introduced or a new tenant is provisioned, and it is easy to forget since
+   nothing fails loudly until an asset happens to get marked.
+2. **Bypass at the identity level** (the fix applied): in `HttpMarkingScopeSupplier`, treat
+   `Capability.AGENT_RUNTIME_ACCESS` the same as `isAdminOrBypass()` —
+
+   ```java
+   boolean bypass =
+       currentUser.isAdminOrBypass()
+           || currentUser.getCapabilities().contains(Capability.AGENT_RUNTIME_ACCESS);
+   ```
+
+   This is the same shape as the background-job answer in §4.1.3 ("there is no user, so there is
+   no clearance to derive — the job runs at system clearance"): the agent/implant service account
+   is not a real end user either, it exists solely to run the minimal agent API surface, and it
+   must always see the asset it is installed on regardless of what markings are later applied to
+   it. `AGENT_RUNTIME_ACCESS` is a well-known, narrowly-scoped capability (only the two endpoints
+   the agent runtime needs), so widening it to marking-bypass does not leak into any other
+   read path.
+
+> ⚠️ ⚠️ All users (even with TLP:GREEN only clearance) can run a scenario that targets a TLP:RED asset, although the user cannot see the asset
+
+### 6.2 Table missing from `openaev.marking.active-tables`, feature flag ON
+
+No marking is applied, full stop — `MarkingFilteringConfig.markedTables()` is what
+`MarkingDimension`/`ScopeStatementInspector` consult to decide *which* tables get the
+`is_marking_set_allowed(...)` predicate rewritten in at all. The flag being `ON` only means the
+mechanism is compiled/wired into Hibernate's statement inspector; it does not retroactively cover
+every table with `marking_ids`. A table not listed behaves exactly as it did before marking
+existed: `marking_ids` may be populated in the column, but nothing ever reads it. This is the
+intended per-table activation story from §5.2 (opt in one table at a time, opt back out without
+dropping the column) — but it means a table can silently carry markings that are pure metadata,
+enforced nowhere, until someone adds it to the list.
+
+### 6.3 Table listed in `openaev.marking.active-tables`, feature flag OFF
+
+Same outcome as 6.2, different knob: `MarkingFilteringConfig.isMarkingFeatureEnabled` gates whether
+`MarkingDimension` registers itself with the statement inspector at all (see §5.1). With the flag
+off, per-table activation is inert configuration — the property is read, but no predicate is ever
+rewritten in, on any table, regardless of what `active-tables` lists. Both knobs must be `true`/
+present together for enforcement to actually happen on a given table; either one alone is a no-op.
+
+### 6.4 Feature flag ON, table active, but the endpoint's `@Transactional` method has no `TxCtx` argument
+
+Covered in detail in §5.3, restated here as the edge case it is: this is **not** "filtering
+skipped." `TenantScopeTransactionAspect` never calls `set_config('app.current_markings', ...)` for
+that request, so `current_setting('app.current_markings', true)` returns `NULL` inside
+`is_marking_set_allowed`, which coalesces to `'{}'` — an empty clearance. The predicate still
+runs and still fails closed: only unmarked rows survive, for *every* caller, including admins,
+because this is a SQL-level filter orthogonal to RBAC/admin bypass. The endpoint returns `200`
+with a silently narrowed result set rather than an error, which is the dangerous part — nothing
+about the response shape tells the caller a marked row was dropped.
+
+### 6.5 Relationships: what `InjectsExecutionJob` actually creates when a scenario runs, and how each object relates to `assets`
+
+Not theoretical — an inventory of every row a scenario execution produces off a marked asset today,
+read from the model classes directly, cross-checked against the current activation state
+(`openaev.marking.active-tables=assets` only, per `application-dev.properties:427`; `findings` and
+`injects_expectations` have **no** `marking_ids` column at all — confirmed by grep, no migration
+has ever added one).
+
+| Object created | Table | Link to `Asset` | Marking-active today? |
+|---|---|---|---|
+| `InjectStatus` | `injects_statuses` | none — FK is `status_inject` (the `Inject`, not an asset) | n/a, no asset relation |
+| `ExecutionTrace` | `execution_traces` | indirect — FK `execution_agent_id` → `Agent` → `Endpoint`/`Asset` | No `marking_ids` column; `Agent` is still v1-`@Filter`, not marking-aware either |
+| `InjectExpectation` (`Technical`/`Detection`/`Prevention`/`Vulnerability` subtypes, single-table `injects_expectations`) | `injects_expectations` | **direct** — `asset_id`, `agent_id`, `asset_group_id` FKs on the row itself | No `marking_ids` column, table not in `active-tables` |
+| `InjectExpectationTrace` | `injects_expectations_traces` | none — FK `inject_expectation_trace_source_id` → `SecurityPlatform` (the detection/prevention tool that reported it), not the asset | n/a, no asset relation |
+| `Finding` (via `FindingService.createFinding`/`createFindings`, `FindingCapableOutputProcessor` subclasses) | `findings`, joined to assets through `findings_assets` | **direct** — `List<Asset> assets` many-to-many | No `marking_ids` column, table not in `active-tables` |
+
+**Two rows have a direct, hard FK/join-table relationship to the asset that produced them:
+`InjectExpectation` and `Finding`.** Both are read on ordinary HTTP paths by ordinary users
+(`GET /findings`, expectation listings on the inject/exercise) — these are exactly the rows a
+non-admin caller sees after the fact, independent of whether they could ever `GET` the source
+asset directly.
+
+**Consequence for the current PoC scope (`assets` only)**: the laundering described generically
+in §4.1.3 is not hypothetical here, it is the actual state of the schema — and it's worse than "the
+predicate isn't applied": for `Finding`, the predicate has **nothing to attach to** in the query
+that matters. `FindingRepository extends JpaSpecificationExecutor<Finding>` — the listing query
+that backs `GET /findings` selects straight from `findings`, and the `assets` relation is a
+separate many-to-many through the `findings_assets` join table, not a column on `findings` itself.
+`ScopeStatementInspector` rewrites a query by finding *its own* table in the SQL text and appending
+`is_marking_set_allowed(...)` against *that* table's `marking_ids` column; a `SELECT ... FROM
+findings f WHERE ...` query never mentions `assets` at all, so there is no `assets.marking_ids` for
+the inspector to find or rewrite regardless of whether `assets` is activated. It isn't that the
+join table breaks enforcement that would otherwise apply — enforcement was never reachable from
+that query to begin with. (A query that *does* filter/sort by `assets.id`, per the `@Queryable(path
+= "assets.id")` annotation on the field, would join `assets` in and could theoretically pick up the
+rewrite then — but the base listing query, and any caller not filtering by asset, does not.)
+
+Same logic applies to `InjectExpectation`: `asset_id` there *is* a column on `injects_expectations`
+itself (not a join table), so a hypothetical activation of that table would at least have something
+local to filter on directly — but today it isn't activated and has no `marking_ids` column either,
+so the point is moot until that changes.
+
+Net effect: any caller who can list expectations or findings for the exercise/inject sees the full
+detail (`asset_id`, extracted `finding_value`, etc.) regardless of their clearance for the source
+asset, and for `findings` specifically this cannot be fixed by activating `assets` more thoroughly
+or by joining harder — the marking has to live on `findings` itself for the inspector to ever see
+it on that query path.
+
+**What closing this would require, concretely** (out of scope for this PoC, called out in §4.1.3
+as the general transitive-propagation problem): add a `marking_ids` column and an
+activation entry for both `injects_expectations` and `findings`; have `InjectExpectationService`
+(expectation creation) and `FindingService`/`FindingCapableOutputProcessor` (finding creation)
+resolve the source asset's `marking_ids` at write time and stamp it on the new row, the same way
+`FindingService.createFinding` already resolves and stamps `tenant_id` from the inject
+(`tenantWriteScopeResolver.tenantForWrite(...)`) rather than trusting caller input. `ExecutionTrace`
+is lower priority: it links to the asset only indirectly through `Agent`, which is not itself
+marking-active and carries far less sensitive detail than an expectation result or a finding
+value.
+
 
