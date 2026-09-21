@@ -102,6 +102,27 @@ public class TenantGroupService {
     return group;
   }
 
+  /**
+   * Same as {@link #findByIdInTenantForWrite}, but scoped to an explicit tenant rather than {@link
+   * TenantContext#getCurrentTenant()}.
+   *
+   * <p>{@code TenantGroupApi} is mapped to both {@code /api/groups} and the tenant-prefixed route.
+   * {@code TenantInterceptor} only sets the v1 thread-local from a {@code tenantId} URL path
+   * segment; on the unprefixed form there is none, so a lookup through the thread-local silently
+   * falls back to the default tenant instead of the caller's actual scope. Callers that already
+   * resolve an explicit tenant (e.g. via {@code TenantWriteScopeResolver}) must use this overload
+   * so the group lookup agrees with the tenant the rest of the write is checked against.
+   */
+  private Group findByIdAndTenantForWrite(
+      @NotBlank final String groupId, @NotBlank final String tenantId) {
+    Group group =
+        groupRepository
+            .findByIdAndTenantId(groupId, tenantId)
+            .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
+    ReservedKeyValidator.validateGroupId(group.getId());
+    return group;
+  }
+
   /** Search tenant groups with pagination. */
   @Transactional(readOnly = true)
   public Page<Group> search(SearchPaginationInput searchPaginationInput) {
@@ -197,7 +218,7 @@ public class TenantGroupService {
       @NotBlank final String tenantId,
       @NotBlank final String groupId,
       GroupUpdateMarkingsInput input) {
-    Group group = this.findByIdInTenantForWrite(groupId);
+    Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
 
     Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.markingIds());
     // CrudRepository returns Iterable; the list is small (a tenant's scale) and needed twice.
