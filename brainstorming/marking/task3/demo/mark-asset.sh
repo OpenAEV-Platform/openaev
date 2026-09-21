@@ -6,6 +6,10 @@
 #   ./mark-asset.sh <asset-id> TLP:GREEN PAP:RED         # several
 #   ./mark-asset.sh <asset-id> "[TLP:GREEN, PAP:RED]"    # bracket form, QUOTED
 #   ./mark-asset.sh <asset-id> none                      # clear every marking
+#   ./mark-asset.sh --tenant <tenant-id> <asset-id> TLP:GREEN   # non-default tenant
+#
+# --tenant overrides TENANT (env var / _common.sh default) for assets that
+# live on another tenant. May appear anywhere among the arguments.
 #
 # NOTE ON THE BRACKET FORM: [TLP:RED] is a glob pattern in zsh (the macOS
 # default) and in bash, so it must be QUOTED. Unquoted it fails before this
@@ -35,7 +39,17 @@
 set -euo pipefail
 . "$(dirname "$0")/_common.sh"
 
-[ $# -ge 2 ] || die "usage: $(basename "$0") <asset-id> TLP:GREEN [PAP:RED ...]
+rest=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --tenant) TENANT="$2"; shift 2 ;;
+    --tenant=*) TENANT="${1#--tenant=}"; shift ;;
+    *) rest+=("$1"); shift ;;
+  esac
+done
+set -- "${rest[@]+"${rest[@]}"}"
+
+[ $# -ge 2 ] || die "usage: $(basename "$0") [--tenant <tenant-id>] <asset-id> TLP:GREEN [PAP:RED ...]
        $(basename "$0") <asset-id> \"[TLP:GREEN, PAP:RED]\"   <- brackets MUST be quoted
        $(basename "$0") <asset-id> none                      # clear every marking"
 
@@ -78,7 +92,8 @@ print(f'\033[32mOK\033[0m {d[\"asset_name\"]} now carries {len(d.get(\"asset_mar
     die "404 - no such asset in tenant ${TENANT}.
       Note this is also what you get for an asset marked ABOVE your clearance:
       filtering happens below authorization, so the two are indistinguishable
-      on purpose. As admin that should not apply, so suspect the id."
+      on purpose. As admin that should not apply, so suspect the id, or pass
+      --tenant <tenant-id> if the asset lives on another tenant."
     ;;
   *)
     die "HTTP ${code}
