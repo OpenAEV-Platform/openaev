@@ -5,12 +5,18 @@
  * themselves declare the 8px gap, so the quiet pair pulls back the difference
  * rather than every row having to know the rule.
  *
- * `border-0` plus either no fill or the library's own 10% brand wash (what an
- * `active` icon button emits, e.g. a subscribed notification bell) is what both
- * quiet kinds emit and neither of the two loud ones does: a secondary carries a
- * border, a primary a solid fill.
+ * `border-0` plus either no fill or one of the library's own 10% washes (what an
+ * `active` icon button wears at rest) is what both quiet kinds emit and neither of
+ * the two loud ones does: a secondary carries a border, a primary a solid fill.
  */
-const QUIET = 'button.border-0:not([class*="before:bg-"]):is(.bg-transparent, [class*="bg-filigran-brand-primary-transparency-"])';
+const ACTIVE_FILLS = ['bg-filigran-brand-primary-transparency-10', 'bg-filigran-ia-secondary-transparency-10']
+  .map(fill => `[class~="${fill}"]`)
+  .join(', ');
+// `~=` matches a whole class, so a `hover:`- or `active:`-prefixed one does not count:
+// only the fill a pressed control actually wears at rest.
+// `:is(button, a)` and not `button`: an icon button rendered `asChild` around a link — the
+// top bar's own icons — is one of these controls and was keeping its neighbours at 8px.
+const QUIET = `:is(button, a).border-0:not([class*="before:bg-"]):is(.bg-transparent, ${ACTIVE_FILLS})`;
 const WRAPPED = `span:has(> ${QUIET})`;
 
 /** Runs that are flush BY CONSTRUCTION are quiet too, and must not pull on each
