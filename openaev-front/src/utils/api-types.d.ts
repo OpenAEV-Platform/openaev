@@ -555,6 +555,7 @@ export interface Asset {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -767,6 +768,24 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
+export interface AssetMarkingsOutput {
+  /**
+   * Asset Id
+   * @minLength 1
+   */
+  asset_id: string;
+  /**
+   * Markings currently carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
+   * Asset name
+   * @minLength 1
+   */
+  asset_name: string;
+}
+
 export interface AssetOptionOutput {
   /** Product-facing asset category, used to group options in pickers */
   category?: string;
@@ -936,6 +955,10 @@ export interface AssetSnapshotOutput {
   asset_snapshot_id?: string;
   /** Frozen asset name. */
   asset_snapshot_name?: string;
+}
+
+export interface AssetUpdateMarkingsInput {
+  asset_markings: string[];
 }
 
 export interface AtomicInjectorContractOutput {
@@ -3991,6 +4014,7 @@ export interface Endpoint {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -4280,6 +4304,11 @@ export interface EndpointOutput {
   asset_internet_facing?: boolean;
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /**
    * Asset name
    * @minLength 1
@@ -6131,6 +6160,7 @@ export interface Group {
   group_grants?: Grant[];
   /** @minLength 1 */
   group_id: string;
+  group_markings?: string[];
   /** @minLength 1 */
   group_name: string;
   group_roles?: string[];
@@ -6148,6 +6178,10 @@ export interface GroupGrantInput {
     | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
+}
+
+export interface GroupUpdateMarkingsInput {
+  group_markings: string[];
 }
 
 export interface GroupUpdateRolesInput {
@@ -11464,6 +11498,7 @@ export interface SecurityPlatform {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -12335,6 +12370,24 @@ export interface TenantGroupCreateInput {
   group_default_user_assign?: boolean;
   group_description?: string;
   /** @minLength 1 */
+  group_name: string;
+}
+
+export interface TenantGroupMarkingsOutput {
+  /**
+   * Group Id
+   * @minLength 1
+   */
+  group_id: string;
+  /**
+   * Markings currently granted by the group
+   * @uniqueItems true
+   */
+  group_markings?: string[];
+  /**
+   * Group name
+   * @minLength 1
+   */
   group_name: string;
 }
 
