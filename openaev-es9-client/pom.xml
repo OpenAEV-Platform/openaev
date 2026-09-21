@@ -14,7 +14,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <elasticsearch.version>9.5.1</elasticsearch.version>
+        <elasticsearch.version>9.5.4</elasticsearch.version>
     </properties>
 
     <dependencies>
