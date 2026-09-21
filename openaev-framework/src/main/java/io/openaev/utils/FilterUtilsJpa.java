@@ -257,8 +257,14 @@ public final class FilterUtilsJpa {
           (paths, texts) -> notStartWithTexts((Expression<String>) paths, cb, texts, type);
       case starts_with ->
           (paths, texts) -> startWithTexts((Expression<String>) paths, cb, texts, type);
-      case empty -> (paths, texts) -> empty((Expression<String>) paths, cb, type);
-      case not_empty -> (paths, texts) -> notEmpty((Expression<String>) paths, cb, type);
+      case empty ->
+          isNumericType(type)
+              ? (paths, texts) -> emptyNumbers((Expression<? extends Number>) paths, cb)
+              : (paths, texts) -> empty((Expression<String>) paths, cb, type);
+      case not_empty ->
+          isNumericType(type)
+              ? (paths, texts) -> notEmptyNumbers((Expression<? extends Number>) paths, cb)
+              : (paths, texts) -> notEmpty((Expression<String>) paths, cb, type);
       case gt ->
           isNumericType(type)
               ? (paths, texts) ->
@@ -282,12 +288,16 @@ public final class FilterUtilsJpa {
       case not_eq ->
           (paths, texts) ->
               joinRelation == null
-                  ? notEqualsTexts((Expression<String>) paths, cb, texts, type)
+                  ? (isNumericType(type)
+                      ? notEqualsNumbers((Expression<? extends Number>) paths, cb, texts, type)
+                      : notEqualsTexts((Expression<String>) paths, cb, texts, type))
                   : notEqualsTextsOnJoinRelation(root, query, cb, joinRelation, "id", texts);
       default ->
           (paths, texts) ->
               joinRelation == null
-                  ? equalsTexts((Expression<String>) paths, cb, texts, type, mode)
+                  ? (isNumericType(type)
+                      ? equalsNumbers((Expression<? extends Number>) paths, cb, texts, type, mode)
+                      : equalsTexts((Expression<String>) paths, cb, texts, type, mode))
                   : equalsTextsOnJoinRelation(root, query, cb, joinRelation, "id", texts, mode);
     };
   }
@@ -472,6 +482,62 @@ public final class FilterUtilsJpa {
     }
 
     return cb.le(paths, parseNumericValue(text, type));
+  }
+
+  private static Predicate equalsNumbers(
+      Expression<? extends Number> paths,
+      CriteriaBuilder cb,
+      List<String> texts,
+      Class<?> type,
+      FilterMode mode) {
+    if (texts == null || texts.isEmpty()) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream().map(value -> equalsNumber(paths, cb, value, type)).toArray(Predicate[]::new);
+
+    return FilterMode.and.equals(mode) ? cb.and(predicates) : cb.or(predicates);
+  }
+
+  private static Predicate equalsNumber(
+      Expression<? extends Number> paths, CriteriaBuilder cb, String text, Class<?> type) {
+    if (text == null || text.isBlank()) {
+      return cb.conjunction();
+    }
+
+    return cb.equal(paths, parseNumericValue(text, type));
+  }
+
+  private static Predicate notEqualsNumbers(
+      Expression<? extends Number> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    if (texts == null || texts.isEmpty()) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream()
+            .map(value -> notEqualsNumber(paths, cb, value, type))
+            .toArray(Predicate[]::new);
+
+    return cb.and(predicates);
+  }
+
+  private static Predicate notEqualsNumber(
+      Expression<? extends Number> paths, CriteriaBuilder cb, String text, Class<?> type) {
+    if (text == null || text.isBlank()) {
+      return cb.conjunction();
+    }
+
+    return cb.notEqual(paths, parseNumericValue(text, type));
+  }
+
+  private static Predicate emptyNumbers(Expression<? extends Number> paths, CriteriaBuilder cb) {
+    return cb.isNull(paths);
+  }
+
+  private static Predicate notEmptyNumbers(Expression<? extends Number> paths, CriteriaBuilder cb) {
+    return cb.isNotNull(paths);
   }
 
   static boolean isNumericType(Class<?> type) {
