@@ -49,11 +49,9 @@ runs:
           ${{ runner.os }}-${{ runner.arch }}-yarn-
 
     - name: Install dependencies
-      run: sh ../.github/scripts/retry-with-backoff.sh yarn install --immutable
+      run: yarn install --immutable
       shell: bash
       working-directory: openaev-front
-      env:
-        RETRY_LABEL: yarn install
 
     # Only main writes: a PR-scoped cache is readable solely by that same PR, so it burns
     # the shared 10 GB quota without warming anything else.

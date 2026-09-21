@@ -91,18 +91,12 @@ runs:
     # `playwright install --with-deps` shells out to apt-get, which fails the whole job when an
     # Ubuntu mirror is mid-sync ("File has unexpected size"). The browser download is what we
     # actually need; system deps are already present on the GitHub runner images, so they are
-    # refreshed on a best-effort basis behind an apt retry.
+    # refreshed on a best-effort basis.
     - name: Install Playwright system dependencies
       run: |
         BROWSER="${{ inputs.browser }}"
         [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
-        for attempt in 1 2 3; do
-          if sudo apt-get update; then
-            break
-          fi
-          echo "⚠️ apt-get update failed (attempt $attempt/3)"
-          sleep $((attempt * 10))
-        done
+        sudo apt-get update || echo "⚠️ apt-get update failed; continuing"
         yarn playwright install-deps chromium $BROWSER \
           || echo "⚠️ System dependency refresh failed; continuing with the runner image's own libraries"
       shell: bash
@@ -112,15 +106,7 @@ runs:
       run: |
         BROWSER="${{ inputs.browser }}"
         [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
-        for attempt in 1 2 3; do
-          if yarn playwright install chromium $BROWSER; then
-            exit 0
-          fi
-          echo "⚠️ Browser download failed (attempt $attempt/3)"
-          sleep $((attempt * 10))
-        done
-        echo "❌ Could not download Playwright browsers after 3 attempts"
-        exit 1
+        yarn playwright install chromium $BROWSER
       shell: bash
       working-directory: openaev-front
 

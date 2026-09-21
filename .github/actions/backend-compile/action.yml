@@ -31,19 +31,10 @@ runs:
 
     - name: Compile and install all modules (skip tests)
       run: |
-        sh .github/scripts/retry-with-backoff.sh \
-          mvn -U -B -ntp -T 1 install -DskipTests \
-            -Dspring-boot.repackage.skip=true \
-            -Djacoco.skip=true
+        mvn -U -B -ntp -T 1 install -DskipTests \
+          -Dspring-boot.repackage.skip=true \
+          -Djacoco.skip=true
       shell: bash
-      env:
-        RETRY_LABEL: maven build
-        # Tighter than the yarn defaults: this job has a 10 min budget and the build itself
-        # uses ~4, so worst-case backoff (30+60+60s) has to stay clear of it. The failure this
-        # targets, an unresolvable parent POM, aborts in seconds rather than mid-build.
-        RETRY_ATTEMPTS: "4"
-        RETRY_BASE: "15"
-        RETRY_CAP: "60"
 
     # io/openaev is excluded: those are this run's own modules, rebuilt every time, and a
     # stale copy restored into a later run is exactly what api-tests has to rm -rf.
