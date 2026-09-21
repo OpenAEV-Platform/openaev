@@ -151,6 +151,9 @@ class ScenarioToExerciseDocumentAttributionTest extends IntegrationTest {
     jdbc.update("DELETE FROM scenarios WHERE tenant_id IN (?, ?)", tenantA, tenantThird);
     jdbc.update("DELETE FROM documents WHERE tenant_id IN (?, ?)", tenantA, tenantThird);
     TenantContext.clearCurrentTenant();
+    // Both tenants are committed by the helper (the class is not transactional): remove them with
+    // their memberships and onboarding rows, so they do not accumulate in the shared database.
+    tenantHelper.deleteCommittedTenants(tenantA, tenantThird);
   }
 
   @Test

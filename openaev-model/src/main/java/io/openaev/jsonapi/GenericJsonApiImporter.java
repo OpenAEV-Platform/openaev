@@ -12,6 +12,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
@@ -44,6 +45,7 @@ public class GenericJsonApiImporter<T extends Base> {
   private final EntityManager entityManager;
   @Resource private final ObjectMapper objectMapper;
   private final FileService fileService;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   @Transactional
   public T handleImportEntity(
@@ -54,9 +56,21 @@ public class GenericJsonApiImporter<T extends Base> {
     if (doc == null || doc.data() == null) {
       throw new IllegalArgumentException("Data is required to import document");
     }
-    if (includeOptions == null) {
-      includeOptions = IncludeOptions.of(emptyMap());
-    }
+    IncludeOptions options =
+        includeOptions == null ? IncludeOptions.of(emptyMap()) : includeOptions;
+    // Only documents are attributed explicitly below. Every other tenant-scoped entity of the
+    // bundle (the payload root, its nested entities) is still stamped from the ambient tenant and
+    // matched against existing rows through it, so the whole import runs with the ambient tenant
+    // aligned on the write tenant: one request, one tenant.
+    return ambientTenantBridge.callInTenant(
+        writeTenantId, () -> importEntity(doc, options, sanityCheck, writeTenantId));
+  }
+
+  private T importEntity(
+      JsonApiDocument<ResourceObject> doc,
+      IncludeOptions includeOptions,
+      Function<T, T> sanityCheck,
+      String writeTenantId) {
     Map<String, ResourceObject> includedMap = toMap(doc.included());
     // Cache keyed by id, with a boolean indicating whether the entity should be persisted or not at
     // the end

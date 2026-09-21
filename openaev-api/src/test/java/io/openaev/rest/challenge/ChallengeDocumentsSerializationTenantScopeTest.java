@@ -74,6 +74,9 @@ class ChallengeDocumentsSerializationTenantScopeTest extends IntegrationTest {
     }
     seededChallenges.clear();
     seededDocuments.clear();
+    // The tenant is committed by the helper (the class is not transactional): remove it with its
+    // memberships and onboarding rows, so it does not accumulate in the shared database.
+    tenantHelper.deleteCommittedTenants(tenant);
   }
 
   @Test
