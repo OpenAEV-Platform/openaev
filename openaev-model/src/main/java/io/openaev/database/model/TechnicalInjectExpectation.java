@@ -44,6 +44,18 @@ public abstract class TechnicalInjectExpectation extends BaseInjectExpectation {
   @JsonIgnore
   private boolean signaturesInitialized = false;
 
+  /**
+   * Frozen at initialization: {@code true} when this technical detection/prevention expectation
+   * required a security platform collector to ever be fulfilled but none was connected at creation
+   * time, so it was resolved as a definitive failure (score 0, empty results) instead of staying
+   * pending. Persisted rather than recomputed so a collector connected later does not retroactively
+   * flip the flag to {@code false} and hide why the leaf is a definitive failure. Always {@code
+   * false} for vulnerability expectations (fulfilled by the assessment injector, not a collector).
+   */
+  @Column(name = "inject_expectation_collector_missing_at_init")
+  @JsonIgnore
+  private boolean collectorMissingAtInit = false;
+
   @OneToMany(
       mappedBy = "injectExpectation",
       cascade = CascadeType.ALL,

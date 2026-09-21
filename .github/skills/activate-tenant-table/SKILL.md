@@ -109,6 +109,16 @@ incident. Do not trade them away to make a test pass.
     tests and integration tests, do not add `TenantContext.getCurrentTenant()`,
     `TenantContext.setCurrentTenant(...)`, or `enableFilter("tenantFilter")`.
     Use explicit tenant ids + `TxCtx`/`TenantScopedTransaction` helpers.
+12. **Repository extends `CrudRepository`, not `JpaRepository`.** The
+    convention for strict tenant-scoped repositories in this codebase (see
+    `TagRuleRepository`, `DomainRepository`, `NotificationRepository`) is
+    `extends CrudRepository<Entity, Id>, JpaSpecificationExecutor<Entity>`.
+    `JpaRepository` additionally exposes `findAll(Sort)` (every row, every
+    tenant, unbounded and unpaginated) plus `saveAndFlush`, `deleteInBatch`,
+    `deleteAllInBatch`, `getReferenceById` — none of them take a tenant
+    argument, so they are an easy accidental cross-tenant bypass. Only widen
+    to `JpaRepository` if the repository genuinely needs one of those extras,
+    and then scope every call site through a tenant-aware `Specification`.
 
 ## Baseline: controller entrypoints already carry `TxCtx`
 
@@ -1122,12 +1132,28 @@ Model conversion: `UrlAccessTokenPurgeJob`
 converted to `tenantTx.execute(TxCtx.allTenants(), …)` in PR #6398. Injected
 dependency: `TenantScopedTransaction tenantTx`.
 
-Maturity note: the background path is newer and less proven than the HTTP path.
-At the time of writing, the only converted job is `UrlAccessTokenPurgeJob`, which
-uses `allTenants()`; the per-tenant `forEachTenant` idiom has no production caller
-yet (it is covered by integration tests, not by a real job). Treat the first
-per-tenant conversion as a real dress rehearsal, not a copy-paste, and expand the
-model list as jobs are converted.
+Maturity note (refreshed for #6398): the background path is now well
+proven. Nine Quartz jobs sit directly on the primitive (eight top-level jobs plus
+the nested `EngineSyncExecutionJob.Job`, which implements `org.quartz.Job` and calls
+`TenantScopedTransaction` itself), and several more reach it through
+`TenantScopedJobRunner`. Working model implementations exist for all three idioms:
+
+- `allTenants()` (bulk read or predicate delete across tenants):
+  `UrlAccessTokenPurgeJob` and `NotificationEventRetentionService.deleteOldEvents`.
+- `forEachTenant` (per-tenant, one transaction each), three production callers:
+  `AutonomousTimeoutService.sweep`, `XtmHubService.refreshConnectivityAllTenants`,
+  and `ExpectationsExpirationManagerJob.run`.
+- `execute(TxCtx.forTenant(id), …)` (one known tenant): via
+  `TenantScopedJobRunner.runInTenant`, used by `InjectsExecutionJob`,
+  `InjectsFinalizationJob` and `WorkflowTimeoutJob`.
+
+Copy the idiom that matches the scope decision below, not a single blessed job.
+Every background family is now enumerated and classified by the background guard
+(`BackgroundEntrypointTenantScopeArchTest` + `background-guard-baseline.txt`): a
+new background entry point in one of the six recognised families fails the build
+until it is on the primitive or classified there with a reason. This is
+build-time enumeration, not a runtime scope check: see the "Known limits" note
+below for what it does not prove.
 
 **Enumerate every background path first.** Phase 1's greps are repository- and
 table-name-oriented and can miss a background surface. There is no single
@@ -1296,13 +1322,20 @@ over them:**
 
 - No runtime scope guarantee for background writers. The HTTP side is pinned by
   `TenantScopedEntrypointsTxCtxArchTest`, which fails the build if an active
-  table's handler loses its `TxCtx`. There is NO background analogue yet: a NEW
-  job that writes an already-active table without going through the primitive
-  would read and write zero rows with no failing test. The existing rules forbid
-  the wrong SHAPE (`@Transactional`, raw plumbing, raw JDBC) but do not assert
-  that every writer of an active table carries a real scope. Until that guard
-  exists, converting a table's writers is a point-in-time fact, not an invariant
-  — say so in the report.
+  table's handler loses its `TxCtx`. The background side now has a *build-time*
+  analogue: `BackgroundEntrypointTenantScopeArchTest` (+
+  `background-guard-baseline.txt`) enumerates the six background families and
+  fails the build until a new entry point is on the primitive or classified in
+  the baseline with a reason. That closes the "new job slips in unnoticed" gap,
+  but only structurally: the guard proves every entry point is enumerated and
+  reasoned, NOT that the SQL each one runs actually carries a scope. A path
+  waived `touches-no-tenant-table`, or one whose class-level waiver no longer
+  fits a method added later, can still read or write an already-active table
+  with the wrong tenant and no test fails. The existing rules forbid the wrong
+  SHAPE (`@Transactional`, raw plumbing, raw JDBC) but do not assert that every
+  writer of an active table carries a real scope. Until a *runtime* guard exists,
+  converting a table's writers is a point-in-time fact, not an invariant; say so
+  in the report.
 - The per-tenant loop is serial and single-threaded, one transaction per tenant.
   For a job over thousands of tenants, watch total runtime against the job's
   window (`@DisallowConcurrentExecution` means an overrun skips the next fire).

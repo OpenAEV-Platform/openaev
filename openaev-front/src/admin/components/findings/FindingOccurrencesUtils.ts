@@ -1,6 +1,6 @@
 import { buildFilter } from '../../../components/common/queryable/filter/FilterUtils';
 import { ASSET_BASE_URL, PLAYER_BASE_URL, TEAM_BASE_URL } from '../../../constants/BaseUrls';
-import type { FilterGroup, Finding, RelatedFindingOutput, TargetSimple } from '../../../utils/api-types';
+import type { FilterGroup, FindingOutput, RelatedFindingOutput, TargetSimple } from '../../../utils/api-types';
 import ContractOutputElementType from './ContractOutputElementType';
 
 // Merge the occurrence's assets, teams and persons into ONE chip cluster: a finding hits machines
@@ -35,7 +35,7 @@ export const occurrenceTargetLink = (target: TargetSimple): string | undefined =
 };
 
 // Base filter shared by the list and timeline views: every occurrence of the same (type, value).
-export const buildOccurrencesFilter = (finding: Pick<Finding, 'finding_type' | 'finding_value'>): FilterGroup => ({
+export const buildOccurrencesFilter = (finding: Pick<FindingOutput, 'finding_type' | 'finding_value'>): FilterGroup => ({
   mode: 'and',
   filters: [
     buildFilter('finding_value', [finding.finding_value], 'eq'),

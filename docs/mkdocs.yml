@@ -155,6 +155,7 @@ nav:
     - Foundations:
       - Scenario and Simulations: usage/foundations/scenarios-and-simulations.md
       - Injects and Expectations: usage/foundations/injects-and-expectations.md
+      - Inject chaining and transfer: usage/inject-chaining.md
     - Evaluate your Security posture:
       - Overview: usage/evaluate/overview.md
       - Simulation: usage/evaluate/simulation/simulation.md

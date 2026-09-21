@@ -38,9 +38,11 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.UserService;
+import io.openaev.service.credential.CredentialService;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.targets.TargetService;
@@ -93,6 +95,7 @@ public class InjectApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
+  private final CredentialService credentialService;
   private final InjectExecutionService injectExecutionService;
   private final InjectExportService injectExportService;
   private final TargetService targetService;
@@ -702,5 +705,23 @@ public class InjectApi extends RestBehavior {
     }
 
     return documentService.documentsForPayload(payloadId);
+  }
+
+  @Operation(description = "Resolve an inject attachment secret")
+  @PostMapping({
+    INJECT_URI + "/{injectId}/attachment/secret",
+    TENANT_INJECT_URI + "/{injectId}/attachment/secret"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.RESOLVE,
+      resourceType = ResourceType.INJECT_SECRET)
+  public SecretResolvedValue resolveInjectAttachmentSecret(
+      TxCtx ctx,
+      @PathVariable @NotBlank String injectId,
+      @RequestBody @Valid InjectAttachmentInput input) {
+    return credentialService.resolveCredentialSecret(
+        injectService.getSecretReferenceOrThrow(injectId, input));
   }
 }

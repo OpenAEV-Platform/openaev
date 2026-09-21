@@ -2,6 +2,7 @@ package io.openaev.secrets.provider.impl.handlers;
 
 import io.openaev.database.model.*;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import jakarta.annotation.Nullable;
@@ -56,6 +57,16 @@ public class UsernamePasswordHandler implements SecretHandler {
   public SecretMetadata toMetadata(Secret secret) {
     if (secret instanceof UsernamePasswordSecret usernamePasswordSecret) {
       return SecretMetadata.forUsername(usernamePasswordSecret.getUsername());
+    }
+    throw new IllegalArgumentException("Secret type mismatch: expected USERNAME_PASSWORD secret");
+  }
+
+  @Override
+  public SecretResolvedValue toResolvedValue(Secret secret) {
+    if (secret instanceof UsernamePasswordSecret usernamePasswordSecret) {
+      return SecretResolvedValue.forUsernamePassword(
+          usernamePasswordSecret.getUsername(),
+          nativeEncryptionService.decrypt(usernamePasswordSecret.getPassword()));
     }
     throw new IllegalArgumentException("Secret type mismatch: expected USERNAME_PASSWORD secret");
   }
