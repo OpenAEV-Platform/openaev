@@ -26,6 +26,7 @@ const useStyles = makeStyles()(() => ({
   container: {
     display: 'inline-flex',
     alignItems: 'center',
+    gap: 4,
   },
   redStar: {
     color: 'var(--color-feedback-error-primary)',
@@ -201,20 +202,25 @@ const RulesContractContent: FunctionComponent<Props> = ({
               error={!!methods.formState.errors.import_mapper_inject_importers?.[index]?.inject_importer_type_value}
               helperText={methods.formState.errors.import_mapper_inject_importers?.[index]?.inject_importer_type_value?.message}
             />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <InformationOutline
-                  fontSize="medium"
-                  color="primary"
-                  style={{ cursor: 'default' }}
-                />
-              </TooltipTrigger>
-              <TooltipContent>
-                {t(
-                  'This word will match in the specified column to determine the inject',
-                )}
-              </TooltipContent>
-            </Tooltip>
+            {/* The row aligns on the bottom because the field carries its label above:
+                the icon centres inside a field-height box so it sits on the input's
+                middle rather than on its floor. */}
+            <span className="flex h-9 items-center">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <InformationOutline
+                    fontSize="medium"
+                    color="primary"
+                    style={{ cursor: 'default' }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t(
+                    'This word will match in the specified column to determine the inject',
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </span>
           </div>
 
           <Controller
@@ -365,7 +371,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
 
         </AccordionDetails>
         <AccordionActions sx={{ padding: '16px' }}>
-          <Button type="button" variant="destructive" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
+          <Button type="button" variant="destructive" priority="secondary" onClick={handleClickOpenAlertDelete}>{t('Delete')}</Button>
         </AccordionActions>
       </Accordion>
       <Dialog

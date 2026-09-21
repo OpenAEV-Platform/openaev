@@ -1,4 +1,4 @@
-import { Button } from '@filigran/design-system';
+import { Button, Icon } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesomeOutlined,
@@ -75,9 +75,11 @@ const EnterpriseEditionSettings: React.FC = () => {
 
   const canManageTenantSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
 
+  // The highlight button paints its LABEL with the focus gradient; the library's own
+  // icon takes the same gradient, so the mark matches the words beside it.
   const unregisteredFooter = canManageTenantSettings
     ? (
-        <Button type="button" variant="highlight" priority="secondary" startIcon={<RocketLaunchOutlined fontSize="small" />} onClick={() => openDialog()}>
+        <Button type="button" variant="highlight" priority="secondary" startIcon={<Icon name="rocket" size={16} gradient="focus" aria-hidden />} onClick={() => openDialog()}>
           {t('Try OpenAEV Enterprise Edition')}
         </Button>
       )

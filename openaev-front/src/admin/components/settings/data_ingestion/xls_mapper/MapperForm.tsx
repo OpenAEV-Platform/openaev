@@ -19,6 +19,7 @@ const useStyles = makeStyles()(() => ({
   importerStyle: {
     display: 'flex',
     alignItems: 'center',
+    gap: 4,
     marginTop: 20,
   },
   importersErrorMessage: {
@@ -145,7 +146,7 @@ const MapperForm: FunctionComponent<Props> = ({
           marginTop: 20,
         }}
         >
-          <Button type="button" onClick={() => setOpenTest(true)} style={{ marginRight: 10 }}>
+          <Button type="button" priority="secondary" onClick={() => setOpenTest(true)} style={{ marginRight: 10 }}>
             {t('Test')}
           </Button>
           <Button type="submit">
