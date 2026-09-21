@@ -12,10 +12,14 @@ import io.openaev.config.security.OpenSamlConfig;
 import io.openaev.config.security.SecurityService;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.User;
+import io.openaev.ratelimit.config.RateLimitConfig;
+import io.openaev.ratelimit.filter.PreliminaryRateLimitFilter;
+import io.openaev.ratelimit.service.RateLimitService;
 import io.openaev.security.SsoRefererAuthenticationFailureHandler;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.UserMappingService;
+import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -77,7 +81,10 @@ public class AppSecurityConfig {
   private final OpenSamlConfig openSamlConfig;
   private final SecurityService securityService;
   private final UserEventService userEventService;
+  private final UserService userService;
   private final UserMappingService userMappingService;
+  private final RateLimitService rateLimitService;
+  private final RateLimitConfig rateLimitConfig;
   private final SessionManager sessionManager;
 
   private final Optional<AuditLogger> auditLogger;
@@ -87,6 +94,7 @@ public class AppSecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.addFilterBefore(tokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(rateLimitFilter(), TokenAuthenticationFilter.class)
         .requestCache(Customizer.withDefaults())
         .requestCache(cache -> cache.requestCache(new HttpSessionRequestCache()))
         .csrf(
@@ -233,6 +241,11 @@ public class AppSecurityConfig {
   @Bean
   public TokenAuthenticationFilter tokenAuthenticationFilter() {
     return new TokenAuthenticationFilter();
+  }
+
+  @Bean
+  public PreliminaryRateLimitFilter rateLimitFilter() {
+    return new PreliminaryRateLimitFilter(rateLimitService, rateLimitConfig, userService);
   }
 
   public User userOauth2Management(ClientRegistration clientRegistration, OAuth2User user) {

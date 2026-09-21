@@ -206,6 +206,7 @@ runs:
           -e OPENAEV_ADMIN_TOKEN \
           -e OPENAEV_ADMIN_ENCRYPTION_KEY \
           -e OPENAEV_ADMIN_ENCRYPTION_SALT \
+          -e OPENAEV_RATELIMIT_ENABLED \
           -e SPRING_PROFILES_ACTIVE \
           -e OPENAEV_APPLICATION_LICENSE \
           openaev:ci

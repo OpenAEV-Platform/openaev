@@ -18,6 +18,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.ratelimit.aop.RateLimit;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
@@ -71,6 +72,7 @@ public class MeApi extends RestBehavior {
 
   @GetMapping({ME_URI, TENANT_ME_URI})
   @Transactional
+  @RateLimit(rps = 10L)
   @AccessControl(skipRBAC = true)
   public User me(TxCtx ctx) {
     return userRepository

@@ -20,6 +20,7 @@
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
         <opencsv-version>5.12.0</opencsv-version>
+        <bucket4j.version>8.10.1</bucket4j.version>
         <opentelemetry-semconv.version>1.43.0</opentelemetry-semconv.version>
         <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
         <datasource-proxy.version>1.11.0</datasource-proxy.version>
@@ -42,6 +43,11 @@
     </profiles>
 
     <dependencies>
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>${bucket4j.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
