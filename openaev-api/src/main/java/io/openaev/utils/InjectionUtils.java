@@ -1,8 +1,8 @@
 package io.openaev.utils;
 
 import io.openaev.database.model.Injection;
-import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Utility class for injection-related operations.
@@ -26,12 +26,14 @@ public class InjectionUtils {
    * execution of stale injections.
    *
    * @param injection the injection to check
-   * @return {@code true} if the injection date is within the 4-minute window before now
+   * @param stalenessThreshold number of minutes after the desired inject start after which the
+   *     inject is deemed too old
+   * @return {@code true} if the injection date is within the threshold before now
    * @throws java.util.NoSuchElementException if the injection has no scheduled date
    */
   public static boolean isInInjectableRange(Injection injection, Integer stalenessThreshold) {
     Instant now = Instant.now();
-    Instant start = now.minus(Duration.parse("PT4M"));
+    Instant start = now.minus(stalenessThreshold, ChronoUnit.MINUTES);
     Instant injectWhen = injection.getDate().orElseThrow();
     return injectWhen.isAfter(start) && injectWhen.isBefore(now);
   }

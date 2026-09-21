@@ -162,7 +162,8 @@ public class Executor {
       throw new UnsupportedOperationException("Inject is empty");
     }
     // If inject is too old, reject the execution
-    if (isScheduledInject && !isInInjectableRange(inject, openAEVConfig.getInjectStalenessThreshold())) {
+    if (isScheduledInject
+        && !isInInjectableRange(inject, openAEVConfig.getInjectStalenessThreshold())) {
       throw new UnsupportedOperationException(
           "Inject is now too old for execution: id "
               + inject.getId()
