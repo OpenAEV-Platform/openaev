@@ -60,6 +60,30 @@ class MarkingDefinitionServiceTest {
   }
 
   @Nested
+  @DisplayName("create")
+  class Create {
+
+    @Test
+    @DisplayName("given_validInput_should_evictEveryCachedClearance")
+    void given_validInput_should_evictEveryCachedClearance() {
+      // Arrange - a bypass caller may have cached an "all definitions" set before this call; that
+      // cached entry does not contain the new id and must not survive it.
+      MarkingDefinitionInput input = new MarkingDefinitionInput("TLP", "TLP:GREEN", "#4CAF50", 20);
+      when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
+              input.type(), input.definition(), TENANT_ID, null))
+          .thenReturn(false);
+      when(repository.save(any(MarkingDefinition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      // Act
+      service().create(input, TENANT_ID);
+
+      // Assert
+      verify(markingClearanceCacheManager, times(1)).evictAll();
+    }
+  }
+
+  @Nested
   @DisplayName("update")
   class Update {
 

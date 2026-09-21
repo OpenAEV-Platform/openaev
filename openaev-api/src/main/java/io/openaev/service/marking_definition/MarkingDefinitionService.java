@@ -99,6 +99,13 @@ public class MarkingDefinitionService {
   /**
    * Creates a marking definition for a tenant after duplicate checks.
    *
+   * <p>🔴 Evicts every cached clearance, for the same reason as an order change (see {@link
+   * #update}): {@link MarkingClearanceCacheManager#findClearance} caches the <i>whole resolved
+   * set</i>, bypass included. A cached bypass entry was resolved against the tenant's definitions
+   * as they stood before this call, so it does not contain the new id — without the evict, a bypass
+   * caller who warmed their cache before creating this definition stays unable to assign or read it
+   * until the TTL expires, even though bypass should see everything unconditionally.
+   *
    * @param input create payload
    * @param tenantId tenant that owns the new row
    * @return persisted marking definition
@@ -109,7 +116,9 @@ public class MarkingDefinitionService {
     MarkingDefinition entity = MarkingDefinitionMapper.fromInput(input);
     entity.setProtectedDefinition(false);
     entity.setTenant(new Tenant(tenantId));
-    return repository.save(entity);
+    MarkingDefinition saved = repository.save(entity);
+    markingClearanceCacheManager.evictAll();
+    return saved;
   }
 
   // -- UPDATE --
