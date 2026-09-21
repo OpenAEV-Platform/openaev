@@ -20,39 +20,79 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Prepare ${{ inputs.name }} download staging
+      id: staging
+      shell: bash
+      env:
+        DEST: ${{ inputs.path }}
+      run: |
+        set -euo pipefail
+        case "$DEST" in
+          "~") DEST="$HOME" ;;
+          "~/"*) DEST="$HOME/${DEST#\~/}" ;;
+        esac
+        ROOT_DIR=$(mktemp -d "${RUNNER_TEMP:-/tmp}/artifact-download.XXXXXX")
+        INITIAL_DIR="$ROOT_DIR/initial"
+        mkdir -p "$INITIAL_DIR"
+        echo "root_dir=$ROOT_DIR" >> "$GITHUB_OUTPUT"
+        echo "initial_dir=$INITIAL_DIR" >> "$GITHUB_OUTPUT"
+        echo "dest=$DEST" >> "$GITHUB_OUTPUT"
+
     - name: Download ${{ inputs.name }}
       id: download
       continue-on-error: true
       uses: actions/download-artifact@v8
       with:
         name: ${{ inputs.name }}
-        path: ${{ inputs.path }}
+        path: ${{ steps.staging.outputs.initial_dir }}
 
     - name: Retry ${{ inputs.name }} download
+      id: retry
       if: steps.download.outcome == 'failure'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
         ARTIFACT_NAME: ${{ inputs.name }}
-        DEST: ${{ inputs.path }}
         ATTEMPTS: ${{ inputs.attempts }}
+        ROOT_DIR: ${{ steps.staging.outputs.root_dir }}
       run: |
-        set -uo pipefail
+        set -euo pipefail
         echo "::warning title=Artifact download retried::'${ARTIFACT_NAME}' failed through actions/download-artifact; falling back to gh."
-        # download-artifact expands a leading ~ itself; gh receives the path verbatim.
-        case "$DEST" in
-          "~") DEST="$HOME" ;;
-          "~/"*) DEST="$HOME/${DEST#\~/}" ;;
-        esac
-        # gh writes the artifact contents straight into --dir, matching the action's layout.
-        mkdir -p "$DEST"
         for attempt in $(seq 1 "$ATTEMPTS"); do
-          if gh run download "${{ github.run_id }}" --name "$ARTIFACT_NAME" --dir "$DEST"; then
+          ATTEMPT_DIR=$(mktemp -d "$ROOT_DIR/attempt.XXXXXX")
+          if gh run download "${{ github.run_id }}" --name "$ARTIFACT_NAME" --dir "$ATTEMPT_DIR"; then
+            echo "source_dir=$ATTEMPT_DIR" >> "$GITHUB_OUTPUT"
             echo "✅ '${ARTIFACT_NAME}' downloaded on gh attempt ${attempt}"
             exit 0
           fi
+          rm -rf "$ATTEMPT_DIR"
           echo "⚠️ '${ARTIFACT_NAME}' download failed (attempt ${attempt}/${ATTEMPTS})"
           sleep $((attempt * 15))
         done
         echo "❌ Could not download '${ARTIFACT_NAME}' after ${ATTEMPTS} gh attempts"
         exit 1
+
+    - name: Publish ${{ inputs.name }} download
+      if: steps.download.outcome == 'success' || steps.retry.outcome == 'success'
+      shell: bash
+      env:
+        DEST: ${{ steps.staging.outputs.dest }}
+        INITIAL_DIR: ${{ steps.staging.outputs.initial_dir }}
+        RETRY_DIR: ${{ steps.retry.outputs.source_dir }}
+        DOWNLOAD_OUTCOME: ${{ steps.download.outcome }}
+      run: |
+        set -euo pipefail
+        if [ "$DOWNLOAD_OUTCOME" = "success" ]; then
+          SOURCE_DIR="$INITIAL_DIR"
+        else
+          SOURCE_DIR="$RETRY_DIR"
+        fi
+        mkdir -p "$DEST"
+        cp -a "$SOURCE_DIR"/. "$DEST"/
+
+    - name: Remove ${{ inputs.name }} download staging
+      if: ${{ always() }}
+      shell: bash
+      env:
+        ROOT_DIR: ${{ steps.staging.outputs.root_dir }}
+      run: rm -rf "$ROOT_DIR"
