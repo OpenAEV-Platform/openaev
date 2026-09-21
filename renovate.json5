@@ -169,6 +169,24 @@
             rebaseWhen: 'auto',
         },
 
+        // Majors are not merged from a bot pull request here, and the queue proves it: 19 of the 40
+        // open Renovate PRs are majors, four of them have been open for more than 280 days, and two
+        // were already closed by hand in May and came back on their own. Closing one only holds
+        // until the dependency publishes again, because Renovate recreates a closed PR when the
+        // target version moves.
+        //
+        // dependencyDashboardApproval stops the PR being opened at all. The major is listed on the
+        // Dependency Dashboard with a checkbox instead, so the upgrade starts when someone decides
+        // to do the work rather than sitting in the review queue for months. Nothing is ignored and
+        // nothing is lost: ticking the box opens the PR.
+        {
+            description: 'Majors are proposed on the Dependency Dashboard, not as a standing PR',
+            matchUpdateTypes: [
+                'major',
+            ],
+            dependencyDashboardApproval: true,
+        },
+
         // ── Weekly batches, continued ────────────────────────────────────────────────────────
         // Rule order matters: Renovate applies packageRules in order and a later rule wins. The
         // batches come first, then the rules that pull a dependency back out of a batch. Anything no
