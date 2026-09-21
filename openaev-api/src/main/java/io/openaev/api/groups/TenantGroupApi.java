@@ -8,6 +8,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.api.groups.dto.TenantGroupMarkingsOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -136,12 +137,13 @@ public class TenantGroupApi extends RestBehavior {
   // TODO: replace with the "Assign marking" capability chain (design Q8) once Task 1 lands. The
   // group's own WRITE control is the honest interim: it is what already governs who may change what
   // a group grants, and the marking PoC is deliberately capability-free (design Q12).
-  public Group updateGroupMarkings(
+  public TenantGroupMarkingsOutput updateGroupMarkings(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateMarkingsInput input) {
     // Tenant resolved here and passed down, per the multi-tenancy convention: the service never
     // touches TenantContext. It is the tenant whose clearance the caller is checked against.
-    return tenantGroupService.updateGroupMarkings(
-        writeScopeResolver.tenantForWrite(ctx, null), groupId, input);
+    return TenantGroupMarkingsOutput.from(
+        tenantGroupService.updateGroupMarkings(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   @LogExecutionTime
