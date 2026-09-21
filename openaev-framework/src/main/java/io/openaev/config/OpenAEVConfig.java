@@ -176,6 +176,19 @@ public class OpenAEVConfig {
   private Integer injectStalenessThreshold;
 
   /**
+   * Gets the configured inject staleness threshold value. The value is clamped to a minimum of 1
+   * (one minute).
+   *
+   * @return the inject staleness threshold in minutes, with a minimum of 1 (one).
+   */
+  public Integer getInjectStalenessThreshold() {
+    if (this.injectStalenessThreshold < 1) {
+      return 1;
+    }
+    return this.injectStalenessThreshold;
+  }
+
+  /**
    * Returns the normalized base URL for the platform.
    *
    * <p>The URL is normalized by removing any trailing slash.
