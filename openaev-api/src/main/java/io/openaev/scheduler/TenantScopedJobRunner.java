@@ -4,6 +4,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import jakarta.validation.constraints.NotNull;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -37,6 +38,29 @@ public class TenantScopedJobRunner {
     TenantContext.setCurrentTenant(tenantId);
     try {
       tenantTx.execute(TxCtx.forTenant(tenantId), work);
+    } finally {
+      if (previousTenant == null) {
+        TenantContext.clearCurrentTenant();
+      } else {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+    }
+  }
+
+  /**
+   * Same as {@link #runInTenant} for work that returns a value: opens one tenant-scoped transaction
+   * and returns what {@code work} produces. Used where the scoped unit must hand a result back to
+   * the caller (a background read that must run under the v2 primitive, e.g. a JOIN FETCH on an
+   * active table, or a scoped write returning the persisted row). Kept as its own method (not the
+   * body of {@link #runInTenant}) so {@code runInTenant} keeps calling the {@code Runnable}
+   * overload of the primitive directly.
+   */
+  public <T> T supplyInTenant(@NotNull final String tenantId, @NotNull final Supplier<T> work) {
+    String previousTenant =
+        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      return tenantTx.execute(TxCtx.forTenant(tenantId), work);
     } finally {
       if (previousTenant == null) {
         TenantContext.clearCurrentTenant();

@@ -124,7 +124,20 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.scenario.ScenarioApi#channels",
           "io.openaev.rest.exercise.ExerciseApi#channels",
           "io.openaev.rest.document.DocumentApi#getChannelImageFromId",
+          "io.openaev.rest.document.DocumentApi#getSecurityPlatformImageFromId",
           "io.openaev.rest.document.DocumentApi#getDocumentRelations",
+          // documents (v2): the by-id read/write/delete and the list/search endpoints scope the
+          // primary-key load and the filtered read through the inspector; losing the TxCtx would
+          // silently drop the request scope and, on the by-id paths, reopen the cross-tenant read
+          // the removed v1 request-scope guard used to block.
+          "io.openaev.rest.document.DocumentApi#document",
+          "io.openaev.rest.document.DocumentApi#documents",
+          "io.openaev.rest.document.DocumentApi#searchDocuments",
+          "io.openaev.rest.document.DocumentApi#documentTags",
+          "io.openaev.rest.document.DocumentApi#updateDocumentInformation",
+          "io.openaev.rest.document.DocumentApi#downloadDocument",
+          "io.openaev.rest.document.DocumentApi#downloadDocumentForAgent",
+          "io.openaev.rest.document.DocumentApi#deleteDocument",
           // attackpath_execution / attackpath_finding (v2): every read of the projection, including
           // the delta cursor added with the real-time updates (#6647, spec 002). Losing the TxCtx
           // on

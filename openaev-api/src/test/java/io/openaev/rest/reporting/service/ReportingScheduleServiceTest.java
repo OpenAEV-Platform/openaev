@@ -27,6 +27,7 @@ import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.rest.reporting.ReportingService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.FileService;
 import io.openaev.service.UserService;
 import java.io.ByteArrayInputStream;
@@ -36,6 +37,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,6 +57,7 @@ class ReportingScheduleServiceTest {
   private EmailService emailService;
   private FileService fileService;
   private OpenAEVConfig openAEVConfig;
+  private TenantScopedJobRunner tenantScopedJobRunner;
   private ReportingScheduleService scheduleService;
 
   @BeforeEach
@@ -66,6 +69,7 @@ class ReportingScheduleServiceTest {
     emailService = mock(EmailService.class);
     fileService = mock(FileService.class);
     openAEVConfig = mock(OpenAEVConfig.class);
+    tenantScopedJobRunner = mock(TenantScopedJobRunner.class);
     scheduleService =
         new ReportingScheduleService(
             scheduleLoader,
@@ -74,8 +78,14 @@ class ReportingScheduleServiceTest {
             userService,
             emailService,
             fileService,
-            openAEVConfig);
+            openAEVConfig,
+            tenantScopedJobRunner);
     when(openAEVConfig.getDefaultMailer()).thenReturn("noreply@filigran.io");
+    // The poll re-read runs inside supplyInTenant; here it just runs the supplied work so these
+    // unit tests keep exercising the schedule logic (the scope itself is pinned on the real stack
+    // in ReportingScheduleDocumentScopeTest).
+    when(tenantScopedJobRunner.supplyInTenant(anyString(), any()))
+        .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
   }
 
   // -- FIXTURES --

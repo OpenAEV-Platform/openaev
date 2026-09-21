@@ -304,10 +304,12 @@ class DocumentAttachmentScopeTest extends IntegrationTest {
     tenantHelper.switchToTenant(tenantA, entityManager);
     PlainTextFile inScopeFile =
         new PlainTextFile("attach-export-" + UUID.randomUUID(), UUID.randomUUID() + ".txt");
+    Document inScopeDocument = DocumentFixture.getDocument(inScopeFile);
+    // documents is v2-active: the fixture stamps the default tenant, so attribute the in-scope
+    // attachment to tenantA explicitly instead of relying on the removed listener + switchToTenant.
+    inScopeDocument.setTenant(new Tenant(tenantA));
     DocumentComposer.Composer inScopeDoc =
-        documentComposer
-            .forDocument(DocumentFixture.getDocument(inScopeFile))
-            .withInMemoryFile(inScopeFile);
+        documentComposer.forDocument(inScopeDocument).withInMemoryFile(inScopeFile);
     Inject inject =
         injectComposer
             .forInject(InjectFixture.getDefaultInject())

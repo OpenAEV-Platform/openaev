@@ -11,45 +11,51 @@ import io.openaev.database.model.ReportingGeneration;
 import io.openaev.database.model.ReportingGenerationStatus;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.MinioService;
-import io.openaev.utils.TenantIsolationTestHelper;
-import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * The report renderer stores its output document under the generation's tenant, captured on the
  * request thread, not under the ambient {@link TenantContext} of the render thread. Once {@code
  * documents} is activated the {@code TenantBaseListener} no longer stamps the row, so {@code
- * storeDocument} must attribute it explicitly. This pins that: with the ambient tenant set to a
- * different tenant than the job's, the row and its object still land under the job's tenant.
+ * storeDocument} attributes it explicitly and persists it through the background primitive ({@code
+ * TxCtx.forTenant} via {@code TenantScopedJobRunner}). This pins that: with the ambient tenant set
+ * to a different tenant than the job's, the row and its object still land under the job's tenant.
+ *
+ * <p>Deliberately NOT {@code @Transactional}: {@code storeDocument} opens a background transaction
+ * through the primitive, which refuses to run inside an active one (production runs it on the
+ * render executor thread, with no ambient transaction). Tenants are seeded in auto-committed JDBC
+ * and the written rows/objects are cleaned up explicitly, mirroring {@code
+ * TenantScopedTransactionIntegrationTest}.
  */
-@Transactional
-@WithMockUser(isAdmin = true)
 @DisplayName("The report renderer attributes its output document to the generation tenant")
 class ReportDocumentAttributionTest extends IntegrationTest {
 
   @Autowired private PlaywrightReportingRenderer renderer;
-  @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private MinioService minioService;
+  @Autowired private DataSource dataSource;
 
+  private JdbcTemplate jdbc;
   private String tenantA;
   private String tenantB;
 
   private final List<String[]> uploadedObjects = new ArrayList<>();
 
   @BeforeEach
-  void seedTwoTenants() throws Exception {
-    tenantA = tenantHelper.createTenantWithCurrentUser("t22-report-a").getId();
-    tenantB = tenantHelper.createTenantWithCurrentUser("t22-report-b").getId();
+  void seedTwoTenants() {
+    jdbc = new JdbcTemplate(dataSource);
+    tenantA = seedTenant("t22-report-a-" + UUID.randomUUID());
+    tenantB = seedTenant("t22-report-b-" + UUID.randomUUID());
   }
 
   @AfterEach
@@ -62,6 +68,8 @@ class ReportDocumentAttributionTest extends IntegrationTest {
       }
     }
     uploadedObjects.clear();
+    jdbc.update("DELETE FROM documents WHERE tenant_id IN (?, ?)", tenantA, tenantB);
+    jdbc.update("DELETE FROM tenants WHERE tenant_id IN (?, ?)", tenantA, tenantB);
     TenantContext.clearCurrentTenant();
   }
 
@@ -110,23 +118,22 @@ class ReportDocumentAttributionTest extends IntegrationTest {
   void
       given_generationOwnedByTenantB_dispatchedUnderAnotherAmbient_should_attributeReportToTenantB()
           throws Exception {
-    // Arrange: a reporting and its generation persisted under tenant B, then the request thread's
-    // ambient tenant switched to A. On the header route the ambient tenant is the default one, so a
-    // job built from TenantContext would mis-attribute the report; it must take the generation's
-    // own
-    // tenant instead. The job is built through render()'s own seam, not hand-set as tenant B.
+    // Arrange: a generation owned by tenant B, then the request thread's ambient tenant switched to
+    // A. On the header route the ambient tenant is the default one, so a job built from
+    // TenantContext would mis-attribute the report; toRenderJob must take the generation's own
+    // tenant instead. The generation graph is built in memory (toRenderJob reads its fields, no DB
+    // needed) so the document write under test is the first committed row.
     Reporting reporting = new Reporting();
+    reporting.setId(UUID.randomUUID().toString());
     reporting.setName("t22b-report");
     reporting.setContextType(ReportingContextType.PLATFORM);
     reporting.setTenant(new Tenant(tenantB));
-    entityManager.persist(reporting);
     ReportingGeneration generation = new ReportingGeneration();
+    generation.setId(UUID.randomUUID().toString());
     generation.setReporting(reporting);
     generation.setFormat(ReportingFormat.PDF);
     generation.setStatus(ReportingGenerationStatus.PENDING);
     generation.setTenant(new Tenant(tenantB));
-    entityManager.persist(generation);
-    entityManager.flush();
 
     byte[] bytes = ("t22b-report-body-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
     String target = DigestUtils.md5Hex(bytes) + ".pdf";
@@ -158,12 +165,18 @@ class ReportDocumentAttributionTest extends IntegrationTest {
         "the report bytes must not be stored under the ambient tenant's prefix");
   }
 
+  private String seedTenant(String name) {
+    String id = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO tenants (tenant_id, tenant_name, tenant_created_at, tenant_updated_at)"
+            + " VALUES (?, ?, now(), now())",
+        id,
+        name);
+    return id;
+  }
+
   private String rowTenant(String documentId) {
-    entityManager.flush();
-    return (String)
-        entityManager
-            .createNativeQuery("SELECT tenant_id FROM documents WHERE document_id = ?1")
-            .setParameter(1, documentId)
-            .getSingleResult();
+    return jdbc.queryForObject(
+        "SELECT tenant_id FROM documents WHERE document_id = ?", String.class, documentId);
   }
 }

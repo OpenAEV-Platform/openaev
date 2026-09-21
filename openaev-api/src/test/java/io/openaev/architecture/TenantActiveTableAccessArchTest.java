@@ -242,6 +242,7 @@ class TenantActiveTableAccessArchTest {
           "import_mappers",
           "lessons_templates",
           "custom_dashboards",
+          "documents",
           "cwes",
           "mitigations",
           "collectors",
@@ -507,6 +508,72 @@ class TenantActiveTableAccessArchTest {
           .because(
               "marking_definitions is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule documents_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying document endpoints and the service behind them (pinned by
+              // TenantScopedEntrypointsTxCtxArchTest and DocumentHttpIsolationTest):
+              io.openaev.rest.document.DocumentApi.class,
+              io.openaev.rest.document.DocumentService.class,
+              // Other TxCtx-carrying endpoints that resolve documents through their own aggregate
+              // (challenge documents, article/channel documents, exercise attachments, security
+              // platform logos), each scoped by the request transaction:
+              io.openaev.rest.challenge.ChallengeApi.class,
+              io.openaev.rest.channel.ChannelApi.class,
+              io.openaev.rest.exercise.ExerciseApi.class,
+              io.openaev.rest.asset.security_platforms.SecurityPlatformApi.class,
+              // Services and exporters behind those endpoints, scoped by the request transaction:
+              io.openaev.rest.exercise.service.ExportService.class,
+              io.openaev.rest.inject.service.InjectService.class,
+              io.openaev.rest.inject.service.InjectExportService.class,
+              io.openaev.rest.inject.service.InjectDuplicateService.class,
+              io.openaev.rest.payload.exports.PayloadFileExport.class,
+              io.openaev.service.AtomicTestingService.class,
+              io.openaev.service.scenario.ScenarioService.class,
+              io.openaev.service.ScenarioToExerciseService.class,
+              io.openaev.service.ZipJsonService.class,
+              // Execution-engine attachment resolution, scoped by TenantScopedJobRunner which opens
+              // the tenant transaction each inject execution runs under:
+              io.openaev.executors.Injector.class,
+              io.openaev.executors.InjectorContext.class,
+              // Import path: resolves the write tenant explicitly and stamps rows before save:
+              io.openaev.importer.V1_DataImporter.class,
+              // Background telemetry: counts across all tenants explicitly (countAcrossAllTenants):
+              io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.DocumentRepository.class)
+          .because(
+              "documents is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule documents_challenge_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Force-initializes the challenge documents inside the read transaction
+              // (ChallengeService.enrichChallengeWithExercisesOrScenarios) so open-in-view cannot
+              // return an empty list:
+              io.openaev.service.ChallengeService.class,
+              // DTO mappers and exporters that map the documents to ids inside the request
+              // transaction:
+              io.openaev.rest.challenge.output.ChallengeOutput.class,
+              io.openaev.rest.challenge.response.PublicChallenge.class,
+              io.openaev.rest.document.DocumentService.class,
+              io.openaev.service.scenario.ScenarioService.class,
+              io.openaev.rest.exercise.exports.ExerciseFileExport.class,
+              io.openaev.rest.inject.exports.InjectsFileExport.class)
+          .should()
+          .callMethod(io.openaev.database.model.Challenge.class, "getDocuments")
+          .because(
+              "documents is reached through Challenge's LAZY documents association without touching"
+                  + " DocumentRepository. A getDocuments() outside a scoped transaction silently"
+                  + " loads zero rows (open-in-view). New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
 
   @ArchTest
   static final ArchRule tenant_xtmhub_registrations_repository_access_is_reviewed =

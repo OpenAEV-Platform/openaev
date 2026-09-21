@@ -3982,12 +3982,13 @@ public class V1_DataImporter implements Importer {
 
   /**
    * Resolves a step_data document reference to a TARGET-instance document id: the {@code baseIds}
-   * mapping seeded by the document import first, then a tenant-scoped lookup (re-import on the same
+   * mapping seeded by the document import first, then a scoped lookup (re-import on the same
    * instance where the export did not bundle the file), {@code null} when the id resolves to
-   * nothing. The fallback is tenant-scoped on purpose: the raw id comes from the import file and a
-   * bare {@code findById} could match another tenant's document. A successful fallback is cached
-   * back into {@code baseIds}, so an id referenced by several links or steps costs at most one
-   * query per import instead of one per occurrence.
+   * nothing. The fallback is tenant-scoped on purpose: the raw id comes from the import file and an
+   * unscoped lookup could match another tenant's document. Now that {@code documents} is v2-active,
+   * {@code findById} is scoped by the statement inspector, so it reads only the caller's tenant. A
+   * successful fallback is cached back into {@code baseIds}, so an id referenced by several links
+   * or steps costs at most one query per import instead of one per occurrence.
    */
   private String resolveImportedDocumentId(String rawId, Map<String, Base> baseIds) {
     if (baseIds.get(rawId) instanceof Document resolvedDocument
@@ -3995,7 +3996,7 @@ public class V1_DataImporter implements Importer {
       return resolvedDocument.getId();
     }
     return documentRepository
-        .findByIdAndTenantId(rawId, TenantContext.getCurrentTenant())
+        .findById(rawId)
         .map(
             document -> {
               baseIds.put(rawId, document);

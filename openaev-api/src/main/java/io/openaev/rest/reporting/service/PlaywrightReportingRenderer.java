@@ -19,6 +19,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.FileService;
 import jakarta.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
@@ -132,6 +133,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
   private final DocumentService documentService;
   private final FileService fileService;
   private final BrowserPoolService browserPoolService;
+  private final TenantScopedJobRunner tenantScopedJobRunner;
 
   private final long renderTimeoutMs;
   private final String renderBaseUrl;
@@ -147,6 +149,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
       final DocumentService documentService,
       final FileService fileService,
       final BrowserPoolService browserPoolService,
+      final TenantScopedJobRunner tenantScopedJobRunner,
       @Value("${openaev.reporting.render-timeout-seconds:90}") final long renderTimeoutSeconds,
       @Value("${openaev.reporting.max-concurrent-renders:2}") final int maxConcurrentRenders,
       @Value("${openaev.reporting.render-base-url:}") final String renderBaseUrl,
@@ -158,6 +161,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     this.documentService = documentService;
     this.fileService = fileService;
     this.browserPoolService = browserPoolService;
+    this.tenantScopedJobRunner = tenantScopedJobRunner;
     this.renderTimeoutMs = Math.max(1, renderTimeoutSeconds) * 1000;
     this.renderBaseUrl = renderBaseUrl;
     this.serverPort = serverPort;
@@ -476,7 +480,12 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     document.setTarget(target);
     document.setType(output.contentType());
     document.setDescription("Generated report of reporting template: " + job.reportingName());
-    return this.documentService.save(document);
+    // documents is v2-active: the write goes through the statement inspector, which TenantContext
+    // does not scope. Persist it under the captured job tenant through the primitive
+    // (TxCtx.forTenant), not the render thread's ambient v1 scope. The ReportingGeneration
+    // reads/saves around this stay under that v1 scope while reporting_generations is v1.
+    return this.tenantScopedJobRunner.supplyInTenant(
+        tenantId, () -> this.documentService.save(document));
   }
 
   private void markRunning(final RenderJob job) {

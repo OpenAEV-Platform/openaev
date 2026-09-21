@@ -21,14 +21,6 @@ public interface DocumentRepository
   @NotNull
   Optional<Document> findById(@NotNull String id);
 
-  /**
-   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does not apply to {@code
-   * findById} (filters never apply to primary-key loads), so callers resolving an id received from
-   * user input (e.g. import files) must use this method to avoid reading another tenant's document.
-   */
-  @NotNull
-  Optional<Document> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
-
   List<Document> removeById(@NotNull String id);
 
   // document_target and document_name are not unique (concurrent uploads can create
@@ -75,7 +67,6 @@ public interface DocumentRepository
               + "left join scenarios sc on sc.scenario_id = scdoc.scenario_id "
               + "left join documents_tags tagdoc on d.document_id = tagdoc.document_id "
               + "left join tags tg on tg.tag_id = tagdoc.tag_id "
-              + "where d.tenant_id = :#{#tenantContext.currentTenant} "
               + "group by d.document_id "
               + "order by document_id desc ",
       nativeQuery = true)

@@ -178,9 +178,12 @@ class InjectApiTest extends IntegrationTest {
     Document document1 = new Document();
     document1.setName("Document 1");
     document1.setType("image");
+    // documents is v2-active: the removed listener no longer stamps the tenant, so attribute it.
+    document1.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Document document2 = new Document();
     document2.setName("Document 2");
     document2.setType("pdf");
+    document2.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     DOCUMENT1 = documentRepository.save(document1);
     DOCUMENT2 = documentRepository.save(document2);
 

@@ -196,6 +196,22 @@ class ImportMapperActivationConfigTest {
   }
 
   @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains documents")
+  void prodConfigActivatesDocuments() throws Exception {
+    Properties props = new Properties();
+    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
+      props.load(in);
+    }
+    String active = props.getProperty("openaev.tenant.active-tables", "");
+    assertTrue(
+        active.contains("documents"),
+        "documents must stay in openaev.tenant.active-tables: its v1 @Filter was removed, so"
+            + " dropping it would leave the table with no tenant isolation. Found: '"
+            + active
+            + "'");
+  }
+
+  @Test
   @DisplayName("openaev.tenant.active-tables in application.properties contains widgets")
   void prodConfigActivatesWidgets() throws Exception {
     Properties props = new Properties();
