@@ -44,8 +44,8 @@ gh pr diff --name-only | grep -E "\.eslintrc|\.prettierrc|spotless|\.editorconfi
 # Internal dev docs (not user-facing)
 gh pr diff --name-only | grep -E "\.github/instructions/|\.github/agents/|\.github/skills/|AGENTS\.md|CLAUDE\.md|CONTRIBUTING\.md|copilot-instructions"
 
-# Annotation processor / Maven plugin (build tooling)
-gh pr diff --name-only | grep -E "openaev-annotation-processor/|openaev-maven-plugin/"
+# Build services / Maven plugin (build tooling)
+gh pr diff --name-only | grep -E "openaev-build-services/|openaev-maven-plugin/"
 ```
 
 If all functional files are filtered out: output `PASS` and stop.

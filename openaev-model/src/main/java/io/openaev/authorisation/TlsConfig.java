@@ -1,7 +1,5 @@
 package io.openaev.authorisation;
 
-import io.openaev.config.OpenAEVConfig;
-import jakarta.annotation.Resource;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,6 +21,7 @@ import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +30,10 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TlsConfig {
 
-  @Resource private OpenAEVConfig openAEVConfig;
+  // Read from the environment rather than through OpenAEVConfig: that class lives in
+  // openaev-framework, which sits above this module.
+  @Value("${openbas.extra-trusted-certs-dir:${openaev.extra-trusted-certs-dir:#{null}}}")
+  private String extraTrustedCertsDir;
 
   /** Get files paths ".pem" from directory */
   private Set<String> getFilesPaths(String dir) {
@@ -94,7 +96,7 @@ public class TlsConfig {
 
   private Optional<X509TrustManager> getAdditionalTrustManager()
       throws NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException {
-    Set<String> filesPaths = getFilesPaths(openAEVConfig.getExtraTrustedCertsDir());
+    Set<String> filesPaths = getFilesPaths(extraTrustedCertsDir);
 
     // early return; if there aren't any extra certs
     // don't bother building a trust manager
