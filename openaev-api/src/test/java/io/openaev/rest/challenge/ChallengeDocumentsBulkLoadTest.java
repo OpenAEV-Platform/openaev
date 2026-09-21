@@ -8,7 +8,9 @@ import static io.openaev.utils.fixtures.DocumentFixture.getDocumentJpeg;
 import static io.openaev.utils.fixtures.InjectFixture.createDefaultInjectChallenge;
 import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ch.qos.logback.classic.Level;
@@ -187,6 +189,50 @@ class ChallengeDocumentsBulkLoadTest extends IntegrationTest {
         assertThat(documentIdsOf(response, "$.scenario_challenges[*].challenge_detail", challenge))
             .containsExactlyInAnyOrderElementsOf(documentIds(challenge));
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Rows returned by the documents fetch join")
+  class FetchJoinRows {
+
+    @Test
+    @DisplayName(
+        "given a challenge carrying two documents when listed then the challenge appears once")
+    void given_challengeWithTwoDocuments_should_appearOnceInList() throws Exception {
+      // -- Arrange --
+      Challenge challenge = saveChallengeWithTwoDocuments();
+      flushAndClear();
+
+      // -- Act --
+      String response = perform(get(TENANT_CHALLENGE_URI, tenant.getId()));
+
+      // -- Assert --
+      List<String> listed =
+          JsonPath.read(response, "$[?(@.challenge_id=='" + challenge.getId() + "')].challenge_id");
+      assertThat(listed).containsExactly(challenge.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "given a challenge carrying two documents when found by id then the challenge appears"
+            + " once")
+    void given_challengeWithTwoDocuments_should_appearOnceInFind() throws Exception {
+      // -- Arrange --
+      Challenge challenge = saveChallengeWithTwoDocuments();
+      flushAndClear();
+
+      // -- Act --
+      String response =
+          perform(
+              post(TENANT_CHALLENGE_URI + "/find", tenant.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(List.of(challenge.getId())))
+                  .with(csrf()));
+
+      // -- Assert --
+      List<String> found = JsonPath.read(response, "$[*].challenge_id");
+      assertThat(found).containsExactly(challenge.getId());
     }
   }
 

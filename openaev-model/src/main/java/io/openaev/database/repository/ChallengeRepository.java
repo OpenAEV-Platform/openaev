@@ -35,7 +35,9 @@ public interface ChallengeRepository
 
   /**
    * Loads every in-scope challenge with its {@code challenge_documents} fetched in the same query,
-   * for the same reason as {@link #findAllByIdInFetchingDocuments(List)}.
+   * for the same reason as {@link #findAllByIdInFetchingDocuments(List)}. A challenge carrying
+   * several documents is still returned once: Hibernate removes the duplicate root entities a
+   * collection fetch join produces, so the query needs no {@code distinct}.
    */
   @Query("select c from Challenge c left join fetch c.documents")
   @NotNull
