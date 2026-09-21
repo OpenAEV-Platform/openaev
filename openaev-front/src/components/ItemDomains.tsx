@@ -10,24 +10,15 @@ import { getIconByDomain } from '../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../utils/domains/domainUtils';
 import { getLabelOfRemainingItems, truncate } from '../utils/String';
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
+  // `inline` left the chips on the text baseline, so a chip and the "+N" beside
+  // it sat 2.5px apart vertically, with a word space between them.
   inline: {
-    display: 'inline',
+    display: 'inline-flex',
     alignItems: 'center',
     flexWrap: 'nowrap',
+    gap: 4,
     overflow: 'hidden',
-  },
-  domainChip: {
-    height: theme.spacing(3),
-    fontSize: theme.typography.pxToRem(12),
-    marginRight: theme.spacing(1),
-    borderRadius: theme.shape.borderRadius,
-  },
-  domainChipInList: {
-    fontSize: theme.typography.pxToRem(12),
-    height: theme.spacing(2.5),
-    float: 'left',
-    textTransform: 'uppercase',
   },
 }));
 
