@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { type FunctionComponent, useEffect } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -213,12 +213,7 @@ const ThemeForm: FunctionComponent<Props> = ({
 
       <div style={{ marginTop: 20 }}>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={!isDirty || isSubmitting}
-          >
+          <Button type="submit" disabled={!isDirty || isSubmitting}>
             {t('Update')}
           </Button>
         </Can>

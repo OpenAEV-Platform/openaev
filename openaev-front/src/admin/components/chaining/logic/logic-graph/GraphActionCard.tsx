@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { BoltOutlined, GpsFixedOutlined, MoreVert, OutputOutlined } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type MouseEvent, type ReactNode, useState } from 'react';
 
@@ -251,17 +252,19 @@ const GraphActionCard = ({
               stays reachable in the tooltip above. */}
           {!readOnly && (
             <IconButton
-              size="small"
-              sx={{ padding: 0.25 }}
+              icon={(
+                <MoreVert sx={{
+                  fontSize: 18,
+                  color: theme.palette.primary.main,
+                }}
+                />
+              )}
+              aria-label={t('More actions')}
               onPointerDown={e => e.stopPropagation()}
               onClick={handleMenuOpen}
-            >
-              <MoreVert sx={{
-                fontSize: 18,
-                color: theme.palette.primary.main,
-              }}
-              />
-            </IconButton>
+              priority="tertiary"
+              size="sm"
+            />
           )}
         </Box>
 

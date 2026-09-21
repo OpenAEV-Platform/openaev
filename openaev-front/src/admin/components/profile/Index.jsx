@@ -1,4 +1,5 @@
-import { Button, Typography } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
@@ -64,7 +65,7 @@ const Index = () => {
   const userToken = tokens.length > 0 ? R.head(tokens) : undefined;
   return (
     <div style={{
-      width: 800,
+      width: 900,
       margin: '0 auto',
       display: 'grid',
       gap: theme.spacing(3),
@@ -115,14 +116,17 @@ const Index = () => {
           {t('Token key')}
         </Typography>
         <pre>{userToken?.token_value}</pre>
-        <Button
-          variant="contained"
-          color="primary"
-          component="a"
-          onClick={() => onRenew(userToken?.token_id)}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
         >
-          {t('RENEW')}
-        </Button>
+          <Button asChild onClick={() => onRenew(userToken?.token_id)}>
+            <a>
+              {t('RENEW')}
+            </a>
+          </Button>
+        </div>
         <Typography
           gutterBottom={true}
           sx={{
@@ -145,14 +149,17 @@ const Index = () => {
           {userToken?.token_value}
         </pre>
 
-        <Button
-          variant="contained"
-          color="primary"
-          component="a"
-          href="/swagger-ui/index.html"
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
         >
-          {t('API specifications')}
-        </Button>
+          <Button asChild>
+            <a href="/swagger-ui/index.html">
+              {t('API specifications')}
+            </a>
+          </Button>
+        </div>
       </Paper>
       <XtmOneMcpAccess />
     </div>

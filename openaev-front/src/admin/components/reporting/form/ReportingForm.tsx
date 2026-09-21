@@ -1,8 +1,9 @@
-import { Checkbox, Paper as FdsPaper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Checkbox, IconButton, Paper as FdsPaper, Radio, RadioGroup, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/icons-material';
-import { Box, Button, FormHelperText, IconButton, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { CodeOutlined, DeleteOutlined, DragIndicatorOutlined, PictureAsPdfOutlined, RestartAltOutlined } from '@mui/icons-material';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
+import { Box, FormHelperText, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm, useFormContext } from 'react-hook-form';
@@ -140,6 +141,11 @@ interface Props {
  * branding and - on creation only - an optional first schedule (schedules are
  * then managed from the report detail page).
  */
+// Both rows of a module block put their label on the left, so both reserve the
+// same column for it: the labels end on the same x and the fields start there,
+// which is what makes the two rows read as one block.
+const MODULE_FIELD_LABEL_WIDTH = 180;
+
 /** The optional title, its label on the left: the row stays one line high. */
 const ModuleTitleField = ({ id, name }: {
   id: string;
@@ -161,19 +167,34 @@ const ModuleTitleField = ({ id, name }: {
         variant="body2"
         sx={{
           color: 'text.secondary',
-          whiteSpace: 'nowrap',
+          width: MODULE_FIELD_LABEL_WIDTH,
+          flexShrink: 0,
         }}
       >
         {t('Custom title (optional)')}
       </Typography>
-      <Controller
-        control={control}
-        name={name}
-        render={({ field }) => <TextFieldFds {...field} id={id} value={field.value ?? ''} />}
-      />
+      <Box sx={{ flex: 1 }}>
+        <Controller
+          control={control}
+          name={name}
+          render={({ field }) => (
+            <TextFieldFds {...field} id={id} value={field.value ?? ''} style={{ width: '100%' }} />
+          )}
+        />
+      </Box>
     </Box>
   );
 };
+
+// The default-format group is named by the caption above it.
+const FORMAT_LABEL_ID = 'reporting-default-format-label';
+
+// One glyph per output: the page icon for the printed document, the markup
+// icon for the page served in a browser.
+const REPORTING_FORMAT_ICONS = {
+  PDF: PictureAsPdfOutlined,
+  HTML: CodeOutlined,
+} as const;
 
 const ReportingForm: FunctionComponent<Props> = ({
   onSubmit,
@@ -502,25 +523,44 @@ const ReportingForm: FunctionComponent<Props> = ({
         name="reporting_default_format"
         render={({ field }) => (
           <div>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {/* The group has no visible label of its own, so the caption above
+                names it through aria-labelledby. */}
+            <Typography id={FORMAT_LABEL_ID} variant="caption" sx={{ color: 'text.secondary' }}>
               {t('Default format')}
             </Typography>
-            <ToggleButtonGroup
-              exclusive
-              size="small"
-              color="primary"
+            <RadioGroup
+              orientation="horizontal"
+              aria-labelledby={FORMAT_LABEL_ID}
               value={field.value}
-              onChange={(_, value) => {
-                if (value) field.onChange(value);
-              }}
-              sx={{ display: 'flex' }}
+              onValueChange={value => field.onChange(value)}
+              style={{ marginTop: theme.spacing(1) }}
             >
-              {REPORTING_FORMATS.map(format => (
-                <ToggleButton key={format} value={format} sx={{ flex: 1 }}>
-                  {format}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
+              {REPORTING_FORMATS.map((format) => {
+                const FormatIcon = REPORTING_FORMAT_ICONS[format];
+                return (
+                  <Radio
+                    key={format}
+                    value={format}
+                    label={(
+                      // `flex`, not `inline-flex`: an inline box inside the
+                      // library's label span sits on its baseline, which left
+                      // the icon and the text 2.75px above the circle. A block
+                      // box makes the span its own height, and the row's
+                      // `items-center` then lines the three up.
+                      <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: theme.spacing(0.5),
+                      }}
+                      >
+                        <FormatIcon fontSize="small" style={{ color: 'var(--text-default-secondary)' }} />
+                        {format}
+                      </span>
+                    )}
+                  />
+                );
+              })}
+            </RadioGroup>
           </div>
         )}
       />
@@ -555,7 +595,7 @@ const ReportingForm: FunctionComponent<Props> = ({
               sx={{
                 display: 'flex',
                 alignItems: 'flex-start',
-                gap: 0.5,
+                gap: 1,
                 padding: 1,
                 borderRadius: 1,
                 cursor: 'pointer',
@@ -611,7 +651,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                       >
                         <Box sx={{
                           display: 'flex',
-                          alignItems: 'center',
+                          alignItems: 'flex-start',
                           gap: 1,
                         }}
                         >
@@ -639,30 +679,17 @@ const ReportingForm: FunctionComponent<Props> = ({
                           >
                             {`${index + 1}. ${t(MODULE_TYPE_LABELS[type])}`}
                           </Typography>
-                          {/* The kill chain section carries two fields: they get their own row below. */}
-                          {type !== 'MITRE_COVERAGE' && (
-                            <>
+                          {/* The kill chain section carries two fields: they stack to the
+                              right of the block title, which stays level with the first label. */}
+                          {type === 'MITRE_COVERAGE' && (
+                            <Box sx={{
+                              flex: 1,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 1,
+                            }}
+                            >
                               <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <IconButton aria-label={t('Remove')} size="small" color="error" onClick={() => removeModule(index)}>
-                                    <DeleteOutlined fontSize="small" />
-                                  </IconButton>
-                                </TooltipTrigger>
-                                <TooltipContent>{t('Remove')}</TooltipContent>
-                              </Tooltip>
-                            </>
-                          )}
-                        </Box>
-                        {type === 'MITRE_COVERAGE' && (
-                          <Box sx={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: 1,
-                          }}
-                          >
-                            <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
-                            <Box sx={{ flex: 1 }}>
                               <Controller
                                 control={control}
                                 name={`modules.${index}.kill_chains`}
@@ -671,6 +698,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                                     multiple
                                     label={t('Kill chains')}
                                     labelPosition="left"
+                                    labelWidth={MODULE_FIELD_LABEL_WIDTH}
                                     options={killChainOptions}
                                     value={killChains.value}
                                     onChange={killChains.onChange}
@@ -680,16 +708,26 @@ const ReportingForm: FunctionComponent<Props> = ({
                                 )}
                               />
                             </Box>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <IconButton aria-label={t('Remove')} size="small" color="error" onClick={() => removeModule(index)}>
-                                  <DeleteOutlined fontSize="small" />
-                                </IconButton>
-                              </TooltipTrigger>
-                              <TooltipContent>{t('Remove')}</TooltipContent>
-                            </Tooltip>
-                          </Box>
-                        )}
+                          )}
+                          {type !== 'MITRE_COVERAGE' && (
+                            <>
+                              <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
+                            </>
+                          )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <IconButton
+                                icon={<DeleteOutlined fontSize="small" />}
+                                aria-label={t('Remove')}
+                                onClick={() => removeModule(index)}
+                                variant="destructive"
+                                priority="tertiary"
+                                size="sm"
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent>{t('Remove')}</TooltipContent>
+                          </Tooltip>
+                        </Box>
                         {type === 'CUSTOM_MARKDOWN' && (
                           <MarkDownFieldController
                             name={`modules.${index}.content`}
@@ -758,11 +796,7 @@ const ReportingForm: FunctionComponent<Props> = ({
       }}
       >
         <Typography variant="h3" sx={{ margin: 0 }}>{t('Colors')}</Typography>
-        <Button
-          size="small"
-          startIcon={<RestartAltOutlined />}
-          onClick={() => resetBrandingColors()}
-        >
+        <Button type="button" priority="tertiary" size="sm" startIcon={<RestartAltOutlined fontSize="small" />} onClick={() => resetBrandingColors()}>
           {t('Reset to platform defaults')}
         </Button>
       </Box>
@@ -847,40 +881,24 @@ const ReportingForm: FunctionComponent<Props> = ({
           marginBottom: 2,
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          {/* Three buttons in a row: Cancel steps down to tertiary so the row
+              carries one primary and one secondary, and the way out does not
+              compete with the way back. */}
+          <Button type="button" priority={activeStep > 0 ? 'tertiary' : 'secondary'} onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           {activeStep > 0 && (
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={() => setActiveStep(step => step - 1)}
-              disabled={isSubmitting}
-            >
+            <Button type="button" priority="secondary" onClick={() => setActiveStep(step => step - 1)} disabled={isSubmitting}>
               {t('Back')}
             </Button>
           )}
           {!isLastStep && (
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleNext}
-            >
+            <Button type="button" onClick={handleNext}>
               {t('Next')}
             </Button>
           )}
           {isLastStep && (
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" disabled={isSubmitting}>
               {editing ? t('Update') : t('Create')}
             </Button>
           )}

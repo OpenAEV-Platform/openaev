@@ -1,5 +1,6 @@
-import { Chip, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Chip } from '@filigran/design-system';
+import { Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
 
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
@@ -45,21 +46,9 @@ const ChannelHeader = () => {
       overline={t('Channel')}
       title={channel.channel_name ?? '-'}
       chips={(
-        <Chip
-          size="small"
-          variant="outlined"
-          label={t(channel.channel_type ?? 'Unknown')}
-          sx={{
-            height: 22,
-            fontSize: 11,
-            borderRadius: 1,
-            color: typeColor,
-            borderColor: alpha(typeColor, 0.5),
-            backgroundColor: alpha(typeColor, 0.08),
-          }}
-        />
+        <Chip label={t(channel.channel_type ?? 'Unknown')} color={typeColor} />
       )}
-      action={<ChannelPopover channel={channel} />}
+      action={<ChannelPopover channel={channel} variant="toggle" />}
       footer={channel.channel_description
         ? (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>

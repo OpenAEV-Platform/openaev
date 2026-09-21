@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { RowingOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext } from 'react';
 import { Link, useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -11,6 +11,7 @@ import { fetchExercises } from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import chipLinkClassName from '../../../../components/common/chips/chipLink';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
@@ -67,26 +68,31 @@ const headerStyles: Record<string, CSSProperties> = {
   challenge_name: {
     width: '25%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   challenge_category: {
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   challenge_score: {
     width: '10%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   challenge_exercises: {
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   challenge_tags: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -262,18 +268,21 @@ const Challenges = () => {
                         return (
                           <Tooltip key={exercise.exercise_id}>
                             <TooltipTrigger asChild>
-                              <Chip
-                                icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                classes={{ root: classes.exercise }}
-                                variant="outlined"
-                                label={exercise.exercise_name}
-                                component={Link}
-                                clickable
+                              <Link
                                 to={`/admin/simulations/${exercise.exercise_id}`}
+                                className={chipLinkClassName}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                 }}
-                              />
+                              >
+                                <span className="inline-flex">
+                                  <Chip
+                                    startIcon={<RowingOutlined style={{ fontSize: 12 }} />}
+                                    label={exercise.exercise_name ?? ''}
+                                    severity="info"
+                                  />
+                                </span>
+                              </Link>
                             </TooltipTrigger>
                             {exercise.exercise_name && <TooltipContent>{exercise.exercise_name}</TooltipContent>}
                           </Tooltip>

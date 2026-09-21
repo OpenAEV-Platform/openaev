@@ -11,7 +11,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
 // fds:keep-mui the licence agreement field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Alert, Button, TextField } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Alert, TextField } from '@mui/material';
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -57,13 +58,8 @@ const EnterpriseEditionAgreementDialog = () => {
       title={t('OpenAEV Enterprise Edition (EE) license agreement')}
       actions={(
         <>
-          <Button variant="outlined" color="primary" onClick={onCloseEnterpriseEditionDialog}>{t('Cancel')}</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={enableEnterpriseEdition}
-            disabled={isEmptyField((enterpriseLicense))}
-          >
+          <Button type="button" priority="secondary" onClick={onCloseEnterpriseEditionDialog}>{t('Cancel')}</Button>
+          <Button type="button" onClick={enableEnterpriseEdition} disabled={isEmptyField((enterpriseLicense))}>
             {t('Enable')}
           </Button>
         </>
@@ -71,12 +67,34 @@ const EnterpriseEditionAgreementDialog = () => {
     >
       <div className={classes.eeDialogContainer}>
         {!isEmptyField(EEFeatureDetectedInfo) && (
-          <Alert style={{ alignItems: 'center' }} icon={<EEChip />} severity="success">
+          <Alert
+            icon={<EEChip />}
+            severity="success"
+            style={{
+              alignItems: 'center',
+              // The detected feature is a marker, not a status: no fill, just the
+              // Enterprise Edition outline the chip beside it is filled with, and
+              // the primary ink every other body text reads in.
+              backgroundColor: 'transparent',
+              border: '1px solid var(--color-filigran-tonic-accent)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-default-primary)',
+            }}
+          >
             {`${t('Enterprise Edition feature detected :')} `}
-            {EEFeatureDetectedInfo}
+            {/* The feature that raised the dialog is what the sentence is about. */}
+            <strong>{EEFeatureDetectedInfo}</strong>
           </Alert>
         )}
-        <Alert severity="info">
+        <Alert
+          severity="info"
+          style={{
+            // The explanation sits on the surface one layer under the dialog,
+            // not on the severity wash.
+            backgroundColor: 'var(--bg-elevation-default-layer-1)',
+            color: 'var(--text-default-primary)',
+          }}
+        >
           {t('OpenAEV Enterprise Edition requires a license key to be enabled. Filigran provides a free-to-use license for development and research purposes as well as for charity organizations.')}
           <p>
             {t('To obtain a license, please {contact}', {

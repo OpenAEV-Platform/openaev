@@ -1,13 +1,12 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, type ChipSeverity, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AssignmentTurnedIn, ExpandMore, PersonOutlined } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Chip, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent, type SyntheticEvent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type UserHelper } from '../../../../../../actions/helper';
 import { fetchPlayers } from '../../../../../../actions/users/User';
-import colorStyles from '../../../../../../components/Color';
 import Drawer from '../../../../../../components/common/Drawer';
 import ExpandableText from '../../../../../../components/common/ExpandableText';
 import Paper from '../../../../../../components/common/Paper';
@@ -16,7 +15,7 @@ import { useHelper } from '../../../../../../store';
 import { type Inject, type User } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
-import { computeStatusStyle } from '../../../../../../utils/statusUtils';
+import { statusSeverity } from '../../../../../../utils/statusUtils';
 import { computeLabel, resolveUserName, truncate } from '../../../../../../utils/String';
 import { PermissionsContext } from '../../../../common/Context';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
@@ -50,9 +49,9 @@ const useStyles = makeStyles()(theme => ({
   },
   points: {
     height: 20,
-    backgroundColor: 'rgba(236, 64, 122, 0.08)',
-    border: '1px solid #ec407a',
-    color: '#ec407a',
+    backgroundColor: 'var(--color-entities-events-transparency-20)',
+    border: '1px solid var(--color-entities-events)',
+    color: 'var(--color-entities-events)',
   },
   validationType: {
     height: 20,
@@ -106,20 +105,20 @@ const ManualExpectations: FunctionComponent<Props> = ({
   const isAllValidated = validatedCount === expectations.length;
 
   let label;
-  let style;
+  let severity: ChipSeverity = 'neutral';
   if (!isAllValidated || !parentExpectation) {
     label = t('Pending validation');
-    style = colorStyles.orange;
+    severity = 'medium';
   } else {
     const results = parentExpectation.inject_expectation_results ?? [];
     const hasFailed = results.some(result => result?.result === FAILED);
 
     if (hasFailed) {
       label = `${t('Failed')} (${parentExpectation.inject_expectation_score})`;
-      style = colorStyles.red;
+      severity = 'critical';
     } else {
       label = `${t('Success')} (${parentExpectation.inject_expectation_score})`;
-      style = colorStyles.green;
+      severity = 'low';
     }
   }
 
@@ -158,14 +157,9 @@ const ManualExpectations: FunctionComponent<Props> = ({
                   </Tooltip>
                   <div className={classes.chip}>
                     <Chip
-                      classes={{ root: classes.validationType }}
                       label={expectations[0].inject_expectation_group ? 'At least one player' : 'All players'}
                     />
-                    <Chip
-                      classes={{ root: classes.chipInList }}
-                      style={style}
-                      label={label}
-                    />
+                    <Chip severity={severity} label={label} />
                   </div>
                 </div>
               )}
@@ -279,11 +273,10 @@ const ManualExpectations: FunctionComponent<Props> = ({
                         alignItems: 'center',
                       }}
                       >
-                        <Chip label={e.inject_expectation_score ?? 0} style={{ marginRight: 8 }} />
+                        <Chip label={String(e.inject_expectation_score ?? 0)} style={{ marginRight: 8 }} />
                         <Chip
-                          classes={{ root: classes.chipStatusAcc }}
-                          style={computeStatusStyle(e.inject_expectation_status)}
                           label={t(computeLabel(e.inject_expectation_status))}
+                          severity={statusSeverity(e.inject_expectation_status)}
                         />
                       </div>
                     </div>

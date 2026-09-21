@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
@@ -50,21 +50,10 @@ const ChallengeTryForm: FunctionComponent<Props> = ({ handleClose, onSubmit }) =
           label={t('Flag')}
         />
         <div style={{ alignSelf: 'flex-end' }}>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            style={{ marginRight: theme.spacing(1) }}
-            disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: theme.spacing(1) }}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={isSubmitting || !isDirty}
-          >
+          <Button type="submit" disabled={isSubmitting || !isDirty}>
             {t('Submit')}
           </Button>
         </div>

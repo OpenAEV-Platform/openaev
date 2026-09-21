@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { RichTextEditor } from '@filigran/rich-text-editor';
-import { Button, GridLegacy, Switch, Typography } from '@mui/material';
+import { GridLegacy, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -193,22 +194,11 @@ const InjectorContractForm = (props) => {
               marginTop: theme.spacing(2),
             }}
           >
-            <Button
-              onClick={handleClose}
-              style={{ marginRight: theme.spacing(2) }}
-              disabled={submitting}
-              variant="outlined"
-              color="primary"
-            >
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: theme.spacing(2) }}>
               {t('Cancel')}
             </Button>
 
-            <Button
-              color="primary"
-              type="submit"
-              variant="contained"
-              disabled={submitting}
-            >
+            <Button type="submit" disabled={submitting}>
               {editing ? t('Update') : t('Create')}
             </Button>
           </div>

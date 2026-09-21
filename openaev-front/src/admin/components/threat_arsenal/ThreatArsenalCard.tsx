@@ -1,5 +1,5 @@
-import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box, Card, CardActionArea, Chip, Typography } from '@mui/material';
+import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Card, CardActionArea, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
 
@@ -10,6 +10,7 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
+import { tint } from '../../../utils/tint';
 import InjectIcon from '../common/injects/InjectIcon';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
@@ -148,9 +149,9 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
                   fontWeight: 700,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  backgroundColor: alpha(statusColor, 0.2),
+                  backgroundColor: tint(statusColor, 20),
                   color: statusColor,
-                  border: `1px solid ${alpha(statusColor, 0.45)}`,
+                  border: `1px solid ${tint(statusColor, 45)}`,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 0.5,
@@ -164,7 +165,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
                     height: 6,
                     borderRadius: '50%',
                     backgroundColor: statusColor,
-                    boxShadow: `0 0 6px ${alpha(statusColor, 0.8)}`,
+                    boxShadow: `0 0 6px ${tint(statusColor, 80)}`,
                   }}
                 />
                 {t(statusLabel)}
@@ -284,36 +285,12 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         }}
         >
           {primaryDomain && (
-            <Chip
-              size="small"
-              label={primaryDomain.domain_name}
-              variant="outlined"
-              sx={{
-                height: 20,
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: '0.02em',
-                textTransform: 'uppercase',
-                borderColor: alpha(accent, 0.5),
-                color: accent,
-                backgroundColor: alpha(accent, 0.08),
-                borderRadius: 0.75,
-              }}
-            />
+            <Chip label={primaryDomain.domain_name} color={accent} />
           )}
           {domains.length > 1 && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Chip
-                  size="small"
-                  label={`+${domains.length - 1}`}
-                  variant="outlined"
-                  sx={{
-                    height: 20,
-                    fontSize: 10.5,
-                    borderRadius: 0.75,
-                  }}
-                />
+                <Chip label={`+${domains.length - 1}`} />
               </TooltipTrigger>
               {domains.slice(1).map(d => d.domain_name).join(', ') && <TooltipContent>{domains.slice(1).map(d => d.domain_name).join(', ')}</TooltipContent>}
             </Tooltip>

@@ -1,4 +1,4 @@
-import { Paper } from '@filigran/design-system';
+import { Button, Paper } from '@filigran/design-system';
 import {
   CheckOutlined,
   CloudOutlined,
@@ -10,7 +10,7 @@ import {
   TerminalOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
-import { Box, Button, ButtonBase, Typography } from '@mui/material';
+import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, useMemo } from 'react';
 
@@ -306,7 +306,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             {t('Filters')}
           </Typography>
           {anyActive && (
-            <Button size="small" onClick={onClearAll}>
+            <Button type="button" priority="tertiary" size="sm" onClick={onClearAll}>
               {t('Clear all')}
             </Button>
           )}

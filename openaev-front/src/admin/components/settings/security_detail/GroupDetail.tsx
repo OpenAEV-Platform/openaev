@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { GroupsOutlined, KeyboardArrowRight, PermIdentityOutlined, SecurityOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
@@ -218,7 +219,7 @@ const GroupDetail = () => {
       label: 'Administrator',
       isSortable: true,
       value: (member: MemberRow) => (member.user_admin
-        ? <Chip size="small" color="primary" variant="outlined" label={t('Administrator')} sx={{ borderRadius: 1 }} />
+        ? <Chip label={t('Administrator')} severity="info" />
         : <>-</>),
     },
   ], [t]);
@@ -277,8 +278,8 @@ const GroupDetail = () => {
             title={title}
             chips={(
               <>
-                <Chip size="small" variant="outlined" label={t('{count} members', { count: members.length })} sx={{ borderRadius: 1 }} />
-                <Chip size="small" variant="outlined" label={t('{count} roles', { count: roleItems.length })} sx={{ borderRadius: 1 }} />
+                <Chip label={String(t('{count} members', { count: members.length }))} />
+                <Chip label={String(t('{count} roles', { count: roleItems.length }))} />
               </>
             )}
             action={isPlatform
@@ -292,6 +293,7 @@ const GroupDetail = () => {
                 )
               : (
                   <GroupPopover
+                    variant="toggle"
                     group={group!}
                     groupUsersIds={group!.group_users ?? []}
                     groupRolesIds={group!.group_roles ?? []}

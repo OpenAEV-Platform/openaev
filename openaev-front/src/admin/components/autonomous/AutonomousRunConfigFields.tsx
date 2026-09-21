@@ -1,3 +1,4 @@
+import { Button } from '@filigran/design-system';
 import {
   ArrowBack,
   ArrowUpward,
@@ -19,7 +20,7 @@ import {
   type SvgIconComponent,
   TrackChanges,
 } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card, CardActionArea, Skeleton, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Card, CardActionArea, Skeleton, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import { alpha, type Theme, useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -616,7 +617,7 @@ export const AutonomousRunConfigPanel = ({
         gap: theme.spacing(1),
       }}
       >
-        <Button onClick={onCancel} disabled={submitting}>
+        <Button type="button" priority="tertiary" onClick={onCancel} disabled={submitting}>
           {cancelLabel ?? t('Cancel')}
         </Button>
         <Box sx={{
@@ -625,46 +626,22 @@ export const AutonomousRunConfigPanel = ({
         }}
         >
           {activeStep > 0 && (
-            <Button
-              onClick={() => setActiveStep(step => step - 1)}
-              startIcon={<ArrowBack />}
-              disabled={submitting}
-            >
+            <Button type="button" priority="tertiary" startIcon={<ArrowBack fontSize="small" />} onClick={() => setActiveStep(step => step - 1)} disabled={submitting}>
               {t('Back')}
             </Button>
           )}
           {activeStep < lastStep && (
-            <Button
-              onClick={() => setActiveStep(step => step + 1)}
-              variant="outlined"
-              disabled={submitting}
-            >
+            <Button type="button" priority="secondary" onClick={() => setActiveStep(step => step + 1)} disabled={submitting}>
               {t('Next')}
             </Button>
           )}
           {showSave && onSave && (
-            <Button
-              onClick={() => onSave(config.buildInput(true))}
-              variant="contained"
-              disabled={!canSubmit}
-              data-testid="button-autonomous-save"
-            >
+            <Button type="button" onClick={() => onSave(config.buildInput(true))} disabled={!canSubmit} data-testid="button-autonomous-save">
               {saveLabel ?? t('Save for later')}
             </Button>
           )}
           {showLaunch && onLaunch && (
-            <Button
-              onClick={() => onLaunch(config.buildInput(false))}
-              variant="contained"
-              disabled={!canSubmit}
-              startIcon={<AutoAwesome />}
-              data-testid="button-autonomous-launch"
-              sx={{
-                'backgroundColor': theme.palette.ai.main,
-                'color': theme.palette.ai.contrastText,
-                '&:hover': { backgroundColor: theme.palette.ai.dark },
-              }}
-            >
+            <Button type="button" variant="ia" priority="secondary" startIcon={<AutoAwesome fontSize="small" />} onClick={() => onLaunch(config.buildInput(false))} disabled={!canSubmit} data-testid="button-autonomous-launch">
               {launchLabel ?? t('Launch now')}
             </Button>
           )}

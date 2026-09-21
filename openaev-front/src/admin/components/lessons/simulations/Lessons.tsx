@@ -1,15 +1,6 @@
-import { Paper, Switch } from '@filigran/design-system';
+import { Button, Paper, Switch } from '@filigran/design-system';
 import { BallotOutlined, ContactMailOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, SendOutlined, SpeakerNotesOutlined, SportsScoreOutlined, VisibilityOutlined } from '@mui/icons-material';
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-} from '@mui/material';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
@@ -213,37 +204,22 @@ const Lessons: FunctionComponent<Props> = ({
           )}
           {canApplyTemplate && (
             <Field label={t('Template')}>
-              <Button
-                variant="outlined"
-                size="small"
-                color="primary"
-                startIcon={<ContentPasteGoOutlined />}
-                onClick={() => setOpenApplyTemplate(true)}
-              >
+              <Button type="button" priority="secondary" size="sm" startIcon={<ContentPasteGoOutlined fontSize="small" />} onClick={() => setOpenApplyTemplate(true)}>
                 {t('Apply')}
               </Button>
             </Field>
           )}
           <Field label={t('Check')}>
-            <Button
-              variant="outlined"
-              size="small"
-              color="primary"
-              startIcon={<VisibilityOutlined />}
-              href={`/lessons/${source.type}/${source.id}?preview=true`}
-            >
-              {t('Preview')}
+            <Button asChild priority="secondary" size="sm">
+              <a href={`/lessons/${source.type}/${source.id}?preview=true`}>
+                <VisibilityOutlined fontSize="small" />
+                {t('Preview')}
+              </a>
             </Button>
           </Field>
           {permissions.canManage && (
             <Field label={t('Categories and questions')}>
-              <Button
-                variant="outlined"
-                size="small"
-                color="error"
-                startIcon={<DeleteSweepOutlined />}
-                onClick={() => setOpenEmptyLessons(true)}
-              >
+              <Button type="button" variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenEmptyLessons(true)}>
                 {t('Clear out')}
               </Button>
             </Field>
@@ -263,24 +239,12 @@ const Lessons: FunctionComponent<Props> = ({
             }}
             >
               <Field label={t('Questionnaire')}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  color="primary"
-                  startIcon={<SendOutlined />}
-                  onClick={() => setOpenSendLessons(true)}
-                >
+                <Button type="button" priority="secondary" size="sm" startIcon={<SendOutlined fontSize="small" />} onClick={() => setOpenSendLessons(true)}>
                   {t('Send')}
                 </Button>
               </Field>
               <Field label={t('Answers')}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  color="error"
-                  startIcon={<DeleteSweepOutlined />}
-                  onClick={() => setOpenResetAnswers(true)}
-                >
+                <Button type="button" variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenResetAnswers(true)}>
                   {t('Reset')}
                 </Button>
               </Field>
@@ -390,10 +354,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenResetAnswers(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenResetAnswers(false)}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="primary" onClick={resetAnswers}>
+          <Button type="button" onClick={resetAnswers}>
             {t('Reset')}
           </Button>
         </DialogActions>
@@ -412,10 +376,10 @@ const Lessons: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenEmptyLessons(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenEmptyLessons(false)}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="primary" onClick={emptyLessons}>
+          <Button type="button" onClick={emptyLessons}>
             {t('Clear out')}
           </Button>
         </DialogActions>
@@ -468,10 +432,10 @@ const Lessons: FunctionComponent<Props> = ({
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenAnonymize(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenAnonymize(false)}>
             {t('Cancel')}
           </Button>
-          <Button variant="contained" color="primary" onClick={toggleAnonymize}>
+          <Button type="button" onClick={toggleAnonymize}>
             {t('Anonymize')}
           </Button>
         </DialogActions>

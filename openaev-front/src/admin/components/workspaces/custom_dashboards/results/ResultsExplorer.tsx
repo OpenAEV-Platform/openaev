@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { HelpOutlineOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import { Box, Button, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type ComponentType, type FunctionComponent, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -284,15 +285,10 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
               hint={t('Adjust or clear the filters to widen the scope.')}
             />
             {canCreateAtomicTesting && scopedAttackPatternIds.length > 0 && (
-              <Button
-                variant="contained"
-                color="primary"
-                component={Link}
-                to={`/admin/atomic_testings/create?attack_patterns=${scopedAttackPatternIds.join(',')}`}
-                // Pull the CTA into the empty state's bottom padding.
-                sx={{ marginTop: -3 }}
-              >
-                {t('Create an atomic testing')}
+              <Button asChild style={{ marginTop: -3 }}>
+                <Link to={`/admin/atomic_testings/create?attack_patterns=${scopedAttackPatternIds.join(',')}`}>
+                  {t('Create an atomic testing')}
+                </Link>
               </Button>
             )}
           </Box>

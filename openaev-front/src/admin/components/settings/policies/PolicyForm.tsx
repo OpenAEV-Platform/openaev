@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { type FunctionComponent, useContext, useEffect } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 
@@ -69,14 +69,14 @@ const PolicyForm: FunctionComponent<Props> = ({
           inArticle={false}
           disabled={ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
         />
-        <div style={{ marginTop: 20 }}>
+        <div style={{
+          marginTop: 20,
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+        >
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={!isDirty || isSubmitting}
-            >
+            <Button type="submit" disabled={!isDirty || isSubmitting}>
               {t('Update')}
             </Button>
           </Can>

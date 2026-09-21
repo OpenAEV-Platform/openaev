@@ -43,13 +43,16 @@ const LessonsTemplateHeader = () => {
       title={lessonsTemplate.lessons_template_name}
       action={(
         <>
+          <LessonsTemplatePopover
+            variant="toggle"
+            lessonsTemplate={lessonsTemplate}
+          />
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
             <CreateLessonsTemplateCategory
               lessonsTemplateId={lessonsTemplateId}
               label={t('Add a category')}
             />
           </Can>
-          <LessonsTemplatePopover lessonsTemplate={lessonsTemplate} />
         </>
       )}
       stats={(

@@ -1,8 +1,6 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import {
-  Button, Dialog, DialogActions, DialogContent, DialogContentText,
-  IconButton, Menu, MenuItem,
-} from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
@@ -95,14 +93,13 @@ class OrganizationPopoverComponent extends Component {
       <div>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <IconButton
+            icon={<MoreVert fontSize="small" />}
+            aria-label={t('More actions')}
             onClick={this.handlePopoverOpen.bind(this)}
             aria-haspopup="true"
-            size="small"
-            color="primary"
-            sx={{ borderRadius: 1 }}
-          >
-            <MoreVert fontSize="small" />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
         </Can>
         <Menu
           anchorEl={this.state.anchorEl}
@@ -128,10 +125,10 @@ class OrganizationPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={this.handleCloseDelete.bind(this)}>
+            <Button type="button" priority="secondary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button variant="contained" color="primary" onClick={this.submitDelete.bind(this)}>
+            <Button type="button" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

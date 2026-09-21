@@ -24,6 +24,8 @@ import { type Option } from '../../../../utils/Option';
 interface BaseProps {
   label: string;
   labelPosition?: ComboboxLabelPosition;
+  /** Fixed width for a left-positioned label, so sibling rows line up. */
+  labelWidth?: number;
   options: Option[];
   onInputChange: (search: string) => void;
   required?: boolean;
@@ -46,7 +48,7 @@ interface MultipleProps extends BaseProps {
 type Props = SingleProps | MultipleProps;
 
 const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
-  const { label, labelPosition, options, onInputChange, required = false, error = false, helperText } = props;
+  const { label, labelPosition, labelWidth, options, onInputChange, required = false, error = false, helperText } = props;
   const { t } = useFormatter();
 
   const selected = useMemo(() => {
@@ -87,7 +89,13 @@ const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
       error={error}
       labelPosition={labelPosition}
     >
-      <ComboboxLabel>{label}</ComboboxLabel>
+      <ComboboxLabel style={labelWidth ? {
+        width: labelWidth,
+        flexShrink: 0,
+      } : undefined}
+      >
+        {label}
+      </ComboboxLabel>
       <ComboboxField>
         {props.multiple === true ? <ComboboxChips /> : null}
         <ComboboxInput />

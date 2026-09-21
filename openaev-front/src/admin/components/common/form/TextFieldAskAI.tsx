@@ -1,7 +1,6 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 // fds:keep-mui the AI prompt fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Menu, MenuItem, SvgIcon, TextField } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, Menu, MenuItem, SvgIcon, TextField } from '@mui/material';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
 
@@ -62,7 +61,6 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
   triggerAnchor,
   onTriggerClose,
 }) => {
-  const theme = useTheme();
   const externalTrigger = triggerAnchor !== undefined;
   const { t } = useFormatter();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
@@ -240,19 +238,16 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           >
             <span>
               <IconButton
-                size="medium"
+                icon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
+                aria-label={t('Ask AI')}
                 onClick={event =>
                   (isAvailable ? handleOpenMenu(event) : null)}
                 disabled={disabled || !isAvailable}
-                style={{
-                  marginTop: -4,
-                  color: isAvailable
-                    ? theme.palette.ai.main
-                    : theme.palette.action.disabled,
-                }}
-              >
-                <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />
-              </IconButton>
+                style={{ marginTop: -4 }}
+                variant="ia"
+                priority="tertiary"
+                size="md"
+              />
             </span>
           </EETooltip>
         )}
@@ -425,11 +420,12 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             />
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={handleCloseGenMessageOptions}>
+            <Button type="button" priority="secondary" onClick={handleCloseGenMessageOptions}>
               {t('Cancel')}
             </Button>
             <Button
-              disabled={messageInput.length === 0} // Disable button if messageInput is empty
+              type="button"
+              disabled={messageInput.length === 0}
               onClick={() => {
                 handleCloseGenMessageOptions();
                 if (useXtmOne) {
@@ -447,8 +443,6 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                   handleAskAi('genMessage');
                 }
               }}
-              variant="contained"
-              color="primary"
             >
               {t('Generate')}
             </Button>
@@ -513,10 +507,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             />
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={handleCloseGenMediaOptions}>
+            <Button type="button" priority="secondary" onClick={handleCloseGenMediaOptions}>
               {t('Cancel')}
             </Button>
             <Button
+              type="button"
               disabled={messageInput.length === 0}
               onClick={() => {
                 handleCloseGenMediaOptions();
@@ -535,8 +530,6 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
                   handleAskAi('genMedia');
                 }
               }}
-              variant="contained"
-              color="primary"
             >
               {t('Generate')}
             </Button>
@@ -572,17 +565,16 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
             </Select>
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={handleCloseToneOptions}>
+            <Button type="button" priority="secondary" onClick={handleCloseToneOptions}>
               {t('Cancel')}
             </Button>
             <Button
+              type="button"
               disabled={isContentEmpty()}
               onClick={() => {
                 handleCloseToneOptions();
                 handleAskAi('tone');
               }}
-              variant="contained"
-              color="primary"
             >
               {t('Generate')}
             </Button>

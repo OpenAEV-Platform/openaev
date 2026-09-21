@@ -1,5 +1,5 @@
-import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box, Card, CardActionArea, Chip, Typography } from '@mui/material';
+import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Card, CardActionArea, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
 
@@ -81,7 +81,8 @@ const InjectContractCard: FunctionComponent<Props> = ({
         'height': '100%',
         'borderRadius': 1,
         'overflow': 'hidden',
-        'borderColor': checked ? accent : theme.palette.divider,
+        // A choice card carries no outline: only the selected one does.
+        'borderColor': checked ? accent : 'transparent',
         'backgroundColor': checked
           ? alpha(accent, 0.06)
           : theme.palette.background.paper,
@@ -209,40 +210,18 @@ const InjectContractCard: FunctionComponent<Props> = ({
         >
           {primaryDomain && (
             <Chip
-              size="small"
-              icon={getIconByDomain(primaryDomain.domain_name, {
+              startIcon={getIconByDomain(primaryDomain.domain_name, {
                 fontSize: 13,
                 color: accent,
               })}
               label={primaryDomain.domain_name}
-              variant="outlined"
-              sx={{
-                'height': 20,
-                'fontSize': 10.5,
-                'fontWeight': 600,
-                'letterSpacing': '0.02em',
-                'textTransform': 'uppercase',
-                'borderColor': alpha(accent, 0.5),
-                'color': accent,
-                'backgroundColor': alpha(accent, 0.08),
-                'borderRadius': 0.75,
-                '& .MuiChip-icon': { marginLeft: 0.5 },
-              }}
+              color={accent}
             />
           )}
           {domains.length > 1 && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Chip
-                  size="small"
-                  label={`+${domains.length - 1}`}
-                  variant="outlined"
-                  sx={{
-                    height: 20,
-                    fontSize: 10.5,
-                    borderRadius: 0.75,
-                  }}
-                />
+                <Chip label={`+${domains.length - 1}`} />
               </TooltipTrigger>
               {domains.slice(1).map(d => d.domain_name).join(', ') && <TooltipContent>{domains.slice(1).map(d => d.domain_name).join(', ')}</TooltipContent>}
             </Tooltip>
@@ -291,32 +270,12 @@ const InjectContractCard: FunctionComponent<Props> = ({
           }}
           >
             {externalIds.slice(0, 2).map(externalId => (
-              <Chip
-                key={externalId}
-                size="small"
-                variant="outlined"
-                color="primary"
-                label={externalId}
-                sx={{
-                  height: 20,
-                  fontSize: 10.5,
-                  borderRadius: 0.75,
-                }}
-              />
+              <Chip key={externalId} label={externalId} severity="info" />
             ))}
             {externalIds.length > 2 && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label={`+${externalIds.length - 2}`}
-                    sx={{
-                      height: 20,
-                      fontSize: 10.5,
-                      borderRadius: 0.75,
-                    }}
-                  />
+                  <Chip label={`+${externalIds.length - 2}`} />
                 </TooltipTrigger>
                 {externalIds.slice(2).join(', ') && <TooltipContent>{externalIds.slice(2).join(', ')}</TooltipContent>}
               </Tooltip>

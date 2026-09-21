@@ -236,6 +236,10 @@ const Channel = () => {
             action={(
               <ButtonGroup
                 size="md"
+                // The only integrated run in the product: it sits in the
+                // library header row, a surface of its own. Every other group
+                // stands on the page ground and is isolated.
+                usecase="integrated"
                 value={previewMode}
                 onValueChange={value => setPreviewMode(value as 'dark' | 'light')}
                 // The global MuiToggleButtonGroup override pins the group to

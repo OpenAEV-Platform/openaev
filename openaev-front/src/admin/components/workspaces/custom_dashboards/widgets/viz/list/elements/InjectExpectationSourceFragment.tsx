@@ -1,7 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, type ChipEntity, type ChipSeverity, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DevicesOtherOutlined, Groups3Outlined, PersonOutlined } from '@mui/icons-material';
-import { Chip } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { type ComponentType } from 'react';
 
@@ -13,23 +11,25 @@ import useInjectExpectationTargetLabel from './useInjectExpectationTargetLabel';
 // Icon + accent per expectation target kind, so the source reads at a glance.
 const SOURCE_VISUALS: Record<string, {
   icon: ComponentType<{ style?: object }>;
-  color: string;
+  /** The chip's own tone: an entity token for a taxonomy, a severity otherwise. */
+  entity?: ChipEntity;
+  severity?: ChipSeverity;
 }> = {
   PLAYERS: {
     icon: PersonOutlined,
-    color: '#0fbcff',
+    severity: 'info',
   },
   TEAMS: {
     icon: Groups3Outlined,
-    color: '#26a96c',
+    entity: 'analyses',
   },
   ASSETS: {
     icon: DevicesOtherOutlined,
-    color: '#9575cd',
+    entity: 'victimology',
   },
   ASSETS_GROUPS: {
     icon: SelectGroup,
-    color: '#ffb300',
+    entity: 'arsenal',
   },
 };
 
@@ -44,7 +44,6 @@ const SOURCE_VISUALS: Record<string, {
  * formatjs with an empty translation.
  */
 const InjectExpectationSourceFragment = ({ element }: { element: EsBase }) => {
-  const theme = useTheme();
   const { t } = useFormatter();
   const target = getTargetTypeFromInjectExpectation(element as EsInjectExpectation);
   const targetName = useInjectExpectationTargetLabel(target.type, target.id);
@@ -53,7 +52,7 @@ const InjectExpectationSourceFragment = ({ element }: { element: EsBase }) => {
   }
   const visual = SOURCE_VISUALS[target.type] ?? {
     icon: DevicesOtherOutlined,
-    color: theme.palette.primary.main,
+    severity: 'neutral' as const,
   };
   const Icon = visual.icon;
   const kindLabel = t(target.label);
@@ -61,30 +60,13 @@ const InjectExpectationSourceFragment = ({ element }: { element: EsBase }) => {
     <Tooltip>
       <TooltipTrigger asChild>
         <Chip
-          icon={(
-            <Icon style={{
-              fontSize: 14,
-              color: visual.color,
-            }}
-            />
-          )}
+          // The chip tints its own leading icon with the resolved tone, so the
+          // glyph carries no colour of its own.
+          startIcon={<Icon style={{ fontSize: 14 }} />}
           label={targetName ?? kindLabel}
-          size="small"
-          variant="outlined"
-          sx={{
-            'height': 22,
-            'maxWidth': '100%',
-            'fontSize': 11,
-            'fontWeight': 600,
-            'borderRadius': 1,
-            // Kind fallbacks are lowercase i18n keys ("asset group"); real names
-            // must render verbatim (hostnames, emails...).
-            'textTransform': targetName ? 'none' : 'capitalize',
-            'color': visual.color,
-            'borderColor': alpha(visual.color, 0.4),
-            'backgroundColor': alpha(visual.color, 0.08),
-            '& .MuiChip-icon': { marginLeft: 0.5 },
-          }}
+          entity={visual.entity}
+          severity={visual.severity}
+          style={{ maxWidth: '100%' }}
         />
       </TooltipTrigger>
       {(targetName ? `${targetName} (${kindLabel})` : kindLabel) && <TooltipContent>{targetName ? `${targetName} (${kindLabel})` : kindLabel}</TooltipContent>}

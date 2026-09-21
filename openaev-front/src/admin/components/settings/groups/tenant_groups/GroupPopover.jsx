@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
@@ -178,7 +179,7 @@ class GroupPopoverComponent extends Component {
     return (
       <>
 
-        <ButtonPopover entries={entries} variant="icon" />
+        <ButtonPopover entries={entries} variant={this.props.variant ?? 'icon'} />
         <Dialog
           open={this.state.openDelete}
           TransitionComponent={Transition}
@@ -191,10 +192,10 @@ class GroupPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button variant="outlined" color="primary" onClick={this.handleCloseDelete.bind(this)}>
+            <Button type="button" priority="secondary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button variant="contained" color="error" onClick={this.submitDelete.bind(this)}>
+            <Button type="button" variant="destructive" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>
@@ -241,6 +242,8 @@ class GroupPopoverComponent extends Component {
 
 GroupPopoverComponent.propTypes = {
   t: PropTypes.func,
+  /** `toggle` in a detail header — the 36px kebab that lines up with the header controls. */
+  variant: PropTypes.string,
   group: PropTypes.object,
   fetchGroup: PropTypes.func,
   updateGroupUsers: PropTypes.func,

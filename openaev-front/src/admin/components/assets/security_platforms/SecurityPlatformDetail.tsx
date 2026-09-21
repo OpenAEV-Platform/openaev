@@ -1,7 +1,7 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BlockOutlined, GppMaybeOutlined, HelpOutlineOutlined, KeyboardArrowRight, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
@@ -39,6 +39,7 @@ import {
   type Widget,
 } from '../../../../utils/api-types';
 import { computeInjectExpectationLabel, computeStatusStyle } from '../../../../utils/statusUtils';
+import { tint } from '../../../../utils/tint';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import expectationIconByType, { expectationTypeIcon } from '../../common/ExpectationIconByType';
 import ExpectationTypeChip from '../../workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip';
@@ -209,7 +210,7 @@ const SecurityPlatformDetail: FunctionComponent = () => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 0.5,
-              backgroundColor: alpha(statusColor, 0.12),
+              backgroundColor: tint(statusColor, 12),
               color: statusColor,
               fontSize: 12,
               fontWeight: 700,
@@ -341,6 +342,7 @@ const SecurityPlatformDetail: FunctionComponent = () => {
         chips={<ItemSecurityPlatformType type={platform.security_platform_type} size="medium" />}
         action={(
           <SecurityPlatformPopover
+            variant="toggle"
             securityPlatform={{
               ...platform,
               type: 'security-platform',

@@ -1,8 +1,9 @@
+import { Button, Chip } from '@filigran/design-system';
 import { AutoAwesomeOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
 // fds:keep-mui the AI generation fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon, TextField, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon, TextField, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
@@ -166,8 +167,6 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
   };
 
   const noAgents = Boolean(xtmOneConfigured) && !loadingAgents && agentOptions.length === 0;
-  const actionColor = isEnterpriseEdition ? 'ai.main' : 'action.disabled';
-  const actionBorderColor = isEnterpriseEdition ? 'ai.main' : 'action.disabledBackground';
 
   return (
     <div style={{
@@ -181,23 +180,9 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
           alignItems: 'center',
         }}
         >
-          <Button
-            type="button"
-            variant="outlined"
-            size="small"
-            onClick={handleOpen}
-            disabled={disabled}
-            aria-label={btnLabel}
-            startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
-            endIcon={isEnterpriseEdition ? undefined : <span><EEChip /></span>}
-            sx={{
-              height: 36,
-              whiteSpace: 'nowrap',
-              color: actionColor,
-              borderColor: actionBorderColor,
-            }}
-          >
+          <Button variant="ia" priority="secondary" size="sm" startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />} type="button" onClick={handleOpen} disabled={disabled} style={{ whiteSpace: 'nowrap' }}>
             {btnLabel}
+            {!isEnterpriseEdition && <EEChip />}
           </Button>
         </span>
       </EETooltip>
@@ -276,17 +261,9 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
                     <Chip
                       key={suggestion.label}
                       label={suggestion.label}
-                      size="small"
-                      variant="outlined"
-                      icon={<AutoAwesomeOutlined sx={{ fontSize: 14 }} />}
+                      startIcon={<AutoAwesomeOutlined sx={{ fontSize: 14 }} />}
                       onClick={() => applySuggestion(suggestion.instruction)}
                       disabled={loading}
-                      sx={{
-                        'borderColor': alpha(theme.palette.ai.main, 0.4),
-                        'color': 'text.secondary',
-                        '& .MuiChip-icon': { color: 'ai.main' },
-                        '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.08) },
-                      }}
                     />
                   ))}
                 </Box>
@@ -359,15 +336,10 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleClose}>
+          <Button type="button" priority="secondary" onClick={handleClose}>
             {t('Close')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            disabled={loading || !hasResult}
-            onClick={handleAccept}
-          >
+          <Button type="button" disabled={loading || !hasResult} onClick={handleAccept}>
             {t('Accept')}
           </Button>
         </DialogActions>

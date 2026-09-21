@@ -1,8 +1,7 @@
-import { Button, FormHelperText } from '@mui/material';
-import { type ChangeEvent, type CSSProperties, type FunctionComponent, useRef, useState } from 'react';
+import { type FileRejection, FileSelect } from '@filigran/design-system';
+import { type CSSProperties, type FunctionComponent } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
-import { bytesFormat } from '../../utils/number';
 import { useFormatter } from '../i18n';
 
 interface Props {
@@ -14,9 +13,9 @@ interface Props {
   disabled?: boolean;
 }
 
-const isAccepted = (file: File, filters?: string[]) => !filters || filters.length === 0
-  || filters.some(filter => file.type.includes(filter));
-
+// The form keeps a File[] — every consumer and the submit path read it that
+// way — while the field itself is single-choice, so the two are bridged here
+// rather than in the callers.
 const FileFieldController: FunctionComponent<Props> = ({
   name,
   label,
@@ -26,8 +25,13 @@ const FileFieldController: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const { control } = useFormContext();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [rejectedFile, setRejectedFile] = useState(false);
+
+  // `filters` holds mime FRAGMENTS ('image/', 'application/pdf'); the native
+  // accept attribute takes the same strings, a bare prefix reading as the
+  // wildcard it already is.
+  const accept = filters && filters.length > 0
+    ? filters.map(filter => (filter.endsWith('/') ? `${filter}*` : filter)).join(',')
+    : undefined;
 
   return (
     <Controller
@@ -35,49 +39,19 @@ const FileFieldController: FunctionComponent<Props> = ({
       control={control}
       render={({ field: { value, onChange }, fieldState: { error } }) => {
         const files: File[] = (value as File[]) ?? [];
-
-        const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-          const selectedFiles = [...(event.target.files ?? [])];
-          if (selectedFiles.length === 0) {
-            return;
-          }
-          // Reset value so selecting the same file again triggers onChange.
-          event.target.value = '';
-          const acceptedFiles = selectedFiles.filter(file => isAccepted(file, filters));
-          setRejectedFile(acceptedFiles.length === 0);
-          if (acceptedFiles.length > 0) {
-            onChange(acceptedFiles);
-          }
-        };
-
         return (
           <div style={style}>
-            <input
-              ref={inputRef}
-              style={{ display: 'none' }}
-              type="file"
+            <FileSelect
+              value={files[0] ?? null}
+              onValueChange={next => onChange(next ? [next as File] : [])}
+              triggerLabel={label ?? t('Select a file')}
+              accept={accept}
               disabled={disabled}
-              onChange={handleChange}
+              error={error?.message}
+              rejectionMessage={(rejections: FileRejection[]) => (rejections.length > 0
+                ? t('This file type is not accepted here.')
+                : '')}
             />
-            <Button
-              variant="outlined"
-              color="primary"
-              disabled={disabled}
-              onClick={() => inputRef.current?.click()}
-            >
-              {label ?? t('Select a file')}
-            </Button>
-            {rejectedFile && (
-              <FormHelperText error focused>
-                {t('This file type is not accepted here.')}
-              </FormHelperText>
-            )}
-            {!rejectedFile && files.map(file => (
-              <FormHelperText key={file.name} focused>
-                {`${file.name} - ${bytesFormat(file.size).number}${bytesFormat(file.size).symbol}`}
-              </FormHelperText>
-            ))}
-            {error && <FormHelperText error>{error.message}</FormHelperText>}
           </div>
         );
       }}

@@ -14,6 +14,7 @@ import {
 } from '../../../../../utils/api-types';
 import { CustomDashboardContext, type ParameterOption } from '../CustomDashboardContext';
 import { determinePercentage } from './viz/domains/SecurityDomainsWidgetUtils';
+import { SampleReportContext } from './viz/sample/SampleContext';
 import WidgetTitle from './WidgetTitle';
 import { type WidgetVizData, WidgetVizDataType } from './WidgetUtils';
 import WidgetViz from './WidgetViz';
@@ -57,6 +58,9 @@ const WidgetWrapper = ({
   const [contentLoading, setContentLoading] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState<string>('');
+  // The visualization knows whether it is previewing sample data; the title row
+  // is where the marker belongs, so the card carries the flag between them.
+  const [sample, setSample] = useState(false);
   const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths, fetchAverage } = useContext(CustomDashboardContext);
   // A dashboard tile is small and its pagination lives in the title row, so it
   // paginates at a tile-friendly page size (loading 100 rows into a tile never
@@ -245,44 +249,47 @@ const WidgetWrapper = ({
     : undefined;
 
   return (
-    <div style={{
-      height: '100%',
-      padding: theme.spacing(1.5),
-    }}
-    >
-      <WidgetTitle
-        widget={widget}
-        setFullscreen={handleSetFullscreen}
-        handleWidgetUpdate={handleWidgetUpdate}
-        handleWidgetDelete={handleWidgetDelete}
-        readOnly={readOnly}
-        vizData={vizData}
-        rightSlot={listPagination}
-      />
-      <ErrorBoundary>
-        {isResizing ? (<div />) : (
-          <div
-            style={{ height: 'calc(100% - 32px)' }}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-          >
-            {initialLoading ? (
-              <Loader variant="inElement" />
-            ) : (
-              <WidgetViz
-                widget={widget}
-                fullscreen={fullscreen}
-                setFullscreen={handleSetFullscreen}
-                vizData={vizData}
-                errorMessage={errorMessage}
-                onPaginationChange={onPaginationChange}
-                contentLoading={contentLoading}
-              />
-            )}
-          </div>
-        )}
-      </ErrorBoundary>
-    </div>
+    <SampleReportContext.Provider value={setSample}>
+      <div style={{
+        height: '100%',
+        padding: theme.spacing(1.5),
+      }}
+      >
+        <WidgetTitle
+          widget={widget}
+          setFullscreen={handleSetFullscreen}
+          handleWidgetUpdate={handleWidgetUpdate}
+          handleWidgetDelete={handleWidgetDelete}
+          readOnly={readOnly}
+          vizData={vizData}
+          rightSlot={listPagination}
+          sample={sample}
+        />
+        <ErrorBoundary>
+          {isResizing ? (<div />) : (
+            <div
+              style={{ height: 'calc(100% - 32px)' }}
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+            >
+              {initialLoading ? (
+                <Loader variant="inElement" />
+              ) : (
+                <WidgetViz
+                  widget={widget}
+                  fullscreen={fullscreen}
+                  setFullscreen={handleSetFullscreen}
+                  vizData={vizData}
+                  errorMessage={errorMessage}
+                  onPaginationChange={onPaginationChange}
+                  contentLoading={contentLoading}
+                />
+              )}
+            </div>
+          )}
+        </ErrorBoundary>
+      </div>
+    </SampleReportContext.Provider>
   );
 };
 

@@ -1,11 +1,11 @@
+import { Chip, type ChipSeverity } from '@filigran/design-system';
 import { EmailOutlined, NotificationsOutlined, WebhookOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { searchNotifiers } from '../../../../actions/notifications/notifier-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
-import colorStyles from '../../../../components/Color';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -40,14 +40,14 @@ const inlineStyles: Record<string, CSSProperties> = {
   notifier_built_in: { width: '15%' },
 };
 
-const typeChipStyle = (type?: string): CSSProperties => {
+const typeChipSeverity = (type?: string): ChipSeverity => {
   switch (type) {
     case 'EMAIL':
-      return colorStyles.green;
+      return 'low';
     case 'WEBHOOK':
-      return colorStyles.orange;
+      return 'medium';
     default:
-      return colorStyles.blue;
+      return 'info';
   }
 };
 
@@ -91,8 +91,7 @@ const Notifiers = () => {
         };
         return (
           <Chip
-            classes={{ root: classes.chipInList }}
-            style={typeChipStyle(notifier.notifier_type)}
+            severity={typeChipSeverity(notifier.notifier_type)}
             label={t(labels[notifier.notifier_type ?? 'UI'])}
           />
         );
@@ -110,11 +109,7 @@ const Notifiers = () => {
       isSortable: false,
       value: (notifier: NotifierOutput) => (notifier.notifier_built_in
         ? (
-            <Chip
-              classes={{ root: classes.chipInList }}
-              style={colorStyles.grey}
-              label={t('Built-in')}
-            />
+            <Chip label={t('Built-in')} severity="neutral" />
           )
         : undefined),
     },

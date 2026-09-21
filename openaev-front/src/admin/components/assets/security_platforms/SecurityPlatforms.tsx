@@ -124,6 +124,7 @@ const SecurityPlatforms = () => {
     <ButtonGroup
       value={viewMode}
       size="md"
+      usecase="isolated"
       onValueChange={handleViewModeChange}
       aria-label={t('View mode')}
     >

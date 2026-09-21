@@ -36,19 +36,22 @@ const headerStyles: {
     float: 'left',
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   variable_description: {
     float: 'left',
     width: '40%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   variable_value: {
     float: 'left',
     width: '40%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -108,7 +111,7 @@ const Variables: FunctionComponent<Props> = ({ variables }) => {
           <span
             style={{
               padding: '0 8px 0 10px',
-              fontWeight: 700,
+              fontWeight: 400,
               fontSize: 12,
             }}
           >

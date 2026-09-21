@@ -1,10 +1,10 @@
-import { Paper } from '@filigran/design-system';
+import { Paper, Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { PolicyOutlined, ShieldOutlined } from '@mui/icons-material';
-import { Box, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
-import { type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 
 import type { SecurityPlatformHelper } from '../../../../actions/assets/asset-helper';
@@ -99,10 +99,6 @@ const AtomicTestingRemediations = () => {
     }
     setTyping(!!snapshot?.get(tabs[activeTab]?.asset_id)?.isLoading);
   }, [tabs, activeTab]);
-
-  const handleActiveTabChange = (_: SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
 
   const activePlatformRemediations = useMemo(() => {
     const activePlatform = tabs[activeTab];
@@ -300,53 +296,33 @@ const AtomicTestingRemediations = () => {
     >
       <Tabs
         orientation="vertical"
-        variant="scrollable"
-        value={activeTab}
-        onChange={handleActiveTabChange}
-        aria-label={t('Security platforms')}
-        sx={{
-          'minWidth': 220,
-          'flexShrink': 0,
-          'borderRight': `1px solid ${theme.palette.divider}`,
-          '& .MuiTabs-indicator': {
-            left: 0,
-            width: 2,
-          },
-          '& .MuiTab-root': {
-            // The theme forces `display: inline-block` + lowercase on MuiTab for
-            // its `::first-letter` trick; restore the flex row so the platform
-            // logo and name align, and keep the platform name capitalised.
-            display: 'flex',
-            flexDirection: 'row',
-            textTransform: 'none',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            textAlign: 'left',
-            minHeight: 48,
-            gap: 1,
-            paddingX: 2,
-          },
+        value={String(activeTab)}
+        onValueChange={value => setActiveTab(Number(value))}
+        panels="external"
+        // A grid cell stretches the rail to the full height and width of the column.
+        style={{
+          display: 'grid',
+          minWidth: 220,
+          flexShrink: 0,
         }}
       >
-        {tabs.map((tab, index) => (
-          <Tab
-            key={tab.asset_id}
-            value={index}
-            iconPosition="start"
-            icon={(
-              <img
-                src={buildTenantApiPath(`/api/images/security_platforms/id/${tab.asset_id}/${theme.palette.mode}`)}
-                alt={tab.asset_name}
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 4,
-                }}
-              />
-            )}
-            label={<span>{tab.asset_name}</span>}
-          />
-        ))}
+        <TabsList aria-label={t('Security platforms')}>
+          {tabs.map((tab, index) => (
+            <TabsTrigger
+              key={tab.asset_id}
+              value={String(index)}
+              icon={(
+                <img
+                  src={buildTenantApiPath(`/api/images/security_platforms/id/${tab.asset_id}/${theme.palette.mode}`)}
+                  alt=""
+                  style={{ borderRadius: 4 }}
+                />
+              )}
+            >
+              {tab.asset_name}
+            </TabsTrigger>
+          ))}
+        </TabsList>
       </Tabs>
 
       <Box sx={{

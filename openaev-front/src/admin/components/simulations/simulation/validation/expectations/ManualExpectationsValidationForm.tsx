@@ -1,12 +1,6 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { Button, Chip, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Chip, Grid, Slider, Typography } from '@mui/material';
+import { Grid, Slider, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -24,7 +18,7 @@ import { useHelper } from '../../../../../../store';
 import { type Team, type User } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
-import { computeStatusStyle } from '../../../../../../utils/statusUtils';
+import { statusSeverity } from '../../../../../../utils/statusUtils';
 import { computeLabel, resolveUserName, truncate } from '../../../../../../utils/String';
 import { zodImplement } from '../../../../../../utils/Zod';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
@@ -122,9 +116,8 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
       <form id="expectationForm" onSubmit={handleSubmit(onSubmit)}>
         {withSummary && (
           <Chip
-            classes={{ root: classes.chipInList }}
-            style={computeStatusStyle(expectation.inject_expectation_status)}
             label={t(computeLabel(expectation.inject_expectation_status))}
+            severity={statusSeverity(expectation.inject_expectation_status)}
           />
         )}
         {withSummary && (
@@ -178,12 +171,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
         />
         {!hideActions && (
           <div className={classes.buttons}>
-            <Button
-              type="submit"
-              disabled={isSubmitting || isDisabled}
-              variant="contained"
-              color="primary"
-            >
+            <Button type="submit" disabled={isSubmitting || isDisabled}>
               {t('Validate')}
             </Button>
           </div>

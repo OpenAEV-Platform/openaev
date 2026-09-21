@@ -1,5 +1,6 @@
+import { Button, Chip } from '@filigran/design-system';
 import { Add } from '@mui/icons-material';
-import { Alert, Button, Chip, Link } from '@mui/material';
+import { Alert, Link } from '@mui/material';
 import { useEffect } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -45,6 +46,9 @@ const OutputFormTab = () => {
         helper={t('Each attribute extracts a structured value from the raw output.')}
         action={(
           <Button
+            type="button"
+            size="sm"
+            startIcon={<Add fontSize="small" />}
             onClick={() => outputElementAppend({
               contract_output_element_name: '',
               contract_output_element_key: '',
@@ -54,9 +58,6 @@ const OutputFormTab = () => {
               contract_output_element_rule: '',
               contract_output_element_regex_groups: [],
             })}
-            variant="contained"
-            size="small"
-            startIcon={<Add fontSize="small" />}
           >
             {t('add_attribute')}
           </Button>
@@ -68,18 +69,8 @@ const OutputFormTab = () => {
           gap: 8,
         }}
         >
-          <Chip
-            variant="outlined"
-            size="small"
-            sx={{ borderRadius: 1 }}
-            label={`${t('Output mode')} : ${t('Stdout')}`}
-          />
-          <Chip
-            variant="outlined"
-            size="small"
-            sx={{ borderRadius: 1 }}
-            label={`${t('Parsing')} : ${t('Regex')}`}
-          />
+          <Chip label={`${t('Output mode')} : ${t('Stdout')}`} />
+          <Chip label={`${t('Parsing')} : ${t('Regex')}`} />
         </div>
 
         {contractOutputElements.map((contracOutputElement, contractOutputElementIndex) => (

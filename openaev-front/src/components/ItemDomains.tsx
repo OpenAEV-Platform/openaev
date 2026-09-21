@@ -1,5 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Chip } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import PropTypes from 'prop-types';
 import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -11,24 +10,15 @@ import { getIconByDomain } from '../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../utils/domains/domainUtils';
 import { getLabelOfRemainingItems, truncate } from '../utils/String';
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
+  // `inline` left the chips on the text baseline, so a chip and the "+N" beside
+  // it sat 2.5px apart vertically, with a word space between them.
   inline: {
-    display: 'inline',
+    display: 'inline-flex',
     alignItems: 'center',
     flexWrap: 'nowrap',
+    gap: 4,
     overflow: 'hidden',
-  },
-  domainChip: {
-    height: theme.spacing(3),
-    fontSize: theme.typography.pxToRem(12),
-    marginRight: theme.spacing(1),
-    borderRadius: theme.shape.borderRadius,
-  },
-  domainChipInList: {
-    fontSize: theme.typography.pxToRem(12),
-    height: theme.spacing(2.5),
-    float: 'left',
-    textTransform: 'uppercase',
   },
 }));
 
@@ -59,13 +49,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
   }, [domains, allDomains]);
 
   let truncateLimit = 20;
-  let style = classes.domainChip;
-
-  if (variant === 'list') {
-    style = `${classes.domainChip} ${classes.domainChipInList}`;
-  }
   if (variant === 'reduced-view') {
-    style = `${classes.domainChip} ${classes.domainChipInList}`;
     truncateLimit = 12;
   }
 
@@ -76,18 +60,12 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
         <Tooltip key={domain.domain_id}>
           <TooltipTrigger asChild>
             <Chip
-              variant="outlined"
-              classes={{ root: style }}
-              icon={getIconByDomain(domain.domain_name, {
+              startIcon={getIconByDomain(domain.domain_name, {
                 fontSize: 14,
                 color: domain.domain_color,
               })}
-              label={truncate(domain.domain_name, truncateLimit)}
-              style={{
-                color: domain.domain_color,
-                borderColor: domain.domain_color,
-                backgroundColor: 'transparent',
-              }}
+              label={truncate(domain.domain_name, truncateLimit) ?? ''}
+              color={domain.domain_color}
             />
           </TooltipTrigger>
           {domain.domain_name && <TooltipContent>{domain.domain_name}</TooltipContent>}
@@ -105,18 +83,12 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
         <Tooltip>
           <TooltipTrigger asChild>
             <Chip
-              variant="outlined"
-              classes={{ root: style }}
-              icon={getIconByDomain(primaryDomain.domain_name, {
+              startIcon={getIconByDomain(primaryDomain.domain_name, {
                 fontSize: 14,
                 color: primaryDomain.domain_color,
               })}
-              label={truncate(primaryDomain.domain_name, truncateLimit)}
-              style={{
-                color: primaryDomain.domain_color,
-                borderColor: primaryDomain.domain_color,
-                backgroundColor: 'transparent',
-              }}
+              label={truncate(primaryDomain.domain_name, truncateLimit) ?? ''}
+              color={primaryDomain.domain_color}
             />
           </TooltipTrigger>
           {primaryDomain.domain_name && <TooltipContent>{primaryDomain.domain_name}</TooltipContent>}
@@ -125,11 +97,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
         {resolvedDomains.length > 1 && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Chip
-                variant="outlined"
-                classes={{ root: style }}
-                label={`+${resolvedDomains.length - 1}`}
-              />
+              <Chip label={`+${resolvedDomains.length - 1}`} />
             </TooltipTrigger>
             {tooltipLabel && <TooltipContent>{tooltipLabel}</TooltipContent>}
           </Tooltip>

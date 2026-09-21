@@ -1,6 +1,6 @@
-import { Paper, SearchField } from '@filigran/design-system';
+import { IconButton, Paper, SearchField } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Alert, Box, IconButton, Pagination, Typography } from '@mui/material';
+import { Alert, Box, Pagination, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import FindingIcon from '../../../../../components/FindingIcon';
@@ -91,9 +91,14 @@ const CategoryFindingsPanel = ({
           >
             {`${label} (${count})`}
           </Typography>
-          <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
-            <Close fontSize="small" />
-          </IconButton>
+          <IconButton
+            icon={<Close fontSize="small" />}
+            aria-label={t('Close')}
+            onClick={onClose}
+            style={{ flexShrink: 0 }}
+            priority="tertiary"
+            size="md"
+          />
         </Box>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
           {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}

@@ -9,14 +9,25 @@ import { compactNumber } from '../../../utils/number';
 // not trip react-refresh/only-export-components on this component file.
 import { SECTION_LABEL_SX } from './detailStyles';
 
-// A single labelled field inside an information section.
+// A single labelled field inside an information section. One shape for every
+// label/value pair in the product: the label in 12px secondary ink, 8px of
+// gap, the value under it in 14px primary ink.
 export const Field = ({ label, children }: {
   label: string;
   children: ReactNode;
 }) => (
   <div>
-    <Typography variant="h3" gutterBottom sx={{ fontSize: 12 }}>{label}</Typography>
-    <div>{children}</div>
+    <Typography
+      variant="h3"
+      sx={{
+        fontSize: 12,
+        color: 'text.secondary',
+        marginBottom: 1,
+      }}
+    >
+      {label}
+    </Typography>
+    <Typography component="div" sx={{ fontSize: 14 }}>{children}</Typography>
   </div>
 );
 
@@ -165,7 +176,12 @@ export const SectionBlock = ({ title, action, children, disablePadding, centerCo
     // `minmax(0, 1fr)`, not `1fr` — see Section above.
     gridTemplateColumns: 'minmax(0, 1fr)',
     gridTemplateRows: '1fr',
-    height: '100%',
+    // No `height: 100%` here. As a GRID item under DetailSections the block
+    // is already stretched to its row by `alignItems: stretch`, so the
+    // declaration bought nothing there — while inside a FLEX COLUMN (the
+    // channel page stacks two of these) every block claimed the whole column
+    // height at once and they drew on top of each other, hiding the first
+    // one's submit button under the next block.
     minHeight: 0,
   }}
   >

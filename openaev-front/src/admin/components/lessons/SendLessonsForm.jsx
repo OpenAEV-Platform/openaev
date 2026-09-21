@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
@@ -52,16 +52,10 @@ class SendLessonsFormComponent extends Component {
               marginTop: 20,
             }}
             >
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={handleClose.bind(this)}
-                style={{ marginRight: 10 }}
-                disabled={submitting || Object.keys(errors).length > 0}
-              >
+              <Button type="button" priority="secondary" onClick={handleClose.bind(this)} disabled={submitting || Object.keys(errors).length > 0} style={{ marginRight: 10 }}>
                 {t('Cancel')}
               </Button>
-              <Button variant="contained" color="primary" type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting}>
                 {t('Send')}
               </Button>
             </div>

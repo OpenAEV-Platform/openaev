@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   ArrowDownwardOutlined,
   ArrowForwardOutlined,
@@ -6,7 +6,7 @@ import {
   InfoOutlined,
   OpenInFullOutlined,
 } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type ReactNode, useContext } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -25,9 +25,11 @@ interface WidgetTitleProps {
   vizData: WidgetVizData;
   /** Extra content rendered at the right end of the title row (e.g. list pagination). */
   rightSlot?: ReactNode;
+  /** The body is previewing sample data: the marker belongs in this row. */
+  sample?: boolean;
 }
 
-const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData, rightSlot }: WidgetTitleProps) => {
+const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData, rightSlot, sample = false }: WidgetTitleProps) => {
   const { t } = useFormatter();
 
   const { customDashboardParameters, customDashboard } = useContext(CustomDashboardContext);
@@ -139,6 +141,9 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       >
         {widgetTitle}
       </Typography>
+      {/* `size="sm"` only exists for the EE symbol: the library refuses it elsewhere
+          and renders the default size, so it is not declared here. */}
+      {sample && <Chip label={t('Sample')} severity="neutral" />}
       {rightSlot}
       {isNumberWidget && numberTooltipContent && (
         <Tooltip>
@@ -156,14 +161,13 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       )}
       {isSecurityCoverage && (
         <IconButton
-          color="primary"
+          icon={<OpenInFullOutlined sx={{ fontSize: 16 }} />}
+          aria-label={t('Fullscreen')}
           className="noDrag"
           onClick={() => setFullscreen(true)}
-          size="small"
-          sx={{ padding: 0.5 }}
-        >
-          <OpenInFullOutlined sx={{ fontSize: 16 }} />
-        </IconButton>
+          priority="tertiary"
+          size="sm"
+        />
       )}
       {!readOnly && customDashboard && (
         <WidgetPopover

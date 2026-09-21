@@ -1,7 +1,9 @@
+import { IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { IconButton, ListItem, ListItemIcon, ListItemText, Skeleton, type SvgIconProps } from '@mui/material';
+import { ListItem, ListItemIcon, ListItemText, Skeleton, type SvgIconProps } from '@mui/material';
 import { type ComponentType, type CSSProperties, type FunctionComponent } from 'react';
 
+import { useFormatter } from '../../i18n';
 import { type Header } from '../SortHeadersList';
 
 interface Props {
@@ -19,6 +21,7 @@ const ListLoader: FunctionComponent<Props> = ({
   height = 50,
   number = 1,
 }) => {
+  const { t } = useFormatter();
   return (
     [...Array(number)].map((_, key) => (
       <ListItem
@@ -30,11 +33,12 @@ const ListLoader: FunctionComponent<Props> = ({
         }}
         secondaryAction={(
           <IconButton
-            size="large"
+            icon={<MoreVert fontSize="small" />}
+            aria-label={t('More actions')}
             disabled
-          >
-            <MoreVert fontSize="small" color="disabled" />
-          </IconButton>
+            priority="tertiary"
+            size="md"
+          />
         )}
       >
         <ListItemIcon>

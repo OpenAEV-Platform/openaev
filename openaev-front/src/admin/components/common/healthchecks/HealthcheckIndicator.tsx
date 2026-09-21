@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { ErrorOutlineOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { alpha, Box, Button, Popover, Typography } from '@mui/material';
+import { alpha, Box, Popover, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -32,7 +33,6 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
   }
 
   const hasError = healthchecks.some(healthcheck => healthcheck.status === 'ERROR');
-  const accent = hasError ? theme.palette.error.main : theme.palette.warning.main;
   const Icon = hasError ? ErrorOutlineOutlined : WarningAmberOutlined;
 
   const ordered = [...healthchecks].sort((a, b) => (a.status === 'ERROR' && b.status !== 'ERROR' ? -1 : 1));
@@ -69,22 +69,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
 
   return (
     <>
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<Icon sx={{ fontSize: 16 }} />}
-        onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
-        sx={{
-          'lineHeight': 'initial',
-          'color': accent,
-          'borderColor': alpha(accent, 0.4),
-          'backgroundColor': alpha(accent, 0.08),
-          '&:hover': {
-            borderColor: accent,
-            backgroundColor: alpha(accent, 0.14),
-          },
-        }}
-      >
+      <Button type="button" priority="tertiary" startIcon={<Icon fontSize="small" />} onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}>
         {healthchecks.length === 1
           ? t('1 to configure')
           : t('{count} to configure', { count: healthchecks.length })}
@@ -173,12 +158,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
                     {t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}
                   </Typography>
                 </Box>
-                <Button
-                  color="primary"
-                  size="small"
-                  sx={{ flexShrink: 0 }}
-                  onClick={() => goToHealthcheckAction(healthcheck.type!)}
-                >
+                <Button type="button" priority="tertiary" size="sm" onClick={() => goToHealthcheckAction(healthcheck.type!)} style={{ flexShrink: 0 }}>
                   {t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`)}
                 </Button>
               </Box>

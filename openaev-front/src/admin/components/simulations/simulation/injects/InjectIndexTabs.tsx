@@ -1,7 +1,5 @@
-import { Box, Tab, Tabs } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { BACK_LABEL, BACK_URI } from '../../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../../components/i18n';
@@ -9,14 +7,6 @@ import type { Exercise as ExerciseType, InjectResultOverviewOutput } from '../..
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { externalContractTypesWithFindings } from '../../../../../utils/injector_contract/InjectorContractUtils';
 import EEChip from '../../../common/entreprise_edition/EEChip';
-
-const useStyles = makeStyles()(theme => ({
-  item: {
-    height: 30,
-    fontSize: 13,
-    paddingRight: theme.spacing(1),
-  },
-}));
 
 interface Props {
   injectResultOverview: InjectResultOverviewOutput;
@@ -26,12 +16,13 @@ interface Props {
 }
 
 const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }: Props) => {
-  const { classes } = useStyles();
   const { t } = useFormatter();
-  const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+  const base = `/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}`;
   const tabValue = location.pathname;
+  const current = (path: string) => (tabValue === path ? 'page' : undefined);
+  const hasPayload = !!injectResultOverview.inject_injector_contract?.injector_contract_payload;
 
   const computePath = (path: string) => {
     if (backlabel && backuri) {
@@ -52,73 +43,39 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
       setEEFeatureDetectedInfo(t('Remediation'));
       openEnterpriseEditionDialog();
     } else {
-      navigate(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/remediations`);
+      navigate(`${base}/remediations`);
     }
   };
 
+  // Route-based tabs: the panels are the routed pages, so every tab is a real link.
   return (
-    <Tabs
-      value={tabValue}
-      sx={{
-        borderBottom: 1,
-        borderColor: 'divider',
-      }}
-    >
-      <Tab
-        component={Link}
-        to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}`)}
-        value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}`}
-        label={t('Overview')}
-        className={classes.item}
-      />
-      <Tab
-        component={Link}
-        to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/execution_details`)}
-        value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/execution_details`}
-        label={t('Execution details')}
-        className={classes.item}
-      />
-      {injectResultOverview.inject_injector_contract?.injector_contract_payload && (
-        <Tab
-          component={Link}
-          to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/payload_info`)}
-          value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/payload_info`}
-          label={t('Action details')}
-          className={classes.item}
-        />
-      )}
-      {(injectResultOverview.inject_injector_contract?.injector_contract_payload
-        || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
-        <Tab
-          component={Link}
-          to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/findings`)}
-          value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/findings`}
-          label={t('Findings')}
-          className={classes.item}
-        />
-      )}
-      {injectResultOverview.inject_injector_contract?.injector_contract_payload && (
-        <Tab
-          component={Link}
-          to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/remediations`)}
-          onClick={handleRemediationClick}
-          value={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/remediations`)}
-          label={(
-            <Box display="flex" alignItems="center">
+    <Tabs value={tabValue} panels="external">
+      <TabsList>
+        <TabsTrigger value={base} asChild>
+          <Link to={computePath(base)} aria-current={current(base)}>{t('Overview')}</Link>
+        </TabsTrigger>
+        <TabsTrigger value={`${base}/execution_details`} asChild>
+          <Link to={computePath(`${base}/execution_details`)} aria-current={current(`${base}/execution_details`)}>{t('Execution details')}</Link>
+        </TabsTrigger>
+        {hasPayload && (
+          <TabsTrigger value={`${base}/payload_info`} asChild>
+            <Link to={computePath(`${base}/payload_info`)} aria-current={current(`${base}/payload_info`)}>{t('Action details')}</Link>
+          </TabsTrigger>
+        )}
+        {(hasPayload || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
+          <TabsTrigger value={`${base}/findings`} asChild>
+            <Link to={computePath(`${base}/findings`)} aria-current={current(`${base}/findings`)}>{t('Findings')}</Link>
+          </TabsTrigger>
+        )}
+        {hasPayload && (
+          <TabsTrigger value={`${base}/remediations`} asChild>
+            <Link to={computePath(`${base}/remediations`)} onClick={handleRemediationClick} aria-current={current(`${base}/remediations`)}>
               {t('Remediations')}
-              {!isValidatedEnterpriseEdition && (
-                <EEChip style={{ marginLeft: theme.spacing(1) }} />
-              )}
-            </Box>
-          )}
-          className={classes.item}
-          // The theme forces `text-transform: lowercase` on `.MuiTab-root` and
-          // relies on a `::first-letter` uppercase trick that can't reach text
-          // nested in the flex label. Neutralise it on the root so the already
-          // capitalised, translated label renders verbatim ("Remediations").
-          sx={{ textTransform: 'none' }}
-        />
-      )}
+              {!isValidatedEnterpriseEdition && <EEChip />}
+            </Link>
+          </TabsTrigger>
+        )}
+      </TabsList>
     </Tabs>
   );
 };

@@ -1,4 +1,4 @@
-import { Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AddOutlined,
   BrushOutlined,
@@ -11,7 +11,7 @@ import {
   GroupsOutlined,
   InfoOutlined,
 } from '@mui/icons-material';
-import { Box, Button, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { Component, type ComponentType, type JSX, type ReactNode } from 'react';
 import { connect } from 'react-redux';
@@ -448,18 +448,13 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             {' '}
             {t('selected').toLowerCase()}
             <IconButton
+              icon={<ClearOutlined fontSize="small" />}
               aria-label="clear"
               disabled={numberOfSelectedElements === 0 || this.state.processing}
               onClick={() => handleClearSelectedElements()}
-              size="small"
-              color="primary"
-              sx={{
-                ml: 0,
-                p: 0.5,
-              }}
-            >
-              <ClearOutlined fontSize="small" />
-            </IconButton>
+              priority="tertiary"
+              size="md"
+            />
           </Typography>
           {info && (
             <Box
@@ -483,15 +478,16 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <IconButton
-                    aria-label="export"
-                    disabled={numberOfSelectedElements === 0 || this.state.processing}
-                    onClick={this.handleOpenExport.bind(this)}
-                    color="primary"
-                    size="small"
-                  >
-                    <FileDownloadOutlined fontSize="small" />
-                  </IconButton>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<FileDownloadOutlined fontSize="small" />}
+                      aria-label="export"
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={this.handleOpenExport.bind(this)}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
                 </span>
               </TooltipTrigger>
               <TooltipContent>{t('Export')}</TooltipContent>
@@ -501,15 +497,16 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <IconButton
-                    aria-label="update"
-                    disabled={numberOfSelectedElements === 0 || this.state.processing}
-                    onClick={this.handleOpenUpdate.bind(this)}
-                    color="primary"
-                    size="small"
-                  >
-                    <BrushOutlined fontSize="small" />
-                  </IconButton>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<BrushOutlined fontSize="small" />}
+                      aria-label="update"
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={this.handleOpenUpdate.bind(this)}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
                 </span>
               </TooltipTrigger>
               <TooltipContent>{t('Update')}</TooltipContent>
@@ -519,15 +516,16 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <IconButton
-                    aria-label="test"
-                    disabled={numberOfSelectedElements === 0 || this.state.processing}
-                    onClick={this.handleOpenBulkTest.bind(this)}
-                    color="primary"
-                    size="small"
-                  >
-                    <ForwardToInbox fontSize="small" />
-                  </IconButton>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<ForwardToInbox fontSize="small" />}
+                      aria-label="test"
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={this.handleOpenBulkTest.bind(this)}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
                 </span>
               </TooltipTrigger>
               <TooltipContent>{t('Test')}</TooltipContent>
@@ -537,15 +535,17 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <IconButton
-                    aria-label="delete"
-                    disabled={numberOfSelectedElements === 0 || this.state.processing}
-                    onClick={this.handleOpenBulkDelete.bind(this)}
-                    color="primary"
-                    size="small"
-                  >
-                    <DeleteOutlined fontSize="small" />
-                  </IconButton>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<DeleteOutlined fontSize="small" />}
+                      variant="destructive"
+                      aria-label="delete"
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={this.handleOpenBulkDelete.bind(this)}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
                 </span>
               </TooltipTrigger>
               <TooltipContent>{t('Delete')}</TooltipContent>
@@ -555,15 +555,16 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             <Tooltip key={toolTask.type}>
               <TooltipTrigger asChild>
                 <span>
-                  <IconButton
-                    aria-label={toolTask.type}
-                    disabled={numberOfSelectedElements === 0 || this.state.processing}
-                    onClick={toolTask.onClick}
-                    color="primary"
-                    size="small"
-                  >
-                    {toolTask.icon()}
-                  </IconButton>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={toolTask.icon()}
+                      aria-label={toolTask.type}
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={toolTask.onClick}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
                 </span>
               </TooltipTrigger>
               {(toolTask.title ?? '') && <TooltipContent>{toolTask.title ?? ''}</TooltipContent>}
@@ -594,18 +595,18 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                   }}
                 >
                   <IconButton
+                    icon={<CancelOutlined fontSize="small" />}
                     disabled={actionsInputs.length === 1}
                     aria-label="Delete"
-                    sx={{
+                    onClick={this.handleRemoveStep.bind(this, i)}
+                    style={{
                       position: 'absolute',
                       top: -2.5,
                       right: -2.5,
                     }}
-                    onClick={this.handleRemoveStep.bind(this, i)}
-                    size="small"
-                  >
-                    <CancelOutlined fontSize="small" />
-                  </IconButton>
+                    priority="tertiary"
+                    size="md"
+                  />
                   <Box sx={{
                     display: 'flex',
                     alignItems: 'flex-start',
@@ -645,17 +646,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                 </Box>
               ))}
             <Box>
-              <Button
-                disabled={!this.areStepValid()}
-                variant="contained"
-                color="secondary"
-                size="small"
-                onClick={this.handleAddStep.bind(this)}
-                sx={{
-                  width: '100%',
-                  height: 2.5,
-                }}
-              >
+              <Button type="button" priority="secondary" fullWidth aria-label={t('Add')} disabled={!this.areStepValid()} onClick={this.handleAddStep.bind(this)}>
                 <AddOutlined fontSize="small" />
               </Button>
             </Box>
@@ -664,13 +655,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               textAlign: 'right',
             }}
             >
-              <Button
-                disabled={!this.areStepValid()}
-                variant="contained"
-                color="primary"
-                onClick={this.handleLaunchUpdate.bind(this)}
-                sx={{ ml: 2 }}
-              >
+              <Button type="button" disabled={!this.areStepValid()} onClick={this.handleLaunchUpdate.bind(this)} style={{ marginLeft: 16 }}>
                 {t('Update')}
               </Button>
             </Box>

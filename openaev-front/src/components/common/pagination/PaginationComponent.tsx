@@ -1,4 +1,5 @@
-import { Box, Button, Chip, TablePagination } from '@mui/material';
+import { Button, Chip } from '@filigran/design-system';
+import { Box, TablePagination } from '@mui/material';
 import { type ChangeEvent, cloneElement, type MouseEvent as ReactMouseEvent, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -21,15 +22,18 @@ const useStyles = makeStyles()(() => ({
     display: 'flex',
     alignItems: 'center',
   },
+  // Same 16px, box to box, as the V2 list.
   parameters: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   parametersWithoutPagination: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   filters: {
     marginTop: 5,
@@ -175,7 +179,8 @@ const PaginationComponent = <T extends object>({
             <>
               <div style={{ cursor: 'pointer' }} onClick={() => setOpenMitreFilter(true)}>
                 <Button
-                  variant="outlined"
+                  type="button"
+                  priority="secondary"
                   style={{
                     marginLeft: searchEnable ? 10 : 0,
                     border: '1px solid #c74227',
@@ -240,12 +245,10 @@ const PaginationComponent = <T extends object>({
         <div className={classes.filters}>
           {!isEmptyFilter(searchPaginationInput.filterGroup, MITRE_FILTER_KEY) && (
             <Chip
-              style={{
-                borderRadius: 4,
-                marginTop: 5,
-              }}
               label={`Attack Pattern = ${computeAttackPatternNameForFilter()}`}
               onDelete={() => helpers.handleRemoveFilterByKey(MITRE_FILTER_KEY)}
+              style={{ marginTop: 5 }}
+              deleteLabel={t('Remove')}
             />
           )}
         </div>

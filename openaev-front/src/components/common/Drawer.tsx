@@ -1,11 +1,11 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Typography } from '@mui/material';
+import { Drawer as DrawerMUI, type PaperProps, Typography } from '@mui/material';
 import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { computeBannerSettings } from '../../public/components/systembanners/utils';
-import { getSeverityAndColor } from '../../utils/Colors';
+import { CVSS_SEVERITY, getSeverityAndColor } from '../../utils/Colors';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../utils/fdsLayer';
 import useAuth from '../../utils/hooks/useAuth';
 
@@ -111,7 +111,8 @@ const Drawer: FunctionComponent<DrawerProps> = ({
     }
   }
 
-  const { color } = getSeverityAndColor(additionalChipLabel);
+  // The chip takes the tone, not a colour: its `color` prop is hex-only.
+  const { severity } = getSeverityAndColor(additionalChipLabel);
 
   return (
     <DrawerMUI
@@ -166,24 +167,9 @@ const Drawer: FunctionComponent<DrawerProps> = ({
           {headerActions}
           {additionalTitle && (<Typography variant="subtitle1">{additionalTitle}</Typography>)}
           {additionalChipLabel && (
-            <Chip
-              label={additionalChipLabel}
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: color,
-                color: color,
-              }}
-            />
+            <Chip label={additionalChipLabel} severity={CVSS_SEVERITY[severity]} />
           )}
-          <IconButton
-            aria-label="Close"
-            onClick={handleClose}
-            size="small"
-            color="primary"
-          >
-            <Close color="primary" />
-          </IconButton>
+          <IconButton icon={<Close />} aria-label="Close" onClick={handleClose} priority="tertiary" size="md" />
         </div>
       </div>
       <div className={classes.container} style={containerStyle}>

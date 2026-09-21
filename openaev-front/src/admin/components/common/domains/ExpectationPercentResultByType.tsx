@@ -1,5 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Button, Icon, Typography } from '@mui/material';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Icon, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -36,15 +36,15 @@ const ExpectationPercentResultByType: FunctionComponent<Props> = ({ expectationT
         <Tooltip key={`${expectationType}-${d.key}`}>
           <TooltipTrigger asChild>
             <Button
+              type="button"
+              priority="tertiary"
+              size="sm"
               onClick={() => onExpectationResultClick(d.key)}
-              style={{ color: d.color }}
-              size="small"
-              sx={{
+              style={{
+                color: d.color,
                 margin: 0,
                 minWidth: 0,
-                fontSize: theme.typography.fontSize,
               }}
-              variant="text"
             >
               {formatPercentage(d.percentage ?? 0, 1)}
             </Button>

@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -165,12 +165,7 @@ const ChannelParametersForm: FunctionComponent<Props> = ({
             marginTop: 20,
           }}
           >
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={!isDirty || isSubmitting}
-            >
+            <Button type="submit" disabled={!isDirty || isSubmitting}>
               {t('Update')}
             </Button>
           </div>

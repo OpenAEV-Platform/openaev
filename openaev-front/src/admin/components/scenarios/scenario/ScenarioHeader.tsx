@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesome,
@@ -18,7 +18,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton } from '@mui/material';
+import { Box, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -614,13 +614,7 @@ const ScenarioHeader = ({
   if (isScheduled && !ended) {
     launchActions = (
       <>
-        <Button
-          startIcon={<Stop />}
-          variant="outlined"
-          color="inherit"
-          size="small"
-          onClick={stop}
-        >
+        <Button type="button" priority="secondary" startIcon={<Stop fontSize="small" />} onClick={stop}>
           {t('Stop')}
         </Button>
         {/* Even while scheduled, allow a one-off manual run outside
@@ -628,15 +622,17 @@ const ScenarioHeader = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Box component="span" sx={{ display: 'inline-flex' }}>
-              <IconButton
-                size="small"
-                color="primary"
-                onClick={handleLaunchNormal}
-                disabled={isScopeMissing}
-                data-testid="scenario-launch-now-button"
-              >
-                <PlayArrowOutlined fontSize="small" />
-              </IconButton>
+              <span className="inline-flex">
+                <IconButton
+                  icon={<PlayArrowOutlined fontSize="small" />}
+                  aria-label={t('Launch')}
+                  onClick={handleLaunchNormal}
+                  disabled={isScopeMissing}
+                  data-testid="scenario-launch-now-button"
+                  priority="tertiary"
+                  size="md"
+                />
+              </span>
             </Box>
           </TooltipTrigger>
           <TooltipContent>{isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now')}</TooltipContent>
@@ -649,15 +645,7 @@ const ScenarioHeader = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Box component="span" sx={{ display: 'inline-flex' }}>
-              <Button
-                startIcon={<PlayArrowOutlined />}
-                variant="contained"
-                color="primary"
-                size="small"
-                onClick={handleLaunchNormal}
-                disabled={isScopeMissing}
-                data-testid="scenario-launch-button"
-              >
+              <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
                 {t('Normal')}
               </Button>
             </Box>
@@ -678,19 +666,7 @@ const ScenarioHeader = ({
                   gap: 0.5,
                 }}
               >
-                <Button
-                  startIcon={<AutoAwesome />}
-                  variant="contained"
-                  size="small"
-                  onClick={() => openAiDrawerOrEE('launch')}
-                  data-testid="scenario-launch-autonomous-button"
-                  sx={{
-                    'whiteSpace': 'nowrap',
-                    'backgroundColor': theme.palette.ai.main,
-                    'color': theme.palette.ai.contrastText,
-                    '&:hover': { backgroundColor: theme.palette.ai.dark },
-                  }}
-                >
+                <Button type="button" variant="ia" priority="secondary" startIcon={<AutoAwesome fontSize="small" />} onClick={() => openAiDrawerOrEE('launch')} data-testid="scenario-launch-autonomous-button" style={{ whiteSpace: 'nowrap' }}>
                   {t('Autonomous')}
                 </Button>
                 {!isEnterpriseEdition && <EEChip />}
@@ -710,15 +686,7 @@ const ScenarioHeader = ({
       <Tooltip>
         <TooltipTrigger asChild>
           <Box component="span" sx={{ display: 'inline-flex' }}>
-            <Button
-              startIcon={<PlayArrowOutlined />}
-              variant="contained"
-              color="primary"
-              size="small"
-              onClick={handleLaunchNormal}
-              disabled={isScopeMissing}
-              data-testid="scenario-launch-button"
-            >
+            <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleLaunchNormal} disabled={isScopeMissing} data-testid="scenario-launch-button">
               {t('Launch')}
             </Button>
           </Box>
@@ -761,18 +729,7 @@ const ScenarioHeader = ({
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label={isScheduled ? t('Scheduled') : t('Not scheduled')}
-                    sx={{
-                      borderRadius: 1,
-                      height: 22,
-                      fontSize: 11,
-                      color: isScheduled ? theme.palette.success.main : theme.palette.text.disabled,
-                      borderColor: isScheduled ? alpha(theme.palette.success.main, 0.4) : theme.palette.divider,
-                    }}
-                  />
+                  <Chip label={isScheduled ? t('Scheduled') : t('Not scheduled')} severity="low" />
                 </TooltipTrigger>
                 {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
               </Tooltip>
@@ -794,31 +751,8 @@ const ScenarioHeader = ({
                   placement="warning"
                 />
               )}
-              {/* Configuration promoted to a first-class button (not buried in the
-                  overflow) so teams/players setup is discoverable, with an
-                  explicit tooltip describing what it configures. */}
-              {canOpenConfiguration && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      size="small"
-                      startIcon={<TuneOutlined />}
-                      onClick={() => {
-                        setConfigurationInitialTab(ScenarioConfigurationTab.TEAMS);
-                        setOpenConfiguration(true);
-                      }}
-                      data-testid="scenario-configuration-button"
-                    >
-                      {t('Configuration')}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('Configure the teams, players and audience targeted by this scenario')}</TooltipContent>
-                </Tooltip>
-              )}
-              {/* Dismissed drift downgraded to a discreet icon after Configuration -
-                  the drift is acknowledged but still reviewable. */}
+              {/* Dismissed drift downgraded to a discreet icon - the drift is
+                  acknowledged but still reviewable. */}
               {canManage && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
@@ -836,14 +770,13 @@ const ScenarioHeader = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      asChild
+                      icon={<EmojiEventsOutlined fontSize="small" />}
                       aria-label={t('Preview challenges page')}
-                      size="small"
-                      color="primary"
-                      component={Link}
-                      to={`/admin/scenarios/${scenarioId}/challenges`}
-                      target="_blank"
+                      priority="tertiary"
+                      size="md"
                     >
-                      <EmojiEventsOutlined fontSize="small" />
+                      <Link to={`/admin/scenarios/${scenarioId}/challenges`} target="_blank" />
                     </IconButton>
                   </TooltipTrigger>
                   <TooltipContent>{t('Preview challenges page')}</TooltipContent>
@@ -865,9 +798,13 @@ const ScenarioHeader = ({
                   />
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <IconButton aria-label={t('Scheduling')} size="small" color="primary" onClick={() => setOpenScheduling(true)}>
-                        <UpdateOutlined fontSize="small" />
-                      </IconButton>
+                      <IconButton
+                        icon={<UpdateOutlined fontSize="small" />}
+                        aria-label={t('Scheduling')}
+                        onClick={() => setOpenScheduling(true)}
+                        priority="tertiary"
+                        size="md"
+                      />
                     </TooltipTrigger>
                     <TooltipContent>{t('Scheduling')}</TooltipContent>
                   </Tooltip>
@@ -877,14 +814,13 @@ const ScenarioHeader = ({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <IconButton
+                          icon={<DashboardCustomizeOutlined fontSize="small" />}
                           aria-label={t('Scenario assistant')}
-                          size="small"
-                          color="primary"
                           onClick={() => navigate(`/admin/scenarios/${scenarioId}/assistant`)}
                           data-testid="scenario-assistant-button"
-                        >
-                          <DashboardCustomizeOutlined fontSize="small" />
-                        </IconButton>
+                          priority="tertiary"
+                          size="md"
+                        />
                       </TooltipTrigger>
                       <TooltipContent>{t('Scenario assistant')}</TooltipContent>
                     </Tooltip>
@@ -920,20 +856,14 @@ const ScenarioHeader = ({
                       }}
                     >
                       <IconButton
-                        size="small"
+                        icon={<AutoFixHigh fontSize="small" />}
                         onClick={() => openAiDrawerOrEE('build')}
                         aria-label={hasExistingLogic ? t('Rebuild with AI') : t('AI builder')}
                         data-testid="scenario-plan-with-ai-button"
-                        sx={{
-                          'color': theme.palette.ai.main,
-                          '&:hover': {
-                            color: theme.palette.ai.dark,
-                            backgroundColor: alpha(theme.palette.ai.main, 0.08),
-                          },
-                        }}
-                      >
-                        <AutoFixHigh fontSize="small" />
-                      </IconButton>
+                        variant="ia"
+                        priority="tertiary"
+                        size="md"
+                      />
                       {!isEnterpriseEdition && <EEChip />}
                     </Box>
                   </TooltipTrigger>
@@ -946,9 +876,9 @@ const ScenarioHeader = ({
               )}
               {/* Launch actions (suppressed while a run is active - the lifecycle controls own the
                   hero then). Resolved into `launchActions` above to avoid nested ternaries here. */}
-              {!isRunActive && canLaunch && launchActions}
               {/* Everything else - analyze, setup, and CRUD - in one overflow menu. Hidden entirely
-                  for grant-only users without any manage / launch / delete permission. */}
+                  for grant-only users without any manage / launch / delete permission. The menu
+                  closes the run of icon buttons; the two named actions follow it. */}
               {canDisplayScenarioActions && (
                 <ScenarioPopover
                   scenario={scenario}
@@ -956,6 +886,29 @@ const ScenarioHeader = ({
                   onDelete={() => navigate('/admin/scenarios')}
                 />
               )}
+              {/* Configuration promoted to a first-class button (not buried in the
+                  overflow) so teams/players setup is discoverable, with an
+                  explicit tooltip describing what it configures. */}
+              {canOpenConfiguration && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      priority="secondary"
+                      startIcon={<TuneOutlined fontSize="small" />}
+                      onClick={() => {
+                        setConfigurationInitialTab(ScenarioConfigurationTab.TEAMS);
+                        setOpenConfiguration(true);
+                      }}
+                      data-testid="scenario-configuration-button"
+                    >
+                      {t('Configuration')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Configure the teams, players and audience targeted by this scenario')}</TooltipContent>
+                </Tooltip>
+              )}
+              {!isRunActive && canLaunch && launchActions}
             </>
           )}
           stats={(
@@ -1069,12 +1022,11 @@ const ScenarioHeader = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
+          <Button type="button" priority="secondary" onClick={() => setOpenInstantiateSimulationAndStart(false)}>
             {t('Cancel')}
           </Button>
           <Button
-            variant="contained"
-            color="primary"
+            type="button"
             onClick={async () => {
               setOpenInstantiateSimulationAndStart(false);
               const exercise: Exercise = (await createRunningExerciseFromScenario(scenarioId)).data;

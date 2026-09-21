@@ -1,4 +1,4 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   ArrowBackOutlined,
   AutoAwesomeOutlined,
@@ -7,7 +7,8 @@ import {
   TrackChangesOutlined,
   TuneOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, IconButton, SvgIcon, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
+import { alpha, Box, SvgIcon, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { SelectGroup } from 'mdi-material-ui';
@@ -101,9 +102,13 @@ const TargetRow: FunctionComponent<{
       </Typography>
       <Tooltip>
         <TooltipTrigger asChild>
-          <IconButton size="small" aria-label={removeLabel} onClick={onRemove}>
-            <CloseOutlined sx={{ fontSize: 16 }} />
-          </IconButton>
+          <IconButton
+            icon={<CloseOutlined sx={{ fontSize: 16 }} />}
+            aria-label={removeLabel}
+            onClick={onRemove}
+            priority="tertiary"
+            size="sm"
+          />
         </TooltipTrigger>
         {removeLabel && <TooltipContent>{removeLabel}</TooltipContent>}
       </Tooltip>
@@ -220,7 +225,6 @@ const ScenarioAssistant: FunctionComponent = () => {
 
   // AI gradient, aligned with the Ask Ariane top-bar button: borderless,
   // gradient-painted label + AI-colored icon, subtle AI-tinted hover.
-  const aiGradient = `linear-gradient(90deg, ${theme.palette.ai.light} 0%, ${theme.palette.ai.main} 100%)`;
 
   return (
     <Box sx={{
@@ -239,9 +243,13 @@ const ScenarioAssistant: FunctionComponent = () => {
       >
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton onClick={() => navigate(listUrl)} aria-label={t('Back')} size="small">
-              <ArrowBackOutlined fontSize="small" />
-            </IconButton>
+            <IconButton
+              icon={<ArrowBackOutlined fontSize="small" />}
+              onClick={() => navigate(listUrl)}
+              aria-label={t('Back')}
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent>{t('Back')}</TooltipContent>
         </Tooltip>
@@ -250,37 +258,18 @@ const ScenarioAssistant: FunctionComponent = () => {
         </Typography>
         {aiEnabled && (
           <Button
-            variant="text"
+            type="button"
+            variant="ia"
+            priority="tertiary"
+            startIcon={<SvgIcon component={LogoXtmOneIcon} inheritViewBox fontSize="small" />}
             onClick={onUseAiClick}
-            startIcon={(
-              <SvgIcon
-                component={LogoXtmOneIcon}
-                inheritViewBox
-                sx={{
-                  fontSize: '20px !important',
-                  color: theme.palette.ai.main,
-                }}
-              />
-            )}
-            endIcon={!isEnterpriseEdition ? <span><EEChip /></span> : undefined}
-            sx={{
-              'marginLeft': 'auto',
-              'height': 36,
-              'paddingInline': 1.5,
-              'borderRadius': 1,
-              'fontWeight': 600,
-              'whiteSpace': 'nowrap',
-              '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.15) },
-              '& .assistant-ai-label': {
-                background: aiGradient,
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              },
-              '& .MuiButton-startIcon': { marginRight: '6px' },
+            style={{
+              marginLeft: 'auto',
+              whiteSpace: 'nowrap',
             }}
           >
-            <span className="assistant-ai-label">{t('Suggest TTPs with XTM One')}</span>
+            {t('Suggest TTPs with XTM One')}
+            {!isEnterpriseEdition && <EEChip />}
           </Button>
         )}
       </Box>
@@ -565,18 +554,7 @@ const ScenarioAssistant: FunctionComponent = () => {
               {t('~{count} injects', { count: estimatedInjects })}
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AutoAwesomeOutlined fontSize="small" />}
-            onClick={onSubmit}
-            sx={{
-              borderRadius: 1,
-              textTransform: 'none',
-              fontWeight: 600,
-              paddingInline: 2,
-            }}
-          >
+          <Button type="button" startIcon={<AutoAwesomeOutlined fontSize="small" />} onClick={onSubmit}>
             {t('Create injects')}
           </Button>
         </Box>

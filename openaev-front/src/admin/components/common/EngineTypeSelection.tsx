@@ -157,7 +157,8 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
             variant="outlined"
             sx={{
               'position': 'relative',
-              'borderColor': isSelected ? theme.palette.primary.main : undefined,
+              // A choice card carries no outline: only the selected one does.
+              'borderColor': isSelected ? theme.palette.primary.main : 'transparent',
               'borderWidth': isSelected ? 2 : 1,
               'opacity': isDisabled ? 0.6 : 1,
               'transition': 'border-color 0.2s, opacity 0.2s',

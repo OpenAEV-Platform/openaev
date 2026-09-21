@@ -1,4 +1,5 @@
-import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
@@ -7,7 +8,7 @@ import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { type TeamInputForm } from '../../../../actions/teams/Team';
 import { deleteTeam, updateTeam } from '../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../actions/teams/team-helper';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
@@ -23,6 +24,9 @@ import { TeamContext } from '../../common/Context';
 import TeamForm from './TeamForm';
 
 interface TeamPopoverProps {
+  /** Placement, forwarded to the kebab: `icon` in a list row, `toggle` in a
+      detail header, where the controls are 36px. */
+  variant?: VariantButtonPopover;
   team: Team | TeamOutput;
   managePlayers?: () => void;
   disabled?: boolean;
@@ -35,6 +39,7 @@ interface TeamPopoverProps {
 }
 
 const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
+  variant = 'icon',
   team,
   managePlayers,
   disabled,
@@ -180,7 +185,7 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
 
   return (
     <>
-      <ButtonPopover disabled={disabled} entries={entries} variant="icon" />
+      <ButtonPopover disabled={disabled} entries={entries} variant={variant} />
       <DialogDelete
         open={openDelete}
         handleClose={handleCloseDelete}
@@ -226,8 +231,8 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitRemove}>
+          <Button type="button" priority="secondary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitRemove}>
             {t('Remove')}
           </Button>
         </DialogActions>
@@ -244,8 +249,8 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseRemoveFromInject}>{t('Cancel')}</Button>
-          <Button variant="contained" color="primary" onClick={submitRemoveFromInject}>
+          <Button type="button" priority="secondary" onClick={handleCloseRemoveFromInject}>{t('Cancel')}</Button>
+          <Button type="button" onClick={submitRemoveFromInject}>
             {t('Remove')}
           </Button>
         </DialogActions>

@@ -1,7 +1,7 @@
-import { ButtonGroup, ButtonGroupItem, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Chip, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BarChartOutlined, KeyboardArrowRight, MailOutlined, ReorderOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link, useParams } from 'react-router';
@@ -41,36 +41,42 @@ const headerStyles = {
     float: 'left',
     width: '30%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_users_number: {
     float: 'left',
     width: '15%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_sent_at: {
     float: 'left',
     width: '15%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_communications_not_ack_number: {
     float: 'left',
     width: '10%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_communications_number: {
     float: 'left',
     width: '10%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_tags: {
     float: 'left',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -125,15 +131,6 @@ const Mails = () => {
   };
 
   // Mail count chips: theme-driven tones (read = primary, not read = error).
-  const comChipSx = color => ({
-    fontSize: 12,
-    height: 'fit-content',
-    textTransform: 'uppercase',
-    borderRadius: 1,
-    color,
-    backgroundColor: alpha(color, 0.08),
-    border: `1px solid ${alpha(color, 0.5)}`,
-  });
 
   // Filter and sort hook
   const searchColumns = ['title', 'description', 'content'];
@@ -196,6 +193,7 @@ const Mails = () => {
             </TeamContext.Provider>
           )}
           <ButtonGroup
+            usecase="isolated"
             value={viewMode}
             size="md"
             onValueChange={handleViewModeChange}
@@ -356,15 +354,12 @@ const Mails = () => {
                               </div>
                               <div style={inlineStyles.inject_communications_not_ack_number}>
                                 <Chip
-                                  sx={comChipSx(theme.palette.error.main)}
-                                  label={inject.inject_communications_not_ack_number}
+                                  severity="critical"
+                                  label={String(inject.inject_communications_not_ack_number)}
                                 />
                               </div>
                               <div style={inlineStyles.inject_communications_number}>
-                                <Chip
-                                  sx={comChipSx(theme.palette.primary.main)}
-                                  label={inject.inject_communications_number}
-                                />
+                                <Chip severity="info" label={String(inject.inject_communications_number)} />
                               </div>
                               <div style={inlineStyles.inject_tags}>
                                 <ItemTags variant="list" tags={inject.inject_tags} />

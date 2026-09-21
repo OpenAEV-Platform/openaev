@@ -1,6 +1,6 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, Close, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
@@ -105,10 +105,10 @@ const ScopeInventoryBox = ({
             accept=".csv,text/csv"
             onChange={handleFileChange}
           />
-          <Button size="small" onClick={onDownloadTemplate} startIcon={<FileDownloadOutlined />}>
+          <Button type="button" priority="tertiary" size="sm" startIcon={<FileDownloadOutlined fontSize="small" />} onClick={onDownloadTemplate}>
             {t('CSV template')}
           </Button>
-          <Button size="small" variant="text" onClick={handleOpenUpload} startIcon={<Add />}>
+          <Button type="button" priority="tertiary" size="sm" startIcon={<Add fontSize="small" />} onClick={handleOpenUpload}>
             {t('Add Bulk CSV')}
           </Button>
         </div>
@@ -134,27 +134,26 @@ const ScopeInventoryBox = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
+                icon={<Close fontSize="small" />}
                 aria-label={t('Clear all')}
-                size="small"
-                color="primary"
                 onClick={(e) => {
                   e.stopPropagation();
                   onClearAll();
                 }}
-                sx={{
+                style={{
                   position: 'absolute',
                   top: 4,
                   right: 4,
                 }}
-              >
-                <Close fontSize="small" />
-              </IconButton>
+                priority="tertiary"
+                size="sm"
+              />
             </TooltipTrigger>
             <TooltipContent>{t('Clear all')}</TooltipContent>
           </Tooltip>
         )}
         {chips.map(chip => (
-          <Chip key={chip.key} label={chip.label} size="small" onDelete={chip.onDelete} />
+          <Chip key={chip.key} label={chip.label} onDelete={chip.onDelete} deleteLabel={t('Remove')} />
         ))}
         <input
           ref={inputRef}
@@ -202,14 +201,12 @@ const ScopeInventoryBox = ({
             <Chip
               key={`${val}-${idx}`}
               label={val}
-              size="small"
-              color="primary"
-              variant="outlined"
-              onDelete={(e) => {
-                e.stopPropagation();
+              onDelete={() => {
                 const updated = parsedValues.filter((_, i) => i !== idx);
                 setInputValue(updated.join(', '));
               }}
+              severity="info"
+              deleteLabel={t('Remove')}
             />
           ))}
         </Paper>

@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { Add } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -41,13 +41,7 @@ const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent, readOn
         />
       </div>
       {!readOnly && (
-        <Button
-          color="primary"
-          startIcon={<Add />}
-          variant="contained"
-          onClick={onAddComponent}
-          sx={{ alignSelf: 'flex-end' }}
-        >
+        <Button type="button" startIcon={<Add fontSize="small" />} onClick={onAddComponent} style={{ alignSelf: 'flex-end' }}>
           {t('Add component')}
         </Button>
       )}

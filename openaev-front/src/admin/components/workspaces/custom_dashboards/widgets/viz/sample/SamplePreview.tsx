@@ -1,7 +1,9 @@
-import { Box, Chip } from '@mui/material';
-import { type ReactNode } from 'react';
+import { Chip } from '@filigran/design-system';
+import { Box } from '@mui/material';
+import { type ReactNode, useEffect } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
+import { useReportSample } from './SampleContext';
 
 interface Props {
   active: boolean;
@@ -22,6 +24,12 @@ interface Props {
  */
 const SamplePreview = ({ active, children, variant = 'full' }: Props) => {
   const { t } = useFormatter();
+  const reportSample = useReportSample();
+
+  useEffect(() => {
+    reportSample?.(active);
+    return () => reportSample?.(false);
+  }, [active, reportSample]);
 
   if (!active) {
     return <>{children}</>;
@@ -47,24 +55,24 @@ const SamplePreview = ({ active, children, variant = 'full' }: Props) => {
       >
         {children}
       </Box>
-      <Chip
-        label={t('Sample')}
-        size="small"
-        variant="outlined"
-        sx={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          height: 18,
-          fontSize: 9,
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'text.disabled',
-          borderColor: 'divider',
-          backgroundColor: 'background.paper',
-        }}
-      />
+      {/* Inside a widget card the marker is drawn by the title row instead
+          (SampleContext), so it sits in the card's corner level with the title. */}
+      {!reportSample && (
+        <Chip
+          label={t('Sample')}
+          severity="neutral"
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            // Above the preview it labels, always: the faded content below can
+            // carry its own positioned children, and a positioned sibling with
+            // no z-index paints in DOM order only until one of them raises
+            // itself.
+            zIndex: 1,
+          }}
+        />
+      )}
     </Box>
   );
 };

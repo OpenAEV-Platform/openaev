@@ -1,10 +1,10 @@
-import { ButtonGroup, ButtonGroupItem, Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   GridViewOutlined,
   LinkOffOutlined,
   ViewListOutlined,
 } from '@mui/icons-material';
-import { Box, IconButton, List, ListItem, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 
@@ -423,6 +423,7 @@ const ThreatArsenal = () => {
       <ButtonGroup
         value={viewMode}
         size="md"
+        usecase="isolated"
         onValueChange={handleViewModeChange}
         aria-label={t('View mode')}
       >
@@ -584,13 +585,12 @@ const ThreatArsenal = () => {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <IconButton
-                            size="small"
+                            icon={<LinkOffOutlined fontSize="small" />}
                             aria-label={t('Select orphaned actions')}
                             onClick={handleSelectOrphaned}
-                            sx={{ color: 'text.secondary' }}
-                          >
-                            <LinkOffOutlined fontSize="small" />
-                          </IconButton>
+                            priority="tertiary"
+                            size="sm"
+                          />
                         </TooltipTrigger>
                         <TooltipContent>{t('Select orphaned actions (no injector, no payload) to purge them at once')}</TooltipContent>
                       </Tooltip>

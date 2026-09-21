@@ -1,5 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Button } from '@mui/material';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type CSSProperties, type SyntheticEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -39,17 +38,9 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
           position: 'relative',
         }}
         >
-          <Button
-            variant={isEnterpriseEdition ? 'contained' : 'outlined'}
-            sx={{
-              color: isEnterpriseEdition ? 'primary' : 'action.disabled',
-              borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
-            }}
-            size="small"
-            onClick={onMigrateClickAction}
-            endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
-          >
+          <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="sm" onClick={onMigrateClickAction}>
             {t('Migrate')}
+            {!isEnterpriseEdition && <EEChip />}
           </Button>
         </div>
       </TooltipTrigger>

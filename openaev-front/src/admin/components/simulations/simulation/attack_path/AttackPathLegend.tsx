@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Box, Divider, IconButton, Paper, Typography } from '@mui/material';
+import { Box, Divider, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useRef, useState } from 'react';
 
@@ -168,16 +168,16 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
         {/* Negative margins swallow the icon button's hit-target padding so the header row stays
             as compact as the title and the icon centers on the title's baseline. */}
         <IconButton
-          size="small"
+          icon={open ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
           onClick={() => setOpen(o => !o)}
           aria-label={t('Toggle legend')}
-          sx={{
-            my: -0.5,
-            mr: -0.5,
+          style={{
+            marginBlock: -4,
+            marginRight: -0.5,
           }}
-        >
-          {open ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
-        </IconButton>
+          priority="tertiary"
+          size="sm"
+        />
       </Box>
       {!open && (
         // Minimal verdict-colour key stays visible when the legend is folded (e.g. a side panel

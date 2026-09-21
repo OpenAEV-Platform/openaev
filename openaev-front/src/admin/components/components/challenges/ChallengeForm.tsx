@@ -1,3 +1,4 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   ArrowDropDownOutlined,
@@ -6,17 +7,7 @@ import {
   ControlPointOutlined,
   DeleteOutlined,
 } from '@mui/icons-material';
-import {
-  Button,
-  Grid,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Typography,
-} from '@mui/material';
+import { Grid, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
@@ -77,19 +68,22 @@ const inlineStylesHeaders: Record<string, CSSProperties> = {
     float: 'left',
     width: '35%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   document_type: {
     float: 'left',
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   document_tags: {
     float: 'left',
     width: '30%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -329,17 +323,8 @@ const ChallengeForm: FunctionComponent<Props> = ({
             style={{ paddingTop: 0 }}
             secondaryAction={<>&nbsp;</>}
           >
-            <ListItemIcon>
-              <span
-                style={{
-                  padding: '0 8px 0 8px',
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                &nbsp;
-              </span>
-            </ListItemIcon>
+            {/* No icon spacer on the heading row: the first column heading is
+                flush with the block's left edge. */}
             <ListItemText
               primary={(
                 <div>
@@ -413,21 +398,25 @@ const ChallengeForm: FunctionComponent<Props> = ({
           />
         </List>
         <div style={{ marginTop: 30 }}>
-          <Typography variant="h2" style={{ float: 'left' }}>
-            {t('Flags')}
-          </Typography>
-          <IconButton
-            onClick={() => appendFlag(EMPTY_FLAG)}
-            size="small"
-            color="primary"
-            style={{
-              float: 'left',
-              margin: '-8px 0 0 10px',
-            }}
+          {/* A row, not two floats pulled back by a negative margin: the title
+              and its add button share one baseline that way. */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
           >
-            <ControlPointOutlined />
-          </IconButton>
-          <div className="clearfix" />
+            <Typography variant="h2" sx={{ marginBottom: 0 }}>
+              {t('Flags')}
+            </Typography>
+            <IconButton
+              icon={<ControlPointOutlined />}
+              aria-label={t('Add')}
+              onClick={() => appendFlag(EMPTY_FLAG)}
+              priority="tertiary"
+              size="sm"
+            />
+          </div>
           <List>
             {flagFields.map((flagField, index) => (
               <ListItem
@@ -448,13 +437,14 @@ const ChallengeForm: FunctionComponent<Props> = ({
                 />
                 {flagFields.length > 1 && (
                   <IconButton
+                    icon={<DeleteOutlined />}
+                    variant="destructive"
+                    aria-label={t('Delete')}
                     onClick={() => removeFlag(index)}
                     aria-haspopup="true"
-                    size="small"
-                    color="primary"
-                  >
-                    <DeleteOutlined />
-                  </IconButton>
+                    priority="tertiary"
+                    size="sm"
+                  />
                 )}
               </ListItem>
             ))}
@@ -465,21 +455,10 @@ const ChallengeForm: FunctionComponent<Props> = ({
           marginTop: 20,
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            style={{ marginRight: 10 }}
-            disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 10 }}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={isSubmitting || !isDirty}
-          >
+          <Button type="submit" disabled={isSubmitting || !isDirty}>
             {editing ? t('Update') : t('Create')}
           </Button>
         </div>

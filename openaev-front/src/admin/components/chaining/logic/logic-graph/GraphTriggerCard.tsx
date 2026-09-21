@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, BoltOutlined, MoreVert } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useState } from 'react';
 
@@ -227,18 +227,20 @@ const GraphTriggerCard = ({
 
         {!readOnly && (
           <IconButton
-            size="small"
-            sx={{ padding: 0.25 }}
+            icon={(
+              <MoreVert sx={{
+                fontSize: 18,
+                color: theme.palette.primary.main,
+              }}
+              />
+            )}
+            aria-label={t('More actions')}
             aria-haspopup="true"
             onPointerDown={e => e.stopPropagation()}
             onClick={handleMenuOpen}
-          >
-            <MoreVert sx={{
-              fontSize: 18,
-              color: theme.palette.primary.main,
-            }}
-            />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
         )}
 
         {!readOnly && onConnectStart && (
@@ -285,30 +287,23 @@ const GraphTriggerCard = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
+                icon={<AddOutlined sx={{ fontSize: 15 }} />}
                 aria-label={t('Add an action gated by this trigger')}
-                size="small"
                 onPointerDown={e => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   onAddAction(id);
                 }}
-                sx={{
-                  'position': 'absolute',
-                  'bottom': -13,
-                  'left': '50%',
-                  'transform': 'translateX(-50%)',
-                  'zIndex': 3,
-                  'width': 22,
-                  'height': 22,
-                  'padding': 0,
-                  'color': theme.palette.primary.contrastText,
-                  'backgroundColor': theme.palette.primary.main,
-                  'boxShadow': theme.shadows[2],
-                  '&:hover': { backgroundColor: theme.palette.primary.dark },
+                style={{
+                  position: 'absolute',
+                  bottom: -13,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 3,
                 }}
-              >
-                <AddOutlined sx={{ fontSize: 15 }} />
-              </IconButton>
+                priority="primary"
+                size="sm"
+              />
             </TooltipTrigger>
             <TooltipContent>{t('Add an action gated by this trigger')}</TooltipContent>
           </Tooltip>

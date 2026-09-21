@@ -1,7 +1,7 @@
-import { Checkbox } from '@filigran/design-system';
+import { Button, Checkbox, IconButton } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { Close, DragIndicatorOutlined } from '@mui/icons-material';
-import { AccordionDetails, Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { AccordionDetails, Box, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect } from 'react';
 
@@ -141,9 +141,13 @@ const WidgetColumnsCustomizationInput: FunctionComponent<WidgetConfigColumnsCust
                               height: 42,
                             }}
                             secondaryAction={(
-                              <IconButton onClick={() => handleToggleColumn(column.attribute)}>
-                                <Close />
-                              </IconButton>
+                              <IconButton
+                                icon={<Close />}
+                                aria-label={t('Remove')}
+                                onClick={() => handleToggleColumn(column.attribute)}
+                                priority="tertiary"
+                                size="md"
+                              />
                             )}
                           >
                             <ListItemIcon {...providedDrag.dragHandleProps}>
@@ -169,7 +173,7 @@ const WidgetColumnsCustomizationInput: FunctionComponent<WidgetConfigColumnsCust
           justifyContent: 'flex-end',
         }}
         >
-          <Button variant="outlined" onClick={() => onChange(defaultColumns)}>
+          <Button type="button" priority="secondary" onClick={() => onChange(defaultColumns)}>
             {t('Reset')}
           </Button>
         </Box>

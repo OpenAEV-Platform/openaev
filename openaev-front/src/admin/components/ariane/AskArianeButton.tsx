@@ -57,6 +57,7 @@ const AskArianeButton = () => {
   // The library's `ia` variant at tertiary priority IS this button's design.
   const buttonContent = (
     <Button
+      type="button"
       variant="ia"
       priority="tertiary"
       onClick={handleClick}

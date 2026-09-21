@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, CenterFocusStrongOutlined, RemoveOutlined } from '@mui/icons-material';
-import { Box, IconButton } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { toBlob } from 'html-to-image';
 import {
@@ -822,15 +822,6 @@ const AttackPathCanvas = ({
     };
   }, [exporting, theme.palette.background.default]);
 
-  const controlButtonSx = {
-    'padding': 0.75,
-    'color': theme.palette.primary.main,
-    'borderRadius': 0,
-    'borderBottom': `1px solid ${theme.palette.divider}`,
-    '&:last-of-type': { borderBottom: 'none' },
-    '&:hover': { backgroundColor: theme.palette.action.hover },
-  };
-
   const viewport: CanvasRect = {
     x: -camera.x / camera.zoom,
     y: -camera.y / camera.zoom,
@@ -962,43 +953,40 @@ const AttackPathCanvas = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <IconButton
-              size="small"
+              icon={<AddOutlined fontSize="small" />}
               aria-label={t('Zoom in')}
-              sx={controlButtonSx}
               onClick={() => zoomByButton(ZOOM_STEP)}
-            >
-              <AddOutlined fontSize="small" />
-            </IconButton>
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent side="right">{t('Zoom in')}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <IconButton
-              size="small"
+              icon={<RemoveOutlined fontSize="small" />}
               aria-label={t('Zoom out')}
-              sx={controlButtonSx}
               onClick={() => zoomByButton(1 / ZOOM_STEP)}
-            >
-              <RemoveOutlined fontSize="small" />
-            </IconButton>
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent side="right">{t('Zoom out')}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <IconButton
-              size="small"
+              icon={<CenterFocusStrongOutlined fontSize="small" />}
               aria-label={t('Fit to view')}
-              sx={controlButtonSx}
               onClick={() => {
               // A user asking for the big picture holds it: pursuit backs off for the manual pause.
                 markManual();
                 fitAll();
               }}
-            >
-              <CenterFocusStrongOutlined fontSize="small" />
-            </IconButton>
+              priority="tertiary"
+              size="sm"
+            />
           </TooltipTrigger>
           <TooltipContent side="right">{t('Fit to view')}</TooltipContent>
         </Tooltip>

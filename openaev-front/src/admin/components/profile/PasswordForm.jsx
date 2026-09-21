@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
@@ -43,13 +43,13 @@ class PasswordFormComponent extends Component {
               label={t('Confirmation')}
               style={{ marginTop: 20 }}
             />
-            <div style={{ marginTop: 20 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={pristine || submitting}
-              >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              marginTop: 20,
+            }}
+            >
+              <Button type="submit" disabled={pristine || submitting}>
                 {t('Update')}
               </Button>
             </div>

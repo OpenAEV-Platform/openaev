@@ -1,9 +1,10 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
+import { tint } from '../utils/tint';
 import { useFormatter } from './i18n';
 
 // Shared score-explainer dialog (posture score + attack-path chokepoints).
@@ -106,8 +107,8 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
           padding: 2,
           borderRadius: 1,
           marginBottom: 2,
-          border: `1px solid ${alpha(scoreColor, 0.3)}`,
-          background: alpha(scoreColor, 0.08),
+          border: `1px solid ${tint(scoreColor, 30)}`,
+          background: tint(scoreColor, 8),
         }}
         >
           <Typography sx={{
@@ -297,8 +298,8 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                     paddingBlock: 0.75,
                     paddingInline: 1,
                     borderRadius: 1,
-                    background: isCurrent ? alpha(entry.color, 0.1) : 'transparent',
-                    border: `1px solid ${isCurrent ? alpha(entry.color, 0.4) : 'transparent'}`,
+                    background: isCurrent ? tint(entry.color, 10) : 'transparent',
+                    border: `1px solid ${isCurrent ? tint(entry.color, 40) : 'transparent'}`,
                   }}
                 >
                   <Box sx={{
@@ -308,7 +309,7 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                     marginTop: 0.5,
                     flexShrink: 0,
                     background: entry.color,
-                    boxShadow: `0 0 6px ${alpha(entry.color, 0.7)}`,
+                    boxShadow: `0 0 6px ${tint(entry.color, 70)}`,
                   }}
                   />
                   <Box>
@@ -325,7 +326,7 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
         )}
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={onClose}>{t('Close')}</Button>
+        <Button type="button" priority="secondary" onClick={onClose}>{t('Close')}</Button>
       </DialogActions>
     </Dialog>
   );

@@ -1,5 +1,5 @@
 import { Paper } from '@filigran/design-system';
-import { Card, CardContent, IconButton, Typography } from '@mui/material';
+import { Box, Card, CardContent, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type { FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -44,7 +44,19 @@ const IconBar: FunctionComponent<Props> = ({ elements }) => {
         return (
           <Card
             key={element.name}
+            // The card is the click target: it carries the button semantics itself, so the icon
+            // inside stays decorative (it used to be an unlabelled IconButton).
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSelected}
             onClick={element.function}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                element.function();
+              }
+            }}
+            className="focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-focus"
             sx={{
               'flexGrow': 1,
               'flexShrink': 0,
@@ -61,16 +73,17 @@ const IconBar: FunctionComponent<Props> = ({ elements }) => {
             }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
-              <IconButton
-                size="large"
-                disableRipple
+              <Box
+                component="span"
                 sx={{
+                  'display': 'inline-flex',
+                  'p': 1.5,
                   'color': 'inherit',
                   '& svg': { fontSize: '2rem' },
                 }}
               >
                 {element.icon()}
-              </IconButton>
+              </Box>
               <Typography
                 variant="subtitle1"
                 noWrap

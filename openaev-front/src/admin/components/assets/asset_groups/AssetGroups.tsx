@@ -38,10 +38,12 @@ const useStyles = makeStyles()(() => ({
 
 const inlineStyles: Record<string, CSSProperties> = {
   asset_group_name: { width: '18%' },
-  asset_group_description: { width: '18%' },
-  asset_group_assets: { width: '30%' },
+  asset_group_description: { width: '14%' },
+  // The rules cell holds several chips on one line; the width it needs comes
+  // from the description and the tags, which truncate gracefully.
+  asset_group_assets: { width: '38%' },
   asset_group_posture: { width: '10%' },
-  asset_group_tags: { width: '24%' },
+  asset_group_tags: { width: '20%' },
 };
 
 const AssetGroups = () => {

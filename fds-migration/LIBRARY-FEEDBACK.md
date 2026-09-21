@@ -2413,3 +2413,83 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** The report structure rows carry one optional title per section on a single line: the label must sit left of the field so the row stays one line high next to its remove button. The product draws its own `<label htmlFor>` beside a label-less `Input` for now.
 
 **The request.** The same `labelPosition` on `Input` and `Textarea` as on `Combobox`, so a form row can keep the library label, its required marker and its tones when the label sits left.
+
+## 54. `Chip` cannot host the filter chip: its label is text only, and the and/or switch lives in the label
+
+**Status.** Open. Four filter chips kept on MUI (`fds:keep-mui`).
+
+**Measured.** `ChipProps.label` is `string` (`chip/Chip.tsx`, `dist/index.d.ts` at the pinned commit). The product's filter chip renders three clickable zones inside its label — the property, the operator and the values — each opening the edit popover, and the `and` / `or` word between two values toggles the filter mode on click. The popover edits the operator and the values, not the mode.
+
+**Product need.** Keep the filter editable from the chip without losing the mode switch. Converting to a text label with the whole chip clickable would drop the only place where the and/or mode can be changed.
+
+**The request.** Either a filter-bar composite in the library (the roadmap entry) or, on `Chip`, a way to render segments inside the label with their own click targets. Until then the filter chips (FilterChip, ClickableChip, assetGroupRules) stay on MUI.
+
+## 55. `TabsContent forceMount` stays visible when inactive
+
+**Status.** Open. Worked around in the product (`hidden` set by the caller on the inactive panels of the inject drawer).
+
+**Measured.** `TabsContent` forwards `forceMount` to the Radix content, which renders `hidden={!present}` — and `present` is always true under `forceMount` (`@radix-ui/react-tabs` dist, `TabsContent`). Every force-mounted panel of a tab set is therefore visible at once; only `data-state="inactive"` tells them apart, and the library ships no rule on it.
+
+**Product need.** The MUI `TabPanel keepMounted` pattern: panels that stay mounted so their forms keep their state, but only the active one is shown. The inject drawer relies on it for the inject form, the action details and the logical chains.
+
+**The request.** Hide an inactive force-mounted panel by default (`hidden` when `data-state="inactive"`, or a `data-[state=inactive]:hidden` class on `TabsContent`), so that `forceMount` means "kept mounted" rather than "always shown".
+
+## 56. `Button` does not size the icon in its `startIcon` / `endIcon` slot
+
+**Status.** Open. Worked around in the product (`fontSize="small"` on every MUI icon passed to a button, 20px).
+
+**Measured.** The slot is `<span class="inline-flex shrink-0" aria-hidden>` (`button/Button.tsx` at the pinned commit): no width, height or `[&>svg]` rule. A MUI icon renders at its own 24px in a 24px button; the design frames show a 16px glyph.
+
+**Product need.** 468 buttons converted by a codemod, a third of them with an icon: the icon size has to come from the slot, not from every call site.
+
+**The request.** Size the slot (16px, `[&>svg]:size-4`) so that any icon element reads the design size, as `IconButton` and `TabsTrigger` already do.
+
+## 57. `ButtonGroup` items are icon-only, the product's segmented controls carry text
+
+**Status.** Open. Seven `ToggleButtonGroup` sites kept on MUI (`fds:keep-mui`).
+
+**Measured.** `ButtonGroupItemProps` omits `children` and requires `icon` and `aria-label` (`button-group/ButtonGroup.tsx`, `dist/index.d.ts` at the pinned commit); the RFC scopes the component to icon-only segments and lists "Items carrying a text label — 10 OpenAEV sites" as out of scope (§7). The product's seven segmented controls are text: report format (PDF / DOCX…), new / existing dashboard, all / covered / gaps with counts, preview / code, all techniques / with actions, tenant / platform with the EE marker, the timeline scales.
+
+**Product need.** A segmented single-select whose segments are words, sometimes with a count or a marker beside the word.
+
+**The request.** A text-label variant of `ButtonGroupItem` (children as the label, `icon` optional), or a ruling that these controls become Tabs or Select. Until then the seven groups stay on MUI; the one standalone `ToggleButton` (the inject import menu trigger) was an icon-only menu button and is now an IconButton.
+
+## 58. No split button: a main action joined to a menu trigger
+
+**Status.** Open. One site kept on MUI (`fds:keep-mui`): the reporting page's "Generate now (format)" button joined to a format-menu arrow.
+
+**Measured.** The library has `Button`, `IconButton` and the icon-only `ButtonGroup` (a single-select), none of which renders two adjacent controls sharing one outline where the second opens a menu. Two library buttons side by side read as two actions, not one action with options.
+
+**Product need.** A primary action with a default (generate the report in the default format) and an adjacent trigger listing the alternatives (the other formats).
+
+**The request.** A split button composite, or a `Button` slot for a trailing menu trigger.
+
+## 59. `Button` has no colour override for an exceptional case
+
+**Status.** CLOSED by library #226 (merged 2026-09-17), consumed at the 2026-09-18 bump: the licence banner's action button renders the library Button with `color`, and its `fds:keep-mui` is gone.
+
+**Measured.** `ButtonProps` is `variant` × `priority` × `size`; the RFC's §7 excludes MUI's `color` ("covered by `variant`"). The licence banner paints its button in the banner's urgency colour (`#884106` yellow band, `#005744` green band, `#007399` blue band, white label): three colours that are neither brand, destructive, ia nor highlight, chosen to echo the band the button sits on.
+
+**Product need.** One button whose fill follows a colour decided outside the design system's four types, for an exceptional surface (a full-width urgency banner). The ruling: the library gains a prop for it, documented as exceptional on the docs site.
+
+**The request.** A `color` override on `Button`, an opaque fill for the primary priority with the label ink chosen by the library, documented as an exceptional use.
+
+## 60. `Button` does not default `type="button"`, unlike MUI and unlike the library's own `IconButton`
+
+**Status.** CLOSED by library #228 (merged 2026-09-18), consumed at the bump. The 362 explicit `type="button"` the product wrote stay: they are correct and now redundant, to be dropped in a later cleanup rather than churned inside this pull request.
+
+**Measured.** `Button.tsx` at the pinned commit never sets `type`, so the rendered `<button>` falls back to the HTML default, `submit`. MUI's `ButtonBase` resolves `type === undefined ? "button" : type` (`@mui/material/ButtonBase/ButtonBase.js`), and the library's own `IconButton` declares `type = "button"` as a default parameter. So a MUI button with no type never submitted, and its library replacement does.
+
+**What it cost.** The OpenAEV Button wave turned every such button into a submit button inside its form. Caught by the product's end-to-end suite, not by any type or lint gate: the threat-arsenal "New argument" button submitted the action form instead of appending a row, so the argument field never appeared (`tests_e2e/tests/threat-arsenals/threatArsenal-creation.spec.ts`, two tests, three attempts each). Verified on the running product after the fix: the field appears and the drawer stays open.
+
+**The request.** Default `type="button"` on `Button`, as `IconButton` already does and as MUI does — a button that must submit says so. Until then every consumer has to write it on every site, and the omission is silent.
+
+## 61. `PrimitiveColorToken` is declared but not exported
+
+**Status.** Open. Worked around in the product (the union is read off the prop).
+
+**Measured.** `dist/index.d.ts` at the bumped commit declares `type PrimitiveColorToken = keyof typeof PRIMITIVE_COLORS` and uses it for `ButtonProps["color"]`, but the type is absent from the package's exports: naming it in a consumer fails with TS2459, "declares 'PrimitiveColorToken' locally, but it is not exported".
+
+**Product need.** The licence banner maps three urgency bands to three tokens and needs to name that union in its own props (`TopBanner`, `LicenseBanner`). It currently derives it with `NonNullable<ComponentProps<typeof Button>['color']>`, which works but says nothing to a reader.
+
+**The request.** Export `PrimitiveColorToken` (and, if useful, `PRIMITIVE_COLORS`) from the package entry, next to `ButtonProps`.

@@ -7,6 +7,7 @@ import LogoText from '../static/images/logo_text_light.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
 import { FDS } from './fds-tokens.generated';
+import quietControlSpacing from './quietControlSpacing';
 import { FONT_FAMILY_CODE, INLINE_CONTROL_HEIGHT, type LabelColor, LabelColorDict } from './Theme';
 
 // Aligned with OpenCTI's light theme (opencti-front/src/components/ThemeLight.ts):
@@ -25,7 +26,9 @@ const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--bg-elevation-default-layer
 // flag: this specific, visibly-notable white -> #f2f2f3 shift is not signed off.
 const THEME_LIGHT_DEFAULT_NAV = '#ffffff';
 const THEME_LIGHT_DEFAULT_TEXT = '#18191B';
-export const THEME_LIGHT_DIALOG_BACKGROUND = '#FFFFFF';
+// Modal surface: the design system's layer-2 elevation, the light counterpart of
+// the dark modal ground.
+export const THEME_LIGHT_DIALOG_BACKGROUND = FDS.colors.light['--bg-elevation-default-layer-2'];
 
 const getAppBodyGradientEndColor = (background: string | null): string => {
   if (background && background !== THEME_LIGHT_DEFAULT_BACKGROUND) {
@@ -90,19 +93,23 @@ const ThemeLight = (
     },
     pagination: { main: '#000000' },
     chip: { main: '#000000' },
+    // The three label tones a user can pick, on the library's feedback tokens
+    // rather than on MUI's own hues — the name is the user's, the colour is
+    // the design system's, and it now differs per mode instead of being one
+    // value for both.
     labelChipMap: new Map<string, LabelColor>([
       [
         LabelColorDict.Red, {
-          backgroundColor: 'rgba(244, 67, 54, 0.08)',
-          color: '#f44336',
+          backgroundColor: FDS.colors.light['--color-feedback-error-secondary-transparency-30'],
+          color: FDS.colors.light['--color-feedback-error-primary'],
         }], [
         LabelColorDict.Green, {
-          backgroundColor: 'rgba(76, 175, 80, 0.08)',
-          color: '#4caf50',
+          backgroundColor: FDS.colors.light['--color-feedback-success-secondary-transparency-30'],
+          color: FDS.colors.light['--color-feedback-success-primary'],
         }], [
         LabelColorDict.Orange, {
-          backgroundColor: 'rgba(246,177,27,0.08)',
-          color: '#f19710',
+          backgroundColor: FDS.colors.light['--color-feedback-alert-secondary-transparency-30'],
+          color: FDS.colors.light['--color-feedback-alert-primary'],
         }],
     ]),
     ai: {
@@ -448,11 +455,21 @@ const ThemeLight = (
     MuiDialog: {
       styleOverrides: {
         paper: {
-          backgroundImage: 'none',
-          backgroundColor: paper === THEME_LIGHT_DEFAULT_PAPER
+          // A dialog is a layer-2 surface, but a var() inside a custom-property
+          // declaration is substituted where it is DECLARED (the root), so the
+          // three input aliases keep their layer-0 value however deep the layer
+          // class is applied - and layer-0's input colour is the very colour
+          // this surface is painted with, which leaves every field inside a
+          // dialog looking like it has no background. Declared here once, for
+          // every dialog, wrapped or raw. Same mechanism as utils/fdsLayer.ts.
+          '--bg-input-default': 'var(--bg-elevation-highlight-layer-2)',
+          '--bg-input-disabled': 'var(--bg-elevation-disabled-layer-2)',
+          '--bg-input-hover': 'var(--bg-elevation-hover-layer-2)',
+          'backgroundImage': 'none',
+          'backgroundColor': paper === THEME_LIGHT_DEFAULT_PAPER
             ? THEME_LIGHT_DIALOG_BACKGROUND
             : (paper ?? THEME_LIGHT_DIALOG_BACKGROUND),
-          borderRadius: 4,
+          'borderRadius': 4,
         },
       },
     },
@@ -494,8 +511,10 @@ const ThemeLight = (
     },
     MuiTooltip: {
       styleOverrides: {
-        tooltip: { backgroundColor: 'rgba(0,0,0,0.7)' },
-        arrow: { color: 'rgba(0,0,0,0.7)' },
+        // The few MUI tooltips left read on the same surface as the library's,
+        // instead of a black at 70% beside them.
+        tooltip: { backgroundColor: 'var(--border-elevation-subtle)' },
+        arrow: { color: 'var(--border-elevation-subtle)' },
         popper: {
           'textTransform': 'lowercase',
           '&::first-letter': { textTransform: 'uppercase' },
@@ -546,6 +565,9 @@ const ThemeLight = (
       },
     },
     // The date picker draws its own outlined input (MUI X), so the same paint as above.
+    // The picker draws its own field, so MuiTextField's outlined default never
+    // reaches it and the control fell back to the underlined standard variant.
+    MuiPickersTextField: { defaultProps: { variant: 'outlined' } },
     MuiPickersOutlinedInput: {
       styleOverrides: {
         root: {
@@ -573,7 +595,7 @@ const ThemeLight = (
         root: {
           'color': text_color,
           // Shrink = when at the top of the input in small size.
-          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#494A50' },
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: 'var(--text-default-secondary)' },
         },
       },
     },
@@ -592,11 +614,34 @@ const ThemeLight = (
       },
     },
     MuiPaper: { styleOverrides: { root: { color: text_color } } },
+    // An alert's body is text, so it reads in the primary ink like any other
+    // text; the severity is carried by the icon and the border, not by a
+    // tinted paragraph.
+    MuiAlert: {
+      styleOverrides: {
+        root: { color: text_color },
+        message: { color: text_color },
+      },
+    },
     // Design-system icon buttons are squared (4px radius) - never MUI's
     // default circle/oval ripple.
     MuiIconButton: { styleOverrides: { root: { borderRadius: 4 } } },
+    // A card that is a CHOICE — one that wraps its content in a clickable action
+    // area — lights up on hover. The fill belongs to the card, not to the action
+    // area: MUI paints its own hover overlay inside the card's 1px border, which
+    // leaves a ring of the resting surface all around it and reads as a border.
+    MuiCard: { styleOverrides: { root: { '&:has(.MuiCardActionArea-root:hover)': { backgroundColor: 'var(--bg-elevation-default-layer-3)' } } } },
+    MuiCardActionArea: {
+      styleOverrides: {
+        root: {
+          // The overlay would tint the card's own hover colour on top of it.
+          '&:hover .MuiCardActionArea-focusHighlight': { opacity: 0 },
+        },
+      },
+    },
     MuiCssBaseline: {
       styleOverrides: {
+        ...quietControlSpacing,
         html: {
           scrollbarColor: `${accent || THEME_LIGHT_DEFAULT_ACCENT} ${paper || THEME_LIGHT_DEFAULT_PAPER}`,
           scrollbarWidth: 'thin',
@@ -641,25 +686,23 @@ const ThemeLight = (
             fontWeight: 400,
             borderRadius: 4,
           },
+          // The editor is a field like any other: the input surface, a 4px
+          // radius and the same transparent-to-hover-to-focus border as an
+          // outlined input — not the underlined standard look it kept from
+          // before the form fields moved.
           '.w-md-editor': {
             'boxShadow': 'none',
-            'background': 'transparent',
-            'borderBottom': '1px solid rgba(0, 0, 0, 0.87) !important',
-            'transition': 'borderBottom .3s',
-            '&:hover': { borderBottom: '2px solid #000000 !important' },
-            '&:focus-within': { borderBottom: `2px solid ${primary || THEME_LIGHT_DEFAULT_PRIMARY} !important` },
+            'background': 'var(--bg-input-default)',
+            'borderRadius': 'var(--radius-sm)',
+            'border': '1px solid transparent',
+            'transition': 'border-color .3s',
+            '&:hover': { borderColor: 'var(--border-input-hover)' },
+            '&:focus-within': { borderColor: 'var(--border-input-focus)' },
           },
           '.error .w-md-editor': {
-            'border': '0 !important',
-            'borderBottom': '2px solid #F14337 !important',
-            '&:hover': {
-              border: '0 !important',
-              borderBottom: '2px solid #F14337 !important',
-            },
-            '&:focus': {
-              border: '0 !important',
-              borderBottom: '2px solid #F14337 !important',
-            },
+            'border': '1px solid var(--border-input-error) !important',
+            '&:hover': { border: '1px solid var(--border-input-error) !important' },
+            '&:focus-within': { border: '1px solid var(--border-input-error) !important' },
           },
           '.w-md-editor-toolbar': {
             border: '0 !important',
@@ -700,7 +743,13 @@ const ThemeLight = (
     // deviation until upstream fixes it.
     MuiTableCell: {
       styleOverrides: {
-        head: { borderBottom: '1px solid rgba(0, 0, 0, 0.15)' },
+        // A column heading names its column: secondary ink, like every other
+        // heading of a surface.
+        head: ({ theme }) => ({
+          borderBottom: '1px solid rgba(0, 0, 0, 0.15)',
+          color: theme.palette.text.secondary,
+          fontWeight: 400,
+        }),
         body: {
           borderTop: '1px solid rgba(0, 0, 0, 0.15)',
           borderBottom: '1px solid rgba(0, 0, 0, 0.15)',
@@ -764,7 +813,7 @@ const ThemeLight = (
       styleOverrides: {
         root: {
           // Shrink = when at the top of the input in small size.
-          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#494A50' },
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: 'var(--text-default-secondary)' },
           '& .MuiOutlinedInput-root': {
             // the only way for now to know if we should apply the paper color or not
             'backgroundColor': paper === THEME_LIGHT_DEFAULT_PAPER

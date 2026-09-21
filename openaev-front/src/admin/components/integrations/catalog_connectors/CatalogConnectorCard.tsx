@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, HelpCenterOutlined } from '@mui/icons-material';
-import { Box, Card, CardActionArea, CardContent, Chip, Stack, SvgIcon, Typography } from '@mui/material';
+import { Box, Card, CardActionArea, CardContent, Stack, SvgIcon, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
@@ -27,18 +27,6 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
 
   const hiddenCount = useCases.length - visibleCount;
   const hiddenUseCases = useCases.slice(visibleCount);
-
-  const chipSx = {
-    'fontSize': 12,
-    'lineHeight': '14px',
-    'borderRadius': 1,
-    'backgroundColor': 'rgba(0, 0, 0, 0.1)',
-    'maxWidth': '100%',
-    '& .MuiChip-label': {
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-    },
-  } as const;
 
   return (
     <Stack
@@ -70,13 +58,7 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
           >
             <Tooltip>
               <TooltipTrigger asChild>
-                <Chip
-                  variant="outlined"
-                  size="small"
-                  color="primary"
-                  label={prettifyUseCase(useCase)}
-                  sx={chipSx}
-                />
+                <Chip label={prettifyUseCase(useCase)} severity="info" />
               </TooltipTrigger>
               {prettifyUseCase(useCase) && <TooltipContent>{prettifyUseCase(useCase)}</TooltipContent>}
             </Tooltip>
@@ -86,16 +68,7 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
       {hiddenCount > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Chip
-              variant="outlined"
-              size="small"
-              color="primary"
-              label={`+${hiddenCount}`}
-              sx={{
-                ...chipSx,
-                flexShrink: 0,
-              }}
-            />
+            <Chip label={`+${hiddenCount}`} severity="info" style={{ flexShrink: 0 }} />
           </TooltipTrigger>
           {hiddenUseCases.map(prettifyUseCase).join(', ') && <TooltipContent>{hiddenUseCases.map(prettifyUseCase).join(', ')}</TooltipContent>}
         </Tooltip>

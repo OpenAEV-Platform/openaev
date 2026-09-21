@@ -45,6 +45,7 @@ import {
   type ThreatArsenalExpectationDetail,
 } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
+import { tint } from '../../../utils/tint';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
@@ -282,9 +283,9 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                     paddingInline: 1,
                     paddingBlock: 0.25,
                     borderRadius: 1,
-                    backgroundColor: alpha(statusColor, 0.18),
+                    backgroundColor: tint(statusColor, 18),
                     color: statusColor,
-                    border: `1px solid ${alpha(statusColor, 0.45)}`,
+                    border: `1px solid ${tint(statusColor, 45)}`,
                     fontSize: 10.5,
                     fontWeight: 700,
                     letterSpacing: '0.04em',
@@ -299,7 +300,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                       height: 6,
                       borderRadius: '50%',
                       backgroundColor: statusColor,
-                      boxShadow: `0 0 6px ${alpha(statusColor, 0.8)}`,
+                      boxShadow: `0 0 6px ${tint(statusColor, 80)}`,
                     }}
                   />
                   {t(statusLabel)}

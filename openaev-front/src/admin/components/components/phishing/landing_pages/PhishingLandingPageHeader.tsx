@@ -1,6 +1,5 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { PublicOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { Target } from 'mdi-material-ui';
 import { useContext } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -38,21 +37,14 @@ const PhishingLandingPageHeader = () => {
           {canCreateAtomicTesting && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                  startIcon={<Target />}
-                  onClick={() => navigate(`/admin/atomic_testings/create/${landingPageId}`)}
-                  data-testid="landing-page-create-atomic-testing-button"
-                >
+                <Button type="button" priority="secondary" startIcon={<Target fontSize="small" />} onClick={() => navigate(`/admin/atomic_testings/create/${landingPageId}`)} data-testid="landing-page-create-atomic-testing-button">
                   {t('Create atomic test')}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{t('Create an atomic testing that sends a phishing campaign using this landing page')}</TooltipContent>
             </Tooltip>
           )}
-          <PhishingLandingPagePopover landingPage={landingPage} />
+          <PhishingLandingPagePopover landingPage={landingPage} variant="toggle" />
         </>
       )}
     />

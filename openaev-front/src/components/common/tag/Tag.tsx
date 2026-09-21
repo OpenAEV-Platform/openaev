@@ -1,14 +1,13 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { CloseOutlined } from '@mui/icons-material';
-import { alpha, Chip, type ChipProps, lighten, type SxProps, type Theme, useTheme } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import type React from 'react';
-import { type CSSProperties, type ReactElement } from 'react';
 
-interface TagProps extends Omit<ChipProps, 'color'> {
-  label?: string | number | ReactElement | null;
+import { useFormatter } from '../../i18n';
+
+interface TagProps {
+  label?: string | number | null;
   color?: string | null;
   onClick?: (e: React.MouseEvent) => void;
-  onDelete?: (e: React.MouseEvent) => void;
+  onDelete?: () => void;
   maxWidth?: number | string;
   icon?: React.ReactElement;
   tooltipTitle?: string;
@@ -26,75 +25,19 @@ const Tag = ({
   tooltipTitle,
   disableTooltip = false,
   labelTextTransform = 'capitalize',
-  sx,
-  ...chipProps
 }: TagProps) => {
-  const theme = useTheme();
-  const defaultColor = theme.palette.severity?.default ?? '#004C66';
-
-  const getBackgroundColor = () => {
-    if (!color || color === defaultColor) {
-      return defaultColor;
-    }
-    try {
-      return alpha(color, 0.2);
-    } catch {
-      return defaultColor;
-    }
-  };
-
-  const bgColor = getBackgroundColor();
-
-  const chipStyle: CSSProperties = {
-    borderRadius: 4,
-    fontSize: 12,
-    fontWeight: 400,
-    paddingLeft: '8px',
-    cursor: onClick ? 'pointer' : 'default',
-    textTransform: labelTextTransform,
-  };
-
-  const sxStyles: SxProps<Theme> = {
-    'backgroundColor': bgColor,
-    '&:hover': { backgroundColor: onClick ? lighten(bgColor, 0.2) : undefined },
-    'maxWidth': typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth,
-    'height': 22,
-    '& .MuiChip-label': {
-      'overflow': 'hidden',
-      'textOverflow': 'ellipsis',
-      'whiteSpace': 'nowrap',
-      'display': 'block',
-      'paddingLeft': icon ? '8px' : '4px',
-      'paddingRight': onDelete ? '4px' : '12px',
-      'textTransform': labelTextTransform,
-      '&::first-letter': { textTransform: labelTextTransform },
-    },
-    ...(icon && {
-      '& .MuiChip-icon': {
-        color,
-        mr: 0.1,
-      },
-    }),
-    '& .MuiChip-deleteIcon': {
-      'color': '#F2F2F3',
-      'fontSize': 18,
-      '&:hover': { color: '#FFFFFF' },
-      'background': 'none',
-      'marginLeft': '8px',
-    },
-    ...sx,
-  };
+  const { t } = useFormatter();
+  const text = label == null ? '' : String(label);
 
   const chip = (
     <Chip
-      label={label}
-      icon={icon}
+      label={text}
+      startIcon={icon}
       onClick={onClick}
       onDelete={onDelete}
-      style={chipStyle}
-      sx={sxStyles}
-      deleteIcon={<CloseOutlined />}
-      {...chipProps}
+      deleteLabel={t('Remove')}
+      color={color ?? undefined}
+      style={{ maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth }}
     />
   );
 
@@ -104,9 +47,11 @@ const Tag = ({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>{chip}</TooltipTrigger>
+      <TooltipTrigger asChild>
+        {onClick ? chip : <span className="inline-flex">{chip}</span>}
+      </TooltipTrigger>
       <TooltipContent side="bottom" align="start" style={{ textTransform: labelTextTransform }}>
-        {tooltipTitle ?? label}
+        {tooltipTitle ?? text}
       </TooltipContent>
     </Tooltip>
   );

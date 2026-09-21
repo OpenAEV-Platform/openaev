@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
+import { Divider, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
 import { type CSSProperties, type Dispatch, type FunctionComponent, type ReactNode, type SetStateAction, useState } from 'react';
 
 import { useFormatter } from '../i18n';
@@ -22,7 +22,7 @@ export type VariantButtonPopover = 'toggle' | 'icon';
 interface Props {
   entries: PopoverEntry[];
   style?: CSSProperties;
-  /** @deprecated kept for API compatibility; every kebab renders the same OpenCTI-style compact squared button now. */
+  /** Placement: `icon` in a list row (24px kebab), `toggle` in a detail header (36px kebab, the height of the header controls). */
   variant?: VariantButtonPopover;
   disabled?: boolean;
   className?: string;
@@ -33,6 +33,7 @@ interface Props {
 const ButtonPopover: FunctionComponent<Props> = ({
   entries,
   style,
+  variant = 'icon',
   disabled = false,
   className,
 }) => {
@@ -53,10 +54,9 @@ const ButtonPopover: FunctionComponent<Props> = ({
       {visibleEntries.length > 0
         && (
           <IconButton
+            icon={<MoreVert fontSize="small" />}
             className={className}
             value="popover"
-            size="small"
-            color="primary"
             aria-label={t('More actions')}
             onClick={(ev) => {
               // The kebab may live inside a real link (card / row wrapped in a
@@ -69,10 +69,9 @@ const ButtonPopover: FunctionComponent<Props> = ({
             }}
             style={{ ...style }}
             disabled={allDisabled}
-            sx={{ borderRadius: 1 }}
-          >
-            <MoreVert fontSize="small" color={allDisabled ? 'disabled' : 'primary'} />
-          </IconButton>
+            priority="tertiary"
+            size={variant === 'toggle' ? 'md' : 'sm'}
+          />
         )}
       <Menu
         anchorEl={anchorEl}

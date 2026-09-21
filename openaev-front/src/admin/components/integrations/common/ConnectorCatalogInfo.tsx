@@ -30,6 +30,8 @@ const ResourceRow = ({ icon: Icon, title, caption, href, endAdornment }: {
   const theme = useTheme();
   const content = (
     <>
+      {/* The glyph carries the row, not a tile: no fill and no outline under
+          it, so the block reads as an icon beside its text. */}
       <div style={{
         width: 32,
         height: 32,
@@ -37,9 +39,6 @@ const ResourceRow = ({ icon: Icon, title, caption, href, endAdornment }: {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        border: `1px solid ${theme.palette.divider}`,
-        borderRadius: theme.shape.borderRadius,
-        backgroundColor: theme.palette.background.default,
       }}
       >
         <Icon sx={{

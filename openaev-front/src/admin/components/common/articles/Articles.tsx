@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { VisibilityOutlined } from '@mui/icons-material';
-import { IconButton, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { green, orange } from '@mui/material/colors';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
@@ -51,25 +51,29 @@ const headerStyles: {
     float: 'left',
     width: '30%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   article_author: {
     float: 'left',
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   article_channel: {
     float: 'left',
     width: '25%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   article_is_scheduled: {
     float: 'left',
     width: '25%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -239,13 +243,13 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      asChild
+                      icon={<VisibilityOutlined fontSize="small" />}
                       aria-label={t('Preview')}
-                      size="small"
-                      color="primary"
-                      component={Link}
-                      to={previewArticleUrl(article)}
+                      priority="tertiary"
+                      size="sm"
                     >
-                      <VisibilityOutlined fontSize="small" />
+                      <Link to={previewArticleUrl(article)} />
                     </IconButton>
                   </TooltipTrigger>
                   <TooltipContent>{t('Preview')}</TooltipContent>

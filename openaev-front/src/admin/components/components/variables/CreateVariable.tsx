@@ -56,6 +56,7 @@ const CreateVariable: FunctionComponent<Props> = ({ inline }) => {
         </ListItemButton>
       ) : (
         <Button
+          type="button"
           size="sm"
           startIcon={<AddOutlined fontSize="small" />}
           onClick={() => setOpen(true)}

@@ -1,4 +1,4 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   BlockOutlined,
   DnsOutlined,
@@ -9,7 +9,7 @@ import {
   PublicOutlined,
   TaskAltOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Chip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { type ReactElement, useState } from 'react';
@@ -158,17 +158,7 @@ const ScopeColumn = ({
           <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
             {title}
           </Typography>
-          <Chip
-            label={rules.length}
-            size="small"
-            sx={{
-              height: 20,
-              minWidth: 24,
-              fontWeight: 700,
-              color: accent,
-              backgroundColor: alpha(accent, 0.12),
-            }}
-          />
+          <Chip label={String(rules.length)} color={accent} />
           {infoTooltip && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -185,7 +175,7 @@ const ScopeColumn = ({
           )}
         </Box>
 
-        <Button size="small" startIcon={<EditOutlined />} onClick={onAdd} disabled={readOnly}>
+        <Button type="button" priority="tertiary" size="sm" startIcon={<EditOutlined fontSize="small" />} onClick={onAdd} disabled={readOnly}>
           {t('Define')}
         </Button>
       </Box>
@@ -223,7 +213,7 @@ const ScopeColumn = ({
                   return (
                     <Chip
                       key={rule.workflow_scope_rule_id ?? `${rule.workflow_scope_rule_source}-${rule.workflow_scope_rule_value}`}
-                      icon={(
+                      startIcon={(
                         <Box
                           component="span"
                           sx={{
@@ -237,13 +227,8 @@ const ScopeColumn = ({
                         </Box>
                       )}
                       label={rule.workflow_scope_rule_snapshot_start_label ?? label}
-                      size="small"
-                      variant="outlined"
-                      sx={{
-                        'maxWidth': '100%',
-                        'borderColor': alpha(accent, 0.35),
-                        '& .MuiChip-icon': { marginLeft: theme.spacing(0.75) },
-                      }}
+                      color={accent}
+                      style={{ maxWidth: '100%' }}
                     />
                   );
                 })}
@@ -267,7 +252,7 @@ const ScopeColumn = ({
           <Typography variant="body2" sx={{ color: 'text.disabled' }}>
             {t('Nothing added yet.')}
           </Typography>
-          <Button size="small" startIcon={<EditOutlined />} onClick={onAdd} disabled={readOnly}>
+          <Button type="button" priority="tertiary" size="sm" startIcon={<EditOutlined fontSize="small" />} onClick={onAdd} disabled={readOnly}>
             {t('Define')}
           </Button>
         </Box>
