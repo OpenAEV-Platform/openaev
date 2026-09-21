@@ -8128,6 +8128,7 @@ export interface NotificationTriggerInput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -8236,6 +8237,7 @@ export interface NotificationTriggerOutput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -10760,6 +10762,7 @@ export interface RoleInput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -10842,6 +10845,7 @@ export interface RoleOutput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -12857,6 +12861,16 @@ export interface UpdateExerciseInput {
   exercise_tags?: string[];
 }
 
+export interface UpdateMeEmailInput {
+  /** @minLength 1 */
+  user_current_password: string;
+  /**
+   * @format email
+   * @minLength 1
+   */
+  user_email: string;
+}
+
 export interface UpdateMePasswordInput {
   /** @minLength 1 */
   user_current_password: string;
@@ -12866,11 +12880,6 @@ export interface UpdateMePasswordInput {
 
 export interface UpdateProfileInput {
   user_country?: string;
-  /**
-   * @format email
-   * @minLength 1
-   */
-  user_email: string;
   /** @minLength 1 */
   user_firstname: string;
   user_home_dashboard?: string;
@@ -13001,6 +13010,7 @@ export interface User {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
