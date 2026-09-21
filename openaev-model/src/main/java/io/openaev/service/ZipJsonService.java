@@ -149,7 +149,8 @@ public class ZipJsonService<T extends Base> {
       String nameAttributeKey,
       IncludeOptions includeOptions,
       Function<T, T> sanityCheck,
-      String suffix)
+      String suffix,
+      String writeTenantId)
       throws IOException {
     ParsedZip parsed = this.readZip(fileBytes);
     JsonApiDocument<ResourceObject> doc = parsed.getDocument();
@@ -161,8 +162,8 @@ public class ZipJsonService<T extends Base> {
       }
     }
 
-    importer.handleImportDocument(doc, parsed.extras);
-    T persisted = importer.handleImportEntity(doc, includeOptions, sanityCheck);
+    importer.handleImportDocument(doc, parsed.extras, writeTenantId);
+    T persisted = importer.handleImportEntity(doc, includeOptions, sanityCheck, writeTenantId);
 
     return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted, doc);
   }

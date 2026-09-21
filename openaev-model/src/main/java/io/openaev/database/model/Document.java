@@ -16,16 +16,16 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
-@Setter
-@Getter
-@Entity
-@Table(name = "documents")
-@EntityListeners(ModelBaseListener.class)
 /**
  * Fully activated on multi-tenancy v2: reads are scoped by {@code TenantStatementInspector} and
  * writes are attributed explicitly by {@code TenantWriteScopeResolver} in the API/service layer, so
  * the v1 Hibernate filter and {@code TenantBaseListener} must not come back.
  */
+@Setter
+@Getter
+@Entity
+@Table(name = "documents")
+@EntityListeners(ModelBaseListener.class)
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Document.tags-scenarios-exercises",

@@ -277,11 +277,16 @@ public class DocumentService {
   private void removeDocumentAndFile(final String documentId) {
     List<Document> documents = documentRepository.removeById(documentId);
 
-    // Remove document from minio (best-effort: a missing file must not fail the row deletion)
+    // Remove document from minio (best-effort: a missing file must not fail the row deletion).
+    // Delete the object under the tenant that owns the removed row, not the ambient path: on the
+    // header route the ambient tenant may differ from the row's, and deleting through the ambient
+    // path would leave the real object behind while removing a same-hash object of another tenant.
     documents.forEach(
         documentToRemove -> {
           try {
-            fileService.deleteFile(documentToRemove.getTarget());
+            Tenant tenant = documentToRemove.getTenant();
+            String tenantId = tenant == null ? null : tenant.getId();
+            fileService.deleteFile(tenantId, documentToRemove.getTarget());
           } catch (Exception e) {
             log.warn(
                 "File already removed or not found in minio: {}", documentToRemove.getTarget(), e);

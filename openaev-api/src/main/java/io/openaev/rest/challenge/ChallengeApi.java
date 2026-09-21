@@ -63,7 +63,12 @@ public class ChallengeApi extends RestBehavior {
   @Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
       TxCtx ctx, @RequestBody @Valid @NotNull final List<String> challengeIds) {
-    return this.challengeRepository.findAll(fromIds(challengeIds));
+    // Return raw Challenge entities, so their lazy challenge_documents @ManyToMany would serialize
+    // open-in-view AFTER the scoped transaction commits and fail closed to an empty array once
+    // documents is v2-active. Force-initialize it inside the scope, exactly like the enrich path.
+    return this.challengeRepository.findAll(fromIds(challengeIds)).stream()
+        .map(challengeService::enrichChallengeWithExercisesOrScenarios)
+        .toList();
   }
 
   @PutMapping({CHALLENGE_URI + "/{challengeId}", TENANT_CHALLENGE_URI + "/{challengeId}"})

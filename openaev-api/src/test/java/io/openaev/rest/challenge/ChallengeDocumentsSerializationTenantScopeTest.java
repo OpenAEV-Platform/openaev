@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -115,6 +116,32 @@ class ChallengeDocumentsSerializationTenantScopeTest extends IntegrationTest {
         .andExpect(
             jsonPath(
                 "$[?(@.challenge_id=='" + challengeId + "')].challenge_documents[*]", empty()));
+  }
+
+  @Test
+  @DisplayName(
+      "given a challenge carrying a document when found by id then the document link is serialized")
+  void given_a_challenge_carrying_a_document_when_found_by_id_then_the_document_link_is_serialized()
+      throws Exception {
+    // -- Arrange --
+    String challengeId = seedChallenge("find-with-document");
+    String documentId = seedDocument("find-document");
+    linkDocumentToChallenge(challengeId, documentId);
+
+    // -- Act & Assert --
+    // POST /challenges/find returns raw Challenge entities too: without the in-scope
+    // force-initialize
+    // its lazy challenge_documents serializes as [] once documents is v2-active.
+    mvc.perform(
+            post(CHALLENGE_URI + "/find")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[\"" + challengeId + "\"]")
+                .with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath(
+                "$[?(@.challenge_id=='" + challengeId + "')].challenge_documents[*]",
+                hasItem(documentId)));
   }
 
   private String seedChallenge(String name) {
