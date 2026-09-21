@@ -17,6 +17,7 @@ import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -107,6 +108,7 @@ public class UserService {
   private MailingService mailingService;
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final TenantScopedTransaction tenantTx;
   private final ApplicationEventPublisher eventPublisher;
   private final ObjectProvider<AuditLogger> auditLoggerProvider;
@@ -280,6 +282,11 @@ public class UserService {
     List<String> allAffectedTenants = new ArrayList<>(oldTenantIds);
     allAffectedTenants.addAll(newTenantIds);
     tenantMembershipCacheManager.evictForUser(userId, allAffectedTenants);
+    // Group membership just changed (attach/detach), which can shrink the user's marking
+    // clearance; the cache is keyed by user and does not know about this write on its own.
+    if (!attachedTenantIds.isEmpty() || !detachedTenantIds.isEmpty()) {
+      markingClearanceCacheManager.evictForUser(userId);
+    }
     sessionManager.refreshUserSessions(savedUser);
     return savedUser;
   }
@@ -684,6 +691,9 @@ public class UserService {
    * Grants the auto-assign groups of the given tenants to an already persisted user. Used when a
    * user joins a tenant outside of the create/update flows, i.e. when attached from a tenant
    * screen.
+   *
+   * <p>Evicts the user's marking clearance cache: this is a {@code users_groups} write, and a stale
+   * cached clearance can only ever be too permissive, never too strict.
    */
   @Transactional(rollbackFor = Exception.class)
   public void assignAutoAssignGroups(
@@ -694,6 +704,7 @@ public class UserService {
     User user = user(userId);
     assignAutoAssignGroups(user, tenantIds, false);
     userRepository.save(user);
+    markingClearanceCacheManager.evictForUser(userId);
   }
 
   /**
@@ -729,6 +740,9 @@ public class UserService {
   /**
    * Revokes the groups of the given tenants from an already persisted user. Used when a user leaves
    * a tenant outside of the update flow, i.e. when detached from a tenant screen.
+   *
+   * <p>Evicts the user's marking clearance cache: a removed group can only shrink clearance, and a
+   * stale, larger cached entry would fail open.
    */
   @Transactional(rollbackFor = Exception.class)
   public void revokeTenantGroups(
@@ -739,6 +753,7 @@ public class UserService {
     User user = user(userId);
     revokeTenantGroups(user, tenantIds);
     User savedUser = userRepository.save(user);
+    markingClearanceCacheManager.evictForUser(userId);
     sessionManager.refreshUserSessions(savedUser);
   }
 
