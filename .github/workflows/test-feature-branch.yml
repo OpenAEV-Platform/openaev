@@ -34,7 +34,7 @@ jobs:
         run: |
           export JAVA_HOME=/usr/lib/jvm/default-jvm/
           cd openaev-front
-          sh ../.github/scripts/yarn-install-retry.sh
+          sh ../.github/scripts/retry-with-backoff.sh yarn install
           yarn build
           cd ../
           mvn install -DskipTests -Pdev

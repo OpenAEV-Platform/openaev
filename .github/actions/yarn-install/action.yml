@@ -21,9 +21,18 @@ runs:
       run: npm install -g corepack
       shell: bash
 
+    # `echo "dir=$(yarn config get cacheFolder)"` would mask a corepack failure: the
+    # substitution yields nothing, echo still exits 0, and the empty path only surfaces
+    # later as actions/cache's opaque "Input required and not supplied: path".
     - name: Get Yarn cache directory
       id: yarn-cache-dir
-      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+      run: |
+        dir=$(yarn config get cacheFolder)
+        if [ -z "$dir" ]; then
+          echo "::error::Could not resolve the Yarn cache folder; corepack may have failed to fetch yarn"
+          exit 1
+        fi
+        echo "dir=$dir" >> "$GITHUB_OUTPUT"
       shell: bash
       working-directory: openaev-front
 
@@ -40,9 +49,11 @@ runs:
           ${{ runner.os }}-${{ runner.arch }}-yarn-
 
     - name: Install dependencies
-      run: sh ../.github/scripts/yarn-install-retry.sh --immutable
+      run: sh ../.github/scripts/retry-with-backoff.sh yarn install --immutable
       shell: bash
       working-directory: openaev-front
+      env:
+        RETRY_LABEL: yarn install
 
     # Only main writes: a PR-scoped cache is readable solely by that same PR, so it burns
     # the shared 10 GB quota without warming anything else.
