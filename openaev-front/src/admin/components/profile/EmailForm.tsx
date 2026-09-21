@@ -34,13 +34,14 @@ const EmailForm: FunctionComponent<UserFormProps> = ({
   });
   const {
     handleSubmit,
-    formState: { isSubmitting, isDirty },
+    formState: { isValid, isSubmitting },
     reset,
   } = methods;
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
     handleSubmit(onSubmit)(e);
+    reset(initialValues);
   };
   useEffect(() => {
     reset(initialValues);
@@ -65,7 +66,7 @@ const EmailForm: FunctionComponent<UserFormProps> = ({
             variant="contained"
             color="primary"
             type="submit"
-            disabled={!isDirty || isSubmitting}
+            disabled={!isValid || isSubmitting}
           >
             {t('Update')}
           </Button>
