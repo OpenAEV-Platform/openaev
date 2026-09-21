@@ -1,9 +1,10 @@
-package io.openaev.driver;
+package io.openaev.engine.impl.opensearch.os3;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
+import io.openaev.driver.EngineObjectMapperFactory;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.RetiredIndexes;
@@ -31,25 +32,25 @@ import org.apache.hc.core5.http.nio.ssl.TlsStrategy;
 import org.apache.hc.core5.reactor.ssl.TlsDetails;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.ssl.SSLContextBuilder;
-import org.opensearch.client.json.JsonData;
-import org.opensearch.client.json.jackson.JacksonJsonpMapper;
-import org.opensearch.client.opensearch.OpenSearchClient;
-import org.opensearch.client.opensearch._types.OpenSearchException;
-import org.opensearch.client.opensearch._types.analysis.CustomNormalizer;
-import org.opensearch.client.opensearch._types.analysis.Normalizer;
-import org.opensearch.client.opensearch._types.mapping.*;
-import org.opensearch.client.opensearch.cluster.PutComponentTemplateRequest;
-import org.opensearch.client.opensearch.core.InfoResponse;
-import org.opensearch.client.opensearch.generic.Body;
-import org.opensearch.client.opensearch.generic.Requests;
-import org.opensearch.client.opensearch.generic.Response;
-import org.opensearch.client.opensearch.indices.*;
-import org.opensearch.client.opensearch.indices.put_index_template.IndexTemplateMapping;
-import org.opensearch.client.transport.OpenSearchTransport;
-import org.opensearch.client.transport.aws.AwsSdk2Transport;
-import org.opensearch.client.transport.aws.AwsSdk2TransportOptions;
-import org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder;
 import org.springframework.stereotype.Component;
+import os3.org.opensearch.client.json.JsonData;
+import os3.org.opensearch.client.json.jackson.JacksonJsonpMapper;
+import os3.org.opensearch.client.opensearch.OpenSearchClient;
+import os3.org.opensearch.client.opensearch._types.OpenSearchException;
+import os3.org.opensearch.client.opensearch._types.analysis.CustomNormalizer;
+import os3.org.opensearch.client.opensearch._types.analysis.Normalizer;
+import os3.org.opensearch.client.opensearch._types.mapping.*;
+import os3.org.opensearch.client.opensearch.cluster.PutComponentTemplateRequest;
+import os3.org.opensearch.client.opensearch.core.InfoResponse;
+import os3.org.opensearch.client.opensearch.generic.Body;
+import os3.org.opensearch.client.opensearch.generic.Requests;
+import os3.org.opensearch.client.opensearch.generic.Response;
+import os3.org.opensearch.client.opensearch.indices.*;
+import os3.org.opensearch.client.opensearch.indices.put_index_template.IndexTemplateMapping;
+import os3.org.opensearch.client.transport.OpenSearchTransport;
+import os3.org.opensearch.client.transport.aws.AwsSdk2Transport;
+import os3.org.opensearch.client.transport.aws.AwsSdk2TransportOptions;
+import os3.org.opensearch.client.transport.httpclient5.ApacheHttpClient5TransportBuilder;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
@@ -489,33 +490,44 @@ public class OpenSearchDriver {
    * @throws IOException in case of an exception during the call to opensearch
    */
   public void cleanUpIndex(String indexName, OpenSearchClient client) throws IOException {
+    cleanUpIndex(indexName, client, true);
+  }
+
+  public void cleanUpIndex(String indexName, OpenSearchClient client, boolean withTemplate)
+      throws IOException {
     try {
       String fullIndexName = config.getIndexPrefix() + "_" + indexName;
       String fullIndexWithSuffix = fullIndexName + config.getIndexSuffix();
 
-      // 1. Delete index and alias if they exist. Probe existence first (this runs at every
-      // startup for retired models) so a healthy platform boots without deletion warnings, and
-      // delete the concrete index before the alias name: removing the index also removes its
-      // alias, so the alias-name delete (which would fail with "matches an alias") is skipped.
-      for (String name : List.of(fullIndexWithSuffix, fullIndexName)) {
-        if (!client.indices().exists(b -> b.index(name)).value()) {
-          continue;
-        }
-        try {
-          client.indices().delete(d -> d.index(name));
-          log.info("Deleted index: {}", name);
-        } catch (OpenSearchException e) {
-          log.warn("Index {} could not be deleted: {}", name, e.getMessage());
-        }
-      }
+      deleteIndex(fullIndexName, fullIndexWithSuffix, client);
 
-      // 2. Delete index template
-      if (client.indices().existsIndexTemplate(b -> b.name(fullIndexName)).value()) {
-        client.indices().deleteIndexTemplate(d -> d.name(fullIndexName));
-        log.info("Deleted index template: {}", fullIndexName);
+      if (withTemplate) {
+        deleteIndexTemplate(fullIndexName, client);
       }
     } catch (IOException e) {
-      throw new AnalyticsEngineException("Failed to delete index " + indexName, e);
+      throw new RuntimeException("Failed to delete index " + indexName, e);
+    }
+  }
+
+  private void deleteIndex(String name, String nameWithSuffix, OpenSearchClient client)
+      throws IOException {
+    for (String idxName : List.of(nameWithSuffix, name)) {
+      if (!client.indices().exists(b -> b.index(idxName)).value()) {
+        continue;
+      }
+      try {
+        client.indices().delete(d -> d.index(idxName));
+        log.info("Deleted index: {}", idxName);
+      } catch (OpenSearchException e) {
+        log.warn("Index {} could not be deleted: {}", idxName, e.getMessage());
+      }
+    }
+  }
+
+  private void deleteIndexTemplate(String name, OpenSearchClient client) throws IOException {
+    if (client.indices().existsIndexTemplate(b -> b.name(name)).value()) {
+      client.indices().deleteIndexTemplate(d -> d.name(name));
+      log.info("Deleted index template: {}", name);
     }
   }
 }

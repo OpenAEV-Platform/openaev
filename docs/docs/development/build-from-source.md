@@ -79,9 +79,10 @@ All required settings are listed in the [Configuration documentation](../deploym
 ### Building and running
 Maven is used for package management and building the main server binary.
 OpenAEV is a Spring Boot application and thus can be built and started
-in one fell swoop with
+in one (two) fell swoop(s) with
 ```shell
-mvn spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.main-class=io.openaev.App
+mvn clean install -DskipTests=true
+java -jar openaev-api/target/openaev-api.jar --spring.config.import=file:openaev-api/target/classes/application-dev.properties
 ```
 
 !!! tip "IntelliJ IDEA run configuration"

@@ -38,3 +38,6 @@ openaev-dev/telemetry-output/
 
 ### macOS ###
 .DS_Store
+
+### maven ###
+dependency-reduced-pom.xml

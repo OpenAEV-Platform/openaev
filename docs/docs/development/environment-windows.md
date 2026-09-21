@@ -88,12 +88,12 @@ docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsear
 
 This starts:
 
-| Service | Port | Description |
-|---|---|---|
-| PostgreSQL 17 | 5432 | Database |
-| Silo | 10000, 10001 | S3-compatible object storage (MinIO fork) |
-| Elasticsearch 8 | 9200 | Analytics engine |
-| RabbitMQ 4 | 5672, 15672 | Message broker |
+| Service         | Port | Description |
+|-----------------|---|---|
+| PostgreSQL 17   | 5432 | Database |
+| Silo            | 10000, 10001 | S3-compatible object storage (MinIO fork) |
+| Elasticsearch 9 | 9200 | Analytics engine |
+| RabbitMQ 4      | 5672, 15672 | Message broker |
 
 !!! warning
 
