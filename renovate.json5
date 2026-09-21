@@ -395,12 +395,18 @@
         // Front-end dependencies that parse, sanitise or transport untrusted input. A regression here
         // is a security bug the E2E suite passes straight through, dompurify most of all: it is the
         // XSS boundary of the UI.
+        //
+        // Six of the seven are declared in dependencies in openaev-front/package.json, so the
+        // front-end batch above matches them and this rule is what pulls them back out.
+        // form-data is the exception and is named below for the label only: it is a yarn
+        // resolution, so the resolutions rule above already keeps it out of the batch.
         {
             description: 'Parsers, sanitisers and HTTP clients on the front keep their own PR',
             matchDepNames: [
                 'dompurify',
                 'qs',
                 'axios',
+                // label only, already out of the batch as a resolution
                 'form-data',
                 'http-proxy-middleware',
                 'ipaddr.js',
