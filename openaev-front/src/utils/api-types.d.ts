@@ -768,6 +768,24 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
+export interface AssetMarkingsOutput {
+  /**
+   * Asset Id
+   * @minLength 1
+   */
+  asset_id: string;
+  /**
+   * Markings currently carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
+   * Asset name
+   * @minLength 1
+   */
+  asset_name: string;
+}
+
 export interface AssetOptionOutput {
   /** Product-facing asset category, used to group options in pickers */
   category?: string;
@@ -12352,6 +12370,24 @@ export interface TenantGroupCreateInput {
   group_default_user_assign?: boolean;
   group_description?: string;
   /** @minLength 1 */
+  group_name: string;
+}
+
+export interface TenantGroupMarkingsOutput {
+  /**
+   * Group Id
+   * @minLength 1
+   */
+  group_id: string;
+  /**
+   * Markings currently granted by the group
+   * @uniqueItems true
+   */
+  group_markings?: string[];
+  /**
+   * Group name
+   * @minLength 1
+   */
   group_name: string;
 }
 
