@@ -32,7 +32,9 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span tabIndex={0} aria-label={t('Information')}><Icon name="info" size={16} aria-hidden /></span>
+          {/* The library colours its icons from the text colour: the same highlight
+              token the app's other info icons read. */}
+          <span tabIndex={0} aria-label={t('Information')} className="text-icon-highlight"><Icon name="info" size={16} aria-hidden /></span>
         </TooltipTrigger>
         <TooltipContent><span style={{ whiteSpace: 'pre-line' }}>{t('phone_number_tooltip')}</span></TooltipContent>
       </Tooltip>
