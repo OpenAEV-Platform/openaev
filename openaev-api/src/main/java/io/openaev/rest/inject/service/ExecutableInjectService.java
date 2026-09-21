@@ -329,7 +329,9 @@ public class ExecutableInjectService {
     Asset agentAsset = agent.get().getAsset();
     if (agentAsset == null) {
       throw new ForbiddenException(
-          "Agent " + agentId + " is not a target of inject " + inject.getId());
+          "Agent "
+              + agentId
+              + " has no associated asset and cannot be validated as an inject target");
     }
     String agentAssetId = agentAsset.getId();
     boolean isDirectTarget =
