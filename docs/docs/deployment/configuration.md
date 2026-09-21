@@ -87,15 +87,25 @@ Audit logging will allow you to have a trace of the actions performed using API 
 
     Please note that only modifying actions are logged (creating, updating, deleting) and not reading actions.
 
-| Parameter                          | Environment variable               | Default value    | Description                                                                                                                                              |
-|:-------------------------------------|:--------------------------------------|:-------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |                  | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console |
-| openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false            | Parameter to stop the platform if audit logging is failing.                                                                                              |
-| logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
-| openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs             | Preferred setting for the audit log directory when `file` transport is enabled.                                                                          |
-| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit            | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                       |
-|                                    | AUDIT_LOG_DIR                      | logs             | Legacy compatibility env var for the audit log directory. When set, it overrides `openaev.audit-logs.file.dir`.                                          |
-|                                    | AUDIT_LOG_FILENAME                 | audit            | Legacy compatibility env var for the audit log basename. When set, it overrides `openaev.audit-logs.file.filename`; `audit` and `audit.log` are accepted. |
+| Parameter                          | Environment variable               | Default value | Description                                                                                                                                               |
+|:-----------------------------------|:-----------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |               | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console  |
+| openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false         | Parameter to stop the platform if audit logging is failing.                                                                                               |
+| logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |               | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                           |
+| openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs          | Preferred setting for the audit log directory when `file` transport is enabled.                                                                           |
+| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit         | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                        |
+|                                    | AUDIT_LOG_DIR                      | logs          | Legacy compatibility env var for the audit log directory. When set, it overrides `openaev.audit-logs.file.dir`.                                           |
+|                                    | AUDIT_LOG_FILENAME                 | audit         | Legacy compatibility env var for the audit log basename. When set, it overrides `openaev.audit-logs.file.filename`; `audit` and `audit.log` are accepted. |
+
+#### Inject execution
+
+The inject execution engine is the component responsible for executing the actions described in the various contracts
+registered in OpenAEV.
+
+| Parameter                                     | Environment variable                          | Default value | Description                                                                                                                                                                                                              |
+|:----------------------------------------------|:----------------------------------------------|:--------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Duration in minutes for the grace period after a time-based inject's configured start time, within which the inject is considered for execution. After this period, an inject will be deemed "too old" and set in error. |
+
 
 #### Credential status validation
 

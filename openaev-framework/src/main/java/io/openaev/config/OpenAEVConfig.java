@@ -171,6 +171,10 @@ public class OpenAEVConfig {
   @Value("${openbas.frontend-url:${openaev.frontend-url:}}")
   private String frontendUrl;
 
+  @JsonProperty("inject_staleness_threshold")
+  @Value("${openaev.scheduling.inject-staleness-threshold:4}")
+  private Integer injectStalenessThreshold;
+
   /**
    * Returns the normalized base URL for the platform.
    *

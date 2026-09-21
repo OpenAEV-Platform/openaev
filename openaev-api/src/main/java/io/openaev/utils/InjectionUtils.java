@@ -29,7 +29,7 @@ public class InjectionUtils {
    * @return {@code true} if the injection date is within the 4-minute window before now
    * @throws java.util.NoSuchElementException if the injection has no scheduled date
    */
-  public static boolean isInInjectableRange(Injection injection) {
+  public static boolean isInInjectableRange(Injection injection, Integer stalenessThreshold) {
     Instant now = Instant.now();
     Instant start = now.minus(Duration.parse("PT4M"));
     Instant injectWhen = injection.getDate().orElseThrow();

@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionStatus.EXECUTING;
 import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -48,6 +49,7 @@ public class Executor {
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
   private final ConnectorInstanceService connectorInstanceService;
   private final InjectExpectationService injectExpectationService;
+  private final OpenAEVConfig openAEVConfig;
 
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
@@ -160,7 +162,7 @@ public class Executor {
       throw new UnsupportedOperationException("Inject is empty");
     }
     // If inject is too old, reject the execution
-    if (isScheduledInject && !isInInjectableRange(inject)) {
+    if (isScheduledInject && !isInInjectableRange(inject, openAEVConfig.getInjectStalenessThreshold())) {
       throw new UnsupportedOperationException(
           "Inject is now too old for execution: id "
               + inject.getId()
