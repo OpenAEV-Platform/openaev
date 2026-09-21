@@ -1,8 +1,8 @@
-package io.openaev.service;
+package io.openaev.engine.impl.opensearch.os3;
 
+import static io.openaev.engine.impl.opensearch.os3.OpenSearchUtils.*;
 import static io.openaev.utils.CustomDashboardQueryUtils.*;
 import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
-import static io.openaev.utils.OpenSearchUtils.*;
 import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasText;
 
@@ -16,18 +16,19 @@ import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.IndexingStatusRepository;
-import io.openaev.driver.OpenSearchDriver;
 import io.openaev.engine.EngineContext;
-import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
 import io.openaev.engine.api.WidgetConfigurationWithSeries.Series;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.schema.PropertySchema;
+import io.openaev.service.CommonSearchService;
+import io.openaev.service.EsIndexingUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -40,16 +41,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
-import org.opensearch.client.json.JsonData;
-import org.opensearch.client.opensearch.OpenSearchClient;
-import org.opensearch.client.opensearch._types.*;
-import org.opensearch.client.opensearch._types.aggregations.*;
-import org.opensearch.client.opensearch._types.query_dsl.*;
-import org.opensearch.client.opensearch.core.*;
-import org.opensearch.client.opensearch.core.bulk.BulkResponseItem;
-import org.opensearch.client.opensearch.core.search.Hit;
-import org.opensearch.client.opensearch.generic.Requests;
-import org.opensearch.client.opensearch.generic.Response;
+import os3.org.opensearch.client.json.JsonData;
+import os3.org.opensearch.client.opensearch.OpenSearchClient;
+import os3.org.opensearch.client.opensearch._types.*;
+import os3.org.opensearch.client.opensearch._types.aggregations.*;
+import os3.org.opensearch.client.opensearch._types.query_dsl.*;
+import os3.org.opensearch.client.opensearch.core.*;
+import os3.org.opensearch.client.opensearch.core.bulk.*;
+import os3.org.opensearch.client.opensearch.core.search.*;
+import os3.org.opensearch.client.opensearch.generic.*;
 
 @Slf4j
 public class OpenSearchService implements EngineService {
@@ -62,6 +62,28 @@ public class OpenSearchService implements EngineService {
   private final CommonSearchService commonSearchService;
 
   @Resource private ObjectMapper mapper;
+
+  static final String SIDE_CLEANUP_SCRIPT =
+      """
+          boolean changed = false;
+          // For each EsBase attribute of each document
+          for (String key : ctx._source.keySet().toArray()) {
+            // If it's a "base_XXX_side" (means String id or List of ids), remove all deleted ids from this field.
+            if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
+                if (ctx._source[key] instanceof List) {
+                    if (ctx._source[key].removeIf(item -> params.valuesToRemove.contains(item))) {
+                        changed = true;
+                    }
+                } else if (ctx._source[key] instanceof String && params.valuesToRemove.contains(ctx._source[key])) {
+                    ctx._source.remove(key);
+                    changed = true;
+                }
+            }
+          }
+          if (!changed) {
+            ctx.op = 'noop';
+          }
+          """;
 
   /**
    * Constructor for the opensearch engine
@@ -621,7 +643,7 @@ public class OpenSearchService implements EngineService {
                           s.inline(
                               InlineScript.of(
                                   is ->
-                                      is.source(ElasticService.SIDE_CLEANUP_SCRIPT)
+                                      is.source(SIDE_CLEANUP_SCRIPT)
                                           .params("valuesToRemove", JsonData.of(ids))))))
               .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
@@ -1291,7 +1313,12 @@ public class OpenSearchService implements EngineService {
 
   @Override
   public void cleanUpIndex(String model) throws IOException {
-    driver.cleanUpIndex(model, openSearchClient);
+    this.cleanUpIndex(model, true);
+  }
+
+  @Override
+  public void cleanUpIndex(String model, boolean withTemplate) throws IOException {
+    driver.cleanUpIndex(model, openSearchClient, withTemplate);
   }
 
   @Override

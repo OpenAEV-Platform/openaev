@@ -1,0 +1,141 @@
+package io.openaev.engine.impl.opensearch.os3;
+
+import io.openaev.database.model.Filters;
+import io.openaev.engine.api.HistogramInterval;
+import io.openaev.exception.InvalidDateRangeException;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
+import java.util.List;
+import os3.org.opensearch.client.json.JsonData;
+import os3.org.opensearch.client.opensearch._types.FieldValue;
+import os3.org.opensearch.client.opensearch._types.aggregations.*;
+import os3.org.opensearch.client.opensearch._types.aggregations.Aggregation.Builder.ContainerBuilder;
+import os3.org.opensearch.client.opensearch._types.query_dsl.*;
+
+public class OpenSearchUtils {
+
+  private OpenSearchUtils() {}
+
+  /**
+   * Get a query to check if field exists
+   *
+   * @param field the field
+   * @return the resulting query
+   */
+  public static Query existsQuery(@NotBlank final String field) {
+    return ExistsQuery.of(e -> e.field(field)).toQuery();
+  }
+
+  /**
+   * Get a query to check if field does not exists
+   *
+   * @param field the field
+   * @return the resulting query
+   */
+  public static Query notExistsQuery(@NotBlank final String field) {
+    return BoolQuery.of(b -> b.mustNot(List.of(existsQuery(field)))).toQuery();
+  }
+
+  /**
+   * Get a query to check if field is empty
+   *
+   * @param field the field
+   * @return the resulting query
+   */
+  public static Query emptyFieldQuery(@NotBlank final String field) {
+    return TermQuery.of(t -> t.field(field).value(FieldValue.of(""))).toQuery();
+  }
+
+  /**
+   * Get a query to check if field is not empty
+   *
+   * @param field the field
+   * @return the resulting query
+   */
+  public static Query notEmptyFieldQuery(@NotBlank final String field) {
+    return BoolQuery.of(b -> b.mustNot(List.of(emptyFieldQuery(field)))).toQuery();
+  }
+
+  /**
+   * Build a range query on a date field between a start and an end timestamp.
+   *
+   * @param field the date field name (must not be blank)
+   * @param start the start instant (must not be null)
+   * @param end the end instant (must not be null)
+   */
+  public static Query buildDateRangeQuery(
+      @NotBlank final String field, @NotNull final Instant start, @NotNull final Instant end) {
+    if (!start.isBefore(end)) {
+      throw new InvalidDateRangeException("Start date must be before end date");
+    }
+    return RangeQuery.of(d -> d.field(field).gt(JsonData.of(start)).lt(JsonData.of(end))).toQuery();
+  }
+
+  /**
+   * Build a single-bound comparison query (gt / gte / lt / lte) on a date field, as produced by the
+   * filter UI for "instant" properties (e.g. a "created at &gt;= X" filter chip).
+   *
+   * @param field the date field name (must not be blank)
+   * @param operator the comparison operator (must be gt, gte, lt or lte)
+   * @param value the ISO-8601 date value (must not be blank)
+   */
+  public static Query buildDateCompareQuery(
+      @NotBlank final String field,
+      @NotNull final Filters.FilterOperator operator,
+      @NotBlank final String value) {
+    return RangeQuery.of(
+            d -> {
+              d.field(field);
+              return switch (operator) {
+                case gt -> d.gt(JsonData.of(value));
+                case gte -> d.gte(JsonData.of(value));
+                case lt -> d.lt(JsonData.of(value));
+                case lte -> d.lte(JsonData.of(value));
+                default ->
+                    throw new UnsupportedOperationException(
+                        "Not a comparison operator: " + operator);
+              };
+            })
+        .toQuery();
+  }
+
+  /**
+   * Builds a date histogram aggregation on the specified field.
+   *
+   * @param aggregation the {@link Aggregation.Builder} to configure (must not be null)
+   * @param field the target field name for the histogram (must not be blank)
+   * @param interval the histogram interval (calendar unit + format) (must not be null)
+   * @return a {@link ContainerBuilder} representing the date histogram aggregation
+   */
+  public static ContainerBuilder buildDateHistogramAggregation(
+      @NotNull final Aggregation.Builder aggregation,
+      @NotBlank final String field,
+      @NotNull final HistogramInterval interval,
+      final ExtendedBounds<FieldDateMath> extendedBounds) {
+    return aggregation.dateHistogram(
+        h -> {
+          DateHistogramAggregation.Builder builder =
+              h.field(field)
+                  .minDocCount(0)
+                  .format(interval.format)
+                  .calendarInterval(toOsInterval(interval))
+                  .keyed(false);
+          if (extendedBounds != null) {
+            builder.extendedBounds(extendedBounds);
+          }
+          return builder;
+        });
+  }
+
+  private static CalendarInterval toOsInterval(HistogramInterval interval) {
+    return switch (interval) {
+      case day -> CalendarInterval.Day;
+      case week -> CalendarInterval.Week;
+      case month -> CalendarInterval.Month;
+      case year -> CalendarInterval.Year;
+      case hour -> CalendarInterval.Hour;
+      case quarter -> CalendarInterval.Quarter;
+    };
+  }
+}
