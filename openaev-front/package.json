@@ -54,7 +54,7 @@
     "@redux-devtools/extension": "4.0.0",
     "@tanstack/react-virtual": "3.14.10",
     "@uiw/react-md-editor": "4.1.2",
-    "@xyflow/react": "12.11.5",
+    "@xyflow/react": "12.11.6",
     "apexcharts": "4.7.0",
     "axios": "1.20.0",
     "classcat": "5.0.5",
