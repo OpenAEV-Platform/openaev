@@ -26,13 +26,6 @@ runs:
         restore-keys: |
           maven-v1-${{ runner.os }}-${{ runner.arch }}-
 
-    # Cheap enough (~1 min) that retrying a genuine formatting failure costs little, so the
-    # goal is wrapped directly rather than behind a separate resolution warm-up.
     - name: Check formatting
-      run: sh .github/scripts/retry-with-backoff.sh mvn -B -ntp spotless:check
+      run: mvn -B -ntp spotless:check
       shell: bash
-      env:
-        RETRY_LABEL: spotless check
-        RETRY_ATTEMPTS: "3"
-        RETRY_BASE: "10"
-        RETRY_CAP: "45"

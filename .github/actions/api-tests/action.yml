@@ -284,18 +284,6 @@ runs:
         # Single-quoted so '*' reaches the JVM instead of being glob-expanded by the shell below.
         echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dmaven.test.failure.ignore=true" >> "$GITHUB_OUTPUT"
 
-    # Model resolution is the flaky part under registry load ("Non-resolvable parent POM"),
-    # and it is separable from the suite. The test run below is deliberately NOT retried:
-    # a genuine test failure would be re-run for ~10 min a time against a 30 min budget.
-    - name: Resolve Maven model
-      run: sh .github/scripts/retry-with-backoff.sh mvn -B -ntp -q -pl openaev-api validate
-      shell: bash
-      env:
-        RETRY_LABEL: maven resolve
-        RETRY_ATTEMPTS: "4"
-        RETRY_BASE: "15"
-        RETRY_CAP: "60"
-
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
       shell: bash
