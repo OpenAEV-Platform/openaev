@@ -102,9 +102,9 @@ Audit logging will allow you to have a trace of the actions performed using API 
 The inject execution engine is the component responsible for executing the actions described in the various contracts
 registered in OpenAEV.
 
-| Parameter                                     | Environment variable                          | Default value | Description                                                                                                                                                                                                              |
-|:----------------------------------------------|:----------------------------------------------|:--------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Duration in minutes for the grace period after a time-based inject's configured start time, within which the inject is considered for execution. After this period, an inject will be deemed "too old" and set in error. |
+| Parameter                                     | Environment variable                          | Default value | Description                                                                                                                                                                                                                                                                                          |
+|:----------------------------------------------|:----------------------------------------------|:--------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Recommended value: `4` (four minutes). Supported values: positive integers. Duration in minutes for the grace period after a time-based inject's configured start time, within which the inject is considered for execution. After this period, an inject will be deemed "too old" and set in error. |
 
 
 #### Credential status validation
