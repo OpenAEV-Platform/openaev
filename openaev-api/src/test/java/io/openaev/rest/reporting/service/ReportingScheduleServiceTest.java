@@ -163,7 +163,7 @@ class ReportingScheduleServiceTest {
             "reporting-id", ReportingFormat.PDF, ReportingGenerationTrigger.SCHEDULED))
         .thenReturn(pendingGeneration());
     stubTerminalGeneration(successfulGeneration());
-    when(fileService.getFile(any(Document.class)))
+    when(fileService.getFile(any(Document.class), any()))
         .thenReturn(
             Optional.of(new ByteArrayInputStream("pdf-bytes".getBytes(StandardCharsets.UTF_8))));
 
@@ -220,7 +220,7 @@ class ReportingScheduleServiceTest {
     scheduleService.runDueSchedules(DUE);
 
     // -- Assert -- no report file is touched, the owner alone gets the failure notice
-    verify(fileService, never()).getFile(any(Document.class));
+    verify(fileService, never()).getFile(any(Document.class), any());
     ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
     @SuppressWarnings("unchecked")
@@ -277,7 +277,7 @@ class ReportingScheduleServiceTest {
             "reporting-id", ReportingFormat.PDF, ReportingGenerationTrigger.SCHEDULED))
         .thenReturn(pendingGeneration());
     stubTerminalGeneration(successfulGeneration());
-    when(fileService.getFile(any(Document.class)))
+    when(fileService.getFile(any(Document.class), any()))
         .thenReturn(
             Optional.of(new ByteArrayInputStream("pdf-bytes".getBytes(StandardCharsets.UTF_8))));
 
@@ -330,7 +330,7 @@ class ReportingScheduleServiceTest {
             "reporting-id", ReportingFormat.PDF, ReportingGenerationTrigger.SCHEDULED))
         .thenReturn(pendingGeneration());
     stubTerminalGeneration(successfulGeneration());
-    when(fileService.getFile(any(Document.class)))
+    when(fileService.getFile(any(Document.class), any()))
         .thenReturn(
             Optional.of(new ByteArrayInputStream("pdf-bytes".getBytes(StandardCharsets.UTF_8))));
 

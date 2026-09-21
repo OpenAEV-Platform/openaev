@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Document;
+import io.openaev.database.model.DualScopeBase;
+import io.openaev.database.model.TenantBase;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.jsonapi.*;
 import jakarta.annotation.Resource;
@@ -90,15 +92,29 @@ public class ZipJsonService<T extends Base> {
         Collection<?> col = toCollection(value);
         for (Object item : col) {
           if (item instanceof Document doc) {
-            addDocumentToExtras(doc, extras);
+            addDocumentToExtras(doc, extras, owningTenantId(entity));
           }
         }
       } else if (value instanceof Document doc) {
-        addDocumentToExtras(doc, extras);
+        addDocumentToExtras(doc, extras, owningTenantId(entity));
       }
     }
 
     return this.writeZip(resource, extras);
+  }
+
+  /**
+   * The tenant the exported parent belongs to, or {@code null} for a platform-level parent with no
+   * tenant. A document related to the parent is only bundled when it belongs to this tenant.
+   */
+  private static String owningTenantId(Base entity) {
+    if (entity instanceof TenantBase tenantBase && tenantBase.getTenant() != null) {
+      return tenantBase.getTenant().getId();
+    }
+    if (entity instanceof DualScopeBase dualScopeBase && dualScopeBase.getTenant() != null) {
+      return dualScopeBase.getTenant().getId();
+    }
+    return null;
   }
 
   /**
@@ -151,11 +167,11 @@ public class ZipJsonService<T extends Base> {
     return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted, doc);
   }
 
-  private void addDocumentToExtras(Document doc, Map<String, byte[]> out) {
+  private void addDocumentToExtras(Document doc, Map<String, byte[]> out, String owningTenantId) {
     Document resolved =
         documentRepository.findById(doc.getId()).orElseThrow(IllegalArgumentException::new);
 
-    Optional<InputStream> docStream = fileService.getFile(resolved);
+    Optional<InputStream> docStream = fileService.getFile(resolved, owningTenantId);
     if (docStream.isPresent()) {
       try {
         byte[] bytes = docStream.get().readAllBytes();

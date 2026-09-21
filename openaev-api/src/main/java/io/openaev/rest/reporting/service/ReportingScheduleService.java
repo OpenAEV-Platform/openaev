@@ -205,9 +205,11 @@ public class ReportingScheduleService {
       return;
     }
     byte[] fileBytes;
+    // Serve the produced document under the generation's tenant, the parent this delivery runs for.
+    String owningTenantId = generation.getTenant() == null ? null : generation.getTenant().getId();
     try (InputStream stream =
         fileService
-            .getFile(document)
+            .getFile(document, owningTenantId)
             .orElseThrow(
                 () ->
                     new IllegalStateException(

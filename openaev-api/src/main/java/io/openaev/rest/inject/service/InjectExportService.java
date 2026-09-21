@@ -7,6 +7,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
@@ -71,6 +72,15 @@ public class InjectExportService {
             .writerWithDefaultPrettyPrinter()
             .writeValueAsBytes(importExport));
     zipExport.closeEntry();
+    // The injects of one export share the request's tenant; a document attached from another tenant
+    // is skipped rather than having its bytes bundled into the archive.
+    String owningTenantId =
+        injects.stream()
+            .map(Inject::getTenant)
+            .filter(tenant -> tenant != null && tenant.getId() != null)
+            .map(Tenant::getId)
+            .findFirst()
+            .orElse(null);
     // Add the actual files for the documents
     importExport.getAllDocumentIds().stream()
         .distinct()
@@ -78,7 +88,7 @@ public class InjectExportService {
             docId -> {
               Document doc =
                   documentRepository.findById(docId).orElseThrow(ElementNotFoundException::new);
-              Optional<InputStream> docStream = fileService.getFile(doc);
+              Optional<InputStream> docStream = fileService.getFile(doc, owningTenantId);
               if (docStream.isPresent()) {
                 try {
                   ZipEntry zipDoc = new ZipEntry(doc.getTarget());

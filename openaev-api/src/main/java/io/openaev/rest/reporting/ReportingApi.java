@@ -180,9 +180,12 @@ public class ReportingApi extends RestBehavior {
       TxCtx ctx, @PathVariable @NotBlank final String generationId) {
     Document document = this.reportingService.generationDocument(generationId);
     String encodedFilename = DocumentService.encodeFileName(document.getName());
+    // The produced document is the generation's output and carries the generation's tenant; serve
+    // it under that tenant so a document attributed elsewhere is not streamed here.
+    String owningTenantId = document.getTenant() == null ? null : document.getTenant().getId();
     InputStream in =
         this.fileService
-            .getFile(document)
+            .getFile(document, owningTenantId)
             .orElseThrow(() -> new ElementNotFoundException("File not found"));
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + encodedFilename)
