@@ -83,15 +83,11 @@ runs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.cache/ms-playwright
-        # Browser builds track the Playwright version, not the whole lockfile, so an
-        # unrelated dependency bump no longer forces a re-download.
+        # Cache browser downloads by Playwright version, not the full lockfile.
         key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
         restore-keys: |
           playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-
-    # `playwright install --with-deps` shells out to apt-get, which fails the whole job when an
-    # Ubuntu mirror is mid-sync ("File has unexpected size"). The browser download is what we
-    # actually need; system deps are already present on the GitHub runner images, so they are
-    # refreshed on a best-effort basis.
+    # Refresh system dependencies best-effort; GitHub runners provide the required libraries.
     - name: Install Playwright system dependencies
       run: |
         BROWSER="${{ inputs.browser }}"
@@ -110,7 +106,7 @@ runs:
       shell: bash
       working-directory: openaev-front
 
-    # Only main writes; PR-scoped caches are readable solely by that PR.
+    # Only main writes: PR-scoped caches cannot warm other PRs.
     - name: Save Playwright browsers
       if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.playwright-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6
@@ -142,7 +138,6 @@ runs:
           oci-archive:${{ inputs.docker-image }}.tar \
           docker-archive:docker-image.tar:openaev:ci
         rm -f ${{ inputs.docker-image }}.tar ${{ inputs.docker-image }}.tar.gz
-        # Load into Docker daemon from file (reliable)
         docker load -i docker-image.tar
         rm -f docker-image.tar
         IMAGE_ID=$(docker images openaev:ci --format '{{.ID}}')

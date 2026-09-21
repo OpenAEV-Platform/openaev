@@ -36,8 +36,7 @@ runs:
           SEARCH_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images "$SEARCH_SERVICE")
         fi
 
-        # Pull up front so a registry failure surfaces as a clear error rather than the bare
-        # exit 125 the implicit pull inside `docker run` produces.
+        # Pull first to report registry failures before docker run.
         for image in "$POSTGRES_IMAGE" "$SEARCH_IMAGE" "$RABBITMQ_IMAGE" "$MINIO_IMAGE"; do
           docker pull --quiet "$image"
         done

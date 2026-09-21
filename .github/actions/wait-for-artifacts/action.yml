@@ -99,9 +99,7 @@ runs:
         DEADLINE=$((SECONDS + WAIT_SECONDS))
         echo "Waiting for workflow artifacts: ${ARTIFACTS[*]}"
 
-        # Every consumer job polls the same run, so an immediate synchronised poll storm is what
-        # pushed the artifact endpoints into 403s. Hold past the point where an artifact could
-        # plausibly exist, then stagger the first request.
+        # Delay and jitter the first poll to avoid simultaneous consumer requests.
         if [ "$INITIAL_DELAY_SECONDS" -gt 0 ]; then
           FIRST_POLL=$((INITIAL_DELAY_SECONDS + RANDOM % JITTER_SPAN))
           REMAINING=$((DEADLINE - SECONDS))

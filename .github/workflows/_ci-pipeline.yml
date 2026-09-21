@@ -372,8 +372,7 @@ jobs:
   # Docker
   # ════════════════════════════════════════════════════════════════════
 
-  # No `needs: [prepare-bundled-assets]`: the assets are fetched inline instead,
-  # which removes ~1.4 min of serial wait from the head of the critical path.
+  # Docker builds fetch bundled assets inline, avoiding a serial dependency.
   # fetch-depth 0 is required because the asset version comes from `git describe`.
   docker-build:
     name: "🐳 Docker Build (${{ matrix.variant }} ${{ matrix.arch }})"
@@ -402,8 +401,7 @@ jobs:
             jar-path: /openaev-api.jar
             cache-scope: docker-standard
             tags: openaev:ci-${{ github.run_id }}
-          # ubi9 is nightly-only for E2E, so its layers never speed up a PR run.
-          # Caching them cost ~3 GB of the 10 GB quota and evicted caches PRs do read.
+          # UBI9 runs only in Nightly, so it does not use the shared Docker cache.
           - variant: ubi9
             arch: amd64
             runner: ubuntu-latest
@@ -438,9 +436,7 @@ jobs:
           tags: ${{ matrix.tags }}
           no-cache: ${{ inputs.no-cache }}
 
-  # No `needs: [docker-build]`: that waits for job completion, i.e. ~2.5 min of
-  # gzip/validate/upload this job never consumes. Build jobs publish tiny registry
-  # markers after a successful push, so consumers do not poll GHCR while waiting.
+  # Consumers wait for registry markers or artifacts, not the complete build job.
   docker-merge:
     name: "🐳 Merge Platforms (${{ matrix.variant }})"
     if: ${{ !cancelled() }}
@@ -465,10 +461,7 @@ jobs:
             Docker Build (${{ matrix.variant }} amd64)
             Docker Build (${{ matrix.variant }} arm64)
 
-  # Reported through the Pipeline Gate, but only enforced there when
-  # vulnerability-scan-fail-on-error is set — advisory in Core CI, blocking in Nightly.
-  # Like docker-merge, it waits for registry markers or image artifacts rather than
-  # the whole docker-build job, which it would otherwise trail by ~2.5 min.
+  # The scan is advisory in Core CI and enforced in Nightly.
   container-vulnerability-scan:
     name: "🔒 Container Vulnerability Scan"
     if: ${{ !cancelled() }}
@@ -487,14 +480,8 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate
   #
-  # ⚠️  REQUIRED status check for branch protection.
-  #     The vulnerability scan is included but only enforced when
-  #     vulnerability-scan-fail-on-error is set, so a
-  #     finding blocks Nightly and stays advisory in Core.
-  #     Codecov is excluded: coverage upload is best-effort and must not
-  #     hold the gate (and therefore the merge) behind a reporting step.
-  #     The full check name is "<caller-job> / ✅ Pipeline Gate".
-  #     If the caller job key changes, update the branch-protection rule.
+  # Required branch-protection check: "<caller-job> / ✅ Pipeline Gate".
+  # Coverage upload is best-effort; scan enforcement is controlled by the caller.
   # ════════════════════════════════════════════════════════════════════
 
   pipeline-gate:
@@ -536,10 +523,8 @@ jobs:
             result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
             TOTAL=$((TOTAL + 1))
 
-            # The vulnerability scan is reported but not enforced unless the caller
-            # asks for it, so a finding blocks Nightly and never blocks Core. Decided
-            # here rather than relying on job-level continue-on-error, whose mapping
-            # onto needs.<job>.result is not documented.
+            # Apply the caller's scan policy here because `continue-on-error` does not define
+            # the value of `needs.<job>.result`.
             advisory=0
             if [ "$job" = "container-vulnerability-scan" ] && [ "$SCAN_ENFORCED" != "true" ]; then
               advisory=1

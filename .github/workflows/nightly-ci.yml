@@ -27,8 +27,7 @@ jobs:
       # without changing anything on main. Both turn the fail-closed detector on.
       # Reports, not gates: continue_on_error keeps a red one from failing the workflow.
       # Retire both when the migration is done; shadow-prod may then become a core gate.
-      # ── API Tests: 9 balanced shards + catch-all, × Elasticsearch and OpenSearch ──
-      # Patterns live in .github/shards/api-<n>.txt.
+      # ── API Tests: 9 shards + catch-all across Elasticsearch and OpenSearch ──
       api-matrix: >
         [
           {"shard":"1","shard_name":"1","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"shardfile","excludes":""},
@@ -125,7 +124,6 @@ jobs:
           {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-std-arm64-infra"}
         ]
       vulnerability-scan-fail-on-error: true
-      # Nightly is allowed to be slow, and it exercises browsers and image variants Core CI
-      # never touches. Caching here only evicts the entries PR runs depend on.
+      # Keep Nightly runs out of shared caches used by PR workflows.
       no-cache: true
     secrets: inherit

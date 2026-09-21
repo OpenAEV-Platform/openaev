@@ -94,8 +94,7 @@ runs:
     - name: Clear cached OpenAEV artifacts
       shell: bash
       run: |
-        # Remove any cached openaev artifacts to prevent "file exists"
-        # errors when extracting the freshly compiled artifact.
+        # Remove cached artifacts before extracting this run's compiled output.
         rm -rf ~/.m2/repository/io/openaev/
 
     - name: Download backend-compiled artifact
@@ -117,11 +116,7 @@ runs:
         find openaev-api/target/ -maxdepth 5 -type d 2>/dev/null | head -40 || echo "  openaev-api/target/ does not exist"
         echo "---"
 
-        # ── Fix double-nesting from gh run download ──
-        # upload-artifact@v7 may store paths with the full prefix inside
-        # the zip, so gh run download -D openaev-api/target can produce
-        # openaev-api/target/openaev-api/target/classes/ instead of
-        # openaev-api/target/classes/.  Detect and flatten.
+        # Artifact extraction can nest openaev-api/target; flatten it.
         if [ -d "openaev-api/target/openaev-api/target" ]; then
           echo "⚠️ Detected double-nested artifact path — flattening..."
           cp -rn openaev-api/target/openaev-api/target/* openaev-api/target/ 2>/dev/null || true
@@ -129,8 +124,7 @@ runs:
           echo "✅ Flattened double-nested paths"
         fi
 
-        # Note: use "|| true" after "head" to prevent SIGPIPE from
-        # propagating under bash -eo pipefail (GitHub Actions default).
+        # `head` can return SIGPIPE under bash -eo pipefail.
         MVN_JARS=$(find ~/.m2/repository/io/openaev/ -name '*.jar' 2>/dev/null | head -5 || true)
         if [ -z "$MVN_JARS" ]; then
           echo "❌ No Maven JARs found in ~/.m2/repository/io/openaev/"
@@ -206,8 +200,7 @@ runs:
         SHARD_DIR=.github/shards
 
         if [ "$SHARD_INCLUDES" = "catchall" ]; then
-          # Excludes are derived from the shard files, so they can never drift
-          # out of sync and silently drop a package from the run.
+          # Derive catch-all exclusions from shard files to avoid gaps.
           cat "$SHARD_DIR"/api-*.txt > /tmp/surefire-excludes.txt
           printf '%s\n' '**/*$*' >> /tmp/surefire-excludes.txt
           echo "surefire_arg=-Dsurefire.excludesFile=/tmp/surefire-excludes.txt" >> "$GITHUB_OUTPUT"
@@ -287,18 +280,15 @@ runs:
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
       shell: bash
-      # Initialize JaCoCo, then run the existing test/report executions directly.
-      # The test lifecycle would recompile the downloaded classes and test classes;
-      # maven.compiler.skip is not a supported compiler-plugin property.
+      # Run test goals directly to avoid recompiling downloaded classes.
       run: |
         mvn -B -ntp -pl openaev-api \
           initialize surefire:test@default-test jacoco:report@report \
           ${{ steps.suite.outputs.surefire_arg }} \
           ${{ steps.tenant.outputs.args }}
 
-    # Only main writes, and only from one shard: every shard resolves the same dependency
-    # set, so the other nine uploads would be ~800 MB each and rejected as duplicates.
-    # Saved even on test failure, since the dependencies are already resolved by then.
+    # A single main-branch shard writes the shared dependency cache.
+    # Resolved dependencies are still saved after test failures.
     - name: Save API test Maven dependencies
       if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6

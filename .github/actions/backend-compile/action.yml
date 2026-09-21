@@ -16,9 +16,7 @@ runs:
         java-version: "21"
         distribution: temurin
 
-    # Sole writer of the shared maven-v1 cache: this job resolves the widest dependency set,
-    # so spotless/package/codecov restore it read-only instead of racing on one key with
-    # narrower contents. setup-java's built-in cache is not used because it always saves.
+    # This job is the sole writer of the shared Maven cache; downstream jobs restore it read-only.
     - name: Restore Maven dependencies
       id: maven-cache
       if: ${{ inputs.no-cache != 'true' }}
@@ -36,8 +34,7 @@ runs:
           -Djacoco.skip=true
       shell: bash
 
-    # io/openaev is excluded: those are this run's own modules, rebuilt every time, and a
-    # stale copy restored into a later run is exactly what api-tests has to rm -rf.
+    # Exclude modules built in this run to prevent restoring stale OpenAEV artifacts.
     - name: Save Maven dependencies
       if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.maven-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6
@@ -52,7 +49,7 @@ runs:
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
-        # JARs are already zips — re-zipping costs CPU for ~0% gain
+        # JARs are already compressed.
         compression-level: 0
     - name: Upload API build output
       uses: actions/upload-artifact@v7

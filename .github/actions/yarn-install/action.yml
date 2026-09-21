@@ -21,9 +21,7 @@ runs:
       run: npm install -g corepack
       shell: bash
 
-    # `echo "dir=$(yarn config get cacheFolder)"` would mask a corepack failure: the
-    # substitution yields nothing, echo still exits 0, and the empty path only surfaces
-    # later as actions/cache's opaque "Input required and not supplied: path".
+    # Resolve the cache directory separately so a Corepack failure is not hidden.
     - name: Get Yarn cache directory
       id: yarn-cache-dir
       run: |
@@ -36,8 +34,7 @@ runs:
       shell: bash
       working-directory: openaev-front
 
-    # runner.arch is part of the key because the cache holds platform-specific packages:
-    # one key shared across amd64 and arm64 restores a hit that still refetches native deps.
+    # Cache native packages per architecture.
     - name: Restore Yarn cache
       id: yarn-cache
       if: ${{ inputs.no-cache != 'true' }}
@@ -53,8 +50,7 @@ runs:
       shell: bash
       working-directory: openaev-front
 
-    # Only main writes: a PR-scoped cache is readable solely by that same PR, so it burns
-    # the shared 10 GB quota without warming anything else.
+    # Only main writes: PR-scoped caches cannot warm other PRs.
     - name: Save Yarn cache
       if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.yarn-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6

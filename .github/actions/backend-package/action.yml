@@ -95,5 +95,5 @@ runs:
       with:
         name: openaev-api-jar
         path: openaev-api/target/openaev-api.jar
-        # A JAR is already a zip — re-zipping costs CPU for ~0% gain
+        # JARs are already compressed.
         compression-level: 0

@@ -126,13 +126,9 @@ runs:
       run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
       shell: bash
 
-    # Only main writes the layer cache: a mode=max export costs ~6 min and blocks every
-    # E2E job, while a PR-scoped cache is unreadable from any other PR. PRs read main's
-    # cache through cache-from for free. An empty cache-scope opts a variant out entirely,
-    # for images no PR job consumes: layer blobs dominate the shared 10 GB cache quota.
-    #
-    # Build the required artifact first. The optional registry handoff is a separate
-    # best-effort copy so a GHCR outage cannot discard an otherwise valid OCI archive.
+    # Only main writes shared layer caches; PR cache entries cannot warm other PRs.
+    # An empty cache scope opts out image variants without PR consumers.
+    # Produce the OCI artifact before the optional registry handoff so GHCR failures do not discard it.
     - name: Build image (single-platform OCI archive)
       id: docker-build
       uses: docker/build-push-action@v7
@@ -291,5 +287,5 @@ runs:
         name: ${{ steps.names.outputs.artifact_name }}
         path: ${{ steps.names.outputs.artifact_name }}.tar.gz
         retention-days: 1
-        # Already gzipped — re-zipping costs CPU on both upload and download for ~0% gain
+        # The archive is already compressed.
         compression-level: 0
