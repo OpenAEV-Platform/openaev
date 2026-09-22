@@ -14,7 +14,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <opensearch.version>3.9.0</opensearch.version>
+        <opensearch.version>3.10.0</opensearch.version>
     </properties>
 
     <dependencies>
