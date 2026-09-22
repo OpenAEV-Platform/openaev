@@ -310,7 +310,7 @@ public class MarkingDefinitionService {
             ? List.of()
             : filter.getValues().stream()
                 .filter(value -> value != null && !value.isBlank())
-                .map(Integer::valueOf)
+                .map(this::parseOrderFilterValue)
                 .toList();
 
     return (root, query, criteriaBuilder) -> {
@@ -362,5 +362,14 @@ public class MarkingDefinitionService {
     return Filters.FilterMode.and.equals(mode)
         ? criteriaBuilder.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new))
         : criteriaBuilder.or(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+  }
+
+  private Integer parseOrderFilterValue(String value) {
+    try {
+      return Integer.valueOf(value);
+    } catch (NumberFormatException ex) {
+      throw new BadRequestException(
+          "Invalid %s filter value '%s': expected an integer".formatted(ORDER_FILTER_KEY, value));
+    }
   }
 }
