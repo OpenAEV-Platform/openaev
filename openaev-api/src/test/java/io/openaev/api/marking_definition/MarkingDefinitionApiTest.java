@@ -632,6 +632,78 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_multipleOrderFiltersInOrGroup_should_returnEitherMatch")
+    void given_multipleOrderFiltersInOrGroup_should_returnEitherMatch() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-or-group", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      MarkingDefinition firstMatch =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-OR-FIRST",
+              "#00AA00",
+              2,
+              Instant.parse("2026-03-03T12:00:00Z"));
+      MarkingDefinition secondMatch =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-OR-SECOND",
+              "#AA0000",
+              8,
+              Instant.parse("2026-03-03T13:00:00Z"));
+      MarkingDefinition other =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-OR-OTHER",
+              "#0000AA",
+              5,
+              Instant.parse("2026-03-03T14:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.or);
+      filterGroup.setFilters(
+          List.of(
+              new Filters.Filter(
+                  "order-or-first",
+                  "marking_definition_order",
+                  Filters.FilterMode.or,
+                  List.of("2"),
+                  Filters.FilterOperator.eq),
+              new Filters.Filter(
+                  "order-or-second",
+                  "marking_definition_order",
+                  Filters.FilterMode.or,
+                  List.of("8"),
+                  Filters.FilterOperator.eq)));
+      input.setFilterGroup(filterGroup);
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].marking_definition_id");
+      assertThat(ids)
+          .containsExactlyInAnyOrder(firstMatch.getId(), secondMatch.getId())
+          .doesNotContain(other.getId());
+    }
+
+    @Test
     @DisplayName("given_orderGreaterThanFilter_should_returnHigherOrdersOnly")
     void given_orderGreaterThanFilter_should_returnHigherOrdersOnly() throws Exception {
       // Arrange

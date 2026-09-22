@@ -1,6 +1,8 @@
 package io.openaev.service.marking_definition;
 
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.pagination.PaginationUtils.buildPageable;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.api.marking_definition.MarkingDefinitionMapper;
@@ -61,14 +63,14 @@ public class MarkingDefinitionService {
   public Page<MarkingDefinition> search(
       @NotNull TxCtx ctx, @NotNull SearchPaginationInput searchPaginationInput) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    SearchPaginationInput inputWithoutOrderFilters = removeOrderFilters(searchPaginationInput);
-    Specification<MarkingDefinition> orderFilterSpecification =
-        buildOrderFilterSpecification(searchPaginationInput.getFilterGroup());
-    return buildPaginationJPA(
-        (specification, pageable) ->
-            findAllByTenantIds(tenantIds, specification.and(orderFilterSpecification), pageable),
-        inputWithoutOrderFilters,
-        MarkingDefinition.class);
+    Specification<MarkingDefinition> filterSpecification =
+        buildFilterSpecification(searchPaginationInput.getFilterGroup());
+    Specification<MarkingDefinition> searchSpecification =
+        computeSearchJpa(searchPaginationInput.getTextSearch());
+    return findAllByTenantIds(
+        tenantIds,
+        filterSpecification.and(searchSpecification),
+        buildPageable(searchPaginationInput, MarkingDefinition.class));
   }
 
   // -- READ --
@@ -243,52 +245,33 @@ public class MarkingDefinitionService {
     return (root, query, criteriaBuilder) -> root.get("tenant").get("id").in(tenantIds);
   }
 
-  private SearchPaginationInput removeOrderFilters(SearchPaginationInput input) {
-    if (input.getFilterGroup() == null || input.getFilterGroup().getFilters() == null) {
-      return input;
-    }
-
-    List<Filters.Filter> remainingFilters =
-        input.getFilterGroup().getFilters().stream()
-            .filter(filter -> !ORDER_FILTER_KEY.equals(filter.getKey()))
-            .toList();
-
-    if (remainingFilters.size() == input.getFilterGroup().getFilters().size()) {
-      return input;
-    }
-
-    SearchPaginationInput filteredInput = new SearchPaginationInput();
-    filteredInput.setPage(input.getPage());
-    filteredInput.setSize(input.getSize());
-    filteredInput.setTextSearch(input.getTextSearch());
-    filteredInput.setSorts(input.getSorts());
-
-    Filters.FilterGroup remainingFilterGroup = new Filters.FilterGroup();
-    remainingFilterGroup.setMode(input.getFilterGroup().getMode());
-    remainingFilterGroup.setFilters(remainingFilters);
-    filteredInput.setFilterGroup(remainingFilterGroup);
-
-    return filteredInput;
-  }
-
-  private Specification<MarkingDefinition> buildOrderFilterSpecification(
+  private Specification<MarkingDefinition> buildFilterSpecification(
       Filters.FilterGroup filterGroup) {
     if (filterGroup == null || filterGroup.getFilters() == null) {
       return Specification.unrestricted();
     }
 
-    List<Filters.Filter> orderFilters =
+    List<Specification<MarkingDefinition>> specifications =
         filterGroup.getFilters().stream()
-            .filter(filter -> ORDER_FILTER_KEY.equals(filter.getKey()))
+            .map(
+                filter ->
+                    ORDER_FILTER_KEY.equals(filter.getKey())
+                        ? toOrderFilterSpecification(filter)
+                        : computeFilterGroupJpa(
+                            Filters.FilterGroup.filterGroupWithFilters(List.of(filter))))
             .toList();
-    if (orderFilters.isEmpty()) {
+    if (specifications.isEmpty()) {
       return Specification.unrestricted();
     }
 
-    Specification<MarkingDefinition> specification =
-        toOrderFilterSpecification(orderFilters.getFirst());
-    for (int i = 1; i < orderFilters.size(); i++) {
-      specification = specification.and(toOrderFilterSpecification(orderFilters.get(i)));
+    Filters.FilterMode groupMode =
+        filterGroup.getMode() == null ? Filters.FilterMode.and : filterGroup.getMode();
+    Specification<MarkingDefinition> specification = specifications.getFirst();
+    for (int i = 1; i < specifications.size(); i++) {
+      specification =
+          Filters.FilterMode.or.equals(groupMode)
+              ? specification.or(specifications.get(i))
+              : specification.and(specifications.get(i));
     }
     return specification;
   }
