@@ -14,6 +14,7 @@ import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.BulkOperationContext;
@@ -418,7 +419,8 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public ImportResult importScenario(TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
+  public ImportResult importScenario(
+      @RequireTenantSelector TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
     return this.importService.handleFileImport(ctx, file, null, null);
   }
