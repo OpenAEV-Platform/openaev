@@ -81,7 +81,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -90,9 +89,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -113,6 +110,7 @@ public class InjectService {
   private final ExecutionTraceRepository executionTraceRepository;
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
+  private final InjectAgentResolverService injectAgentResolverService;
   private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -141,13 +139,7 @@ public class InjectService {
   private final ThreatArsenalService threatArsenalService;
   private final ApplicationEventPublisher eventPublisher;
   private final BulkOperationMonitor bulkOperationMonitor;
-
-  private InjectStatusService injectStatusService;
-
-  @Autowired
-  public void setInjectStatusService(@Lazy InjectStatusService injectStatusService) {
-    this.injectStatusService = injectStatusService;
-  }
+  private final InjectStatusService injectStatusService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -500,7 +492,7 @@ public class InjectService {
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
-    List<Agent> agents = this.getAgentsByInject(inject);
+    List<Agent> agents = injectAgentResolverService.getAgentsByInject(inject);
     List<String> eeExecutors = enterpriseEditionService.detectEEExecutors(agents);
 
     if (!eeExecutors.isEmpty()) {
@@ -1006,6 +998,7 @@ public class InjectService {
     injectStatusService.deleteAllInjectStatusByInjects(injects);
     injects.forEach(
         inject -> {
+          inject.setAuthorisation(null);
           inject.clean();
           inject.setTriggerNowDate(null);
         });
@@ -1086,34 +1079,6 @@ public class InjectService {
         }
       }
     }
-  }
-
-  public List<Agent> getAgentsByInject(Inject inject) {
-    List<Agent> agents = new ArrayList<>();
-    Set<String> agentIds = new HashSet<>();
-
-    Consumer<Asset> extractAgents =
-        asset -> {
-          // Only endpoints carry agents; skip non-endpoint assets (e.g. AI targets).
-          if (!(Hibernate.unproxy(asset) instanceof Endpoint endpoint)) {
-            return;
-          }
-          List<Agent> collectedAgents =
-              Optional.ofNullable(endpoint.getAgents()).orElse(Collections.emptyList());
-          for (Agent agent : collectedAgents) {
-            if (isPrimaryAgent(agent) && !agentIds.contains(agent.getId())) {
-              agents.add(agent);
-              agentIds.add(agent.getId());
-            }
-          }
-        };
-
-    new ArrayList<>(inject.getAssets()).forEach(extractAgents);
-    inject.getAssetGroups().stream()
-        .flatMap(assetGroup -> assetGroupService.assetsFromAssetGroup(assetGroup.getId()).stream())
-        .forEach(extractAgents);
-
-    return agents;
   }
 
   public List<FilterUtilsJpa.Option> getOptionsByNameLinkedToFindings(
