@@ -121,10 +121,11 @@ public class ExerciseImportApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public void injectsImport(
-      // The TxCtx parameter signals the transaction aspect to set the tenant scope for this write
-      // (importInjectsForSimulation reads InjectorContract#getFirstInjector() to attach an
-      // injector to each imported inject); the importer writes in the simulation's tenant, which
-      // must lie inside that scope.
+      // The TxCtx parameter makes the transaction aspect set the request's tenant scope, under
+      // which the importer reads InjectorContract#getFirstInjector() to attach an injector to
+      // each imported inject and writes in the simulation's tenant, which must lie inside that
+      // scope. It does not scope the simulation lookup itself: that is a primary-key load,
+      // unscoped until exercises is tenant-active.
       TxCtx ctx,
       @RequestPart("file") MultipartFile file,
       @PathVariable @NotBlank final String simulationId,
