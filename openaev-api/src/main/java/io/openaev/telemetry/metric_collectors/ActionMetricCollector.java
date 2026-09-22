@@ -27,6 +27,8 @@ public class ActionMetricCollector {
   private final AtomicLong injectsPlayedByAgentCount = new AtomicLong(0);
   private final AtomicLong injectPlayedWithoutAgentsCount = new AtomicLong(0);
   private final AtomicLong averageWidgetsCount = new AtomicLong(0);
+  private final AtomicLong markingDefinitionCreatedCount = new AtomicLong(0);
+  private final AtomicLong markingDefinitionUpdatedCount = new AtomicLong(0);
   // Injects played broken down by injector type (additive to the legacy
   // with/without-agents pair, which is kept for continuity).
   private final Map<Attributes, AtomicLong> injectsPlayedByType = new ConcurrentHashMap<>();
@@ -63,6 +65,14 @@ public class ActionMetricCollector {
         "average_widgets_created_count",
         "Number of widget Average created",
         () -> averageWidgetsCount.getAndSet(0));
+    metricRegistry.registerGauge(
+        "marking_definitions_created_count",
+        "Number of marking definitions created",
+        () -> markingDefinitionCreatedCount.getAndSet(0));
+    metricRegistry.registerGauge(
+        "marking_definitions_updated_count",
+        "Number of marking definitions updated",
+        () -> markingDefinitionUpdatedCount.getAndSet(0));
     metricRegistry.registerMultiGauge(
         "injects_played_count",
         "Number of injects played, broken down by injector type",
@@ -130,6 +140,16 @@ public class ActionMetricCollector {
   public void removeAverageCreatedCount() {
     averageWidgetsCount.decrementAndGet();
     log.info("Decrement Average Created Counter");
+  }
+
+  public void addMarkingDefinitionCreatedCount() {
+    markingDefinitionCreatedCount.incrementAndGet();
+    log.info("Increment Marking Definition Created Counter");
+  }
+
+  public void addMarkingDefinitionUpdatedCount() {
+    markingDefinitionUpdatedCount.incrementAndGet();
+    log.info("Increment Marking Definition Updated Counter");
   }
 
   private void addInjectsPlayedByAgentCount() {
