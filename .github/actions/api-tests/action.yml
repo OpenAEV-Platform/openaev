@@ -267,8 +267,8 @@ runs:
         # an empty tenant-mode they take the early return above (args=, exit 0) and never reach this
         # line, so they never receive the flag and still fail on a red test. Only shadow modes get it.
         # Single-quoted so '*' reaches the JVM instead of being glob-expanded by the shell below.
-        # The write-attribution detector rides the same shadow run as the fail-closed one: both are
-        # reports, never gates (failure.ignore keeps the job green), and both are silent on failure.
+        # The write-attribution detector rides the same shadow run as the fail-closed one: both
+        # report and never gate, since failure.ignore keeps the job green.
         echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dopenaev.writeattr.detector=on -Dmaven.test.failure.ignore=true" >> "$GITHUB_OUTPUT"
 
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})

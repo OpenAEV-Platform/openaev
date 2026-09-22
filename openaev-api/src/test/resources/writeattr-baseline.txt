@@ -10,8 +10,11 @@
 # the write from the request's write scope, or add it here with a reason. Wrong-tenant writes that
 # are real defects are NOT waived here; they are tracked as findings in the task report.
 #
-# Lines starting with # and blank lines are ignored. Frozen from one full detector run over the whole
-# API suite; a line never produced again is reported at shutdown with a [WRITEATTR-STALE] marker.
+# Lines starting with # and blank lines are ignored. Frozen from one full run of the API suite with the
+# nightly shadow arguments (the production active-tables list, both detectors on), which is where the
+# gate runs; a line never produced again is reported at shutdown with a [WRITEATTR-STALE] marker. A run
+# without the production list can produce signatures that are not listed here, from tests that document
+# the behaviour of a table before its activation (a cross-tenant update that the active table refuses).
 #
 # Every signature below was traced to the test and production path that produced it. None is a live
 # cross-tenant write: each is either test-driven provisioning, by-design seeding into the default
@@ -42,8 +45,17 @@ phishing_landing_pages DEFAULT io.openaev.service.tenants.TenantService.create
 users_tenants OTHER io.openaev.service.tenants.TenantService.create
 domains OTHER io.openaev.service.tenants.TenantService.create
 
-# --- V1 data import. Startup/seeding of reference data into the default tenant (the shared catalog),
-# by design. Runs with no per-tenant scope, so the rows carry the default tenant.
+# --- V1 scenario import driven directly by a test. KillChainPhaseImportAttributionTest calls the
+# importer itself with TxCtx.forTenant(tenantB) (not the import endpoints), so the importer is the
+# outermost production frame. Kill chain phases are attributed explicitly on that path (the point of
+# the test); the other rows the import creates (scenario, injects, payloads, contracts and their
+# links, domains, attack patterns) are still stamped by the v1 listener from TenantContext, which
+# the test leaves on the default tenant, so they land in the default tenant while the transaction's
+# v2 scope is tenant B. In production the importer is reached through the import endpoints, where
+# the tenant path sets TenantContext; on the non-prefixed route the same class as the group below
+# applies and is handled by the activation of these tables. The documents activation (#7904)
+# attributes the importer's writes from the request scope: re-check these lines when it merges,
+# they are expected to stop being produced.
 scenarios DEFAULT io.openaev.importer.V1_DataImporter.importData
 payloads DEFAULT io.openaev.importer.V1_DataImporter.importData
 injects DEFAULT io.openaev.importer.V1_DataImporter.importData
@@ -54,37 +66,47 @@ injectors_contracts_attack_patterns DEFAULT io.openaev.importer.V1_DataImporter.
 domains DEFAULT io.openaev.importer.V1_DataImporter.importData
 attack_patterns DEFAULT io.openaev.importer.V1_DataImporter.importData
 
-# --- Real wrong-tenant writes on the header route (X-Tenant-Ids), waived only until their fix merges.
-# The header route sets the read scope but leaves TenantContext unset, so the create stamps the row
-# with the default tenant while the request scope is another tenant. These tables are not active yet,
-# so no cross-tenant leak occurs in production today, but the write is genuinely misattributed, not
-# inert behaviour. Remove each line when its fix merges (after which the write carries the request
-# scope and the signature is no longer produced):
-#   scenarios ScenarioApi.createScenario         -> fixed by #7959
-#   scenarios / exercises AutonomousRunApi.create -> fixed by #7972
-# The detector's own non-vacuity tests drive the ScenarioApi.createScenario path on purpose and will
-# need reworking to the raw-write path when #7959 lands.
+# --- Real wrong-tenant writes on the non-prefixed route (X-Tenant-Ids), on tables that are not
+# active yet. The header route sets the v2 read scope but leaves the v1 TenantContext unset, so
+# the listener stamps the row with the default tenant while the request scope is another tenant.
+# These tables are not active, so no cross-tenant leak occurs in production today, but the write
+# is genuinely misattributed, not inert behaviour. The non-prefixed route is corrected table by
+# table with the v2 activations, not by site fixes outside an activation: remove each line when
+# its table activates (the activation attributes the create from the request's write scope and
+# the signature is no longer produced):
+#   scenarios ScenarioApi.createScenario           -> activation of scenarios (#6432)
+#   scenarios / exercises AutonomousRunApi.create  -> activation of scenarios (#6432) and
+#                                                     exercises (#6434)
+# The detector's own non-vacuity tests drive the ScenarioApi.createScenario path on purpose and
+# move to the raw-write path when scenarios activates.
 scenarios DEFAULT io.openaev.rest.scenario.ScenarioApi.createScenario
 scenarios DEFAULT io.openaev.api.autonomous.AutonomousRunApi.create
 exercises DEFAULT io.openaev.api.autonomous.AutonomousRunApi.create
 
-# --- Shared-catalog seed misattributed to a background job by a lazy JPA flush. The written rows are
-# the shared reference catalog (collector types, phishing email templates and landing pages) seeded
-# into the default tenant by design; the real writers are on the innermost frame in the collection
-# log (CollectorService.ensureCollectorTypeExists, InjectorService.createNewBuiltinInjector,
-# PhishingLandingPageService.landingPages). CredentialConnectivityCheckJob.execute is not the writer:
-# it does every read and write inside tenantTx.execute(TxCtx.forTenant(tenantId), ...) and never
-# touches these tables (CredentialConnectivityCheckJob.java:58-103). The seed rows were persisted at
-# startup and flushed lazily while the job's frame was on the stack, so the entry-frame heuristic
-# attributed the seed to the job. Benign: the default-tenant catalog write is correct and the job's
-# own writes are tenant-scoped.
+# --- Shared-catalog rows written by the lazy per-tenant manager creation inside a background job.
+# CredentialConnectivityCheckJobIntegrationTest seeds its tenants with plain SQL, so they were never
+# onboarded and have no manager. The job's per-tenant work (validateTenantCredentials, inside
+# tenantTx.execute(TxCtx.forTenant(tenantId))) resolves the tenant's secrets provider, which asks
+# ManagerFactory for the tenant's manager; ManagerCreator.createManager registers every builtin
+# component for that tenant, and the registration creates the missing catalog rows: the collector
+# type (CollectorService.ensureCollectorTypeExists), the builtin injector
+# (InjectorService.createNewBuiltinInjector) and the phishing landing pages and email templates
+# (PhishingLandingPageService.landingPages). Those rows take their tenant from the v1 listener,
+# unset on a job thread, so they land in the default tenant while the scope is the tenant being
+# served. The same rows are written to the default tenant at tenant onboarding (the
+# TenantService.create lines above): the shared catalog lives in the default tenant on every path
+# today, and the job's own credential reads and writes are tenant-scoped. Retire these lines with
+# the activation of collector_types (#7933) and of the phishing tables (#7901), which decide the
+# attribution of that catalog.
 collector_types DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
 phishing_email_templates DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
 phishing_landing_pages DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
 
-# --- Produced only under tests that arm the table inactive to document the pre-activation behaviour
-# (ImportMapperHttpInertWhenInactiveTest arms without import_mappers; CweHttpIsolationTest arms only
-# cwes, so collectors is inactive). The write reaches another tenant / the default tenant precisely
-# because isolation is off in that test's allowlist; in production these tables are active.
-import_mappers OTHER io.openaev.rest.mapper.MapperApi.updateImportMapper
+# --- Produced only under a test that arms its own activation list without collectors
+# (CweHttpIsolationTest activates cwes alone, so collectors is inactive there and the bulk insert
+# reaches the default tenant's collector). The write reaches another tenant precisely because
+# isolation is off in that test's allowlist; in production collectors is active. A sibling case,
+# ImportMapperHttpInertWhenInactiveTest updating another tenant's mapper with import_mappers
+# inactive, is not listed: it arms nothing itself, so under the production list the table is active,
+# the update is refused and no write happens.
 collectors DEFAULT io.openaev.rest.vulnerability.VulnerabilityApi.bulkInsertVulnerabilitiesForCollector
