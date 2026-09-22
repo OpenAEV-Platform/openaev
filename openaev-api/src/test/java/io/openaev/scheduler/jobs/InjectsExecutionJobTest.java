@@ -24,6 +24,7 @@ import io.openaev.helper.InjectHelper;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;
@@ -82,6 +83,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private AgentRepository agentRepository;
   @Autowired private PlatformTransactionManager transactionManager;
   @MockitoSpyBean private ManagerFactory managerFactory;
+  @MockitoSpyBean private InjectStatusService injectStatusService;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private HealthCheckUtils healthCheckUtils;
@@ -399,6 +401,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
         clearInvocations(auditLogger);
         doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+        doNothing().when(injectStatusService).deleteInjectAuthorisationIfExecutionEnded(any());
 
         // Act
         job.executeInject(getExecutableInject(ids[1]));
@@ -492,6 +495,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
         clearInvocations(auditLogger);
         doReturn(List.of()).when(healthCheckUtils).runContentChecks(any(Inject.class));
+        doNothing().when(injectStatusService).deleteInjectAuthorisationIfExecutionEnded(any());
 
         // Act
         job.executeInject(getExecutableInject(ids[1]));
@@ -502,6 +506,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
         List<String> teamIds =
             (List<String>) targetResolutionEvent.getContextData().get("team_ids");
         assertThat(teamIds).contains(ids[2]);
+        verify(injectStatusService, atLeastOnce()).deleteInjectAuthorisationIfExecutionEnded(any());
       } finally {
         inTransaction(() -> exerciseRepository.deleteById(ids[0]));
         exerciseComposer.reset();

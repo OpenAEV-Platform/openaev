@@ -40,6 +40,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
@@ -49,7 +50,7 @@ public class InjectStatusService {
 
   private final InjectRepository injectRepository;
   private final AgentRepository agentRepository;
-  private final InjectService injectService;
+  private final InjectAgentResolverService injectAgentResolverService;
   private final InjectUtils injectUtils;
   private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectStatusRepository injectStatusRepository;
@@ -159,7 +160,7 @@ public class InjectStatusService {
       return totalCompleteTrace >= expectedAgentCount;
     }
     // Fallback for injects launched before the expected count was persisted
-    List<Agent> agents = this.injectService.getAgentsByInject(inject);
+    List<Agent> agents = this.injectAgentResolverService.getAgentsByInject(inject);
     return agents.size() == totalCompleteTrace;
   }
 
@@ -358,7 +359,7 @@ public class InjectStatusService {
     return injectStatusRepository.save(injectStatus);
   }
 
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public InjectStatus failInjectStatus(@NotNull String injectId, @Nullable String message) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);

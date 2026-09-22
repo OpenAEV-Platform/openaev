@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TxCtx;
+import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -52,6 +53,7 @@ import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import java.util.*;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -79,67 +81,41 @@ class InjectServiceTest {
   private static final String INJECT_ID = "injectid";
 
   @Mock private InjectRepository injectRepository;
-
   @Mock private AssetService assetService;
-
   @Mock private AssetGroupService assetGroupService;
-
+  @Mock private InjectAgentResolverService injectAgentResolverService;
   @Mock private TeamRepository teamRepository;
-
+  @Mock private AgentRepository agentRepository;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
-
   @Mock private InjectStatusRepository injectStatusRepository;
-
   @Mock private InjectDocumentRepository injectDocumentRepository;
-
   @Mock private InjectUtils injectUtils;
-
   @Mock private InjectStatusMapper injectStatusMapper;
-
   @Mock private PayloadMapper payloadMapper;
-
   @Mock private InjectExpectationMapper injectExpectationMapper;
-
   @Mock private InjectorContractService injectorContractService;
-
   @Mock private UserService userService;
-
   @Mock private EnterpriseEditionService enterpriseEditionService;
-
   @Mock private EndpointService endpointService;
-
   @Mock private MethodSecurityExpressionHandler methodSecurityExpressionHandler;
-
   @Mock private TagRuleService tagRuleService;
-
   @Mock private TagService tagService;
-
   @Mock private DocumentService documentService;
-
   @Mock private TagRepository tagRepository;
-
   @Mock private DocumentRepository documentRepository;
-
   @Mock private PayloadRepository payloadRepository;
-
   @Mock private ThreatArsenalService threatArsenalService;
-
   @Mock private LicenseCacheManager licenseCacheManager;
-
   @Mock private SmtpService smtpService;
-
   @Mock private ImapService imapService;
-
   @Mock private CollectorService collectorService;
-
   @Mock private InjectorService injectorService;
-
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
-
   @Mock private StepTargetingService stepTargetingService;
-
   @Mock private ConditionService conditionService;
+  @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
+  @Mock private EntityManager entityManager;
 
   @Spy
   private InjectorContractContentUtils injectorContractContentUtils =
@@ -150,16 +126,30 @@ class InjectServiceTest {
   ObjectMapper mapper;
 
   @InjectMocks private InjectService injectService;
-  @InjectMocks private InjectStatusService injectStatusService;
+
+  private InjectStatusService injectStatusService;
 
   @BeforeEach
   void setUp() {
     // InjectStatusService serializes the inject (Instant / Optional fields) into the SSE
     // BaseEvent payload on status transitions, so the mapper needs the JSR-310/JDK8 modules.
     mapper = new ObjectMapper().findAndRegisterModules();
+    injectStatusService =
+        spy(
+            new InjectStatusService(
+                injectRepository,
+                agentRepository,
+                injectAgentResolverService,
+                injectUtils,
+                injectAuthorisationRepository,
+                injectStatusRepository,
+                executionTraceRepositoryHelper,
+                Optional.empty(),
+                eventPublisher,
+                mapper,
+                entityManager));
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
-    ReflectionTestUtils.setField(injectStatusService, "mapper", mapper);
-    ReflectionTestUtils.setField(injectStatusService, "auditLogger", Optional.empty());
+    ReflectionTestUtils.setField(injectService, "injectStatusService", injectStatusService);
     ReflectionTestUtils.setField(
         injectService,
         "healthCheckUtils",
@@ -224,6 +214,7 @@ class InjectServiceTest {
     inject.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
     when(injectRepository.findAllInjectBySimulationId("exercise-reset"))
         .thenReturn(List.of(inject));
+    doCallRealMethod().when(injectStatusService).deleteAllInjectStatusByInjects(List.of(inject));
 
     // -- ACT --
     injectService.resetInjectByExercise("exercise-reset");
@@ -231,7 +222,7 @@ class InjectServiceTest {
     // -- ASSERT --
     verify(injectAuthorisationRepository).deleteAllByInjectIds(List.of("inject-reset"));
     verify(injectStatusRepository).deleteAllByIds(List.of("status-reset"));
-    assertNull(inject.getStatus());
+    assertTrue(inject.getStatus().isEmpty());
     assertNull(inject.getTriggerNowDate());
     assertEquals(CollectExecutionStatus.COLLECTING, inject.getCollectExecutionStatus());
   }

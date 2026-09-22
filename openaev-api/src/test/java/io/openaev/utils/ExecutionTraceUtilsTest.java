@@ -162,7 +162,6 @@ class ExecutionTraceUtilsTest {
     void given_in_progress_status_should_not_delete_inject_authorisation() {
       // -- ARRANGE --
       Inject inject = mock(Inject.class);
-      when(inject.getId()).thenReturn("inject-running");
       InjectStatus status = new InjectStatus();
       status.setInject(inject);
       status.setName(io.openaev.database.model.ExecutionStatus.PENDING);

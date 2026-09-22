@@ -87,7 +87,7 @@ class InjectStatusServiceTest {
 
       @Mock private InjectRepository injectRepository;
       @Mock private AgentRepository agentRepository;
-      @Mock private InjectService injectService;
+      @Mock private InjectAgentResolverService injectAgentResolverService;
       @Mock private InjectUtils injectUtils;
       @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
       @Mock private InjectStatusRepository injectStatusRepository;
@@ -105,7 +105,7 @@ class InjectStatusServiceTest {
             new InjectStatusService(
                 injectRepository,
                 agentRepository,
-                injectService,
+                injectAgentResolverService,
                 injectUtils,
                 injectAuthorisationRepository,
                 injectStatusRepository,

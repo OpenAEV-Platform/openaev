@@ -11,10 +11,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -51,10 +48,10 @@ import org.junit.jupiter.api.*;
 import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
@@ -123,7 +120,8 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private CacheManager cacheManager;
   @Autowired private PlatformTransactionManager transactionManager;
 
-  @SpyBean private io.openaev.service.chaining.WorkflowEndService workflowEndService;
+  @MockitoSpyBean private WorkflowEndService workflowEndService;
+  @MockitoSpyBean private InjectRepository injectRepositorySpy;
 
   private void inTransaction(Runnable work) {
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
@@ -141,56 +139,74 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     @Test
     @WithMockUser(isAdmin = true)
     @DisplayName("given closed exercise reset should clear status and authorisation")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void given_closedExerciseReset_should_clearStatusAndInjectAuthorisation() throws Exception {
-      // Arrange
-      Exercise exercise = ExerciseFixture.createCanceledAttackExercise(REFERENCE_TIME);
-      exercise.setName("reset-cleanup-" + UUID.randomUUID());
-      exercise = exerciseRepository.save(exercise);
+      String[] ids = new String[2]; // exerciseId, injectId
+      try {
+        // Arrange
+        inTransaction(
+            () -> {
+              Exercise exercise = ExerciseFixture.createCanceledAttackExercise(REFERENCE_TIME);
+              exercise.setName("reset-cleanup-" + UUID.randomUUID());
+              Exercise savedExercise = exerciseRepository.save(exercise);
 
-      Inject inject =
-          getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
-      inject.setExercise(exercise);
-      inject.setTeams(new ArrayList<>(List.of(TEAM)));
-      inject = injectRepository.save(inject);
+              Inject inject =
+                  getInjectForEmailContract(
+                      injectorContractFixture.getWellKnownSingleEmailContract());
+              inject.setExercise(savedExercise);
+              inject.setTeams(new ArrayList<>(List.of(TEAM)));
+              Inject savedInject = injectRepository.save(inject);
 
-      InjectStatus status = new InjectStatus();
-      status.setInject(inject);
-      status.setName(ExecutionStatus.PENDING);
-      status = injectStatusRepository.save(status);
-      inject.setStatus(status);
-      inject.setTriggerNowDate(Instant.now());
-      inject.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
-      injectRepository.save(inject);
+              InjectStatus status = new InjectStatus();
+              status.setInject(savedInject);
+              status.setName(ExecutionStatus.PENDING);
+              InjectStatus savedStatus = injectStatusRepository.save(status);
+              savedInject.setStatus(savedStatus);
+              savedInject.setTriggerNowDate(Instant.now());
+              savedInject.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
 
-      InjectAuthorisation authorisation = new InjectAuthorisation();
-      authorisation.setInject(inject);
-      authorisation.setCode("hashed-code");
-      authorisation.setIssuedAt(Instant.now());
-      injectAuthorisationRepository.save(authorisation);
+              InjectAuthorisation authorisation = new InjectAuthorisation();
+              authorisation.setInject(savedInject);
+              authorisation.setCode("hashed-code");
+              authorisation.setIssuedAt(Instant.now());
+              injectAuthorisationRepository.save(authorisation);
+              entityManager.flush();
+              entityManager.detach(savedInject);
 
-      entityManager.flush();
-      entityManager.clear();
+              ids[0] = savedExercise.getId();
+              ids[1] = savedInject.getId();
+            });
 
-      ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
-      input.setStatus(ExerciseStatus.SCHEDULED);
+        ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+        input.setStatus(ExerciseStatus.SCHEDULED);
 
-      // Act
-      mvc.perform(
-              put(EXERCISE_URI + "/" + exercise.getId() + "/status")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-      entityManager.flush();
-      entityManager.clear();
+        // Act
+        mvc.perform(
+                put(EXERCISE_URI + "/" + ids[0] + "/status")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
 
-      // Assert
-      Inject reloadedInject = injectRepository.findById(inject.getId()).orElseThrow();
-      assertTrue(injectStatusRepository.findByInjectId(inject.getId()).isEmpty());
-      assertTrue(injectAuthorisationRepository.findByInjectId(inject.getId()).isEmpty());
-      assertNull(reloadedInject.getTriggerNowDate());
-      assertEquals(CollectExecutionStatus.COLLECTING, reloadedInject.getCollectExecutionStatus());
+        // Assert
+        inTransaction(
+            () -> {
+              Inject reloadedInject = injectRepository.findById(ids[1]).orElseThrow();
+              assertTrue(injectStatusRepository.findByInjectId(ids[1]).isEmpty());
+              assertTrue(injectAuthorisationRepository.findByInjectId(ids[1]).isEmpty());
+              assertNull(reloadedInject.getTriggerNowDate());
+              assertEquals(
+                  CollectExecutionStatus.COLLECTING, reloadedInject.getCollectExecutionStatus());
+            });
+      } finally {
+        inTransaction(
+            () -> {
+              if (ids[0] != null) {
+                exerciseRepository.deleteById(ids[0]);
+              }
+            });
+      }
     }
 
     @Test
@@ -750,14 +766,5 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     assertEquals(
         List.of(ExerciseStatus.RUNNING.name()),
         JsonPath.read(response, "$.exercise_next_possible_status"));
-  }
-
-  // The preview feature lookup is @Cacheable("global"), so the cache must be dropped on every
-  // toggle of the enabled dev features.
-  private void clearGlobalCache() {
-    var cache = cacheManager.getCache("global");
-    if (cache != null) {
-      cache.clear();
-    }
   }
 }
