@@ -186,13 +186,6 @@ public abstract class AbstractTechnicalBehavior
     expectation.setAssetGroup(assetGroup);
     expectation.setAsset(asset);
     expectation.setAgent(agent);
-    if (asset != null && agent == null) {
-      // Asset-level parent: its agents roll up with "at least one agent must validate" when the
-      // asset is reached through an asset group, and "all agents must validate" when the asset is
-      // directly linked to the inject. The form-level flag only drives the asset-group parent, as
-      // it always did before the behavior-based initialization.
-      expectation.setExpectationGroup(assetGroup != null);
-    }
     return expectation;
   }
 

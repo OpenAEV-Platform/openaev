@@ -684,81 +684,6 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given an asset reached through a group and directly should aggregate its agents with the legacy rule per parent")
-    void given_asset_parents_should_keep_legacy_expectation_group_semantics() {
-      // Arrange
-      Endpoint endpoint = persistEndpointWithOneAgent();
-
-      AssetGroup assetGroup =
-          assetGroupComposer
-              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group"))
-              .withAsset(endpointComposer.forEndpoint(endpoint))
-              .persist()
-              .get();
-
-      Exercise exercise = persistDefaultExercise();
-
-      Inject inject =
-          injectComposer
-              .forInject(InjectFixture.getDefaultInject())
-              .withEndpoint(endpointComposer.forEndpoint(endpoint))
-              .withAssetGroup(assetGroupComposer.forAssetGroup(assetGroup))
-              .withExercise(exerciseComposer.forExercise(exercise))
-              .withInjectorContract(
-                  injectorContractComposer.forInjectorContract(
-                      InjectorContractFixture.createDefaultInjectorContract()))
-              .persist()
-              .get();
-
-      DetectionInjectExpectation template = createTemplate(inject);
-      // The form-level flag drives the asset-group parent only.
-      template.setExpectationGroup(true);
-
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              false,
-              false,
-              inject,
-              List.of(),
-              List.of(endpoint),
-              List.of(assetGroup),
-              List.of(),
-              List.of());
-
-      // Act
-      List<BaseInjectExpectation> saved =
-          actAndGetSavedExpectations(executableInject, template, "oaev");
-
-      // Assert — directly linked asset parent: all agents must validate; asset parent reached
-      // through the group: at least one agent must validate; group parent: the form flag.
-      TechnicalInjectExpectation directAssetParent =
-          saved.stream()
-              .map(TechnicalInjectExpectation.class::cast)
-              .filter(
-                  e -> e.getAgent() == null && e.getAsset() != null && e.getAssetGroup() == null)
-              .findFirst()
-              .orElseThrow();
-      TechnicalInjectExpectation groupedAssetParent =
-          saved.stream()
-              .map(TechnicalInjectExpectation.class::cast)
-              .filter(
-                  e -> e.getAgent() == null && e.getAsset() != null && e.getAssetGroup() != null)
-              .findFirst()
-              .orElseThrow();
-      TechnicalInjectExpectation groupParent =
-          saved.stream()
-              .map(TechnicalInjectExpectation.class::cast)
-              .filter(
-                  e -> e.getAgent() == null && e.getAsset() == null && e.getAssetGroup() != null)
-              .findFirst()
-              .orElseThrow();
-      assertThat(directAssetParent.isExpectationGroup()).isFalse();
-      assertThat(groupedAssetParent.isExpectationGroup()).isTrue();
-      assertThat(groupParent.isExpectationGroup()).isTrue();
-    }
-
-    @Test
-    @DisplayName(
         "given an agentless vulnerability expectation, the assessment injector verdict should conclude the row")
     void given_agentless_vulnerability_expectation_injector_verdict_should_conclude_the_row() {
       // Arrange — an agentless endpoint scanned by an assessment injector (e.g. Nuclei) that
@@ -806,9 +731,14 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
       assertThat(leaf.getResults()).isEmpty();
       assertThat(leaf.getScore()).isNull();
 
+      // An assessment injector declares itself as a VULNERABILITY_SCANNER security platform and
+      // is the verdict source of the rows it concludes (see SECURITY_PLATFORM_TYPE).
       SecurityPlatform scanner =
           securityPlatformComposer
-              .forSecurityPlatform(SecurityPlatformFixture.createDefault("Nuclei", "EDR"))
+              .forSecurityPlatform(
+                  SecurityPlatformFixture.createDefault(
+                      "Nuclei",
+                      SecurityPlatform.SECURITY_PLATFORM_TYPE.VULNERABILITY_SCANNER.name()))
               .persist()
               .get();
 
