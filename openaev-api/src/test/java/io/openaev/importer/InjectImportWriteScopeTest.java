@@ -68,6 +68,11 @@ import org.springframework.transaction.annotation.Transactional;
  * with access to the default tenant falls back to it, and a multi-tenant caller without it is
  * refused with 400.
  *
+ * <p>On the non-prefixed route with {@code X-Tenant-Ids} the simulation parent is a primary-key
+ * load and is found whatever the ambient tenant; the scenario parent is looked up in the ambient
+ * tenant, the default one on that route, until {@code scenarios} is tenant-active, so that import
+ * fails closed and writes nothing.
+ *
  * <p>The row tenant is read with raw JDBC on the test connection so the statement inspector never
  * rewrites the ground-truth read. {@code domains} is armed next to {@code documents} because the
  * import resolves the preset domain by name and relies on the scope to get a single row.
@@ -332,6 +337,27 @@ class InjectImportWriteScopeTest extends IntegrationTest {
       // Assert
       assertThat(importedInjectTenants()).containsExactly(tenantB);
     }
+
+    @Test
+    @DisplayName("given_headerRouteAndParentInB_should_writeInjectsInB")
+    void given_headerRouteAndParentInB_should_writeInjectsInB() throws Exception {
+      // Arrange: the header selects B while the ambient tenant stays on the default one. The
+      // simulation is loaded by primary key, which the ambient tenant does not filter.
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB = tenantHelper.createTenantWithCurrentUser("sim-inj-header-b").getId();
+      byte[] zip = injectZip();
+      String exerciseId = saveExercise(tenantB);
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(DEFAULT_TENANT);
+
+      // Act
+      importZip(
+              multipart(EXERCISE_URI + "/{simulationId}/injects/import", exerciseId), zip, tenantB)
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(importedInjectTenants()).containsExactly(tenantB);
+    }
   }
 
   @Nested
@@ -387,6 +413,25 @@ class InjectImportWriteScopeTest extends IntegrationTest {
       // Assert
       assertThat(importedInjectTenants()).containsExactly(tenantB);
     }
+
+    @Test
+    @DisplayName("given_headerRouteAndParentInB_should_failClosedAndWriteNothing")
+    void given_headerRouteAndParentInB_should_failClosedAndWriteNothing() throws Exception {
+      // Arrange: the header selects B while the ambient tenant stays on the default one. The
+      // scenario is looked up in the ambient tenant until scenarios is tenant-active, so a B
+      // scenario is not found on this route and nothing is written in any tenant.
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB = tenantHelper.createTenantWithCurrentUser("scn-inj-header-b").getId();
+      byte[] zip = injectZip();
+      String scenarioId = saveScenario(tenantB);
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(DEFAULT_TENANT);
+
+      // Act & Assert
+      importZip(multipart(SCENARIO_URI + "/{scenarioId}/injects/import", scenarioId), zip, tenantB)
+          .andExpect(status().isNotFound());
+      assertThat(importedInjectTenants()).isEmpty();
+    }
   }
 
   // -- Helpers --
@@ -437,6 +482,17 @@ class InjectImportWriteScopeTest extends IntegrationTest {
   private ResultActions importZip(MockMultipartHttpServletRequestBuilder request, byte[] zip)
       throws Exception {
     return mvc.perform(request.file(new MockMultipartFile("file", zip)).with(csrf()));
+  }
+
+  /** Same import on the non-prefixed route with the tenant selected through the header. */
+  private ResultActions importZip(
+      MockMultipartHttpServletRequestBuilder request, byte[] zip, String selectedTenant)
+      throws Exception {
+    return mvc.perform(
+        request
+            .file(new MockMultipartFile("file", zip))
+            .header(TENANT_HEADER, selectedTenant)
+            .with(csrf()));
   }
 
   private String saveExercise(String tenantId) {
