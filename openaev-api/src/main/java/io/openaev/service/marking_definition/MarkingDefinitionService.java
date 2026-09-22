@@ -10,6 +10,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MarkingDefinitionService {
 
   private final MarkingDefinitionRepository repository;
+  private final ActionMetricCollector actionMetricCollector;
 
   // -- SEARCH --
 
@@ -95,7 +97,9 @@ public class MarkingDefinitionService {
     MarkingDefinition entity = MarkingDefinitionMapper.fromInput(input);
     entity.setProtectedDefinition(false);
     entity.setTenant(new Tenant(tenantId));
-    return repository.save(entity);
+    MarkingDefinition saved = repository.save(entity);
+    actionMetricCollector.addMarkingDefinitionCreatedCount();
+    return saved;
   }
 
   // -- UPDATE --
@@ -124,7 +128,9 @@ public class MarkingDefinitionService {
     existing.setDefinition(input.definition());
     existing.setColor(input.color());
     existing.setOrder(input.order());
-    return repository.save(existing);
+    MarkingDefinition saved = repository.save(existing);
+    actionMetricCollector.addMarkingDefinitionUpdatedCount();
+    return saved;
   }
 
   // -- DELETE --
