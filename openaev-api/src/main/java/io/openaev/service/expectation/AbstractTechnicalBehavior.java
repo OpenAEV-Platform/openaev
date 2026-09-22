@@ -153,9 +153,16 @@ public abstract class AbstractTechnicalBehavior
               // rows next to it means the first real verdict never completes the row
               // (computeScore waits for every seeded source), while the expiration manager skips
               // agentless rows that already carry a result - so the expectation stays pending
-              // forever. Signatures are still computed for every leaf below.
-              if (isAgentExpectation(e) && !requiresCollectorToInitialize) {
-                initializeResults(e, collectors);
+              // forever. The expiration ordering guarantee still applies to an agentless leaf a
+              // collector may answer: the expiration manager must stay a fallback that acts only
+              // after the expected collectors had their poll cycles. Signatures are computed for
+              // every leaf below.
+              if (!requiresCollectorToInitialize) {
+                if (isAgentExpectation(e)) {
+                  initializeResults(e, collectors);
+                } else {
+                  guaranteeExpirationOrdering(e, collectors);
+                }
               }
               String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
               List<ExpectationSignature> expectationSignatures =
@@ -239,8 +246,21 @@ public abstract class AbstractTechnicalBehavior
     if (!(expectation instanceof TechnicalInjectExpectation tech)) {
       return List.of();
     }
-    applyExpirationOrderingGuarantee(tech, collectors);
+    guaranteeExpirationOrdering(tech, collectors);
     return setUpFromCollectors(collectors);
+  }
+
+  /**
+   * Expiration ordering guarantee of a collector-fulfilled leaf: the expiration is raised to at
+   * least two poll cycles of the collectors expected to answer it, so the expiration manager only
+   * ever acts as a fallback. Applied with the pending rows on agent leaves ({@link
+   * #buildDefaultResults}) and on its own on agentless leaves, which carry no placeholder.
+   * Vulnerability expectations are answered by the assessment injector itself, not by a polling
+   * collector, and override this to a no-op.
+   */
+  protected void guaranteeExpirationOrdering(
+      TechnicalInjectExpectation leaf, List<Collector> collectors) {
+    applyExpirationOrderingGuarantee(leaf, collectors);
   }
 
   // ----- END INITIALIZE

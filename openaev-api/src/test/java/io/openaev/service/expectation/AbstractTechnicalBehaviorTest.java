@@ -631,6 +631,64 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
     @Test
     @DisplayName(
+        "given one asset agentless, should keep the expiration ordering guarantee of the expected collectors")
+    void given_one_asset_agentless_should_keep_expiration_floor_of_expected_collectors() {
+      // Arrange — an EDR collector polling every 300s, an agentless endpoint reached by a non-agent
+      // injector and a detection expectation expiring long before two of its poll cycles
+      Endpoint endpoint =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+
+      Collector slowCollector = CollectorFixture.createDefaultCollector("collector-slow-edr");
+      slowCollector.setPeriod(300);
+      collectorComposer
+          .forCollector(slowCollector)
+          .withSecurityPlatform(
+              securityPlatformComposer.forSecurityPlatform(
+                  SecurityPlatformFixture.createDefault("collector-slow-edr", "EDR")))
+          .persist();
+
+      Exercise exercise = persistDefaultExercise();
+
+      Injector nonPayloadInjector = InjectorFixture.createDefaultInjector("nmap");
+      nonPayloadInjector.setPayloads(false);
+      Inject defaultInject = InjectFixture.getDefaultInject();
+      defaultInject.setInjector(nonPayloadInjector);
+
+      Inject inject =
+          injectComposer
+              .forInject(defaultInject)
+              .withEndpoint(endpointComposer.forEndpoint(endpoint))
+              .withExercise(exerciseComposer.forExercise(exercise))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withInjector(nonPayloadInjector))
+              .persist()
+              .get();
+
+      DetectionInjectExpectation template = createTemplate(inject);
+      template.setExpirationTime(30L);
+      template.setExpectedSecurityPlatforms(List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR));
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
+
+      // Act
+      List<BaseInjectExpectation> saved =
+          actAndGetSavedExpectations(executableInject, template, "nmap");
+
+      // Assert — still no placeholder on the agentless leaf, but the expiration manager may only
+      // conclude it after two poll cycles of the slowest expected collector (2 x 300s)
+      assertThat(saved).hasSize(1);
+      TechnicalInjectExpectation assetExpectation = (TechnicalInjectExpectation) saved.getFirst();
+      assertThat(assetExpectation.getAgent()).isNull();
+      assertThat(assetExpectation.getResults()).isEmpty();
+      assertThat(assetExpectation.getExpirationTime()).isEqualTo(600L);
+    }
+
+    @Test
+    @DisplayName(
         "given one asset group with three assets should create a single asset-group expectation")
     void given_one_asset_group_with_three_assets_should_create_a_single_asset_group_expectation() {
       // Arrange
