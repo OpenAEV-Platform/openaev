@@ -285,17 +285,10 @@ public class MarkingDefinitionService {
       return Specification.unrestricted();
     }
 
-    Filters.FilterMode groupMode =
-        filterGroup.getMode() == null ? Filters.FilterMode.and : filterGroup.getMode();
     Specification<MarkingDefinition> specification =
         toOrderFilterSpecification(orderFilters.getFirst());
     for (int i = 1; i < orderFilters.size(); i++) {
-      Specification<MarkingDefinition> nextSpecification =
-          toOrderFilterSpecification(orderFilters.get(i));
-      specification =
-          Filters.FilterMode.or.equals(groupMode)
-              ? specification.or(nextSpecification)
-              : specification.and(nextSpecification);
+      specification = specification.and(toOrderFilterSpecification(orderFilters.get(i)));
     }
     return specification;
   }

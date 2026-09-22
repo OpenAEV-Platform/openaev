@@ -959,6 +959,39 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_orderFilterWithNonIntegerValue_should_returnBadRequest")
+    void given_orderFilterWithNonIntegerValue_should_returnBadRequest() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-invalid", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setFilterGroup(
+          Filters.FilterGroup.filterGroupWithFilters(
+              List.of(
+                  new Filters.Filter(
+                      "order-invalid",
+                      "marking_definition_order",
+                      Filters.FilterMode.or,
+                      List.of("not-an-integer"),
+                      Filters.FilterOperator.eq))));
+
+      // Act & Assert
+      mvc.perform(
+              post(URI + "/search", tenant.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(
+              jsonPath("$.message")
+                  .value(
+                      "Invalid marking_definition_order filter value 'not-an-integer': expected an integer"));
+    }
+
+    @Test
     @DisplayName("given_textSearch_should_matchDefinition")
     void given_textSearch_should_matchDefinition() throws Exception {
       // Arrange
