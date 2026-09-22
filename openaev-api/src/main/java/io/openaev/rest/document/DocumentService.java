@@ -30,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -213,10 +214,11 @@ public class DocumentService {
     Stream<Document> challengesDocs =
         fromIterable(challengeRepository.findAllById(challenges)).stream()
             .flatMap(challenge -> challenge.getDocuments().stream());
-    return Stream.of(channelsDocs, articlesDocs, challengesDocs)
-        .flatMap(documentStream -> documentStream)
-        .distinct()
-        .toList();
+    return withSerializedLinks(
+        Stream.of(channelsDocs, articlesDocs, challengesDocs)
+            .flatMap(documentStream -> documentStream)
+            .distinct()
+            .toList());
   }
 
   /**
@@ -317,11 +319,29 @@ public class DocumentService {
   }
 
   public List<Document> documentsForScenario(String scenarioId) {
-    return this.documentRepository.findAllDistinctByScenarioId(scenarioId);
+    return withSerializedLinks(this.documentRepository.findAllDistinctByScenarioId(scenarioId));
   }
 
   public List<Document> documentsForSimulation(String simulationId) {
-    return this.documentRepository.findAllDistinctBySimulationId(simulationId);
+    return withSerializedLinks(this.documentRepository.findAllDistinctBySimulationId(simulationId));
+  }
+
+  /**
+   * Initializes the lazy associations a raw {@link Document} response serializes as id arrays
+   * (tags, simulations, scenarios). Serialization runs open-in-view after the controller
+   * transaction has committed, where the tenant scope no longer exists: a lazy load at that point
+   * fails closed and the arrays come back empty. Call it on every document returned as an entity.
+   */
+  public Document withSerializedLinks(Document document) {
+    Hibernate.initialize(document.getTags());
+    Hibernate.initialize(document.getExercises());
+    Hibernate.initialize(document.getScenarios());
+    return document;
+  }
+
+  public List<Document> withSerializedLinks(List<Document> documents) {
+    documents.forEach(this::withSerializedLinks);
+    return documents;
   }
 
   public List<RawDocument> documentsForChannel(@NotBlank String channelId) {

@@ -229,7 +229,7 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
-    return document;
+    return documentService.withSerializedLinks(document);
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -263,7 +263,7 @@ public class DocumentApi extends RestBehavior {
     // ordinary document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return documentService.save(document);
+    return documentService.withSerializedLinks(documentService.save(document));
   }
 
   @Transactional(rollbackFor = Exception.class)

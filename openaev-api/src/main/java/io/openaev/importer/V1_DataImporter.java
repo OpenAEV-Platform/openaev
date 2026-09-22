@@ -227,17 +227,23 @@ public class V1_DataImporter implements Importer {
       Asset asset,
       AssetGroup assetGroup,
       String suffix) {
-    // Resolve the write tenant from the request scope once. Documents, tags, challenges and
-    // channels are attributed to it explicitly; the roots that are not tenant-active yet
-    // (exercise, scenario, injects, teams, payloads) are still stamped from the ambient tenant and
-    // matched against existing rows through it. Running the whole import with the ambient tenant
-    // aligned on the write tenant keeps the bundle in one tenant on every route.
-    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+    // Resolve the write tenant once. A bundle imported into an existing simulation or scenario is
+    // written in the tenant of that parent, which must lie inside the request scope; a bundle with
+    // no parent takes the single tenant of the scope. Documents, tags, challenges and channels are
+    // attributed to it explicitly; the roots that are not tenant-active yet (exercise, scenario,
+    // injects, teams, payloads) are still stamped from the ambient tenant and matched against
+    // existing rows through it. Running the whole import with the ambient tenant aligned on the
+    // write tenant keeps the bundle in one tenant on every route.
+    String writeTenant =
+        tenantWriteScopeResolver.tenantForWrite(ctx, parentTenantId(exercise, scenario));
+    // The nested importers resolve the tenant of the rows they create (tags, challenges, channels,
+    // kill chain phases, security platforms) from the scope they are given: hand them the resolved
+    // tenant so every row follows it even when the request scope holds several tenants.
     return ambientTenantBridge.callInTenant(
         writeTenant,
         () ->
             importBundle(
-                ctx,
+                TxCtx.forTenant(writeTenant),
                 importNode,
                 docReferences,
                 exercise,
@@ -246,6 +252,16 @@ public class V1_DataImporter implements Importer {
                 assetGroup,
                 suffix,
                 writeTenant));
+  }
+
+  private static String parentTenantId(Exercise exercise, Scenario scenario) {
+    if (exercise != null && exercise.getTenant() != null) {
+      return exercise.getTenant().getId();
+    }
+    if (scenario != null && scenario.getTenant() != null) {
+      return scenario.getTenant().getId();
+    }
+    return null;
   }
 
   private ImportResult importBundle(
@@ -624,6 +640,8 @@ public class V1_DataImporter implements Importer {
    * @param prefix1 field prefix for the first node (e.g. "payload_")
    * @param node2 second JSON node (may be {@code null})
    * @param prefix2 field prefix for the second node (e.g. "injector_contract_")
+   * @param writeTenant tenant whose preset domain is the fallback when no domain resolves; a lookup
+   *     by name alone is ambiguous when the request scope holds several tenants
    * @return a deduplicated set of resolved domains, never empty
    */
   protected Set<Domain> mergeDomains(
@@ -631,14 +649,17 @@ public class V1_DataImporter implements Importer {
       JsonNode node1,
       String prefix1,
       @Nullable JsonNode node2,
-      @Nullable String prefix2) {
+      @Nullable String prefix2,
+      String writeTenant) {
     Set<Domain> domains = new LinkedHashSet<>(importDomains(node1, prefix1, baseIds));
     if (node2 != null) {
       domains.addAll(importDomains(node2, prefix2, baseIds));
     }
     if (domains.isEmpty()) {
       domains.add(
-          domainService.findOptionalByName(PresetDomain.getToClassify().getName()).orElseThrow());
+          domainService
+              .findOptionalByName(PresetDomain.getToClassify().getName(), writeTenant)
+              .orElseThrow());
     }
     return domains;
   }
@@ -1734,7 +1755,8 @@ public class V1_DataImporter implements Importer {
             importNode,
             "injector_contract_",
             importNode.get("injector_contract_payload"),
-            "payload_"));
+            "payload_",
+            tenantWriteScopeResolver.tenantForWrite(ctx, null)));
 
     // Attack patterns
     injectorContract.setAttackPatterns(
@@ -1843,7 +1865,13 @@ public class V1_DataImporter implements Importer {
 
     // Domains — merge from payload and injector contract nodes, fallback to ToClassify
     Set<Domain> domains =
-        mergeDomains(baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
+        mergeDomains(
+            baseIds,
+            payloadNode,
+            "payload_",
+            injectorContractNode,
+            "injector_contract_",
+            tenantWriteScopeResolver.tenantForWrite(ctx, null));
     payloadCreateInput.setDomainIds(
         domains.stream().map(Domain::getId).collect(Collectors.toList()));
 
