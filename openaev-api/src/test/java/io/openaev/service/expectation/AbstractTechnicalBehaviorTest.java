@@ -12,6 +12,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
   @Autowired private DetectionBehavior detectionBehavior;
+  @Autowired private VulnerabilityBehavior vulnerabilityBehavior;
   @Autowired private InjectExpectationService injectExpectationService;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private EndpointComposer endpointComposer;
@@ -79,6 +81,14 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
             securityPlatformComposer.forSecurityPlatform(
                 SecurityPlatformFixture.createDefault(name, type)))
         .persist();
+  }
+
+  private Endpoint persistEndpointWithOneAgent() {
+    return endpointComposer
+        .forEndpoint(EndpointFixture.createEndpoint())
+        .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
+        .persist()
+        .get();
   }
 
   private List<BaseInjectExpectation> actAndGetSavedExpectations(
@@ -566,9 +576,9 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given one asset agentless, should create result and signature on asset level for each available collector")
+        "given one asset agentless, should set signatures on asset level but seed no placeholder result")
     void
-        given_one_asset_agentless_should_create_result_and_signature_on_asset_level_for_each_collector() {
+        given_one_asset_agentless_should_set_signatures_but_no_placeholder_result_on_asset_level() {
       // Arrange
       Endpoint endpoint =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
@@ -609,14 +619,216 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
       assertThat(assetExpectation.getAsset()).isNotNull();
       assertThat(assetExpectation.getAgent()).isNull();
 
-      // Results — one per collector, set on asset level
-      assertThat(assetExpectation.getResults()).hasSize(2);
-      assertThat(assetExpectation.getResults())
-          .extracting(InjectExpectationResult::getSourceId)
-          .containsExactlyInAnyOrder("collector-edr", "collector-siem");
+      // Results — an agentless leaf is answered by a single direct verdict written on the row, so
+      // no per-collector placeholder is seeded: a placeholder left unanswered next to the real
+      // verdict would keep the row pending forever (computeScore waits for every seeded source
+      // and the expiration manager skips agentless rows that already carry a result).
+      assertThat(assetExpectation.getResults()).isEmpty();
 
       // Signatures — set on asset level
       assertThat(assetExpectation.getSignatures()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given one asset group with three assets should create a single asset-group expectation")
+    void given_one_asset_group_with_three_assets_should_create_a_single_asset_group_expectation() {
+      // Arrange
+      Endpoint endpoint1 = persistEndpointWithOneAgent();
+      Endpoint endpoint2 = persistEndpointWithOneAgent();
+      Endpoint endpoint3 = persistEndpointWithOneAgent();
+
+      AssetGroup assetGroup =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group"))
+              .withAsset(endpointComposer.forEndpoint(endpoint1))
+              .withAsset(endpointComposer.forEndpoint(endpoint2))
+              .withAsset(endpointComposer.forEndpoint(endpoint3))
+              .persist()
+              .get();
+
+      Exercise exercise = persistDefaultExercise();
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withAssetGroup(assetGroupComposer.forAssetGroup(assetGroup))
+              .withExercise(exerciseComposer.forExercise(exercise))
+              .withInjectorContract(
+                  injectorContractComposer.forInjectorContract(
+                      InjectorContractFixture.createDefaultInjectorContract()))
+              .persist()
+              .get();
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false,
+              false,
+              inject,
+              List.of(),
+              List.of(),
+              List.of(assetGroup),
+              List.of(),
+              List.of());
+
+      // Act
+      List<BaseInjectExpectation> saved =
+          actAndGetSavedExpectations(executableInject, createTemplate(inject), "oaev");
+
+      // Assert — 3 agents + 3 assets + ONE asset group = 7 (never one group row per asset)
+      assertThat(saved).hasSize(7);
+      assertThat(countAgentExpectations(saved)).isEqualTo(3);
+      assertThat(countAssetOnlyExpectations(saved)).isEqualTo(3);
+      assertThat(countAssetGroupOnlyExpectations(saved)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "given an asset reached through a group and directly should aggregate its agents with the legacy rule per parent")
+    void given_asset_parents_should_keep_legacy_expectation_group_semantics() {
+      // Arrange
+      Endpoint endpoint = persistEndpointWithOneAgent();
+
+      AssetGroup assetGroup =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Group"))
+              .withAsset(endpointComposer.forEndpoint(endpoint))
+              .persist()
+              .get();
+
+      Exercise exercise = persistDefaultExercise();
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointComposer.forEndpoint(endpoint))
+              .withAssetGroup(assetGroupComposer.forAssetGroup(assetGroup))
+              .withExercise(exerciseComposer.forExercise(exercise))
+              .withInjectorContract(
+                  injectorContractComposer.forInjectorContract(
+                      InjectorContractFixture.createDefaultInjectorContract()))
+              .persist()
+              .get();
+
+      DetectionInjectExpectation template = createTemplate(inject);
+      // The form-level flag drives the asset-group parent only.
+      template.setExpectationGroup(true);
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false,
+              false,
+              inject,
+              List.of(),
+              List.of(endpoint),
+              List.of(assetGroup),
+              List.of(),
+              List.of());
+
+      // Act
+      List<BaseInjectExpectation> saved =
+          actAndGetSavedExpectations(executableInject, template, "oaev");
+
+      // Assert — directly linked asset parent: all agents must validate; asset parent reached
+      // through the group: at least one agent must validate; group parent: the form flag.
+      TechnicalInjectExpectation directAssetParent =
+          saved.stream()
+              .map(TechnicalInjectExpectation.class::cast)
+              .filter(
+                  e -> e.getAgent() == null && e.getAsset() != null && e.getAssetGroup() == null)
+              .findFirst()
+              .orElseThrow();
+      TechnicalInjectExpectation groupedAssetParent =
+          saved.stream()
+              .map(TechnicalInjectExpectation.class::cast)
+              .filter(
+                  e -> e.getAgent() == null && e.getAsset() != null && e.getAssetGroup() != null)
+              .findFirst()
+              .orElseThrow();
+      TechnicalInjectExpectation groupParent =
+          saved.stream()
+              .map(TechnicalInjectExpectation.class::cast)
+              .filter(
+                  e -> e.getAgent() == null && e.getAsset() == null && e.getAssetGroup() != null)
+              .findFirst()
+              .orElseThrow();
+      assertThat(directAssetParent.isExpectationGroup()).isFalse();
+      assertThat(groupedAssetParent.isExpectationGroup()).isTrue();
+      assertThat(groupParent.isExpectationGroup()).isTrue();
+    }
+
+    @Test
+    @DisplayName(
+        "given an agentless vulnerability expectation, the assessment injector verdict should conclude the row")
+    void given_agentless_vulnerability_expectation_injector_verdict_should_conclude_the_row() {
+      // Arrange — an agentless endpoint scanned by an assessment injector (e.g. Nuclei) that
+      // declares its own security platform entry.
+      Endpoint endpoint =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+
+      Exercise exercise = persistDefaultExercise();
+
+      Injector scannerInjector = InjectorFixture.createDefaultInjector("nuclei");
+      scannerInjector.setPayloads(false);
+      Inject defaultInject = InjectFixture.getDefaultInject();
+      defaultInject.setInjector(scannerInjector);
+
+      Inject inject =
+          injectComposer
+              .forInject(defaultInject)
+              .withEndpoint(endpointComposer.forEndpoint(endpoint))
+              .withExercise(exerciseComposer.forExercise(exercise))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withInjector(scannerInjector))
+              .persist()
+              .get();
+
+      VulnerabilityInjectExpectation template = new VulnerabilityInjectExpectation();
+      template.setExpectedScore(100.0);
+      template.setExpirationTime(21600L);
+      template.setInject(inject);
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of(), List.of());
+
+      vulnerabilityBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+          executableInject, template, "nuclei");
+      entityManager.flush();
+
+      List<BaseInjectExpectation> saved =
+          injectExpectationRepository.findAllByInjectId(inject.getId());
+      assertThat(saved).hasSize(1);
+      TechnicalInjectExpectation leaf = (TechnicalInjectExpectation) saved.getFirst();
+      assertThat(leaf.getAgent()).isNull();
+      assertThat(leaf.getResults()).isEmpty();
+      assertThat(leaf.getScore()).isNull();
+
+      SecurityPlatform scanner =
+          securityPlatformComposer
+              .forSecurityPlatform(SecurityPlatformFixture.createDefault("Nuclei", "EDR"))
+              .persist()
+              .get();
+
+      // Act — the injector writes its "Not vulnerable" verdict on the agentless row
+      injectExpectationService.updateInjectExpectationFromSecurityPlatform(
+          leaf.getId(),
+          InjectExpectationUpdateInput.builder().result("Not vulnerable").isSuccess(true).build(),
+          scanner);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert — the single direct verdict concludes the row instead of leaving it pending next
+      // to an unanswered placeholder
+      TechnicalInjectExpectation concluded =
+          (TechnicalInjectExpectation)
+              injectExpectationRepository.findById(leaf.getId()).orElseThrow();
+      assertThat(concluded.getScore()).isEqualTo(100.0);
+      assertThat(concluded.getResults())
+          .extracting(InjectExpectationResult::getSourceName, InjectExpectationResult::getResult)
+          .containsExactly(tuple("Nuclei", "Not vulnerable"));
     }
   }
 

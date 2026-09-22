@@ -19,6 +19,7 @@ import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,6 +82,12 @@ public abstract class AbstractTechnicalBehavior
     boolean requiresCollectorToInitialize = computeCollectorMissingAtInit(collectors);
 
     List<TechnicalInjectExpectation> allExpectations = new ArrayList<>();
+    // Asset-group parents are created ONCE per distinct group, after every asset of the group has
+    // been walked, and only for groups that produced at least one asset expectation. Building the
+    // group parent inside the per-asset loop created one parent row per asset of the group (three
+    // "Prevention" cards for a three-endpoint group), and every collector update then propagated
+    // to all of them.
+    Map<String, AssetGroup> assetGroupsToInitialize = new LinkedHashMap<>();
 
     // Executors pre-cache the resolved assets; direct callers (e.g. atomic testing, chaining)
     // may not, so fall back to resolving them from the inject.
@@ -122,10 +129,16 @@ public abstract class AbstractTechnicalBehavior
                     allExpectations.add(
                         buildExpectationForTarget(
                             expectationTemplate, assetGroup, assetToExecute.asset(), null));
-                    allExpectations.add(
-                        buildExpectationForTarget(expectationTemplate, assetGroup, null, null));
+                    assetGroupsToInitialize.putIfAbsent(assetGroup.getId(), assetGroup);
                   });
         });
+
+    assetGroupsToInitialize
+        .values()
+        .forEach(
+            assetGroup ->
+                allExpectations.add(
+                    buildExpectationForTarget(expectationTemplate, assetGroup, null, null)));
 
     allExpectations.stream()
         .filter(e -> !isAssetGroupExpectation(e))
@@ -134,7 +147,14 @@ public abstract class AbstractTechnicalBehavior
                 isAgentExpectation(e) || isAgentlessAssetExpectationNecessary(e.getAsset(), inject))
         .forEach(
             e -> {
-              if (!requiresCollectorToInitialize) {
+              // Pending per-collector result rows are seeded on AGENT leaves only. An agentless
+              // leaf (AI target, endpoint scanned by an assessment injector such as Nuclei) is
+              // answered by a single direct verdict written on the row itself: seeding placeholder
+              // rows next to it means the first real verdict never completes the row
+              // (computeScore waits for every seeded source), while the expiration manager skips
+              // agentless rows that already carry a result - so the expectation stays pending
+              // forever. Signatures are still computed for every leaf below.
+              if (isAgentExpectation(e) && !requiresCollectorToInitialize) {
                 initializeResults(e, collectors);
               }
               String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
@@ -166,6 +186,13 @@ public abstract class AbstractTechnicalBehavior
     expectation.setAssetGroup(assetGroup);
     expectation.setAsset(asset);
     expectation.setAgent(agent);
+    if (asset != null && agent == null) {
+      // Asset-level parent: its agents roll up with "at least one agent must validate" when the
+      // asset is reached through an asset group, and "all agents must validate" when the asset is
+      // directly linked to the inject. The form-level flag only drives the asset-group parent, as
+      // it always did before the behavior-based initialization.
+      expectation.setExpectationGroup(assetGroup != null);
+    }
     return expectation;
   }
 
