@@ -13,6 +13,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
@@ -41,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MarkingDefinitionService {
 
   private final MarkingDefinitionRepository repository;
+  private final ActionMetricCollector actionMetricCollector;
   private final AllTablesWithMarkingIds allTablesWithMarkingIds;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final JdbcTemplate jdbcTemplate;
@@ -118,6 +120,7 @@ public class MarkingDefinitionService {
     entity.setTenant(new Tenant(tenantId));
     MarkingDefinition saved = repository.save(entity);
     markingClearanceCacheManager.evictAll();
+    actionMetricCollector.addMarkingDefinitionCreatedCount();
     return saved;
   }
 
@@ -156,6 +159,7 @@ public class MarkingDefinitionService {
       // the one case that always pays for evictAll().
       markingClearanceCacheManager.evictAll();
     }
+    actionMetricCollector.addMarkingDefinitionUpdatedCount();
     return saved;
   }
 
