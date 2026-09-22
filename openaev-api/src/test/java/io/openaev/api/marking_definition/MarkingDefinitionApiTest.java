@@ -686,6 +686,188 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_orderGreaterThanOrEqualFilter_should_returnMatchingRows")
+    void given_orderGreaterThanOrEqualFilter_should_returnMatchingRows() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-gte", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      MarkingDefinition lower =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-GTE-LOWER",
+              "#00AA00",
+              2,
+              Instant.parse("2026-03-04T12:00:00Z"));
+      MarkingDefinition matching =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-GTE-MATCH",
+              "#AA0000",
+              4,
+              Instant.parse("2026-03-04T13:00:00Z"));
+      MarkingDefinition higher =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-GTE-HIGHER",
+              "#0000AA",
+              6,
+              Instant.parse("2026-03-04T14:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setFilterGroup(
+          Filters.FilterGroup.filterGroupWithFilters(
+              List.of(
+                  new Filters.Filter(
+                      "order-gte",
+                      "marking_definition_order",
+                      Filters.FilterMode.or,
+                      List.of("4"),
+                      Filters.FilterOperator.gte))));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].marking_definition_id");
+      assertThat(ids)
+          .containsExactlyInAnyOrder(matching.getId(), higher.getId())
+          .doesNotContain(lower.getId());
+    }
+
+    @Test
+    @DisplayName("given_orderLessThanFilter_should_returnLowerOrdersOnly")
+    void given_orderLessThanFilter_should_returnLowerOrdersOnly() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-lt", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      MarkingDefinition matching =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-LT-MATCH",
+              "#00AA00",
+              2,
+              Instant.parse("2026-03-04T15:00:00Z"));
+      MarkingDefinition other =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-LT-OTHER",
+              "#AA0000",
+              6,
+              Instant.parse("2026-03-04T16:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setFilterGroup(
+          Filters.FilterGroup.filterGroupWithFilters(
+              List.of(
+                  new Filters.Filter(
+                      "order-lt",
+                      "marking_definition_order",
+                      Filters.FilterMode.or,
+                      List.of("4"),
+                      Filters.FilterOperator.lt))));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].marking_definition_id");
+      assertThat(ids).containsExactly(matching.getId()).doesNotContain(other.getId());
+    }
+
+    @Test
+    @DisplayName("given_orderLessThanOrEqualFilter_should_returnMatchingRows")
+    void given_orderLessThanOrEqualFilter_should_returnMatchingRows() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-lte", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      MarkingDefinition matching =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-LTE-MATCH",
+              "#00AA00",
+              4,
+              Instant.parse("2026-03-04T17:00:00Z"));
+      MarkingDefinition lower =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-LTE-LOWER",
+              "#AA0000",
+              2,
+              Instant.parse("2026-03-04T18:00:00Z"));
+      MarkingDefinition higher =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-LTE-HIGHER",
+              "#0000AA",
+              6,
+              Instant.parse("2026-03-04T19:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setFilterGroup(
+          Filters.FilterGroup.filterGroupWithFilters(
+              List.of(
+                  new Filters.Filter(
+                      "order-lte",
+                      "marking_definition_order",
+                      Filters.FilterMode.or,
+                      List.of("4"),
+                      Filters.FilterOperator.lte))));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].marking_definition_id");
+      assertThat(ids)
+          .containsExactlyInAnyOrder(matching.getId(), lower.getId())
+          .doesNotContain(higher.getId());
+    }
+
+    @Test
     @DisplayName("given_orderEmptyFilter_should_returnNoRows")
     void given_orderEmptyFilter_should_returnNoRows() throws Exception {
       // Arrange
