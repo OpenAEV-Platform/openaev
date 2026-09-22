@@ -1,10 +1,14 @@
 package io.openaev.rest.document;
 
+import static io.openaev.rest.document.DocumentApi.DOCUMENT_API;
 import static io.openaev.rest.document.DocumentApi.TENANT_DOCUMENT_API;
+import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -12,6 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
@@ -38,6 +44,12 @@ import org.springframework.test.web.servlet.ResultActions;
  * documents} and {@code tags} active the arrays come back empty although the links exist. The
  * associations must be initialized inside the scoped transaction.
  *
+ * <p>On the non-prefixed route with {@code X-Tenant-Ids} the ambient tenant stays on the default
+ * one while the request scope is the selected tenant. The links still serialize: {@code documents}
+ * and {@code tags} follow the request scope, and the entity-level tenant filter on {@code Exercise}
+ * and {@code Scenario} does not apply to the initialization of a collection, which only carries the
+ * filters declared on the collection itself.
+ *
  * <p>The class is deliberately NOT {@code @Transactional}: a rolled-back test transaction never
  * commits, so the scope would still be set during serialization and mask the failure. Rows are
  * seeded through an auto-committing {@link JdbcTemplate} and removed on teardown.
@@ -47,6 +59,7 @@ import org.springframework.test.web.servlet.ResultActions;
 @DisplayName("Raw document responses serialize their links with documents v2-activated")
 class DocumentSerializationTenantScopeTest extends IntegrationTest {
 
+  private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String TENANT_PLAYER_DOCUMENTS_API =
       "/api/tenants/{tenantId}/player/{exerciseOrScenarioId}/documents";
   private static final String TENANT_PLAYER_SCENARIO_DOCUMENTS_API =
@@ -217,6 +230,68 @@ class DocumentSerializationTenantScopeTest extends IntegrationTest {
           mvc.perform(get(TENANT_PLAYER_DOCUMENTS_API, tenant, scenarioId)), selector());
       assertLinksSerialized(
           mvc.perform(get(TENANT_PLAYER_SCENARIO_DOCUMENTS_API, tenant, scenarioId)), selector());
+    }
+  }
+
+  @Nested
+  @DisplayName("Header route, ambient tenant on the default one")
+  class HeaderRoute {
+
+    @Test
+    @DisplayName(
+        "given a linked document when read by id through the header route then its three link"
+            + " arrays are filled")
+    void given_linkedDocument_should_serializeLinksOnReadThroughHeader() throws Exception {
+      // -- Arrange --
+      // The tenant fixtures leave a tenant on the test thread; the request thread of the header
+      // route carries none, so the ambient tenant falls back to the default one while the request
+      // scope is the document's tenant, and the two disagree for the whole request.
+      TenantContext.clearCurrentTenant();
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+
+      // -- Act & Assert --
+      assertLinksSerialized(
+          mvc.perform(
+              get(DOCUMENT_API + "/{documentId}", documentId).header(TENANT_HEADER, tenant)),
+          "$");
+    }
+
+    @Test
+    @DisplayName(
+        "given a document published to a simulation when its documents are listed through the"
+            + " header route then the links are filled")
+    void given_documentOnSimulation_should_serializeLinksOnSimulationListThroughHeader()
+        throws Exception {
+      // -- Arrange --
+      seedArticleWithDocument(null, exerciseId);
+      TenantContext.clearCurrentTenant();
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+
+      // -- Act & Assert --
+      assertLinksSerialized(
+          mvc.perform(
+              get(EXERCISE_URI + "/{exerciseId}/documents", exerciseId)
+                  .header(TENANT_HEADER, tenant)),
+          selector());
+    }
+
+    @Test
+    @DisplayName(
+        "given a document published to a scenario when its documents are listed through the"
+            + " header route then the links are filled")
+    void given_documentOnScenario_should_serializeLinksOnScenarioListThroughHeader()
+        throws Exception {
+      // -- Arrange --
+      seedArticleWithDocument(scenarioId, null);
+      TenantContext.clearCurrentTenant();
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+
+      // -- Act & Assert --
+      assertLinksSerialized(
+          mvc.perform(
+              get(SCENARIO_URI + "/{scenarioId}/documents", scenarioId)
+                  .header(TENANT_HEADER, tenant)),
+          selector());
     }
   }
 
