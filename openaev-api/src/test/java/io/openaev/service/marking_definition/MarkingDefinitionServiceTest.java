@@ -15,19 +15,11 @@ import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.config.AllTablesWithMarkingIds;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Filters;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Path;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -36,9 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Pins the cache-eviction and delete-time scrub contracts of {@link MarkingDefinitionService} —
@@ -67,87 +57,6 @@ class MarkingDefinitionServiceTest {
     existing.setId("marking-1");
     existing.setTenant(new Tenant(tenantId));
     return existing;
-  }
-
-  @Nested
-  @DisplayName("search")
-  class Search {
-
-    @Mock private Root<MarkingDefinition> root;
-    @Mock private CriteriaQuery<?> query;
-    @Mock private CriteriaBuilder criteriaBuilder;
-    @Mock private Path<Object> orderPath;
-    @Mock private Expression<Integer> integerOrderPath;
-    @Mock private Predicate equalTwoPredicate;
-    @Mock private Predicate equalEightPredicate;
-    @Mock private Predicate groupedOrPredicate;
-
-    @Test
-    @DisplayName("given_groupedOrderFiltersWithOrMode_should_buildOrPredicate")
-    void given_groupedOrderFiltersWithOrMode_should_buildOrPredicate() {
-      // Arrange
-      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
-      filterGroup.setMode(Filters.FilterMode.or);
-      filterGroup.setFilters(
-          List.of(
-              new Filters.Filter(
-                  "order-1",
-                  "marking_definition_order",
-                  Filters.FilterMode.or,
-                  List.of("2"),
-                  Filters.FilterOperator.eq),
-              new Filters.Filter(
-                  "order-2",
-                  "marking_definition_order",
-                  Filters.FilterMode.or,
-                  List.of("8"),
-                  Filters.FilterOperator.eq)));
-
-      when(root.get("order")).thenReturn(orderPath);
-      when(orderPath.as(Integer.class)).thenReturn(integerOrderPath);
-      when(criteriaBuilder.equal(integerOrderPath, 2)).thenReturn(equalTwoPredicate);
-      when(criteriaBuilder.equal(integerOrderPath, 8)).thenReturn(equalEightPredicate);
-      when(criteriaBuilder.or(org.mockito.ArgumentMatchers.<Predicate[]>any()))
-          .thenAnswer(
-              invocation -> {
-                Predicate[] predicates = invocation.getArgument(0, Predicate[].class);
-                return predicates.length == 2 ? groupedOrPredicate : predicates[0];
-              });
-
-      // Act
-      Specification<MarkingDefinition> specification =
-          ReflectionTestUtils.invokeMethod(service(), "buildFilterSpecification", filterGroup);
-      Predicate predicate = specification.toPredicate(root, query, criteriaBuilder);
-
-      // Assert
-      org.assertj.core.api.Assertions.assertThat(predicate).isSameAs(groupedOrPredicate);
-    }
-
-    @Test
-    @DisplayName("given_invalidOrderFilterValue_should_throwBadRequest")
-    void given_invalidOrderFilterValue_should_throwBadRequest() {
-      // Arrange
-      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
-      filterGroup.setFilters(
-          List.of(
-              new Filters.Filter(
-                  "order-invalid",
-                  "marking_definition_order",
-                  Filters.FilterMode.or,
-                  List.of("not-an-integer"),
-                  Filters.FilterOperator.eq)));
-
-      // Act & Assert
-      BadRequestException exception =
-          org.junit.jupiter.api.Assertions.assertThrows(
-              BadRequestException.class,
-              () ->
-                  ReflectionTestUtils.invokeMethod(
-                      service(), "buildFilterSpecification", filterGroup));
-      org.assertj.core.api.Assertions.assertThat(exception.getMessage())
-          .isEqualTo(
-              "Invalid marking_definition_order filter value 'not-an-integer': expected an integer");
-    }
   }
 
   @Nested
