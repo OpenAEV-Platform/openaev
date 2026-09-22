@@ -524,6 +524,259 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_orderEqualsFilter_should_returnExactMatch")
+    void given_orderEqualsFilter_should_returnExactMatch() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-eq", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      MarkingDefinition matching =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-EQ",
+              "#00AA00",
+              7,
+              Instant.parse("2026-03-02T10:00:00Z"));
+      MarkingDefinition other =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-NOT-EQ",
+              "#AA0000",
+              8,
+              Instant.parse("2026-03-02T11:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setFilterGroup(
+          Filters.FilterGroup.filterGroupWithFilters(
+              List.of(
+                  new Filters.Filter(
+                      "order-eq",
+                      "marking_definition_order",
+                      Filters.FilterMode.or,
+                      List.of("7"),
+                      Filters.FilterOperator.eq))));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].marking_definition_id");
+      assertThat(ids).containsExactly(matching.getId()).doesNotContain(other.getId());
+    }
+
+    @Test
+    @DisplayName("given_orderNotEqualsFilter_should_excludeExactMatch")
+    void given_orderNotEqualsFilter_should_excludeExactMatch() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-not-eq", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      MarkingDefinition excluded =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-NOT-EQ",
+              "#00AA00",
+              4,
+              Instant.parse("2026-03-03T10:00:00Z"));
+      MarkingDefinition matching =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-OTHER",
+              "#AA0000",
+              9,
+              Instant.parse("2026-03-03T11:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setFilterGroup(
+          Filters.FilterGroup.filterGroupWithFilters(
+              List.of(
+                  new Filters.Filter(
+                      "order-not-eq",
+                      "marking_definition_order",
+                      Filters.FilterMode.or,
+                      List.of("4"),
+                      Filters.FilterOperator.not_eq))));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].marking_definition_id");
+      assertThat(ids).containsExactly(matching.getId()).doesNotContain(excluded.getId());
+    }
+
+    @Test
+    @DisplayName("given_orderGreaterThanFilter_should_returnHigherOrdersOnly")
+    void given_orderGreaterThanFilter_should_returnHigherOrdersOnly() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-gt", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      MarkingDefinition lower =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-LOWER",
+              "#00AA00",
+              2,
+              Instant.parse("2026-03-04T10:00:00Z"));
+      MarkingDefinition higher =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-HIGHER",
+              "#AA0000",
+              6,
+              Instant.parse("2026-03-04T11:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setFilterGroup(
+          Filters.FilterGroup.filterGroupWithFilters(
+              List.of(
+                  new Filters.Filter(
+                      "order-gt",
+                      "marking_definition_order",
+                      Filters.FilterMode.or,
+                      List.of("4"),
+                      Filters.FilterOperator.gt))));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].marking_definition_id");
+      assertThat(ids).containsExactly(higher.getId()).doesNotContain(lower.getId());
+    }
+
+    @Test
+    @DisplayName("given_orderEmptyFilter_should_returnNoRows")
+    void given_orderEmptyFilter_should_returnNoRows() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-empty", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      createPersistedMarkingDefinition(
+          tenant.getId(),
+          "TLP",
+          "ORDER-EMPTY",
+          "#00AA00",
+          5,
+          Instant.parse("2026-03-05T10:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setFilterGroup(
+          Filters.FilterGroup.filterGroupWithFilters(
+              List.of(
+                  new Filters.Filter(
+                      "order-empty",
+                      "marking_definition_order",
+                      Filters.FilterMode.or,
+                      List.of(),
+                      Filters.FilterOperator.empty))));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].marking_definition_id");
+      assertThat(ids).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given_orderNotEmptyFilter_should_returnRows")
+    void given_orderNotEmptyFilter_should_returnRows() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-order-not-empty", Set.of(Capability.ACCESS_MARKING_DEFINITION));
+
+      MarkingDefinition matching =
+          createPersistedMarkingDefinition(
+              tenant.getId(),
+              "TLP",
+              "ORDER-NOT-EMPTY",
+              "#00AA00",
+              5,
+              Instant.parse("2026-03-06T10:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setFilterGroup(
+          Filters.FilterGroup.filterGroupWithFilters(
+              List.of(
+                  new Filters.Filter(
+                      "order-not-empty",
+                      "marking_definition_order",
+                      Filters.FilterMode.or,
+                      List.of(),
+                      Filters.FilterOperator.not_empty))));
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(URI + "/search", tenant.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].marking_definition_id");
+      assertThat(ids).containsExactly(matching.getId());
+    }
+
+    @Test
     @DisplayName("given_textSearch_should_matchDefinition")
     void given_textSearch_should_matchDefinition() throws Exception {
       // Arrange

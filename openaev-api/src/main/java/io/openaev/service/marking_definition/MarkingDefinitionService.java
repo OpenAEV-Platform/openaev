@@ -8,6 +8,7 @@ import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.config.AllTablesWithMarkingIds;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
@@ -40,6 +41,8 @@ import org.springframework.transaction.annotation.Transactional;
             + " another tenant's rows in the first place - the id itself is what scopes the update.")
 public class MarkingDefinitionService {
 
+  private static final String ORDER_FILTER_KEY = "marking_definition_order";
+
   private final MarkingDefinitionRepository repository;
   private final AllTablesWithMarkingIds allTablesWithMarkingIds;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
@@ -58,9 +61,13 @@ public class MarkingDefinitionService {
   public Page<MarkingDefinition> search(
       @NotNull TxCtx ctx, @NotNull SearchPaginationInput searchPaginationInput) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    SearchPaginationInput inputWithoutOrderFilters = removeOrderFilters(searchPaginationInput);
+    Specification<MarkingDefinition> orderFilterSpecification =
+        buildOrderFilterSpecification(searchPaginationInput.getFilterGroup());
     return buildPaginationJPA(
-        (specification, pageable) -> findAllByTenantIds(tenantIds, specification, pageable),
-        searchPaginationInput,
+        (specification, pageable) ->
+            findAllByTenantIds(tenantIds, specification.and(orderFilterSpecification), pageable),
+        inputWithoutOrderFilters,
         MarkingDefinition.class);
   }
 
@@ -234,5 +241,126 @@ public class MarkingDefinitionService {
 
   private Specification<MarkingDefinition> tenantSpecification(Set<String> tenantIds) {
     return (root, query, criteriaBuilder) -> root.get("tenant").get("id").in(tenantIds);
+  }
+
+  private SearchPaginationInput removeOrderFilters(SearchPaginationInput input) {
+    if (input.getFilterGroup() == null || input.getFilterGroup().getFilters() == null) {
+      return input;
+    }
+
+    List<Filters.Filter> remainingFilters =
+        input.getFilterGroup().getFilters().stream()
+            .filter(filter -> !ORDER_FILTER_KEY.equals(filter.getKey()))
+            .toList();
+
+    if (remainingFilters.size() == input.getFilterGroup().getFilters().size()) {
+      return input;
+    }
+
+    SearchPaginationInput filteredInput = new SearchPaginationInput();
+    filteredInput.setPage(input.getPage());
+    filteredInput.setSize(input.getSize());
+    filteredInput.setTextSearch(input.getTextSearch());
+    filteredInput.setSorts(input.getSorts());
+
+    Filters.FilterGroup remainingFilterGroup = new Filters.FilterGroup();
+    remainingFilterGroup.setMode(input.getFilterGroup().getMode());
+    remainingFilterGroup.setFilters(remainingFilters);
+    filteredInput.setFilterGroup(remainingFilterGroup);
+
+    return filteredInput;
+  }
+
+  private Specification<MarkingDefinition> buildOrderFilterSpecification(
+      Filters.FilterGroup filterGroup) {
+    if (filterGroup == null || filterGroup.getFilters() == null) {
+      return Specification.unrestricted();
+    }
+
+    List<Filters.Filter> orderFilters =
+        filterGroup.getFilters().stream()
+            .filter(filter -> ORDER_FILTER_KEY.equals(filter.getKey()))
+            .toList();
+    if (orderFilters.isEmpty()) {
+      return Specification.unrestricted();
+    }
+
+    Filters.FilterMode groupMode =
+        filterGroup.getMode() == null ? Filters.FilterMode.and : filterGroup.getMode();
+    Specification<MarkingDefinition> specification =
+        toOrderFilterSpecification(orderFilters.getFirst());
+    for (int i = 1; i < orderFilters.size(); i++) {
+      Specification<MarkingDefinition> nextSpecification =
+          toOrderFilterSpecification(orderFilters.get(i));
+      specification =
+          Filters.FilterMode.or.equals(groupMode)
+              ? specification.or(nextSpecification)
+              : specification.and(nextSpecification);
+    }
+    return specification;
+  }
+
+  private Specification<MarkingDefinition> toOrderFilterSpecification(Filters.Filter filter) {
+    Filters.FilterOperator operator =
+        filter.getOperator() == null ? Filters.FilterOperator.eq : filter.getOperator();
+    Filters.FilterMode valueMode =
+        filter.getMode() == null ? Filters.FilterMode.or : filter.getMode();
+    List<Integer> values =
+        filter.getValues() == null
+            ? List.of()
+            : filter.getValues().stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(Integer::valueOf)
+                .toList();
+
+    return (root, query, criteriaBuilder) -> {
+      final var orderPath = root.get("order").as(Integer.class);
+      return switch (operator) {
+        case empty -> criteriaBuilder.isNull(orderPath);
+        case not_empty -> criteriaBuilder.isNotNull(orderPath);
+        case gt ->
+            combinePredicates(
+                criteriaBuilder,
+                Filters.FilterMode.or,
+                values.stream().map(value -> criteriaBuilder.gt(orderPath, value)).toList());
+        case gte ->
+            combinePredicates(
+                criteriaBuilder,
+                Filters.FilterMode.or,
+                values.stream().map(value -> criteriaBuilder.ge(orderPath, value)).toList());
+        case lt ->
+            combinePredicates(
+                criteriaBuilder,
+                Filters.FilterMode.or,
+                values.stream().map(value -> criteriaBuilder.lt(orderPath, value)).toList());
+        case lte ->
+            combinePredicates(
+                criteriaBuilder,
+                Filters.FilterMode.or,
+                values.stream().map(value -> criteriaBuilder.le(orderPath, value)).toList());
+        case not_eq ->
+            combinePredicates(
+                criteriaBuilder,
+                Filters.FilterMode.and,
+                values.stream().map(value -> criteriaBuilder.notEqual(orderPath, value)).toList());
+        default ->
+            combinePredicates(
+                criteriaBuilder,
+                valueMode,
+                values.stream().map(value -> criteriaBuilder.equal(orderPath, value)).toList());
+      };
+    };
+  }
+
+  private jakarta.persistence.criteria.Predicate combinePredicates(
+      jakarta.persistence.criteria.CriteriaBuilder criteriaBuilder,
+      Filters.FilterMode mode,
+      List<jakarta.persistence.criteria.Predicate> predicates) {
+    if (predicates.isEmpty()) {
+      return criteriaBuilder.conjunction();
+    }
+    return Filters.FilterMode.and.equals(mode)
+        ? criteriaBuilder.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new))
+        : criteriaBuilder.or(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
   }
 }
