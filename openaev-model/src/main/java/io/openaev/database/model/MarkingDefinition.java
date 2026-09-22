@@ -34,6 +34,9 @@ import lombok.Setter;
 // @Filter.
 public class MarkingDefinition implements TenantBase, Auditable {
 
+  public static final String TYPE_TLP = "TLP";
+  public static final String TYPE_PAP = "PAP";
+
   @Id
   @ControlledUuidGeneration
   @Column(name = "marking_definition_id")

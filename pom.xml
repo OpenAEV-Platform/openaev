@@ -10,7 +10,7 @@
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>3.260917.1</version>
+    <version>3.260921.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -23,7 +23,6 @@
         <minio.version>8.6.0</minio.version>
         <minio.okhttp3.version>4.12.0</minio.okhttp3.version>
         <gson.version>2.14.0</gson.version>
-        <validation-api.version>2.0.1.Final</validation-api.version>
         <commons-io.version>2.22.0</commons-io.version>
         <commons-validator.version>1.11.0</commons-validator.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
@@ -31,7 +30,7 @@
         <jjwt.version>0.13.0</jjwt.version>
         <postgresql.version>42.7.13</postgresql.version>
         <pyroscope.version>2.9.2</pyroscope.version>
-        <bouncycastle.version>1.85.2</bouncycastle.version>
+        <bouncycastle.version>1.86.1</bouncycastle.version>
         <jackson-bom.version>2.22.2</jackson-bom.version>
         <netty.version>4.2.18.Final</netty.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>

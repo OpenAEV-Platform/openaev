@@ -41,3 +41,8 @@ openaev-dev/telemetry-output/
 
 ### maven ###
 dependency-reduced-pom.xml
+
+### Python ###
+# .github/scripts/ holds CI helper scripts that are also meant to be run locally
+__pycache__/
+*.pyc

@@ -53,6 +53,11 @@ export const updateMePassword = (currentPassword, newPassword) => dispatch => pu
   user_plain_password: newPassword,
 })(dispatch);
 
+export const updateMeEmail = (currentPassword, newEmail) => dispatch => putReferential(schema.user, '/api/me/email', {
+  user_current_password: currentPassword,
+  user_email: newEmail,
+})(dispatch);
+
 export const updateMeProfile = data => dispatch => putReferential(schema.user, '/api/me/profile', data)(dispatch);
 
 export const updateMeInformation = data => dispatch => putReferential(schema.user, '/api/me/information', data)(dispatch);

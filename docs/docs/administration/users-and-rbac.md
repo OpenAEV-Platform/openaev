@@ -141,6 +141,7 @@ Below is a full list of capabilities in OpenAEV:
 | `Access tenant users, groups and roles` | Read-only access to the tenant's users, groups and roles.                                                                                 |
 | &nbsp;&nbsp;`Manage tenant users, groups and roles` | Create and update the tenant's users, groups and roles. Requires *Access tenant users, groups and roles*.                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant users, groups and roles` | Permanently delete them. Requires *Manage tenant users, groups and roles*.                                                                |
+| `Install agent` | Get the agent install command and installer token, and download the agent binaries. Has no parent or child capability.                   |
 
 
 

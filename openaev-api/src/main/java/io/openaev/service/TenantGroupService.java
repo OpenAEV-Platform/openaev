@@ -4,16 +4,21 @@ import static io.openaev.database.model.Role.capabilitiesOf;
 import static io.openaev.database.specification.GroupSpecification.tenantScope;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignCapabilities;
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignGrant;
+import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
 
+import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CapabilityScope;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.group.form.GroupGrantInput;
@@ -41,6 +46,8 @@ public class TenantGroupService {
   private final TenantRoleService tenantRoleService;
   private final UserService userService;
   private final GrantService grantService;
+  private final MarkingDefinitionRepository markingDefinitionRepository;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -91,6 +98,27 @@ public class TenantGroupService {
    */
   private Group findByIdInTenantForWrite(@NotBlank final String groupId) {
     Group group = this.findByIdInTenant(groupId);
+    ReservedKeyValidator.validateGroupId(group.getId());
+    return group;
+  }
+
+  /**
+   * Same as {@link #findByIdInTenantForWrite}, but scoped to an explicit tenant rather than {@link
+   * TenantContext#getCurrentTenant()}.
+   *
+   * <p>{@code TenantGroupApi} is mapped to both {@code /api/groups} and the tenant-prefixed route.
+   * {@code TenantInterceptor} only sets the v1 thread-local from a {@code tenantId} URL path
+   * segment; on the unprefixed form there is none, so a lookup through the thread-local silently
+   * falls back to the default tenant instead of the caller's actual scope. Callers that already
+   * resolve an explicit tenant (e.g. via {@code TenantWriteScopeResolver}) must use this overload
+   * so the group lookup agrees with the tenant the rest of the write is checked against.
+   */
+  private Group findByIdAndTenantForWrite(
+      @NotBlank final String groupId, @NotBlank final String tenantId) {
+    Group group =
+        groupRepository
+            .findByIdAndTenantId(groupId, tenantId)
+            .orElseThrow(() -> new ElementNotFoundException("Group not found with id: " + groupId));
     ReservedKeyValidator.validateGroupId(group.getId());
     return group;
   }
@@ -152,8 +180,67 @@ public class TenantGroupService {
     if (users.size() != uniqueUserIds.size()) {
       throw new ElementNotFoundException("One or more users not found in the current tenant");
     }
+    // Union of before and after: a user dropped from the group loses clearance (fail-open if the
+    // stale entry survives), a user added gains it (fail-closed, but still wrong until evicted).
+    Set<String> affected = new LinkedHashSet<>(group.getUsers().stream().map(User::getId).toList());
+    affected.addAll(uniqueUserIds);
+
     group.setUsers(users);
-    return groupRepository.save(group);
+    Group saved = groupRepository.save(group);
+    markingClearanceCacheManager.evictForUsers(affected);
+    return saved;
+  }
+
+  // -- MARKINGS --
+
+  /**
+   * Replaces the markings the group grants its members.
+   *
+   * <p>Two guards, in this order:
+   *
+   * <ol>
+   *   <li><b>Existence and tenant.</b> {@code marking_definitions} is a tenant-active table, so the
+   *       statement inspector already restricts this read to the request scope: a marking from
+   *       another tenant simply does not come back, and the size check turns that into a 404 rather
+   *       than a silent partial assignment.
+   *   <li><b>Escalation.</b> {@link MarkingEscalationValidator} — you may not grant what you do not
+   *       hold. Without it, "may manage groups" would quietly mean "may read every marked row".
+   * </ol>
+   *
+   * <p>🔴 The eviction at the end is not an optimisation. A cached clearance is pure set
+   * containment and never re-reads {@code groups_markings}, so a revoked grant that stays cached
+   * keeps granting access: fail-open. Union of before and after, because {@code setMarkings}
+   * replaces wholesale — a member losing a marking is only visible in the old set.
+   *
+   * @param tenantId resolved in the API layer and passed in, per the multi-tenancy convention
+   */
+  public Group updateGroupMarkings(
+      @NotBlank final String tenantId,
+      @NotBlank final String groupId,
+      GroupUpdateMarkingsInput input) {
+    Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
+
+    Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.markingIds());
+    // CrudRepository returns Iterable; the list is small (a tenant's scale) and needed twice.
+    List<MarkingDefinition> markings = new ArrayList<>();
+    markingDefinitionRepository.findAllById(uniqueMarkingIds).forEach(markings::add);
+    if (markings.size() != uniqueMarkingIds.size()) {
+      throw new ElementNotFoundException(
+          "One or more marking definitions not found in the current tenant");
+    }
+
+    User currentUser = userService.currentUser();
+    assertCanAssignMarkings(
+        markingClearanceCacheManager.findClearance(
+            currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
+        markings);
+
+    Set<String> affected = new LinkedHashSet<>(group.getUsers().stream().map(User::getId).toList());
+
+    group.setMarkings(markings);
+    Group saved = groupRepository.save(group);
+    markingClearanceCacheManager.evictForUsers(affected);
+    return saved;
   }
 
   // -- DELETE --
@@ -162,8 +249,11 @@ public class TenantGroupService {
     Group group = this.findByIdInTenantForWrite(groupId);
     // Clear bidirectional associations before delete to avoid TransientObjectException
     // (User entities in the persistence context would otherwise still reference the removed Group)
+    List<String> members = group.getUsers().stream().map(User::getId).toList();
     group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
     groupRepository.delete(group);
+    // Deleting the group revokes whatever markings it granted, for every member at once.
+    markingClearanceCacheManager.evictForUsers(members);
   }
 
   // -- GRANTS --

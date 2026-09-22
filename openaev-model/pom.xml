@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.260917.1</version>
+        <version>3.260921.0</version>
     </parent>
 
     <artifactId>openaev-model</artifactId>
@@ -13,7 +13,7 @@
     <description>OpenAEV model</description>
 
     <properties>
-        <amqp-client.version>5.35.0</amqp-client.version>
+        <amqp-client.version>5.36.0</amqp-client.version>
         <azure-core-management.version>1.19.7</azure-core-management.version>
     </properties>
 
