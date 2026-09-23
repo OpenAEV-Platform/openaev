@@ -34,10 +34,13 @@ public interface SecurityPlatformRepository
       String name, SecurityPlatform.SECURITY_PLATFORM_TYPE securityPlatformType);
 
   /**
-   * Case-insensitive exact-name lookup (smallest id wins for determinism): used by the V1 importer
-   * to re-attach detection remediations to an existing platform by name.
+   * Case-insensitive exact-name lookup within one tenant (smallest id wins for determinism): used
+   * by the V1 importer to re-attach detection remediations to an existing platform by name. The
+   * name comes from the import file and the request scope may hold several tenants of the caller,
+   * so the match is confined to the tenant the import writes into.
    */
-  Optional<SecurityPlatform> findFirstByNameIgnoreCaseOrderByIdAsc(String name);
+  Optional<SecurityPlatform> findFirstByNameIgnoreCaseAndTenantIdOrderByIdAsc(
+      String name, String tenantId);
 
   Optional<SecurityPlatform> findByIdAndTenantId(String id, String tenantId);
 
