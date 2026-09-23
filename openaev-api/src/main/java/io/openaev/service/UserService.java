@@ -12,21 +12,15 @@ import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
-import io.openaev.config.DefaultOpenAEVPrincipal;
-import io.openaev.config.OpenAEVAnonymous;
-import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.config.SessionHelper;
-import io.openaev.config.SessionManager;
+import io.openaev.config.*;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.GroupRepository;
-import io.openaev.database.repository.TagRepository;
-import io.openaev.database.repository.TenantRepository;
-import io.openaev.database.repository.TokenRepository;
-import io.openaev.database.repository.UserRepository;
+import io.openaev.database.repository.*;
 import io.openaev.database.specification.GroupSpecification;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
@@ -87,8 +81,12 @@ public class UserService {
   @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
   private String adminEmail;
 
+  private record EmailChangeRequest(String confirmationCode, String newEmail) {}
+
   private static final long tenMinutes = 1000L * 60L * 10L;
   private final Map<String, String> resetTokenMap = new PassiveExpiringMap<>(tenMinutes);
+  private final Map<String, EmailChangeRequest> emailChangeConfirmationTokenMap =
+      new PassiveExpiringMap<>(tenMinutes);
 
   /** Password encoder using Argon2 algorithm (Spring Security 5.8 defaults). */
   private final Argon2PasswordEncoder passwordEncoder =
@@ -107,9 +105,11 @@ public class UserService {
   private MailingService mailingService;
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final TenantScopedTransaction tenantTx;
   private final ApplicationEventPublisher eventPublisher;
   private final ObjectProvider<AuditLogger> auditLoggerProvider;
+  private final OpenAEVConfig openAEVConfig;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -280,6 +280,11 @@ public class UserService {
     List<String> allAffectedTenants = new ArrayList<>(oldTenantIds);
     allAffectedTenants.addAll(newTenantIds);
     tenantMembershipCacheManager.evictForUser(userId, allAffectedTenants);
+    // Group membership just changed (attach/detach), which can shrink the user's marking
+    // clearance; the cache is keyed by user and does not know about this write on its own.
+    if (!attachedTenantIds.isEmpty() || !detachedTenantIds.isEmpty()) {
+      markingClearanceCacheManager.evictForUser(userId);
+    }
     sessionManager.refreshUserSessions(savedUser);
     return savedUser;
   }
@@ -390,6 +395,83 @@ public class UserService {
         resetTokenMap.put(user.getId(), resetToken);
       }
     }
+  }
+
+  public void requestEmailChange(User user, String newEmail) {
+    String confirmationCode = randomUtils.getRandomAlphanumeric(64);
+    ReservedKeyValidator.validateUserEmailPattern(newEmail);
+
+    Optional<User> duplicate = userRepository.findByEmailIgnoreCase(newEmail);
+    if (duplicate.isPresent()) {
+      // use bad request and not Conflict to prevent account enumeration
+      throw new BadRequestException("Requested new email already belongs to an existing account.");
+    }
+
+    synchronized (emailChangeConfirmationTokenMap) {
+      emailChangeConfirmationTokenMap.put(
+          user.getId(), new EmailChangeRequest(confirmationCode, newEmail));
+    }
+
+    String subject = "OpenAEV email change to " + newEmail + " requested";
+    String body =
+        """
+            Hi %s,<br/>
+            <br/>
+            A request to change your account's email address on OpenAEV was submitted. The change will only
+            take effect after you confirm the request.<br/>
+            <br/>
+            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            <br/>
+            Follow this link to confirm and apply the email address change: <a href="%s">confirm email change</a>.<br/>
+            <br/>
+            The link is valid for %s minutes.
+            """
+            .formatted(
+                user.getName(),
+                openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode,
+                String.valueOf(Math.ceilDivExact(tenMinutes, 60000)));
+    tenantTx.executeNew(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> mailingService.sendEmail(subject, body, List.of(user)));
+  }
+
+  public User confirmEmailChange(String confirmationCode) {
+    Map.Entry<String, EmailChangeRequest> ecr = null;
+    synchronized (emailChangeConfirmationTokenMap) {
+      for (Map.Entry<String, EmailChangeRequest> entry :
+          emailChangeConfirmationTokenMap.entrySet()) {
+        if (entry.getValue().confirmationCode().equals(confirmationCode)) {
+          ecr = entry;
+          break;
+        }
+      }
+    }
+
+    if (ecr == null) {
+      throw new ElementNotFoundException("Email change request not found");
+    }
+
+    Optional<User> user = userRepository.findById(ecr.getKey());
+    if (user.isEmpty()) {
+      throw new ElementNotFoundException("Could not find user");
+    }
+
+    user.get().setEmail(ecr.getValue().newEmail());
+    return userRepository.save(user.get());
+  }
+
+  public void sendEmailChangeConfirmationEmail(User user) {
+    String subject = "OpenAEV email was changed to " + user.getEmail();
+    String body =
+        """
+            Hi %s,<br/>
+            <br/>
+            Your OpenAEV account's email address was successfully changed to this present address.<br/>
+            """
+            .formatted(user.getName());
+    tenantTx.executeNew(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> mailingService.sendEmail(subject, body, List.of(user)));
   }
 
   /**
@@ -684,6 +766,9 @@ public class UserService {
    * Grants the auto-assign groups of the given tenants to an already persisted user. Used when a
    * user joins a tenant outside of the create/update flows, i.e. when attached from a tenant
    * screen.
+   *
+   * <p>Evicts the user's marking clearance cache: this is a {@code users_groups} write, and a stale
+   * cached clearance can only ever be too permissive, never too strict.
    */
   @Transactional(rollbackFor = Exception.class)
   public void assignAutoAssignGroups(
@@ -694,6 +779,7 @@ public class UserService {
     User user = user(userId);
     assignAutoAssignGroups(user, tenantIds, false);
     userRepository.save(user);
+    markingClearanceCacheManager.evictForUser(userId);
   }
 
   /**
@@ -729,6 +815,9 @@ public class UserService {
   /**
    * Revokes the groups of the given tenants from an already persisted user. Used when a user leaves
    * a tenant outside of the update flow, i.e. when detached from a tenant screen.
+   *
+   * <p>Evicts the user's marking clearance cache: a removed group can only shrink clearance, and a
+   * stale, larger cached entry would fail open.
    */
   @Transactional(rollbackFor = Exception.class)
   public void revokeTenantGroups(
@@ -739,6 +828,7 @@ public class UserService {
     User user = user(userId);
     revokeTenantGroups(user, tenantIds);
     User savedUser = userRepository.save(user);
+    markingClearanceCacheManager.evictForUser(userId);
     sessionManager.refreshUserSessions(savedUser);
   }
 

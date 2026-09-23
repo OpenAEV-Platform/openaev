@@ -27,6 +27,7 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCriticality from '../../../../components/ItemCriticality';
+import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
@@ -34,8 +35,10 @@ import { type EndpointOutput, type SearchPaginationInput } from '../../../../uti
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
+import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import ToolBar from '../../common/ToolBar';
@@ -60,7 +63,8 @@ const inlineStyles: Record<string, CSSProperties> = {
   endpoint_agents_executor: { width: '12%' },
   asset_criticality: { width: '9%' },
   asset_posture: { width: '10%' },
-  asset_tags: { width: '19%' },
+  asset_tags: { width: '10%' },
+  asset_markings: { width: '9%' },
 };
 
 const Endpoints = () => {
@@ -69,6 +73,12 @@ const Endpoints = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
+  // Gates the Markings column (and its data fetch below) so the flag-off platform looks exactly as
+  // it does today — mirrors the settings.config.tsx pattern used for the Marking Definitions menu.
+  const markingEnabled = isFeatureEnabled('MARKING');
+  // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
+  // the flag is off so the platform issues no marking-definitions request at all.
+  const markingDefinitions = useMarkingDefinitions({ skip: !markingEnabled });
 
   // Load the executors once for the whole page; the per-row Executors column
   // reads them from the store (previously each row fetched them, firing
@@ -214,6 +224,23 @@ const Endpoints = () => {
       isSortable: false,
       value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
     },
+    // Rendered only when MARKING is enabled — with the flag off, the list must look exactly as it
+    // did before this column was added.
+    ...(markingEnabled
+      ? [{
+          field: 'asset_markings',
+          label: 'Markings',
+          // Not sortable: markings are stored as a text[] on the row, not a joinable column.
+          isSortable: false,
+          value: (endpoint: EndpointOutput) => (
+            <ItemMarkings
+              variant="list"
+              markingIds={endpoint.asset_markings ?? []}
+              definitions={markingDefinitions}
+            />
+          ),
+        }]
+      : []),
   ];
 
   return (

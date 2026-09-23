@@ -1,0 +1,53 @@
+name: BOM Override Guard
+description: >
+  Check the Spring Boot BOM overrides declared in the root pom.xml: that Renovate tracks every one of
+  them, and that every one of them still wins over the version the BOM would otherwise give. Reuses
+  the jars from Backend Compile rather than building again, the same way the API test shards do.
+  Reported through the Pipeline Gate as advisory, never blocking. Requires the job to set
+  GH_TOKEN, which wait-for-artifacts needs.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Java 21
+      uses: actions/setup-java@v6
+      with:
+        java-version: "21"
+        distribution: temurin
+        cache: maven
+
+    # dependency:list is a bare plugin goal, so it never builds the reactor modules. Without the
+    # io.openaev jars in the local repository it fails on openaev-framework with
+    # "openaev-model:jar has not been downloaded from it before".
+    - name: Wait for compiled artifacts
+      uses: ./.github/actions/wait-for-artifacts
+      with:
+        artifact-names: backend-compiled
+        producer-job-names: Backend Compile
+        wait-seconds: "600"
+
+    - name: Clear cached OpenAEV artifacts
+      shell: bash
+      run: |
+        # Remove any cached openaev artifacts to prevent "file exists"
+        # errors when extracting the freshly compiled artifact.
+        rm -rf ~/.m2/repository/io/openaev/
+
+    - name: Download backend-compiled artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: backend-compiled
+        path: ~/.m2/repository/io/openaev/
+
+    - name: Resolve the runtime classpath
+      shell: bash
+      run: |
+        mkdir -p target
+        mvn -q -B -ntp -pl openaev-api -am dependency:list \
+          -DincludeScope=runtime \
+          -DoutputFile="$PWD/target/deplist.txt" \
+          -DappendOutput=true
+
+    - name: Check the Spring Boot BOM overrides
+      shell: bash
+      run: python3 .github/scripts/check-bom-overrides.py --dependency-list target/deplist.txt

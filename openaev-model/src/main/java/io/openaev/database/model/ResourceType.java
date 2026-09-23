@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 public enum ResourceType {
   ASSET,
   AGENT,
+  AGENT_INSTALLER,
   SCENARIO,
   SIMULATION,
   PLAYER,
