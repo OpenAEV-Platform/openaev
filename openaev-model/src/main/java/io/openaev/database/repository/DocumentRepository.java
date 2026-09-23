@@ -42,28 +42,18 @@ public interface DocumentRepository
   @NotNull
   Optional<Document> findFirstByNameOrderByIdAsc(@NotNull String name);
 
-  // Native so the lookup is scoped to the explicit write tenant only, not to the thread-local
-  // tenant the Hibernate tenantFilter would add: on the non-prefixed route the filter defaults to
-  // the default tenant, so a filtered lookup would find and reuse the default tenant's document for
-  // a request scoped elsewhere. Read-only, so it skips no listener/index/audit/stream side effect.
-  // Duplicate-tolerant and deterministic (first by id) like the unscoped variants above.
-  @Query(
-      value =
-          "SELECT * FROM documents WHERE document_target = :target AND tenant_id = :tenantId"
-              + " ORDER BY document_id ASC LIMIT 1",
-      nativeQuery = true)
+  // Confined to the explicit write tenant: the statement inspector scopes these lookups to the
+  // request scope, which may hold several tenants of the caller (an injects import into a parent
+  // of one tenant by a caller of two), so a lookup by target or name alone could find and reuse
+  // another in-scope tenant's document for a row written elsewhere. Duplicate-tolerant and
+  // deterministic (first by id) like the unscoped variants above.
   @NotNull
   Optional<Document> findFirstByTargetAndTenantIdOrderByIdAsc(
-      @Param("target") @NotNull String target, @Param("tenantId") @NotNull String tenantId);
+      @NotNull String target, @NotNull String tenantId);
 
-  @Query(
-      value =
-          "SELECT * FROM documents WHERE document_name = :name AND tenant_id = :tenantId"
-              + " ORDER BY document_id ASC LIMIT 1",
-      nativeQuery = true)
   @NotNull
   Optional<Document> findFirstByNameAndTenantIdOrderByIdAsc(
-      @Param("name") @NotNull String name, @Param("tenantId") @NotNull String tenantId);
+      @NotNull String name, @NotNull String tenantId);
 
   @Query(
       value =

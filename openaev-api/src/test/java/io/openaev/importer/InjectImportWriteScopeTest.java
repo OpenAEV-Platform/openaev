@@ -22,15 +22,20 @@ import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.inject.service.InjectExportService;
+import io.openaev.service.FileService;
+import io.openaev.service.MinioService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.constants.Constants;
+import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.FileFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.composers.DocumentComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
@@ -93,6 +98,9 @@ class InjectImportWriteScopeTest extends IntegrationTest {
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private DocumentComposer documentComposer;
+  @Autowired private FileService fileService;
+  @Autowired private MinioService minioService;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -103,6 +111,8 @@ class InjectImportWriteScopeTest extends IntegrationTest {
 
   private String sourceInjectId;
   private String sourceInjectTitle;
+  // Tenant under which the import stored the bundled document's bytes, removed in teardown.
+  private String importedDocumentTenant;
 
   @BeforeEach
   void resetComposers() {
@@ -116,7 +126,17 @@ class InjectImportWriteScopeTest extends IntegrationTest {
   }
 
   @AfterEach
-  void clearContext() {
+  void clearContext() throws Exception {
+    if (importedDocumentTenant != null) {
+      String target = FileFixture.getPlainTextFileContent().getFileName();
+      fileService.deleteFile(target);
+      try {
+        minioService.deleteFileForTenant(importedDocumentTenant, target);
+      } catch (Exception e) {
+        // best-effort cleanup: a missing object must not fail teardown
+      }
+      importedDocumentTenant = null;
+    }
     TenantContext.clearCurrentTenant();
   }
 
@@ -269,6 +289,33 @@ class InjectImportWriteScopeTest extends IntegrationTest {
 
       // Assert
       assertThat(importedInjectTenants()).containsExactly(tenantB);
+    }
+
+    @Test
+    @DisplayName("given_multiTenantCallerAndSameBytesInDefaultTenant_should_createDocumentInB")
+    void given_multiTenantCallerAndSameBytesInDefaultTenant_should_createDocumentInB()
+        throws Exception {
+      // Arrange: no selector, so the caller's read scope holds both tenants while the parent makes
+      // B the write tenant. The source inject's document lives in the default tenant with the same
+      // bytes the bundle carries: a lookup confined to the read scope alone would find and reuse
+      // it, binding B's inject to a document of the default tenant.
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB = tenantHelper.createTenantWithCurrentUser("sim-inj-doc-b").getId();
+      byte[] zip = injectZipWithDocument();
+      String exerciseId = saveExercise(tenantB);
+      importedDocumentTenant = tenantB;
+
+      // Act
+      importZip(multipart(EXERCISE_URI + "/{simulationId}/injects/import", exerciseId), zip)
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(importedInjectTenants()).containsExactly(tenantB);
+      assertThat(importedInjectDocumentTenants())
+          .as(
+              "the document bound to the imported inject is a new row of B, not the default"
+                  + " tenant's document with the same bytes")
+          .containsExactly(tenantB);
     }
 
     @Test
@@ -450,7 +497,20 @@ class InjectImportWriteScopeTest extends IntegrationTest {
   }
 
   private byte[] injectZip() throws Exception {
-    InjectComposer.Composer wrapper = composeInject();
+    return injectZip(composeInject());
+  }
+
+  /** Same bundle, the inject carrying a document whose bytes are stored in the default tenant. */
+  private byte[] injectZipWithDocument() throws Exception {
+    return injectZip(
+        composeInject()
+            .withDocument(
+                documentComposer
+                    .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+                    .withInMemoryFile(FileFixture.getPlainTextFileContent())));
+  }
+
+  private byte[] injectZip(InjectComposer.Composer wrapper) throws Exception {
     Exercise exercise =
         exerciseComposer
             .forExercise(ExerciseFixture.createDefaultExercise())
@@ -520,6 +580,15 @@ class InjectImportWriteScopeTest extends IntegrationTest {
   private List<String> importedInjectTenants() {
     return column(
         "SELECT tenant_id FROM injects WHERE inject_title = ? AND inject_id <> ?",
+        sourceInjectTitle,
+        sourceInjectId);
+  }
+
+  private List<String> importedInjectDocumentTenants() {
+    return column(
+        "SELECT d.tenant_id FROM documents d JOIN injects_documents id ON id.document_id ="
+            + " d.document_id JOIN injects i ON i.inject_id = id.inject_id WHERE i.inject_title = ?"
+            + " AND i.inject_id <> ?",
         sourceInjectTitle,
         sourceInjectId);
   }
