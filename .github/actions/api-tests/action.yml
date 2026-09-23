@@ -311,7 +311,7 @@ runs:
         REPORTS=openaev-api/target/surefire-reports
         S="$GITHUB_STEP_SUMMARY"
         {
-          echo "## 🔐 Tenant shadow \`$MODE\`, shard $SHARD"
+          echo "## Tenant shadow \`$MODE\`, shard $SHARD"
           echo
           echo "_Classes carrying their own \`@TestPropertySource\` activation keep it: inlined test"
           echo "properties win over the system property this mode sets. Those are the isolation suites,"
