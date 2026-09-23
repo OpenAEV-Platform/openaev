@@ -39,6 +39,19 @@ final class WriteAttrStack {
 
   private static final List<String> FILTER_METHODS = List.of("doFilter", "doFilterInternal");
 
+  /**
+   * Frames present only while Hibernate flushes: the flush listener runs every deferred insert,
+   * update and collection write of a session, including batched ones. A statement executed under
+   * them was asked for earlier, somewhere else, and the live stack no longer says where.
+   */
+  private static final List<String> FLUSH_FRAMES =
+      List.of(
+          "org.hibernate.event.internal.AbstractFlushingEventListener",
+          "org.hibernate.engine.spi.ActionQueue");
+
+  /** Key prefix of a flush-time write nobody attributed: {@code unattributed(<flushing test>)}. */
+  static final String UNATTRIBUTED_PREFIX = "unattributed(";
+
   private WriteAttrStack() {}
 
   /** The outermost production entry frame of the calling thread's current stack. */
@@ -70,6 +83,47 @@ final class WriteAttrStack {
       }
     }
     return "unknown";
+  }
+
+  /**
+   * True when the calling thread is inside a Hibernate flush, i.e. the statement being executed is
+   * a deferred JPA write rather than a synchronous one.
+   */
+  static boolean isFlushStack(StackTraceElement[] stack) {
+    for (StackTraceElement frame : stack) {
+      String className = frame.getClassName();
+      for (String flush : FLUSH_FRAMES) {
+        if (className.startsWith(flush)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * The entry frame the gate keys an unattributed write on: a flush-time write the ask-time
+   * listeners never captured and whose flush stack holds no production frame. Null when the stack
+   * is not a flush (a synchronous test-driven write, waived as today).
+   */
+  static String unattributed(StackTraceElement[] stack) {
+    if (!isFlushStack(stack)) {
+      return null;
+    }
+    return UNATTRIBUTED_PREFIX + outermostTestFrame(stack) + ")";
+  }
+
+  /** The outermost test frame of the stack, without its line number; "unknown" when none. */
+  static String outermostTestFrame(StackTraceElement[] stack) {
+    String outermost = null;
+    for (StackTraceElement frame : stack) {
+      // Not isApplicationFrame: that excludes the detector's own classes, and its tests are test
+      // frames like any other.
+      if (frame.getClassName().startsWith("io.openaev.") && isTestFrame(frame)) {
+        outermost = frame.getClassName() + "." + frame.getMethodName();
+      }
+    }
+    return outermost == null ? "unknown" : outermost;
   }
 
   private static boolean isApplicationFrame(StackTraceElement frame) {

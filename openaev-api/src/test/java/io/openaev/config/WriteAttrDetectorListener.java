@@ -44,7 +44,7 @@ public class WriteAttrDetectorListener implements QueryExecutionListener {
       "on".equals(System.getProperty("openaev.writeattr.detector"));
 
   private static final Pattern SIGNAL =
-      Pattern.compile("\\[WRITEATTR] table=(\\S+) id=(\\S+) tenant=(\\S+) scope=(.+)");
+      Pattern.compile("\\[WRITEATTR] table=(\\S+) id=(\\S+) tenant=(\\S+) scope=(.*)");
 
   private final Supplier<WriteAttrTableClassifier> classifierSupplier;
   private volatile WriteAttrTableClassifier classifier;
@@ -67,7 +67,10 @@ public class WriteAttrDetectorListener implements QueryExecutionListener {
   @Override
   public void beforeQuery(ExecutionInfo execInfo, List<QueryInfo> queryInfoList) {
     // The signal is read in afterQuery, from the warnings the trigger raised while the statement
-    // ran.
+    // ran. Here, one stack walk per statement gives the entities it hydrates their loading frame.
+    if (WriteAttrDetectorRecorder.isRecording()) {
+      WriteAttrEntryFrames.statementAsked(WriteAttrStack.entryFrame());
+    }
   }
 
   @Override
@@ -143,16 +146,30 @@ public class WriteAttrDetectorListener implements QueryExecutionListener {
   }
 
   /**
-   * The production entry frame the gate keys on. For a JPA write it is the frame captured when the
-   * application asked to write this row ({@code table + id}), which is authoritative even when null
-   * (a captured test-driven write). For a synchronous write, not captured at persist, the live
-   * stack is the asking stack.
+   * The production entry frame the gate keys on, in this order:
+   *
+   * <ol>
+   *   <li>the frame captured when the application asked to write this row (by {@code table + id},
+   *       or by the join table's owner during the current flush), authoritative even when null (a
+   *       captured test-driven write);
+   *   <li>else the live stack's production entry frame: for a synchronous write (native SQL, {@code
+   *       JdbcTemplate}) the live stack is the asking stack;
+   *   <li>else, when the statement runs inside a Hibernate flush, an {@code unattributed(...)} key
+   *       naming the test that flushed it: nobody captured the write and the stack cannot say who
+   *       asked for it (a dirty-checked update, an owner loaded rather than persisted), so it is
+   *       reported rather than dropped;
+   *   <li>else null: a synchronous write issued by test code itself, waived.
+   * </ol>
    */
   private static String resolveEntryFrame(String table, String id, StackTraceElement[] stack) {
     if (WriteAttrEntryFrames.isCaptured(table, id)) {
       return WriteAttrEntryFrames.capturedFrame(table, id);
     }
-    return WriteAttrStack.entryFrame(stack);
+    String live = WriteAttrStack.entryFrame(stack);
+    if (live != null) {
+      return live;
+    }
+    return WriteAttrStack.unattributed(stack);
   }
 
   private WriteAttrTableClassifier classifier() {

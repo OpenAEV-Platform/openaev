@@ -21,8 +21,17 @@ import java.util.stream.Collectors;
  * the trigger raises the raw fact and Java decides.
  *
  * <ul>
- *   <li>scope empty (no v2 scope set) -> silent. A background path without a scope is a separate
- *       concern; this detector is the write-attribution twin of the read filter.
+ *   <li>scope unset ({@code current_setting} returns NULL: startup and background code with no v2
+ *       scope at all) -> silent. A background path without a scope is a separate concern; this
+ *       detector is the write-attribution twin of the read filter.
+ *   <li>scope empty -> silent, a documented limit. An empty {@code app.current_tenants} is the
+ *       deny-all scope of {@code TxCtx.missing()}, where {@code can_access_tenant} refuses every
+ *       row, so by the read filter's own definition every write made there is outside the scope. It
+ *       is also the state the test utilities put a transaction in on purpose after tenant
+ *       onboarding, so raising it flags the fixture writes of nearly every isolation test (measured
+ *       on one shard: two thirds of its tests failed the gate, on four fixture signatures) and
+ *       buries the signal. The near-miss test pins the limit; lifting it needs the fixture frames
+ *       folded into the test-frame heuristic first.
  *   <li>{@code NEW.tenant_id} in the scope list -> silent. A correctly attributed write, including
  *       the {@code fallbackSelector} default-tenant write, whose scope IS the default tenant.
  *   <li>{@code NEW.tenant_id} NULL -> raised as {@code tenant=NULL}; Java flags it only on a strict
@@ -52,19 +61,21 @@ final class WriteAttrDetectorTrigger {
    * Bumped whenever the function body changes. Stored as the function comment so a leftover trigger
    * of an older shape is detected on install rather than silently reused.
    */
-  static final String VERSION = "3";
+  static final String VERSION = "4";
 
   private static final String FUNCTION = "_writeattr_detect";
   private static final String TRIGGER = "_writeattr_trg";
 
   /**
-   * The warning now carries the written row's primary key ({@code id=%}), so the Java side can
-   * match the write to the entry frame captured for that entity at {@code persist}/{@code merge}
-   * time. The primary-key column is resolved once per table at attach time and passed as the
-   * trigger argument ({@code TG_ARGV[0]}), so the per-row path is a single field read, not a
-   * catalog lookup. A table with a composite or absent primary key gets an empty argument; its
-   * writes are reported with {@code id=?} and fall back to stack-based attribution on the Java
-   * side.
+   * The warning carries the written row's key ({@code id=%}), so the Java side can match the write
+   * to the entry frame captured for that entity at {@code persist}/{@code merge} time. The key
+   * column is resolved once per table at attach time and passed as the trigger argument ({@code
+   * TG_ARGV[0]}), so the per-row path is a single field read, not a catalog lookup. It is the
+   * primary key without {@code tenant_id}: the connector tables key rows on {@code (id, tenant_id)}
+   * while their entity's own id is the first column, so that column is what the Java side knows. A
+   * table whose key still has several columns (a join table) or none gets an empty argument; its
+   * writes are reported with {@code id=?} and are attributed through the owner of the collection
+   * that wrote them, or from the stack.
    */
   private static final String CREATE_FUNCTION =
       """
@@ -165,10 +176,9 @@ final class WriteAttrDetectorTrigger {
             .collect(Collectors.joining(","));
     String notExcluded = excluded.isEmpty() ? "" : " AND c.table_name NOT IN (" + excluded + ")";
     // Plain concatenation, not String.formatted: the body carries PostgreSQL format() specifiers
-    // (%I, %L) that a Java formatter would fight over. Each table's single-column primary key is
-    // resolved here and passed to the trigger as %L; a composite or absent PK resolves to '' and
-    // the
-    // trigger reports id=?.
+    // (%I, %L) that a Java formatter would fight over. Each table's key column (the primary key
+    // without tenant_id) is resolved here and passed to the trigger as %L; a key that is still
+    // composite, or absent, resolves to '' and the trigger reports id=?.
     return "DO $$\n"
         + "DECLARE r record; pk text;\n"
         + "BEGIN\n"
@@ -188,7 +198,8 @@ final class WriteAttrDetectorTrigger {
         + "    FROM pg_index i\n"
         + "    JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)\n"
         + "    WHERE i.indrelid = format('public.%I', r.table_name)::regclass\n"
-        + "      AND i.indisprimary;\n"
+        + "      AND i.indisprimary\n"
+        + "      AND a.attname <> 'tenant_id';\n"
         + "    EXECUTE format(\n"
         + "      'DROP TRIGGER IF EXISTS "
         + TRIGGER
