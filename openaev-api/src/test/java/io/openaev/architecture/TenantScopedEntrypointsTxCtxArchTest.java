@@ -138,6 +138,18 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.document.DocumentApi#downloadDocument",
           "io.openaev.rest.document.DocumentApi#downloadDocumentForAgent",
           "io.openaev.rest.document.DocumentApi#deleteDocument",
+          // documents (v2): the player lists walk the article and challenge documents through
+          // DocumentService#getPlayerDocuments and the player download serves one of them; a lost
+          // TxCtx would silently return an empty list or a 404 for every player, never a compile
+          // error. The three list routes share the same service walk.
+          "io.openaev.rest.document.DocumentApi#playerDocuments",
+          "io.openaev.rest.document.DocumentApi#downloadPlayerDocument",
+          "io.openaev.rest.challenge.SimulationChallengeApi#playerDocuments",
+          "io.openaev.rest.scenario.ScenarioChallengesApi#playerDocuments",
+          // documents (v2): upload and upsert resolve the write tenant from the request scope and
+          // store the object under it, so the TxCtx is what attributes the created row.
+          "io.openaev.rest.document.DocumentApi#uploadDocument",
+          "io.openaev.rest.document.DocumentApi#upsertDocument",
           // attackpath_execution / attackpath_finding (v2): every read of the projection, including
           // the delta cursor added with the real-time updates (#6647, spec 002). Losing the TxCtx
           // on
