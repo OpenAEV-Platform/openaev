@@ -75,4 +75,20 @@ class WriteAttrGateExtensionTest {
             Set.of());
     assertEquals(2, offending.size(), "relation must be part of the key, got " + offending);
   }
+
+  @Test
+  @DisplayName("an unattributed flush-time write is offending unless its key is waived")
+  void unattributedWriteIsOffendingUnlessWaived() {
+    String key = "unattributed(io.openaev.rest.scenario.ScenarioApiTest.given_x_should_y)";
+    List<String> offending =
+        WriteAttrGateExtension.offendingSignatures(
+            List.of(prod("scenarios", Relation.DEFAULT, key)), Set.of());
+    assertEquals(List.of("scenarios DEFAULT " + key), offending);
+    assertTrue(
+        WriteAttrGateExtension.offendingSignatures(
+                List.of(prod("scenarios", Relation.DEFAULT, key)),
+                Set.of("scenarios DEFAULT " + key))
+            .isEmpty(),
+        "a waived unattributed key must be accepted");
+  }
 }

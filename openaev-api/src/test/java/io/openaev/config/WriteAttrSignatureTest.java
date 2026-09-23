@@ -55,4 +55,15 @@ class WriteAttrSignatureTest {
         WriteAttrSignature.of(
             "domains", Relation.OTHER, "io.openaev.Outer$Inner$$SpringCGLIB$$0.write:12"));
   }
+
+  @Test
+  @DisplayName("keeps an unattributed key intact (no line number to strip)")
+  void keepsUnattributedKey() {
+    assertEquals(
+        "scenarios DEFAULT unattributed(io.openaev.rest.X$Nested.given_a_should_b)",
+        WriteAttrSignature.of(
+            "scenarios",
+            Relation.DEFAULT,
+            "unattributed(io.openaev.rest.X$Nested.given_a_should_b)"));
+  }
 }
