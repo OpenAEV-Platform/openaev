@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -144,6 +145,28 @@ public class ChannelService {
       // -- VALIDATION TYPE --
       processByValidationType(user, injects, publishedArticles, !expectationExecutions.isEmpty());
     }
+    return withDocumentLinksInitialized(channelReader);
+  }
+
+  /**
+   * Initializes the lazy document links the reader serializes ({@code article_documents} on every
+   * article, {@code exercise_documents} or {@code scenario_documents} on the parent) inside the
+   * caller's tenant-scoped transaction. The reader holds raw entities, so those collections are
+   * otherwise loaded open-in-view after the transaction commits, where the tenant scope is gone:
+   * with {@code documents} tenant-active the loads fail closed to empty arrays and the channel
+   * pages lose their media with no error. One statement per article, bounded by the articles of one
+   * channel in one simulation or scenario.
+   */
+  public ChannelReader withDocumentLinksInitialized(ChannelReader channelReader) {
+    if (channelReader.getExercise() != null) {
+      Hibernate.initialize(channelReader.getExercise().getDocuments());
+    }
+    if (channelReader.getScenario() != null) {
+      Hibernate.initialize(channelReader.getScenario().getDocuments());
+    }
+    channelReader
+        .getChannelArticles()
+        .forEach(article -> Hibernate.initialize(article.getDocuments()));
     return channelReader;
   }
 
