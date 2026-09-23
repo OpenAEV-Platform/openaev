@@ -45,6 +45,7 @@ import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.VariableFixture;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
 import io.openaev.utils.fixtures.composers.DocumentComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
@@ -54,6 +55,7 @@ import io.openaev.utils.fixtures.composers.OrganizationComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.composers.TeamComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
+import io.openaev.utils.fixtures.composers.VariableComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
@@ -64,12 +66,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+import org.hibernate.Hibernate;
 import org.hibernate.Session;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.event.service.spi.EventListenerRegistry;
+import org.hibernate.event.spi.EventType;
+import org.hibernate.event.spi.PreInsertEvent;
+import org.hibernate.event.spi.PreInsertEventListener;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -120,6 +131,7 @@ class ImportBundleAttributionTest extends IntegrationTest {
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
+  @Autowired private VariableComposer variableComposer;
   @Autowired private OrganizationComposer organizationComposer;
   @Autowired private ZipJsonService<Payload> zipJsonService;
   @Autowired private FileService fileService;
@@ -150,6 +162,12 @@ class ImportBundleAttributionTest extends IntegrationTest {
     // import's write tenant), so the header selects B while the ambient tenant stays the default.
     tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
     tenantB = tenantHelper.createTenantWithCurrentUser("import-bundle-b").getId();
+    // Onboarding leaves B on the test thread, and the request thread of the header route carries
+    // none: the ambient tenant must fall back to the default one here, both for the source rows
+    // composed below to land in the default tenant and for the imports to reach the bridge that
+    // aligns the ambient tenant on the write tenant.
+    TenantContext.clearCurrentTenant();
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
   }
 
   @AfterEach
@@ -400,6 +418,9 @@ class ImportBundleAttributionTest extends IntegrationTest {
     void seedForeignTenant() throws Exception {
       // C exists, so the foreign key holds, and the caller is not one of its members.
       tenantC = tenantHelper.createTenant("import-bundle-c").getId();
+      // Creating C left it on the test thread: back to the default tenant before the requests.
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
     }
 
     @Test
@@ -716,6 +737,118 @@ class ImportBundleAttributionTest extends IntegrationTest {
           .putObject("data")
           .put("id", tenantId)
           .put("type", "tenants");
+    }
+  }
+
+  @Nested
+  @DisplayName("Every row of the bundle is inserted inside the bridged window")
+  class RowsInsertedInsideBridgedWindow {
+
+    @BeforeEach
+    void recordInserts() {
+      AmbientTenantAtInsertRecorder.registerOnce(
+          entityManager.getEntityManagerFactory().unwrap(SessionFactoryImplementor.class));
+    }
+
+    @AfterEach
+    void stopRecording() {
+      AmbientTenantAtInsertRecorder.stop();
+    }
+
+    @Test
+    @DisplayName(
+        "given a bundle whose last row is still queued when the importer returns when imported"
+            + " through the header then that row is inserted while the ambient tenant is the"
+            + " write tenant")
+    void given_trailingQueuedInsert_should_beIssuedInsideBridgedWindow() throws Exception {
+      // -- Arrange --
+      // A variable is the last row the importer saves and nothing queries after it, so its INSERT
+      // is still queued when the bundle is done: unless the importer flushes before the bridge
+      // restores the ambient tenant, the next flush issues it outside the bridged window, on a
+      // thread whose ambient tenant is the default one again.
+      Exercise exercise =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withVariable(variableComposer.forVariable(VariableFixture.getDefaultVariable()))
+              .persist()
+              .get();
+      byte[] zip =
+          exportService.exportExerciseToZip(
+              exercise, ExportOptions.mask(false, false, false), true);
+      entityManager.flush();
+      entityManager.clear();
+      AmbientTenantAtInsertRecorder.start();
+
+      // -- Act --
+      mvc.perform(
+              multipart(EXERCISE_URI + "/import")
+                  .file(new MockMultipartFile("file", zip))
+                  .header(TENANT_HEADER, tenantB)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+      // Issues whatever the import left queued, on the thread the interceptor has cleared.
+      entityManager.flush();
+      List<AmbientTenantAtInsertRecorder.Insert> inserts = AmbientTenantAtInsertRecorder.stop();
+
+      // -- Assert --
+      assertThat(inserts)
+          .extracting(AmbientTenantAtInsertRecorder.Insert::entity)
+          .as("the recorder saw the import's rows, the variable among them")
+          .contains("Variable");
+      assertThat(inserts)
+          .allSatisfy(
+              insert ->
+                  assertThat(insert.ambientTenant())
+                      .as("%s inserted outside the bridged window", insert.entity())
+                      .isEqualTo(tenantB));
+    }
+  }
+
+  /**
+   * Records the ambient tenant at the moment Hibernate issues each INSERT, which is when a row
+   * reached only by cascade gets its tenant stamped. The session factory is shared by every test of
+   * this Spring context and offers no way to remove a listener, so the recorder is appended once
+   * and stays inert unless a test arms it.
+   */
+  static final class AmbientTenantAtInsertRecorder implements PreInsertEventListener {
+
+    record Insert(String entity, String ambientTenant) {}
+
+    private static final AmbientTenantAtInsertRecorder INSTANCE =
+        new AmbientTenantAtInsertRecorder();
+    private static final Set<SessionFactoryImplementor> REGISTERED = ConcurrentHashMap.newKeySet();
+    private static final List<Insert> INSERTS = new CopyOnWriteArrayList<>();
+    private static volatile boolean armed;
+
+    static void registerOnce(SessionFactoryImplementor factory) {
+      if (REGISTERED.add(factory)) {
+        factory
+            .getServiceRegistry()
+            .getService(EventListenerRegistry.class)
+            .getEventListenerGroup(EventType.PRE_INSERT)
+            .appendListener(INSTANCE);
+      }
+    }
+
+    static void start() {
+      INSERTS.clear();
+      armed = true;
+    }
+
+    static List<Insert> stop() {
+      armed = false;
+      return List.copyOf(INSERTS);
+    }
+
+    @Override
+    public boolean onPreInsert(PreInsertEvent event) {
+      if (armed) {
+        INSERTS.add(
+            new Insert(
+                Hibernate.getClass(event.getEntity()).getSimpleName(),
+                TenantContext.getCurrentTenant()));
+      }
+      return false;
     }
   }
 

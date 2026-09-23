@@ -52,6 +52,7 @@ import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -119,6 +120,7 @@ public class V1_DataImporter implements Importer {
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
 
   private final AmbientTenantBridge ambientTenantBridge;
+  private final EntityManager entityManager;
 
   // endregion
 
@@ -241,17 +243,24 @@ public class V1_DataImporter implements Importer {
     // tenant so every row follows it even when the request scope holds several tenants.
     return ambientTenantBridge.callInTenant(
         writeTenant,
-        () ->
-            importBundle(
-                TxCtx.forTenant(writeTenant),
-                importNode,
-                docReferences,
-                exercise,
-                scenario,
-                asset,
-                assetGroup,
-                suffix,
-                writeTenant));
+        () -> {
+          ImportResult result =
+              importBundle(
+                  TxCtx.forTenant(writeTenant),
+                  importNode,
+                  docReferences,
+                  exercise,
+                  scenario,
+                  asset,
+                  assetGroup,
+                  suffix,
+                  writeTenant);
+          // The rows saved above are only queued: a row reached through a cascade is stamped from
+          // the ambient tenant when it is flushed, so the flush must happen before the bridge
+          // restores the ambient tenant, not at the next query or at commit.
+          entityManager.flush();
+          return result;
+        });
   }
 
   private static String parentTenantId(Exercise exercise, Scenario scenario) {
