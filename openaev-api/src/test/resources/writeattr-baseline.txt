@@ -1,9 +1,15 @@
 # Write-attribution gate (G1) - waived signatures.
 #
-# One signature per line: <table> <relation> <production-entry-frame>, where relation is DEFAULT,
-# OTHER or NULL (the written tenant's relation to the request or job scope) and the entry frame is
-# the outermost production frame that started the work (class.method, no line number). A write with
-# no production entry frame is test-driven and is auto-waived (not listed).
+# One signature per line: <table> <relation> <entry-frame>, where relation is DEFAULT, OTHER or NULL
+# (the written tenant's relation to the request or job scope) and the entry frame is the outermost
+# production frame that started the work (class.method, no line number), captured when the
+# application asked for the write (persist, merge or load of the entity) or read off the stack of a
+# synchronous write. A flush-time write nobody captured, whose flush stack holds no production
+# frame, is keyed unattributed(<flushing test>) so that it is visible rather than dropped. Only a
+# synchronous write issued by test code itself has no entry frame and is auto-waived (not listed).
+#
+# Every group names the event that retires it. A line still produced after that event is a finding;
+# a line no longer produced is reported stale at the end of an unsharded run and must be removed.
 #
 # Each signature below was traced and found BENIGN or SCOPED-OK (the write is correctly attributed
 # and the flag is an artefact of collection). A signature NOT listed here fails the gate: attribute
@@ -24,8 +30,10 @@
 # --- Test-helper tenant provisioning. The write is test-driven (the helper creates a tenant and its
 # default catalog rows), but the helper is named *TestHelper and lives in io.openaev.utils, which the
 # detector's test-frame heuristic does not yet recognise, so it is attributed to the helper rather
-# than auto-waived. Refining the heuristic to treat *TestHelper as a test frame would fold these into
-# the TenantService.create rows below; recorded as a lead in the report.
+# than auto-waived. Retired by either of two events: the heuristic treating *TestHelper as a test
+# frame (the lines fold into the TenantService.create group below), or the activation of
+# collector_types (#7933) and of the phishing tables (#7901), which decide where the shared catalog
+# lives.
 collector_types DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenantWithCurrentUser
 phishing_email_templates DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenantWithCurrentUser
 phishing_landing_pages DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenantWithCurrentUser
@@ -36,12 +44,24 @@ collector_types DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenant
 phishing_email_templates DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenant
 phishing_landing_pages DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenant
 
-# --- Tenant creation. Creating a tenant seeds the shared catalog rows (collector_types, phishing_*)
-# into the default tenant, and provisions the new tenant's own rows (its users_tenants link and its
-# domain), which are OTHER relative to the creating request's scope. Both are the intent of creation.
+# --- Tenant creation, shared catalog. Creating a tenant seeds the catalog rows (collector_types,
+# phishing_*) into the default tenant while the scope is the creating request's, the same rows the
+# credential job writes below. Retired by the activation of collector_types (#7933) and of the
+# phishing tables (#7901), which decide the attribution of that catalog.
 collector_types DEFAULT io.openaev.service.tenants.TenantService.create
 phishing_email_templates DEFAULT io.openaev.service.tenants.TenantService.create
 phishing_landing_pages DEFAULT io.openaev.service.tenants.TenantService.create
+
+# --- Tenant creation, provisioning of the new tenant. TenantService.create writes the new tenant's
+# own rows (the creator's users_tenants link, TenantUserService.createDependencyForTenant, and its
+# preset domains, DomainService.createDependencyForTenant) while the transaction's scope is still the
+# creator's, so they are OTHER by the detector's definition and correct by intent. The waiver is
+# NOT permanent: the signature cannot tell "the tenant being created" from "some other tenant", so a
+# regression that provisioned rows for the wrong tenant would be masked here. What holds that line
+# today is TenantServiceTest (the ten preset domains are asserted under the created tenant's id), not
+# this file. Retired when tenant provisioning runs under the created tenant's scope through the v2
+# primitive (forTenant(created tenant)), after which these writes are inside the scope and the
+# signature is no longer produced.
 users_tenants OTHER io.openaev.service.tenants.TenantService.create
 domains OTHER io.openaev.service.tenants.TenantService.create
 
@@ -77,11 +97,19 @@ attack_patterns DEFAULT io.openaev.importer.V1_DataImporter.importData
 #   scenarios ScenarioApi.createScenario           -> activation of scenarios (#6432)
 #   scenarios / exercises AutonomousRunApi.create  -> activation of scenarios (#6432) and
 #                                                     exercises (#6434)
-# The detector's own non-vacuity tests drive the ScenarioApi.createScenario path on purpose and
-# move to the raw-write path when scenarios activates.
+#   groups TenantGroupApi.createGroup              -> activation of groups (#6433)
+#   injectors_contracts and its attack-pattern link rows,
+#     InjectorContractApi.updateInjectorContract    -> activation of injectors_contracts (#7905)
+# The detector's own attribution tests drive these paths on purpose (a deferred insert of a merged
+# copy, a composite-key row, a collection's link rows) and move to raw writes when the table
+# activates. The groups and injectors_contracts lines were invisible before those tests: the same
+# request shapes were waived as test-driven by the attribution holes the tests pin.
 scenarios DEFAULT io.openaev.rest.scenario.ScenarioApi.createScenario
 scenarios DEFAULT io.openaev.api.autonomous.AutonomousRunApi.create
 exercises DEFAULT io.openaev.api.autonomous.AutonomousRunApi.create
+groups DEFAULT io.openaev.api.groups.TenantGroupApi.createGroup
+injectors_contracts DEFAULT io.openaev.rest.injector_contract.InjectorContractApi.updateInjectorContract
+injectors_contracts_attack_patterns DEFAULT io.openaev.rest.injector_contract.InjectorContractApi.updateInjectorContract
 
 # --- Shared-catalog rows written by the lazy per-tenant manager creation inside a background job.
 # CredentialConnectivityCheckJobIntegrationTest seeds its tenants with plain SQL, so they were never
@@ -108,5 +136,17 @@ phishing_landing_pages DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityC
 # isolation is off in that test's allowlist; in production collectors is active. A sibling case,
 # ImportMapperHttpInertWhenInactiveTest updating another tenant's mapper with import_mappers
 # inactive, is not listed: it arms nothing itself, so under the production list the table is active,
-# the update is refused and no write happens.
+# the update is refused and no write happens. Retired when CweHttpIsolationTest arms collectors as
+# well, or when the fixture stops relying on an inactive collectors table.
 collectors DEFAULT io.openaev.rest.vulnerability.VulnerabilityApi.bulkInsertVulnerabilitiesForCollector
+
+# --- Produced only by the detector's own attribution tests, which drive a production frame under a
+# scope that does not contain the written tenant to prove the write is still attributed after a
+# deferred flush from a test frame. ExecutorService.register is given the default tenant explicitly
+# (no controller writes the connector tables outside the request scope today); the reporting
+# schedule loader is the codebase's dirty-checking shape (a managed reload and a setter, no save);
+# the unattributed line is the pinned shape of an entity nobody captured (loaded before the recording
+# window) whose UPDATE is flushed by the test. Retired with the tests that produce them.
+executors DEFAULT io.openaev.executors.ExecutorService.register
+reporting_schedules DEFAULT io.openaev.rest.reporting.service.ReportingScheduleLoader.markLastRun
+reporting_schedules DEFAULT unattributed(io.openaev.config.WriteAttrDirtyUpdateReportingTest$DirtyUpdate.given_entityLoadedBeforeRecording_should_beReportedUnattributed)
