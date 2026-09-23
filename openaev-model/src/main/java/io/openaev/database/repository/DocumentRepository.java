@@ -21,6 +21,16 @@ public interface DocumentRepository
   @NotNull
   Optional<Document> findById(@NotNull String id);
 
+  /**
+   * Primary-key lookup confined to one tenant. The statement inspector scopes {@code findById} to
+   * the request scope, which may hold several tenants of the caller; a caller resolving an id that
+   * comes from user input (an import file) into a row written in one tenant must name that tenant,
+   * so the lookup cannot match a document of another in-scope tenant. The inspector still applies
+   * on top, so the row must also lie inside the request scope.
+   */
+  @NotNull
+  Optional<Document> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   List<Document> removeById(@NotNull String id);
 
   // document_target and document_name are not unique (concurrent uploads can create
