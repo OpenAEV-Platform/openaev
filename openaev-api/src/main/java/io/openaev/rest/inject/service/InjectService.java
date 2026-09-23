@@ -998,8 +998,8 @@ public class InjectService {
     injectStatusService.deleteAllInjectStatusByInjects(injects);
     injects.forEach(
         inject -> {
-          inject.setAuthorisation(null);
           inject.clean();
+          inject.setAuthorisation(null);
           inject.setTriggerNowDate(null);
         });
     injectRepository.saveAll(injects);

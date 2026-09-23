@@ -17,7 +17,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.service.InjectExecutionService;
-import io.openaev.rest.inject.service.StructuredOutputUtils;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -47,8 +47,8 @@ public class BatchingInjectStatusService {
 
   private final InjectRepository injectRepository;
   private final AgentRepository agentRepository;
-  private final StructuredOutputUtils structuredOutputUtils;
   private final InjectExecutionService injectExecutionService;
+  private final InjectStatusService injectStatusService;
 
   // Set from InjectApi.init() function. I preferred that to creating a dedicated @Bean instance
   // to avoid making too big changes.
@@ -216,7 +216,9 @@ public class BatchingInjectStatusService {
               saveExecutionTrace(callback, mapAgentsById, inject, successfullyProcessedCallbacks);
             }
           } catch (ElementNotFoundException e) {
-            injectExecutionService.handleInjectExecutionError(inject, e);
+            if (inject != null) {
+              injectStatusService.failInjectStatus(inject, e.getMessage());
+            }
             successfullyProcessedCallbacks.add(callback);
           } catch (Exception e) {
             log.warn(

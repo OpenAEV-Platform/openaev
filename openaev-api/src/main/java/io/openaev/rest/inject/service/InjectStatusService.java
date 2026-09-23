@@ -359,9 +359,7 @@ public class InjectStatusService {
     return injectStatusRepository.save(injectStatus);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public InjectStatus failInjectStatus(@NotNull String injectId, @Nullable String message) {
-    Inject inject = this.injectRepository.findById(injectId).orElseThrow();
+  public InjectStatus failInjectStatus(@NotNull Inject inject, @Nullable String message) {
     InjectStatus injectStatus = getOrInitializeInjectStatus(inject);
     ExecutionStatus previousStatus = injectStatus.getName();
     if (message != null) {
@@ -376,6 +374,13 @@ public class InjectStatusService {
       logInjectStatusTransition(inject, previousStatus, ExecutionStatus.ERROR, null);
     }
     return saved;
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public InjectStatus persistErrorStatusOutOfTransaction(
+      @NotNull String injectId, @Nullable String message) {
+    Inject inject = this.injectRepository.findById(injectId).orElseThrow();
+    return failInjectStatus(inject, message);
   }
 
   @Transactional
