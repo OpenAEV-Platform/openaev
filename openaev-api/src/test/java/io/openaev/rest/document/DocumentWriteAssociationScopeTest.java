@@ -106,6 +106,11 @@ class DocumentWriteAssociationScopeTest extends IntegrationTest {
     tagInDefault = saveTag(Tenant.DEFAULT_TENANT_UUID);
     entityManager.flush();
     entityManager.clear();
+    // Onboarding leaves B on the test thread, and the request thread of the header route carries
+    // none: the ambient tenant must fall back to the default one here, or the header tests run
+    // with B already ambient and the bridge they exist to pin never has anything to do.
+    TenantContext.clearCurrentTenant();
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
   }
 
   @AfterEach
