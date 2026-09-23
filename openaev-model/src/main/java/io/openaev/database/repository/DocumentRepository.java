@@ -59,36 +59,10 @@ public interface DocumentRepository
       nativeQuery = true)
   List<RawDocument> rawAllDocuments();
 
-  @Query(
-      value =
-          """
-        select d.*,
-               array_remove(array_agg(tg.tag_id), NULL) as document_tags,
-               array_remove(array_agg(ex.exercise_id), NULL) as document_exercises,
-               array_remove(array_agg(sc.scenario_id), NULL) as document_scenarios
-        from documents d
-        left join exercises_documents exdoc on d.document_id = exdoc.document_id
-        left join exercises ex on ex.exercise_id = exdoc.exercise_id
-        left join scenarios_documents scdoc on d.document_id = scdoc.document_id
-        left join scenarios sc on sc.scenario_id = scdoc.scenario_id
-        left join documents_tags tagdoc on d.document_id = tagdoc.document_id
-        left join tags tg on tg.tag_id = tagdoc.tag_id
-        left join channels chl_light on d.document_id = chl_light.channel_logo_light
-        left join channels chl_dark  on d.document_id = chl_dark.channel_logo_dark
-        where chl_light.channel_id = :channelId
-           or chl_dark.channel_id  = :channelId
-        group by d.document_id
-        order by d.document_id desc
-        """,
-      nativeQuery = true)
-  List<RawDocument> rawAllDocumentsByChannelId(@Param("channelId") String channelId);
-
   /**
-   * Tenant-scoped variant of {@link #rawAllDocumentsByChannelId}: adds the {@code tenant_id}
-   * predicate so a caller cannot read another tenant's documents by supplying a cross-tenant {@code
-   * channelId} (native SQL is never covered by the Hibernate {@code tenantFilter}). Use when the
-   * caller's request scope is known (non-empty); {@link #rawAllDocumentsByChannelId} remains for
-   * unscoped/background callers.
+   * Tenant-scoped: adds the {@code tenant_id} predicate so a caller cannot read another tenant's
+   * documents by supplying a cross-tenant {@code channelId} (native SQL is never covered by the
+   * Hibernate {@code tenantFilter}). Callers must always supply a non-empty tenant scope.
    */
   @Query(
       value =
@@ -116,37 +90,10 @@ public interface DocumentRepository
   List<RawDocument> rawAllDocumentsByChannelIdAndTenantIds(
       @Param("channelId") String channelId, @Param("tenantIds") Collection<String> tenantIds);
 
-  @Query(
-      value =
-          """
-                select d.*,
-                       array_remove(array_agg(tg.tag_id), NULL) as document_tags,
-                       array_remove(array_agg(ex.exercise_id), NULL) as document_exercises,
-                       array_remove(array_agg(sc.scenario_id), NULL) as document_scenarios
-                from documents d
-                left join exercises_documents exdoc on d.document_id = exdoc.document_id
-                left join exercises ex on ex.exercise_id = exdoc.exercise_id
-                left join scenarios_documents scdoc on d.document_id = scdoc.document_id
-                left join scenarios sc on sc.scenario_id = scdoc.scenario_id
-                left join documents_tags tagdoc on d.document_id = tagdoc.document_id
-                left join tags tg on tg.tag_id = tagdoc.tag_id
-                left join assets sp_light on d.document_id = sp_light.security_platform_logo_light
-                left join assets sp_dark  on d.document_id = sp_dark.security_platform_logo_dark
-                where sp_light.asset_id = :securityPlatformId
-                   or sp_dark.asset_id  = :securityPlatformId
-                group by d.document_id
-                order by d.document_id desc
-                """,
-      nativeQuery = true)
-  List<RawDocument> rawAllDocumentsBySecurityPlatformId(
-      @Param("securityPlatformId") String securityPlatformId);
-
   /**
-   * Tenant-scoped variant of {@link #rawAllDocumentsBySecurityPlatformId}: adds the {@code
-   * tenant_id} predicate so a caller cannot read another tenant's documents by supplying a
-   * cross-tenant {@code securityPlatformId}. Use when the caller's request scope is known
-   * (non-empty); {@link #rawAllDocumentsBySecurityPlatformId} remains for unscoped/background
-   * callers.
+   * Tenant-scoped: adds the {@code tenant_id} predicate so a caller cannot read another tenant's
+   * documents by supplying a cross-tenant {@code securityPlatformId}. Callers must always supply a
+   * non-empty tenant scope.
    */
   @Query(
       value =
@@ -175,33 +122,10 @@ public interface DocumentRepository
       @Param("securityPlatformId") String securityPlatformId,
       @Param("tenantIds") Collection<String> tenantIds);
 
-  @Query(
-      value =
-          """
-                        select d.*,
-                               array_remove(array_agg(tg.tag_id), NULL) as document_tags,
-                               array_remove(array_agg(ex.exercise_id), NULL) as document_exercises,
-                               array_remove(array_agg(sc.scenario_id), NULL) as document_scenarios
-                        from documents d
-                        left join exercises_documents exdoc on d.document_id = exdoc.document_id
-                        left join exercises ex on ex.exercise_id = exdoc.exercise_id
-                        left join scenarios_documents scdoc on d.document_id = scdoc.document_id
-                        left join scenarios sc on sc.scenario_id = scdoc.scenario_id
-                        left join documents_tags tagdoc on d.document_id = tagdoc.document_id
-                        left join tags tg on tg.tag_id = tagdoc.tag_id
-                        left join challenges_documents chdoc on d.document_id = chdoc.document_id
-                        where chdoc.challenge_id = :challengeId
-                        group by d.document_id
-                        order by d.document_id desc
-                        """,
-      nativeQuery = true)
-  List<RawDocument> rawAllDocumentsByChallengeId(@Param("challengeId") String challengeId);
-
   /**
-   * Tenant-scoped variant of {@link #rawAllDocumentsByChallengeId}: adds the {@code tenant_id}
-   * predicate so a caller cannot read another tenant's documents by supplying a cross-tenant {@code
-   * challengeId}. Use when the caller's request scope is known (non-empty); {@link
-   * #rawAllDocumentsByChallengeId} remains for unscoped/background callers.
+   * Tenant-scoped: adds the {@code tenant_id} predicate so a caller cannot read another tenant's
+   * documents by supplying a cross-tenant {@code challengeId}. Callers must always supply a
+   * non-empty tenant scope.
    */
   @Query(
       value =
@@ -227,33 +151,10 @@ public interface DocumentRepository
   List<RawDocument> rawAllDocumentsByChallengeIdAndTenantIds(
       @Param("challengeId") String challengeId, @Param("tenantIds") Collection<String> tenantIds);
 
-  @Query(
-      value =
-          """
-                                select d.*,
-                                       array_remove(array_agg(tg.tag_id), NULL) as document_tags,
-                                       array_remove(array_agg(ex.exercise_id), NULL) as document_exercises,
-                                       array_remove(array_agg(sc.scenario_id), NULL) as document_scenarios
-                                from documents d
-                                left join exercises_documents exdoc on d.document_id = exdoc.document_id
-                                left join exercises ex on ex.exercise_id = exdoc.exercise_id
-                                left join scenarios_documents scdoc on d.document_id = scdoc.document_id
-                                left join scenarios sc on sc.scenario_id = scdoc.scenario_id
-                                left join documents_tags tagdoc on d.document_id = tagdoc.document_id
-                                left join tags tg on tg.tag_id = tagdoc.tag_id
-                                left join payloads pa on (d.document_id = pa.file_drop_file or d.document_id = pa.executable_file)
-                                where pa.payload_id = :payloadId
-                                group by d.document_id
-                                order by d.document_id desc
-                                """,
-      nativeQuery = true)
-  List<RawDocument> rawAllDocumentsByPayloadId(@Param("payloadId") String payloadId);
-
   /**
-   * Tenant-scoped variant of {@link #rawAllDocumentsByPayloadId}: adds the {@code tenant_id}
-   * predicate so a caller cannot read another tenant's documents by supplying a cross-tenant {@code
-   * payloadId}. Use when the caller's request scope is known (non-empty); {@link
-   * #rawAllDocumentsByPayloadId} remains for unscoped/background callers.
+   * Tenant-scoped: adds the {@code tenant_id} predicate so a caller cannot read another tenant's
+   * documents by supplying a cross-tenant {@code payloadId}. Callers must always supply a non-empty
+   * tenant scope.
    */
   @Query(
       value =

@@ -295,7 +295,8 @@ public class DocumentService {
   public List<RawDocument> documentsForChannel(TxCtx ctx, @NotBlank String channelId) {
     Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     if (scope.isEmpty()) {
-      return this.documentRepository.rawAllDocumentsByChannelId(channelId);
+      // Fail-closed: an empty scope (e.g. TxCtx.Missing) grants no tenant access.
+      return List.of();
     }
     return this.documentRepository.rawAllDocumentsByChannelIdAndTenantIds(channelId, scope);
   }
@@ -304,7 +305,8 @@ public class DocumentService {
       TxCtx ctx, @NotBlank String securityPlatformId) {
     Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     if (scope.isEmpty()) {
-      return this.documentRepository.rawAllDocumentsBySecurityPlatformId(securityPlatformId);
+      // Fail-closed: an empty scope (e.g. TxCtx.Missing) grants no tenant access.
+      return List.of();
     }
     return this.documentRepository.rawAllDocumentsBySecurityPlatformIdAndTenantIds(
         securityPlatformId, scope);
@@ -313,7 +315,8 @@ public class DocumentService {
   public List<RawDocument> documentsForChallenge(TxCtx ctx, @NotBlank String challengeId) {
     Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     if (scope.isEmpty()) {
-      return this.documentRepository.rawAllDocumentsByChallengeId(challengeId);
+      // Fail-closed: an empty scope (e.g. TxCtx.Missing) grants no tenant access.
+      return List.of();
     }
     return this.documentRepository.rawAllDocumentsByChallengeIdAndTenantIds(challengeId, scope);
   }
@@ -321,7 +324,8 @@ public class DocumentService {
   public List<RawDocument> documentsForPayload(TxCtx ctx, @NotBlank String payloadId) {
     Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     if (scope.isEmpty()) {
-      return this.documentRepository.rawAllDocumentsByPayloadId(payloadId);
+      // Fail-closed: an empty scope (e.g. TxCtx.Missing) grants no tenant access.
+      return List.of();
     }
     return this.documentRepository.rawAllDocumentsByPayloadIdAndTenantIds(payloadId, scope);
   }
