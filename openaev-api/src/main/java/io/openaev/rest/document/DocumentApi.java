@@ -259,8 +259,8 @@ public class DocumentApi extends RestBehavior {
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     // Report generation outputs are read-only here (owned by the Reporting module). Checked after
-    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
-    // ordinary document, not the 400 that discloses the id is a report output.
+    // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
+    // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return documentService.withSerializedLinks(documentService.save(document));
@@ -279,8 +279,8 @@ public class DocumentApi extends RestBehavior {
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     // Report generation outputs are read-only here (owned by the Reporting module). Checked after
-    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
-    // ordinary document, not the 400 that discloses the id is a report output.
+    // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
+    // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
     // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
     // the non-prefixed route: resolve the ids the caller supplies in the tenant of the document, so
