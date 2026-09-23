@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
 import io.openaev.service.MinioService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -68,6 +69,11 @@ class DocumentDeleteFileScopeTest extends IntegrationTest {
     // The same bytes stored under each tenant's own prefix: the delete must only touch B's copy.
     uploadObject(tenantA, content);
     uploadObject(tenantB, content);
+    // Onboarding leaves the tenant it created on the test thread, and the request thread of the
+    // header route carries none: the ambient tenant must fall back to the default one here, or the
+    // delete under test runs with B already ambient and the owning-tenant path is never exercised.
+    TenantContext.clearCurrentTenant();
+    assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
   }
 
   @AfterEach
@@ -90,7 +96,7 @@ class DocumentDeleteFileScopeTest extends IntegrationTest {
     String documentB = seedDocument(tenantB, "doc-del-b");
     seedDocument(tenantA, "doc-del-a");
 
-    // Act: delete B's document on the header route (ambient tenant is the default, not B).
+    // Act: delete B's document on the header route, where the ambient tenant is the default one.
     mvc.perform(
             delete(DOCUMENTS + "/{documentId}", documentB)
                 .header("X-Tenant-Ids", tenantB)

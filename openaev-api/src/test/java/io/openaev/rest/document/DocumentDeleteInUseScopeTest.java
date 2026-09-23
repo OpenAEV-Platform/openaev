@@ -67,6 +67,10 @@ class DocumentDeleteInUseScopeTest extends IntegrationTest {
     // tenant stays the default.
     tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
     tenantB = tenantHelper.createTenantWithCurrentUser("doc-in-use-b").getId();
+    // Onboarding leaves B on the test thread, and the request thread of the header route carries
+    // none: the ambient tenant must fall back to the default one before the header requests.
+    TenantContext.clearCurrentTenant();
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
   }
 
   @AfterEach

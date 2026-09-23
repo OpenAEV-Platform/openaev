@@ -1,5 +1,6 @@
 package io.openaev.rest.reporting;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -92,9 +93,13 @@ class ReportingGenerationDownloadTenantScopeTest extends IntegrationTest {
   void given_documentInAnotherTenantThanGeneration_should_return404() throws Exception {
     // Arrange: the generation is in the default tenant, but its document (anomalously) belongs to
     // another tenant, with its object stored there. Passing the document's own tenant would serve
-    // it
-    // regardless; passing the generation's tenant refuses the mismatch.
+    // it regardless; passing the generation's tenant refuses the mismatch.
     String otherTenant = tenantHelper.createTenantWithCurrentUser("report-anomaly").getId();
+    // Onboarding leaves the other tenant on the test thread, and the generation is resolved under
+    // the ambient tenant: it must be the default one here, or the generation is not found and the
+    // 404 comes from that lookup instead of from the owning-tenant check under test.
+    TenantContext.clearCurrentTenant();
+    assertEquals(DEFAULT_TENANT, TenantContext.getCurrentTenant());
     byte[] bytes = ("report-anomaly-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
     String target = DigestUtils.md5Hex(bytes) + ".pdf";
     uploadObject(otherTenant, target, bytes);

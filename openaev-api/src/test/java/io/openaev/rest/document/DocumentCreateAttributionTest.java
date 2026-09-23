@@ -60,6 +60,11 @@ class DocumentCreateAttributionTest extends IntegrationTest {
   @BeforeEach
   void seedTenantB() throws Exception {
     tenantB = tenantHelper.createTenantWithCurrentUser("t22-doc-b").getId();
+    // Onboarding leaves B on the test thread, and the request thread of the header route carries
+    // none: the ambient tenant must fall back to the default one, or the header tests below run
+    // with B already ambient and attribute nothing that the ambient tenant would not.
+    TenantContext.clearCurrentTenant();
+    assertEquals(DEFAULT_TENANT, TenantContext.getCurrentTenant());
   }
 
   @AfterEach
