@@ -164,6 +164,27 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
         "reinstalling the trigger must cover a newly created table");
   }
 
+  @Test
+  @DisplayName("an empty scope (deny-all) is not flagged: a documented limit, pinned")
+  void given_emptyScope_should_notFlagTheWrite() {
+    // Arrange: TxCtx.missing() sets app.current_tenants to '' and can_access_tenant refuses every
+    // row, so a write made there is outside the scope by definition. The trigger stays silent on
+    // purpose: the test utilities reset a transaction to '' after tenant onboarding, so raising the
+    // empty scope flags the fixture writes of nearly every isolation test. Widening it again means
+    // folding those fixture frames into the test-frame heuristic first, then re-freezing the
+    // baseline.
+    startScoped("");
+
+    // Act
+    seedScenario(tenantB);
+
+    // Assert
+    WriteAttrDetectorRecorder.stop();
+    assertFalse(
+        flagged("scenarios", Relation.OTHER),
+        "the empty scope is a documented limit; widening it re-opens the fixture flood");
+  }
+
   private void installTrigger() {
     entityManager
         .unwrap(Session.class)
