@@ -146,8 +146,10 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
     @Test
     @DisplayName("the list is exactly the caller's documents, never another tenant's")
     void given_twoTenants_should_returnOnlyCallersDocuments() {
-      // rawAllDocuments carries a SpEL tenant_id predicate resolved from the v1 TenantContext, so
-      // both the ambient tenant (for the SpEL) and the v2 scope (for the inspector) are set to A.
+      // rawAllDocuments carries no tenant predicate of its own since the activation removed the
+      // v1 SpEL one: the statement inspector is the only scope, so the v2 scope set to A is what
+      // decides the list. The helper sets the ambient tenant alongside only to mirror a request
+      // thread, and this assertion does not depend on it.
       List<RawDocument> documents = rawAllDocumentsAs(tenantA);
 
       List<String> ids = documents.stream().map(RawDocument::getDocument_id).toList();

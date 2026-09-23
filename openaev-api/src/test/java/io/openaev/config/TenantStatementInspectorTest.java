@@ -1170,11 +1170,10 @@ class TenantStatementInspectorTest {
   @DisplayName("Document native queries survive documents being active")
   class DocumentNativeQueries {
 
-    // Spring resolves a SpEL selector (:#{...}) into a bind parameter before Hibernate sees the
-    // SQL, so JSqlParser only ever parses the resolved form; rawAllDocuments carries one. Collapse
-    // it to a positional placeholder so the shape parses, exactly as production binding does.
-    private final java.util.regex.Pattern spel = java.util.regex.Pattern.compile("[:?]#\\{[^}]*}");
-
+    // None of the document native queries carries a SpEL selector any more: the v1 tenant
+    // predicate rawAllDocuments used to resolve from the ambient tenant was removed on activation,
+    // so the inspector is the only scope and the SQL is inspected exactly as the repository
+    // declares it.
     private final TenantStatementInspector goLive =
         new TenantStatementInspector(
             new TenantTables(
@@ -1189,7 +1188,7 @@ class TenantStatementInspectorTest {
               .orElseThrow()
               .getAnnotation(org.springframework.data.jpa.repository.Query.class)
               .value();
-      return goLive.inspect(spel.matcher(sql).replaceAll("?")).replaceAll("\\s+", " ").trim();
+      return goLive.inspect(sql).replaceAll("\\s+", " ").trim();
     }
 
     @ParameterizedTest
