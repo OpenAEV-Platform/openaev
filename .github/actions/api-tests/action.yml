@@ -110,7 +110,7 @@ runs:
         # openaev-api/target/openaev-api/target/classes/ instead of
         # openaev-api/target/classes/.  Detect and flatten.
         if [ -d "openaev-api/target/openaev-api/target" ]; then
-          echo "⚠️ Detected double-nested artifact path — flattening..."
+          echo "⚠️ Detected double-nested artifact path, flattening..."
           cp -rn openaev-api/target/openaev-api/target/* openaev-api/target/ 2>/dev/null || true
           rm -rf openaev-api/target/openaev-api
           echo "✅ Flattened double-nested paths"
@@ -311,7 +311,7 @@ runs:
         REPORTS=openaev-api/target/surefire-reports
         S="$GITHUB_STEP_SUMMARY"
         {
-          echo "## 🔐 Tenant shadow \`$MODE\` — shard $SHARD"
+          echo "## 🔐 Tenant shadow \`$MODE\`, shard $SHARD"
           echo
           echo "_Classes carrying their own \`@TestPropertySource\` activation keep it: inlined test"
           echo "properties win over the system property this mode sets. Those are the isolation suites,"
@@ -321,7 +321,7 @@ runs:
         # A broken instrument must stay visible without turning the job red. Two shapes go unnoticed
         # otherwise: no surefire report at all (the suite never ran), and a Spring context that fails
         # to load (every test errors, yet the JaCoCo agent still writes jacoco.exec at JVM exit and
-        # -Dmaven.test.failure.ignore=true leaves the build green — the 12 Sep shadow-all state). Emit
+        # -Dmaven.test.failure.ignore=true leaves the build green, the 12 Sep shadow-all state). Emit
         # a GitHub warning annotation, never an error and never a non-zero exit: it shows on the run
         # page and in the job without failing either, and the on-call alert keys off the run
         # conclusion, so it stays quiet.
