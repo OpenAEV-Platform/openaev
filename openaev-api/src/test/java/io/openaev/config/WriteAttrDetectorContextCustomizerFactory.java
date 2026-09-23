@@ -31,7 +31,7 @@ import org.springframework.test.context.MergedContextConfiguration;
 public class WriteAttrDetectorContextCustomizerFactory implements ContextCustomizerFactory {
 
   private static final ContextCustomizer CUSTOMIZER = new DetectorCustomizer();
-  private static final AtomicBoolean INSTALLED = new AtomicBoolean(false);
+  private static final WriteAttrTriggerInstallGuard INSTALL = new WriteAttrTriggerInstallGuard();
   private static final AtomicBoolean SHUTDOWN_HOOK_REGISTERED = new AtomicBoolean(false);
 
   @Override
@@ -79,22 +79,22 @@ public class WriteAttrDetectorContextCustomizerFactory implements ContextCustomi
             }
             DataSource dataSource = context.getBeanProvider(DataSource.class).getIfAvailable();
             // The trigger install is JVM-once because the test database is shared across contexts.
-            if (dataSource != null && INSTALLED.compareAndSet(false, true)) {
-              installTrigger(dataSource);
+            // A failed install fails this context's refresh (loud) and leaves the guard open, so
+            // the next context tries again rather than running undetected.
+            if (dataSource != null) {
+              INSTALL.installOnce(() -> installTrigger(dataSource));
+              registerShutdownHook(dataSource);
             }
           });
     }
 
-    private void installTrigger(DataSource dataSource) {
+    private void installTrigger(DataSource dataSource) throws Exception {
       try (Connection connection = dataSource.getConnection()) {
         WriteAttrDetectorTrigger.install(connection, TenantTables.selfIsolatedTables());
         if (!connection.getAutoCommit()) {
           connection.commit();
         }
-      } catch (Exception e) {
-        throw new IllegalStateException("cannot install the write-attribution trigger", e);
       }
-      registerShutdownHook(dataSource);
     }
 
     private void registerShutdownHook(DataSource dataSource) {
