@@ -140,7 +140,7 @@ class InjectsExecutionJobTenantScopeTest {
               return null;
             })
         .when(injectStatusService)
-        .failInjectStatus(anyString(), anyString());
+        .persistErrorStatusOutOfTransaction(anyString(), anyString());
   }
 
   @AfterEach
@@ -232,7 +232,7 @@ class InjectsExecutionJobTenantScopeTest {
 
     job.execute(null);
 
-    verify(injectStatusService).failInjectStatus(anyString(), anyString());
+    verify(injectStatusService).persistErrorStatusOutOfTransaction(anyString(), anyString());
     assertThat(tenantDuringFailStatus.get()).isEqualTo(INJECT_TENANT);
   }
 
