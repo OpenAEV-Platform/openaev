@@ -576,6 +576,36 @@ class TenantActiveTableAccessArchTest {
                   + " transaction and be allowlisted here");
 
   @ArchTest
+  static final ArchRule documents_article_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Force-initializes the article documents inside the scoped read transaction
+              // (ChannelService.withDocumentLinksInitialized) so the open-in-view serialization of
+              // the channel reader cannot return an empty list:
+              io.openaev.service.ChannelService.class,
+              // Article write paths on TxCtx-carrying endpoints, resolving and rebinding the
+              // documents inside the request transaction:
+              io.openaev.rest.channel.ChannelApi.class,
+              // Player document lists, walked inside the TxCtx-carrying player endpoints:
+              io.openaev.rest.document.DocumentService.class,
+              // DTO mapper materializing the ids inside the request transaction:
+              io.openaev.rest.channel.output.ArticleOutput.class,
+              // Duplication and scenario-to-simulation copies, inside their scoped transactions:
+              io.openaev.rest.exercise.service.ExerciseService.class,
+              io.openaev.service.scenario.ScenarioService.class,
+              io.openaev.service.ScenarioToExerciseService.class,
+              // Exporter mapping the article documents inside the export endpoint's transaction:
+              io.openaev.rest.inject.exports.InjectsFileExport.class)
+          .should()
+          .callMethod(io.openaev.database.model.Article.class, "getDocuments")
+          .because(
+              "documents is reached through Article's LAZY documents association without touching"
+                  + " DocumentRepository. A getDocuments() outside a scoped transaction silently"
+                  + " loads zero rows (open-in-view). New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
+
+  @ArchTest
   static final ArchRule tenant_xtmhub_registrations_repository_access_is_reviewed =
       noClasses()
           .that()

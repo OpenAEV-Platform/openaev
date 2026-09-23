@@ -40,11 +40,11 @@ import org.springframework.web.bind.annotation.*;
 public class ChannelApi extends RestBehavior {
 
   public static final String CHANNEL_URI = "/api/channels";
-  private static final String TENANT_CHANNEL_URI = TENANT_PREFIX + "/channels";
-  private static final String OBSERVER_CHANNEL_URI = "/api/observer/channels";
-  private static final String TENANT_OBSERVER_CHANNEL_URI = TENANT_PREFIX + "/observer/channels";
-  private static final String PLAYER_CHANNEL_URI = "/api/player/channels";
-  private static final String TENANT_PLAYER_CHANNEL_URI = TENANT_PREFIX + "/player/channels";
+  public static final String TENANT_CHANNEL_URI = TENANT_PREFIX + "/channels";
+  public static final String OBSERVER_CHANNEL_URI = "/api/observer/channels";
+  public static final String TENANT_OBSERVER_CHANNEL_URI = TENANT_PREFIX + "/observer/channels";
+  public static final String PLAYER_CHANNEL_URI = "/api/player/channels";
+  public static final String TENANT_PLAYER_CHANNEL_URI = TENANT_PREFIX + "/player/channels";
 
   private final ExerciseRepository exerciseRepository;
   private final ScenarioService scenarioService;
@@ -167,7 +167,10 @@ public class ChannelApi extends RestBehavior {
               scenario.getInjects(), publishedArticles, this.mapper);
       channelReader.setChannelArticles(articles);
     }
-    return channelReader;
+    // The reader serializes raw entities after this transaction commits: load their document
+    // links here, under the request's tenant scope, or they come back empty once documents is
+    // tenant-active.
+    return channelService.withDocumentLinksInitialized(channelReader);
   }
 
   @GetMapping({
