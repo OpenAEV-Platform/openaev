@@ -371,6 +371,54 @@ runs:
           echo >> "$S"
         fi
 
+        # Wrong-tenant production writes the write-attribution gate refused: a tenant_id written
+        # outside the request or job scope, or a null one on a strict table. Same extraction shape as
+        # the block above; a signature is "<table> <DEFAULT|OTHER|NULL> <entry frame>".
+        WSIGS=$(awk '
+            /Write-attribution: production code wrote/ { inblock = 1; next }
+            inblock && /^Attribute the write/ { inblock = 0; next }
+            inblock {
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+              if ($0 ~ /^[a-z_]+ (DEFAULT|OTHER|NULL) [A-Za-z0-9_.$()]+$/) print
+            }
+          ' "$REPORTS"/*.txt 2>/dev/null | sort -u)
+        if [ -n "$WSIGS" ]; then
+          {
+            echo "### Wrong-tenant production writes ($(echo "$WSIGS" | wc -l))"
+            echo
+            echo "Attribute each one from the request's write scope, or waive it in \`writeattr-baseline.txt\` with a reason."
+            echo
+            echo '```'
+            echo "$WSIGS"
+            echo '```'
+            echo
+          } >> "$S"
+        else
+          echo "No wrong-tenant production write." >> "$S"
+          echo >> "$S"
+        fi
+
+        # The write-attribution gate writes its per-JVM waiver report next to the surefire reports.
+        # A shard sees only its own classes, so it can only say what it did not produce; a waiver
+        # is stale only when no shard produced it.
+        WAIVERS="$REPORTS/writeattr-waivers.txt"
+        if [ -f "$WAIVERS" ]; then
+          NOTPRODUCED=$(grep -c '^not-produced ' "$WAIVERS" || true)
+          {
+            echo "$(head -n1 "$WAIVERS" | sed 's/^# //'); $NOTPRODUCED not produced by this shard (stale only if no shard produces it)."
+            echo
+          } >> "$S"
+        fi
+
+        # A shard whose trigger could not be installed ran with no write-attribution signal at all:
+        # its Spring contexts failed to refresh on the install and every later context retried.
+        # Loud, never a job failure (same rule as the context-load warning above).
+        if grep -q 'cannot install the write-attribution trigger' "$REPORTS"/* 2>/dev/null; then
+          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::The write-attribution trigger could not be installed: this shard reports no wrong-tenant write, which is not a pass."
+          echo "The write-attribution trigger could not be installed in this shard: no write signal." >> "$S"
+          echo >> "$S"
+        fi
+
         # Everything else that went red: the exception type is what tells a refused query shape from
         # a GROUP BY error from a plain assertion.
         # || true: a clean run has no failure line, grep exits 1, and the composite action's shell
