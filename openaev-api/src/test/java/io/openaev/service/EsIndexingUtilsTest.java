@@ -2,9 +2,11 @@ package io.openaev.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openaev.database.model.IndexingStatus;
 import io.openaev.engine.model.EsBase;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -179,6 +181,49 @@ class EsIndexingUtilsTest {
 
       assertThat(EsIndexingUtils.capCursorToGraceWindow(ts(999), now, -30)).isEqualTo(ts(999));
       assertThat(EsIndexingUtils.capCursorToGraceWindow(ts(1030), now, -30)).isEqualTo(now);
+    }
+  }
+
+  @Nested
+  @DisplayName("isReindexRequested")
+  class IsReindexRequested {
+
+    private static Optional<IndexingStatus> statusAt(Instant cursor) {
+      IndexingStatus status = new IndexingStatus();
+      status.setType("expectation-inject");
+      status.setLastIndexing(cursor);
+      return Optional.of(status);
+    }
+
+    @Test
+    @DisplayName("A missing status row requests a reset (never initialized or row deleted)")
+    void given_missingRow_should_requestReset() {
+      assertThat(EsIndexingUtils.isReindexRequested(Optional.empty())).isTrue();
+    }
+
+    @Test
+    @DisplayName("The far-future sentinel cursor requests a reset")
+    void given_sentinelCursor_should_requestReset() {
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR)))
+          .isTrue();
+      // Anything at or beyond the sentinel is a request too: a clock cannot legitimately be there.
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.plusSeconds(1))))
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("A regular cursor, epoch included, does not request a reset")
+    void given_regularCursor_should_notRequestReset() {
+      assertThat(EsIndexingUtils.isReindexRequested(statusAt(T0))).isFalse();
+      assertThat(EsIndexingUtils.isReindexRequested(statusAt(Instant.EPOCH))).isFalse();
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minusSeconds(1))))
+          .isFalse();
     }
   }
 }

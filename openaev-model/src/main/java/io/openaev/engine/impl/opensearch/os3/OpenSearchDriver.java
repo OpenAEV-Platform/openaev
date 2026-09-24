@@ -11,6 +11,7 @@ import io.openaev.engine.RetiredIndexes;
 import io.openaev.engine.model.EsBase;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.exception.StartupException;
+import io.openaev.service.EsIndexingUtils;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -466,10 +467,12 @@ public class OpenSearchDriver {
       Map<String, Property> mappings = mappingGeneratorForClass(esModel);
       try {
         // Initialize indexes sequentially to avoid startup lock contention in repository metrics.
-        // A missing IndexingStatus row means the index was never initialized (or a reindex was
-        // explicitly requested by deleting the row): wipe any leftover and start from scratch.
-        if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
-          log.info("No indexing status for {}: resetting index", esModel.getName());
+        // A missing IndexingStatus row (never initialized, or reset requested by deleting the row)
+        // or the REINDEX_REQUESTED_CURSOR sentinel (reset requested while other instances may still
+        // run - a rolling deploy) means: wipe any leftover and start from scratch.
+        if (EsIndexingUtils.isReindexRequested(
+            indexingStatusRepository.findByType(esModel.getName()))) {
+          log.info("Index reset requested for {}: resetting index", esModel.getName());
           cleanUpIndex(esModel.getName(), openClient);
         }
         log.debug("Ensuring index {}", esModel.getName());

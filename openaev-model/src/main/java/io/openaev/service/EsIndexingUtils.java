@@ -1,8 +1,10 @@
 package io.openaev.service;
 
+import io.openaev.database.model.IndexingStatus;
 import io.openaev.engine.model.EsBase;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 
@@ -24,6 +26,22 @@ public final class EsIndexingUtils {
           "document_parsing_exception",
           "illegal_argument_exception");
 
+  /**
+   * Sentinel cursor that requests a full reset of a model's index at the next startup: the engine
+   * drivers wipe and recreate the index, then re-feed it from epoch (see {@link
+   * #isReindexRequested(Optional)}).
+   *
+   * <p>Deleting the {@code indexing_status} row also requests a reset, but only reliably when no
+   * other instance is running: the incremental indexer of a pod still up during a rolling deploy
+   * (or a peer replica) treats a missing row as "index from epoch" and re-creates it within one
+   * sync period, so the new pod finds a row at boot and never wipes the index. The 3.260922
+   * expectation repair migration deleted rows this way and left the documents of the deleted rows
+   * in the engine as permanent "pending" ghosts. A far-future cursor cannot be clobbered that way:
+   * a pod running any version fetches "rows updated after year 9999", gets nothing, reports the
+   * model as up to date and leaves the row untouched.
+   */
+  public static final Instant REINDEX_REQUESTED_CURSOR = Instant.parse("9999-12-31T00:00:00Z");
+
   private EsIndexingUtils() {}
 
   /**
@@ -32,6 +50,22 @@ public final class EsIndexingUtils {
    */
   public static boolean isPoisonError(String errorType) {
     return errorType != null && POISON_ERROR_TYPES.contains(errorType);
+  }
+
+  /**
+   * Whether a model's index must be wiped and rebuilt at startup: no {@code indexing_status} row
+   * (never initialized, or reset requested by deleting the row) or a row carrying the {@link
+   * #REINDEX_REQUESTED_CURSOR} sentinel (reset requested while other instances may still run).
+   *
+   * @param status the model's indexing status row, when present
+   * @return true when the index has to be reset before indexing resumes
+   */
+  public static boolean isReindexRequested(Optional<IndexingStatus> status) {
+    if (status.isEmpty()) {
+      return true;
+    }
+    Instant cursor = status.get().getLastIndexing();
+    return cursor != null && !cursor.isBefore(REINDEX_REQUESTED_CURSOR);
   }
 
   /**

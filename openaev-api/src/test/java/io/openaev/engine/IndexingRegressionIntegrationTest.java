@@ -17,6 +17,7 @@ import io.openaev.engine.model.scenario.EsScenario;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.query.EsEntities;
 import io.openaev.scheduler.jobs.engine_sync.EngineSyncExecutionJob;
+import io.openaev.service.EsIndexingUtils;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -263,11 +264,56 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   }
 
   private void setIndexingStatusToFrom(String type) {
+    setIndexingStatus(type, FROM);
+  }
+
+  private void setIndexingStatus(String type, Instant cursor) {
     IndexingStatus status = new IndexingStatus();
     status.setType(type);
-    status.setLastIndexing(FROM);
+    status.setLastIndexing(cursor);
     entityManager.merge(status);
     entityManager.flush();
+  }
+
+  private Instant readIndexingCursor(String type) {
+    entityManager.clear();
+    return entityManager.find(IndexingStatus.class, type).getLastIndexing();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Index reset marker
+  // ---------------------------------------------------------------------------
+
+  @Nested
+  @DisplayName("REINDEX_REQUESTED_CURSOR - reset marker survives the incremental sync")
+  class ReindexRequestedMarker {
+
+    /**
+     * Regression test for the rolling-deploy race that left ghost expectation documents: a reset
+     * requested through the far-future cursor must be invisible to the incremental sync of an
+     * instance that is still running - it indexes nothing under it and never rewrites the marker -
+     * so the next startup is the only thing that consumes it (wipe, recreate, re-feed from epoch).
+     */
+    @Test
+    @DisplayName("A sentinel cursor makes the sync a no-op that keeps the marker for the next boot")
+    void given_reindexRequestedCursor_should_indexNothingAndKeepTheMarker() {
+      // -- ARRANGE --
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      setIndexingStatus("asset", EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      awaitEndpointIndexedAssertion(
+          () ->
+              assertThat(queryEndpoints().getTotal())
+                  .as("nothing is indexed while a reset is pending")
+                  .isZero());
+      assertThat(readIndexingCursor("asset"))
+          .as("the running instance must leave the reset marker untouched")
+          .isEqualTo(EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+    }
   }
 
   // ---------------------------------------------------------------------------
