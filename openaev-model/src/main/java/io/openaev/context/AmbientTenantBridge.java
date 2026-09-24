@@ -20,6 +20,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * <p>It does nothing when the ambient tenant already is the write tenant, which is always the case
  * on the prefixed route. It goes away with the ambient tenant layer.
+ *
+ * <p>Never call it from inside a deliberately cross-tenant sweep, one that disabled {@code
+ * tenantFilter} on its session to walk every tenant: the filter is re-armed on the ambient tenant
+ * when the call returns, and the rest of that sweep would silently read one tenant only.
  */
 @Component
 @RequiredArgsConstructor

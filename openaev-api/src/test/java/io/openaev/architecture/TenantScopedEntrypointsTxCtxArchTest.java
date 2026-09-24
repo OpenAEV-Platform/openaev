@@ -158,7 +158,12 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // to their controllers. The parent-mediated lists run native queries that silently
           // return nothing without the scope; the logo and article bindings resolve documents by
           // id and would silently drop them; the exports and the report download resolve or
-          // lazily load the document and would fail closed for every caller.
+          // lazily load the document and would fail closed for every caller. Four entrypoints of
+          // that walk are already listed under the table they were wired for and are not repeated
+          // here: ChannelApi#updateChannelLogos, SecurityPlatformApi#updateSecurityPlatform,
+          // ExerciseApi#updateExerciseLogos and ExerciseApi#deleteDocument. The report generation
+          // handler reaches the table only through the render thread, which opens its own tenant
+          // transaction, so it is scoped by that primitive and not by its TxCtx.
           "io.openaev.rest.exercise.ExerciseApi#documents",
           "io.openaev.rest.scenario.ScenarioApi#documents",
           "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#documentsFromSecurityPlatform",
@@ -173,6 +178,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.channel.ChannelApi#updateArticleForScenario",
           "io.openaev.rest.inject.InjectApi#injectsIndividualExport",
           "io.openaev.rest.inject.InjectApi#injectsExportFromSearch",
+          "io.openaev.rest.inject.InjectApi#injectsExport",
+          "io.openaev.rest.inject.InjectExecutionResultApi#injectExecutionResultPayload",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApiExporter#export",
           "io.openaev.rest.reporting.ReportingApi#downloadReportingGeneration",
           "io.openaev.rest.reporting.ReportingApi#deleteReportingGeneration",
           "io.openaev.rest.scenario.ScenarioChallengesApi#observerChallenges",
