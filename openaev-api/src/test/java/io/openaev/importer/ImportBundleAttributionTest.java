@@ -4,9 +4,12 @@ import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -416,7 +419,9 @@ class ImportBundleAttributionTest extends IntegrationTest {
 
     @BeforeEach
     void seedForeignTenant() throws Exception {
-      // C exists, so the foreign key holds, and the caller is not one of its members.
+      // C exists, so the foreign key holds. Creating a tenant through the helper attaches its
+      // creator to it, so the caller is a member of C as well: what keeps the bundle out of C is
+      // the header selecting B, never the caller's memberships.
       tenantC = tenantHelper.createTenant("import-bundle-c").getId();
       // Creating C left it on the test thread: back to the default tenant before the requests.
       TenantContext.clearCurrentTenant();
@@ -737,6 +742,218 @@ class ImportBundleAttributionTest extends IntegrationTest {
           .putObject("data")
           .put("id", tenantId)
           .put("type", "tenants");
+    }
+  }
+
+  @Nested
+  @DisplayName("A bundle that references a row of another tenant")
+  class BundleReferencingAnotherTenantsRow {
+
+    // The import suffixes the payload name, so the lookups match on the prefix.
+    private static final String FILE_OF_PAYLOAD_NAMED =
+        "SELECT file_drop_file FROM payloads WHERE payload_name LIKE ?";
+    private static final String TENANT_OF_PAYLOAD_NAMED =
+        "SELECT tenant_id FROM payloads WHERE payload_name LIKE ?";
+    private static final String CONTRACTS_BOUND_TO_PAYLOAD =
+        "SELECT injector_contract_id FROM injectors_contracts WHERE injector_contract_payload = ?";
+    private static final String NAME_OF_PAYLOAD =
+        "SELECT payload_name FROM payloads WHERE payload_id = ?";
+
+    private String tenantC;
+
+    @BeforeEach
+    void seedForeignTenant() throws Exception {
+      // C exists next to the write tenant B the header selects: a reference to one of its rows
+      // is a guess, or a replayed id, that the import must not honour whatever the caller's
+      // memberships (creating a tenant through the helper attaches its creator to it).
+      tenantC = tenantHelper.createTenant("import-bundle-ref-c").getId();
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    @Test
+    @DisplayName("given_payloadOfBBoundToDocumentOfC_should_readThePayloadWithoutItsFile")
+    void given_payloadOfBBoundToDocumentOfC_should_readThePayloadWithoutItsFile() throws Exception {
+      // Arrange: the anomalous row an unconfined import could produce, seeded directly. The file
+      // is EAGER, so the read joins a documents row the scope hides.
+      String documentId = seedDocumentRow(tenantC);
+      String payloadId = seedFileDropRow(tenantB, documentId);
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert: the hidden join resolves the reference to null, so the payload reads with
+      // no file at all and the document itself stays out of reach.
+      mvc.perform(get("/api/tenants/{tenantId}/payloads/{payloadId}", tenantB, payloadId))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.file_drop_file").value(nullValue()));
+      mvc.perform(get("/api/tenants/{tenantId}/documents/{documentId}", tenantB, documentId))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("given_contractReferencesPayloadOfC_should_refuseTheImportAndWriteNothing")
+    void given_contractReferencesPayloadOfC_should_refuseTheImportAndWriteNothing()
+        throws Exception {
+      // Arrange: payloads is not tenant-active, so nothing but the importer's own check stands
+      // between the file's id and C's row; the sanity check of the contract import renames the
+      // payload it resolves, which would be a write into C.
+      String foreignPayloadId = seedCommandRow(tenantC);
+      String foreignPayloadName = tenantsOf(NAME_OF_PAYLOAD, foreignPayloadId).getFirst();
+      byte[] zip = zipJsonService.writeZip(contractReferencing(foreignPayloadId), emptyMap());
+      Map<String, Long> before = rowsOutsideTenant(tenantB);
+
+      // Act
+      mvc.perform(
+              multipart(THREAT_ARSENAL_URL + "/import")
+                  .file(new MockMultipartFile("file", "contract.zip", "application/zip", zip))
+                  .header(TENANT_HEADER, tenantB)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertThat(tenantsOf(CONTRACTS_BOUND_TO_PAYLOAD, foreignPayloadId))
+          .as("no contract may be bound to another tenant's payload")
+          .isEmpty();
+      assertThat(tenantsOf(NAME_OF_PAYLOAD, foreignPayloadId))
+          .as("the other tenant's payload must not be touched")
+          .containsExactly(foreignPayloadName);
+      assertThat(rowsOutsideTenant(tenantB))
+          .as("the refused import must not create a row in any other tenant")
+          .isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("given_fileDropReferencesDocumentOfC_should_refuseTheImportAndWriteNothing")
+    void given_fileDropReferencesDocumentOfC_should_refuseTheImportAndWriteNothing()
+        throws Exception {
+      // Arrange
+      String payloadName = "import-bundle-ref-" + UUID.randomUUID();
+      String foreignDocumentId = seedDocumentRow(tenantC);
+      byte[] zip =
+          zipJsonService.writeZip(fileDropReferencing(payloadName, foreignDocumentId), emptyMap());
+      Map<String, Long> before = rowsOutsideTenant(tenantB);
+
+      // Act
+      mvc.perform(
+              multipart(THREAT_ARSENAL_URL + "/import")
+                  .file(new MockMultipartFile("file", "payload.zip", "application/zip", zip))
+                  .header(TENANT_HEADER, tenantB)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertThat(tenantsOf(FILE_OF_PAYLOAD_NAMED, payloadName + "%"))
+          .as("a payload bound to another tenant's document must not be created")
+          .isEmpty();
+      assertThat(rowsOutsideTenant(tenantB))
+          .as("the refused import must not create a row in any other tenant")
+          .isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("given_fileDropReferencesDocumentOfB_should_bindItAndCreateThePayloadInB")
+    void given_fileDropReferencesDocumentOfB_should_bindItAndCreateThePayloadInB()
+        throws Exception {
+      // Arrange
+      String payloadName = "import-bundle-ref-" + UUID.randomUUID();
+      String ownDocumentId = seedDocumentRow(tenantB);
+      byte[] zip =
+          zipJsonService.writeZip(fileDropReferencing(payloadName, ownDocumentId), emptyMap());
+
+      // Act
+      mvc.perform(
+              multipart(THREAT_ARSENAL_URL + "/import")
+                  .file(new MockMultipartFile("file", "payload.zip", "application/zip", zip))
+                  .header(TENANT_HEADER, tenantB)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      assertThat(tenantsOf(FILE_OF_PAYLOAD_NAMED, payloadName + "%"))
+          .as("a reference to a document of the write tenant is bound as is")
+          .containsExactly(ownDocumentId);
+      assertThat(tenantsOf(TENANT_OF_PAYLOAD_NAMED, payloadName + "%"))
+          .as("the payload lands in the header tenant")
+          .containsExactly(tenantB);
+    }
+
+    /**
+     * A file drop payload whose {@code file_drop_file} names a document that is NOT in the bundle,
+     * the shape of a re-import on an instance that already holds the document.
+     */
+    private JsonApiDocument<ResourceObject> fileDropReferencing(
+        String payloadName, String documentId) {
+      Map<String, Object> attributes = new HashMap<>();
+      attributes.put("payload_type", "FileDrop");
+      attributes.put("payload_name", payloadName);
+      attributes.put("payload_description", "");
+      attributes.put("payload_platforms", new String[] {"Windows"});
+      attributes.put("payload_source", "MANUAL");
+      attributes.put("payload_expectations", new String[] {"VULNERABILITY"});
+      attributes.put("payload_status", "VERIFIED");
+      attributes.put("payload_execution_arch", "ALL_ARCHITECTURES");
+      Map<String, Relationship> relationships =
+          Map.of(
+              "file_drop_file", new Relationship(new ResourceIdentifier(documentId, "documents")));
+      return new JsonApiDocument<>(
+          new ResourceObject(null, "file_drop", attributes, relationships), List.of());
+    }
+
+    /**
+     * An injector contract whose {@code injector_contract_payload} names a payload that is NOT in
+     * the bundle, the shape of a contract export re-imported on an instance holding the payload.
+     */
+    private JsonApiDocument<ResourceObject> contractReferencing(String payloadId) {
+      Map<String, Object> attributes = new HashMap<>();
+      attributes.put("injector_contract_content", "{}");
+      attributes.put("injector_contract_labels", Map.of("en", "import-bundle-ref-contract"));
+      Map<String, Relationship> relationships =
+          Map.of(
+              "injector_contract_payload",
+              new Relationship(new ResourceIdentifier(payloadId, "payloads")));
+      return new JsonApiDocument<>(
+          new ResourceObject(null, "injectors_contracts", attributes, relationships), List.of());
+    }
+
+    private String seedCommandRow(String tenantId) {
+      String id = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id)"
+                  + " VALUES (:id, 'Command', :name, :tenant)")
+          .setParameter("id", id)
+          .setParameter("name", "import-bundle-ref-command-" + id)
+          .setParameter("tenant", tenantId)
+          .executeUpdate();
+      return id;
+    }
+
+    private String seedDocumentRow(String tenantId) {
+      String id = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO documents (document_id, document_name, document_target, document_type,"
+                  + " tenant_id) VALUES (:id, :name, :target, 'text/plain', :tenant)")
+          .setParameter("id", id)
+          .setParameter("name", "import-bundle-ref-doc-" + id)
+          .setParameter("target", id + ".txt")
+          .setParameter("tenant", tenantId)
+          .executeUpdate();
+      return id;
+    }
+
+    private String seedFileDropRow(String tenantId, String documentId) {
+      String id = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payloads (payload_id, payload_type, payload_name, file_drop_file,"
+                  + " tenant_id) VALUES (:id, 'FileDrop', :name, :document, :tenant)")
+          .setParameter("id", id)
+          .setParameter("name", "import-bundle-ref-payload-" + id)
+          .setParameter("document", documentId)
+          .setParameter("tenant", tenantId)
+          .executeUpdate();
+      return id;
     }
   }
 
