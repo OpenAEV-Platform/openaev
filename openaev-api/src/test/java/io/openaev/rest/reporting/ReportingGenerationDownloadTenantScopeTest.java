@@ -1,6 +1,7 @@
 package io.openaev.rest.reporting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,22 +28,30 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The reporting generation download serves the output document under the GENERATION's tenant, the
  * owner of the report lifecycle, not the document's own tenant (which would make the ownership
- * check tautological, always serving whatever tenant the document sits in). When the generation and
- * its document disagree on tenant, the object is treated as missing (a 404), fail-closed on the
- * anomaly. A generation and document in the same tenant still download normally.
+ * check tautological, always serving whatever tenant the document sits in). A generation and
+ * document in the same tenant download normally.
  *
- * <p>It does not arm {@code documents}: the refusal is the application-level owning-tenant check in
- * {@code FileService.getFile(Document, owningTenantId)}, passed the generation's tenant, which runs
- * on the loaded entity regardless of the statement inspector, so arming would not change the
- * outcome.
+ * <p>When the generation and its document disagree on tenant, two nets refuse the download and each
+ * is pinned by its own case. The download route carries no tenant selector, so the request scope is
+ * every tenant the caller is a member of: a document in a tenant the caller does NOT belong to is
+ * invisible to the request, the lazy reference cannot initialize inside the scoped transaction and
+ * the endpoint answers 404 before any ownership check runs. A document in another tenant the caller
+ * DOES belong to loads, and the owning-tenant check in {@code FileService.getFile(Document,
+ * owningTenantId)}, passed the generation's tenant, refuses it. The second case is the one that
+ * proves the check, since the first never reaches it.
+ *
+ * <p>The class is deliberately NOT {@code @Transactional}: the rows are committed through an
+ * auto-committing {@link JdbcTemplate}, so every read of the request is a statement the inspector
+ * rewrites, and removed on teardown with the MinIO objects.
  */
-@Transactional
+@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Reporting generation download serves the output under the generation's tenant")
 class ReportingGenerationDownloadTenantScopeTest extends IntegrationTest {
@@ -52,17 +62,22 @@ class ReportingGenerationDownloadTenantScopeTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private MinioService minioService;
+  @Autowired private DataSource dataSource;
 
+  private JdbcTemplate jdbc;
   private final List<String[]> uploadedObjects = new ArrayList<>();
+  private final List<String[]> seededRows = new ArrayList<>();
+  private final List<String> createdTenants = new ArrayList<>();
 
   @BeforeEach
   void grantDefaultMembership() {
+    jdbc = new JdbcTemplate(dataSource);
     // The download resolves the generation under the ambient tenant (the default on this route).
     tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
   }
 
   @AfterEach
-  void clearContext() {
+  void cleanup() {
     for (String[] object : uploadedObjects) {
       try {
         minioService.deleteFileForTenant(object[0], object[1]);
@@ -71,6 +86,13 @@ class ReportingGenerationDownloadTenantScopeTest extends IntegrationTest {
       }
     }
     uploadedObjects.clear();
+    for (int i = seededRows.size() - 1; i >= 0; i--) {
+      String[] row = seededRows.get(i);
+      jdbc.update("DELETE FROM " + row[0] + " WHERE " + row[1] + " = ?", row[2]);
+    }
+    seededRows.clear();
+    tenantHelper.deleteCommittedTenants(createdTenants.toArray(new String[0]));
+    createdTenants.clear();
     TenantContext.clearCurrentTenant();
   }
 
@@ -89,17 +111,14 @@ class ReportingGenerationDownloadTenantScopeTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given_documentInAnotherTenantThanGeneration_should_return404")
-  void given_documentInAnotherTenantThanGeneration_should_return404() throws Exception {
+  @DisplayName("given_documentInATenantTheCallerBelongsTo_should_refuseItByTheGenerationTenant")
+  void given_documentInATenantTheCallerBelongsTo_should_refuseItByTheGenerationTenant()
+      throws Exception {
     // Arrange: the generation is in the default tenant, but its document (anomalously) belongs to
-    // another tenant, with its object stored there. Passing the document's own tenant would serve
-    // it regardless; passing the generation's tenant refuses the mismatch.
-    String otherTenant = tenantHelper.createTenantWithCurrentUser("report-anomaly").getId();
-    // Onboarding leaves the other tenant on the test thread, and the generation is resolved under
-    // the ambient tenant: it must be the default one here, or the generation is not found and the
-    // 404 comes from that lookup instead of from the owning-tenant check under test.
-    TenantContext.clearCurrentTenant();
-    assertEquals(DEFAULT_TENANT, TenantContext.getCurrentTenant());
+    // another tenant of the caller, with its object stored there. The request scope holds both
+    // tenants, so the document loads: only the generation's tenant, passed as the owning tenant,
+    // refuses it. Passing the document's own tenant would serve it regardless.
+    String otherTenant = createTenant("report-anomaly-member", true);
     byte[] bytes = ("report-anomaly-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
     String target = DigestUtils.md5Hex(bytes) + ".pdf";
     uploadObject(otherTenant, target, bytes);
@@ -108,6 +127,43 @@ class ReportingGenerationDownloadTenantScopeTest extends IntegrationTest {
 
     // Act & Assert
     mvc.perform(get(DOWNLOAD, generationId).with(csrf())).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("given_documentInATenantTheCallerDoesNotBelongTo_should_notFindIt")
+  void given_documentInATenantTheCallerDoesNotBelongTo_should_notFindIt() throws Exception {
+    // Arrange: same anomaly, but the document's tenant is outside the caller's memberships, so
+    // the scoped request never sees the row and the lazy reference fails to initialize.
+    String foreignTenant = createTenant("report-anomaly-foreign", false);
+    byte[] bytes = ("report-anomaly-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+    String target = DigestUtils.md5Hex(bytes) + ".pdf";
+    uploadObject(foreignTenant, target, bytes);
+    String documentId = seedDocument(foreignTenant, target);
+    String generationId = seedSuccessfulGeneration(DEFAULT_TENANT, documentId);
+
+    // Act & Assert
+    mvc.perform(get(DOWNLOAD, generationId).with(csrf())).andExpect(status().isNotFound());
+  }
+
+  private String createTenant(String name, boolean withCurrentUser) throws Exception {
+    String id = tenantHelper.createTenantWithCurrentUser(name).getId();
+    createdTenants.add(id);
+    if (!withCurrentUser) {
+      // Creating a tenant attaches its creator to it (TenantUserService.createDependencyForTenant),
+      // so a tenant the caller does not belong to has to be detached explicitly, cache included.
+      String userId = testUserHolder.get().getId();
+      jdbc.update("DELETE FROM users_tenants WHERE user_id = ? AND tenant_id = ?", userId, id);
+      tenantMembershipCacheManager.evict(userId, id);
+      assertFalse(
+          tenantMembershipCacheManager.findTenantIdsByUserId(userId).contains(id),
+          "the caller must not be a member of the tenant the document is seeded in");
+    }
+    // Onboarding leaves the new tenant on the test thread, and the generation is resolved under
+    // the ambient tenant: it must be the default one here, or the generation is not found and the
+    // 404 comes from that lookup instead of from the net under test.
+    TenantContext.clearCurrentTenant();
+    assertEquals(DEFAULT_TENANT, TenantContext.getCurrentTenant());
+    return id;
   }
 
   private void uploadObject(String tenantId, String target, byte[] bytes) throws Exception {
@@ -122,50 +178,40 @@ class ReportingGenerationDownloadTenantScopeTest extends IntegrationTest {
 
   private String seedDocument(String tenantId, String target) {
     String id = UUID.randomUUID().toString();
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO documents (document_id, document_name, document_target, document_type,"
-                + " tenant_id) VALUES (CAST(:id AS uuid), :name, :target, :type,"
-                + " CAST(:tenant AS uuid))")
-        .setParameter("id", id)
-        .setParameter("name", "report-" + UUID.randomUUID() + ".pdf")
-        .setParameter("target", target)
-        .setParameter("type", MediaType.APPLICATION_PDF_VALUE)
-        .setParameter("tenant", tenantId)
-        .executeUpdate();
-    entityManager.flush();
-    entityManager.clear();
+    jdbc.update(
+        "INSERT INTO documents (document_id, document_name, document_target, document_type,"
+            + " tenant_id) VALUES (?, ?, ?, ?, ?)",
+        id,
+        "report-" + UUID.randomUUID() + ".pdf",
+        target,
+        MediaType.APPLICATION_PDF_VALUE,
+        tenantId);
+    seededRows.add(new String[] {"documents", "document_id", id});
     return id;
   }
 
   private String seedSuccessfulGeneration(String tenantId, String documentId) {
     String reportingId = UUID.randomUUID().toString();
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO reportings (reporting_id, reporting_name, reporting_context_type,"
-                + " tenant_id) VALUES (CAST(:id AS uuid), :name, :contextType,"
-                + " CAST(:tenant AS uuid))")
-        .setParameter("id", reportingId)
-        .setParameter("name", "report-template-" + UUID.randomUUID())
-        .setParameter("contextType", ReportingContextType.PLATFORM.name())
-        .setParameter("tenant", tenantId)
-        .executeUpdate();
+    jdbc.update(
+        "INSERT INTO reportings (reporting_id, reporting_name, reporting_context_type, tenant_id)"
+            + " VALUES (?, ?, ?, ?)",
+        reportingId,
+        "report-template-" + UUID.randomUUID(),
+        ReportingContextType.PLATFORM.name(),
+        tenantId);
+    seededRows.add(new String[] {"reportings", "reporting_id", reportingId});
     String generationId = UUID.randomUUID().toString();
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO reporting_generations (reporting_generation_id, reporting_id,"
-                + " reporting_generation_status, reporting_generation_format, document_id,"
-                + " tenant_id) VALUES (CAST(:id AS uuid), CAST(:reporting AS uuid), :status,"
-                + " :format, CAST(:document AS uuid), CAST(:tenant AS uuid))")
-        .setParameter("id", generationId)
-        .setParameter("reporting", reportingId)
-        .setParameter("status", ReportingGenerationStatus.SUCCESS.name())
-        .setParameter("format", ReportingFormat.PDF.name())
-        .setParameter("document", documentId)
-        .setParameter("tenant", tenantId)
-        .executeUpdate();
-    entityManager.flush();
-    entityManager.clear();
+    jdbc.update(
+        "INSERT INTO reporting_generations (reporting_generation_id, reporting_id,"
+            + " reporting_generation_status, reporting_generation_format, document_id, tenant_id)"
+            + " VALUES (?, ?, ?, ?, ?, ?)",
+        generationId,
+        reportingId,
+        ReportingGenerationStatus.SUCCESS.name(),
+        ReportingFormat.PDF.name(),
+        documentId,
+        tenantId);
+    seededRows.add(new String[] {"reporting_generations", "reporting_generation_id", generationId});
     return generationId;
   }
 }
