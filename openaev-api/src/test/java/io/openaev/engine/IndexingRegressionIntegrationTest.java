@@ -7,6 +7,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
+import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
 import io.openaev.engine.facade.EngineService;
@@ -59,6 +60,7 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
 
   @Autowired private EngineService engineService;
   @Autowired private EngineContext engineContext;
+  @Autowired private IndexingStatusRepository indexingStatusRepository;
 
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -313,6 +315,92 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
       assertThat(readIndexingCursor("asset"))
           .as("the running instance must leave the reset marker untouched")
           .isEqualTo(EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cursor persistence guard
+  // ---------------------------------------------------------------------------
+
+  /**
+   * The cursor write of a sync round is conditional: a round reads its cursor at the start and
+   * persists the advanced one at the end, so a reset request that landed in between (the sentinel
+   * written by a migration during a rolling deploy) must survive that write. These tests exercise
+   * the SQL guard itself, which is where the race is decided; {@link ReindexRequestedMarker} covers
+   * the read side (nothing is fetched under the marker).
+   */
+  @Nested
+  @DisplayName("advanceCursorUnlessResetRequested - a cursor write never replaces a reset request")
+  class CursorAdvanceGuard {
+
+    private static final Instant CURSOR = Instant.parse("2026-01-01T00:00:00Z");
+
+    @Test
+    @DisplayName("A pending reset request is left untouched and the write is reported refused")
+    void given_pendingResetRequest_should_refuseToAdvanceTheCursor() {
+      // -- ARRANGE --
+      setIndexingStatus("asset", EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+
+      // -- ACT --
+      boolean advanced =
+          indexingStatusRepository.advanceCursorUnlessResetRequested("asset", CURSOR);
+
+      // -- ASSERT --
+      assertThat(advanced).as("the in-flight round must not consume the reset request").isFalse();
+      assertThat(readIndexingCursor("asset")).isEqualTo(EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+    }
+
+    @Test
+    @DisplayName("A shifted sentinel (anything past the threshold) is protected the same way")
+    void given_shiftedSentinel_should_refuseToAdvanceTheCursor() {
+      // -- ARRANGE --
+      Instant shifted = EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minus(Duration.ofHours(14));
+      setIndexingStatus("asset", shifted);
+
+      // -- ACT --
+      boolean advanced =
+          indexingStatusRepository.advanceCursorUnlessResetRequested("asset", CURSOR);
+
+      // -- ASSERT --
+      assertThat(advanced).isFalse();
+      assertThat(readIndexingCursor("asset")).isEqualTo(shifted);
+    }
+
+    @Test
+    @DisplayName(
+        "A regular cursor is advanced (forwards or backwards, the grace window may cap it)")
+    void given_regularCursor_should_advanceTheCursor() {
+      // -- ARRANGE --
+      setIndexingStatus("asset", CURSOR);
+
+      // -- ACT --
+      boolean forwards =
+          indexingStatusRepository.advanceCursorUnlessResetRequested(
+              "asset", CURSOR.plus(Duration.ofHours(1)));
+      Instant afterForwards = readIndexingCursor("asset");
+      boolean backwards =
+          indexingStatusRepository.advanceCursorUnlessResetRequested(
+              "asset", CURSOR.minus(Duration.ofHours(1)));
+
+      // -- ASSERT --
+      assertThat(forwards).isTrue();
+      assertThat(afterForwards).isEqualTo(CURSOR.plus(Duration.ofHours(1)));
+      assertThat(backwards).isTrue();
+      assertThat(readIndexingCursor("asset")).isEqualTo(CURSOR.minus(Duration.ofHours(1)));
+    }
+
+    @Test
+    @DisplayName("A missing row is created with the cursor (first indexed batch of a model)")
+    void given_missingRow_should_insertTheCursor() {
+      // -- ARRANGE: @BeforeEach deleted every indexing_status row --
+
+      // -- ACT --
+      boolean advanced =
+          indexingStatusRepository.advanceCursorUnlessResetRequested("asset", CURSOR);
+
+      // -- ASSERT --
+      assertThat(advanced).isTrue();
+      assertThat(readIndexingCursor("asset")).isEqualTo(CURSOR);
     }
   }
 

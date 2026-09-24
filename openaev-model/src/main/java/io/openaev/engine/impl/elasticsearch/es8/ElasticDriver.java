@@ -25,6 +25,7 @@ import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.RetiredIndexes;
 import io.openaev.engine.model.EsBase;
+import io.openaev.exception.StartupException;
 import io.openaev.service.EsIndexingUtils;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -366,24 +367,58 @@ public class ElasticDriver {
     }
     List<EsModel<T>> models = this.searchEngine.getModels();
     for (EsModel<T> esModel : models) {
+      String modelName = esModel.getName();
       Map<String, Property> mappings = mappingGeneratorForClass(esModel);
       try {
         // Initialize indexes sequentially to avoid startup lock contention in repository metrics.
-        // A missing IndexingStatus row (never initialized, or reset requested by deleting the row)
-        // or the REINDEX_REQUESTED_CURSOR sentinel (reset requested while other instances may still
-        // run - a rolling deploy) means: wipe any leftover and start from scratch.
+        // A reset is requested by a missing IndexingStatus row (never initialized, or the row was
+        // deleted), by the REINDEX_REQUESTED_CURSOR sentinel (requested while other instances may
+        // still run - a rolling deploy) or in-process by a migration of this very startup: wipe
+        // any leftover and start from scratch.
         if (EsIndexingUtils.isReindexRequested(
-            indexingStatusRepository.findByType(esModel.getName()))) {
-          log.info("Index reset requested for {}: resetting index", esModel.getName());
-          cleanUpIndex(esModel.getName(), elasticClient);
+            modelName, indexingStatusRepository.findByType(modelName))) {
+          resetIndex(elasticClient, modelName, mappings);
+        } else {
+          log.debug("Ensuring index {}", modelName);
+          setupIndex(elasticClient, modelName, ES_MODEL_VERSION, mappings);
         }
-        log.debug("Ensuring index {}", esModel.getName());
-        setupIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
     return elasticClient;
+  }
+
+  /**
+   * Carries out a requested index reset: wipes the index and its template, verifies the wipe,
+   * recreates the index through {@link #setupIndex} (which resets the cursor to epoch, consuming
+   * the row-level request), verifies the recreate and clears the in-process request. Both
+   * verifications fail the startup: {@link #deleteIndex} tolerates a refused deletion (a 404 is
+   * legitimate when a peer replica wiped first) and {@link #setupIndex} tolerates a refused
+   * creation, and letting either pass would leave a still-populated index behind a cursor that
+   * fetches nothing - a silently frozen model - or a model without an index. Failing keeps the
+   * request in place for the next boot to retry it.
+   */
+  private void resetIndex(
+      ElasticsearchClient client, String modelName, Map<String, Property> mappings)
+      throws IOException {
+    log.info("Index reset requested for {}: wiping and recreating the index", modelName);
+    cleanUpIndex(modelName, client);
+    String indexName = config.getIndexPrefix() + "_" + modelName;
+    for (String idxName : List.of(indexName + config.getIndexSuffix(), indexName)) {
+      if (client.indices().exists(b -> b.index(idxName)).value()) {
+        throw new StartupException(
+            EsIndexingUtils.indexResetFailedMessage(
+                modelName, idxName, "its index could not be deleted"));
+      }
+    }
+    setupIndex(client, modelName, ES_MODEL_VERSION, mappings);
+    if (!client.indices().exists(b -> b.index(indexName)).value()) {
+      throw new StartupException(
+          EsIndexingUtils.indexResetFailedMessage(
+              modelName, indexName, "its index could not be recreated after the wipe"));
+    }
+    EsIndexingUtils.reindexRequestFulfilled(modelName);
   }
 
   public void cleanUpIndex(String indexName, ElasticsearchClient client) throws IOException {

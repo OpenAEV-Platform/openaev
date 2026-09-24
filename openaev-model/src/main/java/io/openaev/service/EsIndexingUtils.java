@@ -6,12 +6,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 
 /**
  * Shared helpers for the incremental indexing loop of both engine implementations (Elasticsearch
- * and OpenSearch): cursor advancement that is safe at LIMIT boundaries, and classification of
- * deterministic (poison) bulk item errors.
+ * and OpenSearch): cursor advancement that is safe at LIMIT boundaries, classification of
+ * deterministic (poison) bulk item errors, and the index reset protocol (see {@link
+ * #REINDEX_REQUESTED_CURSOR}).
  */
 public final class EsIndexingUtils {
 
@@ -29,7 +31,7 @@ public final class EsIndexingUtils {
   /**
    * Sentinel cursor that requests a full reset of a model's index at the next startup: the engine
    * drivers wipe and recreate the index, then re-feed it from epoch (see {@link
-   * #isReindexRequested(Optional)}).
+   * #isReindexRequested(String, Optional)}).
    *
    * <p>Deleting the {@code indexing_status} row also requests a reset, but only reliably when no
    * other instance is running: the incremental indexer of a pod still up during a rolling deploy
@@ -39,8 +41,33 @@ public final class EsIndexingUtils {
    * in the engine as permanent "pending" ghosts. A far-future cursor cannot be clobbered that way:
    * a pod running any version fetches "rows updated after year 9999", gets nothing, reports the
    * model as up to date and leaves the row untouched.
+   *
+   * <p>The one write that can still replace the sentinel is a sync round that read the row BEFORE
+   * the request landed and persists its advanced cursor at the end of the round. Pods running this
+   * version never do so: the cursor is persisted through {@code
+   * IndexingStatusRepository#advanceCursorUnlessResetRequested}, a conditional upsert that leaves a
+   * cursor at or beyond {@link #REINDEX_REQUESTED_THRESHOLD} untouched. Pods running an older
+   * version do persist unconditionally, which is why a migration requesting a reset also registers
+   * it in-process ({@link #requestReindexAtStartup}): the pod that applies the migration performs
+   * the reset whatever an older pod did to the row meanwhile.
    */
   public static final Instant REINDEX_REQUESTED_CURSOR = Instant.parse("9999-12-31T00:00:00Z");
+
+  /**
+   * Lower bound of the reset request range: any cursor at or beyond it is a reset request. A
+   * legitimate cursor never exceeds wall-clock (see {@link #capCursorToGraceWindow}), so the range
+   * is unambiguous, and the margin under {@link #REINDEX_REQUESTED_CURSOR} makes the predicate
+   * tolerant to a shifted round trip of the stored value (a time-zone conversion of a few hours, a
+   * date written without its time part): a request must never turn into a regular cursor and lose
+   * the reset silently.
+   */
+  public static final Instant REINDEX_REQUESTED_THRESHOLD = Instant.parse("9000-01-01T00:00:00Z");
+
+  /**
+   * Models whose index reset was requested in-process, by a Flyway migration applied during the
+   * startup in progress (see {@link #requestReindexAtStartup}).
+   */
+  private static final Set<String> STARTUP_RESET_REQUESTS = ConcurrentHashMap.newKeySet();
 
   private EsIndexingUtils() {}
 
@@ -53,19 +80,87 @@ public final class EsIndexingUtils {
   }
 
   /**
-   * Whether a model's index must be wiped and rebuilt at startup: no {@code indexing_status} row
-   * (never initialized, or reset requested by deleting the row) or a row carrying the {@link
-   * #REINDEX_REQUESTED_CURSOR} sentinel (reset requested while other instances may still run).
+   * Whether a model's {@code indexing_status} row requests a reset of its index: no row (never
+   * initialized, or reset requested by deleting the row) or a row carrying a cursor at or beyond
+   * {@link #REINDEX_REQUESTED_THRESHOLD} (the {@link #REINDEX_REQUESTED_CURSOR} sentinel, written
+   * while other instances may still run).
    *
    * @param status the model's indexing status row, when present
-   * @return true when the index has to be reset before indexing resumes
+   * @return true when the row requests a reset
    */
   public static boolean isReindexRequested(Optional<IndexingStatus> status) {
     if (status.isEmpty()) {
       return true;
     }
     Instant cursor = status.get().getLastIndexing();
-    return cursor != null && !cursor.isBefore(REINDEX_REQUESTED_CURSOR);
+    return cursor != null && !cursor.isBefore(REINDEX_REQUESTED_THRESHOLD);
+  }
+
+  /**
+   * Whether a model's index must be wiped and rebuilt at startup: its {@code indexing_status} row
+   * requests it ({@link #isReindexRequested(Optional)}) or a migration applied during this very
+   * startup requested it in-process ({@link #requestReindexAtStartup}).
+   *
+   * @param modelName the engine model name (the {@code indexing_status_type})
+   * @param status the model's indexing status row, when present
+   * @return true when the index has to be reset before indexing resumes
+   */
+  public static boolean isReindexRequested(String modelName, Optional<IndexingStatus> status) {
+    return STARTUP_RESET_REQUESTS.contains(modelName) || isReindexRequested(status);
+  }
+
+  /**
+   * Registers, in this process, a reset of a model's index to be performed by the startup in
+   * progress. Meant for a Flyway Java migration that also writes the {@link
+   * #REINDEX_REQUESTED_CURSOR} sentinel: Flyway runs before the engine drivers' boot check, so the
+   * pod that applies the migration wipes and recreates the index even when a pod still running a
+   * version older than this one overwrote the sentinel with the cursor of a sync round that was in
+   * flight when the migration committed. The registration is cleared by {@link
+   * #reindexRequestFulfilled} once the index has actually been wiped and recreated; a process that
+   * dies before that point simply leaves the row-level request in place for the next boot.
+   *
+   * @param modelName the engine model name (the {@code indexing_status_type})
+   */
+  public static void requestReindexAtStartup(String modelName) {
+    STARTUP_RESET_REQUESTS.add(modelName);
+  }
+
+  /**
+   * Clears the in-process reset request of a model once its index has been wiped and recreated.
+   *
+   * @param modelName the engine model name (the {@code indexing_status_type})
+   */
+  public static void reindexRequestFulfilled(String modelName) {
+    STARTUP_RESET_REQUESTS.remove(modelName);
+  }
+
+  /**
+   * Message of the startup failure raised when a requested index reset could not be carried out.
+   * Failing the startup is deliberate: the request (missing row, sentinel or in-process
+   * registration) is only consumed by a successful wipe and recreate, so the next boot retries it.
+   * Tolerating the failure would either leave a still-populated index behind a cursor that fetches
+   * nothing (the sentinel: a silently frozen model) or leave the model without an index.
+   *
+   * @param modelName the engine model name
+   * @param indexName the engine index name (or alias) that could not be wiped or recreated
+   * @param failure what did not happen, e.g. {@code "its index could not be deleted"}
+   * @return the failure message, naming the index and the manual recovery steps
+   */
+  public static String indexResetFailedMessage(String modelName, String indexName, String failure) {
+    return "Index reset requested for model '"
+        + modelName
+        + "' but "
+        + failure
+        + " (index '"
+        + indexName
+        + "'). The request is kept and retried at the next startup. Check the engine errors"
+        + " logged above; to recover by hand, delete the index and its template in the engine and"
+        + " restart the platform; to abandon the reset instead, set the model's cursor to epoch:"
+        + " UPDATE indexing_status SET indexing_status_indexing_date = to_timestamp(0)"
+        + " WHERE indexing_status_type = '"
+        + modelName
+        + "' (INSERT that row when it is missing) - the index is then re-fed from epoch without"
+        + " being wiped.";
   }
 
   /**

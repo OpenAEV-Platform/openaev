@@ -473,16 +473,13 @@ public class ElasticService implements EngineService {
                       // closer to wall-clock than the grace window allows (e.g. persisted before
                       // the window existed): saving it deliberately moves the cursor backwards so
                       // rows committing late inside the window are fetched again.
-                      if (indexingStatus.isPresent()) {
-                        IndexingStatus status = indexingStatus.get();
-                        status.setLastIndexing(persistedCursor);
-                        return status;
-                      } else {
-                        IndexingStatus status = new IndexingStatus();
-                        status.setType(model.getName());
-                        status.setLastIndexing(persistedCursor);
-                        return status;
-                      }
+                      // A transient carrier, never the managed entity: the cursor is persisted
+                      // below through a conditional upsert, and mutating the entity loaded at the
+                      // start of the round would flush a plain UPDATE on top of it.
+                      IndexingStatus advance = new IndexingStatus();
+                      advance.setType(model.getName());
+                      advance.setLastIndexing(persistedCursor);
+                      return advance;
                     } catch (IOException e) {
                       log.error(
                           String.format("bulkParallelProcessing exception: %s", e.getMessage()), e);
@@ -494,8 +491,17 @@ public class ElasticService implements EngineService {
                 })
             .filter(Objects::nonNull)
             .toList();
-    if (!statuses.isEmpty()) {
-      indexingStatusRepository.saveAll(statuses);
+    // The row was read at the start of each round: a plain save would overwrite an index reset
+    // requested in between (the REINDEX_REQUESTED_CURSOR sentinel written by a migration) and lose
+    // it. The conditional upsert leaves a reset request untouched for the next startup to consume.
+    for (IndexingStatus advance : statuses) {
+      if (!indexingStatusRepository.advanceCursorUnlessResetRequested(
+          advance.getType(), advance.getLastIndexing())) {
+        log.warn(
+            "Indexing cursor for model {} not persisted (computed={}): an index reset was requested while this round was in flight, the next startup rebuilds the index",
+            advance.getType(),
+            advance.getLastIndexing());
+      }
     }
   }
 

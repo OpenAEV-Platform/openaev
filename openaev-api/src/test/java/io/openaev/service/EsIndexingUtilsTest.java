@@ -4,9 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.engine.model.EsBase;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -216,14 +219,118 @@ class EsIndexingUtilsTest {
     }
 
     @Test
-    @DisplayName("A regular cursor, epoch included, does not request a reset")
+    @DisplayName("A sentinel shifted by a round trip (time zone, dropped time part) still requests")
+    void given_shiftedSentinelCursor_should_stillRequestReset() {
+      // The widest UTC offset is 14 hours: a sentinel read back through a local-time conversion
+      // must not turn into a regular cursor and lose the reset silently.
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minus(Duration.ofHours(14)))))
+          .isTrue();
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minus(Duration.ofDays(1)))))
+          .isTrue();
+      // The request range starts at the threshold, inclusive.
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD)))
+          .isTrue();
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD.minusSeconds(1))))
+          .isFalse();
+    }
+
+    @Test
+    @DisplayName("A regular cursor, epoch and wall-clock included, does not request a reset")
     void given_regularCursor_should_notRequestReset() {
       assertThat(EsIndexingUtils.isReindexRequested(statusAt(T0))).isFalse();
       assertThat(EsIndexingUtils.isReindexRequested(statusAt(Instant.EPOCH))).isFalse();
+      assertThat(EsIndexingUtils.isReindexRequested(statusAt(Instant.now()))).isFalse();
+    }
+
+    @Test
+    @DisplayName("The threshold leaves a wide margin under the sentinel and above any real clock")
+    void given_threshold_should_sitFarBelowSentinelAndFarAboveNow() {
+      assertThat(EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD)
+          .isBefore(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minus(Duration.ofDays(365)))
+          .isAfter(Instant.now().plus(Duration.ofDays(365L * 1000)));
+    }
+  }
+
+  @Nested
+  @DisplayName("requestReindexAtStartup - in-process reset request")
+  class StartupResetRequest {
+
+    private final String model = "reset-request-test-" + UUID.randomUUID();
+
+    private static Optional<IndexingStatus> statusAt(String type, Instant cursor) {
+      IndexingStatus status = new IndexingStatus();
+      status.setType(type);
+      status.setLastIndexing(cursor);
+      return Optional.of(status);
+    }
+
+    @AfterEach
+    void clearRequest() {
+      EsIndexingUtils.reindexRequestFulfilled(model);
+    }
+
+    @Test
+    @DisplayName("An in-process request wins over a regular row until the reset is fulfilled")
+    void given_startupRequest_should_requestResetUntilFulfilled() {
+      assertThat(EsIndexingUtils.isReindexRequested(model, statusAt(model, T0))).isFalse();
+
+      EsIndexingUtils.requestReindexAtStartup(model);
+
+      // The row may show a regular cursor (an older pod overwrote the sentinel mid-round): the
+      // in-process request still triggers the reset at this startup.
+      assertThat(EsIndexingUtils.isReindexRequested(model, statusAt(model, T0))).isTrue();
+      assertThat(EsIndexingUtils.isReindexRequested(model, statusAt(model, Instant.EPOCH)))
+          .isTrue();
+      assertThat(EsIndexingUtils.isReindexRequested(model, Optional.empty())).isTrue();
+      // Other models are unaffected.
+      assertThat(EsIndexingUtils.isReindexRequested("other-" + model, statusAt(model, T0)))
+          .isFalse();
+
+      EsIndexingUtils.reindexRequestFulfilled(model);
+
+      assertThat(EsIndexingUtils.isReindexRequested(model, statusAt(model, T0))).isFalse();
+    }
+
+    @Test
+    @DisplayName("Fulfilling clears only the in-process half: the row-level request still holds")
+    void given_fulfilledRequest_should_keepHonouringTheRow() {
+      EsIndexingUtils.requestReindexAtStartup(model);
+      EsIndexingUtils.reindexRequestFulfilled(model);
+
+      assertThat(EsIndexingUtils.isReindexRequested(model, Optional.empty())).isTrue();
       assertThat(
               EsIndexingUtils.isReindexRequested(
-                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minusSeconds(1))))
-          .isFalse();
+                  model, statusAt(model, EsIndexingUtils.REINDEX_REQUESTED_CURSOR)))
+          .isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("indexResetFailedMessage")
+  class IndexResetFailedMessage {
+
+    @Test
+    @DisplayName("The message names the model, the index, the failure and the recovery steps")
+    void given_failure_should_nameIndexAndRecovery() {
+      String message =
+          EsIndexingUtils.indexResetFailedMessage(
+              "expectation-inject", "openaev_expectation-inject", "its index could not be deleted");
+
+      assertThat(message)
+          .contains("'expectation-inject'")
+          .contains("'openaev_expectation-inject'")
+          .contains("its index could not be deleted")
+          .contains("retried at the next startup")
+          .contains("UPDATE indexing_status SET indexing_status_indexing_date = to_timestamp(0)")
+          .contains("WHERE indexing_status_type = 'expectation-inject'");
     }
   }
 }
