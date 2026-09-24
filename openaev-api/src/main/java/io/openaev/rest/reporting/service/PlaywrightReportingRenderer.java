@@ -234,10 +234,12 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
   /**
    * Builds the immutable snapshot the background render thread works from. The tenant is read from
    * the generation itself (a {@link io.openaev.database.model.TenantBase} whose {@code tenant_id}
-   * is non-nullable), NOT from the ambient {@link TenantContext} of the request thread: on the
-   * header route ({@code X-Tenant-Ids}) the ambient tenant is the default one, so a job built from
-   * it would store the report under the wrong tenant once the persistence listener no longer stamps
-   * the row.
+   * is non-nullable), not from the ambient {@link TenantContext} of the request thread. Today the
+   * two coincide: {@code reporting_generations} is still a v1 table and its persistence listener
+   * stamps the row from that same ambient tenant. Once {@code reporting_generations} activates, the
+   * row carries the tenant resolved for the write while the ambient tenant of the header route
+   * ({@code X-Tenant-Ids}) stays the default one, and the row is the source that keeps the report
+   * in the right tenant.
    */
   // Package-private so a test can assert the job carries the generation's own tenant.
   RenderJob toRenderJob(final ReportingGeneration generation, final String tokenValue) {

@@ -127,10 +127,11 @@ class ReportDocumentAttributionTest extends IntegrationTest {
       given_generationOwnedByTenantB_dispatchedUnderAnotherAmbient_should_attributeReportToTenantB()
           throws Exception {
     // Arrange: a generation owned by tenant B, then the request thread's ambient tenant switched to
-    // A. On the header route the ambient tenant is the default one, so a job built from
-    // TenantContext would mis-attribute the report; toRenderJob must take the generation's own
-    // tenant instead. The generation graph is built in memory (toRenderJob reads its fields, no DB
-    // needed) so the document write under test is the first committed row.
+    // A. In production the two coincide today (reporting_generations is v1, stamped from the
+    // ambient tenant); once it activates, the row carries the write tenant while the ambient one
+    // on the header route stays the default, so toRenderJob must read the generation. The graph
+    // is built in memory (toRenderJob reads its fields, no DB needed) so the document write under
+    // test is the first committed row.
     Reporting reporting = new Reporting();
     reporting.setId(UUID.randomUUID().toString());
     reporting.setName("t22b-report");
