@@ -33,20 +33,13 @@ public interface DocumentRepository
 
   List<Document> removeById(@NotNull String id);
 
-  // document_target and document_name are not unique (concurrent uploads can create
-  // duplicates), so lookups must be duplicate-tolerant and deterministic instead of
-  // failing with a NonUniqueResultException.
-  @NotNull
-  Optional<Document> findFirstByTargetOrderByIdAsc(@NotNull String target);
-
-  @NotNull
-  Optional<Document> findFirstByNameOrderByIdAsc(@NotNull String name);
-
   // Confined to the explicit write tenant: the statement inspector scopes these lookups to the
   // request scope, which may hold several tenants of the caller (an injects import into a parent
   // of one tenant by a caller of two), so a lookup by target or name alone could find and reuse
-  // another in-scope tenant's document for a row written elsewhere. Duplicate-tolerant and
-  // deterministic (first by id) like the unscoped variants above.
+  // another in-scope tenant's document for a row written elsewhere. document_target and
+  // document_name are not unique (concurrent uploads can create duplicates), so the lookups are
+  // duplicate-tolerant and deterministic (first by id) instead of failing with a
+  // NonUniqueResultException.
   @NotNull
   Optional<Document> findFirstByTargetAndTenantIdOrderByIdAsc(
       @NotNull String target, @NotNull String tenantId);
