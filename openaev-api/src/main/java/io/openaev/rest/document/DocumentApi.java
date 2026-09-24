@@ -44,6 +44,7 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.hibernate.Hibernate;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -243,6 +244,9 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    // The lazy collection is returned as is and serialized after the transaction has committed,
+    // where the tenant scope no longer exists: load it here or it comes back empty.
+    Hibernate.initialize(document.getTags());
     return document.getTags();
   }
 
