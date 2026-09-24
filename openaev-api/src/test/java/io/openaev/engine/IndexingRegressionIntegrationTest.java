@@ -335,6 +335,12 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
 
     private static final Instant CURSOR = Instant.parse("2026-01-01T00:00:00Z");
 
+    /** The write of a sync round for the {@code asset} model; returns the rows written (0 or 1). */
+    private int advanceCursor(Instant cursor) {
+      return indexingStatusRepository.advanceCursorUnlessResetRequested(
+          "asset", cursor, EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+    }
+
     @Test
     @DisplayName("A pending reset request is left untouched and the write is reported refused")
     void given_pendingResetRequest_should_refuseToAdvanceTheCursor() {
@@ -342,11 +348,10 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
       setIndexingStatus("asset", EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
 
       // -- ACT --
-      boolean advanced =
-          indexingStatusRepository.advanceCursorUnlessResetRequested("asset", CURSOR);
+      int written = advanceCursor(CURSOR);
 
       // -- ASSERT --
-      assertThat(advanced).as("the in-flight round must not consume the reset request").isFalse();
+      assertThat(written).as("the in-flight round must not consume the reset request").isZero();
       assertThat(readIndexingCursor("asset")).isEqualTo(EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
     }
 
@@ -358,11 +363,10 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
       setIndexingStatus("asset", shifted);
 
       // -- ACT --
-      boolean advanced =
-          indexingStatusRepository.advanceCursorUnlessResetRequested("asset", CURSOR);
+      int written = advanceCursor(CURSOR);
 
       // -- ASSERT --
-      assertThat(advanced).isFalse();
+      assertThat(written).isZero();
       assertThat(readIndexingCursor("asset")).isEqualTo(shifted);
     }
 
@@ -374,18 +378,14 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
       setIndexingStatus("asset", CURSOR);
 
       // -- ACT --
-      boolean forwards =
-          indexingStatusRepository.advanceCursorUnlessResetRequested(
-              "asset", CURSOR.plus(Duration.ofHours(1)));
+      int forwards = advanceCursor(CURSOR.plus(Duration.ofHours(1)));
       Instant afterForwards = readIndexingCursor("asset");
-      boolean backwards =
-          indexingStatusRepository.advanceCursorUnlessResetRequested(
-              "asset", CURSOR.minus(Duration.ofHours(1)));
+      int backwards = advanceCursor(CURSOR.minus(Duration.ofHours(1)));
 
       // -- ASSERT --
-      assertThat(forwards).isTrue();
+      assertThat(forwards).isOne();
       assertThat(afterForwards).isEqualTo(CURSOR.plus(Duration.ofHours(1)));
-      assertThat(backwards).isTrue();
+      assertThat(backwards).isOne();
       assertThat(readIndexingCursor("asset")).isEqualTo(CURSOR.minus(Duration.ofHours(1)));
     }
 
@@ -395,11 +395,10 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
       // -- ARRANGE: @BeforeEach deleted every indexing_status row --
 
       // -- ACT --
-      boolean advanced =
-          indexingStatusRepository.advanceCursorUnlessResetRequested("asset", CURSOR);
+      int written = advanceCursor(CURSOR);
 
       // -- ASSERT --
-      assertThat(advanced).isTrue();
+      assertThat(written).isOne();
       assertThat(readIndexingCursor("asset")).isEqualTo(CURSOR);
     }
   }

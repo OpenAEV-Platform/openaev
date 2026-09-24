@@ -495,8 +495,11 @@ public class ElasticService implements EngineService {
     // requested in between (the REINDEX_REQUESTED_CURSOR sentinel written by a migration) and lose
     // it. The conditional upsert leaves a reset request untouched for the next startup to consume.
     for (IndexingStatus advance : statuses) {
-      if (!indexingStatusRepository.advanceCursorUnlessResetRequested(
-          advance.getType(), advance.getLastIndexing())) {
+      if (indexingStatusRepository.advanceCursorUnlessResetRequested(
+              advance.getType(),
+              advance.getLastIndexing(),
+              EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD)
+          == 0) {
         log.warn(
             "Indexing cursor for model {} not persisted (computed={}): an index reset was requested while this round was in flight, the next startup rebuilds the index",
             advance.getType(),

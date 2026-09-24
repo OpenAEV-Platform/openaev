@@ -22,10 +22,10 @@ public interface IndexingStatusRepository
 
   /**
    * Persists the cursor of a sync round unless the row requests an index reset (cursor at or beyond
-   * {@link EsIndexingUtils#REINDEX_REQUESTED_THRESHOLD}): a round reads its cursor at the start and
-   * persists the advanced one at the end, so a plain save would overwrite a reset request that
-   * landed in between and lose it silently. Only the boot-time reset, once the index has actually
-   * been wiped and recreated, may replace a reset request (through {@link #save}).
+   * {@code resetThreshold}): a round reads its cursor at the start and persists the advanced one at
+   * the end, so a plain save would overwrite a reset request that landed in between and lose it
+   * silently. Only the boot-time reset, once the index has actually been wiped and recreated, may
+   * replace a reset request (through {@link #save}).
    *
    * <p>Native: the atomic {@code INSERT ... ON CONFLICT DO UPDATE ... WHERE} compare-and-set cannot
    * be expressed through the session (a merge is unconditional). No session side effect is lost:
@@ -33,13 +33,11 @@ public interface IndexingStatusRepository
    *
    * @param type the engine model name
    * @param cursor the cursor to persist
-   * @return true when the cursor was persisted, false when the row requests a reset
+   * @param resetThreshold {@link EsIndexingUtils#REINDEX_REQUESTED_THRESHOLD}: a row whose cursor
+   *     is at or beyond it requests a reset and is left untouched
+   * @return the number of rows written: 1 when the cursor was persisted, 0 when the row requests a
+   *     reset
    */
-  default boolean advanceCursorUnlessResetRequested(String type, Instant cursor) {
-    return upsertCursorBelowThreshold(type, cursor, EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD)
-        > 0;
-  }
-
   @Modifying
   @Transactional
   @Query(
@@ -50,7 +48,7 @@ public interface IndexingStatusRepository
               + " DO UPDATE SET indexing_status_indexing_date = EXCLUDED.indexing_status_indexing_date"
               + " WHERE indexing_status.indexing_status_indexing_date < :resetThreshold",
       nativeQuery = true)
-  int upsertCursorBelowThreshold(
+  int advanceCursorUnlessResetRequested(
       @Param("type") String type,
       @Param("cursor") Instant cursor,
       @Param("resetThreshold") Instant resetThreshold);
