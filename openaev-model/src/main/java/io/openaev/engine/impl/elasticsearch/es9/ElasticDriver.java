@@ -24,6 +24,7 @@ import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.driver.EngineObjectMapperFactory;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
+import io.openaev.engine.IndexResetEpochReassertion;
 import io.openaev.engine.RetiredIndexes;
 import io.openaev.engine.model.EsBase;
 import io.openaev.exception.StartupException;
@@ -62,6 +63,7 @@ public class ElasticDriver {
   private EngineContext searchEngine;
   private final EngineConfig config;
   private final IndexingStatusRepository indexingStatusRepository;
+  private final IndexResetEpochReassertion epochReassertion;
   private final X509TrustManager trustManager;
 
   /**
@@ -406,9 +408,13 @@ public class ElasticDriver {
         // deleted), by the REINDEX_REQUESTED_CURSOR sentinel (requested while other instances may
         // still run - a rolling deploy) or in-process by a migration of this very startup: wipe
         // any leftover and start from scratch.
-        if (EsIndexingUtils.isReindexRequested(
-            modelName, indexingStatusRepository.findByType(modelName))) {
-          resetIndex(elasticClient, modelName, mappings);
+        Optional<IndexingStatus> status = indexingStatusRepository.findByType(modelName);
+        if (EsIndexingUtils.isReindexRequested(modelName, status)) {
+          resetIndex(
+              elasticClient,
+              modelName,
+              mappings,
+              EsIndexingUtils.isRollingDeployReset(modelName, status));
         } else {
           log.debug("Ensuring index {}", modelName);
           setupIndex(elasticClient, modelName, ES_MODEL_VERSION, mappings);
@@ -429,9 +435,17 @@ public class ElasticDriver {
    * creation, and letting either pass would leave a still-populated index behind a cursor that
    * fetches nothing - a silently frozen model - or a model without an index. Failing keeps the
    * request in place for the next boot to retry it.
+   *
+   * @param rollingDeployReset whether the reset was requested while other instances may still run
+   *     (sentinel or in-process request): the epoch cursor is then re-asserted after a drain delay
+   *     to repair a stale cursor write of a pod running an older version (see {@link
+   *     IndexResetEpochReassertion})
    */
   private void resetIndex(
-      ElasticsearchClient client, String modelName, Map<String, Property> mappings)
+      ElasticsearchClient client,
+      String modelName,
+      Map<String, Property> mappings,
+      boolean rollingDeployReset)
       throws IOException {
     log.info("Index reset requested for {}: wiping and recreating the index", modelName);
     cleanUpIndex(modelName, client);
@@ -450,6 +464,9 @@ public class ElasticDriver {
               modelName, indexName, "its index could not be recreated after the wipe"));
     }
     EsIndexingUtils.reindexRequestFulfilled(modelName);
+    if (rollingDeployReset) {
+      epochReassertion.schedule(modelName);
+    }
   }
 
   public void cleanUpIndex(String indexName, ElasticsearchClient client) throws IOException {

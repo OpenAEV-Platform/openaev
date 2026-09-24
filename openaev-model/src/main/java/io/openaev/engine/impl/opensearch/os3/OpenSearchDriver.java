@@ -7,6 +7,7 @@ import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.driver.EngineObjectMapperFactory;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
+import io.openaev.engine.IndexResetEpochReassertion;
 import io.openaev.engine.RetiredIndexes;
 import io.openaev.engine.model.EsBase;
 import io.openaev.exception.AnalyticsEngineException;
@@ -67,6 +68,7 @@ public class OpenSearchDriver {
   private final EngineContext searchEngine;
   private final EngineConfig config;
   private final IndexingStatusRepository indexingStatusRepository;
+  private final IndexResetEpochReassertion epochReassertion;
 
   /**
    * Shared ObjectMapper used by the OpenSearch client for JSON serialization. Exposed via {@link
@@ -472,9 +474,13 @@ public class OpenSearchDriver {
         // deleted), by the REINDEX_REQUESTED_CURSOR sentinel (requested while other instances may
         // still run - a rolling deploy) or in-process by a migration of this very startup: wipe
         // any leftover and start from scratch.
-        if (EsIndexingUtils.isReindexRequested(
-            modelName, indexingStatusRepository.findByType(modelName))) {
-          resetIndex(openClient, modelName, mappings);
+        Optional<IndexingStatus> status = indexingStatusRepository.findByType(modelName);
+        if (EsIndexingUtils.isReindexRequested(modelName, status)) {
+          resetIndex(
+              openClient,
+              modelName,
+              mappings,
+              EsIndexingUtils.isRollingDeployReset(modelName, status));
         } else {
           log.debug("Ensuring index {}", modelName);
           setupIndex(openClient, modelName, ES_MODEL_VERSION, mappings);
@@ -496,8 +502,17 @@ public class OpenSearchDriver {
    * creation, and letting either pass would leave a still-populated index behind a cursor that
    * fetches nothing - a silently frozen model - or a model without an index. Failing keeps the
    * request in place for the next boot to retry it.
+   *
+   * @param rollingDeployReset whether the reset was requested while other instances may still run
+   *     (sentinel or in-process request): the epoch cursor is then re-asserted after a drain delay
+   *     to repair a stale cursor write of a pod running an older version (see {@link
+   *     IndexResetEpochReassertion})
    */
-  private void resetIndex(OpenSearchClient client, String modelName, Map<String, Property> mappings)
+  private void resetIndex(
+      OpenSearchClient client,
+      String modelName,
+      Map<String, Property> mappings,
+      boolean rollingDeployReset)
       throws IOException {
     log.info("Index reset requested for {}: wiping and recreating the index", modelName);
     cleanUpIndex(modelName, client);
@@ -516,6 +531,9 @@ public class OpenSearchDriver {
               modelName, indexName, "its index could not be recreated after the wipe"));
     }
     EsIndexingUtils.reindexRequestFulfilled(modelName);
+    if (rollingDeployReset) {
+      epochReassertion.schedule(modelName);
+    }
   }
 
   /**

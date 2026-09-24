@@ -61,6 +61,7 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   @Autowired private EngineService engineService;
   @Autowired private EngineContext engineContext;
   @Autowired private IndexingStatusRepository indexingStatusRepository;
+  @Autowired private IndexResetEpochReassertion epochReassertion;
 
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -323,32 +324,58 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   // ---------------------------------------------------------------------------
 
   /**
-   * The cursor write of a sync round is conditional: a round reads its cursor at the start and
-   * persists the advanced one at the end, so a reset request that landed in between (the sentinel
-   * written by a migration during a rolling deploy) must survive that write. These tests exercise
-   * the SQL guard itself, which is where the race is decided; {@link ReindexRequestedMarker} covers
-   * the read side (nothing is fetched under the marker).
+   * The cursor write of a sync round is a compare-and-set on the cursor the round READ at its
+   * start: a round reads first and persists last, so whatever landed in between - a reset request
+   * (the sentinel written by a migration during a rolling deploy), the epoch written by a boot-time
+   * reset once the index was wiped and recreated, a peer replica's advance - must survive that
+   * write. These tests replay the interleavings at the SQL level, which is where the race is
+   * decided: the reads happen implicitly (the value handed to the write is the one the round read),
+   * the writes in between are plain row updates. {@link ReindexRequestedMarker} covers the read
+   * side (nothing is fetched under the marker).
    */
   @Nested
-  @DisplayName("advanceCursorUnlessResetRequested - a cursor write never replaces a reset request")
+  @DisplayName("persistCursor - a stale cursor write never lands")
   class CursorAdvanceGuard {
 
     private static final Instant CURSOR = Instant.parse("2026-01-01T00:00:00Z");
+    private static final Instant LATER = CURSOR.plus(Duration.ofHours(1));
 
-    /** The write of a sync round for the {@code asset} model; returns the rows written (0 or 1). */
-    private int advanceCursor(Instant cursor) {
-      return indexingStatusRepository.advanceCursorUnlessResetRequested(
-          "asset", cursor, EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+    /** The write of a round that read {@code readCursor} and computed {@code cursor} for asset. */
+    private int advanceFrom(Instant readCursor, Instant cursor) {
+      return indexingStatusRepository.advanceCursorFrom(
+          "asset", readCursor, cursor, EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+    }
+
+    /** The write of a round that found no {@code asset} row and computed {@code cursor}. */
+    private int insertIfAbsent(Instant cursor) {
+      return indexingStatusRepository.insertCursorIfAbsent("asset", cursor);
     }
 
     @Test
-    @DisplayName("A pending reset request is left untouched and the write is reported refused")
-    void given_pendingResetRequest_should_refuseToAdvanceTheCursor() {
+    @DisplayName(
+        "Read C, a reset writes epoch after the recreate, the stale write of C' is refused")
+    void given_resetWroteEpochAfterTheRead_should_refuseTheStaleCursor() {
+      // -- ARRANGE: the round read CURSOR, then the boot-time reset wiped the index and wrote epoch
+      setIndexingStatus("asset", CURSOR);
+      setIndexingStatus("asset", Instant.EPOCH);
+
+      // -- ACT: the round persists the cursor it computed for its (pre-wipe) batch
+      int written = advanceFrom(CURSOR, LATER);
+
+      // -- ASSERT: epoch stands, the recreated index is re-fed from the beginning
+      assertThat(written).as("a stale write over a recreated index must not land").isZero();
+      assertThat(readIndexingCursor("asset")).isEqualTo(Instant.EPOCH);
+    }
+
+    @Test
+    @DisplayName("Read C, a migration writes the sentinel, the stale write of C' is refused")
+    void given_resetRequestedAfterTheRead_should_refuseTheStaleCursor() {
       // -- ARRANGE --
+      setIndexingStatus("asset", CURSOR);
       setIndexingStatus("asset", EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
 
       // -- ACT --
-      int written = advanceCursor(CURSOR);
+      int written = advanceFrom(CURSOR, LATER);
 
       // -- ASSERT --
       assertThat(written).as("the in-flight round must not consume the reset request").isZero();
@@ -356,14 +383,14 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("A shifted sentinel (anything past the threshold) is protected the same way")
-    void given_shiftedSentinel_should_refuseToAdvanceTheCursor() {
-      // -- ARRANGE --
+    @DisplayName("A round that read the sentinel itself never writes it away (threshold guard)")
+    void given_sentinelRead_should_refuseToAdvancePastIt() {
+      // -- ARRANGE: a shifted sentinel, past the threshold but not the exact constant
       Instant shifted = EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minus(Duration.ofHours(14));
       setIndexingStatus("asset", shifted);
 
       // -- ACT --
-      int written = advanceCursor(CURSOR);
+      int written = advanceFrom(shifted, LATER);
 
       // -- ASSERT --
       assertThat(written).isZero();
@@ -371,20 +398,49 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName(
-        "A regular cursor is advanced (forwards or backwards, the grace window may cap it)")
-    void given_regularCursor_should_advanceTheCursor() {
+    @DisplayName("Read no row, a reset created it meanwhile, the stale insert is refused")
+    void given_rowCreatedAfterTheMissingRead_should_refuseTheStaleInsert() {
+      // -- ARRANGE: @BeforeEach deleted every row; the reset then created the row with epoch
+      setIndexingStatus("asset", Instant.EPOCH);
+
+      // -- ACT --
+      int written = insertIfAbsent(LATER);
+
+      // -- ASSERT --
+      assertThat(written).isZero();
+      assertThat(readIndexingCursor("asset")).isEqualTo(Instant.EPOCH);
+    }
+
+    @Test
+    @DisplayName("Two peers read C: the first advance wins, the second is refused and re-fetches")
+    void given_twoPeersReadTheSameCursor_should_letOnlyTheFirstAdvance() {
       // -- ARRANGE --
       setIndexingStatus("asset", CURSOR);
 
       // -- ACT --
-      int forwards = advanceCursor(CURSOR.plus(Duration.ofHours(1)));
+      int first = advanceFrom(CURSOR, LATER);
+      int second = advanceFrom(CURSOR, CURSOR.plus(Duration.ofMinutes(30)));
+
+      // -- ASSERT: the loser's batch is at or after CURSOR and is fetched again by the owner
+      assertThat(first).isOne();
+      assertThat(second).isZero();
+      assertThat(readIndexingCursor("asset")).isEqualTo(LATER);
+    }
+
+    @Test
+    @DisplayName("An unchanged row is advanced forwards or backwards (the grace window may cap it)")
+    void given_unchangedRow_should_advanceTheCursor() {
+      // -- ARRANGE --
+      setIndexingStatus("asset", CURSOR);
+
+      // -- ACT --
+      int forwards = advanceFrom(CURSOR, LATER);
       Instant afterForwards = readIndexingCursor("asset");
-      int backwards = advanceCursor(CURSOR.minus(Duration.ofHours(1)));
+      int backwards = advanceFrom(LATER, CURSOR.minus(Duration.ofHours(1)));
 
       // -- ASSERT --
       assertThat(forwards).isOne();
-      assertThat(afterForwards).isEqualTo(CURSOR.plus(Duration.ofHours(1)));
+      assertThat(afterForwards).isEqualTo(LATER);
       assertThat(backwards).isOne();
       assertThat(readIndexingCursor("asset")).isEqualTo(CURSOR.minus(Duration.ofHours(1)));
     }
@@ -395,11 +451,72 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
       // -- ARRANGE: @BeforeEach deleted every indexing_status row --
 
       // -- ACT --
-      int written = advanceCursor(CURSOR);
+      int written = insertIfAbsent(CURSOR);
 
       // -- ASSERT --
       assertThat(written).isOne();
       assertThat(readIndexingCursor("asset")).isEqualTo(CURSOR);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Epoch re-assertion after a rolling-deploy reset
+  // ---------------------------------------------------------------------------
+
+  /**
+   * The repair pass for the one write the compare-and-set cannot refuse: a pod running an older
+   * version persists its cursor unconditionally, so a round of it in flight across the reset moves
+   * the cursor from epoch to its stale value after the recreate. The pod that performed the reset
+   * re-asserts epoch after a drain delay; the pass must never replace a newer reset request nor
+   * re-create a deleted row.
+   */
+  @Nested
+  @DisplayName("IndexResetEpochReassertion - the stale write of an older pod is repaired")
+  class EpochReassertion {
+
+    private static final Instant STALE = Instant.parse("2026-01-01T00:00:00Z");
+
+    @Test
+    @DisplayName("A stale cursor written after the recreate is moved back to epoch")
+    void given_staleCursorAfterReset_should_reassertEpoch() {
+      // -- ARRANGE: reset wrote epoch, an older pod's unconditional write then landed
+      setIndexingStatus("asset", Instant.EPOCH);
+      setIndexingStatus("asset", STALE);
+
+      // -- ACT --
+      boolean reasserted = epochReassertion.reassertEpoch("asset");
+
+      // -- ASSERT --
+      assertThat(reasserted).isTrue();
+      assertThat(readIndexingCursor("asset")).isEqualTo(Instant.EPOCH);
+    }
+
+    @Test
+    @DisplayName("A new reset request written meanwhile is left untouched")
+    void given_newResetRequest_should_keepTheSentinel() {
+      // -- ARRANGE --
+      setIndexingStatus("asset", EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+
+      // -- ACT --
+      boolean reasserted = epochReassertion.reassertEpoch("asset");
+
+      // -- ASSERT --
+      assertThat(reasserted).isFalse();
+      assertThat(readIndexingCursor("asset")).isEqualTo(EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+    }
+
+    @Test
+    @DisplayName("A row deleted meanwhile (reset by deletion) is not re-created")
+    void given_missingRow_should_notCreateIt() {
+      // -- ARRANGE: @BeforeEach deleted every indexing_status row --
+
+      // -- ACT --
+      boolean reasserted = epochReassertion.reassertEpoch("asset");
+
+      // -- ASSERT --
+      assertThat(reasserted).isFalse();
+      entityManager.clear();
+      assertThat(entityManager.find(IndexingStatus.class, "asset")).isNull();
     }
   }
 

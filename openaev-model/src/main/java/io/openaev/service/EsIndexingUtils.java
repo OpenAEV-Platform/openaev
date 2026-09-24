@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import io.openaev.database.model.IndexingStatus;
+import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.model.EsBase;
 import java.time.Instant;
 import java.util.List;
@@ -42,14 +43,14 @@ public final class EsIndexingUtils {
    * a pod running any version fetches "rows updated after year 9999", gets nothing, reports the
    * model as up to date and leaves the row untouched.
    *
-   * <p>The one write that can still replace the sentinel is a sync round that read the row BEFORE
-   * the request landed and persists its advanced cursor at the end of the round. Pods running this
-   * version never do so: the cursor is persisted through {@code
-   * IndexingStatusRepository#advanceCursorUnlessResetRequested}, a conditional upsert that leaves a
-   * cursor at or beyond {@link #REINDEX_REQUESTED_THRESHOLD} untouched. Pods running an older
-   * version do persist unconditionally, which is why a migration requesting a reset also registers
-   * it in-process ({@link #requestReindexAtStartup}): the pod that applies the migration performs
-   * the reset whatever an older pod did to the row meanwhile.
+   * <p>The one write that can still replace the sentinel - or the epoch a reset writes once the
+   * index is recreated - is a sync round that read the row BEFORE and persists its advanced cursor
+   * AFTER. Pods running this version never do so: the cursor is persisted as a compare-and-set on
+   * the value the round read ({@link #persistCursor}). Pods running an older version persist
+   * unconditionally, which is why a migration requesting a reset also registers it in-process
+   * ({@link #requestReindexAtStartup}): the pod that applies the migration performs the reset
+   * whatever an older pod did to the row meanwhile, and re-asserts the epoch cursor once the
+   * longest possible stale round has drained (see {@code IndexResetEpochReassertion}).
    */
   public static final Instant REINDEX_REQUESTED_CURSOR = Instant.parse("9999-12-31T00:00:00Z");
 
@@ -110,6 +111,22 @@ public final class EsIndexingUtils {
   }
 
   /**
+   * Whether a requested reset was requested while other instances may still run - the {@link
+   * #REINDEX_REQUESTED_CURSOR} sentinel on the row, or an in-process registration by a migration of
+   * this startup - as opposed to a missing row (fresh install, single-instance reset). Only such
+   * resets need the epoch re-assertion that repairs a stale write of an older pod; a fresh install
+   * has no older pod and must not re-feed every model twice.
+   *
+   * @param modelName the engine model name (the {@code indexing_status_type})
+   * @param status the model's indexing status row, when present
+   * @return true when the reset was requested through the sentinel or in-process
+   */
+  public static boolean isRollingDeployReset(String modelName, Optional<IndexingStatus> status) {
+    return STARTUP_RESET_REQUESTS.contains(modelName)
+        || (status.isPresent() && isReindexRequested(status));
+  }
+
+  /**
    * Registers, in this process, a reset of a model's index to be performed by the startup in
    * progress. Meant for a Flyway Java migration that also writes the {@link
    * #REINDEX_REQUESTED_CURSOR} sentinel: Flyway runs before the engine drivers' boot check, so the
@@ -132,6 +149,51 @@ public final class EsIndexingUtils {
    */
   public static void reindexRequestFulfilled(String modelName) {
     STARTUP_RESET_REQUESTS.remove(modelName);
+  }
+
+  /**
+   * The cursor write of one sync round: the cursor the round read at its start ({@code null} when
+   * the row was missing) and the cursor it computed for the processed batch.
+   */
+  public record CursorAdvance(String modelName, Instant readCursor, Instant cursor) {}
+
+  /**
+   * Persists the cursor of a sync round as a compare-and-set on the cursor the round read at its
+   * start: {@link IndexingStatusRepository#advanceCursorFrom} when a row was read, {@link
+   * IndexingStatusRepository#insertCursorIfAbsent} when none was. A refused write means the row
+   * changed since it was read - a reset request landed, a boot-time reset wrote epoch after the
+   * index was wiped, or a peer replica advanced first - and the stale value must not land: the
+   * round's documents are already in the index and whoever owns the cursor fetches them again.
+   *
+   * <p>The compare-and-set is on the value, not on a generation: it cannot tell a cursor that
+   * passed through the read value again (a re-feed from epoch reaching the very same batch
+   * boundary) from an untouched one. That needs a round in flight across minutes of re-feed, which
+   * the epoch re-assertion window ({@code IndexResetEpochReassertion}) also covers.
+   *
+   * @param repository the indexing status repository
+   * @param advance the round's read cursor and computed cursor
+   * @param log the caller's logger
+   * @return true when the cursor was persisted, false when the write was refused
+   */
+  public static boolean persistCursor(
+      IndexingStatusRepository repository, CursorAdvance advance, Logger log) {
+    int written =
+        advance.readCursor() == null
+            ? repository.insertCursorIfAbsent(advance.modelName(), advance.cursor())
+            : repository.advanceCursorFrom(
+                advance.modelName(),
+                advance.readCursor(),
+                advance.cursor(),
+                REINDEX_REQUESTED_THRESHOLD);
+    if (written == 0) {
+      log.warn(
+          "Indexing cursor for model {} not persisted (read={}, computed={}): the row changed while this round was in flight (reset requested, index reset to epoch, or a peer advanced first), the owner of the cursor re-fetches this batch",
+          advance.modelName(),
+          advance.readCursor(),
+          advance.cursor());
+      return false;
+    }
+    return true;
   }
 
   /**

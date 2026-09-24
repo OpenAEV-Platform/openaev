@@ -1,8 +1,14 @@
 package io.openaev.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.IndexingStatus;
+import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.model.EsBase;
 import java.time.Duration;
 import java.time.Instant;
@@ -310,6 +316,101 @@ class EsIndexingUtilsTest {
               EsIndexingUtils.isReindexRequested(
                   model, statusAt(model, EsIndexingUtils.REINDEX_REQUESTED_CURSOR)))
           .isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("isRollingDeployReset")
+  class IsRollingDeployReset {
+
+    private final String model = "rolling-reset-test-" + UUID.randomUUID();
+
+    private static Optional<IndexingStatus> statusAt(String type, Instant cursor) {
+      IndexingStatus status = new IndexingStatus();
+      status.setType(type);
+      status.setLastIndexing(cursor);
+      return Optional.of(status);
+    }
+
+    @AfterEach
+    void clearRequest() {
+      EsIndexingUtils.reindexRequestFulfilled(model);
+    }
+
+    @Test
+    @DisplayName(
+        "A missing row (fresh install, single-instance reset) is not a rolling-deploy reset")
+    void given_missingRow_should_notBeRollingDeployReset() {
+      assertThat(EsIndexingUtils.isRollingDeployReset(model, Optional.empty())).isFalse();
+    }
+
+    @Test
+    @DisplayName("The sentinel on the row and the in-process request both are")
+    void given_sentinelOrStartupRequest_should_beRollingDeployReset() {
+      assertThat(
+              EsIndexingUtils.isRollingDeployReset(
+                  model, statusAt(model, EsIndexingUtils.REINDEX_REQUESTED_CURSOR)))
+          .isTrue();
+      assertThat(EsIndexingUtils.isRollingDeployReset(model, statusAt(model, T0))).isFalse();
+
+      EsIndexingUtils.requestReindexAtStartup(model);
+
+      assertThat(EsIndexingUtils.isRollingDeployReset(model, statusAt(model, T0))).isTrue();
+      assertThat(EsIndexingUtils.isRollingDeployReset(model, Optional.empty())).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("persistCursor - compare-and-set on the cursor the round read")
+  class PersistCursor {
+
+    private final IndexingStatusRepository repository = mock(IndexingStatusRepository.class);
+
+    @Test
+    @DisplayName("A round that read a row writes through the compare-and-set on that value")
+    void given_readCursor_should_advanceFromIt() {
+      when(repository.advanceCursorFrom(
+              "asset", T0, ts(60), EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD))
+          .thenReturn(1);
+
+      boolean persisted =
+          EsIndexingUtils.persistCursor(
+              repository, new EsIndexingUtils.CursorAdvance("asset", T0, ts(60)), LOG);
+
+      assertThat(persisted).isTrue();
+      verify(repository)
+          .advanceCursorFrom("asset", T0, ts(60), EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+      verify(repository, never()).insertCursorIfAbsent(any(), any());
+    }
+
+    @Test
+    @DisplayName("A round that found no row only ever inserts, never overwrites")
+    void given_noReadCursor_should_insertIfAbsent() {
+      when(repository.insertCursorIfAbsent("asset", ts(60))).thenReturn(1);
+
+      boolean persisted =
+          EsIndexingUtils.persistCursor(
+              repository, new EsIndexingUtils.CursorAdvance("asset", null, ts(60)), LOG);
+
+      assertThat(persisted).isTrue();
+      verify(repository).insertCursorIfAbsent("asset", ts(60));
+      verify(repository, never()).advanceCursorFrom(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("A refused write (the row changed since it was read) is reported, not retried")
+    void given_rowChangedSinceRead_should_reportRefusedWrite() {
+      when(repository.advanceCursorFrom(any(), any(), any(), any())).thenReturn(0);
+      when(repository.insertCursorIfAbsent(any(), any())).thenReturn(0);
+
+      assertThat(
+              EsIndexingUtils.persistCursor(
+                  repository, new EsIndexingUtils.CursorAdvance("asset", T0, ts(60)), LOG))
+          .isFalse();
+      assertThat(
+              EsIndexingUtils.persistCursor(
+                  repository, new EsIndexingUtils.CursorAdvance("asset", null, ts(60)), LOG))
+          .isFalse();
     }
   }
 
