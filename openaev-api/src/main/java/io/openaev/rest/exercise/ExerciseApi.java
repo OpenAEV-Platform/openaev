@@ -661,7 +661,8 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(exerciseId);
     exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
     exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
-    return hydrateKillChainPhases(exerciseRepository.save(exercise));
+    return hydrateKillChainPhases(
+        exerciseService.withDocumentLinksInitialized(exerciseRepository.save(exercise)));
   }
 
   // -- OPTION --
@@ -873,6 +874,10 @@ public class ExerciseApi extends RestBehavior {
     exercise.setUpdatedAt(now());
     Document doc =
         documentRepository.findById(documentId).orElseThrow(ElementNotFoundException::new);
+    // Drop the link from the exercise side as well: the response serializes exercise_documents
+    // from this instance, and the removal below only rewrites the join table from the document
+    // side. Loading the collection here also keeps it inside the scoped transaction.
+    exercise.getDocuments().removeIf(linked -> documentId.equals(linked.getId()));
     Set<Exercise> docExercises =
         doc.getExercises().stream()
             .filter(ex -> !ex.getId().equals(exerciseId))

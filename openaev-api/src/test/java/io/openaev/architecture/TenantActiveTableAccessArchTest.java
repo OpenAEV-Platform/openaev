@@ -606,6 +606,70 @@ class TenantActiveTableAccessArchTest {
                   + " transaction and be allowlisted here");
 
   @ArchTest
+  static final ArchRule documents_exercise_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The document removal and logo update handlers (TxCtx) keep the collection loaded
+              // and consistent inside the request transaction, so the raw entity they return
+              // serializes it; ExerciseService holds the initializer and the duplication copy:
+              ExerciseApi.class,
+              ExerciseService.class,
+              // Force-initializes the parent documents of the channel reader inside the scoped
+              // read transaction (ChannelService.withDocumentLinksInitialized):
+              ChannelService.class,
+              // Article write paths on TxCtx-carrying endpoints, linking the article documents to
+              // the exercise inside the request transaction:
+              ChannelApi.class,
+              // Inject create and update paths, reached from the TxCtx-carrying inject handlers,
+              // linking the inject documents to the exercise inside the request transaction:
+              InjectService.class,
+              InjectApi.class,
+              // Chaining engine step data, built under the per-tenant transaction the queue and
+              // step handlers open:
+              InjectExecutionStep.class,
+              // Exporter mapping the exercise documents inside the export endpoint's transaction:
+              ExerciseFileExport.class)
+          .should()
+          .callMethod(Exercise.class, "getDocuments")
+          .because(
+              "documents is reached through Exercise's LAZY documents association without touching"
+                  + " DocumentRepository. A getDocuments() outside a scoped transaction silently"
+                  + " loads zero rows (open-in-view). New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule documents_scenario_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Export, duplication and article copy, inside their scoped transactions:
+              ScenarioService.class,
+              // Scenario-to-simulation copy, reached from the TxCtx-carrying launch handlers, the
+              // autonomous run's tenant transaction and the per-tenant scheduled scenario job:
+              ScenarioToExerciseService.class,
+              // Force-initializes the parent documents of the channel reader inside the scoped
+              // read transaction (ChannelService.withDocumentLinksInitialized):
+              ChannelService.class,
+              // Article write paths on TxCtx-carrying endpoints, linking the article documents to
+              // the scenario inside the request transaction:
+              ChannelApi.class,
+              // Inject create and update paths, reached from the TxCtx-carrying inject handlers,
+              // linking the inject documents to the scenario inside the request transaction:
+              InjectService.class,
+              ScenarioInjectService.class,
+              // Chaining engine step data, built under the per-tenant transaction the queue and
+              // step handlers open:
+              InjectExecutionStep.class)
+          .should()
+          .callMethod(Scenario.class, "getDocuments")
+          .because(
+              "documents is reached through Scenario's LAZY documents association without touching"
+                  + " DocumentRepository. A getDocuments() outside a scoped transaction silently"
+                  + " loads zero rows (open-in-view). New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
+
+  @ArchTest
   static final ArchRule tenant_xtmhub_registrations_repository_access_is_reviewed =
       noClasses()
           .that()
