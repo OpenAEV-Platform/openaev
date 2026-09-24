@@ -131,6 +131,28 @@ class DocumentSerializationTenantScopeTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given a tagged document when its tags are read then the tag is serialized")
+    void given_taggedDocument_should_serializeTagsOnTagsRead() throws Exception {
+      // -- Act & Assert --
+      mvc.perform(get(TENANT_DOCUMENT_API + "/{documentId}/tags", tenant, documentId))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[*].tag_id", hasItem(tagId)));
+    }
+
+    @Test
+    @DisplayName("given an untagged document when its tags are read then the array is empty")
+    void given_untaggedDocument_should_serializeNoTagsOnTagsRead() throws Exception {
+      // -- Arrange --
+      String untagged = seedDocument();
+
+      // -- Act & Assert --
+      // Empty here proves the assertion above tracks the real link and is not always filled.
+      mvc.perform(get(TENANT_DOCUMENT_API + "/{documentId}/tags", tenant, untagged))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[*]", empty()));
+    }
+
+    @Test
     @DisplayName(
         "given a linked document when its tags are updated then the response carries its parents")
     void given_linkedDocument_should_serializeLinksOnTagsUpdate() throws Exception {
@@ -254,6 +276,22 @@ class DocumentSerializationTenantScopeTest extends IntegrationTest {
           mvc.perform(
               get(DOCUMENT_API + "/{documentId}", documentId).header(TENANT_HEADER, tenant)),
           "$");
+    }
+
+    @Test
+    @DisplayName(
+        "given a tagged document when its tags are read through the header route then the tag is"
+            + " serialized")
+    void given_taggedDocument_should_serializeTagsOnTagsReadThroughHeader() throws Exception {
+      // -- Arrange --
+      TenantContext.clearCurrentTenant();
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+
+      // -- Act & Assert --
+      mvc.perform(
+              get(DOCUMENT_API + "/{documentId}/tags", documentId).header(TENANT_HEADER, tenant))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[*].tag_id", hasItem(tagId)));
     }
 
     @Test
