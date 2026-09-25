@@ -114,6 +114,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/bom-override-guard
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
@@ -411,9 +413,8 @@ jobs:
             dockerfile: ./Dockerfile
             artifact-name: openaev-image
             jar-path: /openaev-api.jar
-            cache-scope: docker-standard
+            cache-scope: ""
             tags: openaev:ci-${{ github.run_id }}
-          # UBI9 runs only in Nightly, so it does not use the shared Docker cache.
           - variant: ubi9
             arch: amd64
             runner: ubuntu-latest
