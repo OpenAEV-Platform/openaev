@@ -225,7 +225,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
     return mvc.perform(
-        put(tenantUri(TENANT_GROUP_URI) + "/" + group.getId() + "/markings")
+        put(TENANT_GROUP_URI + "/{groupId}/markings", tenantId, group.getId())
             .content(asJsonString(new GroupUpdateMarkingsInput(markingIds)))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
