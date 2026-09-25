@@ -19,6 +19,7 @@ import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,6 +82,12 @@ public abstract class AbstractTechnicalBehavior
     boolean requiresCollectorToInitialize = computeCollectorMissingAtInit(collectors);
 
     List<TechnicalInjectExpectation> allExpectations = new ArrayList<>();
+    // Asset-group parents are created ONCE per distinct group, after every asset of the group has
+    // been walked, and only for groups that produced at least one asset expectation. Building the
+    // group parent inside the per-asset loop created one parent row per asset of the group (three
+    // "Prevention" cards for a three-endpoint group), and every collector update then propagated
+    // to all of them.
+    Map<String, AssetGroup> assetGroupsToInitialize = new LinkedHashMap<>();
 
     // Executors pre-cache the resolved assets; direct callers (e.g. atomic testing, chaining)
     // may not, so fall back to resolving them from the inject.
@@ -122,10 +129,16 @@ public abstract class AbstractTechnicalBehavior
                     allExpectations.add(
                         buildExpectationForTarget(
                             expectationTemplate, assetGroup, assetToExecute.asset(), null));
-                    allExpectations.add(
-                        buildExpectationForTarget(expectationTemplate, assetGroup, null, null));
+                    assetGroupsToInitialize.putIfAbsent(assetGroup.getId(), assetGroup);
                   });
         });
+
+    assetGroupsToInitialize
+        .values()
+        .forEach(
+            assetGroup ->
+                allExpectations.add(
+                    buildExpectationForTarget(expectationTemplate, assetGroup, null, null)));
 
     allExpectations.stream()
         .filter(e -> !isAssetGroupExpectation(e))
@@ -134,8 +147,22 @@ public abstract class AbstractTechnicalBehavior
                 isAgentExpectation(e) || isAgentlessAssetExpectationNecessary(e.getAsset(), inject))
         .forEach(
             e -> {
+              // Pending per-collector result rows are seeded on AGENT leaves only. An agentless
+              // leaf (AI target, endpoint scanned by an assessment injector such as Nuclei) is
+              // answered by a single direct verdict written on the row itself: seeding placeholder
+              // rows next to it means the first real verdict never completes the row
+              // (computeScore waits for every seeded source), while the expiration manager skips
+              // agentless rows that already carry a result - so the expectation stays pending
+              // forever. The expiration ordering guarantee still applies to an agentless leaf a
+              // collector may answer: the expiration manager must stay a fallback that acts only
+              // after the expected collectors had their poll cycles. Signatures are computed for
+              // every leaf below.
               if (!requiresCollectorToInitialize) {
-                initializeResults(e, collectors);
+                if (isAgentExpectation(e)) {
+                  initializeResults(e, collectors);
+                } else {
+                  guaranteeExpirationOrdering(e, collectors);
+                }
               }
               String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
               List<ExpectationSignature> expectationSignatures =
@@ -219,8 +246,21 @@ public abstract class AbstractTechnicalBehavior
     if (!(expectation instanceof TechnicalInjectExpectation tech)) {
       return List.of();
     }
-    applyExpirationOrderingGuarantee(tech, collectors);
+    guaranteeExpirationOrdering(tech, collectors);
     return setUpFromCollectors(collectors);
+  }
+
+  /**
+   * Expiration ordering guarantee of a collector-fulfilled leaf: the expiration is raised to at
+   * least two poll cycles of the collectors expected to answer it, so the expiration manager only
+   * ever acts as a fallback. Applied with the pending rows on agent leaves ({@link
+   * #buildDefaultResults}) and on its own on agentless leaves, which carry no placeholder.
+   * Vulnerability expectations are answered by the assessment injector itself, not by a polling
+   * collector, and override this to a no-op.
+   */
+  protected void guaranteeExpirationOrdering(
+      TechnicalInjectExpectation leaf, List<Collector> collectors) {
+    applyExpirationOrderingGuarantee(leaf, collectors);
   }
 
   // ----- END INITIALIZE

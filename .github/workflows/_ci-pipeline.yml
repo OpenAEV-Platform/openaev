@@ -103,6 +103,18 @@ jobs:
         with:
           no-cache: ${{ inputs.no-cache }}
 
+  # Reported through the Pipeline Gate as advisory, never blocking, until it has run clean for a while
+  # on real PRs. Making it blocking means taking the job out of the advisory list in the gate below.
+  bom-override-guard:
+    name: "🔎 BOM Override Guard"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/bom-override-guard
+
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
     runs-on: ubuntu-latest
@@ -492,6 +504,7 @@ jobs:
       - frontend-build
       - prepare-bundled-assets
       - spotless-check
+      - bom-override-guard
       - frontend-quality
       - api-tests
       - e2e-tests
@@ -526,9 +539,16 @@ jobs:
             # Apply the caller's scan policy here because `continue-on-error` does not define
             # the value of `needs.<job>.result`.
             advisory=0
-            if [ "$job" = "container-vulnerability-scan" ] && [ "$SCAN_ENFORCED" != "true" ]; then
-              advisory=1
-            fi
+            case "$job" in
+              container-vulnerability-scan)
+                if [ "$SCAN_ENFORCED" != "true" ]; then advisory=1; fi
+                ;;
+              # A new check lands here first so a false positive cannot block a merge. Take the job
+              # out of this list to make it blocking.
+              bom-override-guard)
+                advisory=1
+                ;;
+            esac
 
             case "$result" in
               success)   icon="✅" ;;

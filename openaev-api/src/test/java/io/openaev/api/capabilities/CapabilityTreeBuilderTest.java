@@ -241,12 +241,14 @@ class CapabilityTreeBuilderTest {
 
   @Test
   @DisplayName(
-      "Service role capabilities should contain AGENT_RUNTIME_ACCESS and AGENT_DOCUMENT_ACCESS")
+      "Service role capabilities should contain AGENT_RUNTIME_ACCESS, INSTALL_AGENT and AGENT_DOCUMENT_ACCESS")
   void given_serviceRoleCapabilities_should_containExpectedCapabilities() {
     // -- ASSERT --
     assertThat(Constants.SERVICE_ROLE_CAPABILITIES)
         .containsExactlyInAnyOrder(
-            Capability.AGENT_RUNTIME_ACCESS, Capability.AGENT_DOCUMENT_ACCESS);
+            Capability.AGENT_RUNTIME_ACCESS,
+            Capability.AGENT_DOCUMENT_ACCESS,
+            Capability.INSTALL_AGENT);
   }
 
   @Test

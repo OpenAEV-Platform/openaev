@@ -42,6 +42,12 @@ You can access them from OpenAEV by clicking the blue icon in the top-right corn
     Exclusions must apply **only** to the `runtimes` subfolder.  
     Threat Arsenal Actions are intentionally stored elsewhere so that detection and blocking remain possible when relevant.
 
+!!! note "Required capability"
+
+    Installing an agent from OpenAEV requires the **Install agent** capability, which can be granted in **Settings > Security > Roles** (see [Users and RBAC](../../administration/users-and-rbac.md#capabilities)).
+    
+    Users who do not have it cannot get the install command from the **Agents** page.
+
 ### Quick compatibility check
 
 Before installing the OpenAEV Agent, ensure that **all** the following conditions are met:

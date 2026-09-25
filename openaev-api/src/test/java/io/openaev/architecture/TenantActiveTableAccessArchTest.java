@@ -8,6 +8,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import io.openaev.api.asset.AssetMarkingsService;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.custom_dashboard.CustomDashboardApiExporter;
 import io.openaev.api.custom_dashboard.CustomDashboardApiImporter;
@@ -16,6 +17,7 @@ import io.openaev.api.notification.NotificationApi;
 import io.openaev.api.notification_trigger.NotificationTriggerMapper;
 import io.openaev.api.notifier.NotifierApi;
 import io.openaev.api.xtmhub.XtmHubApi;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CatalogConnector;
@@ -167,6 +169,7 @@ import io.openaev.service.MailingService;
 import io.openaev.service.MapperService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.SecurityCoverageSendJobService;
+import io.openaev.service.TenantGroupService;
 import io.openaev.service.attackpath.AttackPathCausalSeedService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
@@ -464,7 +467,40 @@ class TenantActiveTableAccessArchTest {
               // tenant-scoped transaction primitive as the datapack above (MigrationProcessor ->
               // tenantTx.execute/setScopeOnCurrentTransaction with TxCtx.forTenant(...)), so it
               // needs no waiver.
-              V20260914_Default_tenant_markings.class)
+              V20260914_Default_tenant_markings.class,
+              // Background primitive: reads the tenant's markings to assign the system clearance a
+              // background transaction runs at (all markings of the tenants in scope — a scheduler
+              // is not a user). Scoped, and in the strongest sense the rule asks for: the read
+              // happens INSIDE the transaction and AFTER setScope() has written
+              // app.current_tenants, so the inspector rewrites it with can_access_tenant, and the
+              // query additionally binds the same tenant ids explicitly. Cannot deadlock against
+              // its own dimension either: marking_definitions is deliberately NOT on
+              // openaev.marking.active-tables (design Q13 — the clearance source must not itself
+              // require a clearance), so no marking predicate applies to this read while the
+              // marking scope is still being computed. Pinned by
+              // TenantScopedTransactionMarkingScopeTest:
+              TenantScopedTransaction.class,
+              // Resolves the markings a group is being told to grant. Runs on the HTTP path inside
+              // a @Transactional method that takes a TxCtx, so app.current_tenants is already set
+              // and the inspector rewrites the read with can_access_tenant: a marking id belonging
+              // to another tenant does not come back, and the size mismatch becomes a 404 rather
+              // than a silent partial assignment.
+              //
+              // 🔴 The inspector is NOT relied on alone here, and the reason is worth knowing: it
+              // can only rewrite a query that is actually issued, so an entity already in the
+              // persistence context is served from Hibernate's first-level cache and never
+              // filtered (TenantGroupMarkingsApiTest demonstrates exactly this). The independent
+              // guarantee is MarkingEscalationValidator — a clearance is per tenant, so nobody
+              // holds another tenant's marking and the assignment is refused regardless. Pinned by
+              // TenantGroupMarkingsApiTest:
+              TenantGroupService.class,
+              // Resolves the markings an asset is being labelled with. Same shape as
+              // TenantGroupService above: HTTP path, inside a @Transactional method taking a TxCtx,
+              // so app.current_tenants is set and the read is rewritten with can_access_tenant —
+              // another tenant's marking id does not come back and the size mismatch becomes a 404.
+              // The escalation guard is again the independent check, for the L1-cache reason
+              // spelled out above. Pinned by AssetMarkingsApiTest:
+              AssetMarkingsService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(MarkingDefinitionRepository.class)

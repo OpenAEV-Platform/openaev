@@ -21,3 +21,9 @@ current*. When the two disagree, the ADR is the one that was reviewed.
 
 A feature typically produces one ADR and one folder here. Once it ships, the folder can be pruned and its
 durable content promoted to `docs/docs/development/`.
+
+## Current
+
+| Folder | Feature | Decision |
+| --- | --- | --- |
+| [`marking/`](./marking/) | Marking-based access control (STIX TLP/PAP) for assets | [ADR-009](../adr/ADR-009-Marking-based-access-control.md) — Proposed |

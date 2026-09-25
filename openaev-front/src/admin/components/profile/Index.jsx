@@ -3,13 +3,21 @@ import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
 
-import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/users/User';
+import {
+  meTokens,
+  renewToken,
+  updateMeEmail,
+  updateMeInformation,
+  updateMePassword,
+  updateMeProfile,
+} from '../../../actions/users/User';
 import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { countryOption } from '../../../utils/Option';
+import EmailForm from './EmailForm';
 import PasswordForm from './PasswordForm';
 import ProfileForm from './ProfileForm';
 import UserForm from './UserForm';
@@ -47,6 +55,9 @@ const Index = () => {
   const onUpdateInformation = data => dispatch(updateMeInformation(data));
   const onUpdatePassword = data => dispatch(
     updateMePassword(data.user_current_password, data.user_plain_password),
+  );
+  const onUpdateEmail = data => dispatch(
+    updateMeEmail(data.user_current_password, data.user_email),
   );
   const initialValues = {
     user_firstname: user.user_firstname,
@@ -86,12 +97,20 @@ const Index = () => {
         />
       </Paper>
       {!initialValues.user_is_external && (
-        <Paper>
-          <Typography variant="h1" style={{ marginBottom: 20 }}>
-            {t('Password')}
-          </Typography>
-          <PasswordForm onSubmit={onUpdatePassword} />
-        </Paper>
+        <>
+          <Paper>
+            <Typography variant="h1" style={{ marginBottom: 20 }}>
+              {t('Password')}
+            </Typography>
+            <PasswordForm onSubmit={onUpdatePassword} />
+          </Paper>
+          <Paper>
+            <Typography variant="h1" style={{ marginBottom: 20 }}>
+              {t('Email')}
+            </Typography>
+            <EmailForm onSubmit={onUpdateEmail} initialValues={user} />
+          </Paper>
+        </>
       )}
       <Paper>
         <Typography variant="h1" style={{ marginBottom: 20 }}>

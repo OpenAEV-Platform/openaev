@@ -124,6 +124,19 @@ public class EngineConfig {
      * the longest expected write transaction (plus inter-node clock skew).
      */
     public static final long INDEXING_GRACE_WINDOW_SECONDS = 60;
+
+    /**
+     * Default delay, in seconds, after which a pod that wiped and recreated an index for a reset
+     * requested while other instances may still run (a rolling deploy) re-asserts the model's epoch
+     * cursor. A pod running a version older than the one introducing the cursor compare-and-set
+     * persists its cursor unconditionally: a round of it that was in flight from before the reset
+     * migration committed until after the recreate moves the cursor from epoch to its stale value,
+     * and the recreated index would permanently skip every row before it. The delay must exceed the
+     * longest sync round (fetch + bulk of one batch); re-feeding the first minutes of the rebuild a
+     * second time is idempotent. 0 disables the re-assertion (safe once every pod runs a version
+     * with the compare-and-set).
+     */
+    public static final long INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS = 180;
   }
 
   private String engineSelector = Defaults.ENGINE_SELECTOR;
@@ -183,6 +196,9 @@ public class EngineConfig {
   private int maxConnections = Defaults.MAX_CONNECTIONS;
 
   private long indexingGraceWindowSeconds = Defaults.INDEXING_GRACE_WINDOW_SECONDS;
+
+  private long indexingResetEpochReassertDelaySeconds =
+      Defaults.INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS;
 
   /**
    * Wildcard pattern matching all indices of this platform and only them.
