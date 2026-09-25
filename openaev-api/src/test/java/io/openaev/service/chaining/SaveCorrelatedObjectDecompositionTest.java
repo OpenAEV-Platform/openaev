@@ -34,8 +34,7 @@ class SaveCorrelatedObjectDecompositionTest {
 
   private WorkflowState setupGlobalState(String workflowId, Workflow workflow) {
     WorkflowStateEntries initialEntries =
-        new WorkflowStateEntries(
-            new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+        new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
     WorkflowState globalState =
         WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
 
