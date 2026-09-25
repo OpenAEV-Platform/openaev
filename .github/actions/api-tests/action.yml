@@ -52,6 +52,10 @@ inputs:
       per-class activation needs a context customizer and is tracked separately.
     required: false
     default: ""
+  no-cache:
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -67,7 +71,16 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: maven
+
+    - name: Restore API test Maven dependencies
+      id: maven-cache
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-api-tests-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-api-tests-v2-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Wait for compiled artifacts
       uses: ./.github/actions/wait-for-artifacts
@@ -81,18 +94,17 @@ runs:
     - name: Clear cached OpenAEV artifacts
       shell: bash
       run: |
-        # Remove any cached openaev artifacts to prevent "file exists"
-        # errors when extracting the freshly compiled artifact.
+        # Remove cached artifacts before extracting this run's compiled output.
         rm -rf ~/.m2/repository/io/openaev/
 
     - name: Download backend-compiled artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
 
     - name: Download api-build-output artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: api-build-output
         path: openaev-api/target
@@ -104,11 +116,7 @@ runs:
         find openaev-api/target/ -maxdepth 5 -type d 2>/dev/null | head -40 || echo "  openaev-api/target/ does not exist"
         echo "---"
 
-        # ── Fix double-nesting from gh run download ──
-        # upload-artifact@v7 may store paths with the full prefix inside
-        # the zip, so gh run download -D openaev-api/target can produce
-        # openaev-api/target/openaev-api/target/classes/ instead of
-        # openaev-api/target/classes/.  Detect and flatten.
+        # Artifact extraction can nest openaev-api/target; flatten it.
         if [ -d "openaev-api/target/openaev-api/target" ]; then
           echo "⚠️ Detected double-nested artifact path — flattening..."
           cp -rn openaev-api/target/openaev-api/target/* openaev-api/target/ 2>/dev/null || true
@@ -116,8 +124,7 @@ runs:
           echo "✅ Flattened double-nested paths"
         fi
 
-        # Note: use "|| true" after "head" to prevent SIGPIPE from
-        # propagating under bash -eo pipefail (GitHub Actions default).
+        # `head` can return SIGPIPE under bash -eo pipefail.
         MVN_JARS=$(find ~/.m2/repository/io/openaev/ -name '*.jar' 2>/dev/null | head -5 || true)
         if [ -z "$MVN_JARS" ]; then
           echo "❌ No Maven JARs found in ~/.m2/repository/io/openaev/"
@@ -193,9 +200,9 @@ runs:
         SHARD_DIR=.github/shards
 
         if [ "$SHARD_INCLUDES" = "catchall" ]; then
-          # Excludes are derived from the shard files, so they can never drift
-          # out of sync and silently drop a package from the run.
+          # Derive catch-all exclusions from shard files to avoid gaps.
           cat "$SHARD_DIR"/api-*.txt > /tmp/surefire-excludes.txt
+          printf '%s\n' '**/*$*' >> /tmp/surefire-excludes.txt
           echo "surefire_arg=-Dsurefire.excludesFile=/tmp/surefire-excludes.txt" >> "$GITHUB_OUTPUT"
           echo "🔄 Catch-all shard: everything not claimed by $SHARD_DIR/api-*.txt"
           cat /tmp/surefire-excludes.txt
@@ -215,6 +222,7 @@ runs:
           ARGS="-Dsurefire.includesFile=/tmp/surefire-includes.txt"
           if [ -n "$SHARD_EXCLUDES" ]; then
             echo "$SHARD_EXCLUDES" > /tmp/surefire-excludes.txt
+            printf '%s\n' '**/*$*' >> /tmp/surefire-excludes.txt
             ARGS="$ARGS -Dsurefire.excludesFile=/tmp/surefire-excludes.txt"
             echo "📋 Include patterns:"
             cat /tmp/surefire-includes.txt
@@ -272,16 +280,27 @@ runs:
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
       shell: bash
-      # Run the 'test' lifecycle phase so that JaCoCo's prepare-agent
-      # execution (bound to 'initialize' in pom.xml) fires through the
-      # normal lifecycle and properly sets the argLine property BEFORE
-      # Surefire reads it.  Compilation is skipped because the classes
-      # are already downloaded from the backend-compile job.
-      run: >-
-        mvn -B -ntp -pl openaev-api test
-        -Dmaven.compiler.skip=true
-        ${{ steps.suite.outputs.surefire_arg }}
-        ${{ steps.tenant.outputs.args }}
+      # Run test goals directly to avoid recompiling downloaded classes.
+      run: |
+        mvn -B -ntp -pl openaev-api \
+          initialize surefire:test@default-test jacoco:report@report \
+          ${{ steps.suite.outputs.surefire_arg }} \
+          ${{ steps.tenant.outputs.args }}
+
+    - name: Remove compiled OpenAEV artifacts before caching
+      if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
+      run: rm -rf ~/.m2/repository/io/openaev/
+      shell: bash
+
+    # A single main-branch shard writes the shared dependency cache.
+    # Resolved dependencies are still saved after test failures.
+    - name: Save API test Maven dependencies
+      if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-api-tests-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+
     - name: Diagnose surefire dump files (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
       shell: bash

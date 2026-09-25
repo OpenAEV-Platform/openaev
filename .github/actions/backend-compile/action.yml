@@ -1,6 +1,12 @@
 name: Backend Compile
 description: Compile all Maven modules and upload compiled artifacts
 
+inputs:
+  no-cache:
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
@@ -9,33 +15,45 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: maven
+
+    # This job is the sole writer of the shared Maven cache; downstream jobs restore it read-only.
+    - name: Restore Maven dependencies
+      id: maven-cache
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-v2-${{ runner.os }}-${{ runner.arch }}-
+
     - name: Compile and install all modules (skip tests)
       run: |
-        for attempt in 1 2; do
-          echo "::group::Attempt $attempt of 2"
-          if mvn -U -B -ntp -T 1 install -DskipTests \
-               -Dspring-boot.repackage.skip=true \
-               -Djacoco.skip=true; then
-            echo "::endgroup::"
-            echo "✅ Build succeeded on attempt $attempt"
-            exit 0
-          fi
-          echo "::endgroup::"
-          if [ "$attempt" -lt 2 ]; then
-            echo "⚠️ Attempt $attempt failed, retrying…"
-          fi
-        done
-        echo "❌ Build failed after 2 attempts"
-        exit 1
+        mvn -U -B -ntp -T 1 install -DskipTests \
+          -Dspring-boot.repackage.skip=true \
+          -Djacoco.skip=true
       shell: bash
+
     - name: Upload compiled Maven artifacts
       uses: actions/upload-artifact@v7
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
-        # JARs are already zips — re-zipping costs CPU for ~0% gain
+        # JARs are already compressed.
         compression-level: 0
+
+    - name: Remove rebuilt OpenAEV artifacts before caching
+      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.maven-cache.outputs.cache-hit != 'true' }}
+      run: rm -rf ~/.m2/repository/io/openaev/
+      shell: bash
+
+    # This job is the sole writer of the shared Maven dependency cache.
+    - name: Save Maven dependencies
+      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.maven-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
     - name: Upload API build output
       uses: actions/upload-artifact@v7
       with:

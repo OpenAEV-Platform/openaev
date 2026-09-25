@@ -27,8 +27,7 @@ inputs:
 outputs:
   digest:
     description: Manifest list digest
-    # Keyed off the digest value itself: a skipped/failed (or future digest-less)
-    # registry merge falls through to the artifact merge output.
+    # Prefer the registry digest; fall back to the artifact merge.
     value: ${{ steps.merge-registry.outputs.digest || steps.merge.outputs.digest }}
 
 runs:
@@ -62,8 +61,7 @@ runs:
         allow-registry: ${{ inputs.allow-registry }}
         build-job-names: ${{ inputs.build-job-names }}
 
-    # Registry path: the index is assembled server-side from manifests that already
-    # exist, so no ~1.9 GB of archives are moved just to staple them together.
+    # Merge existing manifests server-side when the registry handoff is available.
     - name: Merge platforms via registry
       id: merge-registry
       if: ${{ steps.image-source.outputs.source == 'registry' }}
@@ -240,5 +238,5 @@ runs:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.artifact-name }}.tar.gz
         retention-days: 1
-        # Already gzipped — re-zipping costs CPU for ~0% gain
+        # The archive is already compressed.
         compression-level: 0

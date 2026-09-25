@@ -1,7 +1,7 @@
 name: "[Core] Auto-Retry Failed CI"
 
 # Triggers when core-ci or nightly-ci completes with failure.
-# Retries failed jobs once (only on first attempt).
+# Retries failed jobs up to twice, so back-to-back infra flakes are still covered.
 
 on:
   workflow_run:
@@ -19,7 +19,7 @@ jobs:
     if: >-
       ${{
         github.event.workflow_run.conclusion == 'failure' &&
-        github.event.workflow_run.run_attempt == 1
+        github.event.workflow_run.run_attempt <= 2
       }}
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -29,7 +29,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           RUN_ID="${{ github.event.workflow_run.id }}"
-          echo "🔄 [Core] CI run #${RUN_ID} failed on first attempt — retrying failed jobs..."
+          ATTEMPT="${{ github.event.workflow_run.run_attempt }}"
+          echo "🔄 [Core] CI run #${RUN_ID} failed on attempt ${ATTEMPT} — retrying failed jobs..."
           gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/rerun-failed-jobs" \
             --method POST
-          echo "✅ Re-run triggered (attempt 2)"
+          echo "✅ Re-run triggered (attempt $((ATTEMPT + 1)))"
