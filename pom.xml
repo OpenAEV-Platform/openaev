@@ -52,6 +52,7 @@
         <rabbit-amqp-client.version>${amqp-client.version}</rabbit-amqp-client.version>
         <micrometer.version>1.17.1</micrometer.version>
         <micrometer-tracing.version>1.7.1</micrometer-tracing.version>
+        <freemarker.version>2.3.35</freemarker.version>
     </properties>
 
     <distributionManagement>
@@ -180,6 +181,11 @@
                 <version>${opentelemetry.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.freemarker</groupId>
+                <artifactId>freemarker</artifactId>
+                <version>${freemarker.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
