@@ -47,13 +47,14 @@ body:
     attributes:
       label: Effort estimate
       description: >
-        A rough size, not a number of days. Pick the closest one. "Not sized yet" is honest,
-        but expect the topic to come back for sizing before it can be planned.
+        The sizes we already put on issues — they match the `size:small`, `size:medium` and
+        `size:large` labels, which is what Product reads. A topic bigger than large is an
+        epic: split it and open one issue per chunk. "Not sized yet" is honest, but expect
+        the topic to come back for sizing before it can be planned.
       options:
-        - a few days
-        - a few weeks
-        - a few months
-        - more than a quarter
+        - small
+        - medium
+        - large
         - not sized yet
     validations:
       required: true

@@ -30,6 +30,9 @@ behaviour change, so it can ship on its own.
 Phase 2: swap in a runner with a bounded pool and a queue per simulation, behind a
 feature flag, rolled out instance by instance.
 
+The size below covers phase 1 and the shape of phase 2. If phase 2 grows past large
+once we have the load numbers, this becomes an epic and we open one issue per phase.
+
 On ownership: the rule says a performance risk with customer impact goes to a
 vertical. No vertical owns the engine today, and OpenCTI is looking at the same
 execution problem on their side. That is why the field below says "to be decided"
@@ -37,7 +40,7 @@ and not "vertical". This is the call we need out of the review.
 
 ### Effort estimate
 
-more than a quarter
+large
 
 ### Cost avoided
 
