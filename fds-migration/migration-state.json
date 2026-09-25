@@ -871,6 +871,17 @@
       "files": [
         "openaev-front/src/components/Breadcrumbs.tsx"
       ]
+    },
+    {
+      "component": "FileSelect",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "The document and credential file pickers. The form value stays a single File, or a plain string in edit mode meaning \"keep the stored file\" — the string is shown as the placeholder rather than leaving the control looking empty. The mime fragments the product filters on go in as the native accept attribute, the byte ceiling as maxSize with its counter, and the two rejection cases the product used to word itself are told apart by the rejection reason.",
+      "files": [
+        "openaev-front/src/components/fields/FileFieldController.tsx"
+      ]
     }
   ],
   "migratedZones": [
