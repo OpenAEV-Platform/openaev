@@ -1,2 +1,3 @@
 org.springframework.context.ApplicationContextInitializer=io.openaev.debug.DebugTracingContextInitializer
-org.springframework.test.context.ContextCustomizerFactory=io.openaev.config.FailClosedDetectorContextCustomizerFactory
+org.springframework.test.context.ContextCustomizerFactory=io.openaev.config.FailClosedDetectorContextCustomizerFactory,\
+  io.openaev.config.WriteAttrDetectorContextCustomizerFactory

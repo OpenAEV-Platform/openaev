@@ -23,7 +23,22 @@ public class DataSourceProxyBeanPostProcessor implements BeanPostProcessor {
 
   @Override
   public Object postProcessAfterInitialization(Object bean, String beanName) {
-    if (bean instanceof DataSource dataSource && !(bean instanceof ProxyDataSource)) {
+    if (bean instanceof ProxyDataSource proxy) {
+      // Another datasource-proxy already wrapped this bean (only ever a test-scope detector in the
+      // same JVM; nothing wraps the datasource before debug mode in production). Add the SQL logger
+      // to the existing chain instead of skipping, so debug logging still sees every statement.
+      boolean alreadyInstalled =
+          proxy.getProxyConfig().getQueryListener().getListeners().stream()
+              .anyMatch(MaskingSqlLoggingListener.class::isInstance);
+      if (!alreadyInstalled) {
+        log.warn(
+            "Debug mode: adding SQL statement logging to already-proxied datasource '{}'",
+            beanName);
+        proxy.addListener(listener);
+      }
+      return proxy;
+    }
+    if (bean instanceof DataSource dataSource) {
       log.warn("Debug mode: wrapping datasource bean '{}' with SQL statement logging", beanName);
       return ProxyDataSourceBuilder.create(dataSource)
           .name("openaev-debug")
