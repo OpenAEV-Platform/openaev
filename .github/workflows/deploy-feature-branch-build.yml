@@ -86,6 +86,13 @@ jobs:
           platform: ${{ matrix.platform }}
           download-release-assets: "true"
           allow-registry: "false"
+          # Deliberately NOT armed — resolves when the library is published to
+          # npm. Do not wire the token here: this workflow checks out untrusted
+          # PR code (ref: head_sha) and resolves the docker-build action from
+          # that same tree, so any credential passed in is attacker-controlled.
+          # Feature-branch deploys touching the front fail until then: accepted.
+          # Enforced by openaev-front/src/__tests__/ci-design-system-secret.test.ts.
+          fds-git-token: ""
 
   docker-merge:
     name: "🐳 Merge Platforms"

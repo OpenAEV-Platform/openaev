@@ -1,4 +1,5 @@
-import { List, ListItem, ListItemText, Paper } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { List, ListItem, ListItemText } from '@mui/material';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -36,13 +37,7 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
     : t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.');
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        padding: theme => `${theme.spacing(1)}`,
-        flex: 1,
-      }}
-    >
+    <Paper padding={8} style={{ flex: 1 }}>
       <List sx={{ padding: 0 }}>
         {topContent}
         <ListItem divider>

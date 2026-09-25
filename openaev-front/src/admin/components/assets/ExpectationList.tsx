@@ -1,6 +1,7 @@
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -30,6 +31,7 @@ import {
 } from '../../../utils/api-types';
 import { type Option } from '../../../utils/Option';
 import { computeInjectExpectationLabel, computeStatusStyle } from '../../../utils/statusUtils';
+import { tint } from '../../../utils/tint';
 import { buildTenantApiPath } from '../../../utils/url-helper';
 import expectationIconByType, { expectationTypeIcon } from '../common/ExpectationIconByType';
 import ExpectationTypeChip from '../workspaces/custom_dashboards/widgets/viz/list/elements/ExpectationTypeChip';
@@ -120,45 +122,32 @@ const SecurityPlatformsFragment: FunctionComponent<{
         maxWidth: '100%',
       }}
     >
-      <Tooltip title={label(first)}>
-        <Chip
-          icon={(
-            <img
-              src={buildTenantApiPath(`/api/images/security_platforms/id/${first}/${theme.palette.mode}`)}
-              alt=""
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: 2,
-              }}
-            />
-          )}
-          label={label(first)}
-          size="small"
-          variant="outlined"
-          sx={{
-            'height': 22,
-            'maxWidth': '100%',
-            'fontSize': 11,
-            'fontWeight': 600,
-            'borderRadius': 1,
-            '& .MuiChip-icon': { marginLeft: 0.5 },
-          }}
-        />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Chip
+            startIcon={(
+              <img
+                src={buildTenantApiPath(`/api/images/security_platforms/id/${first}/${theme.palette.mode}`)}
+                alt=""
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 2,
+                }}
+              />
+            )}
+            label={label(first)}
+            style={{ maxWidth: '100%' }}
+          />
+        </TooltipTrigger>
+        {label(first) && <TooltipContent>{label(first)}</TooltipContent>}
       </Tooltip>
       {rest.length > 0 && (
-        <Tooltip title={rest.map(label).join(', ')}>
-          <Chip
-            label={`+${rest.length}`}
-            size="small"
-            variant="outlined"
-            sx={{
-              height: 22,
-              fontSize: 11,
-              fontWeight: 600,
-              borderRadius: 1,
-            }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip label={`+${rest.length}`} />
+          </TooltipTrigger>
+          {rest.map(label).join(', ') && <TooltipContent>{rest.map(label).join(', ')}</TooltipContent>}
         </Tooltip>
       )}
     </Box>
@@ -210,8 +199,11 @@ const ExpectationList: FunctionComponent<Props> = ({
       value: (expectation: EsInjectExpectation) => {
         const title = expectation.inject_title || expectation.base_representative || t('Unknown');
         return (
-          <Tooltip title={expectation.inject_expectation_description || title} placement="bottom-start">
-            <span>{title}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>{title}</span>
+            </TooltipTrigger>
+            {(expectation.inject_expectation_description || title) && <TooltipContent side="bottom" align="start">{expectation.inject_expectation_description || title}</TooltipContent>}
           </Tooltip>
         );
       },
@@ -281,7 +273,7 @@ const ExpectationList: FunctionComponent<Props> = ({
               alignItems: 'center',
               justifyContent: 'center',
               gap: 0.5,
-              backgroundColor: alpha(statusColor, 0.12),
+              backgroundColor: tint(statusColor, 12),
               color: statusColor,
               fontSize: 12,
               fontWeight: 700,

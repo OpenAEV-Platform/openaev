@@ -1,15 +1,17 @@
+import { Chip } from '@filigran/design-system';
 import { DevicesOtherOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Alert, AlertTitle, Box, Chip, Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Binoculars, SelectGroup } from 'mdi-material-ui';
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 
 import { fetchAssetOverview, searchInjectsForAsset } from '../../../../actions/assets/endpoint-actions';
 import { searchDistinctFindingsOnEndpoint } from '../../../../actions/findings/finding-actions';
 import { type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import chipLinkClassName from '../../../../components/common/chips/chipLink';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import EndpointArchFragment from '../../../../components/common/list/fragments/EndpointArchFragment';
 import { type Page } from '../../../../components/common/queryable/Page';
@@ -376,14 +378,16 @@ const AssetDetail = () => {
                     }}
                     >
                       {asset.asset_asset_groups.map(assetGroup => (
-                        <Chip
+                        <Link
                           key={assetGroup.asset_group_id}
-                          icon={<SelectGroup fontSize="small" />}
-                          label={assetGroup.asset_group_name}
-                          size="small"
-                          variant="outlined"
-                          onClick={() => navigate(`/admin/asset_groups/${assetGroup.asset_group_id}`)}
-                        />
+                          to={`/admin/asset_groups/${assetGroup.asset_group_id}`}
+                          className={chipLinkClassName}
+                        >
+                          <Chip
+                            startIcon={<SelectGroup fontSize="small" />}
+                            label={assetGroup.asset_group_name}
+                          />
+                        </Link>
                       ))}
                     </Box>
                   )

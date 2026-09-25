@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { GroupsOutlined, HelpCenterOutlined } from '@mui/icons-material';
-import { Chip, SvgIcon } from '@mui/material';
+import { SvgIcon } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
@@ -50,13 +51,6 @@ const ConnectorDetailHero = ({
     SECRETS_PROVIDER: t('Secrets Provider'),
   };
 
-  const chipSx = {
-    fontSize: 11,
-    height: 20,
-    textTransform: 'uppercase',
-    borderRadius: 1,
-  };
-
   return (
     <DetailHero
       iconNode={logoSrc
@@ -85,55 +79,29 @@ const ConnectorDetailHero = ({
               supported by Filigran, otherwise supported by the community. */}
           {verified ? (
             <Chip
-              variant="outlined"
-              color="primary"
-              size="small"
-              sx={chipSx}
-              icon={<SvgIcon component={LogoFiligranIcon} inheritViewBox sx={{ fontSize: 12 }} />}
+              startIcon={<SvgIcon component={LogoFiligranIcon} inheritViewBox sx={{ fontSize: 12 }} />}
               label={t('Supported by Filigran')}
+              severity="info"
             />
           ) : (
-            <Chip
-              variant="outlined"
-              color="default"
-              size="small"
-              sx={chipSx}
-              icon={<GroupsOutlined sx={{ fontSize: 14 }} />}
-              label={t('Supported by Community')}
-            />
+            <Chip startIcon={<GroupsOutlined sx={{ fontSize: 14 }} />} label={t('Supported by Community')} />
           )}
           {statusChip}
           {type && (
-            <Chip
-              variant="outlined"
-              color="primary"
-              size="small"
-              sx={chipSx}
-              label={typeLabels[type]}
-            />
+            <Chip label={typeLabels[type]} severity="info" />
           )}
           {useCases.map((useCase) => {
             const UseCaseIcon = useCaseIcon(useCase);
             return (
               <Chip
                 key={useCase}
-                variant="outlined"
-                color="default"
-                size="small"
-                sx={chipSx}
-                icon={<UseCaseIcon sx={{ fontSize: 12 }} />}
+                startIcon={<UseCaseIcon sx={{ fontSize: 12 }} />}
                 label={prettifyUseCase(useCase)}
               />
             );
           })}
           {external != null && (
-            <Chip
-              variant="outlined"
-              color="default"
-              size="small"
-              sx={chipSx}
-              label={external ? t('External') : t('Built-in')}
-            />
+            <Chip label={external ? t('External') : t('Built-in')} />
           )}
         </>
       )}

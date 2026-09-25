@@ -1,8 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { ArrowDropDownOutlined, ArrowDropUpOutlined, AttachmentOutlined } from '@mui/icons-material';
-import {
-  Box, Button,
-  Grid, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography,
-} from '@mui/material';
+import { Grid, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useContext, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
@@ -40,7 +38,6 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { '& .MuiAutocomplete-clearIndicator': { display: 'none' } },
   itemHead: {
     paddingLeft: 10,
     textTransform: 'uppercase',
@@ -67,19 +64,22 @@ const inlineStylesHeaders: Record<string, CSSProperties> = {
     float: 'left',
     width: '35%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   document_type: {
     float: 'left',
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   document_tags: {
     float: 'left',
     width: '30%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -235,7 +235,6 @@ const ArticleForm = ({
         render={({ field: { onChange, value }, fieldState }) => {
           return (
             <AutocompleteField
-              variant="standard"
               label={t('Channel')}
               multiple={false}
               options={sortedChannels}
@@ -245,15 +244,14 @@ const ArticleForm = ({
               }}
               style={{ width: '100%' }}
               error={!!fieldState.error}
-              renderOption={(renderProps, option) => (
-                <Box component="li" {...renderProps} key={option.id}>
+              renderOption={option => (
+                <>
                   <div className={classes.icon}>
                     <ChannelIcon type={(option as ArticleChannel).type} />
                   </div>
                   <div className={classes.text}>{t(option.label)}</div>
-                </Box>
+                </>
               )}
-              className={classes.autoCompleteIndicator}
             />
           );
         }}
@@ -408,21 +406,10 @@ const ArticleForm = ({
         marginTop: 20,
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          style={{ marginRight: 10 }}
-          disabled={isSubmitting}
-        >
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 10 }}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={isSubmitting}
-        >
+        <Button type="submit" disabled={isSubmitting}>
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

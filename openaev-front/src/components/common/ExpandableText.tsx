@@ -1,8 +1,9 @@
+import { IconButton } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { IconButton } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { truncate } from '../../utils/String';
+import { useFormatter } from '../i18n';
 
 interface Props {
   source: string | undefined;
@@ -13,6 +14,7 @@ const ExpandableText: FunctionComponent<Props> = ({
   source,
   limit = 22,
 }) => {
+  const { t } = useFormatter();
   const [expand, setExpand] = useState(false);
   const onClick = () => setExpand(!expand);
   const shouldBeTruncated = (source || '').length > limit;
@@ -26,9 +28,13 @@ const ExpandableText: FunctionComponent<Props> = ({
             right: 0,
           }}
           >
-            <IconButton onClick={onClick} size="large">
-              {expand ? <ExpandLess /> : <ExpandMore />}
-            </IconButton>
+            <IconButton
+              icon={expand ? <ExpandLess /> : <ExpandMore />}
+              aria-label={expand ? t('Collapse') : t('Expand')}
+              onClick={onClick}
+              priority="tertiary"
+              size="md"
+            />
           </div>
         )}
         <div>

@@ -53,6 +53,7 @@ const TenantForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="tenantFormId"
         onSubmit={handleSubmit(onSubmit)}
         style={{

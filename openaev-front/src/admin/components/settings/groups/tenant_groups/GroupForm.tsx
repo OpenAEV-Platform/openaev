@@ -60,6 +60,7 @@ const GroupForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="tenantGroupFormId"
         onSubmit={handleSubmit(onSubmit)}
         style={{

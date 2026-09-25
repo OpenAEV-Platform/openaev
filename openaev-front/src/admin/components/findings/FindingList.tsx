@@ -1,4 +1,5 @@
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
@@ -103,27 +104,30 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       // Findings are technical values (ports, sockets, hostnames, credentials...): render them
       // as inline code, mirroring the <pre> block of the finding overview page.
       value: (finding: AggregatedFindingOutput) => (
-        <Tooltip title={finding.finding_value}>
-          <Box
-            component="code"
-            sx={theme => ({
-              display: 'inline-block',
-              maxWidth: '95%',
-              padding: '2px 8px',
-              borderRadius: 1,
-              backgroundColor: theme.palette.background.accent,
-              border: `1px solid ${theme.palette.divider}`,
-              fontFamily: 'Consolas, monaco, monospace',
-              fontSize: 12,
-              lineHeight: '18px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              verticalAlign: 'middle',
-            })}
-          >
-            {finding.finding_value}
-          </Box>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Box
+              component="code"
+              sx={theme => ({
+                display: 'inline-block',
+                maxWidth: '95%',
+                padding: '2px 8px',
+                borderRadius: 1,
+                backgroundColor: theme.palette.background.accent,
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: 'Consolas, monaco, monospace',
+                fontSize: 12,
+                lineHeight: '18px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                verticalAlign: 'middle',
+              })}
+            >
+              {finding.finding_value}
+            </Box>
+          </TooltipTrigger>
+          {finding.finding_value && <TooltipContent>{finding.finding_value}</TooltipContent>}
         </Tooltip>
       ),
     },
