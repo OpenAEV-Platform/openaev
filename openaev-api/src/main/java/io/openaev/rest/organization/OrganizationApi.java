@@ -1,20 +1,15 @@
 package io.openaev.rest.organization;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.OrganizationSpecification.byName;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.helper.StreamHelper.iterableToSet;
-import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawOrganization;
-import io.openaev.database.repository.OrganizationRepository;
-import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.organization.form.OrganizationBulkProcessingInput;
 import io.openaev.rest.organization.form.OrganizationCreateInput;
@@ -31,7 +26,6 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -43,41 +37,36 @@ public class OrganizationApi extends RestBehavior {
   public static final String ORGANIZATION_URI = "/api/organizations";
   private static final String TENANT_ORGANIZATION_URI = TENANT_PREFIX + "/organizations";
 
-  private final OrganizationRepository organizationRepository;
-  private final TagRepository tagRepository;
   private final OrganizationService organizationService;
   private final InjectSearchService injectSearchService;
+  private final TenantWriteScopeResolver tenantWriteScopeResolver;
 
   @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Iterable<RawOrganization> organizations(TxCtx ctx) {
-    List<RawOrganization> organizations;
-    organizations = fromIterable(organizationRepository.rawAll());
-    return organizations;
+    return organizationService.organizations(ctx);
   }
 
   @PostMapping({ORGANIZATION_URI + "/search", TENANT_ORGANIZATION_URI + "/search"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Page<Organization> organizations(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return this.organizationService.organizationPagination(searchPaginationInput);
+    return organizationService.organizationPagination(ctx, searchPaginationInput);
   }
 
   @GetMapping({
     ORGANIZATION_URI + "/{organizationId}",
     TENANT_ORGANIZATION_URI + "/{organizationId}"
   })
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ORGANIZATION)
   public Organization organization(TxCtx ctx, @PathVariable String organizationId) {
-    return organizationRepository
-        .findById(organizationId)
-        .orElseThrow(ElementNotFoundException::new);
+    return organizationService.findById(ctx, organizationId);
   }
 
   /**
@@ -100,6 +89,7 @@ public class OrganizationApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String organizationId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    organizationService.findById(ctx, organizationId);
     return injectSearchService.getPageOfInjectResultsForOrganization(
         organizationId, searchPaginationInput);
   }
@@ -108,11 +98,9 @@ public class OrganizationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
   @Transactional(rollbackFor = Exception.class)
   public Organization createOrganization(
-      TxCtx ctx, @Valid @RequestBody OrganizationCreateInput input) {
-    Organization organization = new Organization();
-    organization.setUpdateAttributes(input);
-    organization.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return organizationRepository.save(organization);
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody OrganizationCreateInput input) {
+    String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
+    return organizationService.createOrganization(input, tenantId);
   }
 
   @PutMapping({
@@ -128,12 +116,7 @@ public class OrganizationApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String organizationId,
       @Valid @RequestBody OrganizationUpdateInput input) {
-    Organization organization =
-        organizationRepository.findById(organizationId).orElseThrow(ElementNotFoundException::new);
-    organization.setUpdateAttributes(input);
-    organization.setUpdatedAt(now());
-    organization.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return organizationRepository.save(organization);
+    return organizationService.updateOrganization(ctx, organizationId, input);
   }
 
   @DeleteMapping({
@@ -146,7 +129,7 @@ public class OrganizationApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ORGANIZATION)
   public void deleteOrganization(TxCtx ctx, @PathVariable String organizationId) {
-    organizationRepository.deleteById(organizationId);
+    organizationService.deleteOrganization(ctx, organizationId);
   }
 
   @ApiResponses(
@@ -174,24 +157,17 @@ public class OrganizationApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsByName(
       TxCtx ctx, @RequestParam(required = false) final String searchText) {
-    return fromIterable(
-            this.organizationRepository.findAll(
-                byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
-        .stream()
-        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
-        .toList();
+    return organizationService.optionsByName(ctx, searchText);
   }
 
   @PostMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
-    return fromIterable(this.organizationRepository.findAllById(ids)).stream()
-        .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
-        .toList();
+    return organizationService.optionsById(ctx, ids);
   }
 }
