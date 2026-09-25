@@ -104,6 +104,6 @@ jobs:
             --conf.password ${{ secrets.AWX_PASSWORD }} \
             job_templates launch 'Rollout restart an instance resources' \
             --inventory eu-west-staging \
-            --extra_vars '{"solution":"openaev", "customer":"design-system-oaev"}' \
+            --extra_vars '{"solution":"openaev", "customer":"dev-design-syst-oaev"}' \
             --wait \
             -f human
