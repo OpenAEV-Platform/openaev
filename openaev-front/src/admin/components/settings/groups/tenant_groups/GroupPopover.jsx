@@ -4,7 +4,7 @@ import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
 
-import { deleteGroup, fetchGroup, updateGroupInformation, updateGroupRoles, updateGroupUsers } from '../../../../../actions/Group';
+import { deleteGroup, fetchGroup, updateGroupInformation, updateGroupMarkings, updateGroupRoles, updateGroupUsers } from '../../../../../actions/Group';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
@@ -12,6 +12,7 @@ import inject18n from '../../../../../components/i18n';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import RoleScopeProvider from '../../roles/RoleScopeProvider';
+import GroupManageMarkings from '../GroupManageMarkings';
 import GroupManageRoles from '../GroupManageRoles';
 import GroupManageUsers from '../GroupManageUsers';
 import GroupManageGrants from './grants/GroupManageGrants.tsx';
@@ -27,10 +28,12 @@ class GroupPopoverComponent extends Component {
       openEdit: false,
       openUsers: false,
       openGrants: false,
+      openMarkings: false,
       keyword: '',
       tags: [],
       usersIds: props.groupUsersIds,
       rolesIds: props.groupRolesIds,
+      markingIds: props.groupMarkingIds,
     };
   }
 
@@ -103,6 +106,22 @@ class GroupPopoverComponent extends Component {
     this.setState({ openRoles: false });
   }
 
+  handleOpenMarkings() {
+    this.setState({
+      openMarkings: true,
+      markingIds: this.props.groupMarkingIds,
+    });
+  }
+
+  submitUpdateMarkings(markingIds) {
+    this.props.updateGroupMarkings(this.props.group.group_id, { group_markings: markingIds }).then(this.fetchAndUpdateGroup.bind(this));
+    this.handleCloseMarkings();
+  }
+
+  handleCloseMarkings() {
+    this.setState({ openMarkings: false });
+  }
+
   fetchAndUpdateGroup() {
     this.props.fetchGroup(this.props.group.group_id).then((result) => {
       if (this.props.onUpdate) {
@@ -157,6 +176,15 @@ class GroupPopoverComponent extends Component {
         action: this.handleOpenRoles.bind(this),
         disabled: !canManage,
       },
+      // With the MARKING feature flag off, this entry must not even be rendered - not merely
+      // disabled - so no marking-related UI leaks anywhere in the app.
+      ...(this.props.markingEnabled
+        ? [{
+            label: 'Manage markings',
+            action: this.handleOpenMarkings.bind(this),
+            disabled: !canManage,
+          }]
+        : []),
       {
         label: 'Delete',
         action: this.handleOpenDelete.bind(this),
@@ -228,6 +256,15 @@ class GroupPopoverComponent extends Component {
             onSubmit={this.submitUpdateRoles.bind(this)}
           />
         </RoleScopeProvider>
+        {this.props.markingEnabled && (
+          <GroupManageMarkings
+            initialState={this.state.markingIds}
+            groupName={group.group_name}
+            open={this.state.openMarkings}
+            onClose={this.handleCloseMarkings.bind(this)}
+            onSubmit={this.submitUpdateMarkings.bind(this)}
+          />
+        )}
         <GroupManageGrants
           group={group}
           openGrants={this.state.openGrants}
@@ -245,10 +282,13 @@ GroupPopoverComponent.propTypes = {
   fetchGroup: PropTypes.func,
   updateGroupUsers: PropTypes.func,
   updateGroupRoles: PropTypes.func,
+  updateGroupMarkings: PropTypes.func,
   updateGroupInformation: PropTypes.func,
   deleteGroup: PropTypes.func,
   groupUsersIds: PropTypes.array,
   groupRolesIds: PropTypes.array,
+  groupMarkingIds: PropTypes.array,
+  markingEnabled: PropTypes.bool,
 };
 
 const select = () => {
@@ -261,6 +301,7 @@ const GroupPopover = R.compose(
     updateGroupInformation,
     updateGroupUsers,
     updateGroupRoles,
+    updateGroupMarkings,
     deleteGroup,
   }),
   inject18n,

@@ -28,6 +28,7 @@ import {
 import EventCreationForm from '../events/EventCreationForm';
 import { resolveConditionKeyTypes } from '../logic-flow-helpers';
 import type { ActionDetailData, ActionMeta, EventMeta } from '../types';
+import usePrimitiveTypeDescriptors from '../usePrimitiveTypeDescriptors';
 import AddActionList from './AddActionList';
 import ConfigureActionDetail from './ConfigureActionDetail';
 import { mapFieldLinksToStepConditions } from './ConfigureActionDetail.utils';
@@ -160,6 +161,8 @@ const ComponentStepperDrawer = ({
   linkToEventId,
 }: ComponentStepperDrawerProps) => {
   const { t } = useFormatter();
+  // Same descriptors the condition rows use, so what the editor hides is also what gets saved.
+  const { descriptorsByType } = usePrimitiveTypeDescriptors();
   const theme = useTheme();
   const [selectedAction, setSelectedAction] = useState<ThreatArsenalAction | null>(null);
 
@@ -310,7 +313,7 @@ const ComponentStepperDrawer = ({
   // -- Events --
   const handleSaveEvent = async (data: EventFormData) => {
     if (!workflowId) return;
-    const apiConditions = conditionGroupsToApi(data.conditionGroups, data.groupOperators);
+    const apiConditions = conditionGroupsToApi(data.conditionGroups, data.groupOperators, descriptorsByType);
     const event = {
       event_name: data.name,
       event_description: data.description || undefined,

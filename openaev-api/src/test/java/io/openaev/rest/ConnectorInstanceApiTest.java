@@ -20,7 +20,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import co.elastic.clients.util.TriConsumer;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -41,6 +40,7 @@ import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.connector_instances.XtmComposerEncryptionService;
 import io.openaev.service.connectors.HeartbeatWindow;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.TriVoid;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -498,7 +498,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       assertEquals(6, instanceDb.getFirst().getConfigurations().size());
       Set<ConnectorInstanceConfiguration> configurations =
           instanceDb.getFirst().getConfigurations();
-      TriConsumer<String, String, Boolean> assertConfiguration =
+      TriVoid<String, String, Boolean> assertConfiguration =
           (String key, String expectedValue, Boolean expectedIsEncrypted) -> {
             Optional<ConnectorInstanceConfiguration> confValue =
                 configurations.stream().filter(c -> key.equals(c.getKey())).findFirst();
@@ -511,11 +511,11 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
             }
           };
       // Test configuration from input
-      assertConfiguration.accept(confDef1.getConnectorConfigurationKey(), "value-string", false);
-      assertConfiguration.accept(confDef2.getConnectorConfigurationKey(), "debug", false);
-      assertConfiguration.accept(
+      assertConfiguration.apply(confDef1.getConnectorConfigurationKey(), "value-string", false);
+      assertConfiguration.apply(confDef2.getConnectorConfigurationKey(), "debug", false);
+      assertConfiguration.apply(
           confDef3.getConnectorConfigurationKey(), "fake-encrypted-value", true);
-      assertConfiguration.accept("OPENAEV_TOKEN", "fake-token-value", false);
+      assertConfiguration.apply("OPENAEV_TOKEN", "fake-token-value", false);
 
       Optional<ConnectorInstanceConfiguration> confValueCollectorId =
           configurations.stream().filter(c -> "COLLECTOR_ID".equals(c.getKey())).findFirst();

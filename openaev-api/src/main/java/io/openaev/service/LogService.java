@@ -19,7 +19,7 @@ import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.LogUtils;

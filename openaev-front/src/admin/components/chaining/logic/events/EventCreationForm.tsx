@@ -9,6 +9,7 @@ import { z } from 'zod';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import ActionFormButtons from '../drawer/ActionFormButtons';
+import usePrimitiveTypeDescriptors from '../usePrimitiveTypeDescriptors';
 import ConditionGroupBuilder from './ConditionGroupBuilder';
 import {
   type ConditionGroup,
@@ -44,6 +45,8 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
   readOnly = false,
 }) => {
   const { t } = useFormatter();
+  // Same descriptors the rows use, so the submit button and the row-level errors agree.
+  const { descriptorsByType } = usePrimitiveTypeDescriptors();
   const methods = useForm<EventBaseInput>({
     mode: 'onChange',
     resolver: zodResolver(eventBaseSchema),
@@ -146,7 +149,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
     description: '',
     groupOperators,
     conditionGroups,
-  });
+  }, descriptorsByType);
   const canSubmit = isFormValid && conditionsValid;
 
   const onValid = (base: EventBaseInput) => {

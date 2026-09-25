@@ -50,6 +50,16 @@ public interface EndpointRepository
       @NotNull final @Param("ips") String[] ips,
       @NotNull final @Param("tenantId") String tenantId);
 
+  /**
+   * The stored / requested MAC overlap is expressed with the array operator {@code &&} rather than
+   * with {@code unnest(...)} in a FROM clause. {@code assets} is a scope-filtered table, so every
+   * statement against it goes through {@link io.openaev.config.ScopeStatementInspector}, which is
+   * fail-closed and refuses table functions it has not reviewed. Normalising the requested MACs
+   * through {@code array_to_string} / {@code string_to_array} keeps the whole predicate expressible
+   * as scalar functions. The {@code cardinality} guard preserves the previous semantics for an
+   * empty request: {@code string_to_array('', ',')} yields {@code {''}}, which would otherwise
+   * match a stored empty string.
+   */
   @Query(
       value =
           "select e.*"
@@ -58,10 +68,10 @@ public interface EndpointRepository
               + AssetType.Values.ENDPOINT_TYPE
               + "' and LOWER(e.asset_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
               // LATERAL is a noise word for a function-call FROM item in PostgreSQL: identical
-              // semantics and identical plan. It is however the marker TenantStatementInspector
-              // uses to accept one (see filterFromItem). Without it, activating assets pulls this
-              // query into rewriting and it is refused fail-closed, breaking endpoint lookup by
-              // hostname and MAC, which is the agent registration path.
+              // semantics and identical plan. It is however the marker TenantStatementInspector /
+              // ScopeStatementInspector use to accept one (see filterFromItem). Without it,
+              // activating assets pulls this query into rewriting and it is refused fail-closed,
+              // breaking endpoint lookup by hostname and MAC, which is the agent registration path.
               + "and exists (select 1 from LATERAL unnest(e.asset_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from LATERAL unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
@@ -101,7 +111,7 @@ public interface EndpointRepository
           + "   :simulationOrScenarioId is NULL AND i.exercise.id is NULL AND i.scenario.id IS NULL"
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
-          + " ) AND (:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
+          + " ) AND (:name IS NULL OR lower(a.name) LIKE concat('%', lower(cast(coalesce(:name, '') as string)), '%'))"
           // injects_assets may now reference non-endpoint assets (e.g. AI targets)
           + " AND TYPE(a) = Endpoint"
           + " AND i.tenant.id = :#{#tenantContext.currentTenant}")

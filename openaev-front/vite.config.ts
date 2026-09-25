@@ -19,7 +19,6 @@ export default ({ mode }: { mode: string }) => {
   // https://vitejs.dev/config/
   return defineConfig({
     build: {
-      target: ['chrome58'],
       sourcemap: true,
       outDir: 'builder/prod/build',
     },

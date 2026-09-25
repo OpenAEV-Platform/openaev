@@ -1,0 +1,222 @@
+{
+  "_comment": [
+    "Shared acceptance vectors for the primitive format rules.",
+    "The Java test (PrimitiveFormatValidatorTest) and the frontend test read this same file,",
+    "which is what pins the named kinds - the ones with no serializable regex - to a single",
+    "behaviour across the two runtimes. Add a vector here before implementing a rule, never after."
+  ],
+  "kinds": {
+    "IPV4": {
+      "serializable": false,
+      "valid": [
+        "10.0.0.1",
+        "192.168.1.255",
+        "0.0.0.0",
+        "255.255.255.255",
+        "8.8.8.8"
+      ],
+      "invalid": [
+        "256.0.0.1",
+        "10.0.0",
+        "10.0.0.1.2",
+        "10.0.0.-1",
+        "abc",
+        "10.0.0.1/24",
+        "::1"
+      ]
+    },
+    "IPV6": {
+      "serializable": false,
+      "valid": [
+        "::1",
+        "2001:db8::1",
+        "fe80::1ff:fe23:4567:890a",
+        "2001:0db8:0000:0000:0000:0000:0000:0001"
+      ],
+      "invalid": [
+        "10.0.0.1",
+        "2001:db8:::1",
+        "gggg::1",
+        "2001:db8::1/64",
+        "abc"
+      ]
+    },
+    "IPV4_CIDR": {
+      "serializable": false,
+      "valid": [
+        "10.0.0.0/8",
+        "192.168.1.0/24",
+        "0.0.0.0/0",
+        "10.0.0.1/32"
+      ],
+      "invalid": [
+        "10.0.0.0",
+        "10.0.0.0/33",
+        "10.0.0.0/-1",
+        "2001:db8::/32",
+        "abc/24"
+      ]
+    },
+    "IPV6_CIDR": {
+      "serializable": false,
+      "valid": [
+        "2001:db8::/32",
+        "::/0",
+        "fe80::/10",
+        "::1/128"
+      ],
+      "invalid": [
+        "2001:db8::",
+        "2001:db8::/129",
+        "10.0.0.0/8",
+        "abc/64"
+      ]
+    },
+    "EMAIL": {
+      "serializable": false,
+      "valid": [
+        "user@example.com",
+        "first.last@sub.example.org",
+        "user+tag@example.com"
+      ],
+      "invalid": [
+        "user",
+        "user@",
+        "@example.com",
+        "user@@example.com",
+        "user example@test.com"
+      ]
+    },
+    "DOMAIN": {
+      "serializable": true,
+      "pattern": "^(?=.{1,253}$)(?:[a-zA-Z0-9\\u00C0-\\u024F\\u0400-\\u04FF\\u4E00-\\u9FFF](?:[a-zA-Z0-9\\u00C0-\\u024F\\u0400-\\u04FF\\u4E00-\\u9FFF-]{0,61}[a-zA-Z0-9\\u00C0-\\u024F\\u0400-\\u04FF\\u4E00-\\u9FFF])?\\.)*(?![0-9]+$)[a-zA-Z0-9\\u00C0-\\u024F\\u0400-\\u04FF\\u4E00-\\u9FFF](?:[a-zA-Z0-9\\u00C0-\\u024F\\u0400-\\u04FF\\u4E00-\\u9FFF-]{0,61}[a-zA-Z0-9\\u00C0-\\u024F\\u0400-\\u04FF\\u4E00-\\u9FFF])?$",
+      "valid": [
+        "example.com",
+        "acme.corp",
+        "dc01.internal",
+        "sub.domain.example.co.uk",
+        "localhost",
+        "srv01",
+        "my-host-102",
+        "xn--80ak6aa92e.com"
+      ],
+      "invalid": [
+        "192.168.1.1",
+        "10.0.0.1",
+        "bad domain",
+        "-example.com",
+        "example-.com",
+        "exa_mple.com",
+        "example..com",
+        ".example.com",
+        "example.com.",
+        ""
+      ]
+    },
+    "PORT": {
+      "serializable": true,
+      "pattern": "^(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[0-9]{1,4})$",
+      "valid": [
+        "0",
+        "22",
+        "80",
+        "443",
+        "8080",
+        "65535",
+        "0080"
+      ],
+      "invalid": [
+        "65536",
+        "-1",
+        "99999",
+        "toto",
+        "80.5",
+        "+80",
+        "",
+        " "
+      ]
+    },
+    "NUMBER": {
+      "serializable": true,
+      "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+      "valid": [
+        "0",
+        "42",
+        "-42",
+        "42.5",
+        "-0.5",
+        "1000000"
+      ],
+      "invalid": [
+        "not-a-number",
+        "1e5",
+        "NaN",
+        "Infinity",
+        ".5",
+        "5.",
+        "1,5",
+        "+42",
+        "1.5f"
+      ]
+    },
+    "CVE": {
+      "serializable": true,
+      "pattern": "^CVE-[0-9]{4}-[0-9]{4,}$",
+      "valid": [
+        "CVE-2024-12345",
+        "CVE-1999-0001",
+        "CVE-2021-44228",
+        "CVE-2024-1234567"
+      ],
+      "invalid": [
+        "cve-2024-12345",
+        "CVE-2024-123",
+        "CVE-24-12345",
+        "CVE-2024",
+        "2024-12345"
+      ]
+    },
+    "WINDOWS_SID": {
+      "serializable": true,
+      "pattern": "^S-1-[0-9]+(?:-[0-9]+)+$",
+      "valid": [
+        "S-1-5-18",
+        "S-1-5-21-1004336348-1177238915-682003330-512",
+        "S-1-1-0"
+      ],
+      "invalid": [
+        "S-1-5",
+        "s-1-5-18",
+        "S-1-5-18-",
+        "S-2-5-18",
+        "1-5-18"
+      ]
+    }
+  },
+  "types": {
+    "_comment": "Type-level vectors, validated through the EQ operator. Covers the anyOf composition.",
+    "Host": {
+      "valid": [
+        "10.0.0.1",
+        "::1",
+        "dc01.internal",
+        "localhost"
+      ],
+      "invalid": [
+        "bad host",
+        "10.0.0.1/24"
+      ]
+    },
+    "IpSubnet": {
+      "valid": [
+        "10.0.0.0/8",
+        "2001:db8::/32"
+      ],
+      "invalid": [
+        "10.0.0.1",
+        "2001:db8::1",
+        "10.0.0.0/33"
+      ]
+    }
+  }
+}

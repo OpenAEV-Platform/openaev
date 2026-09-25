@@ -12,8 +12,10 @@ import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { GROUP_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { Group } from '../../../../../utils/api-types';
+import useMarkingDefinitions from '../../../../../utils/hooks/useMarkingDefinitions';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import CreateTenantGroup from './CreateTenantGroup';
 import GroupPopover from './GroupPopover';
 import useTenantGroups from './hooks/useTenantGroups';
@@ -32,6 +34,8 @@ const TenantGroupsTab = () => {
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const { t } = useFormatter();
   const navigate = useNavigate();
+  const markingEnabled = isFeatureEnabled('MARKING');
+  const markingDefinitions = useMarkingDefinitions({ skip: !markingEnabled });
 
   const {
     groups,
@@ -47,7 +51,13 @@ const TenantGroupsTab = () => {
     queryableHelpers,
     searchPaginationInput,
   } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_TENANT_GROUP, buildSearchPagination({ sorts: TENANT_GROUP_SORTS }));
-  const headers = useMemo(() => getTenantGroupHeaders(t), [t]);
+  const headers = useMemo(
+    () => getTenantGroupHeaders(t, {
+      markingEnabled,
+      markingDefinitions,
+    }),
+    [t, markingEnabled, markingDefinitions],
+  );
 
   return (
     <>
@@ -90,6 +100,8 @@ const TenantGroupsTab = () => {
                     group={group}
                     groupUsersIds={group.group_users ?? []}
                     groupRolesIds={group.group_roles ?? []}
+                    groupMarkingIds={group.group_markings ?? []}
+                    markingEnabled={markingEnabled}
                     onUpdate={updateGroupInList}
                     onDelete={removeGroup}
                   />

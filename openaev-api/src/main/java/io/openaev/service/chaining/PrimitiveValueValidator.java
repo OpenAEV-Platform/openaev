@@ -1,33 +1,35 @@
 package io.openaev.service.chaining;
 
 import io.openaev.database.model.PrimitiveType;
-import io.openaev.utils.IpAddressUtils;
+import io.openaev.validator.IpAddressUtils;
+import io.openaev.validator.primitive.FormatRuleKind;
+import io.openaev.validator.primitive.PrimitiveFormatValidator;
 import java.util.Locale;
-import org.apache.commons.validator.routines.DomainValidator;
 
 /**
  * Acceptance rules for primitive chaining values before they are persisted in workflow state.
  *
- * <p>Validation is intentionally scope-driven: types that can be restricted by workflow scope rules
- * (IPs, subnets, domains, asset and asset-group IDs) get a format check plus an allowlist/denylist
- * check. Port and Number get a cheap format sanity check. Port validation is also reused by output
- * processors before generating findings. Every other primitive type has no defined rule yet and is
- * accepted as-is - hence the "accepted" naming, to make explicit that this is not a full semantic
- * validation of every primitive type.
+ * <p>This validator is the <b>runtime</b> composition of two independent concerns:
+ *
+ * <ol>
+ *   <li>the intrinsic format of the value, delegated to {@link PrimitiveFormatValidator} - pure,
+ *       stateless and therefore exposable as API metadata;
+ *   <li>membership in the workflow's scope allow/deny lists, which depends on the workflow context
+ *       and can never be serialized as a rule.
+ * </ol>
+ *
+ * <p>Only the format policies marked as runtime-enforced are applied here, so introducing a new
+ * rule for a type that used to accept anything never silently discards data emitted by a
+ * third-party injector. Scope-restrictable types (IPs, subnets, domains, asset and asset-group IDs)
+ * additionally get the allowlist/denylist check. Port validation is also reused by output
+ * processors before generating findings.
  */
 public final class PrimitiveValueValidator {
-
-  private static final DomainValidator DOMAIN_VALIDATOR = DomainValidator.getInstance(true);
-
-  private static final int MAX_PORT = 65535;
 
   private PrimitiveValueValidator() {}
 
   /**
    * Decides whether a value is accepted into workflow state for the given primitive type.
-   *
-   * <p>Scope-restrictable types are checked for format and against the workflow scope rules. Port
-   * and Number are checked for format only. Types without defined rules are always accepted.
    *
    * @param primitiveType primitive type being persisted
    * @param value candidate value
@@ -39,37 +41,27 @@ public final class PrimitiveValueValidator {
     if (value == null) {
       return false;
     }
+    if (!PrimitiveFormatValidator.isAcceptedAtRuntime(primitiveType, value)) {
+      return false;
+    }
     return switch (primitiveType) {
-      case IPv4 -> IpAddressUtils.isIpv4Address(value) && isIpAllowedByScope(value, context);
-      case IPv6 -> IpAddressUtils.isIpv6Address(value) && isIpAllowedByScope(value, context);
-      case Domain -> DOMAIN_VALIDATOR.isValid(value) && isDomainAllowedByScope(value, context);
-      case IpSubnet ->
-          (IpAddressUtils.isIpv4Subnet(value) || IpAddressUtils.isIpv6Subnet(value))
-              && isSubnetAllowedByScope(value, context);
+      case IPv4, IPv6 -> isIpAllowedByScope(value, context);
+      case Domain -> isDomainAllowedByScope(value, context);
+      case IpSubnet -> isSubnetAllowedByScope(value, context);
       case AssetId -> isAssetIdAllowedByScope(value, context);
       case AssetGroupId -> isAssetGroupIdAllowedByScope(value, context);
-      case Port -> isValidPort(value);
-      case Number -> isValidNumber(value);
       default -> true;
     };
   }
 
+  /**
+   * Format-only port check, used by output processors before generating findings.
+   *
+   * <p>Delegates to {@link FormatRuleKind#PORT} so the accepted syntax cannot drift from the rule
+   * advertised to API consumers and to the frontend.
+   */
   public static boolean isValidPort(String value) {
-    try {
-      int port = Integer.parseInt(value.trim());
-      return port >= 0 && port <= MAX_PORT;
-    } catch (NumberFormatException e) {
-      return false;
-    }
-  }
-
-  private static boolean isValidNumber(String value) {
-    try {
-      Double.parseDouble(value.trim());
-      return true;
-    } catch (NumberFormatException e) {
-      return false;
-    }
+    return FormatRuleKind.PORT.matches(value);
   }
 
   private static boolean isAssetIdAllowedByScope(String id, PrimitiveValidationContext context) {

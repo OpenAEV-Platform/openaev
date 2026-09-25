@@ -93,6 +93,17 @@
             datasourceTemplate: 'maven',
             versioningTemplate: 'maven',
         },
+        // kotlin.version was the one override with no tracking path at all: no dependency declares a
+        // Kotlin artifact, so the maven manager cannot see the property either. Added by hand on
+        // 2026-08-19 in 0d0e99ead and never proposed for an update since.
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<kotlin\.version>(?<currentValue>.*?)</kotlin\.version>'],
+            depNameTemplate: 'org.jetbrains.kotlin:kotlin-stdlib',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
     ],
     packageRules: [
         {
@@ -133,13 +144,6 @@
             allowedVersions: '<1.8.0', // sticks to MIT version of apexcharts
             commitMessagePrefix: '[DANGER]', // patched dependencies: [DANGER] prefix to flag PRs that need manual patch verification
             commitMessageSuffix: '(react-apexcharts has a yarn patch)',
-        },
-        {
-            matchDepNames: [
-                'html-to-image'
-            ],
-            commitMessagePrefix: '[DANGER]', // patched dependencies: [DANGER] prefix to flag PRs that need manual patch verification
-            commitMessageSuffix: '(html-to-image has a yarn patch)',
         },
         // group non-major devDependencies once a week to avoid Renovate noise
         {

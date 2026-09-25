@@ -1,14 +1,16 @@
 import { ContentCopyOutlined, TerminalOutlined } from '@mui/icons-material';
-import { Alert, Button, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
+import { Alert, Button, CircularProgress, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
 import { useEffect, useState } from 'react';
 
+import { fetchOpenAevAgentInstallerToken } from '../../../actions/executors/executor-action';
 import { fetchCalderaSettings } from '../../../actions/settings/settings-action';
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
 import { type BasePayload, type CalderaSettings, type ExecutorOutput } from '../../../utils/api-types';
+import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
 import { DEFAULT_TENANT_UUID } from '../../../utils/url-helper';
 import { copyToClipboard, download } from '../../../utils/utils';
@@ -34,6 +36,8 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
   const [agentFolder] = useState<null | string>(null);
   const [arch, setArch] = useState<string>(x86_64);
   const [calderaSettings, setCalderaSettings] = useState<null | CalderaSettings[]>(null);
+  const [installerToken, setInstallerToken] = useState<string>('');
+  const [installerTokenStatus, setInstallerTokenStatus] = useState<'error' | 'loading' | 'ready'>('loading');
 
   // Fetching data
   useEffect(() => {
@@ -65,6 +69,27 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
 
   const { settings, currentUserTenant } = useAuth();
   const tenantPrefix = `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    setInstallerTokenStatus('loading');
+    fetchOpenAevAgentInstallerToken(tenantPrefix)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setInstallerToken(data);
+        setInstallerTokenStatus('ready');
+      })
+      .catch(() => {
+        // The global error handler ignores 401/404, so raise the toast explicitly, and stop the
+        // spinner instead of leaving it spinning forever on a rejected promise.
+        if (cancelled) return;
+        setInstallerTokenStatus('error');
+        MESSAGING$.notifyError(t('Failed to load the agent installer token.'));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantPrefix]);
 
   const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedOption(platform === MACOS ? SYSTEM : event.target.value);
@@ -179,12 +204,16 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
       }
       return result;
     };
+    // The installer endpoint now requires the INSTALL_AGENT capability, so the copy-pasted
+    // command must carry the tenant's service-account token itself to authenticate.
     const buildUrlScript2Windows = () => {
       if (currentTab === 'Advanced Installation' && selectedOption === USER) {
-        return `&([scriptblock]::Create((iwr ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}))) ${buildExtraParams('-User USER -Password PASSWORD', '', '')}`;
+        return `&([scriptblock]::Create((iwr -Headers @{Authorization="Bearer ${installerToken}"} ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}))) ${buildExtraParams('-User USER -Password PASSWORD', '', '')}`;
       }
-      return `iex (iwr ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}).Content`;
+      return `iex (iwr -Headers @{Authorization="Bearer ${installerToken}"} ${buildInstallationUrl(settings.platform_base_url + tenantPrefix + '/agent/installer/openaev/windows')}).Content`;
     };
+    const buildUrlScript2Unix = (baseUrl: string) =>
+      `curl -s -H "Authorization: Bearer ${installerToken}" ${buildInstallationUrl(baseUrl)} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`;
 
     switch (platform) {
       case WINDOWS:
@@ -200,24 +229,24 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
           icon: <Bash />,
           label: 'sh',
           exclusions: '',
-          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
-          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          displayedCode: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux'),
+          code: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux'),
         };
       case MACOS:
         return {
           icon: <TerminalOutlined />,
           label: 'sh',
           exclusions: '',
-          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
-          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          displayedCode: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos'),
+          code: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/macos'),
         };
       default:
         return {
           icon: <Bash />,
           label: 'sh',
           exclusions: '',
-          displayedCode: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
-          code: `curl -s ${buildInstallationUrl(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux')} ${buildExtraParams(' | sudo sh -s -- --user USER --group GROUP', '| sh', '| sudo sh')}`,
+          displayedCode: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux'),
+          code: buildUrlScript2Unix(settings.platform_agent_url + tenantPrefix + '/agent/installer/openaev/linux'),
         };
     }
   };
@@ -427,6 +456,37 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
       </>
     );
   };
+  const buildOaevAgentPanel = () => {
+    if (installerTokenStatus === 'error') {
+      // The failure toast is raised in the fetch's catch; no token means no install command to show.
+      return null;
+    }
+    if (installerTokenStatus === 'loading') {
+      // The install command embeds the service-account token fetched above; rendering it before
+      // that fetch resolves would produce a command with an empty bearer token.
+      return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: theme.spacing(4),
+        }}
+        >
+          <CircularProgress size={24} />
+        </div>
+      );
+    }
+    return (
+      <div>
+        <Tabs
+          entries={tabEntries}
+          currentTab={currentTab}
+          onChange={newValue => handleChangeTab(newValue)}
+        />
+        {currentTab === 'Standard Installation' && (buildStandardInstallation())}
+        {currentTab === 'Advanced Installation' && (buildAdvancedInstallation())}
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -447,15 +507,7 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
 
           {/* OAEV */}
           {selectedExecutor && selectedExecutor.executor_type === OPENAEV_AGENT && (
-            <div>
-              <Tabs
-                entries={tabEntries}
-                currentTab={currentTab}
-                onChange={newValue => handleChangeTab(newValue)}
-              />
-              {currentTab === 'Standard Installation' && (buildStandardInstallation())}
-              {currentTab === 'Advanced Installation' && (buildAdvancedInstallation())}
-            </div>
+            buildOaevAgentPanel()
           )}
         </div>
       )}

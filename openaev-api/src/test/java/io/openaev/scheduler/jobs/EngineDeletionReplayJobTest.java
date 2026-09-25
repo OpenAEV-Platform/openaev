@@ -11,7 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.engine.EngineDeletionJournal;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import java.util.List;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;

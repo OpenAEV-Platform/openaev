@@ -7,7 +7,7 @@ import static io.openaev.health.PlatformDependency.RABBITMQ;
 
 import io.minio.MinioClient;
 import io.openaev.database.repository.HealthCheckRepository;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.service.MinioService;
 import io.openaev.service.RabbitmqService;
 import java.time.Duration;

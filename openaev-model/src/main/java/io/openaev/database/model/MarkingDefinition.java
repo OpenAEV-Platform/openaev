@@ -34,6 +34,9 @@ import lombok.Setter;
 // @Filter.
 public class MarkingDefinition implements TenantBase, Auditable {
 
+  public static final String TYPE_TLP = "TLP";
+  public static final String TYPE_PAP = "PAP";
+
   @Id
   @ControlledUuidGeneration
   @Column(name = "marking_definition_id")
@@ -54,8 +57,9 @@ public class MarkingDefinition implements TenantBase, Auditable {
   private String definition;
 
   @Queryable(filterable = true, sortable = true)
-  @Column(name = "marking_definition_color")
+  @Column(name = "marking_definition_color", nullable = false)
   @JsonProperty("marking_definition_color")
+  @NotBlank
   private String color;
 
   @Queryable(filterable = true, sortable = true)

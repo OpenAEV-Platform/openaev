@@ -13,6 +13,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.utils.ConditionUtils;
@@ -27,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -1709,6 +1711,115 @@ public class ConditionServiceTest {
 
       verify(conditionRepository, never()).findById(anyString());
       verify(conditionRepository, never()).save(any());
+    }
+  }
+
+  /* ============================================================
+   * Condition value format validation
+   * ============================================================ */
+  @Nested
+  @DisplayName("Condition value format validation")
+  class ConditionValueFormatValidation {
+
+    private EventInput eventWith(ConditionCreateInput... conditions) {
+      return EventInput.builder()
+          .name("event")
+          .description("desc")
+          .workflowId("wf-1")
+          .conditions(List.of(conditions))
+          .build();
+    }
+
+    private ConditionCreateInput condition(
+        ConditionType type, PrimitiveType keyType, String value) {
+      ConditionCreateInput input = new ConditionCreateInput();
+      input.setTemporaryId("tmp-root");
+      input.setType(type);
+      input.setKey("port");
+      input.setKeyTypes(keyType == null ? null : List.of(keyType));
+      input.setValue(value);
+      return input;
+    }
+
+    private void acceptOnCreate(EventInput input) {
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+      assertDoesNotThrow(() -> conditionService.createConditionTree(input));
+    }
+
+    @Test
+    @DisplayName("should reject a malformed operand on create")
+    void given_malformedEqualityOperand_should_rejectOnCreate() {
+      // Arrange - 99999 is out of the port range, so the condition could never match
+      EventInput input = eventWith(condition(ConditionType.EQ, PrimitiveType.Port, "99999"));
+
+      // Act
+      BadRequestException exception =
+          assertThrows(
+              BadRequestException.class, () -> conditionService.createConditionTree(input));
+
+      // Assert - the message names the offending condition so it can be found in the editor
+      assertTrue(exception.getMessage().contains("port"));
+      assertTrue(exception.getMessage().contains("99999"));
+    }
+
+    @Test
+    @DisplayName("should reject a malformed operand on update")
+    void given_malformedEqualityOperand_should_rejectOnUpdate() {
+      // Arrange - the update path replaces the whole tree, so every operand is rewritten
+      EventInput input = eventWith(condition(ConditionType.EQ, PrimitiveType.IPv4, "not-an-ip"));
+
+      // Act & Assert
+      assertThrows(
+          BadRequestException.class, () -> conditionService.updateConditionTree("root-1", input));
+      // The guard runs before the root is loaded, so nothing is read or written
+      verify(conditionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should reject a non numeric operand on a numeric operator")
+    void given_nonNumericOperandOnComparison_should_reject() {
+      // Arrange - GT is always compared with Double.parseDouble, whatever the type
+      EventInput input = eventWith(condition(ConditionType.GT, PrimitiveType.Port, "many"));
+
+      // Act & Assert
+      assertThrows(BadRequestException.class, () -> conditionService.createConditionTree(input));
+    }
+
+    @Test
+    @DisplayName("should accept a partial operand on a substring operator")
+    void given_partialOperandOnContains_should_accept() {
+      // Arrange - IN splits on commas then matches with contains, so 44 legitimately matches 445
+      acceptOnCreate(eventWith(condition(ConditionType.IN, PrimitiveType.Port, "44")));
+    }
+
+    @Test
+    @DisplayName("should accept a valueless operand on a unary operator")
+    void given_unaryOperator_should_acceptMissingValue() {
+      // Arrange - IS_NULL carries no operand at all
+      acceptOnCreate(eventWith(condition(ConditionType.IS_NULL, PrimitiveType.Port, null)));
+    }
+
+    @Test
+    @DisplayName("should not inspect the operand of a grouping node")
+    void given_groupingNode_should_ignoreValue() {
+      // Arrange - AND is a tree node, its value is never compared to anything
+      acceptOnCreate(eventWith(condition(ConditionType.AND, PrimitiveType.Port, "not-a-port")));
+    }
+
+    @Test
+    @DisplayName("should accept any operand on a type that constrains no format")
+    void given_typeWithoutFormatRule_should_acceptAnyValue() {
+      // Arrange - free text has no format to violate
+      acceptOnCreate(eventWith(condition(ConditionType.EQ, PrimitiveType.Text, "anything goes")));
+    }
+
+    @Test
+    @DisplayName("should fall back to text when no key type is declared")
+    void given_noKeyType_should_acceptAnyValue() {
+      // Arrange - an absent key type is persisted as Text, so the guard must resolve it the same
+      // way rather than read the raw list and validate against the wrong type
+      acceptOnCreate(eventWith(condition(ConditionType.EQ, null, "anything goes")));
     }
   }
 

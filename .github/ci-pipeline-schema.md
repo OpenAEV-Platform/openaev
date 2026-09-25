@@ -166,22 +166,23 @@ Shard patterns live in `.github/shards/api-<n>.txt`, balanced from measured per-
 runtimes. The `remaining` shard runs whatever no shard file claims, so a newly added
 package is never silently untested.
 
-| | Core CI | Nightly CI |
-|-|---------|------------|
-| Elasticsearch | 7 shards + `remaining` | 7 shards + `remaining` |
-| OpenSearch | ✗ | 7 shards + `remaining` |
-| **Total cells** | **8** | **16** |
+|                 | Core CI | Nightly CI             |
+|-----------------|---------|------------------------|
+| Elasticsearch 8 | 7 shards + `remaining` | 7 shards + `remaining` |
+| Elasticsearch 9 | ✗ | 7 shards + `remaining` |
+| OpenSearch      | ✗ | 7 shards + `remaining` |
+| **Total cells** | **8** | **24**                 |
 
 ### E2E Tests matrix
 
-| | Core CI | Nightly CI |
-|-|---------|------------|
-| Images | standard only (amd64 + arm64) | standard + ubi9, amd64 + arm64 |
-| Browsers | chrome (amd64), chromium (arm64) | chrome, chromium, webkit, firefox, edge |
-| Search engines | Elasticsearch only | Elasticsearch + OpenSearch |
-| Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites |
-| Infra tests | 4 cells, `infra-chromium` | 7 cells across chrome, chromium, firefox, webkit, edge |
-| **Total cells** | **10** | **25** |
+| | Core CI                                          | Nightly CI                                             |
+|-|--------------------------------------------------|--------------------------------------------------------|
+| Images | standard only (amd64 + arm64)                    | standard + ubi9, amd64 + arm64                         |
+| Browsers | chrome (amd64), chromium (arm64)                 | chrome, chromium, webkit, firefox, edge                |
+| Search engines | Elasticsearch 8 only                             | Elasticsearch 8 & 9 + OpenSearch                       |
+| Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites                                  |
+| Infra tests | 4 cells, `infra-chromium`                        | 7 cells across chrome, chromium, firefox, webkit, edge |
+| **Total cells** | **10**                                           | **25**                                                 |
 
 `ubi9` and `webkit` are nightly-only: they exercise the same JAR and were doubling the
 critical path. `artifact_suffix` must stay unique per cell — the report artifact is named

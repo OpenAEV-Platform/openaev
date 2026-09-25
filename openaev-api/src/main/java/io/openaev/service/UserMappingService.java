@@ -4,6 +4,7 @@ import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_P
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -36,11 +37,22 @@ public class UserMappingService {
   private final GroupRepository groupRepository;
   private final TenantRepository tenantRepository;
   private final Environment env;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
 
+  /**
+   * Reconciles the user's groups against the mappings' idp-group -&gt; user-group config, adding or
+   * removing memberships to match the token. Runs on every SSO login, so a group can be silently
+   * revoked here on a login that follows an idp-side removal — not just via the admin UI.
+   *
+   * <p>Evicts the user's marking clearance cache whenever a group is actually added or removed:
+   * this is a {@code users_groups} write like any other, and a stale cached clearance can only be
+   * too permissive, never too strict.
+   */
   public void mapCurrentUserWithGroup(String property, User user, List<String> groupsFromToken) {
     List<GroupMapping> groupMappings = safeParseMappings(property);
+    boolean groupsChanged = false;
 
     for (GroupMapping mapping : groupMappings) {
       String idpGroup = mapping.getIdpGroup();
@@ -56,6 +68,7 @@ public class UserMappingService {
           if (!alreadyAssigned) {
             userGroups.add(groupOptional.get());
             user.setGroups(userGroups);
+            groupsChanged = true;
           }
         } else {
           if (autoCreate) {
@@ -65,6 +78,7 @@ public class UserMappingService {
             List<Group> userGroups = user.getUnscopedGroups();
             userGroups.add(newGroup);
             user.setGroups(userGroups);
+            groupsChanged = true;
           } else {
             log.error(
                 "Group '{}' not found in database and autoCreate is disabled for mapping '{}'",
@@ -83,7 +97,12 @@ public class UserMappingService {
         List<Group> userGroups = user.getUnscopedGroups();
         userGroups.removeIf(group -> group.getName().equals(mapping.getUserGroup()));
         user.setGroups(userGroups);
+        groupsChanged = true;
       }
+    }
+
+    if (groupsChanged) {
+      markingClearanceCacheManager.evictForUser(user.getId());
     }
 
     // Log token groups that have no configured mapping — DEBUG level because this is

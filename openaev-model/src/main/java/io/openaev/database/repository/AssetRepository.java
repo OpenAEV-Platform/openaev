@@ -171,13 +171,20 @@ public interface AssetRepository
    * to any asset, so filter options (e.g. notification trigger criteria) must propose the full
    * inventory, not only endpoints. The category is returned so pickers can group options by asset
    * category. JPQL (not native) so the tenant filter still applies. The {@code name} parameter must
-   * be non-null (empty string matches everything): a null bind parameter inside {@code
-   * lower(concat(...))} is typed as bytea by PostgreSQL and fails.
+   * be non-null (empty string matches everything): a null bind parameter inside {@code concat(...)}
+   * is typed as bytea by PostgreSQL and fails.
+   *
+   * <p>{@code lower()} is applied to the bind parameter, not to the whole concatenation: Hibernate
+   * renders JPQL {@code concat} as the {@code ||} operator, and JSqlParser 5.2 cannot parse a
+   * function call whose argument is a concatenation containing a bind parameter ({@code
+   * lower('%'||?||'%')}). Because {@code assets} is a scope-filtered table, every statement against
+   * it goes through {@link io.openaev.config.ScopeStatementInspector}, which is fail-closed and
+   * refuses SQL it cannot parse. Keeping {@code ||} as the outermost operator keeps it parseable.
    */
   @Query(
       "SELECT a.id, a.name, a.category FROM Asset a "
           + "WHERE a.type <> 'SecurityPlatform' "
-          + "AND lower(a.name) LIKE lower(concat('%', :name, '%')) "
+          + "AND lower(a.name) LIKE concat('%', lower(:name), '%') "
           // id tie-breaker: names are not unique, and a fixed page size over a
           // non-deterministic order would return unstable option subsets
           + "ORDER BY a.name, a.id")

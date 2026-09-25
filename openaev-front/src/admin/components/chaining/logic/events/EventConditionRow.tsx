@@ -18,9 +18,9 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import ActionTypeIcon from '../ActionTypeIcon';
 import { useOutputProviders } from '../useOutputProviders';
+import usePrimitiveTypeDescriptors from '../usePrimitiveTypeDescriptors';
 import {
   CASE_SENSITIVE_OPERATORS,
   type ComparisonOperator,
@@ -29,9 +29,10 @@ import {
   formatConditionKeyLabel,
   getAvailableOperators,
   getConditionValueError,
-  isNumericField,
   OPERATOR_LABELS,
+  resolveCaseSensitive,
   resolveOperator,
+  supportsCaseSensitivity,
   UNARY_OPERATORS,
 } from './event-types';
 
@@ -64,10 +65,17 @@ const EventConditionRow: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { argumentTypes, isLoading: isLoadingArgumentTypes, error: argumentTypesError } = useArgumentTypes();
-  const conditionKeyTypes = argumentTypes;
-  const isArgumentTypesUnavailable = isLoadingArgumentTypes || !!argumentTypesError || conditionKeyTypes.length === 0;
   const { providers } = useOutputProviders();
+  // One source for the whole row: the selectable fields, the operators they support, their
+  // case-sensitivity and the format their value must satisfy all come from the same descriptors.
+  const {
+    descriptorsByType,
+    primitiveTypes: conditionKeyTypes,
+    isLoading: isLoadingConditionKeyTypes,
+    error: conditionKeyTypesError,
+  } = usePrimitiveTypeDescriptors();
+  const isConditionKeyTypesUnavailable
+    = isLoadingConditionKeyTypes || !!conditionKeyTypesError || conditionKeyTypes.length === 0;
 
   /**
      * Build tooltip content for a given output type's providers.
@@ -104,13 +112,15 @@ const EventConditionRow: FunctionComponent<Props> = ({
   const handleFieldChange = (e: SelectChangeEvent<ConditionKeyType>) => {
     const newField = e.target.value;
     // The new field may not support the current operator (e.g. "greater than" on a text field)
-    const newOperator = resolveOperator(newField, condition.operator);
+    const newOperator = resolveOperator(newField, condition.operator, descriptorsByType);
     onUpdate({
       ...condition,
       field: newField,
       operator: newOperator,
       // Unary operators (IS_NULL / IS_NOT_NULL) take no value
       value: UNARY_OPERATORS.includes(newOperator) ? '' : condition.value,
+      // The toggle is hidden on a caseless type, so the flag must not stay on behind it
+      caseSensitive: resolveCaseSensitive(newField, condition.caseSensitive, descriptorsByType),
     });
   };
 
@@ -139,17 +149,17 @@ const EventConditionRow: FunctionComponent<Props> = ({
 
   const showValue = !UNARY_OPERATORS.includes(condition.operator);
   const showCaseSensitive = CASE_SENSITIVE_OPERATORS.includes(condition.operator)
-    && !isNumericField(condition.field);
+    && supportsCaseSensitivity(condition.field, descriptorsByType);
   // Only surface format errors: an untouched (empty) value already disables the submit button.
   const valueError = showValue && condition.value.trim() !== ''
-    ? getConditionValueError(condition.field, condition.operator, condition.value)
+    ? getConditionValueError(condition.field, condition.operator, condition.value, descriptorsByType)
     : undefined;
   const operatorOptions = useMemo(() => {
-    const available = getAvailableOperators(condition.field);
+    const available = getAvailableOperators(condition.field, descriptorsByType);
     // Events stored before the field/operator restriction may carry an operator that is no longer
     // offered: keep it listed so the row renders its actual configuration instead of an empty select.
     return available.includes(condition.operator) ? available : [...available, condition.operator];
-  }, [condition.field, condition.operator]);
+  }, [condition.field, condition.operator, descriptorsByType]);
 
   return (
     <Box sx={{
@@ -185,16 +195,16 @@ const EventConditionRow: FunctionComponent<Props> = ({
           label={t('Field to Check')}
           value={condition.field}
           onChange={handleFieldChange}
-          disabled={readOnly || isArgumentTypesUnavailable}
+          disabled={readOnly || isConditionKeyTypesUnavailable}
           renderValue={val => formatConditionKeyLabel(val)}
         >
-          {isLoadingArgumentTypes && (
+          {isLoadingConditionKeyTypes && (
             <MenuItem disabled>{t('Loading argument types...')}</MenuItem>
           )}
-          {!isLoadingArgumentTypes && argumentTypesError && (
+          {!isLoadingConditionKeyTypes && conditionKeyTypesError && (
             <MenuItem disabled>{t('Failed to load argument types')}</MenuItem>
           )}
-          {!isLoadingArgumentTypes && !argumentTypesError && conditionKeyTypes.map((key) => {
+          {!isLoadingConditionKeyTypes && !conditionKeyTypesError && conditionKeyTypes.map((key) => {
             const keyProviders = providers[key] ?? [];
             return (
               <MenuItem
@@ -224,10 +234,10 @@ const EventConditionRow: FunctionComponent<Props> = ({
             );
           })}
         </Select>
-        {isLoadingArgumentTypes && (
+        {isLoadingConditionKeyTypes && (
           <FormHelperText sx={floatingHelperTextSx}>{t('Loading argument types...')}</FormHelperText>
         )}
-        {!isLoadingArgumentTypes && argumentTypesError && (
+        {!isLoadingConditionKeyTypes && conditionKeyTypesError && (
           <FormHelperText error sx={floatingHelperTextSx}>{t('Failed to load argument types')}</FormHelperText>
         )}
       </FormControl>
