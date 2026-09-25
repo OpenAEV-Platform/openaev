@@ -24,6 +24,7 @@ import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -57,6 +58,7 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
   @Autowired private WorkflowStateRepository workflowStateRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private EntityManager entityManager;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private StepComposer stepComposer;
@@ -294,6 +296,61 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
       assertTrue(anyLogContains("Stop 0 active step(s)."));
       assertTrue(anyLogContains("0 step delay queue entries"));
       assertTrue(errorMessages().isEmpty(), "No error expected for a clean natural end");
+    }
+  }
+
+  // ========================================================================
+  // RESET_SIMULATION
+  // ========================================================================
+  @Nested
+  @DisplayName("RESET_SIMULATION")
+  class ResetSimulationTests {
+
+    @Test
+    @DisplayName(
+        "given_alreadyEndedWorkflowExecutionWithWorkflowState_when_resetSimulation_should_deleteExecutionAndState_and_allowRelaunch")
+    void
+        given_alreadyEndedWorkflowExecutionWithWorkflowState_when_resetSimulation_should_deleteExecutionAndState_and_allowRelaunch() {
+      // Arrange
+      Exercise simulation =
+          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+      simulation = exerciseRepository.findById(simulation.getId()).orElseThrow();
+
+      workflowService.creationWorkflow(simulation);
+      Workflow workflowTemplate =
+          workflowService.findWorkflowTemplateBySimulationId(simulation.getId()).orElseThrow();
+
+      Workflow endedWorkflowExecution = workflowService.launchWorkflowSimulation(workflowTemplate);
+      workflowService.cancelSimulationEndWorkflowRun(List.of(endedWorkflowExecution));
+      endedWorkflowExecution = workflowRepository.findById(endedWorkflowExecution.getId()).orElseThrow();
+      assertEquals(WorkflowStatus.END, endedWorkflowExecution.getStatus());
+
+      WorkflowState workflowState = createPersistedWorkflowState(endedWorkflowExecution, null);
+      String workflowStateId = workflowState.getId();
+      String simulationId = simulation.getId();
+      String endedWorkflowExecutionId = endedWorkflowExecution.getId();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      workflowService.resetSimulationDeleteWorkflowExecution(simulationId);
+
+      // Assert
+      assertTrue(workflowRepository.findById(endedWorkflowExecutionId).isEmpty());
+      assertTrue(workflowStateRepository.findById(workflowStateId).isEmpty());
+      assertTrue(workflowService.findAllWorkflowExecutionBySimulationId(simulationId).isEmpty());
+
+      Workflow templateAfterReset =
+          workflowService.findWorkflowTemplateBySimulationId(simulationId).orElseThrow();
+      Workflow relaunchedWorkflowExecution =
+          workflowService.launchWorkflowSimulation(templateAfterReset);
+
+      assertNotNull(relaunchedWorkflowExecution.getId());
+      assertEquals(WorkflowStatus.RUN, relaunchedWorkflowExecution.getStatus());
+      assertEquals(simulationId, relaunchedWorkflowExecution.getSimulation().getId());
+      assertEquals(
+          1, workflowService.findAllWorkflowExecutionBySimulationId(simulationId).size());
     }
   }
 
