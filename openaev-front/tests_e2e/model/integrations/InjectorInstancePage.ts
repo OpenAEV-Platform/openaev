@@ -8,8 +8,10 @@ import { TIMEOUT } from '../../utils/constants';
  */
 class InjectorInstancePage {
   /** Maximum wait time (ms) for the injector to reach "Started" status.
-   *  Starting a real injector container is async and can take time. */
-  private readonly STATUS_CHANGE_TIMEOUT = 120_000;
+   *  Starting a real injector container is async and can take time.
+   *  arm64 runners start the injector under emulation and regularly need more
+   *  than 120s; amd64 keeps the shorter budget so a genuine hang still fails fast. */
+  private readonly STATUS_CHANGE_TIMEOUT = process.arch === 'arm64' ? 300_000 : 120_000;
 
   constructor(private page: Page) {}
 

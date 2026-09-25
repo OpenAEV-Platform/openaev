@@ -10,6 +10,11 @@ export interface CommandLinePayloadOptions {
   platform: string;
   /** @default 'Bash' for non-Windows, 'PowerShell' for Windows */
   executor?: string;
+  textOutput?: {
+    name: string;
+    key: string;
+    rule: string;
+  };
 }
 
 /**
@@ -23,7 +28,7 @@ class ThreatArsenalHelper {
    * Creates a Command Line payload in Threat Arsenal and asserts success.
    */
   async createCommandLinePayload(options: CommandLinePayloadOptions): Promise<void> {
-    const { name, command, platform, executor } = options;
+    const { name, command, platform, executor, textOutput } = options;
     const resolvedExecutor = executor ?? (platform === 'Windows' ? 'PowerShell' : 'Bash');
 
     const leftMenu = new LeftMenuComponent(this.page);
@@ -34,13 +39,19 @@ class ThreatArsenalHelper {
     await threatArsenalList.openCreateThreatArsenal();
 
     const form = new ThreatArsenalFormComponent(this.page);
+    // The dialog heading renders before MUI has associated the label with the input,
+    // so the field is not yet reachable by accessible name.
+    await form.nameField.waitFor({ state: 'visible' });
     await form.nameField.fill(name);
     await form.selectDomain('Endpoint');
     await form.switchToCommandsTab();
     await form.selectCommandType('Command Line');
-    await form.selectPlatform(platform);
     await form.selectExecutor(resolvedExecutor);
+    await form.selectPlatform(platform);
     await form.commandField.fill(command);
+    if (textOutput) {
+      await form.addTextOutput(textOutput.name, textOutput.key, textOutput.rule);
+    }
     await form.switchToGeneralTab();
     await form.save();
 
