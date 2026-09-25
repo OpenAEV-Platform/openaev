@@ -10,9 +10,17 @@
         'filigran team',
     ],
     minimumReleaseAge: '3 days',
+    // high hourly limit so that all PRs are created at once during the schedule window rather than
+    // being drip-fed across multiple runs
     prHourlyLimit: 100,
-    prConcurrentLimit: 100,
-    branchConcurrentLimit: 100,
+    // The concurrency ceiling is a blast-radius guard, not a volume lever. Over the 90 days to
+    // 2026-09-08 the peak was 53 simultaneously open Renovate PRs and the median 33, so 100 was never
+    // reached and never throttled anything. 60 keeps headroom over that measured peak while capping a
+    // runaway. It is deliberately not lower: the long-lived major PRs occupy part of the pool
+    // permanently, and a ceiling below the measured peak would silently stop Renovate opening
+    // anything new. Revisit once majors move off the PR list.
+    prConcurrentLimit: 60,
+    branchConcurrentLimit: 60,
     timezone: 'Europe/Paris',
     schedule: [
         '* 0-4,22-23 * * 1-5',
@@ -163,6 +171,204 @@
                 'digest',
             ],
             rebaseWhen: 'auto',
+        },
+
+        // Majors sat in the queue instead of being merged: 19 of the 40 open Renovate PRs were
+        // majors, four of them older than 280 days. Closing one does not hold either, because
+        // Renovate recreates it when the target version moves. Listing it on the Dependency
+        // Dashboard instead means the upgrade starts when someone decides to do the work. Nothing
+        // is lost: ticking the box opens the PR.
+        {
+            description: 'Majors are proposed on the Dependency Dashboard, not as a standing PR',
+            matchUpdateTypes: [
+                'major',
+            ],
+            dependencyDashboardApproval: true,
+        },
+
+        // ── Weekly batches, continued ────────────────────────────────────────────────────────
+        // Order matters: Renovate applies packageRules in order and a later rule wins. Batches come
+        // first, then the rules that pull a dependency back out of one. A batch caps a class at one
+        // PR a week whatever the upstream cadence. Before and after volumes are in the ADR.
+
+        // GitHub Actions only ever run in CI, so a bad version fails the workflow that uses it on the
+        // same push. OpenCTI already batches actions weekly.
+        {
+            groupName: 'ci tooling (non-major)',
+            groupSlug: 'ci-tooling-non-major',
+            description: 'Batch non-major GitHub Actions updates once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchManagers: [
+                'github-actions',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
+        // Maven build, test and provided scopes never reach a shipped artifact. Matching on depType
+        // rather than on an artifact list means a new test dependency joins the batch on its own.
+        // depType for the maven manager is the declared scope, and 'build' for plugins and extensions.
+        {
+            groupName: 'build and test tooling (non-major)',
+            groupSlug: 'build-test-tooling-non-major',
+            description: 'Batch non-major Maven build, test and provided scope updates once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchManagers: [
+                'maven',
+            ],
+            matchDepTypes: [
+                'build',
+                'test',
+                'provided',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
+        // The bulk of the volume, one PR at a time before this change. The cost of batching is that
+        // one bad member holds the whole batch, and the exit is a rule below with groupName: null.
+        {
+            groupName: 'front-end production dependencies (non-major)',
+            groupSlug: 'front-prod-non-major',
+            description: 'Batch non-major npm production updates once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchManagers: [
+                'npm',
+            ],
+            matchDepTypes: [
+                'dependencies',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
+        {
+            groupName: 'back-end production dependencies (non-major)',
+            groupSlug: 'back-prod-non-major',
+            description: 'Batch non-major Maven compile, runtime and import scope updates once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchManagers: [
+                'maven',
+            ],
+            matchDepTypes: [
+                'compile',
+                'runtime',
+                'import',
+                'optional',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
+
+        // ── Out of every batch, one PR each ──────────────────────────────────────────────────
+        // These come after the batches so they win, pulling a dependency back out of the batch it
+        // would otherwise land in. Anything no batch matches already gets its own PR by default, so
+        // docker images, yarn resolutions and lock file maintenance need no rule here.
+
+        // react-apexcharts carries the only yarn patch in the repository, and a patch can stop
+        // applying, or keep applying against changed code, with no error. apexcharts is pinned with
+        // it below the 5.x that is no longer MIT, so the two move as a pair. Both are in
+        // dependencies, so the front batch would take them, and a batched PR takes its title from
+        // groupName, which would drop the [DANGER] prefix set above.
+        {
+            description: 'The patched dependency and the one it moves with keep their own PR',
+            matchDepNames: [
+                'react-apexcharts',
+                'apexcharts',
+            ],
+            groupName: null,
+        },
+        // Either the dependency changes behaviour at runtime through defaults no test asserts (pool
+        // sizing, HTTP timeouts, serialisation, transaction semantics), or it is one of the 17
+        // versions this pom holds by hand over the Spring Boot BOM. Those were chosen deliberately,
+        // so a change to one has to map to a single commit that can be reverted on its own.
+        // maven-compiler-plugin.version is the one override not covered here: it is a build plugin,
+        // it ships nothing, and the BOM versions no dependency through it.
+        {
+            description: 'Runtime-behaviour and BOM-override Maven dependencies keep their own PR',
+            matchDatasources: [
+                'maven',
+            ],
+            matchPackageNames: [
+                '/^org\\.springframework/',
+                '/^org\\.apache\\.tomcat/',
+                '/^org\\.apache\\.httpcomponents/',
+                '/^org\\.hibernate/',
+                // registers Hibernate UserTypes for JSON and array columns, so it decides how those
+                // columns serialise. Same family as Hibernate itself, on the line above.
+                '/^io\\.hypersistence/',
+                '/^com\\.fasterxml\\.jackson/',
+                '/^tools\\.jackson/',
+                '/^co\\.elastic\\.clients/',
+                '/^org\\.opensearch/',
+                '/^org\\.elasticsearch/',
+                '/^com\\.rabbitmq/',
+                '/^org\\.quartz-scheduler/',
+                '/^ch\\.qos\\.logback/',
+                '/^org\\.apache\\.logging\\.log4j/',
+                '/^io\\.netty/',
+                '/^io\\.micrometer/',
+                '/^org\\.jetbrains\\.kotlin/',
+                '/^org\\.apache\\.velocity/',
+                // BOM overrides that were missing from this list while the comment above claimed
+                // to cover them: opentelemetry 1.65.0 over Boot's 1.49.0, commons-lang3 3.20.0 over
+                // 3.17.0, gson 2.14.0 over 2.13.2
+                '/^io\\.opentelemetry/',
+                'org.apache.commons:commons-lang3',
+                'com.google.code.gson:gson',
+                'com.zaxxer:HikariCP',
+                'org.postgresql:postgresql',
+                'com.squareup.okhttp3:okhttp',
+                // wraps the DataSource in main code (io.openaev.debug.DataSourceProxyBeanPostProcessor),
+                // so it sits on the path of every SQL statement the platform issues
+                'net.ttddyy:datasource-proxy',
+                // The prefixes above also match Maven plugins sharing the coordinate, and a plugin
+                // ships nothing, so it belongs in the build batch. Negating the suffix rather than
+                // filtering on depType is deliberate: the nine customManager dependencies carry no
+                // depType and a depType filter would drop them out of this rule.
+                '!/-maven-plugin$/',
+            ],
+            groupName: null,
+        },
+        // These parse, sanitise or transport untrusted input, dompurify most of all: it is the XSS
+        // boundary of the UI and a regression there is a security bug the E2E suite passes straight
+        // through. All six are in dependencies, so the front batch would otherwise take them.
+        {
+            description: 'Parsers, sanitisers and HTTP clients on the front keep their own PR',
+            matchDepNames: [
+                'dompurify',
+                'qs',
+                'axios',
+                'http-proxy-middleware',
+                'ipaddr.js',
+                '@filigran/chatbot',
+            ],
+            groupName: null,
         },
     ],
     // do lock file maintenance once a week on Sunday
