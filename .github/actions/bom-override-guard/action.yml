@@ -6,6 +6,12 @@ description: >
   Reported through the Pipeline Gate as advisory, never blocking. Requires the job to set
   GH_TOKEN, which wait-for-artifacts needs.
 
+inputs:
+  no-cache:
+    description: "true bypasses the shared Maven dependency cache"
+    required: false
+    default: "false"
+
 runs:
   using: composite
   steps:
@@ -14,7 +20,15 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: maven
+
+    - name: Restore Maven dependencies
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-v2-${{ runner.os }}-${{ runner.arch }}-
 
     # dependency:list is a bare plugin goal, so it never builds the reactor modules. Without the
     # io.openaev jars in the local repository it fails on openaev-framework with

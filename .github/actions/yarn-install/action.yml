@@ -1,0 +1,58 @@
+name: Yarn Install
+description: >
+  Set up Node and Corepack, restore the Yarn cache, and run `yarn install --immutable`.
+
+inputs:
+  no-cache:
+    description: "true bypasses the Yarn cache; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js 24
+      uses: actions/setup-node@v7
+      with:
+        node-version: "24.21.0"
+
+    - name: Install corepack
+      run: npm install -g corepack
+      shell: bash
+
+    # Resolve the cache directory separately so a Corepack failure is not hidden.
+    - name: Get Yarn cache directory
+      id: yarn-cache-dir
+      run: |
+        dir=$(yarn config get cacheFolder)
+        if [ -z "$dir" ]; then
+          echo "::error::Could not resolve the Yarn cache folder; corepack may have failed to fetch yarn"
+          exit 1
+        fi
+        echo "dir=$dir" >> "$GITHUB_OUTPUT"
+      shell: bash
+      working-directory: openaev-front
+
+    # Cache native packages per architecture.
+    - name: Restore Yarn cache
+      id: yarn-cache
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ steps.yarn-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-${{ runner.arch }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-yarn-
+
+    - name: Install dependencies
+      run: yarn install --immutable
+      shell: bash
+      working-directory: openaev-front
+
+    # Only main writes: PR-scoped caches cannot warm other PRs.
+    - name: Save Yarn cache
+      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.yarn-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ steps.yarn-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-${{ runner.arch }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}

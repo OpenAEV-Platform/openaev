@@ -5,6 +5,29 @@ One file per shard, listing Surefire include patterns (relative to
 catch-all: it runs everything **not** listed in any `api-*.txt`, so a newly added
 package starts there and never goes untested.
 
+The current layout is **9 explicit shards + catch-all 10**, shared by Core and
+all four Nightly API modes. The catch-all is kept the smallest and fastest API
+job, so it always has headroom for new packages.
+
+The redistribution based on [run 35204808360](https://github.com/OpenAEV-Platform/openaev/actions/runs/35204808360)
+moves `rest/inject` from shard 4 to shard 8 and top-level `config` tests from
+shard 5 to shard 9. Previously unclaimed non-root test packages are split between
+shards 8 and 9; shards 1, 2, 3, 6, and 7 are unchanged.
+
+Shards 2 and 3 were the two slowest jobs across the ten attempts of
+[run 35364059584](https://github.com/OpenAEV-Platform/openaev/actions/runs/35364059584)
+(9.1 and 9.2 min median, against 7.5 min for the fastest explicit shard), so
+`api/notification_trigger` and `database` were unclaimed from shard 3 and
+`rest/asset` from shard 2. They now run in the catch-all, which stays the
+smallest job by a ~1.5 min margin. Shard 3 keeps `rest/*Test.java`: those 36
+top-level classes are 90% of its remaining measured class time, and `*` does not
+cross a `/`, so the package cannot be split further without listing files.
+
+Custom exclusion files must preserve Surefire's default `**/*$*` exclusion.
+Otherwise nested classes can be discovered again in the catch-all even when
+their enclosing test belongs to an explicit shard. JUnit still runs nested tests
+through their enclosing class in its assigned shard.
+
 Shards are numbered rather than grouped by feature, and are balanced from
 **measured** per-class runtimes rather than a heuristic. An earlier attempt
 modelled cost from `@SpringBootTest` counts; refitting that model against a real
@@ -12,16 +35,15 @@ run gave ~1 min rms — the same size as the improvement being chased — becaus
 two shards with the same number of Spring-context classes ran 4.6 min and
 7.6 min. Observed times are used instead.
 
-Roughly 3.4 min of every shard is fixed cost (JVM + Spring contexts + Maven);
-only ~17 min of work is actually distributable, so adding shards has sharp
-diminishing returns.
+Every shard pays JVM, Spring context, and Maven startup costs. Summed class
+durations are workload estimates, not predictions of full CI job duration.
 
 ## Rebalancing
 
-After a run finishes, harvest the real per-class times and repack:
+The existing collection and repacking commands are:
 
     python .github/scripts/collect-test-timings.py <run_id>
-    python .github/scripts/balance-api-shards.py 7
+    python .github/scripts/balance-api-shards.py 9
 
 The first writes `.timings.json` by parsing Surefire's
 `Time elapsed: ... -- in <class>` lines out of the API job logs; the second
@@ -29,9 +51,16 @@ bin-packs packages into `api-<n>.txt`. If you change the shard count, update the
 `api-matrix` in `core-ci.yml` and `nightly-ci.yml` to match — the catch-all must
 stay last.
 
+Do not blindly regenerate from the current collector: it misses summaries using
+`@DisplayName` and can count nested durations twice when the enclosing summary
+already includes them. Check top-level summaries or Surefire XML before using
+the weights. Pass `9` explicitly; the balancer's legacy default is `7`.
+
 Always verify coverage afterwards:
 
     python .github/scripts/verify-test-shards.py
 
 It fails on duplicates or an empty catch-all (which would make Surefire run zero
-tests and break the JaCoCo step).
+tests and break the JaCoCo step). It checks `*Test.java` source ownership only;
+also verify generated exclusion files retain `**/*$*` to prevent duplicate
+nested-class discovery.
