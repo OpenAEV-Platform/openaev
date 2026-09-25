@@ -38,6 +38,7 @@ class BatchingInjectStatusServiceTest {
   @Mock private AgentRepository agentRepository;
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private InjectExecutionService injectExecutionService;
+  @Mock private InjectStatusService injectStatusService;
   @Mock private TenantScopedTransaction tenantTx;
 
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
@@ -178,9 +179,9 @@ class BatchingInjectStatusServiceTest {
       List<InjectExecutionCallback> result =
           service.handleInjectExecutionCallback(List.of(callback));
 
-      // Should be in success list because ElementNotFoundException is caught and handled
+      // A missing inject cannot be finalized: there is no entity to mark as ERROR.
       assertEquals(1, result.size());
-      verify(injectExecutionService).handleInjectExecutionError(isNull(), any(Exception.class));
+      verify(injectStatusService, never()).failInjectStatus(any(Inject.class), anyString());
     }
 
     @Test
@@ -199,9 +200,10 @@ class BatchingInjectStatusServiceTest {
       List<InjectExecutionCallback> result =
           service.handleInjectExecutionCallback(List.of(callback));
 
-      // Missing agent throws ElementNotFoundException → caught → added to success
+      // Missing agent should be turned into an ERROR status for the existing inject.
       assertEquals(1, result.size());
-      verify(injectExecutionService).handleInjectExecutionError(eq(inject), any(Exception.class));
+      verify(injectStatusService)
+          .failInjectStatus(eq(inject), contains("Agent not found: non-existent-agent"));
     }
   }
 

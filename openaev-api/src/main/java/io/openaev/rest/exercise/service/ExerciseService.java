@@ -33,9 +33,6 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.*;
-import io.openaev.database.specification.LessonsAnswerSpecification;
-import io.openaev.database.specification.LessonsCategorySpecification;
-import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
@@ -59,7 +56,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
-import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -137,14 +134,11 @@ public class ExerciseService {
   private final ArticleRepository articleRepository;
   private final ExerciseRepository exerciseRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
-  private final InjectStatusRepository injectStatusRepository;
   private final PauseRepository pauseRepository;
-  private final LessonsQuestionRepository lessonsQuestionRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final InjectRepository injectRepository;
-  private final LessonsAnswerRepository lessonsAnswerRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
   private final LessonsService lessonsService;
   private final UrlAccessTokenService urlAccessTokenService;
@@ -154,11 +148,10 @@ public class ExerciseService {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   private final WorkflowService workflowService;
+  private final WorkflowEndService workflowEndService;
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
-
-  private final StepService stepService;
 
   private final HealthCheckUtils healthCheckUtils;
 
@@ -702,38 +695,21 @@ public class ExerciseService {
       exercise.setEnd(null);
       // Reset pauses
       exercise.setCurrentPause(null);
-      pauseRepository.deleteAll(pauseRepository.findAllForExercise(exerciseId));
+      pauseExerciseService.deleteAllPauseByExerciseId(exercise.getId());
       // Reset injects outcome, communications and expectations
-      this.injectStatusRepository.deleteAllById(
-          exercise.getInjects().stream()
-              .map(Inject::getStatus)
-              .map(i -> i.map(InjectStatus::getId).orElse(""))
-              .toList());
-      exercise.getInjects().forEach(Inject::clean);
+      injectService.resetInjectByExercise(exercise.getId());
       // Reset lessons learned answers
-      List<LessonsAnswer> lessonsAnswers =
-          lessonsCategoryRepository
-              .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
-              .stream()
-              .flatMap(
-                  lessonsCategory ->
-                      lessonsQuestionRepository
-                          .findAll(
-                              LessonsQuestionSpecification.fromCategory(lessonsCategory.getId()))
-                          .stream()
-                          .flatMap(
-                              lessonsQuestion ->
-                                  lessonsAnswerRepository
-                                      .findAll(
-                                          LessonsAnswerSpecification.fromQuestion(
-                                              lessonsQuestion.getId()))
-                                      .stream()))
-              .toList();
-      lessonsAnswerRepository.deleteAll(lessonsAnswers);
+      this.lessonsService.resetLessonsAnswer(exerciseId);
+
       entityManager.flush();
       entityManager.clear();
-      // Reload exercise after clearing entity manager to avoid detached entity issues
+      // Reload exercise after clearing entity manager to avoid detached entity issues and to ensure
+      // the reset values are re-applied on a fresh managed instance before the final save.
       exercise = this.exercise(exerciseId);
+      exercise.setStart(null);
+      exercise.setEnd(null);
+      exercise.setCurrentPause(null);
+      exerciseRepository.save(exercise);
       // Delete exercise transient files (communications, ...) AFTER commit: this is an external
       // MinIO/S3 call. Running it inside the transaction pinned the DB connection and every row
       // lock taken by the deletes above for the whole duration of the object-storage roundtrips,
@@ -826,44 +802,14 @@ public class ExerciseService {
                   .filter(Inject::isNotExecuted)
                   .toList());
         }
+      } else {
+        workflowEndService.stopActiveInjects(
+            exercise.getId(), WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
       }
     }
     exercise.setUpdatedAt(now());
     exercise.setStatus(status);
     return exerciseRepository.save(exercise);
-  }
-
-  private void resetExercise(Exercise exercise) {
-    // 1. DELETE PAUSES
-    pauseExerciseService.deleteAllPauseByExerciseId(exercise.getId());
-
-    // 2. RESET INJECTS (status, communications, findings, expectations, collect status)
-    // Fetched separately from exercise.getInjects() for performance (avoids Eager loading overhead)
-    injectService.resetInjectByExerciseId(exercise.getId());
-
-    // 3. RESET LESSONS ANSWERS
-    lessonsService.resetLessonsAnswer(exercise.getId());
-
-    // 4. CLEAR WORKFLOW STATES
-    workflowService.resetSimulationDeleteWorkflow(exercise.getId());
-
-    // 5. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            try {
-              fileService.deleteDirectory(exercise.getId());
-            } catch (Exception e) {
-              log.error("Failed to delete directory for exercise {}", exercise.getId(), e);
-            }
-          }
-        });
-
-    // 6. RESET EXERCISE DATES
-    exercise.setStart(null);
-    exercise.setEnd(null);
-    exercise.setCurrentPause(null);
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {

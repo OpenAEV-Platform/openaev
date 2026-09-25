@@ -12,6 +12,7 @@ import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.helper.ExecutionTraceRepositoryHelper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
+import io.openaev.database.repository.InjectAuthorisationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.inject.form.InjectExecutionAction;
@@ -86,8 +87,9 @@ class InjectStatusServiceTest {
 
       @Mock private InjectRepository injectRepository;
       @Mock private AgentRepository agentRepository;
-      @Mock private InjectService injectService;
+      @Mock private InjectAgentResolverService injectAgentResolverService;
       @Mock private InjectUtils injectUtils;
+      @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
       @Mock private InjectStatusRepository injectStatusRepository;
       @Mock private ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
       @Mock private AuditLogger auditLogger;
@@ -103,8 +105,9 @@ class InjectStatusServiceTest {
             new InjectStatusService(
                 injectRepository,
                 agentRepository,
-                injectService,
+                injectAgentResolverService,
                 injectUtils,
+                injectAuthorisationRepository,
                 injectStatusRepository,
                 executionTraceRepositoryHelper,
                 Optional.of(auditLogger),
