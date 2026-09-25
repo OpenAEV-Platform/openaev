@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined } from '@mui/icons-material';
-import { FormHelperText, List, ListItem, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { FormHelperText, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -87,12 +88,18 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
             <Typography color={textColor} className={classes.bodyItem}>
               {team.team_name}
             </Typography>
-            <Tooltip color={textColor} title={t('Number of users')} className={classes.bodyItem}>
-              <Typography data-testid="user-count">{team.team_users_number}</Typography>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Typography color={textColor} className={classes.bodyItem} data-testid="user-count">{team.team_users_number}</Typography>
+              </TooltipTrigger>
+              <TooltipContent>{t('Number of users')}</TooltipContent>
             </Tooltip>
             {!hideEnabledUsersNumber && (
-              <Tooltip color={textColor} title={t('Number of enable user')} className={classes.bodyItem}>
-                <Typography>{userEnabled}</Typography>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Typography color={textColor} className={classes.bodyItem}>{userEnabled}</Typography>
+                </TooltipTrigger>
+                <TooltipContent>{t('Number of enable user')}</TooltipContent>
               </Tooltip>
             )}
             <div className={classes.bodyItem}>

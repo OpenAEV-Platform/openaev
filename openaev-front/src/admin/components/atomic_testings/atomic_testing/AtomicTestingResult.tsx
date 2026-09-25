@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -63,14 +63,17 @@ const AtomicTestingResult: FunctionComponent<Props> = ({ expectations, injectId 
         const tooltipLabel = t(EXPECTATION_TYPE_LABELS[expectation.type] ?? expectation.type);
 
         return (
-          <Tooltip key={index} title={tooltipLabel}>
-            <IconComponent
-              style={{
-                color,
-                marginRight: theme.spacing(1),
-                fontSize: 22,
-              }}
-            />
+          <Tooltip key={index}>
+            <TooltipTrigger asChild>
+              <IconComponent
+                style={{
+                  color,
+                  marginRight: theme.spacing(1),
+                  fontSize: 22,
+                }}
+              />
+            </TooltipTrigger>
+            {tooltipLabel && <TooltipContent>{tooltipLabel}</TooltipContent>}
           </Tooltip>
         );
       })}

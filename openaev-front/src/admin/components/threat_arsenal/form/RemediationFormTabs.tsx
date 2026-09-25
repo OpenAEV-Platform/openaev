@@ -1,6 +1,7 @@
-import { Alert, Box, Tab, Tabs } from '@mui/material';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 
 import type { SecurityPlatformHelper } from '../../../../actions/assets/asset-helper';
 import { fetchSecurityPlatforms } from '../../../../actions/assets/securityPlatform-actions';
@@ -31,10 +32,6 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
   const [loading, setLoading] = useState(false);
-
-  const handleActiveTabChange = (_: SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
 
   const hasSecurityPlatformsAccess = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
 
@@ -88,52 +85,27 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
       {!loading && tabs.length > 0 && (
         <>
           <Tabs
-            value={Math.min(activeTab, tabs.length - 1)}
-            onChange={handleActiveTabChange}
-            aria-label="tabs for remediation"
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-            sx={{
-              'minHeight': 40,
-              'borderBottom': `1px solid ${theme.palette.divider}`,
-              '& .MuiTab-root': {
-                // The theme forces `display: inline-block` + lowercase on MuiTab
-                // for its `::first-letter` trick; restore the flex row so the
-                // platform logo and name align, and keep the name capitalised.
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                textTransform: 'none',
-                minHeight: 40,
-                gap: 1,
-              },
-            }}
+            value={String(Math.min(activeTab, tabs.length - 1))}
+            onValueChange={value => setActiveTab(Number(value))}
+            panels="external"
           >
-            {tabs.map((tab, index) => (
-              <Tab
-                key={tab.asset_id}
-                label={(
-                  <Box
-                    display="flex"
-                    alignItems="center"
-                    gap={1}
-                  >
+            <TabsList aria-label={t('Security platforms')}>
+              {tabs.map((tab, index) => (
+                <TabsTrigger
+                  key={tab.asset_id}
+                  value={String(index)}
+                  icon={(
                     <img
                       src={buildTenantApiPath(`/api/images/security_platforms/id/${tab.asset_id}/${theme.palette.mode}`)}
-                      alt={tab.asset_name}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 4,
-                      }}
+                      alt=""
+                      style={{ borderRadius: 4 }}
                     />
-                    {tab.asset_name}
-                  </Box>
-                )}
-                value={index}
-              />
-            ))}
+                  )}
+                >
+                  {tab.asset_name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
           </Tabs>
           {tabs[Math.min(activeTab, tabs.length - 1)] && (
             <RemediationFormTab

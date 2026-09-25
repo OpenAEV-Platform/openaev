@@ -13,6 +13,9 @@ description: >
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
 
 inputs:
+  fds-git-token:
+    description: "PAT with read access to XTM-Foundation/filigran-design-system (secrets.FDS_GIT_TOKEN)."
+    required: true
   browser:
     description: "Browser name (chrome, chromium, webkit, firefox, or edge) — used for project selection, artifact naming, and browser install."
     required: true
@@ -64,6 +67,10 @@ runs:
       with:
         search-engine: ${{ inputs.search-engine }}
         search-engine-image: ${{ inputs.search-engine-image }}
+
+    - uses: ./.github/actions/setup-fds-auth
+      with:
+        token: ${{ inputs.fds-git-token }}
 
     - name: Install frontend dependencies
       uses: ./.github/actions/yarn-install

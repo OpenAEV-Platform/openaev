@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { ViewTimelineOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -20,17 +21,16 @@ const TimelineEmptyState = ({ canManage, onCreate }: Props) => {
   const { t } = useFormatter();
 
   return (
-    <Box sx={{
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 1.5,
-      border: `1px dashed ${theme.palette.divider}`,
-      borderRadius: 1,
-      backgroundColor: alpha(theme.palette.background.paper, 0.4),
-    }}
+    <Paper
+      padding={0}
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+      }}
     >
       <Box sx={{
         width: 56,
@@ -62,7 +62,7 @@ const TimelineEmptyState = ({ canManage, onCreate }: Props) => {
       {canManage && (
         <ButtonCreate label={t('Create your first inject')} onClick={onCreate} />
       )}
-    </Box>
+    </Paper>
   );
 };
 

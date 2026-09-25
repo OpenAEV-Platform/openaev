@@ -1,4 +1,13 @@
-import { Autocomplete, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { useFormatter } from '../i18n';
@@ -39,31 +48,42 @@ const SeparatorFieldController = ({ name, label, disabled, defaultValue, require
       control={control}
       defaultValue={defaultValue ?? ''}
       render={({ field, fieldState: { error } }) => (
-        <Autocomplete
-          size="medium"
+        <Combobox<{
+          value: string;
+          label: string;
+        }>
+          allowCustomValue
+          createValueFromInput={input => ({
+            value: input,
+            label: input,
+          })}
           options={separatorItems}
-          freeSolo
-          disabled={disabled}
-          renderInput={
-            params => (
-              <TextField
-                {...params}
-                label={t(label)}
-                fullWidth
-                required={required}
-                error={!!error}
-                helperText={error?.message}
-                onChange={(event) => {
-                  field.onChange(event.target.value);
-                }}
-              />
-            )
-          }
-          value={separatorItems.find(item => item.value === field.value)?.label ?? field.value}
-          onChange={(_event, platform) => {
-            field.onChange(platform?.value || '');
+          value={separatorItems.find(item => item.value === field.value)
+            ?? (field.value
+              ? {
+                  value: field.value,
+                  label: field.value,
+                }
+              : null)}
+          onValueChange={(next) => {
+            field.onChange((next as { value: string } | null)?.value ?? '');
           }}
-        />
+          getOptionLabel={item => item.label}
+          isOptionEqualToValue={(a, b) => a.value === b.value}
+          disabled={disabled}
+          required={required}
+          error={!!error}
+        >
+          <ComboboxLabel>{t(label)}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxInput />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+          {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+        </Combobox>
       )}
     />
   );

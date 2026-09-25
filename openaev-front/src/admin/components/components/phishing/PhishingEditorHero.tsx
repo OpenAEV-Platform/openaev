@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { type ReactNode } from 'react';
 
 import { DetailHero } from '../../../../components/common/detail/EntityDetailCommon';
@@ -34,10 +34,10 @@ const PhishingEditorHero = ({ icon, overline, title, formId, onCancel, canSave, 
       title={title}
       action={(
         <>
-          <Button variant="outlined" color="primary" onClick={onCancel} disabled={saving}>
+          <Button type="button" priority="secondary" onClick={onCancel} disabled={saving}>
             {t('Cancel')}
           </Button>
-          <Button type="submit" form={formId} variant="contained" color="primary" disabled={!canSave}>
+          <Button type="submit" form={formId} disabled={!canSave}>
             {saveLabel}
           </Button>
         </>

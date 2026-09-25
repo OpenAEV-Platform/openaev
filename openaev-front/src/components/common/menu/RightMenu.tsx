@@ -8,9 +8,8 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { isNotEmptyField } from '../../../utils/utils';
 import { useFormatter } from '../../i18n';
 
-// Height of the top AppBar toolbar (see TopBar.tsx). The right menu paper is
-// offset below it so it never renders over the header.
-const TOPBAR_HEIGHT = 68;
+// The library publishes the header height; the fallback applies only if its stylesheet failed to load.
+const HEADER_HEIGHT = 'var(--fds-header-height, 68px)';
 
 export interface RightMenuEntry {
   path: string;
@@ -36,8 +35,8 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
 
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  // The header occupies the top banner (if any) plus the fixed AppBar toolbar.
-  const topOffset = bannerHeightNumber + TOPBAR_HEIGHT;
+  // Banner plus header bar, kept as a CSS expression so the library's height stays the single source.
+  const topOffset = `calc(${bannerHeightNumber}px + ${HEADER_HEIGHT})`;
 
   return (
     <Drawer
@@ -46,10 +45,19 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
       sx={{
         'width': 200,
         '& .MuiDrawer-paper': {
+          // One layer above the page, so the panel reads as a panel. The nav
+          // token resolves to the page ground itself (#070d18 on both), which
+          // left the bar indistinguishable from the content beside it and only
+          // a 1px hairline to separate them — the sibling product's bar is
+          // lighter than its page, which is the same step said in tokens.
+          backgroundColor: 'var(--bg-elevation-default-layer-1)',
+          backgroundImage: 'none',
+          // Same edge as the sibling product's right panel: the soft subtle
+          // border, not MUI's own docked hairline.
+          borderLeft: '1px solid var(--border-elevation-subtle-soft)',
           width: 200,
           top: topOffset,
-          height: `calc(100% - ${topOffset}px)`,
-          backgroundColor: theme.palette.background.nav,
+          height: `calc(100% - ${topOffset})`,
         },
       }}
     >

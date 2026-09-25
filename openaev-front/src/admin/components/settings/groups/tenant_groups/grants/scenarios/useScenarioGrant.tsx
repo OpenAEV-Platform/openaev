@@ -1,4 +1,4 @@
-import { Checkbox } from '@mui/material';
+import { Checkbox } from '@filigran/design-system';
 
 import { addGrant, deleteGrant } from '../../../../../../../actions/Grant';
 import { type GroupHelper } from '../../../../../../../actions/group/group-helper';
@@ -59,9 +59,10 @@ const useScenarioGrant = ({ groupId, onGrantChange }: ScenarioGrantsProps) => {
         const { observerId, plannerId, launcherId } = getGrantIds(scenario);
         return (
           <Checkbox
+            aria-label={t('Access')}
             checked={!!(observerId || plannerId || launcherId)}
             disabled={!!(plannerId || launcherId)}
-            onChange={(_, checked) => handleGrant(scenario.scenario_id, observerId, 'OBSERVER', checked)}
+            onCheckedChange={checked => handleGrant(scenario.scenario_id, observerId, 'OBSERVER', checked === true)}
           />
         );
       },
@@ -73,9 +74,10 @@ const useScenarioGrant = ({ groupId, onGrantChange }: ScenarioGrantsProps) => {
         const { plannerId, launcherId } = getGrantIds(scenario);
         return (
           <Checkbox
+            aria-label={t('Manage+Delete')}
             checked={!!(plannerId || launcherId)}
             disabled={!!launcherId}
-            onChange={(_, checked) => handleGrant(scenario.scenario_id, plannerId, 'PLANNER', checked)}
+            onCheckedChange={checked => handleGrant(scenario.scenario_id, plannerId, 'PLANNER', checked === true)}
           />
         );
       },
@@ -87,8 +89,9 @@ const useScenarioGrant = ({ groupId, onGrantChange }: ScenarioGrantsProps) => {
         const { launcherId } = getGrantIds(scenario);
         return (
           <Checkbox
+            aria-label={t('Launch')}
             checked={!!launcherId}
-            onChange={(_, checked) => handleGrant(scenario.scenario_id, launcherId, 'LAUNCHER', checked)}
+            onCheckedChange={checked => handleGrant(scenario.scenario_id, launcherId, 'LAUNCHER', checked === true)}
           />
         );
       },

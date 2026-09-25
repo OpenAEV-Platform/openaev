@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { InputLabel, Tooltip } from '@mui/material';
+import { InputLabel } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import FilterField from '../../../../components/common/queryable/filter/FilterField';
@@ -48,12 +49,15 @@ const TriggerFilterField: FunctionComponent<Props> = ({
       }}
       >
         <InputLabel id="trigger-filters">{t('Filters')}</InputLabel>
-        <Tooltip title={t('Only events on entities matching these filters will notify you. Leave empty to match all entities of the selected type.')}>
-          <InfoOutlined
-            fontSize="small"
-            color="primary"
-            style={{ marginTop: 8 }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined
+              fontSize="small"
+              color="primary"
+              style={{ marginTop: 8 }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Only events on entities matching these filters will notify you. Leave empty to match all entities of the selected type.')}</TooltipContent>
         </Tooltip>
       </div>
       <FilterField
