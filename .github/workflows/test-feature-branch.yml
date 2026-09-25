@@ -24,7 +24,7 @@ jobs:
           REF_VERSION: ${{ github.ref_name }}
           REF_SHA: ${{ github.sha }}
         run: |
-          slug=$(echo "$REF_VERSION" | tr '/._' '-' | cut -c 1-15 | sed 's/[^[:alnum:]-]/-/g' | sed 's/-*$//')
+          slug=$(echo "$REF_VERSION" | tr '/._' '-' | cut -c 1-15 | sed 's/[^[:alnum:]-]/-/g' | sed 's/^-*//' | sed 's/-*$//')
           if [ -z "$slug" ]; then
             slug="sha-${REF_SHA:0:8}"
           fi
