@@ -1,6 +1,7 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Paper, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
 import { useContext, useEffect, useRef, useState } from 'react';
@@ -18,6 +19,7 @@ import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEditio
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { getStatusColor } from '../../../../../utils/statusUtils';
+import { tint } from '../../../../../utils/tint';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import StatusPill from '../../../atomic_testings/atomic_testing/target_result/StatusPill';
 import EEChip from '../../../common/entreprise_edition/EEChip';
@@ -524,7 +526,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: alpha(iconColor, 0.12),
+              backgroundColor: tint(iconColor, 12),
               color: iconColor,
               flexShrink: 0,
             }}
@@ -566,7 +568,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: alpha(iconColor, 0.12),
+                backgroundColor: tint(iconColor, 12),
                 color: iconColor,
                 fontSize: 12,
                 fontWeight: 700,
@@ -614,13 +616,13 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
           {/* Back to the endpoint/finding panel this execution was opened from. */}
           {onBack && (
             <IconButton
-              size="small"
+              icon={<ArrowBack fontSize="small" />}
               aria-label={t('Back')}
               onClick={onBack}
-              sx={{ flexShrink: 0 }}
-            >
-              <ArrowBack fontSize="small" />
-            </IconButton>
+              style={{ flexShrink: 0 }}
+              priority="tertiary"
+              size="md"
+            />
           )}
           <Typography
             variant="h5"
@@ -633,9 +635,14 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
           >
             {detail?.payloadName || t('Execution')}
           </Typography>
-          <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
-            <Close fontSize="small" />
-          </IconButton>
+          <IconButton
+            icon={<Close fontSize="small" />}
+            aria-label={t('Close')}
+            onClick={onClose}
+            style={{ flexShrink: 0 }}
+            priority="tertiary"
+            size="md"
+          />
         </div>
         {/* 38px = the 30px back IconButton + the 8px row gap, so these lines start under the title. */}
         <div style={{ paddingLeft: onBack ? 38 : 0 }}>
@@ -791,13 +798,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 {showVulnerability && renderExpectationRow('vulnerability', t('Vulnerability'), 'Not vulnerable', detail?.vulnerabilityStatus, vulnerabilityBy)}
                 {/* Jump to the originating inject for the full action definition (pending backend id). */}
                 {onOpenInject && (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<OpenInNew fontSize="small" />}
-                    onClick={onOpenInject}
-                    sx={{ alignSelf: 'flex-start' }}
-                  >
+                  <Button type="button" priority="secondary" size="sm" startIcon={<OpenInNew fontSize="small" />} onClick={onOpenInject} style={{ alignSelf: 'flex-start' }}>
                     {t('Inject details')}
                   </Button>
                 )}

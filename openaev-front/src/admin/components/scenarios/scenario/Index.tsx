@@ -1,4 +1,5 @@
-import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Alert, AlertTitle, Box } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
@@ -131,21 +132,22 @@ const IndexScenarioComponent: FunctionComponent<{
   // cockpit lives on the resulting simulation's detail page, never on the reusable scenario.
   const renderTabs = () => {
     return (
-      <Tabs value={tabValue} variant="scrollable" scrollButtons="auto">
-        {buildScenarioTabs({
-          isChained,
-          hasInjectTests,
-          lessonsEnabled: scenario.scenario_lessons_enabled,
-          t,
-        }).map(([suffix, label]) => (
-          <Tab
-            key={suffix}
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}${suffix}`}
-            value={`/admin/scenarios/${scenario.scenario_id}${suffix}`}
-            label={label}
-          />
-        ))}
+      <Tabs value={tabValue} panels="external">
+        <TabsList>
+          {buildScenarioTabs({
+            isChained,
+            hasInjectTests,
+            lessonsEnabled: scenario.scenario_lessons_enabled,
+            t,
+          }).map(([suffix, label]) => {
+            const path = `/admin/scenarios/${scenario.scenario_id}${suffix}`;
+            return (
+              <TabsTrigger key={suffix} value={path} asChild>
+                <Link to={path} aria-current={tabValue === path ? 'page' : undefined}>{label}</Link>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
       </Tabs>
     );
   };

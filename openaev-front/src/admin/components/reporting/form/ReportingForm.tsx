@@ -1,30 +1,12 @@
+import { Button, Checkbox, IconButton, Paper as FdsPaper, Radio, RadioGroup, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Checkbox,
-  FormControl,
-  FormHelperText,
-  IconButton,
-  InputLabel,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
-  Paper,
-  Select,
-  Step,
-  StepLabel,
-  Stepper,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { CodeOutlined, DeleteOutlined, DragIndicatorOutlined, PictureAsPdfOutlined, RestartAltOutlined } from '@mui/icons-material';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
+import { Box, FormHelperText, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
-import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
+import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 
 import { type LoggedHelper } from '../../../../actions/helper';
@@ -35,6 +17,7 @@ import MarkDownFieldController from '../../../../components/fields/MarkDownField
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import {
@@ -45,6 +28,7 @@ import {
   type TenantSettingsOutput,
   type ThemeInput,
 } from '../../../../utils/api-types';
+import { layerInputVars } from '../../../../utils/fdsLayer';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
@@ -157,6 +141,61 @@ interface Props {
  * branding and - on creation only - an optional first schedule (schedules are
  * then managed from the report detail page).
  */
+// Both rows of a module block put their label on the left, so both reserve the
+// same column for it: the labels end on the same x and the fields start there,
+// which is what makes the two rows read as one block.
+const MODULE_FIELD_LABEL_WIDTH = 180;
+
+/** The optional title, its label on the left: the row stays one line high. */
+const ModuleTitleField = ({ id, name }: {
+  id: string;
+  name: `modules.${number}.module_title`;
+}) => {
+  const { t } = useFormatter();
+  const { control } = useFormContext<ReportingFormValues>();
+  return (
+    <Box sx={{
+      flex: 1,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1,
+    }}
+    >
+      <Typography
+        component="label"
+        htmlFor={id}
+        variant="body2"
+        sx={{
+          color: 'text.secondary',
+          width: MODULE_FIELD_LABEL_WIDTH,
+          flexShrink: 0,
+        }}
+      >
+        {t('Custom title (optional)')}
+      </Typography>
+      <Box sx={{ flex: 1 }}>
+        <Controller
+          control={control}
+          name={name}
+          render={({ field }) => (
+            <TextFieldFds {...field} id={id} value={field.value ?? ''} style={{ width: '100%' }} />
+          )}
+        />
+      </Box>
+    </Box>
+  );
+};
+
+// The default-format group is named by the caption above it.
+const FORMAT_LABEL_ID = 'reporting-default-format-label';
+
+// One glyph per output: the page icon for the printed document, the markup
+// icon for the page served in a browser.
+const REPORTING_FORMAT_ICONS = {
+  PDF: PictureAsPdfOutlined,
+  HTML: CodeOutlined,
+} as const;
+
 const ReportingForm: FunctionComponent<Props> = ({
   onSubmit,
   handleClose,
@@ -399,35 +438,53 @@ const ReportingForm: FunctionComponent<Props> = ({
       gap: 2,
     }}
     >
-      <TextFieldController variant="standard" name="reporting_name" label={t('Name')} required />
-      <TextFieldController variant="standard" name="reporting_description" label={t('Description')} multiline rows={2} />
+      <TextFieldController name="reporting_name" label={t('Name')} required />
+      <TextFieldController name="reporting_description" label={t('Description')} multiline rows={2} />
       <Controller
         control={control}
         name="reporting_context_type"
         render={({ field }) => (
-          <FormControl fullWidth>
-            <InputLabel id="reporting-context-type-label">{t('Subject type')}</InputLabel>
+          <div>
+            {/* The library Select renders no wrapper of its own; without this div
+                the column gap would separate its label from its trigger. */}
             <Select
-              labelId="reporting-context-type-label"
               value={field.value}
-              onChange={(event) => {
-                field.onChange(event.target.value);
+              onValueChange={(next) => {
+                field.onChange(next);
                 // A subject entity belongs to exactly one type.
                 setValue('reporting_context_id', '');
               }}
-              renderValue={value => t(REPORTING_CONTEXT_LABELS[value as ReportingContextType])}
+              name={field.name}
             >
-              {REPORTING_CONTEXT_TYPES.map((type) => {
-                const TypeIcon = REPORTING_CONTEXT_ICONS[type];
-                return (
-                  <MenuItem key={type} value={type}>
-                    <ListItemIcon><TypeIcon fontSize="small" color="primary" /></ListItemIcon>
-                    <ListItemText>{t(REPORTING_CONTEXT_LABELS[type])}</ListItemText>
-                  </MenuItem>
-                );
-              })}
+              <SelectLabel>{t('Subject type')}</SelectLabel>
+              {/* The trigger shows the label alone; the rows carry the icon. This
+                is what `renderValue` did, expressed as the trigger's content. */}
+              <SelectTrigger className="w-full">
+                <span>{t(REPORTING_CONTEXT_LABELS[field.value as ReportingContextType])}</span>
+              </SelectTrigger>
+              <SelectContent>
+                {REPORTING_CONTEXT_TYPES.map((type) => {
+                  const TypeIcon = REPORTING_CONTEXT_ICONS[type];
+                  return (
+                    <SelectItem key={type} value={type}>
+                      {/* Radix wraps an item's children in a single span, so the row's own
+                        flex never reaches them: without this the glyph sits on the text
+                        baseline with no gap. */}
+                      <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                      >
+                        <TypeIcon fontSize="small" color="primary" />
+                        {t(REPORTING_CONTEXT_LABELS[type])}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
             </Select>
-          </FormControl>
+          </div>
         )}
       />
       {contextType !== 'PLATFORM' && (
@@ -466,25 +523,44 @@ const ReportingForm: FunctionComponent<Props> = ({
         name="reporting_default_format"
         render={({ field }) => (
           <div>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {/* The group has no visible label of its own, so the caption above
+                names it through aria-labelledby. */}
+            <Typography id={FORMAT_LABEL_ID} variant="caption" sx={{ color: 'text.secondary' }}>
               {t('Default format')}
             </Typography>
-            <ToggleButtonGroup
-              exclusive
-              size="small"
-              color="primary"
+            <RadioGroup
+              orientation="horizontal"
+              aria-labelledby={FORMAT_LABEL_ID}
               value={field.value}
-              onChange={(_, value) => {
-                if (value) field.onChange(value);
-              }}
-              sx={{ display: 'flex' }}
+              onValueChange={value => field.onChange(value)}
+              style={{ marginTop: theme.spacing(1) }}
             >
-              {REPORTING_FORMATS.map(format => (
-                <ToggleButton key={format} value={format} sx={{ flex: 1 }}>
-                  {format}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
+              {REPORTING_FORMATS.map((format) => {
+                const FormatIcon = REPORTING_FORMAT_ICONS[format];
+                return (
+                  <Radio
+                    key={format}
+                    value={format}
+                    label={(
+                      // `flex`, not `inline-flex`: an inline box inside the
+                      // library's label span sits on its baseline, which left
+                      // the icon and the text 2.75px above the circle. A block
+                      // box makes the span its own height, and the row's
+                      // `items-center` then lines the three up.
+                      <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: theme.spacing(0.5),
+                      }}
+                      >
+                        <FormatIcon fontSize="small" style={{ color: 'var(--text-default-secondary)' }} />
+                        {format}
+                      </span>
+                    )}
+                  />
+                );
+              })}
+            </RadioGroup>
           </div>
         )}
       />
@@ -508,21 +584,28 @@ const ReportingForm: FunctionComponent<Props> = ({
         {REPORTING_MODULE_TYPES.map((type) => {
           const selected = selectedTypes.includes(type);
           return (
+            // The card is the checkbox's own <label>, so the box is the real
+            // control and the whole card stays clickable — through the native
+            // label association rather than a handler on a div, which is what
+            // made this unreachable by keyboard.
             <Paper
               key={type}
+              component="label"
               variant="outlined"
-              onClick={() => toggleModule(type)}
               sx={{
                 display: 'flex',
                 alignItems: 'flex-start',
-                gap: 0.5,
+                gap: 1,
                 padding: 1,
                 borderRadius: 1,
                 cursor: 'pointer',
                 borderColor: selected ? 'primary.main' : undefined,
               }}
             >
-              <Checkbox checked={selected} size="small" sx={{ padding: 0.5 }} />
+              <Checkbox
+                checked={selected}
+                onCheckedChange={() => toggleModule(type)}
+              />
               <div>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   {t(MODULE_TYPE_LABELS[type])}
@@ -551,22 +634,24 @@ const ReportingForm: FunctionComponent<Props> = ({
                 return (
                   <Draggable key={field.id} draggableId={field.id} index={index}>
                     {draggableProvided => (
-                      <Paper
+                      <FdsPaper
                         ref={draggableProvided.innerRef}
                         {...draggableProvided.draggableProps}
-                        variant="outlined"
-                        sx={{
+                        padding={8}
+                        // One layer above the drawer's surface, like the sibling product's confidence
+                        // block; the input aliases follow the layer.
+                        elevation={3}
+                        style={{
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: 1,
-                          padding: 1,
-                          marginBottom: 1,
-                          borderRadius: 1,
+                          gap: 8,
+                          marginBottom: 8,
+                          ...layerInputVars,
                         }}
                       >
                         <Box sx={{
                           display: 'flex',
-                          alignItems: 'center',
+                          alignItems: 'flex-start',
                           gap: 1,
                         }}
                         >
@@ -594,19 +679,53 @@ const ReportingForm: FunctionComponent<Props> = ({
                           >
                             {`${index + 1}. ${t(MODULE_TYPE_LABELS[type])}`}
                           </Typography>
-                          <Box sx={{ flex: 1 }}>
-                            <TextFieldController
-                              variant="standard"
-                              size="small"
-                              name={`modules.${index}.module_title`}
-                              label={t('Custom title (optional)')}
-                              noHelperText
-                            />
-                          </Box>
-                          <Tooltip title={t('Remove')}>
-                            <IconButton size="small" color="primary" onClick={() => removeModule(index)}>
-                              <DeleteOutlined fontSize="small" />
-                            </IconButton>
+                          {/* The kill chain section carries two fields: they stack to the
+                              right of the block title, which stays level with the first label. */}
+                          {type === 'MITRE_COVERAGE' && (
+                            <Box sx={{
+                              flex: 1,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 1,
+                            }}
+                            >
+                              <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
+                              <Controller
+                                control={control}
+                                name={`modules.${index}.kill_chains`}
+                                render={({ field: killChains }) => (
+                                  <ReportingAutocompleteField
+                                    multiple
+                                    label={t('Kill chains')}
+                                    labelPosition="left"
+                                    labelWidth={MODULE_FIELD_LABEL_WIDTH}
+                                    options={killChainOptions}
+                                    value={killChains.value}
+                                    onChange={killChains.onChange}
+                                    onInputChange={() => {}}
+                                    helperText={t('Leave empty to cover all kill chains.')}
+                                  />
+                                )}
+                              />
+                            </Box>
+                          )}
+                          {type !== 'MITRE_COVERAGE' && (
+                            <>
+                              <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
+                            </>
+                          )}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <IconButton
+                                icon={<DeleteOutlined fontSize="small" />}
+                                aria-label={t('Remove')}
+                                onClick={() => removeModule(index)}
+                                variant="destructive"
+                                priority="tertiary"
+                                size="sm"
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent>{t('Remove')}</TooltipContent>
                           </Tooltip>
                         </Box>
                         {type === 'CUSTOM_MARKDOWN' && (
@@ -617,24 +736,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                             inInject={false}
                           />
                         )}
-                        {type === 'MITRE_COVERAGE' && (
-                          <Controller
-                            control={control}
-                            name={`modules.${index}.kill_chains`}
-                            render={({ field }) => (
-                              <ReportingAutocompleteField
-                                multiple
-                                label={t('Kill chains')}
-                                options={killChainOptions}
-                                value={field.value}
-                                onChange={field.onChange}
-                                onInputChange={() => {}}
-                                helperText={t('Leave empty to cover all kill chains.')}
-                              />
-                            )}
-                          />
-                        )}
-                      </Paper>
+                      </FdsPaper>
                     )}
                   </Draggable>
                 );
@@ -662,24 +764,27 @@ const ReportingForm: FunctionComponent<Props> = ({
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {t('Theme')}
             </Typography>
-            <Tooltip title={t('Switching the theme resets the colors to the platform defaults of that theme.')}>
-              <ToggleButtonGroup
-                exclusive
-                size="small"
-                color="primary"
-                value={field.value}
-                onChange={(_, value: ReportingThemeMode | null) => {
-                  if (!value || value === field.value) return;
-                  field.onChange(value);
-                  // The palettes are theme-specific: carrying dark colors into
-                  // light mode (or vice versa) would produce unreadable reports.
-                  resetBrandingColors(value);
-                }}
-                sx={{ display: 'flex' }}
-              >
-                <ToggleButton value="LIGHT" sx={{ flex: 1 }}>{t('Light')}</ToggleButton>
-                <ToggleButton value="DARK" sx={{ flex: 1 }}>{t('Dark')}</ToggleButton>
-              </ToggleButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ToggleButtonGroup
+                  exclusive
+                  size="small"
+                  color="primary"
+                  value={field.value}
+                  onChange={(_, value: ReportingThemeMode | null) => {
+                    if (!value || value === field.value) return;
+                    field.onChange(value);
+                    // The palettes are theme-specific: carrying dark colors into
+                    // light mode (or vice versa) would produce unreadable reports.
+                    resetBrandingColors(value);
+                  }}
+                  sx={{ display: 'flex' }}
+                >
+                  <ToggleButton value="LIGHT" sx={{ flex: 1 }}>{t('Light')}</ToggleButton>
+                  <ToggleButton value="DARK" sx={{ flex: 1 }}>{t('Dark')}</ToggleButton>
+                </ToggleButtonGroup>
+              </TooltipTrigger>
+              <TooltipContent>{t('Switching the theme resets the colors to the platform defaults of that theme.')}</TooltipContent>
             </Tooltip>
           </div>
         )}
@@ -691,11 +796,7 @@ const ReportingForm: FunctionComponent<Props> = ({
       }}
       >
         <Typography variant="h3" sx={{ margin: 0 }}>{t('Colors')}</Typography>
-        <Button
-          size="small"
-          startIcon={<RestartAltOutlined />}
-          onClick={() => resetBrandingColors()}
-        >
+        <Button type="button" priority="tertiary" size="sm" startIcon={<RestartAltOutlined fontSize="small" />} onClick={() => resetBrandingColors()}>
           {t('Reset to platform defaults')}
         </Button>
       </Box>
@@ -705,12 +806,12 @@ const ReportingForm: FunctionComponent<Props> = ({
         gap: 2,
       }}
       >
-        <ColorPickerField variant="standard" fullWidth label={t('Primary color')} control={control} name="branding_primary_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Secondary color')} control={control} name="branding_secondary_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Accent color')} control={control} name="branding_accent_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Background color')} control={control} name="branding_background_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Paper color')} control={control} name="branding_paper_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Text color')} control={control} name="branding_text_color" />
+        <ColorPickerField label={t('Primary color')} control={control} name="branding_primary_color" />
+        <ColorPickerField label={t('Secondary color')} control={control} name="branding_secondary_color" />
+        <ColorPickerField label={t('Accent color')} control={control} name="branding_accent_color" />
+        <ColorPickerField label={t('Background color')} control={control} name="branding_background_color" />
+        <ColorPickerField label={t('Paper color')} control={control} name="branding_paper_color" />
+        <ColorPickerField label={t('Text color')} control={control} name="branding_text_color" />
       </Box>
       <Controller
         control={control}
@@ -744,6 +845,7 @@ const ReportingForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="reportingForm"
         style={{
           display: 'flex',
@@ -779,40 +881,24 @@ const ReportingForm: FunctionComponent<Props> = ({
           marginBottom: 2,
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          {/* Three buttons in a row: Cancel steps down to tertiary so the row
+              carries one primary and one secondary, and the way out does not
+              compete with the way back. */}
+          <Button type="button" priority={activeStep > 0 ? 'tertiary' : 'secondary'} onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
           {activeStep > 0 && (
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={() => setActiveStep(step => step - 1)}
-              disabled={isSubmitting}
-            >
+            <Button type="button" priority="secondary" onClick={() => setActiveStep(step => step - 1)} disabled={isSubmitting}>
               {t('Back')}
             </Button>
           )}
           {!isLastStep && (
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleNext}
-            >
+            <Button type="button" onClick={handleNext}>
               {t('Next')}
             </Button>
           )}
           {isLastStep && (
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" disabled={isSubmitting}>
               {editing ? t('Update') : t('Create')}
             </Button>
           )}

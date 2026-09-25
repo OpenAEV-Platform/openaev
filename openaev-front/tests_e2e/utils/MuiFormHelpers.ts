@@ -19,10 +19,38 @@ class MuiFormHelpers {
   }
 
   static getFieldError(fieldLocator: Locator): Locator {
-    return fieldLocator
+    // MUI nests the message under the FormControl. A library field has no
+    // FormControl: its helper text is a `<p id="…-helper">` inside the combobox
+    // root, which is the nearest ancestor also holding the label and the field.
+    // Both forms coexist while the migration is partial, so match either — only
+    // one of the two can resolve for a given field.
+    const mui = fieldLocator
       .locator('xpath=ancestor::*[contains(@class, "MuiFormControl-root")]')
       .first()
       .locator('.MuiFormHelperText-root.Mui-error');
+    // Combobox wraps its parts in a flex column, so its helper text is a child
+    // of that root.
+    const combobox = fieldLocator
+      .locator('xpath=ancestor::div[contains(@class, "flex-col")][1]/p[substring(@id, string-length(@id) - 6) = "-helper"]');
+    // Select renders NO wrapper of its own (LIBRARY-FEEDBACK 43), so its helper
+    // text is a plain sibling — but of WHAT changed with library 1.1.0. The
+    // clear control added in #190 wraps the trigger in a `<span>`, so the
+    // trigger's own siblings are now empty and the helper is a sibling of that
+    // span instead. Measured on the rendered field: the trigger is a BUTTON
+    // alone inside `span.flex.items-center`, and the span's siblings are
+    // DIV (label), SPAN (itself), P (the helper). Both levels are matched so
+    // the locator holds whichever shape the pinned library renders. The id is a
+    // raw `React.useId()`, not the `…-helper` the Combobox uses, so it cannot
+    // be matched by suffix — and the Select's only sibling paragraph IS its
+    // helper text.
+    const select = fieldLocator
+      .locator('xpath=following-sibling::p')
+      .or(fieldLocator.locator('xpath=../following-sibling::p'));
+    // Input and Textarea wrap label, control and helper in one flex column; the
+    // helper is a `<div id="…-helper">` holding a `<span>`, not a `<p>`.
+    const input = fieldLocator
+      .locator('xpath=ancestor::div[contains(@class, "flex-col")][1]/div[substring(@id, string-length(@id) - 6) = "-helper"]');
+    return mui.or(combobox).or(select).or(input);
   }
 
   static getListContainer(listItemLocator: Locator): Locator {

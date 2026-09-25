@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import * as PropTypes from 'prop-types';
 import { Form } from 'react-final-form';
 
@@ -35,7 +35,6 @@ const AttackPatternForm = (props) => {
         <form id="attackPatternForm" onSubmit={handleSubmit}>
           <OldTextField
             name="attack_pattern_external_id"
-            fullWidth
             label={t('External ID')}
             style={{ marginTop: 10 }}
           />
@@ -48,14 +47,12 @@ const AttackPatternForm = (props) => {
           />
           <OldTextField
             name="attack_pattern_name"
-            fullWidth
             label={t('Name')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
             name="attack_pattern_description"
             multiline
-            fullWidth
             rows={3}
             label={t('Description')}
             style={{ marginTop: 20 }}
@@ -65,21 +62,10 @@ const AttackPatternForm = (props) => {
             marginTop: 20,
           }}
           >
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleClose}
-              style={{ marginRight: 10 }}
-              disabled={submitting}
-            >
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: 10 }}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={pristine || submitting}
-            >
+            <Button type="submit" disabled={pristine || submitting}>
               {editing ? t('Update') : t('Create')}
             </Button>
           </div>

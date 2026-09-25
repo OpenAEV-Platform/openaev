@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 
 import { searchKillChainPhases } from '../../../../actions/KillChainPhase';
@@ -53,19 +54,7 @@ const KillChainPhases = () => {
       label: 'Kill chain',
       isSortable: true,
       value: (killChainPhase: KillChainPhase) => (
-        <Chip
-          variant="outlined"
-          color="primary"
-          label={killChainPhase.phase_kill_chain_name}
-          sx={{
-            fontSize: 12,
-            height: 20,
-            float: 'left',
-            textTransform: 'uppercase',
-            borderRadius: 1,
-            width: 120,
-          }}
-        />
+        <Chip label={killChainPhase.phase_kill_chain_name} severity="info" style={{ float: 'left' }} />
       ),
     },
     {

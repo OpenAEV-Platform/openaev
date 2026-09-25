@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import type React from 'react';
 import { type FunctionComponent } from 'react';
 
@@ -31,17 +32,17 @@ const XtmHubProcessDialog: FunctionComponent<ProcessDialogProps> = ({
       >
         {title}
         <IconButton
+          icon={<Close />}
           aria-label="close"
           onClick={onClose}
-          sx={{
+          style={{
             position: 'absolute',
             right: 8,
             top: 8,
-            color: theme => theme.palette.grey[500],
           }}
-        >
-          <Close />
-        </IconButton>
+          priority="tertiary"
+          size="md"
+        />
       </DialogTitle>
 
       <DialogContent

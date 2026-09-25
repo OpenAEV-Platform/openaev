@@ -1,25 +1,10 @@
+import { Chip, Select, SelectContent, SelectItem, SelectTrigger, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, InfoOutlined, OpenInNewOutlined, SmartToyOutlined } from '@mui/icons-material';
-import {
-  Chip,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
-  Select,
-  Skeleton,
-  Stack,
-  Switch,
-  Tooltip,
-  Typography,
-  useMediaQuery,
-} from '@mui/material';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, Stack, Typography, useMediaQuery } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useMemo, useState } from 'react';
 
 import { type AdditionalAgent, AUTONOMOUS_DISCOVERY_MODES, type AutonomousDiscoveryMode, ORCHESTRATOR_DEFAULT_DISCOVERY_MODE, SPECIALIST_DEFAULT_DISCOVERY_MODE } from '../../../actions/autonomous/autonomous-types';
-import colorStyles from '../../../components/Color';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { type SortHelpers } from '../../../components/common/queryable/sort/SortHelpers';
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
@@ -64,13 +49,6 @@ interface Props {
 }
 
 // Design-system list chip (same pattern as Notifiers / the triggers list).
-const chipInList: CSSProperties = {
-  fontSize: 12,
-  height: 20,
-  borderRadius: 4,
-  textTransform: 'uppercase',
-  width: 100,
-};
 
 /**
  * Shared agent picker used both in Settings > Customization > Autonomous attack (tenant defaults)
@@ -139,52 +117,49 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
     return (
       <Stack direction="row" alignItems="center" spacing={0.5}>
         <Select
-          size="small"
-          variant="standard"
-          disableUnderline
           value={mode}
           disabled={disabled}
-          onChange={event => onModeChange?.(agentId, event.target.value as AutonomousDiscoveryMode)}
-          onClick={event => event.stopPropagation()}
-          renderValue={value => modeLabel(value as AutonomousDiscoveryMode)}
-          MenuProps={{ PaperProps: { sx: { maxWidth: 340 } } }}
-          sx={{
-            fontSize: 12,
-            color: theme.palette.text.secondary,
-          }}
-          inputProps={{ 'aria-label': t('Discovery mode') }}
+          onValueChange={next => onModeChange?.(agentId, next as AutonomousDiscoveryMode)}
         >
-          {AUTONOMOUS_DISCOVERY_MODES.map(m => (
-            <MenuItem
-              key={m}
-              value={m}
-              sx={{
-                display: 'block',
-                paddingTop: 0.75,
-                paddingBottom: 0.75,
-              }}
-            >
-              <Typography variant="body2">{modeLabel(m)}</Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  display: 'block',
-                  whiteSpace: 'normal',
-                }}
-              >
-                {modeHelp(m)}
-              </Typography>
-            </MenuItem>
-          ))}
+          {/* The row this sits in is itself clickable, so the trigger keeps
+              swallowing the click. The short label is the trigger's content;
+              the rows carry the long help text. */}
+          <SelectTrigger
+            aria-label={t('Discovery mode')}
+            onClick={event => event.stopPropagation()}
+          >
+            <span>{modeLabel(mode)}</span>
+          </SelectTrigger>
+          <SelectContent style={{ maxWidth: 340 }}>
+            {AUTONOMOUS_DISCOVERY_MODES.map(m => (
+              <SelectItem key={m} value={m}>
+                <span>
+                  <Typography variant="body2">{modeLabel(m)}</Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{
+                      display: 'block',
+                      whiteSpace: 'normal',
+                    }}
+                  >
+                    {modeHelp(m)}
+                  </Typography>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-        <Tooltip title={modeHelp(mode)}>
-          <InfoOutlined sx={{
-            fontSize: 14,
-            color: theme.palette.text.secondary,
-            cursor: 'help',
-          }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined sx={{
+              fontSize: 14,
+              color: theme.palette.text.secondary,
+              cursor: 'help',
+            }}
+            />
+          </TooltipTrigger>
+          {modeHelp(mode) && <TooltipContent>{modeHelp(mode)}</TooltipContent>}
         </Tooltip>
       </Stack>
     );
@@ -414,8 +389,11 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
 
   const infoIcon = infoTooltip
     ? (
-        <Tooltip title={infoTooltip}>
-          <InfoOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
+          </TooltipTrigger>
+          {infoTooltip && <TooltipContent>{infoTooltip}</TooltipContent>}
         </Tooltip>
       )
     : null;
@@ -487,20 +465,17 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                 description: orchestrator.description,
                 iconColor: theme.palette.ai.main,
                 chip: (
-                  <Chip
-                    style={{
-                      ...chipInList,
-                      ...colorStyles.purple,
-                    }}
-                    label={t('Orchestrator')}
-                  />
+                  <Chip label={t('Orchestrator')} />
                 ),
                 modeNode: showModes ? renderModeSelect(orchestrator.id) : null,
                 trailing: (
-                  <Tooltip title={t('The orchestrator is always active - it plans and drives the attack and cannot be disabled.')}>
-                    <span>
-                      <Switch edge="end" size="small" checked disabled inputProps={{ 'aria-label': orchestrator.name }} />
-                    </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Switch checked disabled aria-label={orchestrator.name} />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('The orchestrator is always active - it plans and drives the attack and cannot be disabled.')}</TooltipContent>
                   </Tooltip>
                 ),
               })}
@@ -524,24 +499,16 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                   iconColor: enabled ? theme.palette.ai.main : theme.palette.text.disabled,
                   chip: agent.slug === builtinSlug
                     ? (
-                        <Chip
-                          style={{
-                            ...chipInList,
-                            ...colorStyles.grey,
-                          }}
-                          label={t('Built-in')}
-                        />
+                        <Chip label={t('Built-in')} />
                       )
                     : null,
                   modeNode,
                   trailing: (
                     <Switch
-                      edge="end"
-                      size="small"
                       checked={enabled}
                       disabled={disabled}
-                      onChange={event => onToggle(agent.id, event.target.checked)}
-                      inputProps={{ 'aria-label': agentName(agent) }}
+                      onCheckedChange={checked => onToggle(agent.id, checked === true)}
+                      aria-label={agentName(agent)}
                     />
                   ),
                 });

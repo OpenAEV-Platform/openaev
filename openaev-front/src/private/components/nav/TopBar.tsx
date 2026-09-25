@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { AccountCircleOutlined } from '@mui/icons-material';
-import { AppBar, IconButton, Menu, MenuItem, type MenuProps, Toolbar } from '@mui/material';
+import { AppBar, Menu, MenuItem, type MenuProps, Toolbar } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
 import { Link } from 'react-router';
@@ -65,9 +66,13 @@ const TopBar: FunctionComponent = () => {
           </Link>
         </div>
         <div className={classes.barRight}>
-          <IconButton onClick={handleOpen} size="small">
-            <AccountCircleOutlined />
-          </IconButton>
+          <IconButton
+            icon={<AccountCircleOutlined />}
+            aria-label={t('Profile')}
+            onClick={handleOpen}
+            priority="tertiary"
+            size="md"
+          />
           <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
             <MenuItem
               onClick={handleClose}

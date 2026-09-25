@@ -223,7 +223,7 @@ const PhishingLandingPageEditor: FunctionComponent = () => {
 
   const left = (
     <FormProvider {...methods}>
-      <form id={FORM_ID} onSubmit={handleSubmit(onSubmit)}>
+      <form noValidate id={FORM_ID} onSubmit={handleSubmit(onSubmit)}>
         <div style={{
           display: 'flex',
           flexDirection: 'column',
@@ -237,9 +237,9 @@ const PhishingLandingPageEditor: FunctionComponent = () => {
               gap: theme.spacing(2),
             }}
             >
-              <TextFieldController variant="standard" name="phishing_landing_page_name" label={t('Name')} required />
-              <TextFieldController variant="standard" name="phishing_landing_page_description" label={t('Description')} />
-              <TextFieldController variant="standard" name="phishing_landing_page_redirect_url" label={t('Redirect URL after submit')} />
+              <TextFieldController name="phishing_landing_page_name" label={t('Name')} required />
+              <TextFieldController name="phishing_landing_page_description" label={t('Description')} />
+              <TextFieldController name="phishing_landing_page_redirect_url" label={t('Redirect URL after submit')} />
               <SelectFieldController
                 name="phishing_landing_page_custom_domain"
                 label={t('Serve on domain')}

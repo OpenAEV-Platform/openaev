@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { CancelOutlined } from '@mui/icons-material';
-import { Box, IconButton, Skeleton, TextField } from '@mui/material';
+import { Box, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -11,6 +12,7 @@ import FilterChips from '../../../../../../components/common/queryable/filter/Fi
 import { availableOperators, buildFilter } from '../../../../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../../../components/common/queryable/useQueryableWithLocalStorage';
+import TextFieldFds from '../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type FilterGroup, type PropertySchemaDTO } from '../../../../../../utils/api-types';
 import { type GroupOption } from '../../../../../../utils/Option';
@@ -156,49 +158,54 @@ const WidgetSeriesSelection: FunctionComponent<{
           }}
           >
             <IconButton
+              icon={<CancelOutlined fontSize="small" />}
               disabled={index === 0}
               aria-label="Delete"
               onClick={handleRemoveSeries}
-              size="small"
-            >
-              <CancelOutlined fontSize="small" />
-            </IconButton>
+              priority="tertiary"
+              size="sm"
+            />
           </div>
         )}
       <Box padding={2}>
-        <TextField
-          variant="standard"
-          fullWidth
+        <TextFieldFds
           label={t('Label (entities)')}
           value={label}
           onChange={e => onChangeLabel(e.target.value)}
         />
+        {/* One row: the entity type and the filter field side by side, the clear
+            button on the same axis. Each 8px apart — `FilterAutocomplete`'s own
+            container carries the left gap and the gap to its button. The chips
+            sit underneath, not in the row. */}
         <div style={{ marginTop: theme.spacing(2) }}>
-          <FilterFieldBaseEntity error={error} value={entity} onChange={onChangeEntity} />
-        </div>
-        {entity
-          && (
-            <div style={{ marginTop: theme.spacing(2) }}>
-              {propertyOptionsLoading ? <Skeleton height={35} /> : (
-                <>
-                  <FilterAutocomplete
-                    filterGroup={searchPaginationInput.filterGroup}
-                    helpers={queryableHelpers.filterHelpers}
-                    options={propertyOptions}
-                    setPristine={setPristine}
-                  />
-                  <FilterContext.Provider value={{ defaultValues: defaultValues }}>
-                    <FilterChips
-                      propertySchemas={properties}
-                      filterGroup={searchPaginationInput.filterGroup}
-                      helpers={queryableHelpers.filterHelpers}
-                      pristine={pristine}
-                    />
-                  </FilterContext.Provider>
-                </>
-              )}
-            </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: theme.spacing(1),
+          }}
+          >
+            <FilterFieldBaseEntity error={error} value={entity} onChange={onChangeEntity} />
+            {entity && !propertyOptionsLoading && (
+              <FilterAutocomplete
+                filterGroup={searchPaginationInput.filterGroup}
+                helpers={queryableHelpers.filterHelpers}
+                options={propertyOptions}
+                setPristine={setPristine}
+              />
+            )}
+          </div>
+          {entity && propertyOptionsLoading && <Skeleton height={35} />}
+          {entity && !propertyOptionsLoading && (
+            <FilterContext.Provider value={{ defaultValues: defaultValues }}>
+              <FilterChips
+                propertySchemas={properties}
+                filterGroup={searchPaginationInput.filterGroup}
+                helpers={queryableHelpers.filterHelpers}
+                pristine={pristine}
+              />
+            </FilterContext.Provider>
           )}
+        </div>
       </Box>
     </div>
   );

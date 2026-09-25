@@ -1,27 +1,18 @@
-import { Paper as PaperMui } from '@mui/material';
+import { Paper as FdsPaper } from '@filigran/design-system';
 import { type FunctionComponent, type ReactNode } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 interface PaperProps {
   children: ReactNode;
   className?: string;
 }
 
-const useStyles = makeStyles()(theme => ({
-  paper: {
-    padding: theme.spacing(2),
-    borderRadius: theme.borderRadius,
-  },
-}));
-
-const Paper: FunctionComponent<PaperProps> = ({ children, className = '' }) => {
-  const { classes } = useStyles();
-
-  return (
-    <PaperMui variant="outlined" className={`${classes.paper} ${className}`.trim()}>
-      {children}
-    </PaperMui>
-  );
-};
+// Shared surface wrapper. `padding={16}` is the product's `theme.spacing(2)`,
+// the same value on the library's scale. `className` reaches the surface, so
+// callers keep their own overrides.
+const Paper: FunctionComponent<PaperProps> = ({ children, className = '' }) => (
+  <FdsPaper padding={16} className={className || undefined}>
+    {children}
+  </FdsPaper>
+);
 
 export default Paper;

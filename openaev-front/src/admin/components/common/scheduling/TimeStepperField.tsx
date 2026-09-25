@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
-import { IconButton, InputBase, Typography } from '@mui/material';
+import { InputBase, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 interface StepperColumnProps {
@@ -24,9 +25,13 @@ const StepperColumn = ({ value, onChange, max, min = 0, step = 1, ariaLabel }: S
       alignItems: 'center',
     }}
     >
-      <IconButton size="small" aria-label={`${ariaLabel} +`} onClick={() => stepBy(1)}>
-        <KeyboardArrowUp fontSize="small" />
-      </IconButton>
+      <IconButton
+        icon={<KeyboardArrowUp fontSize="small" />}
+        aria-label={`${ariaLabel} +`}
+        onClick={() => stepBy(1)}
+        priority="tertiary"
+        size="sm"
+      />
       <InputBase
         value={pad(value)}
         inputProps={{
@@ -51,9 +56,13 @@ const StepperColumn = ({ value, onChange, max, min = 0, step = 1, ariaLabel }: S
           },
         }}
       />
-      <IconButton size="small" aria-label={`${ariaLabel} -`} onClick={() => stepBy(-1)}>
-        <KeyboardArrowDown fontSize="small" />
-      </IconButton>
+      <IconButton
+        icon={<KeyboardArrowDown fontSize="small" />}
+        aria-label={`${ariaLabel} -`}
+        onClick={() => stepBy(-1)}
+        priority="tertiary"
+        size="sm"
+      />
     </div>
   );
 };

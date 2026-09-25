@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { FileDownloadOutlined, LocalFireDepartment } from '@mui/icons-material';
-import { Box, Button, Table, TableBody, TableCell, TableHead, TableRow, TableSortLabel, Typography } from '@mui/material';
+import { Box, Table, TableBody, TableCell, TableHead, TableRow, TableSortLabel, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 
@@ -166,14 +167,7 @@ const AttackPathTableView = ({ rows, typeColumns, chokepointTopN, onRowFocus }: 
           {`${t('Most exposed assets')} (${rows.length})`}
         </Typography>
         {/* Export is a side action next to the table content — outlined (not filled), primary color. */}
-        <Button
-          size="small"
-          variant="outlined"
-          color="primary"
-          startIcon={<FileDownloadOutlined />}
-          onClick={exportCsv}
-          disabled={rows.length === 0}
-        >
+        <Button type="button" priority="secondary" size="sm" startIcon={<FileDownloadOutlined fontSize="small" />} onClick={exportCsv} disabled={rows.length === 0}>
           {t('Export CSV')}
         </Button>
       </Box>

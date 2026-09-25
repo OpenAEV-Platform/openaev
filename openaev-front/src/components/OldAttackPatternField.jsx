@@ -1,5 +1,5 @@
 import { RouteOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
@@ -23,7 +23,6 @@ const styles = () => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 });
 
 class OldAttackPatternFieldComponent extends Component {
@@ -106,15 +105,14 @@ class OldAttackPatternFieldComponent extends Component {
           style={style}
           openCreate={this.handleOpenAttackPatternCreation.bind(this)}
           onKeyDown={onKeyDown}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
+          renderOption={option => (
+            <>
               <div className={classes.icon}>
                 <RouteOutlined />
               </div>
               <div className={classes.text}>{option.label}</div>
-            </Box>
+            </>
           )}
-          classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <Dialog

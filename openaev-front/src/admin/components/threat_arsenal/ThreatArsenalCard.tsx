@@ -1,5 +1,5 @@
-import { CheckCircleOutlined, RadioButtonUncheckedOutlined } from '@mui/icons-material';
-import { Box, Card, CardActionArea, Checkbox, Chip, Tooltip, Typography } from '@mui/material';
+import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Card, CardActionArea, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
 
@@ -10,6 +10,7 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
+import { tint } from '../../../utils/tint';
 import InjectIcon from '../common/injects/InjectIcon';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
@@ -134,40 +135,43 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         </Box>
 
         {statusLabel && (
-          <Tooltip title={t(statusLabel)} enterDelay={400}>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 12,
-                right: 48,
-                paddingInline: 1,
-                paddingBlock: 0.25,
-                borderRadius: 999,
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                backgroundColor: alpha(statusColor, 0.2),
-                color: statusColor,
-                border: `1px solid ${alpha(statusColor, 0.45)}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                backdropFilter: 'blur(4px)',
-              }}
-            >
+          <Tooltip>
+            <TooltipTrigger asChild>
               <Box
-                aria-hidden
                 sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: statusColor,
-                  boxShadow: `0 0 6px ${alpha(statusColor, 0.8)}`,
+                  position: 'absolute',
+                  top: 12,
+                  right: 48,
+                  paddingInline: 1,
+                  paddingBlock: 0.25,
+                  borderRadius: 999,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  backgroundColor: tint(statusColor, 20),
+                  color: statusColor,
+                  border: `1px solid ${tint(statusColor, 45)}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  backdropFilter: 'blur(4px)',
                 }}
-              />
-              {t(statusLabel)}
-            </Box>
+              >
+                <Box
+                  aria-hidden
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    backgroundColor: statusColor,
+                    boxShadow: `0 0 6px ${tint(statusColor, 80)}`,
+                  }}
+                />
+                {t(statusLabel)}
+              </Box>
+            </TooltipTrigger>
+            <TooltipContent>{t(statusLabel)}</TooltipContent>
           </Tooltip>
         )}
       </Box>
@@ -199,11 +203,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       >
         <Checkbox
           checked={checked}
-          disableRipple
-          size="small"
-          icon={<RadioButtonUncheckedOutlined />}
-          checkedIcon={<CheckCircleOutlined />}
-          slotProps={{ input: { 'aria-label': name } }}
+          aria-label={name}
         />
       </Box>
 
@@ -255,22 +255,25 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           '& .MuiCardActionArea-focusHighlight': { background: 'transparent' },
         }}
       >
-        <Tooltip title={name} enterDelay={500}>
-          <Typography
-            sx={{
-              fontSize: 13.5,
-              fontWeight: 600,
-              lineHeight: 1.35,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              wordBreak: 'break-word',
-              minHeight: 36,
-            }}
-          >
-            {name}
-          </Typography>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Typography
+              sx={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                lineHeight: 1.35,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                wordBreak: 'break-word',
+                minHeight: 36,
+              }}
+            >
+              {name}
+            </Typography>
+          </TooltipTrigger>
+          {name && <TooltipContent>{name}</TooltipContent>}
         </Tooltip>
 
         <Box sx={{
@@ -282,35 +285,14 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         }}
         >
           {primaryDomain && (
-            <Chip
-              size="small"
-              label={primaryDomain.domain_name}
-              variant="outlined"
-              sx={{
-                height: 20,
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: '0.02em',
-                textTransform: 'uppercase',
-                borderColor: alpha(accent, 0.5),
-                color: accent,
-                backgroundColor: alpha(accent, 0.08),
-                borderRadius: 0.75,
-              }}
-            />
+            <Chip label={primaryDomain.domain_name} color={accent} />
           )}
           {domains.length > 1 && (
-            <Tooltip title={domains.slice(1).map(d => d.domain_name).join(', ')}>
-              <Chip
-                size="small"
-                label={`+${domains.length - 1}`}
-                variant="outlined"
-                sx={{
-                  height: 20,
-                  fontSize: 10.5,
-                  borderRadius: 0.75,
-                }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Chip label={`+${domains.length - 1}`} />
+              </TooltipTrigger>
+              {domains.slice(1).map(d => d.domain_name).join(', ') && <TooltipContent>{domains.slice(1).map(d => d.domain_name).join(', ')}</TooltipContent>}
             </Tooltip>
           )}
         </Box>

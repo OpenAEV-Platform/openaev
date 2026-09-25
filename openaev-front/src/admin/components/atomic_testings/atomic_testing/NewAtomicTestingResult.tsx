@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -42,47 +42,59 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
   return (
     <div className={classes.inline}>
       {'target_prevention_status' in target && (
-        <Tooltip title={t('Prevention')}>
-          <PreventionIcon
-            style={{
-              color: getColor(target.target_prevention_status),
-              marginRight: theme.spacing(2),
-              fontSize: 22,
-            }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PreventionIcon
+              style={{
+                color: getColor(target.target_prevention_status),
+                marginRight: theme.spacing(2),
+                fontSize: 22,
+              }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Prevention')}</TooltipContent>
         </Tooltip>
       )}
       {'target_detection_status' in target && (
-        <Tooltip title={t('Detection')}>
-          <DetectionIcon
-            style={{
-              color: getColor(target.target_detection_status),
-              marginRight: theme.spacing(2),
-              fontSize: 22,
-            }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DetectionIcon
+              style={{
+                color: getColor(target.target_detection_status),
+                marginRight: theme.spacing(2),
+                fontSize: 22,
+              }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Detection')}</TooltipContent>
         </Tooltip>
       )}
       {'target_vulnerability_status' in target && (
-        <Tooltip title={t('Vulnerability')}>
-          <VulnerabilityIcon
-            style={{
-              color: getColor(target.target_vulnerability_status),
-              marginRight: theme.spacing(2),
-              fontSize: 22,
-            }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <VulnerabilityIcon
+              style={{
+                color: getColor(target.target_vulnerability_status),
+                marginRight: theme.spacing(2),
+                fontSize: 22,
+              }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Vulnerability')}</TooltipContent>
         </Tooltip>
       )}
       {'target_human_response_status' in target && (
-        <Tooltip title={t('Human Response')}>
-          <HumanResponseIcon
-            style={{
-              color: getColor(target.target_human_response_status),
-              marginRight: theme.spacing(2),
-              fontSize: 22,
-            }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <HumanResponseIcon
+              style={{
+                color: getColor(target.target_human_response_status),
+                marginRight: theme.spacing(2),
+                fontSize: 22,
+              }}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Human Response')}</TooltipContent>
         </Tooltip>
       )}
     </div>

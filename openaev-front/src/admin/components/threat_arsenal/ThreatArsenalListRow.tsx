@@ -1,4 +1,5 @@
-import { Checkbox, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { type FunctionComponent, type MouseEvent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -75,11 +76,8 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
           }}
         >
           <Checkbox
-            edge="start"
             checked={checked}
-            disableRipple
-            size="small"
-            slotProps={{ input: { 'aria-label': name } }}
+            aria-label={name}
           />
         </ListItemIcon>
         <ListItemIcon style={{ minWidth: 40 }}>
@@ -96,14 +94,17 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
         <ListItemText
           primary={(
             <div style={bodyItemsStyles.bodyItems}>
-              <Tooltip title={name} enterDelay={500}>
-                <div style={{
-                  ...bodyItemsStyles.bodyItem,
-                  ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_labels,
-                }}
-                >
-                  {name}
-                </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div style={{
+                    ...bodyItemsStyles.bodyItem,
+                    ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_labels,
+                  }}
+                  >
+                    {name}
+                  </div>
+                </TooltipTrigger>
+                {name && <TooltipContent>{name}</TooltipContent>}
               </Tooltip>
               <div style={{
                 ...bodyItemsStyles.bodyItem,

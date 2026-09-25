@@ -1,32 +1,14 @@
-import { Chip } from '@mui/material';
+import { Chip, type ChipSeverity } from '@filigran/design-system';
 import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
-import colorStyles from '../../../../../../components/Color';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
-
-const useStyles = makeStyles()(() => ({
-  chipInList: {
-    height: 20,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 200,
-  },
-  points: {
-    height: 20,
-    backgroundColor: 'rgba(236, 64, 122, 0.08)',
-    border: '1px solid #ec407a',
-    color: '#ec407a',
-  },
-}));
 
 interface Props { expectation: InjectExpectationsStore }
 
 const ResultChip: FunctionComponent<Props> = ({ expectation }) => {
   // Standard hooks
-  const { classes } = useStyles();
   const { t } = useFormatter();
 
   const result = !R.isEmpty(expectation.inject_expectation_results);
@@ -58,26 +40,17 @@ const ResultChip: FunctionComponent<Props> = ({ expectation }) => {
     return null;
   };
 
-  const color = () => {
+  const severity = (): ChipSeverity => {
     if (isFail()) {
-      return colorStyles.orange;
+      return 'medium';
     }
-    return result
-      ? colorStyles.green
-      : colorStyles.blueGrey;
+    return result ? 'low' : 'neutral';
   };
 
   return (
     <>
-      <Chip
-        classes={{ root: classes.points }}
-        label={expectation.inject_expectation_expected_score}
-      />
-      <Chip
-        classes={{ root: classes.chipInList }}
-        style={color()}
-        label={label()}
-      />
+      <Chip label={String(expectation.inject_expectation_expected_score)} />
+      <Chip severity={severity()} label={label() ?? ''} />
     </>
   );
 };

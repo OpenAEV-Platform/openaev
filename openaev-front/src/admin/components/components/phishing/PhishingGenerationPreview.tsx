@@ -1,4 +1,5 @@
 import { CodeOutlined, VisibilityOutlined } from '@mui/icons-material';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
 import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo, useState } from 'react';

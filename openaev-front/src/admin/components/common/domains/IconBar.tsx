@@ -1,30 +1,42 @@
-import { Card, CardContent, IconButton, Paper, Typography } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Box, Card, CardContent, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type { FunctionComponent } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type IconBarElement } from './IconBar-model';
 
 interface Props { elements: IconBarElement[] }
+const useStyles = makeStyles()(theme => ({
+  barre: {
+    '&::-webkit-scrollbar': { height: theme.spacing(1) },
+    '&::-webkit-scrollbar-thumb': {
+      backgroundColor: theme.palette.action.focus,
+      borderRadius: 2,
+    },
+  },
+}));
+
 const IconBar: FunctionComponent<Props> = ({ elements }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { classes } = useStyles();
 
   return (
     <Paper
-      variant="outlined"
-      sx={{
-        'marginBottom': theme.spacing(2.5),
-        'display': 'flex',
-        'flexWrap': 'nowrap',
-        'overflowX': 'auto',
-        'padding': theme.spacing(1),
-        '&::-webkit-scrollbar': { height: theme.spacing(1) },
-        '&::-webkit-scrollbar-thumb': {
-          backgroundColor: theme.palette.action.focus,
-          borderRadius: 2,
-        },
-        'gap': theme.spacing(1),
+      padding={8}
+      // The scrollbar rules are pseudo-elements: they cannot live in `style`,
+      // so they move to a class. `className` reaches the surface, and no DOM
+      // level is added. The tinted colour here is the scrollbar THUMB's, not
+      // the surface's.
+      className={classes.barre}
+      style={{
+        marginBottom: 20,
+        display: 'flex',
+        flexWrap: 'nowrap',
+        overflowX: 'auto',
+        gap: 8,
       }}
     >
       {elements.map((element: IconBarElement) => {
@@ -32,7 +44,19 @@ const IconBar: FunctionComponent<Props> = ({ elements }) => {
         return (
           <Card
             key={element.name}
+            // The card is the click target: it carries the button semantics itself, so the icon
+            // inside stays decorative (it used to be an unlabelled IconButton).
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSelected}
             onClick={element.function}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                element.function();
+              }
+            }}
+            className="focus-visible:outline-none focus-visible:ring-2 ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-focus"
             sx={{
               'flexGrow': 1,
               'flexShrink': 0,
@@ -49,16 +73,17 @@ const IconBar: FunctionComponent<Props> = ({ elements }) => {
             }}
           >
             <CardContent sx={{ textAlign: 'center' }}>
-              <IconButton
-                size="large"
-                disableRipple
+              <Box
+                component="span"
                 sx={{
+                  'display': 'inline-flex',
+                  'p': 1.5,
                   'color': 'inherit',
                   '& svg': { fontSize: '2rem' },
                 }}
               >
                 {element.icon()}
-              </IconButton>
+              </Box>
               <Typography
                 variant="subtitle1"
                 noWrap

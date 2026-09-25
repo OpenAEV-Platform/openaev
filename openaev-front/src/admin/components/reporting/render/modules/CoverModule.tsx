@@ -1,4 +1,5 @@
-import { Box, Chip, Typography } from '@mui/material';
+import { Chip } from '@filigran/design-system';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -164,14 +165,9 @@ const CoverModule: FunctionComponent<Props> = ({ reporting, subject, logoUrl }) 
         }}
         >
           <Chip
-            icon={<ContextIcon sx={{ fontSize: 16 }} />}
+            startIcon={<ContextIcon sx={{ fontSize: 16 }} />}
             label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])}
-            size="small"
-            sx={{
-              backgroundColor: alpha(primary, 0.12),
-              color: primary,
-              fontWeight: 600,
-            }}
+            severity="info"
           />
           {subject.status === 'success' && subject.data && (
             <Typography sx={{

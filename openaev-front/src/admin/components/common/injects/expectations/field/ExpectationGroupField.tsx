@@ -1,6 +1,7 @@
+import { Radio, RadioGroup, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { FormControlLabel, FormLabel, Radio, RadioGroup, Tooltip } from '@mui/material';
-import { type ChangeEvent, type FunctionComponent } from 'react';
+import { FormLabel } from '@mui/material';
+import { type FunctionComponent, useId } from 'react';
 import { type Control, Controller } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
@@ -28,41 +29,43 @@ const ExpectationGroupField: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const { classes } = useStyles();
 
+  const validationModeLabelId = useId();
+
   return (
     <Controller
       control={control}
       name="expectation_expectation_group"
       render={({ field: { onChange, value } }) => (
         <div className={classes.marginTop_2}>
-          <FormLabel className={classes.container}>
+          <FormLabel className={classes.container} id={validationModeLabelId}>
             {t('Validation mode')}
-            <Tooltip
-              title={isTechnicalExpectation
-                ? t('An isolated asset is considered as a group of one asset')
-                : t('An isolated player is considered as a group of one player')}
-            >
-              <InfoOutlined
-                fontSize="small"
-                color="primary"
-                style={{ marginTop: 8 }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InfoOutlined
+                  fontSize="small"
+                  color="primary"
+                  style={{ marginTop: 8 }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                {isTechnicalExpectation
+                  ? t('An isolated asset is considered as a group of one asset')
+                  : t('An isolated player is considered as a group of one player')}
+              </TooltipContent>
             </Tooltip>
           </FormLabel>
           <RadioGroup
-            value={value}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => {
-              onChange(event.target.value === 'true');
-            }}
+            aria-labelledby={validationModeLabelId}
+            value={String(value)}
+            onValueChange={next => onChange(next === 'true')}
           >
-            <FormControlLabel
-              value={false}
-              control={<Radio />}
+            <Radio
+              value="false"
               label={isTechnicalExpectation ? t('All assets (per group) must validate the expectation')
                 : t('All players (per team) must validate the expectation')}
             />
-            <FormControlLabel
-              value={true}
-              control={<Radio />}
+            <Radio
+              value="true"
               label={isTechnicalExpectation ? t('At least one asset (per group) must validate the expectation')
                 : t('At least one player (per team) must validate the expectation')}
             />

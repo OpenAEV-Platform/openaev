@@ -1,6 +1,7 @@
-import { Box, Grid, Paper, Tab, Tabs } from '@mui/material';
+import { Paper, Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Box, Grid } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -24,10 +25,6 @@ const useStyles = makeStyles()({
     textTransform: 'uppercase',
     borderRadius: 4,
     width: 180,
-  },
-  paper: {
-    padding: 15,
-    borderRadius: 4,
   },
   dividerL: {
     position: 'absolute',
@@ -310,8 +307,8 @@ const AtomicTesting = () => {
     }
   };
 
-  const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
-    const location = tabConfig.find(tc => newValue == tc.key);
+  const handleTabChange = (newValue: string) => {
+    const location = tabConfig.find(tc => newValue === String(tc.key));
     navigateToTab(location);
     if (location) {
       storeTargetTab(injectId, location.type);
@@ -365,20 +362,20 @@ const AtomicTesting = () => {
         }}
       >
         <SectionLabel>{t('Targets')}</SectionLabel>
-        <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
+        <Paper padding={16} style={{ flex: 1 }}>
           {allTargetsChecked ? (
             <>
               <Tabs
-                value={activeTabKey}
-                onChange={handleTabChange}
-                indicatorColor="primary"
-                textColor="primary"
+                value={String(activeTabKey)}
+                onValueChange={handleTabChange}
+                panels="external"
                 className={classes.tabs}
               >
-                {tabConfig
-                  .map(tab => (
-                    <Tab key={`tab-${tab.key}`} label={tab.label} />
+                <TabsList>
+                  {tabConfig.map(tab => (
+                    <TabsTrigger key={`tab-${tab.key}`} value={String(tab.key)}>{tab.label}</TabsTrigger>
                   ))}
+                </TabsList>
               </Tabs>
               {drawTabs()}
             </>
@@ -419,7 +416,7 @@ const AtomicTesting = () => {
           </Box>
         )}
         {!selectedTarget && (
-          <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
+          <Paper padding={16} style={{ flex: 1 }}>
             {/* While the target probes or the target page are still loading, no
                 target is selected yet: show the results skeleton instead of
                 flashing "No target data available." before the data lands. */}

@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 
@@ -40,12 +40,7 @@ const WidgetPerspectiveSelection: FunctionComponent<{
         justifyContent: 'center',
       }}
       >
-        <Button
-          variant="contained"
-          color="primary"
-          sx={{ marginTop: theme.spacing(2) }}
-          onClick={handleSubmit}
-        >
+        <Button type="button" onClick={handleSubmit} style={{ marginTop: theme.spacing(2) }}>
           {t('Validate')}
         </Button>
       </div>

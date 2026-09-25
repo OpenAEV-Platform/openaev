@@ -1,6 +1,7 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RestartAlt } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
@@ -440,7 +441,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               title={t('Inject data')}
               helper={t('The content and targets specific to this inject.')}
               action={(
-                <Button size="small" disabled={readOnly} startIcon={<RestartAlt />} onClick={handleResetDefaults}>
+                <Button type="button" priority="tertiary" size="sm" startIcon={<RestartAlt fontSize="small" />} disabled={readOnly} onClick={handleResetDefaults}>
                   {t('Reset default value')}
                 </Button>
               )}

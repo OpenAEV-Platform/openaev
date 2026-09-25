@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { DeleteOutlined } from '@mui/icons-material';
-import { Card, IconButton, Typography } from '@mui/material';
+import { Card, Typography } from '@mui/material';
 import { useEffect } from 'react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -26,6 +27,11 @@ const useStyles = makeStyles()(theme => ({
     rowGap: theme.spacing(2),
     padding: theme.spacing(2),
     alignItems: 'start',
+    // Outline only, no fill: measured at #0d172b inside a #13213e drawer, the
+    // block read as a dark well cut into its surface. Outlined means the
+    // border carries the shape, like the collapsible blocks of the other
+    // drawers.
+    backgroundColor: 'transparent',
   },
   outputValueTitle: {
     marginBottom: 0,
@@ -95,12 +101,13 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
       <TextFieldController name={`${prefixName}.${index}.contract_output_element_key` as const} label={t('Key')} required />
       <SelectFieldController name={`${prefixName}.${index}.contract_output_element_type` as const} label={t('Type')} items={outputParserTypeList} required />
       <IconButton
+        icon={<DeleteOutlined />}
+        variant="destructive"
+        aria-label={t('Delete')}
         onClick={() => remove(index)}
-        size="small"
-        color="primary"
-      >
-        <DeleteOutlined />
-      </IconButton>
+        priority="tertiary"
+        size="sm"
+      />
       <TagFieldController style={{ gridColumn: 'span 4' }} name={`${prefixName}.${index}.contract_output_element_tags` as const} label={t('Tags')} />
       <CheckboxFieldController style={{ gridColumn: 'span 4' }} name={`${prefixName}.${index}.contract_output_element_is_finding` as const} label={t('create_findings')} />
       <Typography
@@ -113,7 +120,6 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
         {`${t('Regex group rules')} * :`}
       </Typography>
       <TextFieldController
-        variant="outlined"
         style={{ gridColumn: 'span 4' }}
         name={`${prefixName}.${index}.contract_output_element_rule` as const}
         required
@@ -143,7 +149,7 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
           >
             {t(field.regex_group_field.charAt(0).toUpperCase() + field.regex_group_field.slice(1))}
           </Typography>
-          <TextFieldController size="small" placeholder={`$${indexField + 1}`} variant="outlined" name={getRegexIndexesValueName(field.regex_group_field)} required />
+          <TextFieldController placeholder={`$${indexField + 1}`} name={getRegexIndexesValueName(field.regex_group_field)} required />
         </div>
       ))}
     </Card>

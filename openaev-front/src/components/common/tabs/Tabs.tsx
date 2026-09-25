@@ -1,33 +1,24 @@
-import { Box, Tab, Tabs as MUITabs } from '@mui/material';
-import { type FunctionComponent, type ReactNode, type SyntheticEvent, useCallback } from 'react';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { type FunctionComponent, type ReactNode } from 'react';
 
 export interface TabsEntry {
   key: string;
   label: ReactNode;
 }
 
-const Tabs: FunctionComponent<{
+// The caller renders the active panel next to the bar, so the tab set declares its panels external.
+const EntriesTabs: FunctionComponent<{
   entries: TabsEntry[];
   currentTab: string;
   onChange: (newValue: string) => void;
-}> = ({ entries = [], currentTab, onChange }) => {
-  const handleChange = useCallback((_e: SyntheticEvent, newValue: string) => {
-    onChange(newValue);
-  }, [onChange]);
+}> = ({ entries = [], currentTab, onChange }) => (
+  <Tabs value={currentTab} onValueChange={onChange} panels="external">
+    <TabsList>
+      {entries.map(entry => (
+        <TabsTrigger key={entry.key} value={entry.key}>{entry.label}</TabsTrigger>
+      ))}
+    </TabsList>
+  </Tabs>
+);
 
-  return (
-    <Box sx={{
-      borderBottom: 1,
-      borderColor: 'divider',
-    }}
-    >
-      <MUITabs value={currentTab} onChange={handleChange}>
-        {entries.map(entry => (
-          <Tab key={entry.key} value={entry.key} label={entry.label} />
-        ))}
-      </MUITabs>
-    </Box>
-  );
-};
-
-export default Tabs;
+export default EntriesTabs;

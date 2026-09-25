@@ -2,7 +2,7 @@ import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { deleteLessonsTemplate, updateLessonsTemplate } from '../../../../actions/Lessons';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type VariantButtonPopover } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
@@ -13,9 +13,14 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import LessonsTemplateForm from './LessonsTemplateForm';
 
-interface Props { lessonsTemplate: LessonsTemplate }
+interface Props {
+  lessonsTemplate: LessonsTemplate;
+  /** Placement, forwarded to the kebab: `icon` in a list row, `toggle` in a
+      detail header, where the controls are 36px. */
+  variant?: VariantButtonPopover;
+}
 
-const LessonsTemplatePopover: FunctionComponent<Props> = ({ lessonsTemplate }) => {
+const LessonsTemplatePopover: FunctionComponent<Props> = ({ lessonsTemplate, variant = 'icon' }) => {
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
@@ -65,7 +70,7 @@ const LessonsTemplatePopover: FunctionComponent<Props> = ({ lessonsTemplate }) =
 
   return (
     <>
-      <ButtonPopover entries={entries} variant="icon" />
+      <ButtonPopover entries={entries} variant={variant} />
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}

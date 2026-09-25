@@ -1,5 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { MailOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -157,10 +158,9 @@ const PhishingEmailTemplates = () => {
           {canDelete && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -219,12 +219,11 @@ const PhishingEmailTemplates = () => {
                       onClick={event => onToggleEntity(emailTemplate, event)}
                     >
                       <Checkbox
-                        edge="start"
+                        aria-label={emailTemplate.phishing_email_template_name}
                         checked={
                           (selectAll && !(emailTemplate.phishing_email_template_id in (deSelectedElements || {})))
                           || emailTemplate.phishing_email_template_id in (selectedElements || {})
                         }
-                        disableRipple
                       />
                     </ListItemIcon>
                   )}

@@ -1,26 +1,14 @@
+import { Button, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
-  AddOutlined,
   ArrowBackOutlined,
   AutoAwesomeOutlined,
   CloseOutlined,
   DevicesOtherOutlined,
-  RemoveOutlined,
   TrackChangesOutlined,
   TuneOutlined,
 } from '@mui/icons-material';
-import {
-  alpha,
-  Box,
-  Button,
-  IconButton,
-  Paper,
-  SvgIcon,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+// fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
+import { alpha, Box, SvgIcon, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { SelectGroup } from 'mdi-material-ui';
@@ -34,6 +22,7 @@ import { playInjectsAssistantForScenario } from '../../../../../actions/Inject';
 import { fetchInjectorsContracts } from '../../../../../actions/InjectorContracts';
 import { fetchKillChainPhases } from '../../../../../actions/KillChainPhase';
 import LoaderDialog from '../../../../../components/common/loader/LoaderDialog';
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import PlatformIcon from '../../../../../components/PlatformIcon';
 import SearchInput from '../../../../../components/SearchFilter';
@@ -111,10 +100,17 @@ const TargetRow: FunctionComponent<{
       >
         {label}
       </Typography>
-      <Tooltip title={removeLabel}>
-        <IconButton size="small" aria-label={removeLabel} onClick={onRemove}>
-          <CloseOutlined sx={{ fontSize: 16 }} />
-        </IconButton>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            icon={<CloseOutlined sx={{ fontSize: 16 }} />}
+            aria-label={removeLabel}
+            onClick={onRemove}
+            priority="tertiary"
+            size="sm"
+          />
+        </TooltipTrigger>
+        {removeLabel && <TooltipContent>{removeLabel}</TooltipContent>}
       </Tooltip>
     </Box>
   );
@@ -229,7 +225,6 @@ const ScenarioAssistant: FunctionComponent = () => {
 
   // AI gradient, aligned with the Ask Ariane top-bar button: borderless,
   // gradient-painted label + AI-colored icon, subtle AI-tinted hover.
-  const aiGradient = `linear-gradient(90deg, ${theme.palette.ai.light} 0%, ${theme.palette.ai.main} 100%)`;
 
   return (
     <Box sx={{
@@ -246,47 +241,35 @@ const ScenarioAssistant: FunctionComponent = () => {
         gap: 1,
       }}
       >
-        <Tooltip title={t('Back')}>
-          <IconButton onClick={() => navigate(listUrl)} aria-label={t('Back')} size="small">
-            <ArrowBackOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              icon={<ArrowBackOutlined fontSize="small" />}
+              onClick={() => navigate(listUrl)}
+              aria-label={t('Back')}
+              priority="tertiary"
+              size="sm"
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Back')}</TooltipContent>
         </Tooltip>
         <Typography variant="h1" sx={{ margin: 0 }}>
           {t('Scenario assistant')}
         </Typography>
         {aiEnabled && (
           <Button
-            variant="text"
+            type="button"
+            variant="ia"
+            priority="tertiary"
+            startIcon={<SvgIcon component={LogoXtmOneIcon} inheritViewBox fontSize="small" />}
             onClick={onUseAiClick}
-            startIcon={(
-              <SvgIcon
-                component={LogoXtmOneIcon}
-                inheritViewBox
-                sx={{
-                  fontSize: '20px !important',
-                  color: theme.palette.ai.main,
-                }}
-              />
-            )}
-            endIcon={!isEnterpriseEdition ? <span><EEChip /></span> : undefined}
-            sx={{
-              'marginLeft': 'auto',
-              'height': 36,
-              'paddingInline': 1.5,
-              'borderRadius': 1,
-              'fontWeight': 600,
-              'whiteSpace': 'nowrap',
-              '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.15) },
-              '& .assistant-ai-label': {
-                background: aiGradient,
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              },
-              '& .MuiButton-startIcon': { marginRight: '6px' },
+            style={{
+              marginLeft: 'auto',
+              whiteSpace: 'nowrap',
             }}
           >
-            <span className="assistant-ai-label">{t('Suggest TTPs with XTM One')}</span>
+            {t('Suggest TTPs with XTM One')}
+            {!isEnterpriseEdition && <EEChip />}
           </Button>
         )}
       </Box>
@@ -315,13 +298,11 @@ const ScenarioAssistant: FunctionComponent = () => {
         }}
         >
           <Paper
-            variant="outlined"
-            sx={{
-              padding: 2,
-              borderRadius: 1,
+            padding={16}
+            style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
+              gap: 16,
             }}
           >
             <Box sx={{
@@ -398,13 +379,11 @@ const ScenarioAssistant: FunctionComponent = () => {
           </Paper>
 
           <Paper
-            variant="outlined"
-            sx={{
-              padding: 2,
-              borderRadius: 1,
+            padding={16}
+            style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
+              gap: 16,
             }}
           >
             <Box sx={{
@@ -419,49 +398,20 @@ const ScenarioAssistant: FunctionComponent = () => {
 
             <Box>
               <Typography variant="h3" sx={{ marginBottom: 0.5 }}>{t('Number of injects by TTP')}</Typography>
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}
-              >
-                <IconButton
-                  size="small"
-                  aria-label={t('Decrease')}
-                  disabled={injectsByTtp <= MIN_INJECTS_BY_TTP}
-                  onClick={() => setInjectsByTtp(v => Math.max(MIN_INJECTS_BY_TTP, v - 1))}
-                  sx={{ border: `1px solid ${theme.palette.divider}` }}
-                >
-                  <RemoveOutlined fontSize="small" />
-                </IconButton>
-                <TextField
-                  value={injectsByTtp}
-                  size="small"
-                  type="number"
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    if (Number.isNaN(next)) return;
-                    setInjectsByTtp(Math.min(MAX_INJECTS_BY_TTP, Math.max(MIN_INJECTS_BY_TTP, next)));
-                  }}
-                  slotProps={{
-                    htmlInput: {
-                      min: MIN_INJECTS_BY_TTP,
-                      max: MAX_INJECTS_BY_TTP,
-                      style: { textAlign: 'center' },
-                    },
-                  }}
-                  sx={{ width: 72 }}
-                />
-                <IconButton
-                  size="small"
-                  aria-label={t('Increase')}
-                  disabled={injectsByTtp >= MAX_INJECTS_BY_TTP}
-                  onClick={() => setInjectsByTtp(v => Math.min(MAX_INJECTS_BY_TTP, v + 1))}
-                  sx={{ border: `1px solid ${theme.palette.divider}` }}
-                >
-                  <AddOutlined fontSize="small" />
-                </IconButton>
-              </Box>
+              <TextFieldFds
+                aria-label={t('Number of injects by TTP')}
+                type="number"
+                fullWidth={false}
+                style={{ width: 72 }}
+                value={injectsByTtp}
+                min={MIN_INJECTS_BY_TTP}
+                max={MAX_INJECTS_BY_TTP}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  if (Number.isNaN(next)) return;
+                  setInjectsByTtp(Math.min(MAX_INJECTS_BY_TTP, Math.max(MIN_INJECTS_BY_TTP, next)));
+                }}
+              />
             </Box>
 
             <Box sx={{
@@ -497,13 +447,11 @@ const ScenarioAssistant: FunctionComponent = () => {
 
         {/* Right column: attack matrix (any kill chain) */}
         <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
+          padding={16}
+          style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 1.5,
+            gap: 12,
             minWidth: 0,
           }}
         >
@@ -606,18 +554,7 @@ const ScenarioAssistant: FunctionComponent = () => {
               {t('~{count} injects', { count: estimatedInjects })}
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AutoAwesomeOutlined fontSize="small" />}
-            onClick={onSubmit}
-            sx={{
-              borderRadius: 1,
-              textTransform: 'none',
-              fontWeight: 600,
-              paddingInline: 2,
-            }}
-          >
+          <Button type="button" startIcon={<AutoAwesomeOutlined fontSize="small" />} onClick={onSubmit}>
             {t('Create injects')}
           </Button>
         </Box>

@@ -1,5 +1,6 @@
+import { Button, Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { PlayArrowOutlined, SettingsOutlined, Stop, TrackChangesOutlined, UpdateOutlined } from '@mui/icons-material';
-import { Alert, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, FormControlLabel, IconButton, Tooltip } from '@mui/material';
+import { Alert, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -179,28 +180,14 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     if (injectResultOverviewOutput.inject_ready && hasLaunchAbility) {
       const launchOrRelaunchKey = !injectResultOverviewOutput.inject_status?.status_id ? 'Launch now' : 'Relaunch now';
       return (
-        <Button
-          style={{ whiteSpace: 'nowrap' }}
-          startIcon={<PlayArrowOutlined />}
-          variant="contained"
-          color="primary"
-          size="small"
-          onClick={handleOpenDialog}
-          disabled={!canLaunch}
-        >
+        <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleOpenDialog} disabled={!canLaunch} style={{ whiteSpace: 'nowrap' }}>
           {t(launchOrRelaunchKey)}
         </Button>
       );
     } else if (hasManageAbility) {
       return (
         <>
-          <Button
-            startIcon={<SettingsOutlined />}
-            variant="contained"
-            color="warning"
-            size="small"
-            onClick={handleOpenEdit}
-          >
+          <Button type="button" variant="destructive" priority="secondary" startIcon={<SettingsOutlined fontSize="small" />} onClick={handleOpenEdit}>
             {t('Configure')}
           </Button>
           <AtomicTestingUpdate open={edition} handleClose={handleCloseEdit} atomic={injectResultOverviewOutput} />
@@ -233,29 +220,20 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
               style={{ marginTop: theme.spacing(1) }}
             >
               {t('The expectations of this atomic testing no longer match the validation requirements defined by its action.')}
-              <FormControlLabel
-                sx={{
-                  display: 'flex',
-                  marginTop: 0.5,
-                }}
-                control={(
-                  <Checkbox
-                    size="small"
-                    checked={realignOnRelaunch}
-                    onChange={event => setRealignOnRelaunch(event.target.checked)}
-                  />
-                )}
-                label={t('Realign expectations to the current action before relaunching')}
-                slotProps={{ typography: { variant: 'body2' } }}
-              />
+              <div style={{ marginTop: theme.spacing(0.5) }}>
+                <Checkbox
+                  checked={realignOnRelaunch}
+                  onCheckedChange={checked => setRealignOnRelaunch(checked === true)}
+                  label={t('Realign expectations to the current action before relaunching')}
+                />
+              </div>
             </Alert>
           )}
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleCloseDialog}>{t('Cancel')}</Button>
+          <Button type="button" priority="secondary" onClick={handleCloseDialog}>{t('Cancel')}</Button>
           <Button
-            variant="contained"
-            color="primary"
+            type="button"
             onClick={
               injectResultOverviewOutput.inject_ready && !injectResultOverviewOutput.inject_status?.status_id
                 ? submitLaunch
@@ -291,10 +269,17 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
         entityName={injectResultOverview.inject_title}
       />
       {canManage && (
-        <Tooltip title={t('Scheduling')}>
-          <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
-            <UpdateOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              icon={<UpdateOutlined fontSize="small" />}
+              aria-label={t('Scheduling')}
+              onClick={() => setOpenScheduling(true)}
+              priority="tertiary"
+              size="md"
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Scheduling')}</TooltipContent>
         </Tooltip>
       )}
       {/* Dismissed drift downgraded to a discreet icon within the compact icon
@@ -309,22 +294,18 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
         />
       )}
       {canManage && isScheduled && !scheduleEnded && (
-        <Button
-          startIcon={<Stop />}
-          variant="outlined"
-          color="inherit"
-          size="small"
-          onClick={stopScheduling}
-        >
+        <Button type="button" priority="secondary" startIcon={<Stop fontSize="small" />} onClick={stopScheduling}>
           {t('Stop')}
         </Button>
       )}
-      {hasAbility && getActionButton(injectResultOverview)}
+      {/* The overflow menu precedes the launch button so the primary action
+          closes the cluster. */}
       <AtomicTestingPopover
         atomic={injectResultOverview}
         actions={['Export', 'Update', 'Duplicate', 'Delete']}
         onDelete={() => navigate('/admin/atomic_testings')}
       />
+      {hasAbility && getActionButton(injectResultOverview)}
       {getDialog(injectResultOverview)}
       <SchedulingDialog
         open={openScheduling}

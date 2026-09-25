@@ -1,5 +1,6 @@
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloudUploadOutlined } from '@mui/icons-material';
-import { Button, CircularProgress, type CircularProgressProps, IconButton, ToggleButton, Tooltip } from '@mui/material';
+import { CircularProgress, type CircularProgressProps } from '@mui/material';
 import { type ChangeEvent, type FunctionComponent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -43,17 +44,20 @@ const ImportUploader: FunctionComponent<Props> = ({
 
   if (upload) {
     return (
-      <Tooltip
-        title={`Uploading ${upload}`}
-        aria-label={`Uploading ${upload}`}
-      >
-        <IconButton disabled={true} style={{ marginRight: 10 }}>
-          <CircularProgress
-            size={24}
-            thickness={2}
-            color={color ?? 'primary'}
-          />
-        </IconButton>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">
+            <IconButton
+              icon={<CircularProgress size={24} thickness={2} color={color ?? 'primary'} />}
+              aria-label={t('Import')}
+              disabled={true}
+              style={{ marginRight: 10 }}
+              priority="tertiary"
+              size="md"
+            />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{`Uploading ${upload}`}</TooltipContent>
       </Tooltip>
     );
   }
@@ -77,38 +81,31 @@ const ImportUploader: FunctionComponent<Props> = ({
         }}
       />
       {isIconButton ? (
-        <ToggleButton
-          value="import"
-          aria-label="import"
-          size="small"
-          onClick={handleOpenUpload}
-          disabled={disabled}
-        >
-          <Tooltip
-            title={t(title)}
-            aria-label={title}
-          >
-            <CloudUploadOutlined
-              color="primary"
-              fontSize="small"
-            />
-          </Tooltip>
-        </ToggleButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span style={{ display: 'inline-flex' }}>
+              <IconButton
+                priority="secondary"
+                size="md"
+                aria-label={t(title)}
+                icon={<CloudUploadOutlined fontSize="small" />}
+                onClick={handleOpenUpload}
+                disabled={disabled}
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t(title)}</TooltipContent>
+        </Tooltip>
       ) : (
-        <Tooltip
-          title={t(title)}
-          aria-label={title}
-        >
-          <Button
-            onClick={handleOpenUpload}
-            disabled={disabled}
-            size="small"
-            variant="outlined"
-            color="inherit"
-            className={classes.buttonImport}
-          >
-            {t('Import')}
-          </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Button type="button" priority="secondary" onClick={handleOpenUpload} disabled={disabled} className={classes.buttonImport}>
+                {t('Import')}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t(title)}</TooltipContent>
         </Tooltip>
       )}
     </>

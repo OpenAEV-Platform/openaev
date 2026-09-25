@@ -1,16 +1,6 @@
-import { CheckCircleOutlined, RadioButtonUncheckedOutlined, SearchOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  ButtonBase,
-  Chip,
-  CircularProgress,
-  InputAdornment,
-  Skeleton,
-  Slide,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Button, Chip, SearchField } from '@filigran/design-system';
+import { CheckCircleOutlined, RadioButtonUncheckedOutlined } from '@mui/icons-material';
+import { Box, ButtonBase, CircularProgress, Skeleton, Slide, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type AxiosResponse } from 'axios';
 import { useEffect, useRef, useState } from 'react';
@@ -165,22 +155,14 @@ const ThreatArsenalScenarioUpdateComponent = ({
           {t('Chained scenarios are not listed: their injects are driven by their workflow')}
         </Typography>
 
-        <TextField
+        <SearchField
+          aria-label={t('Search scenarios...')}
           fullWidth
-          size="small"
-          variant="outlined"
+          size="sm"
           placeholder={t('Search scenarios...')}
           value={textSearch}
           onChange={event => setTextSearch(event.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchOutlined fontSize="small" />
-                </InputAdornment>
-              ),
-            },
-          }}
+          onClear={() => setTextSearch('')}
         />
 
         <Box sx={{
@@ -208,11 +190,10 @@ const ThreatArsenalScenarioUpdateComponent = ({
               {selectedScenarios.map(scenario => (
                 <Chip
                   key={scenario.scenario_id}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  label={scenario.scenario_name}
+                  label={scenario.scenario_name ?? ''}
                   onDelete={() => toggleScenario(scenario)}
+                  severity="info"
+                  deleteLabel={t('Remove')}
                 />
               ))}
             </Box>
@@ -334,13 +315,7 @@ const ThreatArsenalScenarioUpdateComponent = ({
         )}
 
         {!isLoading && hasMore && (
-          <Button
-            size="small"
-            onClick={handleShowMore}
-            disabled={isLoadingMore}
-            startIcon={isLoadingMore ? <CircularProgress size={14} /> : undefined}
-            sx={{ alignSelf: 'center' }}
-          >
+          <Button type="button" priority="tertiary" size="sm" startIcon={isLoadingMore ? <CircularProgress size={14} /> : undefined} onClick={handleShowMore} disabled={isLoadingMore} style={{ alignSelf: 'center' }}>
             {t('Show more')}
           </Button>
         )}
@@ -352,20 +327,10 @@ const ThreatArsenalScenarioUpdateComponent = ({
           marginTop: 1,
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Back')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleSubmit}
-            disabled={selectedScenarios.length === 0 || isSubmitting}
-          >
+          <Button type="button" onClick={handleSubmit} disabled={selectedScenarios.length === 0 || isSubmitting}>
             {selectedScenarios.length > 1
               ? t('Add to {count} scenarios', { count: selectedScenarios.length })
               : t('Add to scenario')}

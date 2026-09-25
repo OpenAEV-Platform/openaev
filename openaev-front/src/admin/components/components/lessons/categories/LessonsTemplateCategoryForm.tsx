@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
@@ -51,7 +51,7 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="lessonTemplateCategoryForm" onSubmit={handleSubmit(onSubmit)}>
+    <form noValidate id="lessonTemplateCategoryForm" onSubmit={handleSubmit(onSubmit)}>
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -59,33 +59,27 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
       }}
       >
         <TextField
-          variant="standard"
-          fullWidth
+          required
           label={t('Name')}
           error={!!errors.lessons_template_category_name}
           helperText={errors.lessons_template_category_name?.message}
-          inputProps={register('lessons_template_category_name')}
-          InputLabelProps={{ required: true }}
+          {...register('lessons_template_category_name')}
           control={control}
         />
         <TextField
-          variant="standard"
-          fullWidth
           label={t('Description')}
           error={!!errors.lessons_template_category_description}
           helperText={errors.lessons_template_category_description?.message}
-          inputProps={register('lessons_template_category_description')}
+          {...register('lessons_template_category_description')}
           control={control}
         />
         <TextField
-          variant="standard"
-          fullWidth
+          required
           label={t('Order')}
           error={!!errors.lessons_template_category_order}
           helperText={errors.lessons_template_category_order?.message}
-          inputProps={register('lessons_template_category_order')}
+          {...register('lessons_template_category_order')}
           type="number"
-          InputLabelProps={{ required: true }}
           control={control}
         />
       </div>
@@ -96,20 +90,10 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
         gap: theme.spacing(1),
       }}
       >
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleClose}
-          disabled={isSubmitting}
-        >
+        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
           {t('Cancel')}
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          type="submit"
-          disabled={!isDirty || isSubmitting}
-        >
+        <Button type="submit" disabled={!isDirty || isSubmitting}>
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

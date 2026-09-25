@@ -1,4 +1,11 @@
-import { MenuItem, Select, Typography } from '@mui/material';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import { Typography } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -41,24 +48,17 @@ const KillChainSelect: FunctionComponent<KillChainSelectProps> = ({ killChains, 
         {t('Kill chain')}
       </Typography>
       <Select
-        size="small"
-        variant="standard"
-        disableUnderline
         value={value ?? ''}
-        onChange={e => onChange(e.target.value as string)}
-        sx={{
-          'fontFamily': '"Geologica", sans-serif',
-          'fontWeight': 600,
-          'fontSize': 14,
-          '& .MuiSelect-select': {
-            paddingTop: 0,
-            paddingBottom: 0,
-          },
-        }}
+        onValueChange={next => onChange(next as string)}
       >
-        {killChains.map(chain => (
-          <MenuItem key={chain} value={chain}>{killChainLabel(chain)}</MenuItem>
-        ))}
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {killChains.map(chain => (
+            <SelectItem key={chain} value={chain}>{killChainLabel(chain)}</SelectItem>
+          ))}
+        </SelectContent>
       </Select>
     </div>
   );

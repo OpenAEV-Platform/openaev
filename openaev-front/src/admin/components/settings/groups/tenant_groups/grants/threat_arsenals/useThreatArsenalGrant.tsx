@@ -1,4 +1,4 @@
-import { Checkbox } from '@mui/material';
+import { Checkbox } from '@filigran/design-system';
 
 import { addGrant, deleteGrant } from '../../../../../../../actions/Grant';
 import { type GroupHelper } from '../../../../../../../actions/group/group-helper';
@@ -59,9 +59,10 @@ const useThreatArsenalGrant = ({ groupId, onGrantChange }: PayloadGrantsProps) =
         const { observerId, plannerId } = getGrantIds(action);
         return (
           <Checkbox
+            aria-label={t('Access')}
             checked={!!(observerId || plannerId)}
             disabled={!!plannerId || !group}
-            onChange={(_, checked) => handleGrant(action.injector_contract_id, observerId, 'OBSERVER', checked)}
+            onCheckedChange={checked => handleGrant(action.injector_contract_id, observerId, 'OBSERVER', checked === true)}
           />
         );
       },
@@ -73,9 +74,10 @@ const useThreatArsenalGrant = ({ groupId, onGrantChange }: PayloadGrantsProps) =
         const { plannerId } = getGrantIds(action);
         return (
           <Checkbox
+            aria-label={t('Manage+Delete')}
             checked={!!plannerId}
             disabled={!group}
-            onChange={(_, checked) => handleGrant(action.injector_contract_id, plannerId, 'PLANNER', checked)}
+            onCheckedChange={checked => handleGrant(action.injector_contract_id, plannerId, 'PLANNER', checked === true)}
           />
         );
       },

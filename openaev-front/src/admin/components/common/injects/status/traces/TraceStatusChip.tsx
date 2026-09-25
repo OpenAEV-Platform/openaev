@@ -1,11 +1,12 @@
-import { alpha, Chip, Tooltip, type TooltipProps, Typography } from '@mui/material';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { type TooltipProps, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
 import { getStatusIconComponent } from '../../../../../../utils/statusIcons';
 import { getAgentStatusTooltip, getStatusLabel } from '../../../../../../utils/statusLabels';
-import { getStatusColor } from '../../../../../../utils/statusUtils';
+import { statusSeverity } from '../../../../../../utils/statusUtils';
 
 // -- STATUS TOOLTIP --
 
@@ -19,35 +20,18 @@ const StatusTooltip: FunctionComponent<StatusTooltipProps> = ({ title, descripti
   const theme = useTheme();
 
   return (
-    <Tooltip
-      arrow
-      title={(
-        <div style={{ padding: theme.spacing(0.5) }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: theme.typography.fontWeightBold }}>
-            {title}
-          </Typography>
-          <Typography variant="body2">
-            {description}
-          </Typography>
-        </div>
-      )}
-      slotProps={{
-        tooltip: {
-          sx: {
-            backgroundColor: theme.palette.background.paper,
-            border: `1px solid ${theme.palette.divider}`,
-            maxWidth: 400,
-          },
-        },
-        arrow: {
-          sx: {
-            'color': theme.palette.background.paper,
-            '&::before': { border: `1px solid ${theme.palette.divider}` },
-          },
-        },
-      }}
-    >
-      {children}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <Typography variant="subtitle2" sx={{ fontWeight: theme.typography.fontWeightBold }}>
+          {title}
+        </Typography>
+        <Typography variant="body2">
+          {description}
+        </Typography>
+      </TooltipContent>
     </Tooltip>
   );
 };
@@ -59,7 +43,6 @@ interface TraceStatusChipProps { status: string }
 const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({ status }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const statusColor = getStatusColor(theme, status);
   const label = t(getStatusLabel(status));
 
   const tooltip = getAgentStatusTooltip(status);
@@ -67,19 +50,9 @@ const TraceStatusChip: FunctionComponent<TraceStatusChipProps> = ({ status }) =>
 
   const chip = (
     <Chip
-      size="medium"
       label={label}
-      icon={<StatusIcon sx={{ fontSize: theme.typography.caption.fontSize }} />}
-      sx={{
-        'backgroundColor': alpha(statusColor, 0.08),
-        'color': statusColor,
-        'fontSize': theme.typography.caption.fontSize,
-        'fontWeight': theme.typography.fontWeightBold,
-        'textTransform': 'uppercase',
-        'borderRadius': Number(theme.shape.borderRadius) / 2,
-        'height': theme.spacing(3),
-        '& .MuiChip-icon': { color: 'inherit' },
-      }}
+      startIcon={<StatusIcon sx={{ fontSize: theme.typography.caption.fontSize }} />}
+      severity={statusSeverity(status)}
     />
   );
 

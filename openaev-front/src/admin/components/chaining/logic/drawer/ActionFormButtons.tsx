@@ -1,4 +1,5 @@
-import { Box, Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Box } from '@mui/material';
 
 import { useFormatter } from '../../../../../components/i18n';
 
@@ -27,11 +28,11 @@ const ActionFormButtons = ({
       mt: 1,
     }}
     >
-      <Button variant="outlined" color="primary" onClick={onCancel}>
+      <Button type="button" priority="secondary" onClick={onCancel}>
         {cancelLabel ?? (readOnly ? t('Close') : t('Cancel'))}
       </Button>
       {!readOnly && (
-        <Button variant="contained" color="primary" type="submit" disabled={disabled}>
+        <Button type="submit" disabled={disabled}>
           {submitLabel ?? t('Save')}
         </Button>
       )}

@@ -1,5 +1,8 @@
+import { IconButton } from '@filigran/design-system';
 import { ArrowBack } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
+
+import { useFormatter } from '../../../components/i18n';
 
 interface DrawerBreadcrumbProps {
   parentLabel: string;
@@ -16,6 +19,7 @@ const DrawerBreadcrumb = ({
   grandParentLabel,
   onBackToGrandParent,
 }: DrawerBreadcrumbProps) => {
+  const { t } = useFormatter();
   return (
     <Box sx={{
       display: 'flex',
@@ -24,9 +28,7 @@ const DrawerBreadcrumb = ({
       mb: 2,
     }}
     >
-      <IconButton onClick={onBack} size="small" color="primary">
-        <ArrowBack />
-      </IconButton>
+      <IconButton icon={<ArrowBack />} aria-label={t('Back')} onClick={onBack} priority="tertiary" size="md" />
       {grandParentLabel && onBackToGrandParent && (
         <>
           <Typography

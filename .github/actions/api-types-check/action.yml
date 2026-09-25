@@ -12,6 +12,9 @@ description: >
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
 
 inputs:
+  fds-git-token:
+    description: "PAT with read access to XTM-Foundation/filigran-design-system (secrets.FDS_GIT_TOKEN)."
+    required: true
   no-cache:
     description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
     required: false
@@ -28,6 +31,10 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
+
+    - uses: ./.github/actions/setup-fds-auth
+      with:
+        token: ${{ inputs.fds-git-token }}
 
     - name: Install frontend dependencies
       uses: ./.github/actions/yarn-install

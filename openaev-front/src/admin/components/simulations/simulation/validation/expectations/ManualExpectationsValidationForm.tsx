@@ -1,14 +1,6 @@
+import { Button, Chip, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Button,
-  Chip,
-  Grid,
-  MenuItem,
-  Select,
-  Slider,
-  TextField as MuiTextField,
-  Typography,
-} from '@mui/material';
+import { Grid, Slider, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -20,12 +12,13 @@ import { type UserHelper } from '../../../../../../actions/helper';
 import { fetchTeams } from '../../../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../../../actions/teams/team-helper';
 import { fetchPlayers } from '../../../../../../actions/users/User';
+import TextFieldFds from '../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
 import { type Team, type User } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
-import { computeStatusStyle } from '../../../../../../utils/statusUtils';
+import { statusSeverity } from '../../../../../../utils/statusUtils';
 import { computeLabel, resolveUserName, truncate } from '../../../../../../utils/String';
 import { zodImplement } from '../../../../../../utils/Zod';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
@@ -123,9 +116,8 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
       <form id="expectationForm" onSubmit={handleSubmit(onSubmit)}>
         {withSummary && (
           <Chip
-            classes={{ root: classes.chipInList }}
-            style={computeStatusStyle(expectation.inject_expectation_status)}
             label={t(computeLabel(expectation.inject_expectation_status))}
+            severity={statusSeverity(expectation.inject_expectation_status)}
           />
         )}
         {withSummary && (
@@ -138,37 +130,35 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
         {withSummary && targetLabel(expectation)}
         <Grid container spacing={3} className={withSummary ? classes.marginTop_2 : classes.scoreAcc}>
           <Grid size={{ xs: 6 }}>
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Score')}
               type="number"
               error={!!errors.expectation_score}
               disabled={isDisabled}
               helperText={errors.expectation_score?.message ?? `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
-              slotProps={{
-                htmlInput: {
-                  ...register('expectation_score', { valueAsNumber: true }),
-                  min: 0,
-                  max: 100,
-                },
+              {...{
+                ...register('expectation_score', { valueAsNumber: true }),
+                min: 0,
+                max: 100,
               }}
             />
           </Grid>
           <Grid size={{ xs: 6 }}>
-            <Select
-              fullWidth
-              value={watch('expectation_score') < expectation.inject_expectation_expected_score ? 'Failed' : 'Success'}
-              onChange={event => setValue('expectation_score', event.target.value === 'Success' ? 100 : 0)}
-              renderValue={(value) => {
-                return value;
-              }}
-              sx={{ marginTop: 2 }}
-              disabled={isDisabled}
-            >
-              <MenuItem value="Success">{t('Success')}</MenuItem>
-              <MenuItem value="Failed">{t('Failed')}</MenuItem>
-            </Select>
+            <div style={{ marginTop: 16 }}>
+              <Select
+                value={watch('expectation_score') < expectation.inject_expectation_expected_score ? 'Failed' : 'Success'}
+                onValueChange={next => setValue('expectation_score', next === 'Success' ? 100 : 0)}
+                disabled={isDisabled}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Success">{t('Success')}</SelectItem>
+                  <SelectItem value="Failed">{t('Failed')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </Grid>
         </Grid>
         <Slider
@@ -181,12 +171,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
         />
         {!hideActions && (
           <div className={classes.buttons}>
-            <Button
-              type="submit"
-              disabled={isSubmitting || isDisabled}
-              variant="contained"
-              color="primary"
-            >
+            <Button type="submit" disabled={isSubmitting || isDisabled}>
               {t('Validate')}
             </Button>
           </div>

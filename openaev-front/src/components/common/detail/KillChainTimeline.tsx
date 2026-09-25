@@ -1,4 +1,5 @@
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -97,25 +98,28 @@ const KillChainTimeline: FunctionComponent<Props> = ({ phases }) => {
               }}
               />
             </Box>
-            <Tooltip title={phase.phase_name}>
-              <Typography sx={{
-                marginTop: 1,
-                maxWidth: 104,
-                fontSize: 10,
-                fontWeight: 600,
-                lineHeight: 1.3,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                textAlign: 'center',
-                color: 'text.secondary',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-              >
-                {phase.phase_name}
-              </Typography>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Typography sx={{
+                  marginTop: 1,
+                  maxWidth: 104,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  lineHeight: 1.3,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  textAlign: 'center',
+                  color: 'text.secondary',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+                >
+                  {phase.phase_name}
+                </Typography>
+              </TooltipTrigger>
+              {phase.phase_name && <TooltipContent>{phase.phase_name}</TooltipContent>}
             </Tooltip>
           </Box>
         );

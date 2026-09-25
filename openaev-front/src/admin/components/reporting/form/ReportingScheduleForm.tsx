@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
@@ -64,21 +65,10 @@ const ReportingScheduleForm: FunctionComponent<Props> = ({
           mt: 2,
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            sx={{ mr: 1 }}
-            disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 8 }}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={isSubmitting || (editing && !isDirty)}
-          >
+          <Button type="submit" disabled={isSubmitting || (editing && !isDirty)}>
             {editing ? t('Update') : t('Create')}
           </Button>
         </Box>

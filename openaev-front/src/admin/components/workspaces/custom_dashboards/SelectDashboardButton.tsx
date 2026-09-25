@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { InsertChartOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { useState } from 'react';
 
 import Dialog from '../../../../components/common/dialog/Dialog';
@@ -36,28 +36,29 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'outlined', 
       {variant === 'outlined'
         ? (
             <Button
-              variant="outlined"
-              color="primary"
-              size="small"
-              startIcon={<InsertChartOutlined />}
+              type="button"
+              priority="secondary"
+              startIcon={<InsertChartOutlined fontSize="small" />}
               onClick={handleOpenSelectDashboardDialog}
-              sx={{
-                alignSelf: 'center',
+              style={{
+                // The parameters beside it are label-above-input: the button sits on the
+                // inputs' baseline, not in the middle of the label + input block.
+                alignSelf: 'end',
                 flexShrink: 0,
               }}
             >
               {t('Change dashboard')}
             </Button>
           )
-        : <Button onClick={handleOpenSelectDashboardDialog} variant="text">{t('Select a dashboard')}</Button>}
+        : <Button type="button" priority="tertiary" onClick={handleOpenSelectDashboardDialog}>{t('Select a dashboard')}</Button>}
       <Dialog
         title={t('Select a dashboard')}
         open={openSelectDashboardDialog}
         handleClose={handleCloseSelectDashboardDialog}
         actions={(
           <>
-            <Button variant="outlined" color="primary" onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
-            <Button variant="contained" color="primary" onClick={onHandleSubmit}>
+            <Button type="button" priority="secondary" onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
+            <Button type="button" onClick={onHandleSubmit}>
               {t('Continue')}
             </Button>
           </>

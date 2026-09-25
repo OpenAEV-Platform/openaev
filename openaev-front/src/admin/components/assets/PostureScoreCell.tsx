@@ -1,4 +1,5 @@
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -30,8 +31,11 @@ const PostureScoreCell: FunctionComponent<Props> = ({ success, failed, loading =
   }
   if (score === null) {
     return (
-      <Tooltip title={t('No validations yet')}>
-        <span>-</span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>-</span>
+        </TooltipTrigger>
+        <TooltipContent>{t('No validations yet')}</TooltipContent>
       </Tooltip>
     );
   }
@@ -44,50 +48,54 @@ const PostureScoreCell: FunctionComponent<Props> = ({ success, failed, loading =
   const circumference = 2 * Math.PI * ringRadius;
 
   return (
-    <Tooltip title={t('{met} of {total} validated expectations met', {
-      met: success,
-      total,
-    })}
-    >
-      <Box sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 0.75,
-      }}
-      >
-        <svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`} style={{ transform: 'rotate(-90deg)' }}>
-          <circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
-            r={ringRadius}
-            fill={alpha(color, 0.1)}
-            stroke={alpha(theme.palette.text.primary, 0.12)}
-            strokeWidth={2}
-          />
-          <circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
-            r={ringRadius}
-            fill="none"
-            stroke={color}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference * (1 - score / 100)}
-          />
-        </svg>
-        <Typography
-          component="span"
-          sx={{
-            fontFamily: '"Geologica", sans-serif',
-            fontSize: 13,
-            fontWeight: 600,
-            color,
-          }}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Box sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0.75,
+        }}
         >
-          {score}
-        </Typography>
-      </Box>
+          <svg width={ringSize} height={ringSize} viewBox={`0 0 ${ringSize} ${ringSize}`} style={{ transform: 'rotate(-90deg)' }}>
+            <circle
+              cx={ringSize / 2}
+              cy={ringSize / 2}
+              r={ringRadius}
+              fill={alpha(color, 0.1)}
+              stroke={alpha(theme.palette.text.primary, 0.12)}
+              strokeWidth={2}
+            />
+            <circle
+              cx={ringSize / 2}
+              cy={ringSize / 2}
+              r={ringRadius}
+              fill="none"
+              stroke={color}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (1 - score / 100)}
+            />
+          </svg>
+          <Typography
+            component="span"
+            sx={{
+              fontFamily: '"Geologica", sans-serif',
+              fontSize: 13,
+              fontWeight: 600,
+              color,
+            }}
+          >
+            {score}
+          </Typography>
+        </Box>
+      </TooltipTrigger>
+      <TooltipContent>
+        {t('{met} of {total} validated expectations met', {
+          met: success,
+          total,
+        })}
+      </TooltipContent>
     </Tooltip>
   );
 };

@@ -191,9 +191,9 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
             type: MarkerType.ArrowClosed,
             width: arrowSize,
             height: arrowSize,
-            color: 'red',
+            color: 'var(--color-feedback-error-primary)',
           },
-          style: { stroke: 'red' },
+          style: { stroke: 'var(--color-feedback-error-primary)' },
         };
       });
   };

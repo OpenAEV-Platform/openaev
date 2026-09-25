@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { CredentialOutput } from '../../../../utils/api-types';
@@ -39,10 +39,13 @@ const CredentialStatusChip = ({ status, variant = 'list' }: Props) => {
     const tooltipTitle = `${statusCode}: ${t(INACTIVE_STATUS_MESSAGES[statusCode])}`;
 
     return (
-      <Tooltip title={tooltipTitle}>
-        <span>
-          <AssetStatus variant={variant} status="Inactive" />
-        </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>
+            <AssetStatus variant={variant} status="Inactive" />
+          </span>
+        </TooltipTrigger>
+        {tooltipTitle && <TooltipContent>{tooltipTitle}</TooltipContent>}
       </Tooltip>
     );
   }

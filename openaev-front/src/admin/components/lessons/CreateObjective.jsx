@@ -40,7 +40,7 @@ class CreateObjectiveComponent extends Component {
     const { t } = this.props;
     return (
       <>
-        <ButtonCreate onClick={this.handleOpen.bind(this)} />
+        <ButtonCreate size="sm" onClick={this.handleOpen.bind(this)} />
         <Dialog
           open={this.state.open}
           TransitionComponent={Transition}

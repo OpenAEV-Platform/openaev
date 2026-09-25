@@ -1,57 +1,36 @@
-import { Chip, CircularProgress } from '@mui/material';
-import { makeStyles } from 'tss-react/mui';
+import { Chip, type ChipSeverity } from '@filigran/design-system';
 
-import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 
 type StatusVariant = 'loading' | 'started' | 'stopped' | undefined;
 
 type ConnectorStatusProps = { variant: StatusVariant };
 
-const useStyles = makeStyles()(() => ({
-  chipVerified: {
-    fontSize: 11,
-    height: 20,
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-}));
-
 const ConnectorStatus = ({ variant }: ConnectorStatusProps) => {
-  const { classes } = useStyles();
   const { t } = useFormatter();
 
-  let label: React.ReactNode = null;
-  let chipStyle = colorStyles.grey;
+  let label = '';
+  let severity: ChipSeverity = 'neutral';
   let disabled = false;
 
   if (variant === 'loading') {
-    label = <CircularProgress size={14} color="inherit" style={{ verticalAlign: 'middle' }} />;
+    label = t('Loading');
     disabled = true;
-    chipStyle = colorStyles.grey;
+    severity = 'neutral';
   }
 
   if (variant === 'started') {
     label = t('Started');
-    chipStyle = colorStyles.green;
+    severity = 'low';
   }
 
   if (variant === 'stopped') {
     label = t('Stopped');
-    chipStyle = colorStyles.red;
+    severity = 'critical';
   }
 
   return (
-    <Chip
-      variant="filled"
-      className={classes.chipVerified}
-      disabled={disabled}
-      style={chipStyle}
-      label={label}
-    />
+    <Chip disabled={disabled} severity={severity} label={label} />
   );
 };
 

@@ -1,5 +1,6 @@
+import { Button, Radio, RadioGroup, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { ContentCopyOutlined, TerminalOutlined } from '@mui/icons-material';
-import { Alert, Button, CircularProgress, FormControl, FormControlLabel, InputLabel, MenuItem, Radio, RadioGroup, Select, Typography } from '@mui/material';
+import { Alert, CircularProgress, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
 import { useEffect, useState } from 'react';
@@ -91,8 +92,8 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
     };
   }, [tenantPrefix]);
 
-  const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedOption(platform === MACOS ? SYSTEM : event.target.value);
+  const handleOptionChange = (value: string) => {
+    setSelectedOption(platform === MACOS ? SYSTEM : value);
   };
 
   useEffect(() => {
@@ -254,29 +255,25 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
     if (platform !== MACOS) return <></>;
 
     return (
-      <FormControl style={{
-        width: '100%',
-        margin: theme.spacing(1, 0),
-      }}
+      <Select
+        value={arch}
+        onValueChange={(next) => {
+          const allowedArchs = ['x86_64', 'arm64', 'ALL_ARCHITECTURES'] as const;
+          if (allowedArchs.includes(next as BasePayload['payload_execution_arch'])) {
+            setArch(next as BasePayload['payload_execution_arch']);
+          } else {
+            setArch(x86_64);
+          }
+        }}
       >
-        <InputLabel id="arch">{t('Architecture')}</InputLabel>
-        <Select
-          labelId="arch"
-          value={arch}
-          onChange={(event) => {
-            const allowedArchs = ['x86_64', 'arm64', 'ALL_ARCHITECTURES'] as const;
-            if (allowedArchs.includes(event.target.value as BasePayload['payload_execution_arch'])) {
-              setArch(event.target.value as BasePayload['payload_execution_arch']);
-            } else {
-              setArch(x86_64);
-            }
-          }}
-          fullWidth
-        >
-          <MenuItem value="x86_64">{t(x86_64)}</MenuItem>
-          <MenuItem value="arm64">{t('arm64')}</MenuItem>
-        </Select>
-      </FormControl>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="x86_64">{t(x86_64)}</SelectItem>
+          <SelectItem value="arm64">{t('arm64')}</SelectItem>
+        </SelectContent>
+      </Select>
     );
   };
   const stepOneInstallationTitle = () => {
@@ -344,20 +341,10 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
           gap: 8,
         }}
         >
-          <Button
-            variant="outlined"
-            style={{ marginBottom: theme.spacing(2) }}
-            startIcon={<ContentCopyOutlined />}
-            onClick={() => copyToClipboard(t, code)}
-          >
+          <Button type="button" priority="secondary" startIcon={<ContentCopyOutlined fontSize="small" />} onClick={() => copyToClipboard(t, code)} style={{ marginBottom: theme.spacing(2) }}>
             {t('Copy')}
           </Button>
-          <Button
-            variant="outlined"
-            style={{ marginBottom: theme.spacing(2) }}
-            startIcon={<DownloadCircleOutline />}
-            onClick={() => download(displayedCode, `openaev.${fileExtension}`, 'text/plain')}
-          >
+          <Button type="button" priority="secondary" startIcon={<DownloadCircleOutline fontSize="small" />} onClick={() => download(displayedCode, `openaev.${fileExtension}`, 'text/plain')} style={{ marginBottom: theme.spacing(2) }}>
             {t('Download')}
           </Button>
         </div>
@@ -422,18 +409,15 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
         )}
         <div>
           <RadioGroup
+            aria-label={t('Installation mode')}
+            orientation="horizontal"
             value={selectedOption}
-            onChange={handleOptionChange}
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '20px',
-            }}
+            onValueChange={handleOptionChange}
           >
             {platform !== MACOS && (
-              <FormControlLabel value={USER} control={<Radio />} label={t('Install Agent as User')} />
+              <Radio value={USER} label={t('Install Agent as User')} />
             )}
-            <FormControlLabel value={SYSTEM} control={<Radio />} label={t('Install Agent as System')} />
+            <Radio value={SYSTEM} label={t('Install Agent as System')} />
           </RadioGroup>
         </div>
         {

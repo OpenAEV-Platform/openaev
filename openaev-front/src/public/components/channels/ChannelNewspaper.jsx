@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { ChatBubbleOutlineOutlined, FavoriteBorderOutlined, MoreHorizOutlined, ShareOutlined } from '@mui/icons-material';
-import { Avatar, Button, Card, CardContent, CardHeader, CardMedia, Dialog, DialogContent, DialogTitle, GridLegacy, Typography } from '@mui/material';
+import { Avatar, Card, CardContent, CardHeader, CardMedia, Dialog, DialogContent, DialogTitle, GridLegacy, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useState } from 'react';
@@ -166,27 +167,18 @@ const ChannelNewspaper = ({ channelReader }) => {
                 />
                 <div className={classes.footer}>
                   <div style={{ float: 'left' }}>
-                    <Button
-                      color="secondary"
-                      size="small"
-                      variant="outlined"
-                      startIcon={<MoreHorizOutlined />}
-                      onClick={() => setCurrentArticle(firstArticle)}
-                    >
+                    <Button type="button" priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(firstArticle)}>
                       {t('Read more')}
                     </Button>
                   </div>
                   <div style={{ float: 'right' }}>
-                    <Button
-                      size="small"
-                      startIcon={<ChatBubbleOutlineOutlined />}
-                    >
+                    <Button type="button" priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                       {firstArticle.article_comments || 0}
                     </Button>
-                    <Button size="small" startIcon={<ShareOutlined />}>
+                    <Button type="button" priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                       {firstArticle.article_shares || 0}
                     </Button>
-                    <Button size="small" startIcon={<FavoriteBorderOutlined />}>
+                    <Button type="button" priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                       {firstArticle.article_likes || 0}
                     </Button>
                   </div>
@@ -257,30 +249,18 @@ const ChannelNewspaper = ({ channelReader }) => {
                     />
                     <div className={classes.footer}>
                       <div style={{ float: 'left' }}>
-                        <Button
-                          color="secondary"
-                          size="small"
-                          variant="outlined"
-                          startIcon={<MoreHorizOutlined />}
-                          onClick={() => setCurrentArticle(article)}
-                        >
+                        <Button type="button" priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(article)}>
                           {t('Read more')}
                         </Button>
                       </div>
                       <div style={{ float: 'right' }}>
-                        <Button
-                          size="small"
-                          startIcon={<ChatBubbleOutlineOutlined />}
-                        >
+                        <Button type="button" priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                           {article.article_comments || 0}
                         </Button>
-                        <Button size="small" startIcon={<ShareOutlined />}>
+                        <Button type="button" priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                           {article.article_shares || 0}
                         </Button>
-                        <Button
-                          size="small"
-                          startIcon={<FavoriteBorderOutlined />}
-                        >
+                        <Button type="button" priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                           {article.article_likes || 0}
                         </Button>
                       </div>
@@ -355,30 +335,18 @@ const ChannelNewspaper = ({ channelReader }) => {
                   />
                   <div className={classes.footer}>
                     <div style={{ float: 'left' }}>
-                      <Button
-                        color="secondary"
-                        size="small"
-                        variant="outlined"
-                        startIcon={<MoreHorizOutlined />}
-                        onClick={() => setCurrentArticle(article)}
-                      >
+                      <Button type="button" priority="secondary" size="sm" startIcon={<MoreHorizOutlined fontSize="small" />} onClick={() => setCurrentArticle(article)}>
                         {t('Read more')}
                       </Button>
                     </div>
                     <div style={{ float: 'right' }}>
-                      <Button
-                        size="small"
-                        startIcon={<ChatBubbleOutlineOutlined />}
-                      >
+                      <Button type="button" priority="tertiary" size="sm" startIcon={<ChatBubbleOutlineOutlined fontSize="small" />}>
                         {article.article_comments || 0}
                       </Button>
-                      <Button size="small" startIcon={<ShareOutlined />}>
+                      <Button type="button" priority="tertiary" size="sm" startIcon={<ShareOutlined fontSize="small" />}>
                         {article.article_shares || 0}
                       </Button>
-                      <Button
-                        size="small"
-                        startIcon={<FavoriteBorderOutlined />}
-                      >
+                      <Button type="button" priority="tertiary" size="sm" startIcon={<FavoriteBorderOutlined fontSize="small" />}>
                         {article.article_likes || 0}
                       </Button>
                     </div>

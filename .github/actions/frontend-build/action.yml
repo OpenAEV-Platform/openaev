@@ -2,6 +2,9 @@ name: Frontend Build
 description: Install frontend dependencies, build production bundle, and upload artifact
 
 inputs:
+  fds-git-token:
+    description: "PAT with read access to XTM-Foundation/filigran-design-system (secrets.FDS_GIT_TOKEN)."
+    required: true
   no-cache:
     description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
     required: false
@@ -10,6 +13,10 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: ./.github/actions/setup-fds-auth
+      with:
+        token: ${{ inputs.fds-git-token }}
+
     - name: Install dependencies
       uses: ./.github/actions/yarn-install
       with:

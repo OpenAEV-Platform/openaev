@@ -1,3 +1,4 @@
+import { type ChipSeverity } from '@filigran/design-system';
 import { type CSSProperties } from 'react';
 
 // Single source of truth for the asset-criticality palette, so criticality reads the SAME everywhere it is
@@ -5,27 +6,38 @@ import { type CSSProperties } from 'react';
 // palette: green = low risk, escalating to red for the most critical assets (UNKNOWN is a neutral grey).
 const CRITICALITY_STYLE: Record<string, CSSProperties> = {
   LOW: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)',
-    color: '#4caf50',
+    backgroundColor: 'var(--color-feedback-success-secondary-transparency-30)',
+    color: 'var(--color-feedback-success-primary)',
   },
   MEDIUM: {
-    backgroundColor: 'rgba(92, 123, 245, 0.08)',
-    color: '#5c7bf5',
+    backgroundColor: 'var(--color-feedback-info-secondary-transparency-30)',
+    color: 'var(--color-feedback-info-primary)',
   },
   HIGH: {
-    backgroundColor: 'rgba(255, 152, 0, 0.08)',
-    color: '#ff9800',
+    backgroundColor: 'var(--color-feedback-warning-secondary-transparency-30)',
+    color: 'var(--color-feedback-warning-primary)',
   },
   VERY_HIGH: {
-    backgroundColor: 'rgba(244, 67, 54, 0.08)',
-    color: '#f44336',
+    backgroundColor: 'var(--color-feedback-error-secondary-transparency-30)',
+    color: 'var(--color-feedback-error-primary)',
   },
   UNKNOWN: {
-    backgroundColor: 'rgba(96, 125, 139, 0.08)',
-    color: '#607d8b',
+    backgroundColor: 'var(--color-feedback-neutral-secondary-transparency-30)',
+    color: 'var(--color-feedback-neutral-primary)',
     fontStyle: 'italic',
   },
 };
+
+// The library severity for a criticality chip (same reading as the palette above: green low → red critical, unknown neutral).
+const CRITICALITY_SEVERITY: Record<string, ChipSeverity> = {
+  LOW: 'low',
+  MEDIUM: 'info',
+  HIGH: 'high',
+  VERY_HIGH: 'critical',
+  UNKNOWN: 'neutral',
+};
+export const criticalitySeverity = (criticality: string | undefined | null): ChipSeverity =>
+  CRITICALITY_SEVERITY[criticality ?? 'UNKNOWN'] ?? CRITICALITY_SEVERITY.UNKNOWN;
 
 // The full chip style (background + accent) for a criticality; unknown/absent falls back to neutral grey.
 export const criticalityStyle = (criticality: string | undefined | null): CSSProperties =>

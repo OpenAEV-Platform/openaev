@@ -4,9 +4,21 @@ USER root
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front ./
-RUN set -eux                             ; \
+# git resolves @filigran/design-system, a private direct git dependency of
+# openaev-front. The credential is a BuildKit secret mounted for this RUN only
+# and stored in no layer. `set -eu`, never `-eux`: with -x the shell would echo
+# the expanded token into the build log.
+RUN --mount=type=secret,id=fds_git_token \
+set -eu                                  ; \
+if [ ! -s /run/secrets/fds_git_token ]; then \
+  echo "fds_git_token build secret is missing or empty: yarn install cannot clone the design system." >&2 ; \
+  exit 1                                 ; \
+fi                                       ; \
+command -v git >/dev/null || microdnf install -y git-core ; \
+git config --global url."https://x-access-token:$(cat /run/secrets/fds_git_token)@github.com/".insteadOf "https://github.com/" ; \
 npm install -g corepack                  ; \
 yarn install                             ; \
+git config --global --unset-all url."https://x-access-token:$(cat /run/secrets/fds_git_token)@github.com/".insteadOf ; \
 yarn build                               ;
 
 FROM registry.access.redhat.com/ubi9/openjdk-21 AS api-builder

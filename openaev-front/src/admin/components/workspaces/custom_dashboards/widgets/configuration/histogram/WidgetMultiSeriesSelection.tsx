@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { AddOutlined } from '@mui/icons-material';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 
@@ -74,14 +75,13 @@ const WidgetMultiSeriesSelection: FunctionComponent<{
         })}
         <div style={{ display: 'flex' }}>
           <Button
-            variant="contained"
+            type="button"
+            priority="secondary"
+            size="sm"
+            fullWidth
+            aria-label={t('Add')}
             disabled={getCurrentSeriesLimit(widgetType) === currentSeries.length}
-            color="secondary"
             onClick={handleAddSeries}
-            style={{
-              flex: 1,
-              height: 20,
-            }}
           >
             <AddOutlined fontSize="small" />
           </Button>
@@ -92,12 +92,7 @@ const WidgetMultiSeriesSelection: FunctionComponent<{
         justifyContent: 'center',
       }}
       >
-        <Button
-          variant="contained"
-          color="primary"
-          sx={{ marginTop: theme.spacing(2) }}
-          onClick={handleSubmit}
-        >
+        <Button type="button" onClick={handleSubmit} style={{ marginTop: theme.spacing(2) }}>
           {t('Validate')}
         </Button>
       </div>

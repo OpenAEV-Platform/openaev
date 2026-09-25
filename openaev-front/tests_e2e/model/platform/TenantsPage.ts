@@ -10,7 +10,7 @@ class TenantsPage {
 
   /** "Name" text field inside the TenantForm drawer */
   get tenantNameInput(): Locator {
-    return this.page.getByLabel('Name*', { exact: true });
+    return this.page.getByLabel('Name', { exact: true });
   }
 
   /** "Create" submit button inside the TenantForm drawer */

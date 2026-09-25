@@ -1,10 +1,10 @@
+import { Paper } from '@filigran/design-system';
 import { ExpandMore, ExtensionOutlined, InsightsOutlined, RocketLaunchOutlined, SupportAgentOutlined } from '@mui/icons-material';
 import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
   Box,
-  Paper,
   Typography,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -73,9 +73,8 @@ const FAQCategoryCard = ({ category }: { category: FAQCategory }) => {
         </Box>
       </Box>
       <Paper
-        variant="outlined"
-        sx={{
-          borderRadius: 1,
+        padding={0}
+        style={{
           overflow: 'hidden',
           flex: 1,
         }}

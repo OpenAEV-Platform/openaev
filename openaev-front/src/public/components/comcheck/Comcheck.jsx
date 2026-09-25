@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { CheckCircleOutlineOutlined } from '@mui/icons-material';
-import { AppBar, Paper, Toolbar } from '@mui/material';
+import { AppBar, Toolbar } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
@@ -27,7 +28,9 @@ const useStyles = makeStyles()(() => ({
   },
   subtitle: {
     width: '100%',
-    color: '#ffffff',
+    // Inside a filled `AppBar color="primary"`: the ink has to be the one MUI computes
+    // against that fill (`primary.contrastText`), not the ground ink of the page.
+    color: 'inherit',
     fontWeight: 400,
     fontSize: 18,
     textAlign: 'center',
@@ -63,7 +66,7 @@ const Comcheck = () => {
   return (
     <div className={classes.container} style={{ marginTop }}>
       <img src={theme.logo} alt="logo" className={classes.logo} />
-      <Paper variant="outlined">
+      <Paper padding={0}>
         <AppBar color="primary" position="relative" className={classes.appBar}>
           <Toolbar>
             <div className={classes.subtitle}>{t('Communication check')}</div>
