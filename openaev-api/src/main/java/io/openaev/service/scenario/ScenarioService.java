@@ -38,6 +38,7 @@ import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.export.Mixins;
 import io.openaev.export.WorkflowExportInitializer;
@@ -587,8 +588,9 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Latest exercise not found"));
   }
 
+  @Transactional
   public Scenario updateScenario(@NotNull final Scenario scenario) {
-    return this.updateScenario(scenario, null, false);
+    return updateScenarioInternal(scenario, null, false);
   }
 
   /**
@@ -600,6 +602,11 @@ public class ScenarioService {
    */
   @Transactional
   public Scenario updateScenario(
+      @NotNull final Scenario scenario, Set<Tag> currentTags, boolean applyRule) {
+    return updateScenarioInternal(scenario, currentTags, applyRule);
+  }
+
+  private Scenario updateScenarioInternal(
       @NotNull final Scenario scenario, Set<Tag> currentTags, boolean applyRule) {
     if (applyRule) {
       // Get asset groups from the TagRule of the added tags
@@ -1126,8 +1133,68 @@ public class ScenarioService {
     return this.scenario(scenarioId);
   }
 
+  /**
+   * Duplicates a scenario in full: its authored content, plus the logic map when it is chained.
+   *
+   * <p>This is the entry point for the duplicate endpoint. The metadata-only {@link
+   * #getDuplicateScenario(String)} stays separate because {@code
+   * AutonomousRunService.convertToManual} calls it and then copies the workflow itself - folding
+   * the chaining copy into it would give that duplicate two TEMPLATE workflows.
+   *
+   * @param scenarioId the source scenario
+   * @return the persisted duplicate
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Scenario duplicateScenario(@NotBlank String scenarioId) throws ChainingException {
+    Scenario duplicate = copyScenarioContent(scenarioId);
+    duplicateChainingWorkflowIfAny(scenarioId, duplicate);
+    return duplicate;
+  }
+
+  /**
+   * Copies the logic map of a chained scenario onto its freshly created duplicate.
+   *
+   * <p>Chaining is an Enterprise Edition feature, but the duplicate endpoint also serves time-based
+   * scenarios, so it cannot carry an unconditional {@code isEnterpriseEdition = true} on {@code
+   * AccessControl} - that flag is applied before anything else. The licence is therefore checked
+   * programmatically, and only on the chained branch. Degrading silently to a metadata-only copy is
+   * not an option: the user would lose the logic map with no signal.
+   *
+   * @param scenarioId the source scenario
+   * @param duplicate the persisted duplicate to attach the copied workflow to
+   */
+  private void duplicateChainingWorkflowIfAny(
+      @NotBlank final String scenarioId, @NotNull final Scenario duplicate)
+      throws ChainingException {
+    if (!workflowService.isScenarioChaining(scenarioId)) {
+      return;
+    }
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      throw new EnterpriseEditionException("Enterprise Edition license required");
+    }
+    workflowService.duplicateScenarioWorkflow(scenarioId, duplicate);
+  }
+
+  /**
+   * Duplicates a scenario's authored content only, without its chaining logic map. {@code
+   * AutonomousRunService.convertToManual} relies on this: it copies the workflow itself afterwards.
+   * Use {@link #duplicateScenario(String)} for the full duplicate.
+   *
+   * @param scenarioId the source scenario
+   * @return the persisted duplicate
+   */
   @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
+    return copyScenarioContent(scenarioId);
+  }
+
+  /**
+   * The metadata copy itself. Free of {@code @Transactional} so both public entry points can call
+   * it without tripping the Spring self-invocation trap; they are the ones carrying the
+   * transaction. Package-private so it can be stubbed when unit-testing the orchestration.
+   */
+  Scenario copyScenarioContent(@NotBlank String scenarioId) {
     if (StringUtils.isNotBlank(scenarioId)) {
       Scenario scenarioOrigin =
           scenarioRepository

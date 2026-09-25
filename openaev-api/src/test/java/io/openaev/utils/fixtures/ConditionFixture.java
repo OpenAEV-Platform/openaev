@@ -14,4 +14,20 @@ public class ConditionFixture {
     condition.setType(ConditionType.EQ);
     return condition;
   }
+
+  /**
+   * A {@code DEPEND_ON} condition. Its value is the id of the prerequisite <b>step template</b>,
+   * not a comparison value: the chaining engine resolves it as "has a run step been created for
+   * this step template in this run?".
+   *
+   * @param stepTemplateId the prerequisite step template id
+   * @param workflowId the workflow the condition belongs to
+   */
+  public static Condition getDependOnCondition(String stepTemplateId, String workflowId) {
+    Condition condition = new Condition();
+    condition.setType(ConditionType.DEPEND_ON);
+    condition.setValue(stepTemplateId);
+    condition.setWorkflowId(workflowId);
+    return condition;
+  }
 }

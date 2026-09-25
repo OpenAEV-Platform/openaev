@@ -64,14 +64,11 @@ const Simulations = () => {
   };
 
   const secondaryAction = (exercise: ExerciseSimple) => {
-    const isChaining = !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
     const isAutonomous = !!autonomousRuns.bySimulation(exercise.exercise_id);
 
     let exerciseActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Export', 'Delete'];
     if (isAutonomous) {
       exerciseActions = ['Export'];
-    } else if (isChaining) {
-      exerciseActions = ['Export', 'Delete'];
     }
 
     return (

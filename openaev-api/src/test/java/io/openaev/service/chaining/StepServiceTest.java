@@ -1894,6 +1894,49 @@ class StepServiceTest {
       assertEquals(ConditionType.MAPPER, savedConditions.get(1).getType());
       assertEquals("leaf", savedConditions.get(2).getValue());
     }
+
+    @Test
+    void given_dependOnConditionWithoutCopiedTarget_should_failFastInsteadOfKeepingSourceId() {
+      // Arrange
+      Workflow sourceWorkflow = new Workflow();
+      sourceWorkflow.setId("src-wf");
+
+      Step sourceStep = new Step();
+      sourceStep.setId("src-step");
+      sourceStep.setWorkflow(sourceWorkflow);
+
+      Workflow targetWorkflow = new Workflow();
+      targetWorkflow.setId("tgt-wf");
+
+      Step targetStep = new Step();
+      targetStep.setId("tgt-step");
+      targetStep.setWorkflow(targetWorkflow);
+
+      Condition dependOnRoot =
+          Condition.builder()
+              .type(ConditionType.DEPEND_ON)
+              .value("missing-step-template")
+              .workflowId("src-wf")
+              .build();
+      dependOnRoot.setId("depend-on-root");
+
+      when(conditionService.findAllConditionsByStepId("src-step"))
+          .thenReturn(List.of(dependOnRoot));
+      when(conditionService.findAllNonMapperConditionsByWorkflowId("src-wf"))
+          .thenReturn(List.of(dependOnRoot));
+
+      // Act
+      IllegalArgumentException exception =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> stepService.copyStepConditionTemplate(sourceStep, targetStep, new HashMap<>()));
+
+      // Assert
+      assertEquals(
+          "DEPEND_ON condition depend-on-root references step template missing-step-template which is not part of the copy",
+          exception.getMessage());
+      verify(conditionService, never()).saveCondition(any(Condition.class));
+    }
   }
 
   @Nested
