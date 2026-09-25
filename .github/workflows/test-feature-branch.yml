@@ -41,6 +41,13 @@ jobs:
         shell: alpine.sh {0}
       - run: mkdir -p openaev-build/
       - run: cp openaev-api/target/openaev-api.jar openaev-build/
+      - name: Forge deployment slug to match playbook limitations
+        id: deployslug
+        env:
+          REF_VERSION: ${{ github.ref_name }}
+        run: |
+          slug=$(echo "$REF_VERSION" | tr '/._' '-' | cut -c 1-15 | sed 's/[^[:alnum:]-]/-/g' | sed 's/-*$//')
+          echo "value=$slug" >> "$GITHUB_OUTPUT"
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v6
@@ -51,6 +58,7 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ steps.deployslug.outputs.value }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -92,20 +100,38 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
       - name: Install AWX cli
         run: pip install awxkit
+      - name: Forge deployment slug to match playbook limitations
+        id: deployslug
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          slug=$(echo "$VERSION" | cut -c 1-15 | sed 's/[^[:alnum:]-]/-/g' | sed 's/-*$//')
+          echo "value=$slug" >> "$GITHUB_OUTPUT"
       - name: Deploy feature environment via AWX
+        id: awx
+        run: |
+          set +e
+          launch_output=$(awx --conf.host ${{ secrets.AWX_URL }} \
+            --conf.username ${{ secrets.AWX_USER }} \
+            --conf.password ${{ secrets.AWX_PASSWORD }} \
+            -f json \
+          job_templates launch 'Deploy OpenAEV feature branch for testing' \
+            --wait \
+            --inventory eu-west-staging \
+            --extra_vars '{"openaev_version":"${{ steps.deployslug.outputs.value }}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}')
+          awx_exit_code=$?
+          echo "$launch_output"
+          job_id=$(echo "$launch_output" | jq -r '.id // empty')
+          if [ -n "$job_id" ]; then
+            echo "job_id=$job_id" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$awx_exit_code"
+      - name: Print AWX job stdout on failure
+        if: failure() && steps.awx.outputs.job_id != ''
         run: |
           awx --conf.host ${{ secrets.AWX_URL }} \
             --conf.username ${{ secrets.AWX_USER }} \
             --conf.password ${{ secrets.AWX_PASSWORD }} \
-            -f human \
-          job_templates launch 'Deploy OpenAEV feature branch for testing' \
-            --wait \
-            --inventory eu-west-staging \
-            --extra_vars '{"openaev_version":"${{steps.meta.outputs.version}}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}'
-      - name: Forge URL to match playbook limitations
-        id: urlforge
-        run: |
-          url=$(echo "${{steps.meta.outputs.version}}" | cut -c 1-15 | sed 's/[_.]/-/g' | sed 's/-*$//')
-          echo "url=$url" >> $GITHUB_OUTPUT
+            jobs stdout "${{ steps.awx.outputs.job_id }}" || true
       - name: display URL
-        run: echo "https://feat-${{steps.urlforge.outputs.url}}.oaev.staging.filigran.io"
+        run: echo "https://feat-${{ steps.deployslug.outputs.value }}.oaev.staging.filigran.io"
