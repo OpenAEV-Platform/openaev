@@ -704,7 +704,7 @@ public class InjectApi extends RestBehavior {
       throw new BadRequestException("provided payload id mismatch with provided inject id");
     }
 
-    return documentService.documentsForPayload(payloadId);
+    return documentService.documentsForPayload(ctx, payloadId);
   }
 
   @Operation(description = "Resolve an inject attachment secret")

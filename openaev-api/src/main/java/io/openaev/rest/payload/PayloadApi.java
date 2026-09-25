@@ -158,7 +158,7 @@ public class PayloadApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "The list of Documents used in a payload")
       })
   public List<RawDocument> documentsFromPayload(TxCtx ctx, @PathVariable String payloadId) {
-    return documentService.documentsForPayload(payloadId);
+    return documentService.documentsForPayload(ctx, payloadId);
   }
 
   @GetMapping({
