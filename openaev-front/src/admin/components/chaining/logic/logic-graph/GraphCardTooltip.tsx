@@ -1,3 +1,4 @@
+// fds:keep-mui controlled rich card popover with per-caller surface styling; the library tooltip is informational only (Tooltip.rfc.md §7)
 import { Tooltip, type TooltipProps } from '@mui/material';
 import { cloneElement, type PointerEvent as ReactPointerEvent, type ReactElement, type ReactNode, useCallback, useEffect, useState } from 'react';
 

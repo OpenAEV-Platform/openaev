@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { PlaylistAddOutlined, RouteOutlined } from '@mui/icons-material';
-import { Box, Chip, Step, StepButton, StepLabel, Stepper, Typography } from '@mui/material';
+import { Box, Step, StepButton, StepLabel, Stepper, Typography } from '@mui/material';
 import { Target } from 'mdi-material-ui';
 import { type FunctionComponent, useState } from 'react';
 
@@ -85,12 +86,10 @@ const ThreatArsenalRunTestDrawer: FunctionComponent<Props> = ({
       title={t('Run a test')}
       headerActions={(
         <Chip
-          size="small"
-          variant="outlined"
-          color="primary"
           label={selectionCount === 1
             ? t('1 action selected')
-            : t('{count} actions selected', { count: selectionCount })}
+            : String(t('{count} actions selected', { count: selectionCount }))}
+          severity="info"
         />
       )}
     >

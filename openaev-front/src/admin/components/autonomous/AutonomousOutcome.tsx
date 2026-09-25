@@ -1,5 +1,6 @@
+import { Button, Chip, Paper } from '@filigran/design-system';
 import { AutoAwesome, BoltOutlined, DownloadOutlined, ErrorOutline, VerifiedOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Divider, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -75,19 +76,7 @@ const MetaChip: FunctionComponent<{
   label: string;
   color: string;
 }> = ({ label, color }) => (
-  <Chip
-    label={label}
-    size="small"
-    sx={{
-      height: 18,
-      fontSize: 10,
-      fontWeight: 600,
-      letterSpacing: '0.03em',
-      borderRadius: 0.5,
-      color,
-      backgroundColor: alpha(color, 0.12),
-    }}
-  />
+  <Chip label={label} color={color} />
 );
 
 // Shared outcome card for a capability gap / proof entry: tone-tinted frame, leading icon (or a
@@ -530,7 +519,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
       action={gapsAreSample
         ? null
         : (
-            <Chip size="small" label={capabilityGaps.length} color="warning" variant="outlined" sx={{ borderRadius: 1 }} />
+            <Chip label={String(capabilityGaps.length)} severity="medium" />
           )}
     >
       <SamplePreview active={gapsAreSample} variant="subtle">
@@ -571,8 +560,8 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
               gap: 1,
             }}
             >
-              <Chip size="small" label={proofEvents.length} color="success" variant="outlined" sx={{ borderRadius: 1 }} />
-              <Button onClick={handleExportReport} startIcon={<DownloadOutlined />} size="small" variant="outlined">
+              <Chip label={String(proofEvents.length)} severity="low" />
+              <Button type="button" priority="secondary" size="sm" startIcon={<DownloadOutlined fontSize="small" />} onClick={handleExportReport}>
                 {t('Export report')}
               </Button>
             </Stack>
@@ -610,12 +599,9 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
       {/* Mission card. In plan mode it turns orange (OCTI draft tone) and its title carries the
           "(plan mode)" marker, so the dedicated banner is dropped to save vertical space. */}
       <Paper
-        variant="outlined"
-        sx={{
-          padding: 2,
-          borderColor: alpha(missionAccent, 0.4),
-          background: `linear-gradient(180deg, ${alpha(missionAccent, 0.08)} 0%, ${alpha(missionAccent, 0)} 100%)`,
-        }}
+        padding={16}
+        // The accent border colour is what marks plan mode.
+        style={{ borderColor: alpha(missionAccent, 0.4) }}
       >
         <Stack sx={{
           flexDirection: 'row',
@@ -679,16 +665,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
         action={timelineIsSample
           ? null
           : (
-              <Chip
-                size="small"
-                label={decisionEvents.length}
-                variant="outlined"
-                sx={{
-                  borderRadius: 1,
-                  borderColor: alpha(accent, 0.4),
-                  color: accent,
-                }}
-              />
+              <Chip label={String(decisionEvents.length)} color={accent} />
             )}
       >
         <SamplePreview active={timelineIsSample} variant="subtle">
@@ -778,19 +755,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                           >
                             {eventIcon(event)}
                           </Box>
-                          <Chip
-                            label={t(eventTypeLabel(event.autonomous_event_type))}
-                            size="small"
-                            sx={{
-                              height: 18,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              letterSpacing: '0.04em',
-                              borderRadius: 0.5,
-                              color,
-                              backgroundColor: alpha(color, 0.12),
-                            }}
-                          />
+                          <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                           <Box sx={{ flex: 1 }} />
                           {time && (
                             <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
@@ -851,19 +816,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
                       >
                         {eventIcon(event)}
                       </Box>
-                      <Chip
-                        label={t(eventTypeLabel(event.autonomous_event_type))}
-                        size="small"
-                        sx={{
-                          height: 16,
-                          fontSize: 9,
-                          fontWeight: 700,
-                          letterSpacing: '0.04em',
-                          borderRadius: 0.5,
-                          color,
-                          backgroundColor: alpha(color, 0.12),
-                        }}
-                      />
+                      <Chip label={t(eventTypeLabel(event.autonomous_event_type))} color={color} />
                       <Typography
                         variant="caption"
                         sx={{

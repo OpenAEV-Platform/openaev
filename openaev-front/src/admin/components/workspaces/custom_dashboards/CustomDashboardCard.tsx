@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AnalyticsOutlined } from '@mui/icons-material';
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -94,20 +95,23 @@ const CustomDashboardCard: FunctionComponent<Props> = ({
         >
           <AnalyticsOutlined />
         </Box>
-        <Tooltip title={customDashboard.custom_dashboard_name}>
-          <Typography sx={{
-            fontSize: 14,
-            fontWeight: 600,
-            lineHeight: 1.35,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            wordBreak: 'break-word',
-          }}
-          >
-            {customDashboard.custom_dashboard_name}
-          </Typography>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Typography sx={{
+              fontSize: 14,
+              fontWeight: 600,
+              lineHeight: 1.35,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              wordBreak: 'break-word',
+            }}
+            >
+              {customDashboard.custom_dashboard_name}
+            </Typography>
+          </TooltipTrigger>
+          {customDashboard.custom_dashboard_name && <TooltipContent>{customDashboard.custom_dashboard_name}</TooltipContent>}
         </Tooltip>
       </Box>
 

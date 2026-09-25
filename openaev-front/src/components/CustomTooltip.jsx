@@ -1,15 +1,13 @@
-import { Tooltip } from '@mui/material';
-import { useState } from 'react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 
-export default function CustomTooltip({ children, ...rest }) {
-  const [renderTooltip, setRenderTooltip] = useState(false);
+// A tooltip whose text may be empty: the child then renders alone, without a bubble.
+export default function CustomTooltip({ children, title }) {
   return (
-    <span
-      onMouseEnter={() => !renderTooltip && setRenderTooltip(true)}
-      style={{ lineHeight: '20px' }}
-    >
-      {!renderTooltip && children}
-      {renderTooltip && <Tooltip {...rest}>{children}</Tooltip>}
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span style={{ lineHeight: '20px' }}>{children}</span>
+      </TooltipTrigger>
+      {title && <TooltipContent>{title}</TooltipContent>}
+    </Tooltip>
   );
 }

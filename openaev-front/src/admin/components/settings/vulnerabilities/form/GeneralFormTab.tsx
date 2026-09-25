@@ -1,5 +1,6 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Button, IconButton, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -42,7 +43,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
       <TextFieldController name="vulnerability_external_id" label={t('VULNERABILITY ID')} required disabled={editing} />
       <TextFieldController name="vulnerability_cvss_v31" label={t('CVSS Version 3.1')} required type="number" disabled={editing} />
 
-      <TextFieldController variant="standard" name="vulnerability_description" label={t('Description')} multiline rows={5} />
+      <TextFieldController name="vulnerability_description" label={t('Description')} multiline rows={5} />
 
       {/* QUICK INFO */}
       <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Quick Info')}</Typography>
@@ -77,16 +78,18 @@ const GeneralFormTab = ({ editing = false }: Props) => {
           <TextFieldController name={`vulnerability_cwes.${cwesIndex}.cwe_external_id` as const} label={t('CWE')} />
           <TextFieldController name={`vulnerability_cwes.${cwesIndex}.cwe_source` as const} label={t('Source')} />
           <IconButton
+            icon={<DeleteOutlined />}
+            variant="destructive"
+            aria-label={t('Delete')}
             onClick={() => cwesRemove(cwesIndex)}
-            size="small"
-            color="primary"
-          >
-            <DeleteOutlined />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
         </div>
       ))}
       <Button
-        variant="outlined"
+        type="button"
+        priority="secondary"
         onClick={() => {
           cwesAppend({
             cwe_id: '',
@@ -114,16 +117,18 @@ const GeneralFormTab = ({ editing = false }: Props) => {
         >
           <TextFieldController name={`vulnerability_reference_urls.${referencesIndex}` as const} label={t('Url')} />
           <IconButton
+            icon={<DeleteOutlined />}
+            variant="destructive"
+            aria-label={t('Delete')}
             onClick={() => referencesRemove(referencesIndex)}
-            size="small"
-            color="primary"
-          >
-            <DeleteOutlined />
-          </IconButton>
+            priority="tertiary"
+            size="sm"
+          />
         </div>
       ))}
       <Button
-        variant="outlined"
+        type="button"
+        priority="secondary"
         onClick={() => {
           referencesAppend('');
         }}

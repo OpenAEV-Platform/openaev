@@ -1,7 +1,6 @@
-import { Chip } from '@mui/material';
+import { Chip } from '@filigran/design-system';
 
 import { useFormatter } from '../../../../components/i18n';
-import { hexToRGB } from '../../../../utils/Colors';
 import { operationColor, operationLabel } from './notificationUtils';
 
 /**
@@ -13,19 +12,7 @@ const NotificationOperationChip = ({ operation }: { operation: string }) => {
   const { t } = useFormatter();
   const color = operationColor(operation);
   return (
-    <Chip
-      style={{
-        fontSize: 12,
-        height: 20,
-        width: 150,
-        textTransform: 'uppercase',
-        borderRadius: 4,
-        backgroundColor: hexToRGB(color, 0.08),
-        color,
-        border: `1px solid ${color}`,
-      }}
-      label={t(operationLabel(operation))}
-    />
+    <Chip label={t(operationLabel(operation))} color={color} />
   );
 };
 

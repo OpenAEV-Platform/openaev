@@ -1,3 +1,4 @@
+import { Button, Paper } from '@filigran/design-system';
 import {
   CheckOutlined,
   CloudOutlined,
@@ -9,7 +10,7 @@ import {
   TerminalOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
-import { Box, Button, ButtonBase, Typography } from '@mui/material';
+import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, useMemo } from 'react';
 
@@ -281,15 +282,13 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
         },
       }}
     >
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: theme.spacing(2),
-        padding: theme.spacing(2),
-        borderRadius: theme.shape.borderRadius,
-        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-        backgroundColor: theme.palette.background.paper,
-      }}
+      <Paper
+        padding={16}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+        }}
       >
         <header style={{
           display: 'flex',
@@ -307,7 +306,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             {t('Filters')}
           </Typography>
           {anyActive && (
-            <Button size="small" onClick={onClearAll}>
+            <Button type="button" priority="tertiary" size="sm" onClick={onClearAll}>
               {t('Clear all')}
             </Button>
           )}
@@ -352,7 +351,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             ))}
           </section>
         ))}
-      </div>
+      </Paper>
     </Box>
   );
 };

@@ -10,6 +10,7 @@ import { type PlatformSettings, type User } from '../../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../../utils/hooks/useAuth';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { expectLibraryButton, expectNoMuiControls } from '../../../utils/designSystemAssertions';
 
 const theme = createTheme({
   palette: {
@@ -79,6 +80,45 @@ describe('AskArianeButton', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  // Scope rule (designer, round 2): where the library ships a component, use it.
+  describe('Design system adoption', () => {
+    it('is the library Button, not a MUI look-alike', () => {
+      renderButton();
+      // `ia` is the library's AI variant - the gradient treatment this button
+      // hand-rolled with backgroundClip on a MUI Button. Asserting the variant
+      // and not merely "some library class" is what keeps the AI identity from
+      // silently degrading to a default button.
+      expectLibraryButton(
+        screen.getByRole('button', { name: new RegExp(LABEL, 'i') }),
+        'Ask Ariane',
+        {
+          variant: 'ia',
+          priority: 'tertiary',
+        },
+      );
+    });
+
+    it('marks the Enterprise Edition feature with the library EE chip, decoratively', () => {
+      // Sandy's rule: an implemented component is composed of library components
+      // only. This marker was a hand-styled span in a MUI Tooltip (9px text,
+      // 21x14 box, theme.palette.ee.*) - now the library's own EE severity.
+      renderButton({ platform_license: { license_is_validated: false } });
+      const button = screen.getByRole('button', { name: new RegExp(LABEL, 'i') });
+      expectNoMuiControls(button, 'the Ask Ariane button');
+      const marker = screen.getByText('EE');
+      // The fill sits on the chip root, the text on its label span.
+      const painted = [marker, marker.parentElement, marker.parentElement?.parentElement]
+        .filter(Boolean)
+        .map(el => String((el as Element).getAttribute('class') ?? ''))
+        .join(' ');
+      expect(painted).toContain('bg-filigran-tonic-accent');
+      // Decorative: the button owns the behaviour and the accessible name, so the
+      // marker must not add itself to that name (same split as the glyph slot).
+      expect(marker.closest('[aria-hidden="true"]')).not.toBeNull();
+      expect(button.getAttribute('aria-label')).toBeNull();
+    });
   });
 
   describe('Visibility', () => {

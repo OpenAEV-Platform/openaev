@@ -1,5 +1,5 @@
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DnsOutlined, Groups3Outlined, PersonOutlined, SmartToyOutlined } from '@mui/icons-material';
-import { Chip, Tooltip } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -9,27 +9,15 @@ import { type AssetCategory } from '../admin/components/assets/asset-categories'
 import AssetCategoryIcon from '../admin/components/assets/AssetCategoryIcon';
 import { type TargetSimple } from '../utils/api-types';
 import { getRemainingItemsCount, getVisibleItems, truncate } from '../utils/String';
+import chipLinkClassName from './common/chips/chipLink';
 import { useFormatter } from './i18n';
 import PlatformIcon from './PlatformIcon';
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   inline: {
     display: 'flex',
     alignItems: 'center',
-  },
-  target: {
-    fontSize: 12,
-    height: 24,
-    float: 'left',
-    marginRight: 4,
-    borderRadius: 4,
-  },
-  clickable: {
-    'cursor': 'pointer',
-    '&:hover': {
-      borderColor: theme.palette.primary.main,
-      color: theme.palette.primary.main,
-    },
+    gap: 4,
   },
   tooltipTable: {
     'borderCollapse': 'collapse',
@@ -100,7 +88,7 @@ const ItemTargets: FunctionComponent<Props> = ({
   getTargetLink,
 }) => {
   // Standard hooks
-  const { classes, cx } = useStyles();
+  const { classes } = useStyles();
   const { t } = useFormatter();
   let truncateLimit = 15;
   if (variant === 'reduced-view') {
@@ -150,31 +138,34 @@ const ItemTargets: FunctionComponent<Props> = ({
     <div className={classes.inline}>
       {visibleTargets && visibleTargets.map((target: TargetSimple, index: number) => {
         const link = getTargetLink?.(target);
+        // inline-flex on the wrapper: an inline span is taller than the chip it holds,
+        // and the row centres the WRAPPER, which leaves the chip half a pixel off its
+        // neighbours.
         return (
-          <span key={index}>
-            <Tooltip title={target.target_name}>
-              <Chip
-                variant="outlined"
-                key={target.target_id}
-                classes={{ root: link ? cx(classes.target, classes.clickable) : classes.target }}
-                icon={getIcon(target)}
-                label={truncate(target.target_name!, truncateLimit)}
-                {...(link
-                  ? {
-                      component: Link,
-                      to: link,
-                      clickable: true,
-                    }
-                  : {})}
-              />
+          <span key={index} className="inline-flex">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {link ? (
+                  <Link to={link} className={chipLinkClassName}>
+                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} />
+                  </Link>
+                ) : (
+                  <span className="inline-flex">
+                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} />
+                  </span>
+                )}
+              </TooltipTrigger>
+              {target.target_name && <TooltipContent>{target.target_name}</TooltipContent>}
             </Tooltip>
           </span>
         );
       })}
       {remainingTargetsCount && remainingTargetsCount > 0 && (
-        <Tooltip
-          slotProps={{ tooltip: { sx: { maxWidth: 480 } } }}
-          title={(
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip label={`+${remainingTargetsCount}`} />
+          </TooltipTrigger>
+          <TooltipContent>
             <>
               <table className={classes.tooltipTable}>
                 <thead>
@@ -203,13 +194,7 @@ const ItemTargets: FunctionComponent<Props> = ({
                 </div>
               )}
             </>
-          )}
-        >
-          <Chip
-            variant="outlined"
-            classes={{ root: classes.target }}
-            label={`+${remainingTargetsCount}`}
-          />
+          </TooltipContent>
         </Tooltip>
       )}
     </div>

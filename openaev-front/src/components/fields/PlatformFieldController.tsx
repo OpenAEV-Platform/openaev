@@ -1,5 +1,16 @@
-import { Autocomplete, Box, TextField } from '@mui/material';
-import { type CSSProperties, type FunctionComponent } from 'react';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
+import { type FunctionComponent } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
@@ -20,14 +31,12 @@ interface Props {
   label: string;
   name: string;
   required?: boolean;
-  style?: CSSProperties;
 }
 
 const PlatformFieldController: FunctionComponent<Props> = ({
   name,
   label,
   required,
-  style = {},
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -56,40 +65,41 @@ const PlatformFieldController: FunctionComponent<Props> = ({
       defaultValue=""
       rules={{ required: `${label} is required` }}
       render={({ field, fieldState: { error } }) => (
-        <Autocomplete
+        <Combobox<Option>
           multiple
-          options={platformsOptions}
           openOnFocus
-          autoHighlight
-          style={style}
-          noOptionsText={t('No available options')}
-          slotProps={{ chip: { sx: { maxHeight: '24px' } } }}
-          renderInput={
-            params => (
-              <TextField
-                {...params}
-                label={t(label)}
-                fullWidth
-                required={required}
-                error={!!error}
-                helperText={error?.message}
-              />
-            )
-          }
-          value={platformsOptions.filter(p => field.value?.map((v: string) => v)?.includes(p.id)) ?? null}
-          onChange={(_event, platform) => {
-            field.onChange(platform.map(p => p.id));
+          required={required}
+          error={!!error}
+          options={platformsOptions}
+          value={platformsOptions.filter(p => field.value?.map((v: string) => v)?.includes(p.id)) ?? []}
+          onValueChange={(platform) => {
+            field.onChange((platform as Option[]).map(p => p.id));
           }}
-          renderOption={(props, option) => (
-            <Box component="li" {...props}>
+          getOptionLabel={option => option.label ?? ''}
+          isOptionEqualToValue={(option, v) => option.id === v.id}
+          // The MUI field hid its clear control via a `classes` override.
+          clearable={false}
+          renderOption={option => (
+            <>
               <div className={classes.icon}>
                 <PlatformIcon platform={option.id} width={15} />
               </div>
               <div className={classes.text}>{option.label}</div>
-            </Box>
+            </>
           )}
-          classes={{ clearIndicator: classes.autoCompleteIndicator }}
-        />
+        >
+          <ComboboxLabel>{t(label)}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxChips />
+            <ComboboxInput />
+            <ComboboxControls>
+              <ComboboxClear />
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent emptyMessage={t('No available options')} />
+          {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+        </Combobox>
       )}
     />
   );
