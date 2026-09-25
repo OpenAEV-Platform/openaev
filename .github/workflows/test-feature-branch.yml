@@ -115,7 +115,7 @@ jobs:
             --extra_vars '{"openaev_version":"${{ needs.deployment-slug.outputs.value }}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}')
           awx_exit_code=$?
           echo "$launch_output"
-          job_id=$(printf '%s' "$launch_output" | python -c 'import json,sys; data=json.load(sys.stdin); print(data.get("job") or data.get("id") or "")')
+          job_id=$(printf '%s' "$launch_output" | python3 -c 'import json,sys; data=json.load(sys.stdin); print(data.get("job") or data.get("id") or "")')
           if [ -n "$job_id" ]; then
             echo "job_id=$job_id" >> "$GITHUB_OUTPUT"
           fi
