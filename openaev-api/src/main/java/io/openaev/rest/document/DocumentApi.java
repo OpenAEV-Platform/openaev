@@ -10,6 +10,9 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UrlAccessControl;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -26,7 +29,6 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
-import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -42,6 +44,7 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.hibernate.Hibernate;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -85,19 +88,37 @@ public class DocumentApi extends RestBehavior {
   private final FileService fileService;
   private final InjectService injectService;
   private final ChannelService channelService;
+  private final TenantWriteScopeResolver writeScopeResolver;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   @PostMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackFor = Exception.class)
   public Document uploadDocument(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
+    // Resolve the write tenant before the duplicate lookup: an ambiguous or missing write scope
+    // must be refused with 400 whether the uploaded bytes match an existing document or not, not
+    // only on the new-document branch. The new document below is attributed to this tenant.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
+    // the non-prefixed route: resolve the ids the caller supplies in the write tenant, so the
+    // document is only bound to parents of its own tenant.
+    return ambientTenantBridge.callInTenantChecked(
+        tenantId, () -> uploadDocumentInTenant(tenantId, input, file));
+  }
+
+  private Document uploadDocumentInTenant(
+      String tenantId, DocumentCreateInput input, MultipartFile file) throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
+    // Scope the duplicate lookup to the resolved write tenant: an unscoped lookup runs under the
+    // ambient tenant filter, so on the header route a request scoped to B would find and mutate the
+    // default tenant's document with the same bytes.
     Optional<Document> targetDocument =
-        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
+        documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(fileTarget, tenantId);
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
       // Compute exercises
@@ -123,8 +144,12 @@ public class DocumentApi extends RestBehavior {
       document.setTags(tags);
       return documentService.save(document);
     } else {
-      fileService.uploadFile(fileTarget, file);
+      // The write tenant was resolved above, before any object-storage I/O, so a refused scope
+      // returns 400 without the upload having persisted an object the rolled-back transaction
+      // cannot remove.
+      fileService.uploadFile(tenantId, fileTarget, file);
       Document document = new Document();
+      document.setTenant(new Tenant(tenantId));
       document.setTarget(fileTarget);
       document.setName(file.getOriginalFilename());
       document.setDescription(input.getDescription());
@@ -146,16 +171,18 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackFor = Exception.class)
   public Document upsertDocument(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return documentService.upsert(
         file.getOriginalFilename(),
         file.getInputStream(),
         file.getSize(),
         file.getContentType(),
-        input);
+        input,
+        tenantId);
   }
 
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
@@ -203,8 +230,7 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
-    assertDocumentInRequestScope(ctx, document);
-    return document;
+    return documentService.withSerializedLinks(document);
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -218,7 +244,9 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
-    assertDocumentInRequestScope(ctx, document);
+    // The lazy collection is returned as is and serialized after the transaction has committed,
+    // where the tenant scope no longer exists: load it here or it comes back empty.
+    Hibernate.initialize(document.getTags());
     return document.getTags();
   }
 
@@ -234,13 +262,12 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
-    assertDocumentInRequestScope(ctx, document);
     // Report generation outputs are read-only here (owned by the Reporting module). Checked after
-    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
-    // ordinary document, not the 400 that discloses the id is a report output.
+    // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
+    // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return documentService.save(document);
+    return documentService.withSerializedLinks(documentService.save(document));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -255,11 +282,19 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
-    assertDocumentInRequestScope(ctx, document);
     // Report generation outputs are read-only here (owned by the Reporting module). Checked after
-    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
-    // ordinary document, not the 400 that discloses the id is a report output.
+    // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
+    // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
+    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
+    // the non-prefixed route: resolve the ids the caller supplies in the tenant of the document, so
+    // it keeps the parents of its own tenant and is never bound to those of another one.
+    return ambientTenantBridge.callInTenant(
+        document.getTenant().getId(), () -> updateDocumentInTenant(document, input));
+  }
+
+  private Document updateDocumentInTenant(Document document, DocumentUpdateInput input) {
+    String documentId = document.getId();
     document.setUpdateAttributes(input);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
 
@@ -320,8 +355,7 @@ public class DocumentApi extends RestBehavior {
   public ResponseEntity<InputStreamResource> downloadDocument(
       TxCtx ctx, @PathVariable String documentId) {
     Document document = documentService.document(documentId);
-    assertDocumentInRequestScope(ctx, document);
-    return buildDocumentDownloadResponse(document);
+    return buildDocumentDownloadResponse(document, tenantIdOrNull(document));
   }
 
   @GetMapping(TENANT_DOCUMENT_API + "/{documentId}/agent-file")
@@ -337,15 +371,19 @@ public class DocumentApi extends RestBehavior {
   public ResponseEntity<InputStreamResource> downloadDocumentForAgent(
       TxCtx ctx, @PathVariable String documentId) {
     Document document = documentService.document(documentId);
-    assertDocumentInRequestScope(ctx, document);
-    return buildDocumentDownloadResponse(document);
+    return buildDocumentDownloadResponse(document, tenantIdOrNull(document));
   }
 
-  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(Document document) {
+  private static String tenantIdOrNull(TenantBase entity) {
+    return entity.getTenant() == null ? null : entity.getTenant().getId();
+  }
+
+  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(
+      Document document, String owningTenantId) {
     String encodedFilename = DocumentService.encodeFileName(document.getName());
     InputStream in =
         fileService
-            .getFile(document)
+            .getFile(document, owningTenantId)
             .orElseThrow(() -> new ElementNotFoundException("File not found"));
 
     return ResponseEntity.ok()
@@ -380,10 +418,14 @@ public class DocumentApi extends RestBehavior {
         this.securityPlatformRepository
             .findById(assetId)
             .orElseThrow(() -> new ElementNotFoundException("Security platform not found"));
+    // The logo is served under the security platform's tenant, the parent it is reached through: a
+    // document bound from another tenant is treated as missing, never streamed to this caller.
     if (theme.equals("dark") && securityPlatform.getLogoDark() != null) {
-      return buildDocumentDownloadResponse(securityPlatform.getLogoDark());
+      return buildDocumentDownloadResponse(
+          securityPlatform.getLogoDark(), tenantIdOrNull(securityPlatform));
     } else if (securityPlatform.getLogoLight() != null) {
-      return buildDocumentDownloadResponse(securityPlatform.getLogoLight());
+      return buildDocumentDownloadResponse(
+          securityPlatform.getLogoLight(), tenantIdOrNull(securityPlatform));
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
@@ -409,10 +451,12 @@ public class DocumentApi extends RestBehavior {
       TxCtx ctx, @PathVariable String channelId, @PathVariable String theme) {
     Channel channel = channelService.channel(channelId);
 
+    // The logo is served under the channel's tenant, the parent it is reached through: a document
+    // bound from another tenant is treated as missing, never streamed to this caller.
     if (theme.equals("dark") && channel.getLogoDark() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoDark());
+      return buildDocumentDownloadResponse(channel.getLogoDark(), tenantIdOrNull(channel));
     } else if (channel.getLogoLight() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoLight());
+      return buildDocumentDownloadResponse(channel.getLogoLight(), tenantIdOrNull(channel));
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
@@ -476,7 +520,6 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public DocumentRelationsOutput getDocumentRelations(TxCtx ctx, @PathVariable String documentId) {
     Document document = documentService.document(documentId);
-    assertDocumentInRequestScope(ctx, document);
     return toDocumentRelationsOutput(document);
   }
 
@@ -487,40 +530,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
   public void deleteDocument(TxCtx ctx, @PathVariable String documentId) {
-    assertDocumentInRequestScope(ctx, documentService.document(documentId));
     documentService.deleteDocument(documentId);
-  }
-
-  /**
-   * Refuses access to a document whose tenant is outside the request scope, with the same 404 as a
-   * missing document. The row is loaded through a primary-key {@code findById}, which is exempt
-   * from the Hibernate tenant filter, and {@code @AccessControl(DOCUMENT, ...)} is a capability
-   * check, not a tenant compare: without this guard a caller scoped to one tenant could reach or
-   * modify another tenant's document by id.
-   *
-   * <p>A request that narrows to an explicit tenant set (a path tenant, or an {@code X-Tenant-Ids}
-   * selector) is held to it. A request with no scope at all (an empty {@code TxCtx}, which on the
-   * non-prefixed route is a caller with no tenant membership and no selector) keeps today's
-   * behaviour: the check is not applied, so a by-id read or write behaves exactly as it did before
-   * this guard. A document with no tenant is a platform asset with no boundary and is always
-   * allowed.
-   */
-  // TODO v2: once documents get v2 activated
-  // https://github.com/OpenAEV-Platform/openaev/issues/7904,
-  // remove this check and its call sites: the statement inspector scopes the primary-key load
-  // itself, and the empty-scope case becomes the fail-closed behaviour of an unscoped request.
-  private void assertDocumentInRequestScope(TxCtx ctx, Document document) {
-    Tenant tenant = document.getTenant();
-    if (tenant == null || tenant.getId() == null) {
-      return;
-    }
-    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    if (scope.isEmpty()) {
-      return;
-    }
-    if (!scope.contains(tenant.getId())) {
-      throw new ElementNotFoundException("Document not found");
-    }
   }
 
   // -- EXERCISE & SENARIO--
@@ -601,8 +611,18 @@ public class DocumentApi extends RestBehavior {
     }
 
     Document doc = document.orElseThrow(() -> new ElementNotFoundException("File not found"));
+    // Serve the player document under the tenant of the exercise or scenario it is reached through,
+    // never under the document's own tenant: a document bound to a parent in another tenant must
+    // not
+    // have its bytes served to a player of this one.
+    String owningTenantId =
+        exerciseOpt
+            .map(DocumentApi::tenantIdOrNull)
+            .orElseGet(() -> scenarioOpt.map(DocumentApi::tenantIdOrNull).orElse(null));
     InputStream in =
-        fileService.getFile(doc).orElseThrow(() -> new ElementNotFoundException("File not found"));
+        fileService
+            .getFile(doc, owningTenantId)
+            .orElseThrow(() -> new ElementNotFoundException("File not found"));
 
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + doc.getName())

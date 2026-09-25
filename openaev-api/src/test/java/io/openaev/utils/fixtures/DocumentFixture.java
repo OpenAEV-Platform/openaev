@@ -1,6 +1,7 @@
 package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.Document;
+import io.openaev.database.model.Tenant;
 import io.openaev.utils.fixtures.files.BaseFile;
 import java.util.UUID;
 
@@ -29,6 +30,9 @@ public class DocumentFixture {
     String new_name = name == null ? "document-%s".formatted(UUID.randomUUID()) : name;
     Document document = new Document();
     document.setName(new_name);
+    // documents is v2-active: the TenantBaseListener that used to stamp the tenant is gone, so the
+    // fixture attributes the default tenant explicitly. Tests needing another tenant override it.
+    document.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     return document;
   }
 }

@@ -1,8 +1,10 @@
 package io.openaev.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -12,6 +14,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import io.openaev.context.TxCtx;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -124,7 +127,64 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.scenario.ScenarioApi#channels",
           "io.openaev.rest.exercise.ExerciseApi#channels",
           "io.openaev.rest.document.DocumentApi#getChannelImageFromId",
+          "io.openaev.rest.document.DocumentApi#getSecurityPlatformImageFromId",
           "io.openaev.rest.document.DocumentApi#getDocumentRelations",
+          // documents (v2): the by-id read/write/delete and the list/search endpoints scope the
+          // primary-key load and the filtered read through the inspector; losing the TxCtx would
+          // silently drop the request scope and, on the by-id paths, reopen the cross-tenant read
+          // the removed v1 request-scope guard used to block.
+          "io.openaev.rest.document.DocumentApi#document",
+          "io.openaev.rest.document.DocumentApi#documents",
+          "io.openaev.rest.document.DocumentApi#searchDocuments",
+          "io.openaev.rest.document.DocumentApi#documentTags",
+          "io.openaev.rest.document.DocumentApi#updateDocumentInformation",
+          "io.openaev.rest.document.DocumentApi#downloadDocument",
+          "io.openaev.rest.document.DocumentApi#downloadDocumentForAgent",
+          "io.openaev.rest.document.DocumentApi#deleteDocument",
+          // documents (v2): the player lists walk the article and challenge documents through
+          // DocumentService#getPlayerDocuments and the player download serves one of them; a lost
+          // TxCtx would silently return an empty list or a 404 for every player, never a compile
+          // error. The three list routes share the same service walk.
+          "io.openaev.rest.document.DocumentApi#playerDocuments",
+          "io.openaev.rest.document.DocumentApi#downloadPlayerDocument",
+          "io.openaev.rest.challenge.SimulationChallengeApi#playerDocuments",
+          "io.openaev.rest.scenario.ScenarioChallengesApi#playerDocuments",
+          // documents (v2): upload and upsert resolve the write tenant from the request scope and
+          // store the object under it, so the TxCtx is what attributes the created row.
+          "io.openaev.rest.document.DocumentApi#uploadDocument",
+          "io.openaev.rest.document.DocumentApi#upsertDocument",
+          // documents (v2): every other entrypoint whose call graph reaches the table, found by
+          // walking the callers of DocumentRepository, DocumentService and FileService#getFile up
+          // to their controllers. The parent-mediated lists run native queries that silently
+          // return nothing without the scope; the logo and article bindings resolve documents by
+          // id and would silently drop them; the exports and the report download resolve or
+          // lazily load the document and would fail closed for every caller. Four entrypoints of
+          // that walk are already listed under the table they were wired for and are not repeated
+          // here: ChannelApi#updateChannelLogos, SecurityPlatformApi#updateSecurityPlatform,
+          // ExerciseApi#updateExerciseLogos and ExerciseApi#deleteDocument. The report generation
+          // handler reaches the table only through the render thread, which opens its own tenant
+          // transaction, so it is scoped by that primitive and not by its TxCtx.
+          "io.openaev.rest.exercise.ExerciseApi#documents",
+          "io.openaev.rest.scenario.ScenarioApi#documents",
+          "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#documentsFromSecurityPlatform",
+          "io.openaev.rest.payload.PayloadApi#documentsFromPayload",
+          "io.openaev.rest.inject.InjectApi#getPayloadDocumentsByInjectIdAndPayloadId",
+          "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#createSecurityPlatform",
+          "io.openaev.rest.asset.security_platforms.SecurityPlatformApi#upsertSecurityPlatform",
+          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#updateLandingPageLogos",
+          "io.openaev.rest.channel.ChannelApi#createArticleForExercise",
+          "io.openaev.rest.channel.ChannelApi#createArticleForScenario",
+          "io.openaev.rest.channel.ChannelApi#updateArticleForExercise",
+          "io.openaev.rest.channel.ChannelApi#updateArticleForScenario",
+          "io.openaev.rest.inject.InjectApi#injectsIndividualExport",
+          "io.openaev.rest.inject.InjectApi#injectsExportFromSearch",
+          "io.openaev.rest.inject.InjectApi#injectsExport",
+          "io.openaev.rest.inject.InjectExecutionResultApi#injectExecutionResultPayload",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApiExporter#export",
+          "io.openaev.rest.reporting.ReportingApi#downloadReportingGeneration",
+          "io.openaev.rest.reporting.ReportingApi#deleteReportingGeneration",
+          "io.openaev.rest.scenario.ScenarioChallengesApi#observerChallenges",
+          "io.openaev.rest.atomic_testing.AtomicTestingApi#findAtomicTestingPayload",
           // attackpath_execution / attackpath_finding (v2): every read of the projection, including
           // the delta cursor added with the real-time updates (#6647, spec 002). Losing the TxCtx
           // on
@@ -192,8 +252,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // atomic-testing: create/update resolve the Injector via InjectUtils#resolveInjector;
           // duplicate/relaunch read Inject#getInjector(), a lazy association, both on the
           // v2-scoped injectors table (found manually testing the create-atomic-testing flow,
-          // #7026-class gap - the original activation only wired atomicTestingImport and
-          // collectorsFromAtomicTesting for this controller)
+          // #7026-class gap - the original activation only wired atomicTestingImport for this
+          // controller)
           "io.openaev.rest.atomic_testing.AtomicTestingApi#createAtomicTesting",
           "io.openaev.rest.atomic_testing.AtomicTestingApi#updateAtomicTesting",
           "io.openaev.rest.atomic_testing.AtomicTestingApi#duplicateAtomicTesting",
@@ -261,10 +321,8 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.atomic_testing.AtomicTestingApi#relaunchAtomicTesting",
           "io.openaev.rest.atomic_testing.AtomicTestingApi#updateAtomicTestingRecurrence",
           "io.openaev.rest.inject.InjectApi#injectTargetSearch",
-          // payload: upsert reads collectors via PayloadUpsertService; collectorsFromPayload reads
-          // directly
+          // payload: upsert reads collectors via PayloadUpsertService
           "io.openaev.rest.payload.PayloadApi#upsertPayload",
-          "io.openaev.rest.payload.PayloadApi#collectorsFromPayload",
           // payload: create/update/duplicate all resynchronize the injector contract against the
           // tenant's payload-supporting injectors via
           // PayloadService#synchroniseInjectorContractBasedOnPayload (found alongside the
@@ -341,7 +399,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // No endpoint in this controller carried TxCtx before this fix (#6410 re-inventory gap).
           "io.openaev.injectors.phishing.api.PhishingLandingPageApi#createLandingPage",
           "io.openaev.injectors.phishing.api.PhishingLandingPageApi#updateLandingPage",
-          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#updateLandingPageLogos",
           "io.openaev.injectors.phishing.api.PhishingLandingPageApi#duplicateLandingPage",
           // phishing email templates: create/update/duplicate/delete/bulk-delete all resync every
           // landing page's contract (PhishingEmailTemplateService#resyncLandingPageContracts ->
@@ -357,8 +414,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // lazily create the payload's injector contract through the same
           // synchroniseInjectorContractBasedOnPayload path as the two entries above
           "io.openaev.api.stix_process.StixApi#processBundle",
-          // atomic-testing: collectorsFromAtomicTesting reads collectors via CollectorService
-          "io.openaev.rest.atomic_testing.AtomicTestingApi#collectorsFromAtomicTesting",
           // inject: updateInject calls injectService.runChecks -> securityPlatformCollectors
           "io.openaev.rest.inject.InjectApi#updateInject",
           // simulation injects: runChecks path
@@ -633,4 +688,27 @@ class TenantScopedEntrypointsTxCtxArchTest {
                   }
                 }
               });
+
+  /**
+   * The rule above checks the methods it finds and nothing else: an entry naming a method that was
+   * renamed or removed matches no method, is silently skipped, and the guard it stood for is gone
+   * without a failing build. Every listed entry must resolve to a method of the class it names.
+   */
+  @ArchTest
+  static void every_listed_entrypoint_names_an_existing_method(JavaClasses classes) {
+    List<String> unresolved =
+        TX_SCOPED_ENTRYPOINTS.stream().filter(entry -> !resolves(classes, entry)).sorted().toList();
+    assertTrue(
+        unresolved.isEmpty(),
+        "Entries of TX_SCOPED_ENTRYPOINTS naming no existing method, rename or remove them: "
+            + unresolved);
+  }
+
+  private static boolean resolves(JavaClasses classes, String entry) {
+    int separator = entry.indexOf('#');
+    String owner = entry.substring(0, separator);
+    String method = entry.substring(separator + 1);
+    return classes.contain(owner)
+        && classes.get(owner).getMethods().stream().anyMatch(m -> m.getName().equals(method));
+  }
 }

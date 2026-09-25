@@ -75,6 +75,30 @@ public class MinioService implements DependenciesManager {
     return getTenantPath(fileName);
   }
 
+  /**
+   * Uploads a file under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}. Use this when the write tenant is resolved from the request scope, so the
+   * object lands under the same tenant the row is attributed to.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param fileName the target file path/name in the bucket
+   * @param data the input stream containing the file data
+   * @param size the size of the file in bytes
+   * @param contentType the MIME type of the file
+   * @return the full tenant-prefixed path of the uploaded file
+   * @throws Exception if the upload fails
+   */
+  public String uploadFileForTenant(
+      String tenantId, String fileName, InputStream data, long size, String contentType)
+      throws Exception {
+    String objectKey = getPathForTenant(tenantId, fileName);
+    minioClient.putObject(
+        PutObjectArgs.builder().bucket(bucket()).object(objectKey).stream(data, size, -1)
+            .contentType(contentType)
+            .build());
+    return objectKey;
+  }
+
   public String uploadStreamInTenantPath(String fileName, String name, InputStream data)
       throws Exception {
     minioClient.putObject(
@@ -178,6 +202,24 @@ public class MinioService implements DependenciesManager {
   public void deleteFileInTenantPath(String name) throws Exception {
     minioClient.removeObject(
         RemoveObjectArgs.builder().bucket(bucket()).object(getTenantPath(name)).build());
+  }
+
+  /**
+   * Deletes a file under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}. The delete-side counterpart of {@link #uploadFileForTenant}: use it when the
+   * owning row's tenant is known, so the object is removed from the same path it was written to,
+   * whatever scope the caller runs under.
+   *
+   * @param tenantId the tenant whose path the object is removed from
+   * @param name the object name to delete
+   * @throws Exception if the deletion fails
+   */
+  public void deleteFileForTenant(String tenantId, String name) throws Exception {
+    minioClient.removeObject(
+        RemoveObjectArgs.builder()
+            .bucket(bucket())
+            .object(getPathForTenant(tenantId, name))
+            .build());
   }
 
   public void deleteDirectoryInTenantPath(String directory) {

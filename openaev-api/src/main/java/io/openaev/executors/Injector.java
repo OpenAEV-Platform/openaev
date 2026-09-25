@@ -71,6 +71,10 @@ public abstract class Injector {
   public List<DataAttachment> resolveAttachments(
       Execution execution, ExecutableInject injection, List<Document> documents) {
     List<DataAttachment> resolved = new ArrayList<>();
+    // Attach a document's bytes only when it belongs to the inject's tenant: a document bound from
+    // another tenant is not attached, as if the object were missing.
+    Tenant injectTenant = injection.getInjection().getInject().getTenant();
+    String owningTenantId = injectTenant == null ? null : injectTenant.getId();
     // Add attachments from direct configuration
     injection
         .getDirectAttachments()
@@ -94,7 +98,8 @@ public abstract class Injector {
               this.context.getDocumentRepository().findById(documentId);
           try {
             Document doc = askedDocument.orElseThrow();
-            InputStream fileInputStream = this.context.getFileService().getFile(doc).orElseThrow();
+            InputStream fileInputStream =
+                this.context.getFileService().getFile(doc, owningTenantId).orElseThrow();
             byte[] content = IOUtils.toByteArray(fileInputStream);
             resolved.add(new DataAttachment(documentId, doc.getName(), content, doc.getType()));
           } catch (Exception e) {

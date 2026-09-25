@@ -136,6 +136,8 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     String documentArticleName = "A document for my article";
     documentArticle.setName(documentArticleName);
     documentArticle.setType("image/jpeg");
+    // documents is v2-active: the removed listener no longer stamps the tenant, so attribute it.
+    documentArticle.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Document documentArticleSaved = this.documentRepository.save(documentArticle);
     Channel channel = new Channel();
     channel.setName("A channel");

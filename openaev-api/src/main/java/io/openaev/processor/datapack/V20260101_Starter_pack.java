@@ -207,7 +207,8 @@ public class V20260101_Starter_pack extends DataPack {
                             customDashboard ->
                                 CustomDashboardService.prepareForTenantWrite(
                                     customDashboard, tenant.getId()),
-                            "")
+                            "",
+                            tenant.getId())
                         .jsonApiDocument();
                 this.setDefaultDashboard(
                     tenant, resourceToAdd.getFilename(), dashboard.data().id());

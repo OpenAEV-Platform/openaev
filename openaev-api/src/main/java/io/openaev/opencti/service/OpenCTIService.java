@@ -283,6 +283,8 @@ public class OpenCTIService {
    * @param uri of the file
    * @param name of the file to download
    * @param mimeType of the file to download
+   * @param tenantId the tenant the OpenCTI lookup runs under and the created document is attributed
+   *     to
    * @return the document created from downloaded file
    */
   public Document downloadAndSaveFile(String uri, String name, String mimeType, String tenantId) {
@@ -302,7 +304,8 @@ public class OpenCTIService {
             octiResponseFile.getInputStream(),
             octiResponseFile.getSize(),
             mimeType,
-            documentCreateInput);
+            documentCreateInput,
+            tenantId);
       }
     } catch (Exception e) {
       log.error(

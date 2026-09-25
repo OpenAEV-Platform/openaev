@@ -178,11 +178,16 @@ public class ReportingApi extends RestBehavior {
   @Operation(summary = "Download the document of a successful reporting generation")
   public ResponseEntity<InputStreamResource> downloadReportingGeneration(
       TxCtx ctx, @PathVariable @NotBlank final String generationId) {
-    Document document = this.reportingService.generationDocument(generationId);
+    ReportingGeneration generation = this.reportingService.successfulGeneration(generationId);
+    Document document = generation.getDocument();
     String encodedFilename = DocumentService.encodeFileName(document.getName());
+    // Serve the output under the GENERATION's tenant, the owner of the report lifecycle, not the
+    // document's own tenant (which would make the check tautological). If the two ever disagree the
+    // document is treated as missing (getFile returns empty, a 404), fail-closed on the anomaly.
+    String owningTenantId = generation.getTenant() == null ? null : generation.getTenant().getId();
     InputStream in =
         this.fileService
-            .getFile(document)
+            .getFile(document, owningTenantId)
             .orElseThrow(() -> new ElementNotFoundException("File not found"));
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + encodedFilename)

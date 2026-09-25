@@ -1,7 +1,6 @@
 package io.openaev.rest.challenge;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.ChallengeSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
@@ -38,7 +37,7 @@ import org.springframework.web.bind.annotation.*;
 public class ChallengeApi extends RestBehavior {
 
   public static final String CHALLENGE_URI = "/api/challenges";
-  private static final String TENANT_CHALLENGE_URI = TENANT_PREFIX + "/challenges";
+  public static final String TENANT_CHALLENGE_URI = TENANT_PREFIX + "/challenges";
 
   private final ChallengeRepository challengeRepository;
   private final ChallengeFlagRepository challengeFlagRepository;
@@ -52,7 +51,8 @@ public class ChallengeApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
   public Iterable<Challenge> challenges(TxCtx ctx) {
-    return fromIterable(challengeRepository.findAll()).stream()
+    // The documents are fetch-joined here, so the enrichment does not load them per challenge.
+    return challengeRepository.findAllFetchingDocuments().stream()
         .map(challengeService::enrichChallengeWithExercisesOrScenarios)
         .toList();
   }
@@ -63,7 +63,14 @@ public class ChallengeApi extends RestBehavior {
   @Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
       TxCtx ctx, @RequestBody @Valid @NotNull final List<String> challengeIds) {
-    return this.challengeRepository.findAll(fromIds(challengeIds));
+    if (challengeIds.isEmpty()) {
+      return List.of();
+    }
+    // Return raw Challenge entities, whose lazy challenge_documents @ManyToMany would otherwise
+    // serialize open-in-view AFTER the scoped transaction commits and fail closed to an empty array
+    // once documents is v2-active. A single scoped query fetch-joins the documents inside the
+    // scope, instead of one lazy-initialization SELECT per challenge.
+    return this.challengeRepository.findAllByIdInFetchingDocuments(challengeIds);
   }
 
   @PutMapping({CHALLENGE_URI + "/{challengeId}", TENANT_CHALLENGE_URI + "/{challengeId}"})

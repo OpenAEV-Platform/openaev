@@ -72,6 +72,38 @@ public class FileService {
   }
 
   /**
+   * Uploads a file from an input stream under an explicitly named tenant path.
+   *
+   * <p>Use this when the write tenant is resolved from the request scope, so the object is stored
+   * under the same tenant the owning row is attributed to and a later read of that row resolves the
+   * object, whatever the ambient {@link io.openaev.context.TenantContext}.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param name the target file path/name in the bucket
+   * @param data the input stream containing the file data
+   * @param size the size of the file in bytes
+   * @param contentType the MIME type of the file
+   * @throws Exception if the upload fails
+   */
+  public void uploadFile(
+      String tenantId, String name, InputStream data, long size, String contentType)
+      throws Exception {
+    minioService.uploadFileForTenant(tenantId, name, data, size, contentType);
+  }
+
+  /**
+   * Uploads a multipart file under an explicitly named tenant path.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param name the target file path/name in the bucket
+   * @param file the multipart file from an HTTP request
+   * @throws Exception if the upload fails
+   */
+  public void uploadFile(String tenantId, String name, MultipartFile file) throws Exception {
+    uploadFile(tenantId, name, file.getInputStream(), file.getSize(), file.getContentType());
+  }
+
+  /**
    * Uploads a stream to MinIO with metadata.
    *
    * @param path the directory path within the bucket
@@ -114,6 +146,25 @@ public class FileService {
   }
 
   /**
+   * Deletes a document's stored object under the tenant that owns it, the delete-side counterpart
+   * of {@link #getFile(Document, String)}. The caller passes the tenant of the row being deleted,
+   * so the object is removed from the same tenant path it was written under, whatever the ambient
+   * {@link io.openaev.context.TenantContext}. A {@code null} tenant is a platform asset with no
+   * boundary and keeps the ambient-path deletion.
+   *
+   * @param tenantId the owning tenant, or {@code null} for a platform asset with no tenant
+   * @param name the object name/path to delete
+   * @throws Exception if the deletion fails
+   */
+  public void deleteFile(String tenantId, String name) throws Exception {
+    if (tenantId == null) {
+      minioService.deleteFileInTenantPath(name);
+    } else {
+      minioService.deleteFileForTenant(tenantId, name);
+    }
+  }
+
+  /**
    * Deletes all files in a directory recursively.
    *
    * <p>This method lists all objects with the given directory prefix and deletes them. Errors
@@ -148,13 +199,31 @@ public class FileService {
   }
 
   /**
-   * Retrieves a document file from MinIO.
+   * Retrieves a document file from MinIO, but only when the document belongs to the given owning
+   * tenant.
+   *
+   * <p>The caller passes the tenant of the parent it serves the document through (the exercise or
+   * scenario of a player download, the inject of an attachment, the exported parent, the reporting
+   * generation, or the document's own tenant for an id-addressed read that already checked the
+   * request scope). A document whose tenant differs from that owning tenant was reached through a
+   * parent in another tenant, so its bytes are not served: the result is empty, the same as a
+   * missing object. A document with no tenant is a platform asset with no boundary and keeps the
+   * ambient-path resolution.
    *
    * @param document the document entity containing the file target path
-   * @return an Optional containing the file input stream, or empty if not found
+   * @param owningTenantId the tenant the document is served under; the object is returned only if
+   *     the document belongs to it
+   * @return an Optional containing the file input stream, or empty if not found or out of tenant
    */
-  public Optional<InputStream> getFile(Document document) {
-    return getFilePath(document.getTarget());
+  public Optional<InputStream> getFile(Document document, String owningTenantId) {
+    Tenant tenant = document.getTenant();
+    if (tenant == null || tenant.getId() == null) {
+      return getFilePath(document.getTarget());
+    }
+    if (!tenant.getId().equals(owningTenantId)) {
+      return Optional.empty();
+    }
+    return minioService.getFilePathForTenant(tenant.getId(), document.getTarget());
   }
 
   public ResponseEntity<InputStreamResource> getConnectorImage(

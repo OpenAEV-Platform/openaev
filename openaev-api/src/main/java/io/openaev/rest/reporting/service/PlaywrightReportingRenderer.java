@@ -13,11 +13,13 @@ import io.openaev.database.model.Reporting;
 import io.openaev.database.model.ReportingFormat;
 import io.openaev.database.model.ReportingGeneration;
 import io.openaev.database.model.ReportingGenerationStatus;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.FileService;
 import jakarta.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
@@ -131,6 +133,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
   private final DocumentService documentService;
   private final FileService fileService;
   private final BrowserPoolService browserPoolService;
+  private final TenantScopedJobRunner tenantScopedJobRunner;
 
   private final long renderTimeoutMs;
   private final String renderBaseUrl;
@@ -146,6 +149,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
       final DocumentService documentService,
       final FileService fileService,
       final BrowserPoolService browserPoolService,
+      final TenantScopedJobRunner tenantScopedJobRunner,
       @Value("${openaev.reporting.render-timeout-seconds:90}") final long renderTimeoutSeconds,
       @Value("${openaev.reporting.max-concurrent-renders:2}") final int maxConcurrentRenders,
       @Value("${openaev.reporting.render-base-url:}") final String renderBaseUrl,
@@ -157,6 +161,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     this.documentService = documentService;
     this.fileService = fileService;
     this.browserPoolService = browserPoolService;
+    this.tenantScopedJobRunner = tenantScopedJobRunner;
     this.renderTimeoutMs = Math.max(1, renderTimeoutSeconds) * 1000;
     this.renderBaseUrl = renderBaseUrl;
     this.serverPort = serverPort;
@@ -177,7 +182,8 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
   }
 
   /** Immutable snapshot of everything the background render thread needs. */
-  private record RenderJob(
+  // Package-private so the storeDocument attribution can be pinned from a test in this package.
+  record RenderJob(
       String generationId,
       String reportingId,
       String reportingName,
@@ -185,7 +191,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
       String tenantId,
       String tokenValue) {}
 
-  private record CapturedOutput(byte[] bytes, String extension, String contentType) {}
+  record CapturedOutput(byte[] bytes, String extension, String contentType) {}
 
   @Override
   public void render(final ReportingGeneration generation, final User actingUser) {
@@ -209,15 +215,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
       this.reportingGenerationRepository.save(generation);
       return;
     }
-    Reporting reporting = generation.getReporting();
-    RenderJob job =
-        new RenderJob(
-            generation.getId(),
-            reporting.getId(),
-            reporting.getName(),
-            generation.getFormat(),
-            TenantContext.getCurrentTenant(),
-            tokenValue);
+    RenderJob job = toRenderJob(generation, tokenValue);
     // Dispatch only after the caller transaction commits, otherwise the background thread could
     // start before the PENDING row is visible.
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -231,6 +229,28 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     } else {
       submit(job);
     }
+  }
+
+  /**
+   * Builds the immutable snapshot the background render thread works from. The tenant is read from
+   * the generation itself (a {@link io.openaev.database.model.TenantBase} whose {@code tenant_id}
+   * is non-nullable), not from the ambient {@link TenantContext} of the request thread. Today the
+   * two coincide: {@code reporting_generations} is still a v1 table and its persistence listener
+   * stamps the row from that same ambient tenant. Once {@code reporting_generations} activates, the
+   * row carries the tenant resolved for the write while the ambient tenant of the header route
+   * ({@code X-Tenant-Ids}) stays the default one, and the row is the source that keeps the report
+   * in the right tenant.
+   */
+  // Package-private so a test can assert the job carries the generation's own tenant.
+  RenderJob toRenderJob(final ReportingGeneration generation, final String tokenValue) {
+    Reporting reporting = generation.getReporting();
+    return new RenderJob(
+        generation.getId(),
+        reporting.getId(),
+        reporting.getName(),
+        generation.getFormat(),
+        generation.getTenant().getId(),
+        tokenValue);
   }
 
   private void submit(final RenderJob job) {
@@ -432,8 +452,10 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     return base + tenantSegment + "/reporting/" + job.reportingId() + "/render?format=" + format;
   }
 
-  private Document storeDocument(final RenderJob job, final CapturedOutput output)
-      throws Exception {
+  // Package-private so the attribution can be pinned on the real stack with the ambient tenant set
+  // to a different tenant than the job's, proving the row and object follow the job's tenant rather
+  // than the render thread's ambient context (the TenantBaseListener removed at documents go-live).
+  Document storeDocument(final RenderJob job, final CapturedOutput output) throws Exception {
     String fileName =
         "report_"
             + slugify(job.reportingName())
@@ -443,17 +465,29 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
             + output.extension();
     // Same content-addressed target scheme as DocumentService.upsert
     String target = DigestUtils.md5Hex(output.bytes()) + "." + output.extension();
+    String tenantId = job.tenantId();
+    // Attribute the row and store the object under the generation's tenant, captured on the request
+    // thread before dispatch. A persisted generation always carries a tenant
+    // (reporting_generations.tenant_id is non-nullable), so this is never null and the report never
+    // depends on the ambient TenantContext of the render thread.
     this.fileService.uploadFile(
+        tenantId,
         target,
         new ByteArrayInputStream(output.bytes()),
         output.bytes().length,
         output.contentType());
     Document document = new Document();
+    document.setTenant(new Tenant(tenantId));
     document.setName(fileName);
     document.setTarget(target);
     document.setType(output.contentType());
     document.setDescription("Generated report of reporting template: " + job.reportingName());
-    return this.documentService.save(document);
+    // documents is v2-active: the write goes through the statement inspector, which TenantContext
+    // does not scope. Persist it under the captured job tenant through the primitive
+    // (TxCtx.forTenant), not the render thread's ambient v1 scope. The ReportingGeneration
+    // reads/saves around this stay under that v1 scope while reporting_generations is v1.
+    return this.tenantScopedJobRunner.supplyInTenant(
+        tenantId, () -> this.documentService.save(document));
   }
 
   private void markRunning(final RenderJob job) {
@@ -466,7 +500,10 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
             });
   }
 
-  private void completeWithSuccess(final RenderJob job, final Document document) {
+  // Package-private so a test can pin, with documents armed, that attaching the stored document to
+  // the generation and saving it does not reach the documents table through the inspector on the
+  // render thread (which has no v2 scope), so it never fail-closes there.
+  void completeWithSuccess(final RenderJob job, final Document document) {
     this.reportingGenerationRepository
         .findByIdAndTenantId(job.generationId(), job.tenantId())
         .ifPresent(

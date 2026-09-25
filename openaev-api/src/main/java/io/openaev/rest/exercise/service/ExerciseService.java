@@ -88,6 +88,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -231,6 +232,18 @@ public class ExerciseService {
     return this.exerciseRepository
         .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+  }
+
+  /**
+   * Initializes the lazy {@code exercise_documents} a raw {@link Exercise} response serializes as
+   * an id array. Serialization runs open-in-view after the controller transaction has committed,
+   * where the tenant scope no longer exists: a lazy load at that point fails closed and the array
+   * comes back empty. Call it on the endpoints that manage the exercise documents and return the
+   * entity.
+   */
+  public Exercise withDocumentLinksInitialized(Exercise exercise) {
+    Hibernate.initialize(exercise.getDocuments());
+    return exercise;
   }
 
   public RawSimulationIndexing rawSimulation(@NotBlank final String simulationId) {

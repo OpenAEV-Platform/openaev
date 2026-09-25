@@ -158,6 +158,8 @@ public class PayloadInputFixture {
     Document executableFile = new Document();
     executableFile.setName("Executable file");
     executableFile.setType("text/x-sh");
+    // documents is v2-active: the removed listener no longer stamps the tenant, so attribute it.
+    executableFile.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     return executableFile;
   }
 

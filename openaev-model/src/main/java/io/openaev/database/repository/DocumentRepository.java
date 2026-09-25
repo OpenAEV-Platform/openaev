@@ -22,23 +22,31 @@ public interface DocumentRepository
   Optional<Document> findById(@NotNull String id);
 
   /**
-   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does not apply to {@code
-   * findById} (filters never apply to primary-key loads), so callers resolving an id received from
-   * user input (e.g. import files) must use this method to avoid reading another tenant's document.
+   * Primary-key lookup confined to one tenant. The statement inspector scopes {@code findById} to
+   * the request scope, which may hold several tenants of the caller; a caller resolving an id that
+   * comes from user input (an import file) into a row written in one tenant must name that tenant,
+   * so the lookup cannot match a document of another in-scope tenant. The inspector still applies
+   * on top, so the row must also lie inside the request scope.
    */
   @NotNull
   Optional<Document> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   List<Document> removeById(@NotNull String id);
 
-  // document_target and document_name are not unique (concurrent uploads can create
-  // duplicates), so lookups must be duplicate-tolerant and deterministic instead of
-  // failing with a NonUniqueResultException.
+  // Confined to the explicit write tenant: the statement inspector scopes these lookups to the
+  // request scope, which may hold several tenants of the caller (an injects import into a parent
+  // of one tenant by a caller of two), so a lookup by target or name alone could find and reuse
+  // another in-scope tenant's document for a row written elsewhere. document_target and
+  // document_name are not unique (concurrent uploads can create duplicates), so the lookups are
+  // duplicate-tolerant and deterministic (first by id) instead of failing with a
+  // NonUniqueResultException.
   @NotNull
-  Optional<Document> findFirstByTargetOrderByIdAsc(@NotNull String target);
+  Optional<Document> findFirstByTargetAndTenantIdOrderByIdAsc(
+      @NotNull String target, @NotNull String tenantId);
 
   @NotNull
-  Optional<Document> findFirstByNameOrderByIdAsc(@NotNull String name);
+  Optional<Document> findFirstByNameAndTenantIdOrderByIdAsc(
+      @NotNull String name, @NotNull String tenantId);
 
   @Query(
       value =
@@ -52,7 +60,6 @@ public interface DocumentRepository
               + "left join scenarios sc on sc.scenario_id = scdoc.scenario_id "
               + "left join documents_tags tagdoc on d.document_id = tagdoc.document_id "
               + "left join tags tg on tg.tag_id = tagdoc.tag_id "
-              + "where d.tenant_id = :#{#tenantContext.currentTenant} "
               + "group by d.document_id "
               + "order by document_id desc ",
       nativeQuery = true)
