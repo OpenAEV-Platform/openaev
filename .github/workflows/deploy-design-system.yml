@@ -88,6 +88,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=filigran/openaev-platform:buildcache
           cache-to: type=registry,ref=filigran/openaev-platform:buildcache,mode=max
+    outputs:
+      dockerBuildDigest: ${{ steps.buildpush.outputs.digest }}
 
   deploy:
     name: Restart design-system instance
@@ -104,6 +106,6 @@ jobs:
             --conf.password ${{ secrets.AWX_PASSWORD }} \
             job_templates launch 'Rollout restart an instance resources' \
             --inventory eu-west-staging \
-            --extra_vars '{"solution":"openaev", "customer":"dev-design-syst-oaev"}' \
+            --extra_vars '{"solution":"openaev", "customer":"dev-design-syst-oaev", "image_digest":"${{ needs.build-image.outputs.dockerBuildDigest }}"}' \
             --wait \
             -f human
