@@ -7,22 +7,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Agent;
-import io.openaev.database.model.Asset;
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Command;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectationResult;
-import io.openaev.database.model.InjectExpectationTrace;
-import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.PreventionInjectExpectation;
-import io.openaev.database.model.SecurityPlatform;
-import io.openaev.database.model.Step;
-import io.openaev.database.model.Tenant;
-import io.openaev.database.model.VulnerabilityInjectExpectation;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectExpectationTraceRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -30,14 +15,9 @@ import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.attackpath.AttackPathIds;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.TenantIsolationTestHelper;
-import io.openaev.utils.fixtures.AgentFixture;
-import io.openaev.utils.fixtures.AssetGroupFixture;
-import io.openaev.utils.fixtures.EndpointFixture;
-import io.openaev.utils.fixtures.ExecutorFixture;
-import io.openaev.utils.fixtures.ExerciseFixture;
-import io.openaev.utils.fixtures.InjectExpectationFixture;
-import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
@@ -102,6 +82,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectExpectationTraceRepository injectExpectationTraceRepository;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
+  @Autowired WorkflowService workflowService;
 
   private JdbcTemplate jdbc;
   private Tenant tenant;
@@ -631,13 +612,19 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("hard-deleting a simulation clears its attack-path executions and findings")
-  void hardDeleteClearsTheSimulationsAttackPath() {
+  @DisplayName("hard-deleting a simulation chaining clears its attack-path executions and findings")
+  void hardDeleteClearsTheSimulationsChainingAttackPath() {
     // Attack-path rows have no FK to the simulation, so exercise deletion does not cascade them.
     // deleteById must clear them explicitly, else they orphan once the simulation is gone.
     TenantContext.setCurrentTenant(tenant.getId());
     Exercise exercise =
         exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+    workflowService.creationWorkflow(exercise);
+    Workflow workflow =
+        workflowService.findWorkflowTemplateBySimulationId(exercise.getId()).orElse(null);
+    assertThat(workflow).isNotNull();
+    workflowService.launchWorkflowSimulation(workflow);
+
     String simId = exercise.getId();
     jdbc.update(
         "INSERT INTO attackpath_execution (attackpath_execution_id, tenant_id,"

@@ -75,7 +75,7 @@ class WorkflowEndServiceTest {
               injectService,
               injectStatusService,
               workflowRepository);
-      inOrder.verify(scopeSnapshotService).freezeEnd(workflowRun);
+      inOrder.verify(scopeSnapshotService).freezeEnd(workflowRun, cause);
 
       inOrder.verify(exerciseRepository).save(simulation);
 

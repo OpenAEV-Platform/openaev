@@ -53,6 +53,9 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
 
   List<Workflow> findAllBySimulation_IdAndStatus(String simulationId, WorkflowStatus status);
 
+  List<Workflow> findAllBySimulation_IdAndStatusIn(
+      String simulationId, List<WorkflowStatus> status);
+
   /**
    * Retrieves the most recent workflow of a given status for a simulation. A simulation reuses the
    * same id across launch / reset / relaunch cycles and old RUN rows are not deleted, so it may own
