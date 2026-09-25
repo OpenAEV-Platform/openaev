@@ -171,19 +171,31 @@ public class TenantIsolationTestHelper {
    * javadoc): {@code setScopeOnCurrentTransaction} is an unconditional overwrite (unlike the
    * transaction aspect's guarded scope check), so calling this method more than once in the same
    * {@code @Transactional} test (the dominant two-tenant {@code @BeforeEach} idiom) leaves the
-   * scope pinned to whichever tenant was created LAST. Reset it to empty here so the actual test
-   * method's own request sets it fresh to whichever tenant path it targets, instead of tripping the
-   * nesting guard against this leftover onboarding scope.
+   * scope pinned to whichever tenant was created LAST. Onboarding also sets {@link TenantContext},
+   * so restore both scopes here; otherwise a later request can target the tenant created only for
+   * test data instead of the caller's original tenant.
    *
    * @param name the tenant name
    * @return the persisted {@link Tenant}
    */
   public Tenant createTenant(String name) throws DependenciesManagerException {
+    boolean hadTenant = TenantContext.hasCurrentTenant();
+    String previousTenantId = hadTenant ? TenantContext.getCurrentTenant() : null;
     Tenant tenant =
         TenantFixture.getTenant(name + "-" + UUID.randomUUID().toString().substring(0, 8));
-    Tenant created = tenantService.create(tenant);
-    resetLeftoverOnboardingScope();
-    return created;
+    try {
+      return tenantService.create(tenant);
+    } finally {
+      try {
+        resetLeftoverOnboardingScope();
+      } finally {
+        if (hadTenant) {
+          TenantContext.setCurrentTenant(previousTenantId);
+        } else {
+          TenantContext.clearCurrentTenant();
+        }
+      }
+    }
   }
 
   /**
