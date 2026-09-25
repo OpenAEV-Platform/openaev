@@ -23,7 +23,7 @@ const THEME_DARK_DEFAULT_SECONDARY = EE_COLOR;
 const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--bg-elevation-default-layer-3'];
 const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--bg-elevation-default-layer-1'];
 const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--bg-elevation-heading-layer-0'];
-const THEME_DARK_DEFAULT_TEXT = '#F2F2F3';
+const THEME_DARK_DEFAULT_TEXT = FDS.colors.dark['--text-alert'];
 // Modal surface: the design system's layer-2 elevation, the same ground OpenCTI's
 // modals sit on. Read from the token map, never retyped.
 export const THEME_DARK_DIALOG_BACKGROUND = FDS.colors.dark['--bg-elevation-default-layer-2'];
@@ -44,7 +44,7 @@ const ThemeDark = (
   primary: string | null = null,
   secondary: string | null = null,
   accent: string | null = null,
-  text_color = THEME_DARK_DEFAULT_TEXT,
+  text_color: string = THEME_DARK_DEFAULT_TEXT,
 ): ThemeOptions => ({
   logo: logo || fileUri(LogoText),
   logo_collapsed: logo_collapsed || fileUri(LogoCollapsed),
@@ -56,23 +56,23 @@ const ThemeDark = (
     common: {
       white: '#ffffff',
       black: '#000000',
-      grey: '#95969D',
+      grey: FDS.colors.dark['--color-feedback-neutral-primary'],
       lightGrey: '#E4E5E7',
     },
     error: {
-      main: '#F14337',
-      dark: '#881106',
+      main: FDS.colors.dark['--color-feedback-error-primary'],
+      dark: FDS.colors.dark['--color-feedback-error-secondary'],
     },
-    warn: { main: '#E6700F' },
+    warn: { main: FDS.colors.dark['--color-feedback-warning-primary'] },
     dangerZone: {
       main: '#F44336',
       light: '#F8958C',
-      dark: '#881106',
+      dark: FDS.colors.dark['--color-feedback-error-secondary'],
       contrastText: '#000000',
     },
     success: {
-      main: '#17AB1F',
-      dark: '#094E0B',
+      main: FDS.colors.dark['--color-feedback-success-primary'],
+      dark: FDS.colors.dark['--color-feedback-success-secondary'],
     },
     warning: { main: '#ffa726' },
     primary: {
@@ -153,18 +153,18 @@ const ThemeDark = (
     // while OpenCTI reserves muting for `text.tertiary`.
     text: {
       tertiary: '#848592',
-      light: '#AFB0B6',
+      light: FDS.colors.dark['--text-input-label'],
       disabled: '#75829A',
     },
     leftBar: {
       header: { itemBackground: '#253348' },
       popoverItem: '#070D19',
       hover: '#253348',
-      text: '#F2F2F3',
+      text: FDS.colors.dark['--text-alert'],
     },
     severity: {
       critical: '#EE3838',
-      high: '#E6700F',
+      high: FDS.colors.dark['--color-feedback-warning-primary'],
       medium: '#E1B823',
       low: '#16AD34',
       info: '#1565c0',
@@ -179,13 +179,13 @@ const ThemeDark = (
       },
       secondary: {
         main: '#00F1BD',
-        light: '#BDFFED',
-        dark: '#009474',
+        light: FDS.colors.dark['--color-filigran-tonic-secondary'],
+        dark: FDS.colors.dark['--color-filigran-tonic-tertiary'],
       },
       destructive: {
         main: '#F44336',
         light: '#F8958C',
-        dark: '#881106',
+        dark: FDS.colors.dark['--color-feedback-error-secondary'],
       },
       ia: {
         main: '#B286FF',
@@ -237,21 +237,21 @@ const ThemeDark = (
           secondary: '#004C66',
         },
         success: {
-          primary: '#17AB1F',
-          secondary: '#094E0B',
+          primary: FDS.colors.dark['--color-feedback-success-primary'],
+          secondary: FDS.colors.dark['--color-feedback-success-secondary'],
           tertiary: '#75F8B9',
         },
         alert: {
-          primary: '#F2BE3A',
+          primary: FDS.colors.dark['--color-feedback-alert-primary'],
           secondary: '#573E05',
         },
         warning: {
-          primary: '#E6700F',
-          secondary: '#884106',
+          primary: FDS.colors.dark['--color-feedback-warning-primary'],
+          secondary: FDS.colors.dark['--color-feedback-warning-secondary'],
         },
         error: {
-          primary: '#F14337',
-          secondary: '#881106',
+          primary: FDS.colors.dark['--color-feedback-error-primary'],
+          secondary: FDS.colors.dark['--color-feedback-error-secondary'],
         },
       },
       // fds-migration/TOKEN-MAPPING.md § 4 — grey/darkBlue/turquoise/green/red retokenized on scalar
@@ -262,9 +262,9 @@ const ThemeDark = (
       // lib#52).
       tertiary: {
         grey: {
-          400: '#95969D',
-          700: '#494A50',
-          800: '#313235',
+          400: FDS.colors.dark['--color-feedback-neutral-primary'],
+          700: FDS.colors.dark['--text-negative-secondary'],
+          800: FDS.colors.dark['--bg-input-disabled'],
         },
         blue: {
           500: FDS.colors.dark['--color-feedback-info-secondary-transparency-30'],
@@ -280,22 +280,22 @@ const ThemeDark = (
         },
         green: {
           400: '#41E149',
-          600: '#17AB1F',
-          800: '#094E0B',
+          600: FDS.colors.dark['--color-feedback-success-primary'],
+          800: FDS.colors.dark['--color-feedback-success-secondary'],
         },
         red: {
           100: '#FBCBC5',
           200: '#F8958C',
-          400: '#F14337',
+          400: FDS.colors.dark['--color-feedback-error-primary'],
           500: '#E51E10',
           600: '#B8180A',
-          700: '#881106',
+          700: FDS.colors.dark['--color-feedback-error-secondary'],
         },
         orange: {
           400: '#F2933A',
-          500: '#E6700F',
+          500: FDS.colors.dark['--color-feedback-warning-primary'],
         },
-        yellow: { 400: '#F2BE3A' },
+        yellow: { 400: FDS.colors.dark['--color-feedback-alert-primary'] },
       },
     },
     widgets: {
@@ -498,7 +498,7 @@ const ThemeDark = (
             'color': primary,
             '&:focus-visible': {
               outline: 'none',
-              boxShadow: '0 0 0 2px #BDFFED',
+              boxShadow: `0 0 0 2px ${FDS.colors.dark['--color-filigran-tonic-secondary']}`,
             },
             '&.Mui-selected': { backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.25) },
             '&:hover:not(.Mui-selected)': { backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.15) },

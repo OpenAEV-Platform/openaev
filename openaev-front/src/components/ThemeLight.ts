@@ -25,7 +25,7 @@ const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--bg-elevation-default-layer
 // NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item"
 // flag: this specific, visibly-notable white -> #f2f2f3 shift is not signed off.
 const THEME_LIGHT_DEFAULT_NAV = '#ffffff';
-const THEME_LIGHT_DEFAULT_TEXT = '#18191B';
+const THEME_LIGHT_DEFAULT_TEXT = FDS.colors.light['--text-alert'];
 // Modal surface: the design system's layer-2 elevation, the light counterpart of
 // the dark modal ground.
 export const THEME_LIGHT_DIALOG_BACKGROUND = FDS.colors.light['--bg-elevation-default-layer-2'];
@@ -46,7 +46,7 @@ const ThemeLight = (
   primary: string | null = null,
   secondary: string | null = null,
   accent: string | null = null,
-  text_color = THEME_LIGHT_DEFAULT_TEXT,
+  text_color: string = THEME_LIGHT_DEFAULT_TEXT,
 ): ThemeOptions => ({
   logo: logo || fileUri(LogoText),
   logo_collapsed: logo_collapsed || fileUri(LogoCollapsed),
@@ -58,18 +58,18 @@ const ThemeLight = (
     common: {
       white: '#ffffff',
       black: '#000000',
-      grey: '#494A50',
-      lightGrey: '#AFB0B6',
+      grey: FDS.colors.light['--color-feedback-neutral-tertiary'],
+      lightGrey: FDS.colors.light['--text-negative-secondary'],
     },
     error: {
       main: '#F14337',
-      dark: '#881106',
+      dark: FDS.colors.light['--color-feedback-error-tertiary'],
     },
     warn: { main: '#E6700F' },
     dangerZone: {
       main: '#E51E10',
       light: '#F8958C',
-      dark: '#881106',
+      dark: FDS.colors.light['--color-feedback-error-tertiary'],
       contrastText: '#000000',
     },
     success: {
@@ -79,7 +79,7 @@ const ThemeLight = (
     warning: { main: '#ed6c02' },
     primary: {
       main: primary || THEME_LIGHT_DEFAULT_PRIMARY,
-      light: primary ? alpha(primary, 0.08) : '#7587FF',
+      light: primary ? alpha(primary, 0.08) : FDS.colors.light['--color-filigran-brand-secondary'],
     },
     secondary: { main: secondary || THEME_LIGHT_DEFAULT_SECONDARY },
     gradient: { main: EE_COLOR },
@@ -115,7 +115,7 @@ const ThemeLight = (
     ai: {
       main: '#5E1AD5',
       light: '#D6C2FA',
-      dark: '#3C108C',
+      dark: FDS.colors.light['--color-filigran-ia-secondary'],
       contrastText: '#000000',
       background: 'rgba(221, 225, 254, 0.94)',
     },
@@ -123,7 +123,7 @@ const ThemeLight = (
       main: EE_COLOR,
       background: hexToRGB(EE_COLOR, 0.2),
       lightBackground: hexToRGB(EE_COLOR, 0.08),
-      contrastText: '#F2F2F3',
+      contrastText: FDS.colors.light['--text-negative-primary'],
     },
     xtmhub: { main: EE_COLOR },
     background: {
@@ -156,14 +156,14 @@ const ThemeLight = (
     // while OpenCTI reserves muting for `text.tertiary`.
     text: {
       tertiary: '#717172',
-      light: '#494A50',
+      light: FDS.colors.light['--color-feedback-neutral-tertiary'],
       disabled: '#6E7788',
     },
     leftBar: {
       header: { itemBackground: '#ECECF2' },
       popoverItem: '#ECECF2',
       hover: '#0015A81A',
-      text: '#18191B',
+      text: FDS.colors.light['--text-alert'],
     },
     severity: {
       critical: '#EE3838',
@@ -176,9 +176,9 @@ const ThemeLight = (
     },
     designSystem: {
       primary: {
-        main: '#0015A8',
-        light: '#7587FF',
-        dark: '#000842',
+        main: FDS.colors.light['--color-filigran-brand-primary'],
+        light: FDS.colors.light['--color-filigran-brand-secondary'],
+        dark: FDS.colors.light['--color-filigran-brand-tertiary'],
       },
       secondary: {
         main: '#00BD94',
@@ -188,12 +188,12 @@ const ThemeLight = (
       destructive: {
         main: '#E51E10',
         light: '#F8958C',
-        dark: '#881106',
+        dark: FDS.colors.light['--color-feedback-error-tertiary'],
       },
       ia: {
         main: '#5E1AD5',
         light: '#D6C2FA',
-        dark: '#3C108C',
+        dark: FDS.colors.light['--color-filigran-ia-secondary'],
       },
       background: {
         main: THEME_LIGHT_DEFAULT_BACKGROUND,
@@ -226,8 +226,8 @@ const ThemeLight = (
       },
       gradient: {
         background: 'linear-gradient(100.35deg, #ECECF2 0%, #F7F7F7 100%)',
-        ia: 'linear-gradient(90deg, #3C108C 0.67%, #5E1AD5 100.67%)',
-        focus: 'linear-gradient(90deg, #0015A8 -3.68%, #00BD94 106.62%)',
+        ia: `linear-gradient(90deg, ${FDS.colors.light['--color-filigran-ia-secondary']} 0.67%, #5E1AD5 100.67%)`,
+        focus: `linear-gradient(90deg, ${FDS.colors.light['--color-filigran-brand-primary']} -3.68%, #00BD94 106.62%)`,
       },
       alert: {
         neutral: {
@@ -245,12 +245,12 @@ const ThemeLight = (
           tertiary: '#0D7E39',
         },
         alert: {
-          primary: '#F2BE3A',
+          primary: FDS.colors.light['--color-feedback-alert-primary'],
           secondary: '#F6CE6A',
         },
         warning: {
           primary: '#E6700F',
-          secondary: '#F8C08C',
+          secondary: FDS.colors.light['--color-feedback-warning-secondary'],
         },
         error: {
           primary: '#F14337',
@@ -265,8 +265,8 @@ const ThemeLight = (
       // lib gap-fix lib#52).
       tertiary: {
         grey: {
-          400: '#95969D',
-          700: '#494A50',
+          400: FDS.colors.light['--color-feedback-neutral-secondary'],
+          700: FDS.colors.light['--color-feedback-neutral-tertiary'],
           800: '#313235',
         },
         blue: {
@@ -274,31 +274,31 @@ const ThemeLight = (
           900: FDS.colors.light['--color-feedback-info-secondary-transparency-30'],
         },
         darkBlue: {
-          300: '#7587FF',
+          300: FDS.colors.light['--color-filigran-brand-secondary'],
           500: '#0F2DFF',
         },
         turquoise: {
           600: '#00BD94',
-          800: '#005744',
+          800: FDS.colors.light['--color-filigran-tonic-accent'],
         },
         green: {
           400: '#41E149',
           600: '#17AB1F',
-          800: '#094E0B',
+          800: FDS.colors.light['--color-feedback-success-tertiary'],
         },
         red: {
           100: '#FBCBC5',
           200: '#F8958C',
           400: '#F14337',
           500: '#E51E10',
-          600: '#B8180A',
-          700: '#881106',
+          600: FDS.colors.light['--color-feedback-error-primary'],
+          700: FDS.colors.light['--color-feedback-error-tertiary'],
         },
         orange: {
           400: '#F2933A',
           500: '#E6700F',
         },
-        yellow: { 400: '#F2BE3A' },
+        yellow: { 400: FDS.colors.light['--color-feedback-alert-primary'] },
       },
     },
     widgets: {
@@ -732,8 +732,8 @@ const ThemeLight = (
           '.react_time_range__handle_marker': { backgroundColor: '#00bcd4 !important' },
           '.leaflet-container': { backgroundColor: `${paper || THEME_LIGHT_DEFAULT_PAPER} !important` },
           '.react-grid-item .react-resizable-handle::after': {
-            borderRight: '2px solid #AFB0B6 !important',
-            borderBottom: '2px solid #AFB0B6 !important',
+            borderRight: `2px solid ${FDS.colors.light['--border-elevation-subtle-layer-3']} !important`,
+            borderBottom: `2px solid ${FDS.colors.light['--border-elevation-subtle-layer-3']} !important`,
           },
         },
       },
