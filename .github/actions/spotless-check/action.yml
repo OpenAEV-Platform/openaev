@@ -16,15 +16,15 @@ runs:
         java-version: "21"
         distribution: temurin
 
-    # Read-only: backend-compile is the sole writer of maven-v1.
+    # Read-only: backend-compile is the sole writer of maven-v2.
     - name: Restore Maven dependencies
       if: ${{ inputs.no-cache != 'true' }}
       uses: actions/cache/restore@v6
       with:
         path: ~/.m2/repository
-        key: maven-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
-          maven-v1-${{ runner.os }}-${{ runner.arch }}-
+          maven-v2-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Check formatting
       run: mvn -B -ntp spotless:check

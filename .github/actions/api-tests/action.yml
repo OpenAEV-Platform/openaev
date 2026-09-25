@@ -78,9 +78,9 @@ runs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.m2/repository
-        key: maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        key: maven-api-tests-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
-          maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-
+          maven-api-tests-v2-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Wait for compiled artifacts
       uses: ./.github/actions/wait-for-artifacts
@@ -287,6 +287,11 @@ runs:
           ${{ steps.suite.outputs.surefire_arg }} \
           ${{ steps.tenant.outputs.args }}
 
+    - name: Remove compiled OpenAEV artifacts before caching
+      if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
+      run: rm -rf ~/.m2/repository/io/openaev/
+      shell: bash
+
     # A single main-branch shard writes the shared dependency cache.
     # Resolved dependencies are still saved after test failures.
     - name: Save API test Maven dependencies
@@ -294,7 +299,7 @@ runs:
       uses: actions/cache/save@v6
       with:
         path: ~/.m2/repository
-        key: maven-api-tests-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        key: maven-api-tests-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
 
     - name: Diagnose surefire dump files (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
