@@ -12,8 +12,26 @@ permissions:
   packages: write
 
 jobs:
+  deployment-slug:
+    name: deployment-slug
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.slug.outputs.value }}
+    steps:
+      - name: Compute deployment slug
+        id: slug
+        env:
+          REF_VERSION: ${{ github.ref_name }}
+          REF_SHA: ${{ github.sha }}
+        run: |
+          slug=$(echo "$REF_VERSION" | tr '/._' '-' | cut -c 1-15 | sed 's/[^[:alnum:]-]/-/g' | sed 's/-*$//')
+          if [ -z "$slug" ]; then
+            slug="sha-${REF_SHA:0:8}"
+          fi
+          echo "value=$slug" >> "$GITHUB_OUTPUT"
   openaev-platform:
     name: openaev-platform
+    needs: [deployment-slug]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -41,13 +59,6 @@ jobs:
         shell: alpine.sh {0}
       - run: mkdir -p openaev-build/
       - run: cp openaev-api/target/openaev-api.jar openaev-build/
-      - name: Forge deployment slug to match playbook limitations
-        id: deployslug
-        env:
-          REF_VERSION: ${{ github.ref_name }}
-        run: |
-          slug=$(echo "$REF_VERSION" | tr '/._' '-' | cut -c 1-15 | sed 's/[^[:alnum:]-]/-/g' | sed 's/-*$//')
-          echo "value=$slug" >> "$GITHUB_OUTPUT"
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v6
@@ -58,7 +69,7 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=${{ steps.deployslug.outputs.value }}
+            type=raw,value=${{ needs.deployment-slug.outputs.value }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -85,28 +96,11 @@ jobs:
       dockerBuildDigest: ${{ steps.buildpush.outputs.digest }}
   deploy:
     name: deploy
-    needs: [openaev-platform]
+    needs: [deployment-slug, openaev-platform]
     runs-on: ubuntu-latest
     steps:
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: filigran/openaev-platform
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
       - name: Install AWX cli
         run: pip install awxkit
-      - name: Forge deployment slug to match playbook limitations
-        id: deployslug
-        env:
-          VERSION: ${{ steps.meta.outputs.version }}
-        run: |
-          slug=$(echo "$VERSION" | cut -c 1-15 | sed 's/[^[:alnum:]-]/-/g' | sed 's/-*$//')
-          echo "value=$slug" >> "$GITHUB_OUTPUT"
       - name: Deploy feature environment via AWX
         id: awx
         run: |
@@ -118,7 +112,7 @@ jobs:
           job_templates launch 'Deploy OpenAEV feature branch for testing' \
             --wait \
             --inventory eu-west-staging \
-            --extra_vars '{"openaev_version":"${{ steps.deployslug.outputs.value }}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}')
+            --extra_vars '{"openaev_version":"${{ needs.deployment-slug.outputs.value }}","openaev_config":${{ inputs.openaev_config }},"image_digest":"${{ needs.openaev-platform.outputs.dockerBuildDigest }}"}')
           awx_exit_code=$?
           echo "$launch_output"
           job_id=$(printf '%s' "$launch_output" | python -c 'import json,sys; print(json.load(sys.stdin).get("id", ""))')
@@ -134,4 +128,4 @@ jobs:
             --conf.password ${{ secrets.AWX_PASSWORD }} \
             jobs stdout "${{ steps.awx.outputs.job_id }}" || true
       - name: display URL
-        run: echo "https://feat-${{ steps.deployslug.outputs.value }}.oaev.staging.filigran.io"
+        run: echo "https://feat-${{ needs.deployment-slug.outputs.value }}.oaev.staging.filigran.io"
