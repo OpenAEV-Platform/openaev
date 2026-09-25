@@ -210,7 +210,15 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
               + ";mkdir -p $location;filename=";
       // x86_64 by default in the register because CS API doesn't provide the platform architecture
       // (we update this when the download implant script is launched on the endpoint)
-      String executorCommandKey = platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
+      // Executor-specific key: the detached Unix command returns the Live Terminal session as
+      // soon as the implant is launched. The generic "Linux.x86_64" entry is deliberately left
+      // alone, the native OpenAEV agent and Caldera read it.
+      String executorCommandKey =
+          PALOALTOCORTEX_EXECUTOR_NAME
+              + "."
+              + platform.name()
+              + "."
+              + Endpoint.PLATFORM_ARCH.x86_64.name();
       String command = injector.getExecutorCommands().get(executorCommandKey);
       // The default command to download the openaev implant and execute the attack is modified for
       // Cortex
