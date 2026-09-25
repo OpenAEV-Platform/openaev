@@ -322,7 +322,8 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
 
       Workflow endedWorkflowExecution = workflowService.launchWorkflowSimulation(workflowTemplate);
       workflowService.cancelSimulationEndWorkflowRun(List.of(endedWorkflowExecution));
-      endedWorkflowExecution = workflowRepository.findById(endedWorkflowExecution.getId()).orElseThrow();
+      endedWorkflowExecution =
+          workflowRepository.findById(endedWorkflowExecution.getId()).orElseThrow();
       assertEquals(WorkflowStatus.END, endedWorkflowExecution.getStatus());
 
       WorkflowState workflowState = createPersistedWorkflowState(endedWorkflowExecution, null);
@@ -349,8 +350,7 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
       assertNotNull(relaunchedWorkflowExecution.getId());
       assertEquals(WorkflowStatus.RUN, relaunchedWorkflowExecution.getStatus());
       assertEquals(simulationId, relaunchedWorkflowExecution.getSimulation().getId());
-      assertEquals(
-          1, workflowService.findAllWorkflowExecutionBySimulationId(simulationId).size());
+      assertEquals(1, workflowService.findAllWorkflowExecutionBySimulationId(simulationId).size());
     }
   }
 
