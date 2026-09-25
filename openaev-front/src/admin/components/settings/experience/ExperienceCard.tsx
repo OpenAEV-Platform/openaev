@@ -1,4 +1,5 @@
-import { Box, Paper, Typography } from '@mui/material';
+import { Text } from '@filigran/design-system';
+import { Box, Paper } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import type React from 'react';
 import type { ReactNode } from 'react';
@@ -19,16 +20,7 @@ interface ExperienceCardProps {
  * titles), sized to sit under the card's hero title.
  */
 export const ExperienceHeadline: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <Typography
-    sx={{
-      fontFamily: '"Geologica", sans-serif',
-      fontWeight: 600,
-      fontSize: 15,
-      lineHeight: 1.4,
-    }}
-  >
-    {children}
-  </Typography>
+  <Text variant="content-base-bold">{children}</Text>
 );
 
 /**
@@ -91,20 +83,16 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
           flex: 1,
         }}
         >
-          <Typography sx={{
-            fontFamily: '"Geologica", sans-serif',
-            fontWeight: 600,
-            fontSize: 11,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            color: accent,
-          }}
+          <Text
+            variant="content-caption"
+            className="uppercase tracking-widest"
+            style={{ color: accent }}
           >
             {overline}
-          </Typography>
-          <Typography variant="h1" sx={{ margin: 0 }}>
+          </Text>
+          <Text variant="title-md" as="h2" style={{ margin: 0 }}>
             {title}
-          </Typography>
+          </Text>
         </Box>
         {statusChip && (
           <Box sx={{
