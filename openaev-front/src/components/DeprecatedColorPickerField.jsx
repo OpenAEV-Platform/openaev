@@ -1,8 +1,10 @@
-import { ColorLensOutlined } from '@mui/icons-material';
-import { IconButton, InputAdornment, Popover, TextField as MuiTextField } from '@mui/material';
+import { Icon } from '@filigran/design-system';
+import { Popover } from '@mui/material';
 import { useState } from 'react';
 import { SketchPicker } from 'react-color';
 import { Field } from 'react-final-form';
+
+import TextFieldFds from './fields/TextFieldFds';
 
 const ColorPickerFieldBase = ({
   label,
@@ -14,27 +16,20 @@ const ColorPickerFieldBase = ({
   const handleChange = (color) => {
     onChange(color && color.hex ? color.hex : '');
   };
+  const message = touched && (error || submitError);
   return (
     <>
-      <MuiTextField
+      <TextFieldFds
         label={label}
-        error={touched && invalid}
-        helperText={touched && (error || submitError)}
+        error={touched && invalid ? (message || true) : undefined}
+        {...inputProps}
+        onChange={onChange}
         {...others}
-        InputProps={{
-          ...inputProps,
-          onChange,
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton
-                aria-label="open"
-                onClick={event => setAnchorEl(event.currentTarget)}
-                disabled={others.disabled}
-              >
-                <ColorLensOutlined />
-              </IconButton>
-            </InputAdornment>
-          ),
+        endIcon={{
+          type: 'iconButton',
+          icon: <Icon name="palette" size={16} aria-hidden />,
+          label: 'open',
+          onClick: event => setAnchorEl(event.currentTarget),
         }}
       />
       <Popover

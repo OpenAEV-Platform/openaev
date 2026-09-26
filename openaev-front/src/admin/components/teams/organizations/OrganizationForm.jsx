@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import * as PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Form } from 'react-final-form';
@@ -37,15 +37,11 @@ class OrganizationFormComponent extends Component {
         {({ handleSubmit, form, values, submitting, pristine }) => (
           <form id="organizationForm" onSubmit={handleSubmit}>
             <OldTextField
-              variant="standard"
               name="organization_name"
-              fullWidth
               label={t('Name')}
             />
             <OldTextField
-              variant="standard"
               name="organization_description"
-              fullWidth
               multiline
               rows={2}
               label={t('Description')}
@@ -63,21 +59,10 @@ class OrganizationFormComponent extends Component {
               marginTop: 20,
             }}
             >
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={handleClose.bind(this)}
-                style={{ marginRight: 10 }}
-                disabled={submitting}
-              >
+              <Button type="button" priority="secondary" onClick={handleClose.bind(this)} disabled={submitting} style={{ marginRight: 10 }}>
                 {t('Cancel')}
               </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={pristine || submitting}
-              >
+              <Button type="submit" disabled={pristine || submitting}>
                 {editing ? t('Update') : t('Create')}
               </Button>
             </div>

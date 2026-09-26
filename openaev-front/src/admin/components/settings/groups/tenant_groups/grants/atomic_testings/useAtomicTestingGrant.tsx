@@ -1,4 +1,4 @@
-import { Checkbox } from '@mui/material';
+import { Checkbox } from '@filigran/design-system';
 
 import { addGrant, deleteGrant } from '../../../../../../../actions/Grant';
 import { type GroupHelper } from '../../../../../../../actions/group/group-helper';
@@ -60,9 +60,10 @@ const useAtomicTestingGrant = ({ groupId, onGrantChange }: AtomicTestingGrantsPr
         const { observerId, plannerId, launcherId } = getGrantIds(inject);
         return (
           <Checkbox
+            aria-label={t('Access')}
             checked={!!(observerId || plannerId || launcherId)}
             disabled={!!(plannerId || launcherId) || !group}
-            onChange={(_, checked) => handleGrant(inject.inject_id, observerId, 'OBSERVER', checked)}
+            onCheckedChange={checked => handleGrant(inject.inject_id, observerId, 'OBSERVER', checked === true)}
           />
         );
       },
@@ -74,9 +75,10 @@ const useAtomicTestingGrant = ({ groupId, onGrantChange }: AtomicTestingGrantsPr
         const { plannerId, launcherId } = getGrantIds(inject);
         return (
           <Checkbox
+            aria-label={t('Manage+Delete')}
             checked={!!(plannerId || launcherId)}
             disabled={!!launcherId || !group}
-            onChange={(_, checked) => handleGrant(inject.inject_id, plannerId, 'PLANNER', checked)}
+            onCheckedChange={checked => handleGrant(inject.inject_id, plannerId, 'PLANNER', checked === true)}
           />
         );
       },
@@ -88,9 +90,10 @@ const useAtomicTestingGrant = ({ groupId, onGrantChange }: AtomicTestingGrantsPr
         const { launcherId } = getGrantIds(inject);
         return (
           <Checkbox
+            aria-label={t('Launch')}
             checked={!!launcherId}
             disabled={!group}
-            onChange={(_, checked) => handleGrant(inject.inject_id, launcherId, 'LAUNCHER', checked)}
+            onCheckedChange={checked => handleGrant(inject.inject_id, launcherId, 'LAUNCHER', checked === true)}
           />
         );
       },

@@ -1,18 +1,5 @@
-import {
-  Button,
-  Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material';
+import { Button, Checkbox } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogTitle, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { useFormatter } from '../../i18n';
@@ -80,7 +67,7 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
                     : t('Injects (including attached files)')}
                 </TableCell>
                 <TableCell style={{ textAlign: 'center' }}>
-                  <Checkbox checked={true} disabled={true} />
+                  <Checkbox aria-label={isChaining ? t('Actions & Events') : t('Injects (including attached files)')} checked disabled />
                 </TableCell>
               </TableRow>
               {!isChaining && (
@@ -88,8 +75,9 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
                   <TableCell>{t('Teams')}</TableCell>
                   <TableCell style={{ textAlign: 'center' }}>
                     <Checkbox
+                      aria-label={t('Teams')}
                       checked={exportTeams}
-                      onChange={handleToggleExportTeams}
+                      onCheckedChange={handleToggleExportTeams}
                     />
                   </TableCell>
                 </TableRow>
@@ -99,8 +87,9 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
                   <TableCell>{t('Players')}</TableCell>
                   <TableCell style={{ textAlign: 'center' }}>
                     <Checkbox
+                      aria-label={t('Players')}
                       checked={exportPlayers}
-                      onChange={handleToggleExportPlayers}
+                      onCheckedChange={handleToggleExportPlayers}
                     />
                   </TableCell>
                 </TableRow>
@@ -109,8 +98,9 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
                 <TableCell>{t('Variable values')}</TableCell>
                 <TableCell style={{ textAlign: 'center' }}>
                   <Checkbox
+                    aria-label={t('Variable values')}
                     checked={exportVariableValues}
-                    onChange={handleToggleExportVariableValues}
+                    onCheckedChange={handleToggleExportVariableValues}
                   />
                 </TableCell>
               </TableRow>
@@ -126,8 +116,9 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
                   </TableCell>
                   <TableCell style={{ textAlign: 'center' }}>
                     <Checkbox
+                      aria-label={t('Scope definition')}
                       checked={exportScopeDefinition}
-                      onChange={handleToggleExportScopeDefinition}
+                      onCheckedChange={handleToggleExportScopeDefinition}
                     />
                   </TableCell>
                 </TableRow>
@@ -137,8 +128,8 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
         </TableContainer>
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={onCancel}>{t('Cancel')}</Button>
-        <Button variant="contained" color="primary" onClick={doSubmit}>
+        <Button type="button" priority="secondary" onClick={onCancel}>{t('Cancel')}</Button>
+        <Button type="button" onClick={doSubmit}>
           {t('Export')}
         </Button>
       </DialogActions>

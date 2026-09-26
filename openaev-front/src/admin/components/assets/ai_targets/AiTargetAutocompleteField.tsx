@@ -72,7 +72,6 @@ const AiTargetAutocompleteField = ({ label, value, onChange, required = false, d
       options={options}
       onChange={v => onChange(v)}
       onInputChange={searchOptions}
-      variant="standard"
       disabled={disabled}
     />
   );

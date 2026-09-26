@@ -48,7 +48,10 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   const { bannerHeightNumber } = computeBannerSettings(settings);
   const topOffset = 64 + bannerHeightNumber;
   const firstName = me.user_email?.split('@')[0] ?? 'User';
-  const accentColor = theme.palette.ai?.main ?? '#B286FF';
+  // `ai` is a required PaletteColor (components/Theme.ts), so the literal
+  // fallback was unreachable — and it carried the DARK value, which would
+  // have been wrong in light mode had it ever been reached.
+  const accentColor = theme.palette.ai.main;
   // Guarded by the shared http(s)-only helper: the URL is forwarded to the
   // chatbot widget as `agentDashboardUrl` (an anchor href), so a misconfigured
   // scheme must never reach it.

@@ -1,13 +1,7 @@
+import { Chip, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, DataObjectOutlined, DeleteOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Chip,
-  IconButton,
-  Paper,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -55,14 +49,13 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
 
   return (
     <Paper
-      variant="outlined"
-      sx={{
+      padding={16}
+      style={{
         height: '100%',
         display: 'grid',
         gridTemplateRows: 'min-content 1fr',
-        gap: 1.5,
+        gap: 12,
         minHeight: 168,
-        p: theme.spacing(2),
       }}
     >
       {/* Header */}
@@ -84,26 +77,15 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
           <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
             {t('Variables')}
           </Typography>
-          <Chip
-            label={variables.length}
-            size="small"
-            sx={{
-              height: 20,
-              minWidth: 24,
-              fontWeight: 700,
-              color: 'primary.main',
-              backgroundColor: alpha(theme.palette.primary.main, 0.12),
-            }}
-          />
+          <Chip label={String(variables.length)} severity="info" />
         </Box>
         <IconButton
-          color="primary"
-          size="small"
+          icon={<Add fontSize="small" />}
           onClick={() => setOpen(true)}
           aria-label={t('Add variable')}
-        >
-          <Add fontSize="small" />
-        </IconButton>
+          priority="tertiary"
+          size="sm"
+        />
       </Box>
 
       {/* List */}
@@ -148,12 +130,7 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                 <Chip
                   key={`type-${variable.scope_variable_id}`}
                   label={variable.scope_variable_type ?? '—'}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    justifySelf: 'start',
-                    fontSize: '0.7rem',
-                  }}
+                  style={{ justifySelf: 'start' }}
                 />
                 <Typography
                   key={`value-${variable.scope_variable_id}`}
@@ -176,15 +153,18 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                 >
                   {variable.scope_variable_description ?? '—'}
                 </Typography>
-                <Tooltip key={`del-${variable.scope_variable_id}`} title={t('Delete variable')}>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleDelete(variable.scope_variable_id)}
-                    aria-label={t('Delete variable')}
-                  >
-                    <DeleteOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip key={`del-${variable.scope_variable_id}`}>
+                  <TooltipTrigger asChild>
+                    <IconButton
+                      icon={<DeleteOutlined fontSize="small" />}
+                      onClick={() => handleDelete(variable.scope_variable_id)}
+                      aria-label={t('Delete variable')}
+                      variant="destructive"
+                      priority="tertiary"
+                      size="sm"
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Delete variable')}</TooltipContent>
                 </Tooltip>
               </>
             ))}

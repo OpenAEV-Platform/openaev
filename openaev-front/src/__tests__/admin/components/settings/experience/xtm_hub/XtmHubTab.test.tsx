@@ -88,15 +88,6 @@ vi.mock('../../../../../../admin/components/settings/experience/xtm_hub/XtmHubPr
     </div>
   ),
 }));
-vi.mock('../../../../../../admin/components/common/GradientButton', () => ({
-  default: ({ children, onClick }: {
-    children: ReactNode;
-    onClick: () => void;
-  }) => (
-    <button type="button" data-testid="gradient-button" onClick={onClick}>{children}</button>
-  ),
-}));
-
 vi.mock('../../../../../../admin/components/settings/experience/xtm_hub/XtmHubConfirmationDialog', () => ({
   default: ({ open, title, onConfirm, onCancel, confirmButtonText, cancelButtonText }: {
     open: boolean;
@@ -239,7 +230,7 @@ describe('XtmHubTab', () => {
 
     it('renders the trigger button when connected (no gradient button)', () => {
       renderXtmHubTab({ registrationStatus: 'REGISTERED' });
-      expect(screen.queryByTestId('gradient-button')).toBeNull();
+      expect(screen.queryByText('Connect to XTM Hub')).toBeNull();
       expect(screen.getByTestId('trigger-button')).toBeDefined();
     });
 

@@ -9,7 +9,7 @@ class UpdateTeamDialog {
 
   constructor(page: Page) {
     this.page = page;
-    this.searchField = page.getByRole('textbox', { name: 'Search these results...' });
+    this.searchField = page.getByRole('searchbox', { name: 'Search these results' });
     this.listContainer = page.getByTestId('select-team-list');
     this.createNewTeamButton = page.getByRole('button', { name: 'Create a new team' });
     this.saveButton = page.getByRole('button', { name: 'Update' });

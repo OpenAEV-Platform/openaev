@@ -1,3 +1,5 @@
+import { type ChipSeverity } from '@filigran/design-system';
+
 export const stringToColour = (str: string | null | undefined, reversed = false): string => {
   if (!str) {
     return '#5d4037';
@@ -40,6 +42,19 @@ export interface SeverityAndColor {
   color: string;
 }
 
+/**
+ * The library severity a CVSS band reads as. The library Chip takes a tone,
+ * not a colour — its `color` prop accepts a hex only and would reject a token
+ * — so a consumer that renders a chip passes this instead of `color`.
+ */
+export const CVSS_SEVERITY: Record<SeverityAndColor['severity'], ChipSeverity> = {
+  CRITICAL: 'critical',
+  HIGH: 'high',
+  MEDIUM: 'info',
+  LOW: 'low',
+  NONE: 'neutral',
+};
+
 // CVSS - hex colors aligned with the severity chip palette used across the app
 // (see ItemSeverity / ItemCriticality) so CVSS reads the same everywhere.
 export const getSeverityAndColor = (score: number | string | null | undefined): SeverityAndColor => {
@@ -48,25 +63,25 @@ export const getSeverityAndColor = (score: number | string | null | undefined): 
   if (numScore >= 9.0) {
     return {
       severity: 'CRITICAL',
-      color: '#f44336',
+      color: 'var(--color-feedback-error-primary)',
     };
   }
   if (numScore >= 7.0) {
     return {
       severity: 'HIGH',
-      color: '#ff9800',
+      color: 'var(--color-feedback-warning-primary)',
     };
   }
   if (numScore >= 4.0) {
     return {
       severity: 'MEDIUM',
-      color: '#5c7bf5',
+      color: 'var(--color-feedback-info-primary)',
     };
   }
   if (numScore > 0.0) {
     return {
       severity: 'LOW',
-      color: '#4caf50',
+      color: 'var(--color-feedback-success-primary)',
     };
   }
   return {

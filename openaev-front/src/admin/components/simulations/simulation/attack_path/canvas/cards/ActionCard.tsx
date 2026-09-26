@@ -1,12 +1,12 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BoltOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { memo } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import { buildTenantApiPath } from '../../../../../../../utils/url-helper';
 import LogicNodeTooltip, { type TooltipRow } from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
-import graphTooltipSlotProps from '../../../../../chaining/logic/logic-graph/graphTooltipSlotProps';
 import InjectIcon from '../../../../../common/injects/InjectIcon';
 import { type AttackPathFlowNodeData } from '../../attack-path-flow-helpers';
 import ImageWithFallback from '../../ImageWithFallback';
@@ -117,72 +117,75 @@ const ActionCard = ({ data, selected = false }: Props) => {
   );
 
   return (
-    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300} slotProps={graphTooltipSlotProps}>
-      <Box sx={buildCardSx({
-        theme,
-        accent: theme.palette.primary.main,
-        selected,
-        dimmed: data.dimmed,
-      })}
-      >
-        <Box sx={{
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Box sx={buildCardSx({
+          theme,
+          accent: theme.palette.primary.main,
+          selected,
+          dimmed: data.dimmed,
+        })}
+        >
+          <Box sx={{
           // Full-bleed tool art keeps a white plate (so e.g. the Nmap logo reads in dark mode); a
           // themed glyph gets the neutral tinted plate the other canvas cards use, centered, so a pure
           // payload action is no longer a jarring white box with an off-centre primary icon.
-          'display': 'flex',
-          'alignItems': 'center',
-          'justifyContent': 'center',
-          'width': 34,
-          'height': 34,
-          'flexShrink': 0,
-          'borderRadius': 0.75,
-          'overflow': 'hidden',
-          'backgroundColor': isImageLogo
-            ? theme.palette.common.white
-            : alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.1),
-          'border': `1px solid ${theme.palette.divider}`,
-          'color': theme.palette.primary.main,
-          '& img': {
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          },
-          // The glyph carries its own explicit size; keep it block so flex centring is exact.
-          '& svg': { display: 'block' },
-        }}
-        >
-          {iconContent}
-        </Box>
-        <Box sx={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2px',
-        }}
-        >
-          <Typography component="span" sx={EYEBROW_SX}>
-            {t('Action')}
-          </Typography>
-          <Typography component="div" sx={TITLE_SX}>
-            {data.label}
-          </Typography>
-          {techniques.length > 0 && (
-            <Typography
-              component="div"
-              sx={{
-                ...CAPTION_SX,
-                color: theme.palette.primary.main,
-                fontWeight: 600,
-              }}
-            >
-              {techniques.length === 1
-                ? (techniques[0].externalId ?? techniques[0].name)
-                : `${techniques[0].externalId ?? techniques[0].name} +${techniques.length - 1}`}
+            'display': 'flex',
+            'alignItems': 'center',
+            'justifyContent': 'center',
+            'width': 34,
+            'height': 34,
+            'flexShrink': 0,
+            'borderRadius': 0.75,
+            'overflow': 'hidden',
+            'backgroundColor': isImageLogo
+              ? theme.palette.common.white
+              : alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.1),
+            'border': `1px solid ${theme.palette.divider}`,
+            'color': theme.palette.primary.main,
+            '& img': {
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            },
+            // The glyph carries its own explicit size; keep it block so flex centring is exact.
+            '& svg': { display: 'block' },
+          }}
+          >
+            {iconContent}
+          </Box>
+          <Box sx={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+          }}
+          >
+            <Typography component="span" sx={EYEBROW_SX}>
+              {t('Action')}
             </Typography>
-          )}
+            <Typography component="div" sx={TITLE_SX}>
+              {data.label}
+            </Typography>
+            {techniques.length > 0 && (
+              <Typography
+                component="div"
+                sx={{
+                  ...CAPTION_SX,
+                  color: theme.palette.primary.main,
+                  fontWeight: 600,
+                }}
+              >
+                {techniques.length === 1
+                  ? (techniques[0].externalId ?? techniques[0].name)
+                  : `${techniques[0].externalId ?? techniques[0].name} +${techniques.length - 1}`}
+              </Typography>
+            )}
+          </Box>
         </Box>
-      </Box>
+      </TooltipTrigger>
+      {tooltip && <TooltipContent side="top">{tooltip}</TooltipContent>}
     </Tooltip>
   );
 };

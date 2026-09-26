@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DevicesOtherOutlined, GroupsOutlined, HelpOutlineOutlined, PlayCircleOutlineOutlined, RouteOutlined } from '@mui/icons-material';
-import { type SvgIconProps, Tooltip } from '@mui/material';
+import { type SvgIconProps } from '@mui/material';
 import { Binoculars, SelectGroup } from 'mdi-material-ui';
 import { type ComponentType, type CSSProperties, type ReactElement } from 'react';
 
@@ -87,8 +88,11 @@ const attackPatternsRenderer: ColumnRenderer = (attackPatternIds, opts) => (
 const textRenderer: ColumnRenderer = (value) => {
   const text = value?.toString() ?? '';
   return (
-    <Tooltip title={text} placement="bottom-start">
-      <span>{text}</span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>{text}</span>
+      </TooltipTrigger>
+      {text && <TooltipContent side="bottom" align="start">{text}</TooltipContent>}
     </Tooltip>
   );
 };

@@ -1,4 +1,5 @@
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Alert, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
@@ -38,8 +39,8 @@ const DialogTest: FunctionComponent<DialogTestProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={handleClose}>{t('Cancel')}</Button>
-        <Button variant="contained" color="primary" onClick={handleSubmit}>
+        <Button type="button" priority="secondary" onClick={handleClose}>{t('Cancel')}</Button>
+        <Button type="button" onClick={handleSubmit}>
           {t('Confirm')}
         </Button>
       </DialogActions>

@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 
 import { useFormatter } from '../../../i18n';
 
@@ -7,8 +7,11 @@ const DateFragment = ({ value }: { value: string }) => {
   const formattedDate = nsdt(value);
 
   return (
-    <Tooltip title={formattedDate} placement="bottom-start">
-      <span>{formattedDate}</span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>{formattedDate}</span>
+      </TooltipTrigger>
+      {formattedDate && <TooltipContent side="bottom" align="start">{formattedDate}</TooltipContent>}
     </Tooltip>
   );
 };

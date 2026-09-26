@@ -1,5 +1,6 @@
+import { Button, Chip } from '@filigran/design-system';
 import { GridViewOutlined } from '@mui/icons-material';
-import { Box, Button, Chip } from '@mui/material';
+import { Box } from '@mui/material';
 import { cloneElement, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -24,22 +25,28 @@ const useStyles = makeStyles<{ topPagination?: boolean }>()((theme, props) => ({
   topbar: {
     display: 'flex',
     alignItems: 'center',
+    // The pagination control and the action buttons are two groups: 8px between them.
+    gap: theme.spacing(1),
     // The primary actions (pagination + create button) must never be the part
     // that gives way when the toolbar runs out of width (#7340): the filter
     // row on the left is the one that compresses.
     flexShrink: 0,
   },
   topPagination: { display: 'block' },
+  // 16px between this row and the list under it, measured box to box: the
+  // list's own top padding is inside its box and does not count towards the
+  // gap, so the whole 16 sits here.
   parameters: {
-    marginTop: -10,
     display: props.topPagination ? 'block' : 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: theme.spacing(2),
   },
   parametersWithoutPagination: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: theme.spacing(2),
   },
   TTPMitreContainer: {
     padding: theme.spacing(2),
@@ -265,15 +272,12 @@ const PaginationComponentV2 = <T extends object>({
           {queryableHelpers.filterHelpers && availableFilterNames?.includes('injector_contract_attack_patterns') && (
             <>
               <Button
-                variant="outlined"
-                color="inherit"
-                size="small"
+                type="button"
+                priority="secondary"
                 startIcon={<GridViewOutlined fontSize="small" />}
                 onClick={() => setOpenMitreFilter(true)}
-                sx={{
+                style={{
                   marginLeft: (searchEnable || leftSlot) ? 1.25 : 0,
-                  borderColor: 'divider',
-                  lineHeight: 'initial',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -336,17 +340,9 @@ const PaginationComponentV2 = <T extends object>({
               }}
             >
               <Chip
-                style={{ borderRadius: 4 }}
-                label={(
-                  <>
-                    <strong>{t('Attack Pattern')}</strong>
-                    {' '}
-                    =
-                    {' '}
-                    {computeAttackPatternNameForFilter()}
-                  </>
-                )}
+                label={`${t('Attack Pattern')} = ${computeAttackPatternNameForFilter()}`}
                 onDelete={() => queryableHelpers.filterHelpers.handleRemoveFilterByKey(MITRE_FILTER_KEY)}
+                deleteLabel={t('Remove')}
               />
               {(searchPaginationInput.filterGroup?.filters?.filter(f => availableFilterNames?.filter(n => n !== MITRE_FILTER_KEY).includes(f.key)).length ?? 0) > 0 && (
                 <ClickableModeChip

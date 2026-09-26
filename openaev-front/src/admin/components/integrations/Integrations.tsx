@@ -1,4 +1,5 @@
-import { Alert, Tab, Tabs } from '@mui/material';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
+import { Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
@@ -99,25 +100,19 @@ const Integrations = () => {
         title={t('Integrations')}
         subtitle={t('Browse, filter and deploy collectors, injectors and executors from the XTM ecosystem.')}
       />
-      <Tabs
-        value={activeTab}
-        sx={{
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <Tab
-          component={Link}
-          to="/admin/integrations/deployed"
-          value="deployed"
-          label={t('Deployed')}
-        />
-        <Tab
-          component={Link}
-          to="/admin/integrations/available"
-          value="available"
-          label={t('Available')}
-        />
+      <Tabs value={activeTab} panels="external">
+        <TabsList>
+          <TabsTrigger value="deployed" asChild>
+            <Link to="/admin/integrations/deployed" aria-current={activeTab === 'deployed' ? 'page' : undefined}>
+              {t('Deployed')}
+            </Link>
+          </TabsTrigger>
+          <TabsTrigger value="available" asChild>
+            <Link to="/admin/integrations/available" aria-current={activeTab === 'available' ? 'page' : undefined}>
+              {t('Available')}
+            </Link>
+          </TabsTrigger>
+        </TabsList>
       </Tabs>
       {loading && <Loader variant="inElement" />}
       {!loading && (

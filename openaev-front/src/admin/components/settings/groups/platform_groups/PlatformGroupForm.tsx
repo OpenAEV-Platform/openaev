@@ -55,6 +55,7 @@ const PlatformGroupForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="platformGroupFormId"
         onSubmit={handleSubmit(onSubmit)}
         style={{

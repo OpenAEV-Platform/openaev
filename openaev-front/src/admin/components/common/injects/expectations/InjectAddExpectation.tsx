@@ -1,10 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { ControlPointOutlined } from '@mui/icons-material';
-import {
-  Button,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-} from '@mui/material';
+import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -60,14 +56,7 @@ const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
     <>
       {inline
         ? (
-            <Button
-              size="small"
-              variant="text"
-              color="primary"
-              startIcon={<ControlPointOutlined />}
-              onClick={handleOpen}
-              disabled={disabled}
-            >
+            <Button type="button" priority="tertiary" size="sm" startIcon={<ControlPointOutlined fontSize="small" />} onClick={handleOpen} disabled={disabled}>
               {t('Add expectations')}
             </Button>
           )

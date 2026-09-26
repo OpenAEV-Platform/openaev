@@ -1,3 +1,4 @@
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AddOutlined,
@@ -6,7 +7,7 @@ import {
   RemoveOutlined,
   ViewWeekOutlined,
 } from '@mui/icons-material';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   type PointerEvent as ReactPointerEvent,
@@ -263,15 +264,6 @@ const PanZoom = ({
     }
   };
 
-  const controlButtonSx = {
-    'padding': 0.75,
-    'color': theme.palette.primary.main,
-    'borderRadius': 0,
-    'borderBottom': `1px solid ${theme.palette.divider}`,
-    '&:last-of-type': { borderBottom: 'none' },
-    '&:hover': { backgroundColor: theme.palette.action.hover },
-  };
-
   return (
     <Box
       ref={containerRef}
@@ -329,37 +321,72 @@ const PanZoom = ({
           boxShadow: theme.shadows[3],
         }}
       >
-        <Tooltip title={t('Zoom in')}>
-          <IconButton size="small" sx={controlButtonSx} onClick={() => zoomByButton(ZOOM_STEP)}>
-            <AddOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              icon={<AddOutlined fontSize="small" />}
+              aria-label={t('Zoom in')}
+              onClick={() => zoomByButton(ZOOM_STEP)}
+              priority="tertiary"
+              size="sm"
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Zoom in')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('Zoom out')}>
-          <IconButton size="small" sx={controlButtonSx} onClick={() => zoomByButton(1 / ZOOM_STEP)}>
-            <RemoveOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              icon={<RemoveOutlined fontSize="small" />}
+              aria-label={t('Zoom out')}
+              onClick={() => zoomByButton(1 / ZOOM_STEP)}
+              priority="tertiary"
+              size="sm"
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Zoom out')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('Fit to view')}>
-          <IconButton size="small" sx={controlButtonSx} onClick={fit}>
-            <CenterFocusStrongOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              icon={<CenterFocusStrongOutlined fontSize="small" />}
+              aria-label={t('Fit to view')}
+              onClick={fit}
+              priority="tertiary"
+              size="sm"
+            />
+          </TooltipTrigger>
+          <TooltipContent>{t('Fit to view')}</TooltipContent>
         </Tooltip>
         {onAutoLayout && (
-          <Tooltip title={t('Auto-organize')}>
-            <IconButton size="small" sx={controlButtonSx} onClick={onAutoLayout}>
-              <AccountTreeOutlined fontSize="small" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                icon={<AccountTreeOutlined fontSize="small" />}
+                aria-label={t('Auto-organize')}
+                onClick={onAutoLayout}
+                priority="tertiary"
+                size="sm"
+              />
+            </TooltipTrigger>
+            <TooltipContent>{t('Auto-organize')}</TooltipContent>
           </Tooltip>
         )}
         {onToggleLayoutMode && (
           /* Grouping switcher: the icon depicts the layout the click switches TO (column bands vs a
              left-to-right chain), matching the action described by the tooltip. */
-          <Tooltip title={layoutMode === 'chain' ? t('Group by MITRE tactic') : t('Switch to chain layout')}>
-            <IconButton size="small" sx={controlButtonSx} onClick={onToggleLayoutMode}>
-              {layoutMode === 'chain'
-                ? <ViewWeekOutlined fontSize="small" />
-                : <LinearScaleOutlined fontSize="small" />}
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                icon={layoutMode === 'chain'
+                  ? <ViewWeekOutlined fontSize="small" />
+                  : <LinearScaleOutlined fontSize="small" />}
+                aria-label={layoutMode === 'chain' ? t('Group by MITRE tactic') : t('Switch to chain layout')}
+                onClick={onToggleLayoutMode}
+                priority="tertiary"
+                size="sm"
+              />
+            </TooltipTrigger>
+            <TooltipContent>{layoutMode === 'chain' ? t('Group by MITRE tactic') : t('Switch to chain layout')}</TooltipContent>
           </Tooltip>
         )}
       </Box>

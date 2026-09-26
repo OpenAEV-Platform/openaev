@@ -1,5 +1,6 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { AttachFileRounded, ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Avatar, Button, Card, CardContent, CardHeader, IconButton } from '@mui/material';
+import { Avatar, Card, CardContent, CardHeader } from '@mui/material';
 import { lightBlue } from '@mui/material/colors';
 import { useTheme } from '@mui/material/styles';
 import purify from 'dompurify';
@@ -51,9 +52,13 @@ const Communication = (props) => {
         )}
         action={(
           <div style={{ display: 'flex' }}>
-            <IconButton onClick={expandContent} size="small">
-              {expand ? <ExpandLess /> : <ExpandMore />}
-            </IconButton>
+            <IconButton
+              icon={expand ? <ExpandLess /> : <ExpandMore />}
+              aria-label={expand ? t('Collapse') : t('Expand')}
+              onClick={expandContent}
+              priority="tertiary"
+              size="sm"
+            />
           </div>
         )}
         title={(
@@ -137,13 +142,12 @@ const Communication = (props) => {
               return (
                 <a key={a} href={`/api/communications/attachment?file=${a}`}>
                   <Button
-                    variant="contained"
+                    type="button"
+                    startIcon={<AttachFileRounded fontSize="small" style={{ fontSize: 14 }} />}
                     style={{
                       marginRight: 10,
                       fontSize: 10,
                     }}
-                    startIcon={<AttachFileRounded style={{ fontSize: 14 }} />}
-                    color="secondary"
                   >
                     {a.substring(a.lastIndexOf('/') + 1)}
                   </Button>

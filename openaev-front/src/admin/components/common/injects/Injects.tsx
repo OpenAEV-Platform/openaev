@@ -1,5 +1,6 @@
+import { Checkbox, Chip } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, lazy, Suspense, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -60,9 +61,9 @@ const useStyles = makeStyles()(theme => ({
     marginRight: theme.spacing(1),
     borderRadius: theme.shape.borderRadius,
     width: 180,
-    backgroundColor: 'rgba(0, 177, 255, 0.08)',
-    color: '#00b1ff',
-    border: '1px solid #00b1ff',
+    backgroundColor: 'var(--color-filigran-brand-primary-transparency-10)',
+    color: 'var(--color-filigran-brand-primary)',
+    border: '1px solid var(--color-filigran-brand-primary)',
   },
   itemHead: { textTransform: 'uppercase' },
   item: { height: theme.spacing(6.25) },
@@ -183,7 +184,6 @@ const Injects: FunctionComponent<Props> = ({
         );
         return (
           <Chip
-            classes={{ root: classes.duration }}
             label={`${duration.days}
                           ${t('d')}, ${duration.hours}
                           ${t('h')}, ${duration.minutes}
@@ -578,10 +578,9 @@ const Injects: FunctionComponent<Props> = ({
           >
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
                 disabled={typeof handleToggleSelectAll !== 'function'}
               />
             </ListItemIcon>
@@ -657,13 +656,12 @@ const Injects: FunctionComponent<Props> = ({
                             : onToggleEntity(inject, event))}
                         >
                           <Checkbox
-                            edge="start"
+                            aria-label={inject.inject_title}
                             checked={
                               (selectAll && !(inject.inject_id
                                 in (deSelectedElements || {})))
                                 || inject.inject_id in (selectedElements || {})
                             }
-                            disableRipple
                           />
                         </ListItemIcon>
                         <ListItemIcon style={{ paddingTop: 5 }}>

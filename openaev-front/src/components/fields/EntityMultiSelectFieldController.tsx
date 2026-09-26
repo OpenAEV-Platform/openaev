@@ -1,4 +1,4 @@
-import { type CSSProperties, type FunctionComponent, type ReactNode } from 'react';
+import { type FunctionComponent, type ReactNode } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { type Option } from '../../utils/Option';
@@ -10,7 +10,6 @@ export interface EntityMultiSelectFieldControllerProps {
   options: Option[];
   icon?: ReactNode;
   placeholder?: string;
-  style?: CSSProperties;
   disabled?: boolean;
   required?: boolean;
 }
@@ -26,7 +25,6 @@ const EntityMultiSelectFieldController: FunctionComponent<EntityMultiSelectField
   options,
   icon,
   placeholder,
-  style,
   disabled = false,
   required = false,
 }) => {
@@ -45,7 +43,6 @@ const EntityMultiSelectFieldController: FunctionComponent<EntityMultiSelectField
           icon={icon}
           error={error}
           placeholder={placeholder}
-          style={style}
           disabled={disabled}
           required={required}
         />

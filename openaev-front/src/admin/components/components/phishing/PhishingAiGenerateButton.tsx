@@ -1,7 +1,9 @@
+import { Button, Chip, Text, Textarea } from '@filigran/design-system';
 import { AutoAwesomeOutlined } from '@mui/icons-material';
-import { LoadingButton } from '@mui/lab';
-import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon, TextField, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+// fds:keep-mui the pinned library predates its Alert: the component landed on the library's main on 2026-09-21 (#230), the pin d299fa4d6 is 2026-09-18. Lift at the next bump.
+// fds:keep-mui LinearProgress is indeterminate here and the library ProgressBar requires a value (LIBRARY-FEEDBACK.md 62)
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
@@ -165,8 +167,6 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
   };
 
   const noAgents = Boolean(xtmOneConfigured) && !loadingAgents && agentOptions.length === 0;
-  const actionColor = isEnterpriseEdition ? 'ai.main' : 'action.disabled';
-  const actionBorderColor = isEnterpriseEdition ? 'ai.main' : 'action.disabledBackground';
 
   return (
     <div style={{
@@ -180,23 +180,9 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
           alignItems: 'center',
         }}
         >
-          <Button
-            type="button"
-            variant="outlined"
-            size="small"
-            onClick={handleOpen}
-            disabled={disabled}
-            aria-label={btnLabel}
-            startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
-            endIcon={isEnterpriseEdition ? undefined : <span><EEChip /></span>}
-            sx={{
-              height: 36,
-              whiteSpace: 'nowrap',
-              color: actionColor,
-              borderColor: actionBorderColor,
-            }}
-          >
+          <Button variant="ia" priority="secondary" size="sm" startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />} type="button" onClick={handleOpen} disabled={disabled} style={{ whiteSpace: 'nowrap' }}>
             {btnLabel}
+            {!isEnterpriseEdition && <EEChip />}
           </Button>
         </span>
       </EETooltip>
@@ -252,15 +238,13 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
           }}
           >
             <div>
-              <TextField
+              <Textarea
                 label={t('Instructions')}
                 placeholder={contextualPlaceholder}
                 value={userPrompt}
                 onChange={event => setUserPrompt(event.target.value)}
-                multiline
                 minRows={2}
                 maxRows={4}
-                fullWidth
                 disabled={loading}
               />
               {suggestions.length > 0 && (
@@ -275,17 +259,9 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
                     <Chip
                       key={suggestion.label}
                       label={suggestion.label}
-                      size="small"
-                      variant="outlined"
-                      icon={<AutoAwesomeOutlined sx={{ fontSize: 14 }} />}
+                      startIcon={<AutoAwesomeOutlined sx={{ fontSize: 14 }} />}
                       onClick={() => applySuggestion(suggestion.instruction)}
                       disabled={loading}
-                      sx={{
-                        'borderColor': alpha(theme.palette.ai.main, 0.4),
-                        'color': 'text.secondary',
-                        '& .MuiChip-icon': { color: 'ai.main' },
-                        '&:hover': { backgroundColor: alpha(theme.palette.ai.main, 0.08) },
-                      }}
                     />
                   ))}
                 </Box>
@@ -297,16 +273,15 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
               justifyContent: 'flex-start',
             }}
             >
-              <LoadingButton
-                variant="contained"
-                color="primary"
+              <Button
+                type="button"
                 loading={loading}
                 disabled={!selectedAgent || noAgents}
                 onClick={handleGenerate}
                 startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
               >
                 {hasResult ? t('Regenerate') : t('Generate')}
-              </LoadingButton>
+              </Button>
             </Box>
 
             {noAgents && (
@@ -323,16 +298,12 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
             {loading && !hasResult && (
               <Box>
                 <LinearProgress color="primary" />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: 'block',
-                    mt: 1,
-                    color: 'text.secondary',
-                  }}
+                <Text
+                  variant="content-caption"
+                  className="mt-1 block text-default-secondary"
                 >
                   {t('Generating the preview...')}
-                </Typography>
+                </Text>
               </Box>
             )}
 
@@ -343,14 +314,12 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
                     loading,
                   })
                 : (
-                    <TextField
+                    <Textarea
                       label={t('Result')}
                       value={content}
                       onChange={event => setContent(event.target.value)}
-                      multiline
                       minRows={10}
                       maxRows={20}
-                      fullWidth
                       disabled={loading}
                     />
                   )
@@ -358,15 +327,10 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button variant="outlined" color="primary" onClick={handleClose}>
+          <Button type="button" priority="secondary" onClick={handleClose}>
             {t('Close')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            disabled={loading || !hasResult}
-            onClick={handleAccept}
-          >
+          <Button type="button" disabled={loading || !hasResult} onClick={handleAccept}>
             {t('Accept')}
           </Button>
         </DialogActions>

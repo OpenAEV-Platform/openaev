@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { Form } from 'react-final-form';
 
 import OldTextField from '../../../../components/fields/OldTextField';
@@ -32,22 +32,16 @@ const LessonsCategoryForm = (props) => {
       {({ handleSubmit, submitting, errors }) => (
         <form id="lessonsCategoryForm" onSubmit={handleSubmit}>
           <OldTextField
-            variant="standard"
             name="lessons_category_name"
-            fullWidth
             label={t('Name')}
           />
           <OldTextField
-            variant="standard"
             name="lessons_category_description"
-            fullWidth
             label={t('Description')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
-            variant="standard"
             name="lessons_category_order"
-            fullWidth
             label={t('Order')}
             type="number"
             style={{ marginTop: 20 }}
@@ -57,21 +51,10 @@ const LessonsCategoryForm = (props) => {
             marginTop: 20,
           }}
           >
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleClose}
-              style={{ marginRight: 10 }}
-              disabled={submitting}
-            >
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={submitting} style={{ marginRight: 10 }}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={submitting || Object.keys(errors).length > 0}
-            >
+            <Button type="submit" disabled={submitting || Object.keys(errors).length > 0}>
               {editing ? t('Update') : t('Create')}
             </Button>
           </div>

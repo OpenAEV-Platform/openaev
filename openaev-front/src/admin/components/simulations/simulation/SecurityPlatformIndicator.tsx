@@ -1,4 +1,5 @@
-import { Box, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SecurityNetwork } from 'mdi-material-ui';
 import { type FunctionComponent, useEffect } from 'react';
@@ -98,9 +99,18 @@ const SecurityPlatformIndicator: FunctionComponent<SecurityPlatformIndicatorProp
   }
 
   return (
-    <Tooltip
-      slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
-      title={(
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          color: theme.palette.text.secondary,
+        }}
+        >
+          <SecurityNetwork fontSize="small" />
+        </Box>
+      </TooltipTrigger>
+      <TooltipContent>
         <Box sx={{
           display: 'flex',
           flexDirection: 'column',
@@ -189,16 +199,7 @@ const SecurityPlatformIndicator: FunctionComponent<SecurityPlatformIndicatorProp
             ))}
           </Box>
         </Box>
-      )}
-    >
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        color: theme.palette.text.secondary,
-      }}
-      >
-        <SecurityNetwork fontSize="small" />
-      </Box>
+      </TooltipContent>
     </Tooltip>
   );
 };

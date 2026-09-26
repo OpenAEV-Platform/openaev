@@ -1,11 +1,13 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Add } from '@mui/icons-material';
-import { Button, IconButton, TextField, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import RegexComponent from '../../../../../components/RegexComponent';
 import { type ImportMapperAddInput } from '../../../../../utils/api-types';
@@ -17,11 +19,12 @@ const useStyles = makeStyles()(() => ({
   importerStyle: {
     display: 'flex',
     alignItems: 'center',
+    gap: 4,
     marginTop: 20,
   },
   importersErrorMessage: {
     fontSize: 13,
-    color: '#f44336',
+    color: 'var(--color-feedback-error-primary)',
   },
 }));
 
@@ -82,16 +85,14 @@ const MapperForm: FunctionComponent<Props> = ({
 
   return (
     <>
-      <form id="mapperForm" onSubmit={methods.handleSubmit(onSubmit)}>
-        <TextField
-          variant="standard"
-          fullWidth
+      <form noValidate id="mapperForm" onSubmit={methods.handleSubmit(onSubmit)}>
+        <TextFieldFds
+          required
           label={t('Mapper name')}
           style={{ marginTop: 10 }}
           error={!!methods.formState.errors.import_mapper_name}
           helperText={methods.formState.errors.import_mapper_name?.message}
-          inputProps={methods.register('import_mapper_name')}
-          InputLabelProps={{ required: true }}
+          {...methods.register('import_mapper_name')}
         />
         <div style={{ marginTop: 20 }}>
           <Controller
@@ -113,7 +114,7 @@ const MapperForm: FunctionComponent<Props> = ({
             {t('Representation for inject type')}
           </Typography>
           <IconButton
-            color="secondary"
+            icon={<Add fontSize="small" />}
             aria-label="Add"
             onClick={() => {
               append({
@@ -122,10 +123,9 @@ const MapperForm: FunctionComponent<Props> = ({
                 inject_importer_rule_attributes: [],
               });
             }}
-            size="large"
-          >
-            <Add fontSize="small" />
-          </IconButton>
+            priority="tertiary"
+            size="md"
+          />
           <div>
             <span className={classes.importersErrorMessage}>{methods.formState.errors.import_mapper_inject_importers?.message}</span>
           </div>
@@ -146,21 +146,10 @@ const MapperForm: FunctionComponent<Props> = ({
           marginTop: 20,
         }}
         >
-          <Button
-            variant="contained"
-            onClick={() => setOpenTest(true)}
-            color="primary"
-            style={{ marginRight: 10 }}
-            // disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={() => setOpenTest(true)} style={{ marginRight: 10 }}>
             {t('Test')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            // disabled={!isDirty || isSubmitting}
-          >
+          <Button type="submit">
             {editing ? t('Update') : t('Create')}
           </Button>
         </div>

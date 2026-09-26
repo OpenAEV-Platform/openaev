@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import type React from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -28,10 +29,10 @@ const XtmHubDialogConnectivityLostAuthorizedRegister: React.FC<Props> = ({ open,
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onCancel} variant="outlined" color="primary">
+        <Button type="button" priority="secondary" onClick={onCancel}>
           {t('Cancel')}
         </Button>
-        <Button onClick={onConfirm} variant="contained" color="primary">
+        <Button type="button" onClick={onConfirm}>
           {t('Reconnect')}
         </Button>
       </DialogActions>

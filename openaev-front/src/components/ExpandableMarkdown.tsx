@@ -1,8 +1,9 @@
+import { IconButton } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { IconButton } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { emptyFilled, truncate } from '../utils/String';
+import { useFormatter } from './i18n';
 import MarkdownDisplay from './MarkdownDisplay';
 
 interface ExpandableMarkdownProps {
@@ -18,6 +19,7 @@ const ExpandableMarkdown: FunctionComponent<ExpandableMarkdownProps> = ({
   showAll = false,
   markdownDOMId = '',
 }) => {
+  const { t } = useFormatter();
   const [expand, setExpand] = useState(showAll);
   const onClick = () => setExpand(!expand);
   const shouldBeTruncated = !showAll && (source || '').length > limit;
@@ -30,9 +32,13 @@ const ExpandableMarkdown: FunctionComponent<ExpandableMarkdownProps> = ({
           right: 0,
         }}
         >
-          <IconButton onClick={onClick} size="large">
-            {expand ? <ExpandLess /> : <ExpandMore />}
-          </IconButton>
+          <IconButton
+            icon={expand ? <ExpandLess /> : <ExpandMore />}
+            aria-label={expand ? t('Collapse') : t('Expand')}
+            onClick={onClick}
+            priority="tertiary"
+            size="md"
+          />
         </div>
       )}
       <div id={markdownDOMId} style={{ overflowX: 'auto' }}>

@@ -52,7 +52,7 @@ const CreateLessonsCategory = (props) => {
           />
         </ListItemButton>
       ) : (
-        <ButtonCreate onClick={handleOpen} />
+        <ButtonCreate size="sm" onClick={handleOpen} />
       )}
       <Dialog
         open={open}

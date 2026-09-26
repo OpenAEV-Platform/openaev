@@ -1,3 +1,4 @@
+import { Button, IconButton, Switch } from '@filigran/design-system';
 import {
   ArrowDropDownOutlined,
   ArrowDropUpOutlined,
@@ -7,22 +8,7 @@ import {
   DeleteOutlined,
   HelpOutlineOutlined,
 } from '@mui/icons-material';
-import {
-  Button,
-  FormControlLabel,
-  FormGroup,
-  IconButton,
-  InputLabel,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  ListItemText,
-  MenuItem,
-  Switch,
-  Typography,
-} from '@mui/material';
+import { InputLabel, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, MenuItem, Typography } from '@mui/material';
 import arrayMutators from 'final-form-arrays';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -94,49 +80,57 @@ const inlineStylesHeaders = {
     float: 'left',
     width: '30%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   team_users_number: {
     float: 'left',
     width: '15%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   team_enabled: {
     float: 'left',
     width: '15%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   team_tags: {
     float: 'left',
     width: '30%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   document_name: {
     float: 'left',
     width: '35%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   document_type: {
     float: 'left',
     width: '20%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   document_tags: {
     float: 'left',
     width: '30%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   document_attached: {
     float: 'left',
     width: '15%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -471,10 +465,8 @@ class QuickInjectComponent extends Component {
                   )
                 : (
                     <OldTextField
-                      variant="standard"
                       key={field.key}
                       name={field.key}
-                      fullWidth={true}
                       multiline={true}
                       rows={10}
                       label={t(field.label)}
@@ -485,10 +477,8 @@ class QuickInjectComponent extends Component {
             case 'number':
               return (
                 <OldTextField
-                  variant="standard"
                   key={field.key}
                   name={field.key}
-                  fullWidth={true}
                   type="number"
                   label={t(field.label)}
                   style={{ marginTop: theme.spacing(2.5) }}
@@ -520,19 +510,19 @@ class QuickInjectComponent extends Component {
                             {t(field.label)}
                             {field.cardinality === 'n' && (
                               <IconButton
+                                icon={<ControlPointOutlined />}
+                                aria-label={t('Add')}
                                 onClick={() => fields.push({
                                   type: 'text',
                                   key: '',
                                   value: '',
                                 })}
                                 aria-haspopup="true"
-                                size="medium"
                                 style={{ marginTop: -2 }}
-                                color="primary"
                                 disabled={isDisabled}
-                              >
-                                <ControlPointOutlined />
-                              </IconButton>
+                                priority="tertiary"
+                                size="md"
+                              />
                             )}
                           </InputLabel>
                         </div>
@@ -567,9 +557,7 @@ class QuickInjectComponent extends Component {
                                   )}
                                 </OldSelectField>
                                 <OldTextField
-                                  variant="standard"
                                   name={`${name}.key`}
-                                  fullWidth={true}
                                   label={t('Key')}
                                   style={{ marginRight: theme.spacing(2.5) }}
                                   disabled={isDisabled}
@@ -599,9 +587,7 @@ class QuickInjectComponent extends Component {
                                       </OldSelectField>
                                     ) : (
                                       <OldTextField
-                                        variant="standard"
                                         name={`${name}.value`}
-                                        fullWidth={true}
                                         label={t('Value')}
                                         style={{ marginRight: theme.spacing(2.5) }}
                                         disabled={isDisabled}
@@ -609,14 +595,15 @@ class QuickInjectComponent extends Component {
                                     )}
                                 {field.cardinality === 'n' && (
                                   <IconButton
+                                    icon={<DeleteOutlined />}
+                                    variant="destructive"
+                                    aria-label={t('Delete')}
                                     onClick={() => fields.remove(index)}
                                     aria-haspopup="true"
-                                    size="small"
-                                    color="primary"
                                     disabled={isDisabled}
-                                  >
-                                    <DeleteOutlined />
-                                  </IconButton>
+                                    priority="tertiary"
+                                    size="sm"
+                                  />
                                 )}
                               </ListItem>
                             );
@@ -728,10 +715,8 @@ class QuickInjectComponent extends Component {
             default:
               return (
                 <OldTextField
-                  variant="standard"
                   key={field.key}
                   name={field.key}
-                  fullWidth={true}
                   label={t(field.label)}
                   style={{ marginTop: theme.spacing(2.5) }}
                   disabled={isDisabled}
@@ -931,22 +916,14 @@ class QuickInjectComponent extends Component {
                     <Typography variant="h2" style={{ float: 'left' }}>
                       {t('Targeted teams')}
                     </Typography>
-                    <FormGroup
-                      row={true}
-                      classes={{ root: classes.allTeams }}
-                    >
-                      <FormControlLabel
-                        control={(
-                          <Switch
-                            checked={allTeams}
-                            onChange={this.toggleAll.bind(this)}
-                            color="primary"
-                            disabled={isDisabled}
-                          />
-                        )}
+                    <div className={classes.allTeams}>
+                      <Switch
+                        checked={allTeams}
+                        onCheckedChange={this.toggleAll.bind(this)}
+                        disabled={isDisabled}
                         label={<strong>{t('All teams')}</strong>}
                       />
-                    </FormGroup>
+                    </div>
                     <div className="clearfix" />
                     <List>
                       <ListItem
@@ -1123,12 +1100,7 @@ class QuickInjectComponent extends Component {
                     <Typography variant="h2">{t('Inject data')}</Typography>
                   </div>
                   <div style={{ float: 'right' }}>
-                    <Button
-                      color="primary"
-                      variant="outlined"
-                      onClick={this.handleOpenVariables.bind(this)}
-                      startIcon={<HelpOutlineOutlined />}
-                    >
+                    <Button type="button" priority="secondary" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={this.handleOpenVariables.bind(this)}>
                       {t('Available variables')}
                     </Button>
                   </div>
@@ -1167,8 +1139,8 @@ class QuickInjectComponent extends Component {
                     attachedDocs,
                   )}
                   <Button
-                    color="secondary"
-                    variant="outlined"
+                    type="button"
+                    priority="secondary"
                     disabled={submitting || isDisabled}
                     onClick={this.resetDefaultvalues.bind(
                       this,
@@ -1376,12 +1348,7 @@ class QuickInjectComponent extends Component {
                   margin: '20px 0 20px 0',
                 }}
                 >
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    type="submit"
-                    disabled={submitting || isDisabled}
-                  >
+                  <Button type="submit" disabled={submitting || isDisabled}>
                     {t('Send')}
                   </Button>
                 </div>

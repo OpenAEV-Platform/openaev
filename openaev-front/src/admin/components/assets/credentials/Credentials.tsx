@@ -1,5 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { PlayCircleOutlineOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
@@ -206,10 +207,9 @@ const Credentials = () => {
           {canDelete && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -281,12 +281,11 @@ const Credentials = () => {
                       onClick={event => onToggleEntity(credential, event)}
                     >
                       <Checkbox
-                        edge="start"
+                        aria-label={credential.credential_name}
                         checked={
                           (selectAll && !((credential.credential_id ?? '') in (deSelectedElements || {})))
                           || (credential.credential_id ?? '') in (selectedElements || {})
                         }
-                        disableRipple
                       />
                     </ListItemIcon>
                   )}

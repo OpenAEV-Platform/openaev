@@ -1,4 +1,5 @@
-import { Paper, Typography } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Typography } from '@mui/material';
 
 import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../components/i18n';
@@ -24,13 +25,7 @@ const ConnectorBuiltinInfo = ({ description }: Props) => {
     }}
     >
       <Typography sx={SECTION_LABEL_SX}>{t('Description')}</Typography>
-      <Paper
-        variant="outlined"
-        sx={{
-          padding: 2,
-          borderRadius: 1,
-        }}
-      >
+      <Paper padding={16}>
         <Typography
           variant="body1"
           sx={{

@@ -1,15 +1,19 @@
 import { DevicesOtherOutlined } from '@mui/icons-material';
-import { Box, Chip } from '@mui/material';
-import { Fragment } from 'react';
+// fds:keep-mui deferred to the filter bar wave (LIBRARY-FEEDBACK #54: the filter chip edits its and/or from the label)
+import { Chip } from '@mui/material';
 
 import ClickableModeChip from '../../../../components/common/chips/ClickableModeChip';
 import FilterChipValues from '../../../../components/common/queryable/filter/FilterChipValues';
 import { type Translate } from '../../../../components/i18n';
 import { type AssetGroup, type AssetGroupOutput } from '../../../../utils/api-types';
+import AssetGroupRulesCell from './AssetGroupRulesCell';
+
+// Every chip of the Rules column is the same height as the library's own.
+const RULES_CHIP_HEIGHT = 24;
 
 const CHIP_SX = {
   borderRadius: 1,
-  height: 20,
+  height: RULES_CHIP_HEIGHT,
 };
 
 // Shared rule rendering (dynamic filter chips + static managed assets count)
@@ -28,39 +32,58 @@ const computeRuleValues = (
     return <>-</>;
   }
 
-  return (
-    <Box
-      sx={{
-        padding: '0px 4px',
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 1,
-      }}
-    >
-      {dynamicFilters.map((filter, idx) => (
-        <Fragment key={filter.key}>
-          {idx !== 0 && <ClickableModeChip mode={assetGroup.asset_group_dynamic_filter?.mode} />}
-          <Chip
-            variant="filled"
-            size="small"
-            sx={CHIP_SX}
-            label={<FilterChipValues filter={filter} />}
-          />
-        </Fragment>
-      ))}
-      {hasDynamic && hasStatic && <span>{t('and')}</span>}
-      {hasStatic && (
+  // One node per rule, each carrying its own leading separator, so the cell can
+  // drop whole rules from the end without ever cutting one in half.
+  const items = [
+    ...dynamicFilters.map((filter, idx) => (
+      <span
+        key={filter.key}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          flexShrink: 0,
+        }}
+      >
+        {idx !== 0 && <ClickableModeChip mode={assetGroup.asset_group_dynamic_filter?.mode} height={RULES_CHIP_HEIGHT} />}
         <Chip
           variant="filled"
           size="small"
           sx={CHIP_SX}
-          icon={<DevicesOtherOutlined sx={{ fontSize: 14 }} />}
-          label={t('{count} managed assets', { count: staticCount })}
+          label={<FilterChipValues filter={filter} />}
         />
-      )}
-    </Box>
-  );
+      </span>
+    )),
+    ...(hasStatic
+      ? [(
+          <span
+            key="managed-assets"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              flexShrink: 0,
+            }}
+          >
+            {hasDynamic && <span>{t('and')}</span>}
+            <Chip
+              variant="filled"
+              size="small"
+              sx={CHIP_SX}
+              icon={<DevicesOtherOutlined sx={{ fontSize: 14 }} />}
+              label={t('{count} managed assets', { count: staticCount })}
+            />
+          </span>
+        )]
+      : []),
+  ];
+
+  const labels = [
+    ...dynamicFilters.map(filter => filter.key),
+    ...(hasStatic ? [String(t('{count} managed assets', { count: staticCount }))] : []),
+  ];
+
+  return <AssetGroupRulesCell items={items} labels={labels} />;
 };
 
 export default computeRuleValues;

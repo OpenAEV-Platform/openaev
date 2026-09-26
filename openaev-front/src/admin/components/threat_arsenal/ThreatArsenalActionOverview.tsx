@@ -1,3 +1,4 @@
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AttachFileOutlined,
   BugReportOutlined,
@@ -13,17 +14,7 @@ import {
   TuneOutlined,
   VerifiedOutlined,
 } from '@mui/icons-material';
-import {
-  Box,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Skeleton, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -54,6 +45,7 @@ import {
   type ThreatArsenalExpectationDetail,
 } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
+import { tint } from '../../../utils/tint';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
@@ -291,9 +283,9 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                     paddingInline: 1,
                     paddingBlock: 0.25,
                     borderRadius: 1,
-                    backgroundColor: alpha(statusColor, 0.18),
+                    backgroundColor: tint(statusColor, 18),
                     color: statusColor,
-                    border: `1px solid ${alpha(statusColor, 0.45)}`,
+                    border: `1px solid ${tint(statusColor, 45)}`,
                     fontSize: 10.5,
                     fontWeight: 700,
                     letterSpacing: '0.04em',
@@ -308,7 +300,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                       height: 6,
                       borderRadius: '50%',
                       backgroundColor: statusColor,
-                      boxShadow: `0 0 6px ${alpha(statusColor, 0.8)}`,
+                      boxShadow: `0 0 6px ${tint(statusColor, 80)}`,
                     }}
                   />
                   {t(statusLabel)}
@@ -502,35 +494,35 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
           }}
           >
             {attackPatterns.map(ap => (
-              <Tooltip
-                key={ap.attack_pattern_id}
-                title={`[${ap.attack_pattern_external_id}] ${ap.attack_pattern_name}`}
-              >
-                <Box
-                  sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    paddingBlock: 0.5,
-                    paddingInline: 1,
-                    borderRadius: 1,
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                    color: theme.palette.primary.main,
-                    fontSize: 11.5,
-                    fontWeight: 500,
-                    fontFamily: 'Consolas, monaco, monospace',
-                    maxWidth: 280,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  [
-                  {ap.attack_pattern_external_id}
-                  ]
-                  {' '}
-                  {ap.attack_pattern_name}
-                </Box>
+              <Tooltip key={ap.attack_pattern_id}>
+                <TooltipTrigger asChild>
+                  <Box
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      paddingBlock: 0.5,
+                      paddingInline: 1,
+                      borderRadius: 1,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                      color: theme.palette.primary.main,
+                      fontSize: 11.5,
+                      fontWeight: 500,
+                      fontFamily: 'Consolas, monaco, monospace',
+                      maxWidth: 280,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    [
+                    {ap.attack_pattern_external_id}
+                    ]
+                    {' '}
+                    {ap.attack_pattern_name}
+                  </Box>
+                </TooltipTrigger>
+                <TooltipContent>{`[${ap.attack_pattern_external_id}] ${ap.attack_pattern_name}`}</TooltipContent>
               </Tooltip>
             ))}
           </Box>
@@ -673,14 +665,17 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                           {name ?? typeLabel}
                         </Typography>
                         {row.expectation_description && (
-                          <Tooltip title={row.expectation_description}>
-                            <InfoOutlined
-                              sx={{
-                                fontSize: 14,
-                                color: 'text.secondary',
-                                flexShrink: 0,
-                              }}
-                            />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <InfoOutlined
+                                sx={{
+                                  fontSize: 14,
+                                  color: 'text.secondary',
+                                  flexShrink: 0,
+                                }}
+                              />
+                            </TooltipTrigger>
+                            {row.expectation_description && <TooltipContent>{row.expectation_description}</TooltipContent>}
                           </Tooltip>
                         )}
                       </Box>
@@ -887,16 +882,13 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
           }}
           >
             {payload.payload_prerequisites?.map((prereq: PayloadPrerequisite, idx) => (
-              <Box
+              <Paper
                 key={`${prereq.executor}-${idx}`}
-                sx={{
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 1,
-                  padding: 1.5,
-                  backgroundColor: alpha(theme.palette.background.paper, 0.4),
+                padding={16}
+                style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 1,
+                  gap: 8,
                 }}
               >
                 {prereq.executor && (
@@ -912,7 +904,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                     <CodeBlock content={prereq.check_command} />
                   </Field>
                 )}
-              </Box>
+              </Paper>
             ))}
           </Box>
         </Section>

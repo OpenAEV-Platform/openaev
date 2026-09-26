@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useParams } from 'react-router';
 
 import { type PhishingLandingPagesHelper } from '../../../../../actions/phishing/phishing-helper';
@@ -77,13 +78,16 @@ const PhishingLandingPage = () => {
                 label={landingPage.phishing_landing_page_capture_passwords ? t('Yes') : t('No')}
                 variant="inList"
               />
-              <Tooltip title={t('When enabled, credentials submitted by recipients (username and password) are captured and tracked per target. When disabled, only the submission event is recorded - passwords are never stored.')}>
-                <InfoOutlined sx={{
-                  fontSize: 16,
-                  color: 'text.secondary',
-                  cursor: 'help',
-                }}
-                />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <InfoOutlined sx={{
+                    fontSize: 16,
+                    color: 'text.secondary',
+                    cursor: 'help',
+                  }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{t('When enabled, credentials submitted by recipients (username and password) are captured and tracked per target. When disabled, only the submission event is recorded - passwords are never stored.')}</TooltipContent>
               </Tooltip>
             </Box>
           </Field>

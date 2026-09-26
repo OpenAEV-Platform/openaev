@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { ErrorOutlineOutlined, FactCheckOutlined, PendingActionsOutlined, ScheduleOutlined, TaskAltOutlined } from '@mui/icons-material';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -90,16 +91,11 @@ const ExecutionHero: FunctionComponent<Props> = ({
 
   return (
     <Paper
-      variant="outlined"
-      sx={{
+      padding={16}
+      style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 2,
-        padding: 2,
-        borderRadius: 1,
-        background: running
-          ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.05)}, transparent 55%)`
-          : undefined,
+        gap: 16,
       }}
     >
       {/* Status beacon + elapsed clock + next inject countdown */}
@@ -299,7 +295,9 @@ const ExecutionHero: FunctionComponent<Props> = ({
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    background: `linear-gradient(90deg, transparent, ${alpha('#ffffff', 0.3)}, transparent)`,
+                    // The sweep reads the library's neutral feedback tone at 30%
+                    // instead of a hand-rolled white, so it resolves per mode.
+                    background: `linear-gradient(90deg, transparent, ${theme.palette.designSystem.alert.neutral.secondaryTransparency30}, transparent)`,
                     animation: 'execution-progress-shimmer 2.4s ease-in-out infinite',
                   },
                   '@keyframes execution-progress-shimmer': {

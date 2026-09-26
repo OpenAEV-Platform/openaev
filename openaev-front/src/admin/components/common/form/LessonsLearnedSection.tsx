@@ -1,4 +1,5 @@
-import { FormControlLabel, Switch, Typography } from '@mui/material';
+import { Switch } from '@filigran/design-system';
+import { Typography } from '@mui/material';
 import { type CSSProperties } from 'react';
 import { type Control, Controller, type FieldValues, type Path } from 'react-hook-form';
 
@@ -23,7 +24,8 @@ const LessonsLearnedSection = <TFieldValues extends FieldValues>({
     <div style={style}>
       <Typography
         variant="h2"
-        gutterBottom
+        // 8px under the subtitle, not the h2's own 10px bottom margin.
+        sx={{ marginBottom: 1 }}
       >
         {t('Modules')}
       </Typography>
@@ -31,14 +33,10 @@ const LessonsLearnedSection = <TFieldValues extends FieldValues>({
         control={control}
         name={name}
         render={({ field }) => (
-          <FormControlLabel
-            control={(
-              <Switch
-                checked={field.value ?? false}
-                onChange={event => field.onChange(event.target.checked)}
-                disabled={disabled}
-              />
-            )}
+          <Switch
+            checked={field.value ?? false}
+            onCheckedChange={checked => field.onChange(checked === true)}
+            disabled={disabled}
             label={t('Enable lessons learned')}
           />
         )}

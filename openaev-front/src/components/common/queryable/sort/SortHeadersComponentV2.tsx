@@ -1,5 +1,5 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDropDownOutlined, ArrowDropUpOutlined } from '@mui/icons-material';
-import { Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -8,19 +8,25 @@ import { type Header } from '../../SortHeadersList';
 import useBodyItemsStyles from '../style/style';
 import { type SortHelpers } from './SortHelpers';
 
-const useStyles = makeStyles()(() => ({
+// A column heading names its column, it does not compete with the values under
+// it: secondary ink, like every other heading of a surface.
+const useStyles = makeStyles()(theme => ({
   sortableHeaderItem: {
     display: 'flex',
     cursor: 'pointer',
     alignItems: 'center',
-    fontWeight: '700',
+    // Regular weight: a column heading names its column, the values under it
+    // are what carries the emphasis.
+    fontWeight: 400,
+    color: theme.palette.text.secondary,
   },
   headerItemText: {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    fontWeight: '700',
+    fontWeight: 400,
   },
+  headerItem: { color: theme.palette.text.secondary },
 }));
 
 interface Props {
@@ -63,13 +69,17 @@ const SortHeadersComponentV2: FunctionComponent<Props> = ({
     return (
       <div
         key={header.field}
+        className={classes.headerItem}
         style={{
           ...bodyItemsStyles.bodyItem,
           ...style,
         }}
       >
-        <Tooltip title={t(header.label)}>
-          <div className={classes.headerItemText}>{t(header.label)}</div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={classes.headerItemText}>{t(header.label)}</div>
+          </TooltipTrigger>
+          <TooltipContent>{t(header.label)}</TooltipContent>
         </Tooltip>
       </div>
     );

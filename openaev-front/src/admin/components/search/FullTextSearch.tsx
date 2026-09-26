@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { AppsOutlined, KeyboardArrowRight } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -120,19 +121,7 @@ const CategoryRail: FunctionComponent<CategoryRailProps> = ({ categories, total,
         >
           {t(entityLabel(clazz))}
         </Typography>
-        <Chip
-          label={count}
-          size="small"
-          sx={{
-            height: 20,
-            minWidth: 28,
-            borderRadius: 0.5,
-            fontSize: 11,
-            fontWeight: 600,
-            backgroundColor: isSelected ? alpha(theme.palette.primary.main, 0.2) : alpha(theme.palette.text.primary, 0.06),
-            color: isSelected ? theme.palette.primary.main : theme.palette.text.secondary,
-          }}
-        />
+        <Chip label={String(count)} severity="info" />
       </Box>
     );
   };

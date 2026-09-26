@@ -1,5 +1,6 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { Close, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 
 import { useFormatter } from '../../../../../components/i18n';
 
@@ -43,9 +44,13 @@ const AddActionFooter = ({ numberOfSelectedElements, onClear, onSubmit }: AddAct
           {`${numberOfSelectedElements} ${t('Selected')}`}
         </Typography>
         {numberOfSelectedElements > 0 && (
-          <IconButton size="small" onClick={onClear}>
-            <Close sx={{ fontSize: 14 }} />
-          </IconButton>
+          <IconButton
+            icon={<Close sx={{ fontSize: 14 }} />}
+            aria-label={t('Close')}
+            onClick={onClear}
+            priority="tertiary"
+            size="sm"
+          />
         )}
       </Box>
       <Box
@@ -61,11 +66,7 @@ const AddActionFooter = ({ numberOfSelectedElements, onClear, onSubmit }: AddAct
           {t('Bulk select lets you add multiple actions, which you will need to configure after adding them')}
         </Typography>
       </Box>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={onSubmit}
-      >
+      <Button type="button" onClick={onSubmit}>
         {t('Add actions')}
       </Button>
     </Box>
