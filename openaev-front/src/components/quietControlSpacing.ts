@@ -23,6 +23,11 @@ const WRAPPED = `span:has(> ${QUIET})`;
  * other: a segmented control, a tab bar, a split button, the pagination arrows. */
 const FLUSH = ':is([role="radiogroup"], [role="tablist"], .MuiTabs-root, .MuiButtonGroup-root, .MuiTablePagination-actions, .MuiPagination-root)';
 
+/** The rule pulls two controls together along the INLINE axis, so it must not fire
+ * when they are stacked: a number field's two stepper arrows are quiet buttons in a
+ * `flex-col`, and the pull-back moved the lower one 4px out of its own column. */
+const STACKED = '.flex-col';
+
 const pairs = (left: string, right: string) => `${left} + ${right}`;
 
 const quietControlSpacing: Record<string, { marginLeft: number }> = {};
@@ -33,6 +38,7 @@ for (const left of [QUIET, WRAPPED]) {
     // specific than it — a shorter selector would lose the cascade and the tab
     // bar would pull its own triggers together.
     quietControlSpacing[`${FLUSH} ${pairs(left, right)}`] = { marginLeft: 0 };
+    quietControlSpacing[`${STACKED} > ${pairs(left, right)}`] = { marginLeft: 0 };
   }
 }
 
