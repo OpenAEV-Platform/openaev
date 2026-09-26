@@ -6,7 +6,7 @@
  * fields. Wiring: fds-migration/TOKEN-MAPPING.md.
  *
  * Source: @filigran/design-system packages/filigran-design-system/src/tokens/theme.css
- * Theme.css content hash: sha256:4719a8a35ab7c376301f1b39942ad6a67ae93ec882a7bfa8c9e439ab0afdbd8e
+ * Theme.css content hash: sha256:6053664323b9f8b5e17180cedfde9b46ff739d681f54469724d1e3169327016f
  * Regenerate (from the filigran-design-system repo, not here):
  *   pnpm generate:mui-bridge --product openaev --write-to-product
  *
@@ -18,7 +18,7 @@
 
 export const FDS_META = {
   product: "openaev",
-  themeCssHash: "sha256:4719a8a35ab7c376301f1b39942ad6a67ae93ec882a7bfa8c9e439ab0afdbd8e",
+  themeCssHash: "sha256:6053664323b9f8b5e17180cedfde9b46ff739d681f54469724d1e3169327016f",
   generator: "@filigran/design-system scripts/generate-mui-bridge.ts",
 } as const;
 
@@ -117,6 +117,7 @@ const colorsDark = {
   "--color-entities-victimology-transparency-20": "#ba88ff33",
   "--color-feedback-alert-primary": "#f2be3a",
   "--color-feedback-alert-secondary": "#b8870a",
+  "--color-feedback-alert-secondary-transparency-20": "#b8870a33",
   "--color-feedback-alert-secondary-transparency-30": "#b8870a4d",
   "--color-feedback-alert-tertiary": "#f8d98c",
   "--color-feedback-contrast-primary": "#ffffff33",
@@ -129,6 +130,7 @@ const colorsDark = {
   "--color-feedback-error-tertiary": "#f57266",
   "--color-feedback-info-primary": "#42caff",
   "--color-feedback-info-secondary": "#0079a8",
+  "--color-feedback-info-secondary-transparency-20": "#0079a833",
   "--color-feedback-info-secondary-transparency-30": "#0079a84d",
   "--color-feedback-info-tertiary": "#a8e7ff",
   "--color-feedback-neutral-off": "#f2f2f3",
@@ -138,10 +140,12 @@ const colorsDark = {
   "--color-feedback-neutral-tertiary": "#cacbce",
   "--color-feedback-success-primary": "#17ab1f",
   "--color-feedback-success-secondary": "#094e0b",
+  "--color-feedback-success-secondary-transparency-20": "#094e0b33",
   "--color-feedback-success-secondary-transparency-30": "#094e0b4d",
   "--color-feedback-success-tertiary": "#91f396",
   "--color-feedback-warning-primary": "#e6700f",
   "--color-feedback-warning-secondary": "#884106",
+  "--color-feedback-warning-secondary-transparency-20": "#88410633",
   "--color-feedback-warning-secondary-transparency-30": "#8841064d",
   "--color-feedback-warning-tertiary": "#f8c08c",
   "--color-filigran-brand-primary": "#42caff",
@@ -272,6 +276,7 @@ const colorsLight = {
   "--color-entities-victimology-transparency-20": "#6600f533",
   "--color-feedback-alert-primary": "#f2be3a",
   "--color-feedback-alert-secondary": "#f8d98c",
+  "--color-feedback-alert-secondary-transparency-20": "#f8d98c33",
   "--color-feedback-alert-secondary-transparency-30": "#f8d98c4d",
   "--color-feedback-alert-tertiary": "#573e05",
   "--color-feedback-contrast-primary": "#00000033",
@@ -284,6 +289,7 @@ const colorsLight = {
   "--color-feedback-error-tertiary": "#881106",
   "--color-feedback-info-primary": "#0079a8",
   "--color-feedback-info-secondary": "#42caff",
+  "--color-feedback-info-secondary-transparency-20": "#42caff33",
   "--color-feedback-info-secondary-transparency-30": "#42caff4d",
   "--color-feedback-info-tertiary": "#005575",
   "--color-feedback-neutral-off": "#7a7c85",
@@ -293,10 +299,12 @@ const colorsLight = {
   "--color-feedback-neutral-tertiary": "#494a50",
   "--color-feedback-success-primary": "#117916",
   "--color-feedback-success-secondary": "#72e978",
+  "--color-feedback-success-secondary-transparency-20": "#72e97833",
   "--color-feedback-success-secondary-transparency-30": "#72e9784d",
   "--color-feedback-success-tertiary": "#094e0b",
   "--color-feedback-warning-primary": "#b8550a",
   "--color-feedback-warning-secondary": "#f8c08c",
+  "--color-feedback-warning-secondary-transparency-20": "#f8c08c33",
   "--color-feedback-warning-secondary-transparency-30": "#f8c08c4d",
   "--color-feedback-warning-tertiary": "#572a05",
   "--color-filigran-brand-primary": "#0015a8",
