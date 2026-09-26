@@ -1,5 +1,5 @@
-import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Box, Paper as MuiPaper, Typography } from '@mui/material';
+import { Hero, HeroBody, HeroHeader, Paper, Text, Thumbnail, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -357,141 +357,109 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
   stats?: ReactNode;
   /** Free-form extra hero row rendered after the stats (e.g. meta items). */
   footer?: ReactNode;
-}) => {
-  const theme = useTheme();
-  const accent = theme.palette.primary.main;
-  return (
-    // DetailHero stays on MUI: accent gradient + transparent fill, and the
-    // transparency falls under the "semi-transparent = phase 2" exclusion.
-    // It also leaves the Paper waves permanently — it becomes its own
-    // component (PAPER-GAP-INVENTORY §5.8).
-    <MuiPaper
-      variant="outlined"
-      data-testid="detail-hero"
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-        padding: 2,
-        borderRadius: 1,
-        background: `linear-gradient(135deg, ${alpha(accent, 0.08)}, transparent 60%)`,
-      }}
-    >
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-      }}
-      >
-        <Box
-          sx={{
-            width: 52,
-            height: 52,
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            backgroundColor: alpha(accent, 0.12),
-            border: `1px solid ${alpha(accent, 0.3)}`,
-          }}
-        >
-          {iconNode ?? (Icon ? <Icon color="primary" /> : null)}
-        </Box>
+}) => (
+  // The library's Hero: the surface, the two brand accents and the header/body
+  // split all come from the component now. Padding stays at 16 rather than the
+  // component's 24 so the twenty-one pages that render this keep their density.
+  <Hero padding={16} data-testid="detail-hero">
+    <HeroHeader
+      icon={(iconNode || Icon) ? <Thumbnail>{iconNode ?? (Icon ? <Icon color="primary" /> : null)}</Thumbnail> : undefined}
+      action={action && (
         <Box sx={{
-          minWidth: 0,
-          flex: 1,
+          'display': 'flex',
+          'alignItems': 'center',
+          'gap': 1,
+          'flexShrink': 0,
+          'flexWrap': 'wrap',
+          'justifyContent': 'flex-end',
+          // One control geometry for every hero across the app: identical
+          // height, font, line-height and padding for all text buttons
+          // (outlined or contained), so no CTA ever looks smaller than its
+          // neighbors.
+          '& .MuiButton-root': {
+            height: 32,
+            fontSize: 13,
+            fontWeight: 500,
+            lineHeight: '21px',
+            paddingTop: 0,
+            paddingBottom: 0,
+            paddingInline: 1.5,
+          },
+          '& .MuiButton-root .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 },
+          '& .MuiToggleButton-root': {
+            width: 32,
+            height: 32,
+          },
+          // Only normalize IconButtons sitting directly in the cluster
+          // (custom nested toolbars keep their own internal sizing).
+          '& > .MuiIconButton-root': {
+            width: 32,
+            height: 32,
+            borderRadius: 1,
+          },
+          '& > .MuiIconButton-root .MuiSvgIcon-root': { fontSize: 20 },
         }}
         >
-          {overline && (
-            <Typography sx={{
-              fontFamily: '"Geologica", sans-serif',
-              fontWeight: 600,
-              fontSize: 11,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              color: 'primary.main',
-            }}
-            >
-              {overline}
-            </Typography>
-          )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Typography
-                variant="h1"
-                sx={{
-                  margin: 0,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  // Shrink the anchor to the actual title width (capped at the
-                  // column) so the tooltip sits under the text instead of the
-                  // center of a full-width block.
-                  width: 'fit-content',
-                  maxWidth: '100%',
-                }}
-              >
-                {title}
-              </Typography>
-            </TooltipTrigger>
-            {title && <TooltipContent side="bottom" align="start">{title}</TooltipContent>}
-          </Tooltip>
-          {chips && (
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              marginTop: 0.5,
-              flexWrap: 'wrap',
-            }}
-            >
-              {chips}
-            </Box>
-          )}
+          {action}
         </Box>
-        {action && (
+      )}
+    >
+      <Box sx={{
+        minWidth: 0,
+        flex: 1,
+      }}
+      >
+        {overline && (
+          <Text
+            variant="content-caption"
+            className="block uppercase font-semibold text-brand-primary"
+            // The library ships no generic letter-spacing scale.
+            style={{ letterSpacing: '0.1em' }}
+          >
+            {overline}
+          </Text>
+        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Text
+              variant="title-md"
+              as="h1"
+              style={{
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                // Shrink the anchor to the actual title width (capped at the
+                // column) so the tooltip sits under the text instead of the
+                // center of a full-width block.
+                width: 'fit-content',
+                maxWidth: '100%',
+              }}
+            >
+              {title}
+            </Text>
+          </TooltipTrigger>
+          {title && <TooltipContent side="bottom" align="start">{title}</TooltipContent>}
+        </Tooltip>
+        {chips && (
           <Box sx={{
-            'display': 'flex',
-            'alignItems': 'center',
-            'gap': 1,
-            'flexShrink': 0,
-            'flexWrap': 'wrap',
-            'justifyContent': 'flex-end',
-            // One control geometry for every hero across the app: identical
-            // height, font, line-height and padding for all text buttons
-            // (outlined or contained), so no CTA ever looks smaller than its
-            // neighbors.
-            '& .MuiButton-root': {
-              height: 32,
-              fontSize: 13,
-              fontWeight: 500,
-              lineHeight: '21px',
-              paddingTop: 0,
-              paddingBottom: 0,
-              paddingInline: 1.5,
-            },
-            '& .MuiButton-root .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 },
-            '& .MuiToggleButton-root': {
-              width: 32,
-              height: 32,
-            },
-            // Only normalize IconButtons sitting directly in the cluster
-            // (custom nested toolbars keep their own internal sizing).
-            '& > .MuiIconButton-root': {
-              width: 32,
-              height: 32,
-              borderRadius: 1,
-            },
-            '& > .MuiIconButton-root .MuiSvgIcon-root': { fontSize: 20 },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            marginTop: 0.5,
+            flexWrap: 'wrap',
           }}
           >
-            {action}
+            {chips}
           </Box>
         )}
       </Box>
-      {stats && <HeroStats>{stats}</HeroStats>}
-      {footer}
-    </MuiPaper>
-  );
-};
+    </HeroHeader>
+    {(stats || footer) && (
+      <HeroBody>
+        {stats && <HeroStats>{stats}</HeroStats>}
+        {footer}
+      </HeroBody>
+    )}
+  </Hero>
+);
