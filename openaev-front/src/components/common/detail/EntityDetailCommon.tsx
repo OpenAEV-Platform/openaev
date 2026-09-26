@@ -412,7 +412,7 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
         {overline && (
           <Text
             variant="content-caption"
-            className="block uppercase font-semibold text-brand-primary"
+            className="block uppercase font-semibold text-filigran-brand-primary"
             // The library ships no generic letter-spacing scale.
             style={{ letterSpacing: '0.1em' }}
           >

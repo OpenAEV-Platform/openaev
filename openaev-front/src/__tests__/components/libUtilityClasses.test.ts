@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest';
 /**
  * The product builds no Tailwind of its own: every utility class it writes has to
  * exist in the stylesheet the library ships. A class that does not simply does
- * nothing, silently — no type error, no lint error, no failing render.
+ * nothing, silently — no type error, no lint error, no failing render. This walks
+ * the sources and checks each class against that stylesheet, rather than against a
+ * list of the ones already known to be missing.
  */
 const CSS = path.join(
   process.cwd(),
@@ -14,16 +16,13 @@ const CSS = path.join(
 );
 const SRC = path.join(process.cwd(), 'src');
 
-// Utilities the library's own stylesheet is known not to carry, with what to write instead.
-const NOT_SHIPPED: Record<string, string> = {
-  'tracking-widest': 'set letterSpacing in style — the library ships no generic tracking scale',
-  'tracking-wider': 'set letterSpacing in style — the library ships no generic tracking scale',
-  'tracking-tight': 'set letterSpacing in style — the library ships no generic tracking scale',
-  'line-clamp-1': 'write the -webkit-box clamp in style',
-  'line-clamp-2': 'write the -webkit-box clamp in style',
-  'line-clamp-3': 'write the -webkit-box clamp in style',
-  'text-alert-error': 'use text-feedback-error-primary',
-};
+/**
+ * A class is only checked when the library owns its FAMILY — the segment before the
+ * first dash, e.g. `text-` or `tracking-`. That keeps the product's own selectors
+ * (`reporting-sheet`, `app-navbar`) and third-party ones (`layout`, `noDrag`) out of
+ * it, while a `text-…` or `bg-…` that the stylesheet does not define is a mistake.
+ */
+const familyOf = (cls: string) => (cls.includes('-') ? cls.slice(0, cls.indexOf('-') + 1) : null);
 
 const walk = (dir: string, out: string[] = []): string[] => {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -34,15 +33,44 @@ const walk = (dir: string, out: string[] = []): string[] => {
   return out;
 };
 
+/** Every class the shipped stylesheet defines, escapes resolved. */
+const shippedClasses = (): Set<string> => {
+  const css = fs.readFileSync(CSS, 'utf8');
+  const found = new Set<string>();
+  for (const [, raw] of css.matchAll(/\.((?:[\w-]|\\.)+)(?=[\s,{:>~+)])/g)) {
+    found.add(raw.replace(/\\(.)/g, '$1'));
+  }
+  return found;
+};
+
+/** Every literal class the sources write in a className, variants stripped. */
+const writtenClasses = (): Map<string, string[]> => {
+  const byClass = new Map<string, string[]>();
+  for (const file of walk(SRC)) {
+    const source = fs.readFileSync(file, 'utf8');
+    for (const [, quoted, templated] of source.matchAll(/className=(?:"([^"]*)"|\{`([^`${}]*)`\})/g)) {
+      for (const token of (quoted ?? templated ?? '').split(/\s+/)) {
+        if (!token || /[${}()[\]]/.test(token)) continue;
+        const base = token.split(':').pop() as string;
+        if (!base || !familyOf(base)) continue;
+        byClass.set(base, [...(byClass.get(base) ?? []), path.relative(process.cwd(), file)]);
+      }
+    }
+  }
+  return byClass;
+};
+
 describe('utility classes the library ships', () => {
   it('the reference stylesheet is the one the product imports', () => {
     expect(fs.existsSync(CSS)).toBe(true);
   });
 
-  it.each(Object.entries(NOT_SHIPPED))('no source writes %s', (cls, instead) => {
-    const offenders = walk(SRC)
-      .filter(file => new RegExp(`className=[^\\n]*\\b${cls}\\b`).test(fs.readFileSync(file, 'utf8')))
-      .map(file => path.relative(process.cwd(), file));
-    expect(offenders, `${cls} does nothing: ${instead}`).toEqual([]);
+  it('every class written in a className exists in that stylesheet', () => {
+    const shipped = shippedClasses();
+    const families = new Set([...shipped].map(familyOf).filter(Boolean));
+    const missing = [...writtenClasses().entries()]
+      .filter(([cls]) => !shipped.has(cls) && families.has(familyOf(cls)))
+      .map(([cls, files]) => `${cls} (${[...new Set(files)].slice(0, 3).join(', ')})`);
+    expect(missing, 'these classes resolve to nothing at runtime').toEqual([]);
   });
 });
