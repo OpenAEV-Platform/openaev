@@ -11,7 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
 import { Button, Textarea } from '@filigran/design-system';
-// fds:keep-mui Alert has no library equivalent
+// fds:keep-mui the pinned library predates its Alert: the component landed on the library's main on 2026-09-21 (#230), the pin d299fa4d6 is 2026-09-18. Lift at the next bump.
 import { Alert } from '@mui/material';
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';

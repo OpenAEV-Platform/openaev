@@ -1,6 +1,7 @@
 import { Button, Chip, Text, Textarea } from '@filigran/design-system';
 import { AutoAwesomeOutlined } from '@mui/icons-material';
-// fds:keep-mui Alert has no library equivalent; LinearProgress is indeterminate here and the library ProgressBar requires a value
+// fds:keep-mui the pinned library predates its Alert: the component landed on the library's main on 2026-09-21 (#230), the pin d299fa4d6 is 2026-09-18. Lift at the next bump.
+// fds:keep-mui LinearProgress is indeterminate here and the library ProgressBar requires a value (LIBRARY-FEEDBACK.md 62)
 import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
