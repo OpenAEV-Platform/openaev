@@ -2,6 +2,7 @@ package io.openaev.xtmone;
 
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
 
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
@@ -12,7 +13,6 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +24,8 @@ public class XtmOneService {
   private final PlatformSettingsService platformSettingsService;
   private final TenantSettingsService tenantSettingsService;
   private final EnterpriseEditionService eeService;
+  private final XtmOneEntitlementService entitlementService;
+  private final LicenseCacheManager licenseCacheManager;
 
   private static final List<Map<String, String>> DEFAULT_INTENTS =
       List.of(
@@ -68,9 +70,15 @@ public class XtmOneService {
   /**
    * Register this platform with XTM One. Called on every connectivity tick (the /register endpoint
    * is an upsert, so repeated calls are safe). Sends the current license state, business vertical,
-   * and declared intents for agent binding.
+   * and declared intents for agent binding. Each answer is a heartbeat that re-evaluates the
+   * Enterprise Edition granted through XTM One from the license certificate it carries, never from
+   * its advisory {@code ee_enabled} (see {@link XtmOneEntitlementService}). The license sent is
+   * always this platform's own: XTM One validates it on its side.
+   *
+   * <p>Runs outside any transaction, each read in its own: the registration is an HTTP call that
+   * must not hold a database connection, and a change of the XTM license in force publishes a
+   * {@code LicenseRefreshedEvent} whose listeners write, which a read-only transaction would drop.
    */
-  @Transactional(readOnly = true)
   public void autoRegister() {
     if (!config.isConfigured()) {
       return;
@@ -84,10 +92,12 @@ public class XtmOneService {
         // CE platform or NFR — certificate not available as PEM
       }
 
+      boolean ownLicenseValidated = false;
       String licenseType = null;
       try {
         var license = eeService.getEnterpriseEditionInfo();
-        if (license != null && license.isLicenseValidated()) {
+        ownLicenseValidated = license != null && license.isLicenseValidated();
+        if (ownLicenseValidated) {
           licenseType =
               license.getType() != null ? license.getType().name().toLowerCase() : "enterprise";
         }
@@ -113,21 +123,30 @@ public class XtmOneService {
       config.setPlatformUrl(platformUrl);
       config.setPlatformVersion(version != null ? version : "");
 
+      String platformId = settings.getPlatformId() != null ? settings.getPlatformId() : "";
       Map<String, Object> result =
           client.register(
               "openaev",
               platformUrl,
               platformName,
               version != null ? version : "",
-              settings.getPlatformId() != null ? settings.getPlatformId() : "",
+              platformId,
               licensePem,
               licenseType,
               "aev",
               DEFAULT_INTENTS);
+      if (entitlementService.onRegistrationAnswer(
+          result,
+          platformId,
+          platformSettingsService.findInstanceCreationDate().orElse(null),
+          ownLicenseValidated)) {
+        licenseCacheManager.refreshAndNotify();
+      }
       if (result != null) {
         log.info(
-            "[XTM One] Registration successful (ee_enabled={})",
-            result.getOrDefault("ee_enabled", false));
+            "[XTM One] Registration successful (advisory ee_enabled={}, ee_sources={})",
+            result.getOrDefault("ee_enabled", false),
+            result.getOrDefault("ee_sources", List.of()));
       } else {
         log.warn("[XTM One] Registration failed, will retry on next tick");
       }

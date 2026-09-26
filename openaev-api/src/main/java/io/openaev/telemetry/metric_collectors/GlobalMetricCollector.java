@@ -1,6 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
-import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
 import jakarta.annotation.PostConstruct;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 public class GlobalMetricCollector {
   private final MetricRegistry metricRegistry;
   private final UserService userService;
-  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
   private final TenantService tenantService;
 
   @PostConstruct
@@ -30,6 +30,6 @@ public class GlobalMetricCollector {
   }
 
   private long isEnterpriseEdition() {
-    return enterpriseEditionService.getEnterpriseEditionInfo().isLicenseValidated() ? 1 : 0;
+    return licenseCacheManager.isEnterpriseEditionActive() ? 1 : 0;
   }
 }
