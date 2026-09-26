@@ -13,7 +13,6 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -75,8 +74,11 @@ public class XtmOneService {
    * Enterprise Edition granted through XTM One from the license certificate it carries, never from
    * its advisory {@code ee_enabled} (see {@link XtmOneEntitlementService}). The license sent is
    * always this platform's own: XTM One validates it on its side.
+   *
+   * <p>Runs outside any transaction, each read in its own: the registration is an HTTP call that
+   * must not hold a database connection, and a change of the XTM license in force publishes a
+   * {@code LicenseRefreshedEvent} whose listeners write, which a read-only transaction would drop.
    */
-  @Transactional(readOnly = true)
   public void autoRegister() {
     if (!config.isConfigured()) {
       return;

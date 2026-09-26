@@ -45,8 +45,9 @@ OpenAEV does not take XTM One's word for it: at every registration heartbeat (ev
 Filigran-signed XTM license certificate returned by XTM One against the Filigran certificate authority built into
 OpenAEV, then applies the license validity dates (90 days of grace for standard, LTS and NFR licenses, none for trial
 and CI licenses). If the certificate is missing, does not verify or has expired, the platform is back in Community
-Edition, unless it has its own OpenAEV license. This requires a version of XTM One that returns the license
-certificate; with an older XTM One, only the OpenAEV license applies and a warning is logged.
+Edition, unless it has its own OpenAEV license. While XTM One cannot be reached, the last verified certificate keeps
+applying, within its validity dates. This requires a version of XTM One that returns the license certificate; with an
+older XTM One, only the OpenAEV license applies and a warning is logged.
 
 The Enterprise Edition card of the platform settings shows the license source: **XTM One license** (with the
 customer, type and expiration date of the XTM license) or **OpenAEV license**.

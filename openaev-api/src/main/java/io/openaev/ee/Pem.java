@@ -28,6 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.x509.Certificate;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public class Pem {
@@ -136,16 +137,19 @@ public class Pem {
 
   /**
    * Parses a value that must be exactly one PEM {@code CERTIFICATE} block, surrounded by nothing
-   * but whitespace, holding one DER certificate and nothing after it. Anything else (a second
-   * block, a key pasted along, trailing bytes) is refused.
+   * but whitespace, holding one DER X.509 certificate and nothing after it. Anything else (a second
+   * block, a key pasted along, trailing bytes, a PKCS#7 bundle) is refused.
    */
   public static X509Certificate parseSingleCert(String pem) throws Exception {
     Matcher matcher = pem == null ? null : SINGLE_CERTIFICATE_PEM.matcher(pem);
     if (matcher == null || !matcher.matches()) {
       throw new CertificateException("Not exactly one PEM CERTIFICATE block");
     }
-    // The certificate factory reads the first certificate and silently ignores any bytes after it.
-    ASN1Primitive.fromByteArray(Base64.getDecoder().decode(matcher.group(1).replaceAll("\\s", "")));
+    // The certificate factory silently ignores any bytes after the first certificate, and returns
+    // the first certificate of a PKCS#7 bundle as well.
+    Certificate.getInstance(
+        ASN1Primitive.fromByteArray(
+            Base64.getDecoder().decode(matcher.group(1).replaceAll("\\s", ""))));
     return parseCert(pem);
   }
 
@@ -167,8 +171,10 @@ public class Pem {
    * Reads a Filigran custom extension as text the way XTM One does: the content of {@code
    * extnValue} is the UTF-8 text itself, possibly wrapped in a DER string (UTF8String,
    * PrintableString, IA5String or OCTET STRING) whose one-byte length covers every byte after it.
-   * Unlike {@link #getExtension}, the {@code extnValue} wrapper is decoded properly, so a value
-   * longer than 127 bytes (a sub-license list, for instance) reads correctly.
+   * Any other content, a wrapper with a long-form length included, is read whole, header and all,
+   * exactly as XTM One reads it: Filigran writes the text itself, unwrapped. Unlike {@link
+   * #getExtension}, the {@code extnValue} OCTET STRING is decoded properly, so a value longer than
+   * 127 bytes (a sub-license list, for instance) reads correctly.
    *
    * @return the trimmed text, or {@code null} when the certificate has no such extension
    */

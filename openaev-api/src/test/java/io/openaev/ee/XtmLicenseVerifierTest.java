@@ -36,9 +36,14 @@ import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DERNull;
 import org.bouncycastle.asn1.DERSequence;
+import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.DERUTF8String;
+import org.bouncycastle.asn1.pkcs.ContentInfo;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import org.bouncycastle.asn1.pkcs.SignedData;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.Certificate;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.Extensions;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -311,6 +316,24 @@ class XtmLicenseVerifierTest {
     }
 
     @Test
+    @DisplayName("Given a sub-license mixing strings and other JSON values should read its strings")
+    void given_mixedSubLicense_should_readItsStrings() throws Exception {
+      // Arrange: XTM One compares every item through Python's str(), which never turns another
+      // JSON value into 'global' or a platform id, so it grants from the strings alone as well.
+      String globalPem = new LicenseCertificate().subLicense("[\"global\", 1]").pem();
+      String platformPem =
+          new LicenseCertificate().subLicense("[1, true, null, \"" + PLATFORM_ID + "\"]").pem();
+
+      // Act
+      XtmLicense global = verify(globalPem);
+      XtmLicense platform = verify(platformPem);
+
+      // Assert
+      assertThat(global.globalGrant()).isTrue();
+      assertThat(platform.coveredPlatform()).isEqualTo(PLATFORM_ID);
+    }
+
+    @Test
     @DisplayName("Given extension values wrapped in a DER string should grant")
     void given_derStringExtensions_should_grant() throws Exception {
       // Arrange
@@ -435,6 +458,19 @@ class XtmLicenseVerifierTest {
     }
 
     @Test
+    @DisplayName(
+        "Given a DER string wrapper with a long-form length should read it whole, as XTM One does")
+    void given_longFormDerStringSubLicense_should_readItWholeAndRefuse() throws Exception {
+      // Arrange: XTM One unwraps a one-byte length only; past 127 bytes the header stays in the
+      // text, which is then no JSON array, so XTM One grants nothing from it either.
+      String subLicense = "[\"global\", \"" + "x".repeat(130) + "\"]";
+      String pem = new LicenseCertificate().derString(OID_OPENAEV_SUBLICENSE, subLicense).pem();
+
+      // Act & Assert
+      assertRefused(pem, "does not sub-license this platform");
+    }
+
+    @Test
     @DisplayName("Given another product should refuse")
     void given_otherProduct_should_refuse() throws Exception {
       assertRefused(
@@ -505,6 +541,26 @@ class XtmLicenseVerifierTest {
           "not exactly one PEM certificate");
       assertRefused(toPem(trailingBytes), "not exactly one PEM certificate");
       assertRefused("not a certificate", "not exactly one PEM certificate");
+    }
+
+    @Test
+    @DisplayName("Given a PKCS#7 bundle holding the license in the certificate block should refuse")
+    void given_pkcs7Bundle_should_refuse() throws Exception {
+      // Arrange: the certificate factory would return the bundle's first certificate.
+      byte[] license = new LicenseCertificate().der();
+      SignedData bundle =
+          new SignedData(
+              new ASN1Integer(1),
+              new DERSet(),
+              new ContentInfo(PKCSObjectIdentifiers.data, null),
+              new DERSet(Certificate.getInstance(license)),
+              null,
+              new DERSet());
+      byte[] pkcs7 =
+          new ContentInfo(PKCSObjectIdentifiers.signedData, bundle).getEncoded(ASN1Encoding.DER);
+
+      // Act & Assert
+      assertRefused(toPem(pkcs7), "not exactly one PEM certificate");
     }
   }
 

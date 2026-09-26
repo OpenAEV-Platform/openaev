@@ -22,12 +22,16 @@ import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.xtmone.XtmOneEntitlementService;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.aspectj.lang.JoinPoint;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -210,6 +214,48 @@ class LicenseCacheManagerTest {
       assertThat(platformLicense.isExtraExpiration()).isTrue();
       assertThat(platformLicense.getExtraExpirationDays()).isBetween(59L, 60L);
       assertThat(platformLicense.getType()).isEqualTo(LicenseTypeEnum.standard);
+    }
+
+    @Test
+    @DisplayName("Given a renewal issued ahead of its start date should read as valid, not expired")
+    void given_earlyRenewal_should_readAsValidNotExpired() {
+      // Arrange
+      Instant now = Instant.now();
+      XtmLicense license = xtmLicense("standard", now.plus(10, DAYS), now.plus(375, DAYS));
+
+      // Act
+      License platformLicense = license.toLicense(now);
+
+      // Assert
+      assertThat(platformLicense.isLicenseValidated()).isTrue();
+      assertThat(platformLicense.isLicenseExpired()).isFalse();
+      assertThat(platformLicense.isExtraExpiration()).isFalse();
+      assertThat(enterpriseEditionService.isLicenseActive(platformLicense)).isTrue();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"standard", "lts", "nfr", "trial", "ci"})
+    @DisplayName(
+        "Given the instants around each date should agree with the Enterprise Edition gate")
+    void given_boundaryInstants_should_agreeWithTheGate(String type) {
+      // Arrange
+      Instant start = Instant.parse("2026-01-01T00:00:00Z");
+      Instant end = Instant.parse("2026-12-31T00:00:00Z");
+      XtmLicense license = xtmLicense(type, start, end);
+      List<Instant> instants =
+          Stream.of(start, end, license.validUntil())
+              .flatMap(at -> Stream.of(at.minusNanos(1), at, at.plusNanos(1)))
+              .toList();
+
+      // Act & Assert
+      assertThat(license.isActiveAt(end))
+          .as("XTM One still grants at the expiration instant")
+          .isTrue();
+      for (Instant at : instants) {
+        assertThat(EnterpriseEditionService.isLicenseActiveAt(license.toLicense(at), at))
+            .as("%s license at %s", type, at)
+            .isEqualTo(license.isActiveAt(at));
+      }
     }
 
     @Test

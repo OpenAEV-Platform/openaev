@@ -54,11 +54,13 @@ public record XtmLicense(
    * The platform license this XTM license stands for at {@code now}, for every Enterprise Edition
    * gate and the license settings. A {@code ci} license reads as {@code trial}, the platform type
    * with the same rule (no grace): {@link LicenseTypeEnum} has no {@code ci}, on purpose, since
-   * OpenAEV's own licenses of that type are refused.
+   * OpenAEV's own licenses of that type are refused. Only a license past its expiration date is
+   * expired: a renewal active ahead of its start date is not, and an expired license that still
+   * grants is in its grace period.
    */
   public License toLicense(Instant now) {
     boolean active = isActiveAt(now);
-    boolean expired = now.isAfter(expirationDate) || now.isBefore(startDate);
+    boolean expired = now.isAfter(expirationDate);
     License license = new License();
     license.setSource(LicenseSource.xtm_one);
     license.setLicenseEnterprise(true);
@@ -74,7 +76,7 @@ public record XtmLicense(
     license.setExpirationDate(expirationDate);
     license.setLicenseExpired(expired);
     license.setLicenseValidated(active);
-    if (active && now.isAfter(expirationDate) && hasGracePeriod()) {
+    if (active && expired) {
       license.setExtraExpiration(true);
       license.setExtraExpirationDays(ChronoUnit.DAYS.between(now, validUntil()));
     }

@@ -2,6 +2,7 @@ package io.openaev.xtmone;
 
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -17,6 +18,7 @@ import io.openaev.ee.LicenseTypeEnum;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.settings.TenantSettingsService;
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +29,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("XTM One Service tests")
@@ -162,6 +166,19 @@ class XtmOneServiceTest {
 
     // -- ASSERT --
     verify(licenseCacheManager).refreshAndNotify();
+  }
+
+  @Test
+  @DisplayName("Given a registration should run outside any transaction")
+  void given_registration_should_runOutsideAnyTransaction() throws NoSuchMethodException {
+    // -- ARRANGE --
+    Method autoRegister = XtmOneService.class.getMethod("autoRegister");
+
+    // -- ASSERT --
+    // The HTTP call must not hold a database connection, and the LicenseRefreshedEvent listeners
+    // write: a read-only transaction around the refresh silently drops what they write.
+    assertFalse(AnnotatedElementUtils.hasAnnotation(autoRegister, Transactional.class));
+    assertFalse(AnnotatedElementUtils.hasAnnotation(XtmOneService.class, Transactional.class));
   }
 
   @Test

@@ -225,8 +225,10 @@ public final class XtmLicenseVerifier {
   }
 
   /**
-   * The JSON array of strings of OpenAEV's sub-license extension. A missing extension, malformed
-   * JSON or anything but an array is an empty list, as for XTM One.
+   * The strings of the JSON array of OpenAEV's sub-license extension. A missing extension,
+   * malformed JSON or anything but an array is an empty list, as for XTM One. An item of another
+   * JSON type is left out: XTM One compares it through Python's {@code str()}, which never yields
+   * {@code global} or a platform id (a UUID), so the outcome is XTM One's.
    */
   private static List<String> subLicensedPlatformIds(X509Certificate certificate) {
     String value = Pem.getExtensionText(certificate, OID_OPENAEV_SUBLICENSE);
