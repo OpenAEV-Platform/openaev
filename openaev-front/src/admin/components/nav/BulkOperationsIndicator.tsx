@@ -93,7 +93,7 @@ const BulkOperationsIndicator: FunctionComponent = () => {
       <Tooltip>
         <TooltipTrigger asChild>
           {/* The Badge wraps the BUTTON, not the glyph: it describes its child, and the glyph slot is aria-hidden. */}
-          <Badge content={runningCount} circularAnchor>
+          <Badge content={runningCount} circularAnchor bareAnchor="md">
             <IconButton
               priority="tertiary"
               aria-haspopup="true"
