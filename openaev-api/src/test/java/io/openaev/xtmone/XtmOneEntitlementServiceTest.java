@@ -39,11 +39,16 @@ class XtmOneEntitlementServiceTest {
   private MockedStatic<XtmLicenseVerifier> verifier;
   private Logger logger;
   private ListAppender<ILoggingEvent> logs;
+  private Level originalLevel;
 
   @BeforeEach
   void setUp() {
     verifier = mockStatic(XtmLicenseVerifier.class);
     logger = (Logger) LoggerFactory.getLogger(XtmOneEntitlementService.class);
+    // The CI test logback config caps io.openaev above WARN: force the level so the grant and
+    // warning assertions see the events, and restore it afterwards.
+    originalLevel = logger.getLevel();
+    logger.setLevel(Level.INFO);
     logs = new ListAppender<>();
     logs.start();
     logger.addAppender(logs);
@@ -53,6 +58,7 @@ class XtmOneEntitlementServiceTest {
   void tearDown() {
     logger.detachAppender(logs);
     logs.stop();
+    logger.setLevel(originalLevel);
     verifier.close();
   }
 
