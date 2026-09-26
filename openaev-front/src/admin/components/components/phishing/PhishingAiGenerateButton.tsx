@@ -1,8 +1,7 @@
-import { Button, Chip } from '@filigran/design-system';
+import { Button, Chip, Text, Textarea } from '@filigran/design-system';
 import { AutoAwesomeOutlined } from '@mui/icons-material';
-import { LoadingButton } from '@mui/lab';
-// fds:keep-mui the AI generation fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon, TextField, Typography } from '@mui/material';
+// fds:keep-mui Alert has no library equivalent; LinearProgress is indeterminate here and the library ProgressBar requires a value
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
@@ -238,15 +237,13 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
           }}
           >
             <div>
-              <TextField
+              <Textarea
                 label={t('Instructions')}
                 placeholder={contextualPlaceholder}
                 value={userPrompt}
                 onChange={event => setUserPrompt(event.target.value)}
-                multiline
                 minRows={2}
                 maxRows={4}
-                fullWidth
                 disabled={loading}
               />
               {suggestions.length > 0 && (
@@ -275,16 +272,15 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
               justifyContent: 'flex-start',
             }}
             >
-              <LoadingButton
-                variant="contained"
-                color="primary"
+              <Button
+                type="button"
                 loading={loading}
                 disabled={!selectedAgent || noAgents}
                 onClick={handleGenerate}
                 startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
               >
                 {hasResult ? t('Regenerate') : t('Generate')}
-              </LoadingButton>
+              </Button>
             </Box>
 
             {noAgents && (
@@ -301,16 +297,12 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
             {loading && !hasResult && (
               <Box>
                 <LinearProgress color="primary" />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: 'block',
-                    mt: 1,
-                    color: 'text.secondary',
-                  }}
+                <Text
+                  variant="content-caption"
+                  className="mt-1 block text-default-secondary"
                 >
                   {t('Generating the preview...')}
-                </Typography>
+                </Text>
               </Box>
             )}
 
@@ -321,14 +313,12 @@ const PhishingAiGenerateButton: FunctionComponent<PhishingAiGenerateButtonProps>
                     loading,
                   })
                 : (
-                    <TextField
+                    <Textarea
                       label={t('Result')}
                       value={content}
                       onChange={event => setContent(event.target.value)}
-                      multiline
                       minRows={10}
                       maxRows={20}
-                      fullWidth
                       disabled={loading}
                     />
                   )

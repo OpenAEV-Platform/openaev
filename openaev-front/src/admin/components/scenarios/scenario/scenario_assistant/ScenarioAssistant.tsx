@@ -1,4 +1,4 @@
-import { Button, IconButton, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Paper, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   ArrowBackOutlined,
   AutoAwesomeOutlined,
@@ -8,7 +8,7 @@ import {
   TuneOutlined,
 } from '@mui/icons-material';
 // fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
-import { alpha, Box, SvgIcon, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { alpha, Box, SvgIcon, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { SelectGroup } from 'mdi-material-ui';
@@ -32,6 +32,7 @@ import {
   type InjectAssistantInput,
   type Scenario,
 } from '../../../../../utils/api-types';
+import { layerInputVars } from '../../../../../utils/fdsLayer';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAI from '../../../../../utils/hooks/useAI';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -49,15 +50,6 @@ import AttackPatternAIAssistantDialog from './AttackPatternAIAssistantDialog';
 
 const MIN_INJECTS_BY_TTP = 1;
 const MAX_INJECTS_BY_TTP = 5;
-
-const sectionLabelSx = {
-  fontFamily: '"Geologica", sans-serif',
-  fontWeight: 600,
-  fontSize: 11,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase' as const,
-  color: 'text.secondary',
-};
 
 // Compact target row: icon + name + remove. The standard list fragments
 // (platform / tags / type columns) don't fit the narrow rail, so targets render
@@ -89,17 +81,18 @@ const TargetRow: FunctionComponent<{
       >
         {icon}
       </Box>
-      <Typography sx={{
-        fontSize: 13,
-        flex: 1,
-        minWidth: 0,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-      }}
+      <Text
+        variant="content-compact"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
       >
         {label}
-      </Typography>
+      </Text>
       <Tooltip>
         <TooltipTrigger asChild>
           <IconButton
@@ -253,9 +246,9 @@ const ScenarioAssistant: FunctionComponent = () => {
           </TooltipTrigger>
           <TooltipContent>{t('Back')}</TooltipContent>
         </Tooltip>
-        <Typography variant="h1" sx={{ margin: 0 }}>
+        <Text variant="title-md" as="h1" style={{ margin: 0 }}>
           {t('Scenario assistant')}
-        </Typography>
+        </Text>
         {aiEnabled && (
           <Button
             type="button"
@@ -303,6 +296,9 @@ const ScenarioAssistant: FunctionComponent = () => {
               display: 'flex',
               flexDirection: 'column',
               gap: 16,
+              // The `.layer-N` class cannot reach the input aliases on its own; the
+              // field would keep the layer-0 fill and read flush with this surface.
+              ...layerInputVars,
             }}
           >
             <Box sx={{
@@ -312,11 +308,11 @@ const ScenarioAssistant: FunctionComponent = () => {
             }}
             >
               <TrackChangesOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
-              <Typography sx={sectionLabelSx}>{t('Target')}</Typography>
+              <Text variant="content-caption" className="uppercase tracking-widest font-semibold text-default-secondary">{t('Target')}</Text>
             </Box>
 
             <Box>
-              <Typography variant="h3" sx={{ marginBottom: 0.5 }}>{t('Assets')}</Typography>
+              <Text variant="title-xs" className="mb-1 block">{t('Assets')}</Text>
               {endpoints.length > 0 && (
                 <Box sx={{
                   display: 'flex',
@@ -348,7 +344,7 @@ const ScenarioAssistant: FunctionComponent = () => {
             </Box>
 
             <Box>
-              <Typography variant="h3" sx={{ marginBottom: 0.5 }}>{t('Asset groups')}</Typography>
+              <Text variant="title-xs" className="mb-1 block">{t('Asset groups')}</Text>
               {assetGroups.length > 0 && (
                 <Box sx={{
                   display: 'flex',
@@ -384,6 +380,9 @@ const ScenarioAssistant: FunctionComponent = () => {
               display: 'flex',
               flexDirection: 'column',
               gap: 16,
+              // The `.layer-N` class cannot reach the input aliases on its own; the
+              // field would keep the layer-0 fill and read flush with this surface.
+              ...layerInputVars,
             }}
           >
             <Box sx={{
@@ -393,11 +392,11 @@ const ScenarioAssistant: FunctionComponent = () => {
             }}
             >
               <TuneOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
-              <Typography sx={sectionLabelSx}>{t('Configuration')}</Typography>
+              <Text variant="content-caption" className="uppercase tracking-widest font-semibold text-default-secondary">{t('Configuration')}</Text>
             </Box>
 
             <Box>
-              <Typography variant="h3" sx={{ marginBottom: 0.5 }}>{t('Number of injects by TTP')}</Typography>
+              <Text variant="title-xs" className="mb-1 block">{t('Number of injects by TTP')}</Text>
               <TextFieldFds
                 aria-label={t('Number of injects by TTP')}
                 type="number"
@@ -424,22 +423,16 @@ const ScenarioAssistant: FunctionComponent = () => {
               border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
             }}
             >
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              <Text variant="content-compact" className="text-default-secondary">
                 {t('Selected TTPs')}
-              </Typography>
-              <Typography sx={{
-                fontFamily: '"Geologica", sans-serif',
-                fontSize: 20,
-                fontWeight: 500,
-                color: hasTtps ? 'text.primary' : 'text.disabled',
-              }}
-              >
+              </Text>
+              <Text variant="title-md" className={hasTtps ? undefined : 'text-default-disabled'}>
                 {attackPatternIds.length}
-              </Typography>
+              </Text>
               {showErrors && !hasTtps && (
-                <Typography variant="caption" sx={{ color: 'error.main' }}>
+                <Text variant="content-caption" className="text-alert-error">
                   {t('Should not be empty')}
-                </Typography>
+                </Text>
               )}
             </Box>
           </Paper>
@@ -545,14 +538,14 @@ const ScenarioAssistant: FunctionComponent = () => {
             borderRight: `1px solid ${theme.palette.divider}`,
           }}
           >
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            <Text variant="content-compact-bold">
               {attackPatternIds.length === 1
                 ? t('1 TTP selected')
                 : t('{count} TTPs selected', { count: attackPatternIds.length })}
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            </Text>
+            <Text variant="content-caption" className="text-default-secondary">
               {t('~{count} injects', { count: estimatedInjects })}
-            </Typography>
+            </Text>
           </Box>
           <Button type="button" startIcon={<AutoAwesomeOutlined fontSize="small" />} onClick={onSubmit}>
             {t('Create injects')}

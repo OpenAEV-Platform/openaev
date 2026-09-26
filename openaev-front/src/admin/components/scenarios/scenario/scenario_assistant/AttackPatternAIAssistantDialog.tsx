@@ -1,7 +1,6 @@
-import { Button, IconButton } from '@filigran/design-system';
+import { Button, IconButton, Spinner, Text, Textarea } from '@filigran/design-system';
 import { Clear } from '@mui/icons-material';
-// fds:keep-mui the AI assistant field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Box, CircularProgress, Divider, List, ListItem, ListItemText, TextField, Typography } from '@mui/material';
+import { Box, Divider, List, ListItem, ListItemText } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -23,7 +22,8 @@ const useStyles = makeStyles()(theme => ({
   filesLabel: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'end',
+    alignItems: 'center',
+    minHeight: 36,
   },
   allWidth: { gridColumn: 'span 2' },
   fileListContainer: {
@@ -35,16 +35,14 @@ const useStyles = makeStyles()(theme => ({
     gap: theme.spacing(1),
   },
   loaderContainer: {
-    textAlign: 'center',
-    position: 'relative',
-    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing(1),
+    minHeight: 200,
   },
-  loaderText: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-  },
+  loaderText: {},
 }));
 
 interface Props {
@@ -139,31 +137,29 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
       maxWidth="md"
     >
       <div className={classes.modalContainer}>
-        <Typography className={classes.allWidth}>
+        <Text variant="content-base" className={classes.allWidth}>
           {t('Let our XTM One AI assistant analyse a context to generate relevant TTP for your scenario.')}
-        </Typography>
+        </Text>
         {!isLoading && (
           <>
-            <Typography className={classes.textLabel} variant="h3" gutterBottom>{t('Paste text to analyse for selected TTPs.')}</Typography>
-            <span className={classes.filesLabel}>
-              <Typography variant="h3" gutterBottom>{t('And/or import documents (.txt .pdf)')}</Typography>
-              <ImportUploader
-                title="Import files"
-                handleUpload={addFile}
-                isIconButton={false}
-                fileAccepted=".pdf, .txt"
-                disabled={files.length >= maxFilesNumber}
-                allowReUpload
-              />
-            </span>
-            <TextField
+            <Textarea
+              label={t('Paste text to analyse for selected TTPs.')}
               value={text}
               onChange={e => setText(e.target.value)}
-              multiline
-              variant="outlined"
               rows={8}
             />
             <span className={classes.fileListContainer}>
+              <span className={classes.filesLabel}>
+                <Text variant="content-base">{t('And/or import documents (.txt .pdf)')}</Text>
+                <ImportUploader
+                  title="Import files"
+                  handleUpload={addFile}
+                  isIconButton={false}
+                  fileAccepted=".pdf, .txt"
+                  disabled={files.length >= maxFilesNumber}
+                  allowReUpload
+                />
+              </span>
               <List>
                 {files.map(file => (
                   <span key={file.name}>
@@ -186,9 +182,9 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
                 ))}
               </List>
               {files.length > 0 && (
-                <Typography variant="h3" gutterBottom style={{ marginLeft: 'auto' }}>
+                <Text variant="content-compact" className="text-default-secondary" style={{ marginLeft: 'auto' }}>
                   {`${t('Files imported :')} ${files.length ?? 0} - ${maxFilesNumber}`}
-                </Typography>
+                </Text>
               )}
             </span>
           </>
@@ -196,15 +192,14 @@ const AttackPatternAIAssistantDialog = ({ open, onClose, onAttackPatternIdsFind 
         {
           isLoading && (
             <div className={`${classes.allWidth} ${classes.loaderContainer}`}>
-              <CircularProgress size={200} thickness={0.3} />
-              <Typography
-                variant="caption"
-                component="div"
-                color="text.secondary"
-                className={classes.loaderText}
+              <Spinner size="xl" />
+              <Text
+                variant="content-caption"
+                as="div"
+                className={`${classes.loaderText} text-default-secondary`}
               >
                 {t('Loading AI assistant, please wait...')}
-              </Typography>
+              </Text>
             </div>
           )
         }

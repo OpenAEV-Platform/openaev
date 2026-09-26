@@ -1,6 +1,6 @@
-import { Button, IconButton } from '@filigran/design-system';
+import { Button, IconButton, Paper, Text } from '@filigran/design-system';
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
@@ -283,7 +283,7 @@ const LiveExecutionTerminal = ({ injectId, endpointName }: {
     return <Loader variant="inElement" size="sm" />;
   }
   if (!target?.target_id || !target.target_type) {
-    return <Typography variant="body2" color="text.secondary">{t('No traces on this target.')}</Typography>;
+    return <Text variant="content-compact" className="text-default-secondary">{t('No traces on this target.')}</Text>;
   }
   return <TerminalViewTab injectId={injectId} target={target} />;
 };
@@ -297,17 +297,17 @@ const InjectorCommandLine = ({ commandLine }: { commandLine: string }) => {
   const { t } = useFormatter();
   return (
     <Box sx={{ mb: 2 }}>
-      <Typography variant="subtitle2" gutterBottom>{t('Command')}</Typography>
-      <Typography
-        variant="body2"
-        sx={{
+      <Text variant="content-base-bold" className="mb-1 block">{t('Command')}</Text>
+      <Text
+        variant="content-compact"
+        style={{
           fontFamily: 'monospace',
           wordBreak: 'break-all',
           whiteSpace: 'pre-wrap',
         }}
       >
         {commandLine}
-      </Typography>
+      </Text>
     </Box>
   );
 };
@@ -335,7 +335,7 @@ const InjectorExecutionTraces = ({ injectId }: { injectId: string }) => {
     return <Loader variant="inElement" size="sm" />;
   }
   if (!injectStatus) {
-    return <Typography variant="body2" color="text.secondary">{t('No data available')}</Typography>;
+    return <Text variant="content-compact" className="text-default-secondary">{t('No data available')}</Text>;
   }
   return <GlobalExecutionTraces injectStatus={injectStatus} />;
 };
@@ -463,11 +463,11 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
     // no platform answered; only the latter is a real negative worth the red wording.
     const emptyState = attributionUnavailable
       ? (
-          <Typography variant="caption" sx={{ color: theme.palette.text.disabled }}>
+          <Text variant="content-caption" className="text-default-disabled">
             {t('Platform attribution requires Enterprise Edition')}
-          </Typography>
+          </Text>
         )
-      : <Typography variant="caption" style={{ color: theme.palette.error.main }}>{t(emptyLabel)}</Typography>;
+      : <Text variant="content-caption" className="text-alert-error">{t(emptyLabel)}</Text>;
 
     const tableRows: ExpectationPlatformRow[] = platformRows.map((row) => {
       const normalizedType = row.type?.trim();
@@ -538,19 +538,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
             flex: 1,
           }}
           >
-            <Typography variant="subtitle2">{heading}</Typography>
-            <Typography
-              sx={{
-                fontFamily: '"Geologica", sans-serif',
-                fontWeight: 600,
-                fontSize: 10,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: 'text.secondary',
-              }}
-            >
+            <Text variant="content-base-bold" className="block">{heading}</Text>
+            <Text variant="content-caption" className="block uppercase tracking-widest font-semibold text-default-secondary">
               {expectationType.toUpperCase()}
-            </Typography>
+            </Text>
           </div>
           <div style={{
             display: 'flex',
@@ -587,7 +578,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
 
   return (
     <Paper
-      variant="outlined"
+      elevation={1}
+      padding={0}
       style={{
         // Fills the resizable drawer container (drag the handle to widen when traces overflow).
         flex: 1,
@@ -624,17 +616,20 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               size="md"
             />
           )}
-          <Typography
-            variant="h5"
-            noWrap
-            sx={{
+          <Text
+            variant="title-sm"
+            as="h5"
+            style={{
               flex: 1,
               minWidth: 0,
               margin: 0,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             {detail?.payloadName || t('Execution')}
-          </Typography>
+          </Text>
           <IconButton
             icon={<Close fontSize="small" />}
             aria-label={t('Close')}
@@ -646,9 +641,9 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
         </div>
         {/* 38px = the 30px back IconButton + the 8px row gap, so these lines start under the title. */}
         <div style={{ paddingLeft: onBack ? 38 : 0 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          <Text variant="content-caption" className="block text-default-secondary">
             {[detail?.agentName, detail?.agentPrivilege].filter(Boolean).join(' · ')}
-          </Typography>
+          </Text>
           {/* MITRE ATT&CK technique(s) this action maps to, resolved server-side from the
                execution's injector contract (AttackPathExecutionDetailDTO.attackPatterns). */}
           {(detail?.attackPatterns?.length ?? 0) > 0 && (
@@ -747,7 +742,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 >
                   {/* The friendly endpoint name (kingslanding), not the raw endpoint key/UUID, to stay
                        consistent with the graph node; fall back to the IP only when no name is known. */}
-                  <Typography variant="subtitle2">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Typography>
+                  <Text variant="title-sm">{endpointLabel || detail.targetHostname || detail.targetIp || detail.endpointKey}</Text>
                   {/* Whether the action actually ran at all (issue 244): those verdicts below answer "was
                       it caught?", never "did it run?" — a technical failure and a clean-but-undetected run
                       previously looked identical. Sits beside the endpoint name (not its own row) to save
@@ -760,17 +755,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                       flexShrink: 0,
                     }}
                     >
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.06em',
-                        }}
-                      >
+                      <Text variant="content-caption" className="uppercase tracking-wider text-default-secondary">
                         {t('Status')}
                         :
-                      </Typography>
+                      </Text>
                       {detail.payloadId
                         ? (
                             <PayloadExecutionStatusBadge
@@ -846,13 +834,13 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 gap: theme.spacing(2),
               }}
               >
-                <Typography variant="caption" color="text.secondary">
+                <Text variant="content-caption" className="text-default-secondary">
                   {t('How each security platform could detect this action (detection rules).')}
-                </Typography>
+                </Text>
                 {detectionRemediations.length === 0 && (
-                  <Typography variant="body2" color="text.secondary">
+                  <Text variant="content-compact" className="text-default-secondary">
                     {t('No detection remediation available for this action yet.')}
-                  </Typography>
+                  </Text>
                 )}
                 {detectionRemediations.map((rem, index) => (
                   <div key={rem.detection_remediation_id ?? rem.detection_remediation_security_platform ?? index}>
@@ -870,7 +858,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                           mode={theme.palette.mode}
                         />
                       )}
-                      <Typography variant="subtitle2">{rem.detection_remediation_security_platform_name ?? rem.detection_remediation_security_platform}</Typography>
+                      <Text variant="content-base-bold">{rem.detection_remediation_security_platform_name ?? rem.detection_remediation_security_platform}</Text>
                     </div>
                     {/* Detection rule text is sanitized before rendering — never injected raw. */}
                     <div
