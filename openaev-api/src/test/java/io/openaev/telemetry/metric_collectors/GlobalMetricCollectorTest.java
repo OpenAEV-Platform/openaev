@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.ee.License;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
@@ -23,7 +23,7 @@ class GlobalMetricCollectorTest {
 
   @Mock private MetricRegistry metricRegistry;
   @Mock private UserService userService;
-  @Mock private EnterpriseEditionService enterpriseEditionService;
+  @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private TenantService tenantService;
 
   @InjectMocks private GlobalMetricCollector globalMetricCollector;
@@ -50,7 +50,7 @@ class GlobalMetricCollectorTest {
     // Arrange
     License license = new License();
     license.setLicenseValidated(true);
-    when(enterpriseEditionService.getEnterpriseEditionInfo()).thenReturn(license);
+    when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
 
     // Act
     globalMetricCollector.init();
