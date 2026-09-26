@@ -146,7 +146,7 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
               backgroundColor: theme.palette.background.paper,
             }}
             >
-              <Text variant="content-caption" className="uppercase tracking-wider font-semibold">
+              <Text variant="content-caption" className="uppercase font-semibold" style={{ letterSpacing: '0.08em' }}>
                 <EllipsisTooltip>{phase.phase_name}</EllipsisTooltip>
               </Text>
               <Text variant="content-caption" className="text-default-secondary">
@@ -205,7 +205,13 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
                       <TooltipTrigger asChild>
                         <Text
                           variant={isSelected ? 'content-compact-bold' : 'content-compact'}
-                          className="line-clamp-2"
+                          // The library ships no line-clamp utility; the two-line clamp stays explicit.
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
                         >
                           {technique.attack_pattern_name}
                         </Text>

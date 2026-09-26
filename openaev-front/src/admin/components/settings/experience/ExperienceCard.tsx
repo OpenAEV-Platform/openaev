@@ -85,8 +85,12 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({
         >
           <Text
             variant="content-caption"
-            className="uppercase tracking-widest"
-            style={{ color: accent }}
+            className="uppercase"
+            // The library ships no generic letter-spacing scale; the overline keeps its own.
+            style={{
+              color: accent,
+              letterSpacing: '0.12em',
+            }}
           >
             {overline}
           </Text>

@@ -308,7 +308,7 @@ const ScenarioAssistant: FunctionComponent = () => {
             }}
             >
               <TrackChangesOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
-              <Text variant="content-caption" className="uppercase tracking-widest font-semibold text-default-secondary">{t('Target')}</Text>
+              <Text variant="content-caption" className="uppercase font-semibold text-default-secondary" style={{ letterSpacing: '0.12em' }}>{t('Target')}</Text>
             </Box>
 
             <Box>
@@ -392,7 +392,7 @@ const ScenarioAssistant: FunctionComponent = () => {
             }}
             >
               <TuneOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
-              <Text variant="content-caption" className="uppercase tracking-widest font-semibold text-default-secondary">{t('Configuration')}</Text>
+              <Text variant="content-caption" className="uppercase font-semibold text-default-secondary" style={{ letterSpacing: '0.12em' }}>{t('Configuration')}</Text>
             </Box>
 
             <Box>
@@ -430,7 +430,7 @@ const ScenarioAssistant: FunctionComponent = () => {
                 {attackPatternIds.length}
               </Text>
               {showErrors && !hasTtps && (
-                <Text variant="content-caption" className="text-alert-error">
+                <Text variant="content-caption" className="text-feedback-error-primary">
                   {t('Should not be empty')}
                 </Text>
               )}

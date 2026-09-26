@@ -467,7 +467,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
             {t('Platform attribution requires Enterprise Edition')}
           </Text>
         )
-      : <Text variant="content-caption" className="text-alert-error">{t(emptyLabel)}</Text>;
+      : <Text variant="content-caption" className="text-feedback-error-primary">{t(emptyLabel)}</Text>;
 
     const tableRows: ExpectationPlatformRow[] = platformRows.map((row) => {
       const normalizedType = row.type?.trim();
@@ -539,7 +539,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
           }}
           >
             <Text variant="content-base-bold" className="block">{heading}</Text>
-            <Text variant="content-caption" className="block uppercase tracking-widest font-semibold text-default-secondary">
+            <Text variant="content-caption" className="block uppercase font-semibold text-default-secondary" style={{ letterSpacing: '0.12em' }}>
               {expectationType.toUpperCase()}
             </Text>
           </div>
@@ -755,7 +755,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                       flexShrink: 0,
                     }}
                     >
-                      <Text variant="content-caption" className="uppercase tracking-wider text-default-secondary">
+                      <Text variant="content-caption" className="uppercase text-default-secondary" style={{ letterSpacing: '0.06em' }}>
                         {t('Status')}
                         :
                       </Text>
