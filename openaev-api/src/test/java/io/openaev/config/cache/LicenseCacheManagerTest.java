@@ -122,6 +122,7 @@ class LicenseCacheManagerTest {
       // Assert
       assertThat(license.getSource()).isEqualTo(LicenseSource.openaev);
       assertThat(license.getCustomer()).isEqualTo("OpenAEV customer");
+      assertThat(licenseCacheManager.isEnterpriseEditionActive()).isTrue();
       assertThatCode(LicenseCacheManagerTest.this::callEnterpriseFeature)
           .doesNotThrowAnyException();
     }
@@ -143,6 +144,7 @@ class LicenseCacheManagerTest {
       assertThat(license.getCustomer()).isEqualTo("XTM customer");
       assertThat(license.isGlobalLicense()).isTrue();
       assertThat(enterpriseEditionService.isLicenseActive(license)).isTrue();
+      assertThat(licenseCacheManager.isEnterpriseEditionActive()).isTrue();
       assertThatCode(LicenseCacheManagerTest.this::callEnterpriseFeature)
           .doesNotThrowAnyException();
     }
@@ -160,6 +162,26 @@ class LicenseCacheManagerTest {
       // Assert
       assertThat(license.getSource()).isEqualTo(LicenseSource.openaev);
       assertThat(enterpriseEditionService.isLicenseActive(license)).isFalse();
+      assertThat(licenseCacheManager.isEnterpriseEditionActive()).isFalse();
+      assertThatThrownBy(LicenseCacheManagerTest.this::callEnterpriseFeature)
+          .isInstanceOf(EnterpriseEditionException.class);
+    }
+
+    @Test
+    @DisplayName("Given a cached own license past its expiration date should no longer be in force")
+    void given_expiredCachedOwnLicense_should_notBeInForce() {
+      // Arrange: validated when it was parsed and cached, before its expiration date.
+      License own = ownLicense(true);
+      own.setExpirationDate(Instant.now().minus(1, DAYS));
+      when(enterpriseEditionService.getEnterpriseEditionInfo()).thenReturn(own);
+      givenXtmLicense(null);
+
+      // Act
+      License license = licenseCacheManager.getEnterpriseEditionInfo();
+
+      // Assert: the cached flag is stale, the decision in force is not.
+      assertThat(license.isLicenseValidated()).isTrue();
+      assertThat(licenseCacheManager.isEnterpriseEditionActive()).isFalse();
       assertThatThrownBy(LicenseCacheManagerTest.this::callEnterpriseFeature)
           .isInstanceOf(EnterpriseEditionException.class);
     }

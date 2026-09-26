@@ -53,6 +53,15 @@ public class LicenseCacheManager {
         .orElse(own);
   }
 
+  /**
+   * Whether Enterprise Edition is in force now, as every gate decides it: the license of {@link
+   * #getEnterpriseEditionInfo()} active at this instant. Its {@code license_is_validated} flag is
+   * not enough: a cached own license keeps it after its expiration date.
+   */
+  public boolean isEnterpriseEditionActive() {
+    return enterpriseEditionService.isLicenseActive(getEnterpriseEditionInfo());
+  }
+
   private License ownLicense() {
     Cache cache = cacheManager.getCache(LICENSE_CACHE);
     if (cache == null) {

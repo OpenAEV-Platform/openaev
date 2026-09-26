@@ -6,7 +6,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.ee.License;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
 import java.util.function.Supplier;
@@ -44,18 +43,8 @@ class GlobalMetricCollectorTest {
     assertThat(supplierCaptor.getValue().get()).isEqualTo(42L);
   }
 
-  @Test
   @SuppressWarnings("unchecked")
-  void given_enterpriseEditionActive_should_returnOne() {
-    // Arrange
-    License license = new License();
-    license.setLicenseValidated(true);
-    when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
-
-    // Act
-    globalMetricCollector.init();
-
-    // Assert
+  private Supplier<Long> enterpriseEditionGauge() {
     ArgumentCaptor<Supplier<Long>> eeCaptor = ArgumentCaptor.forClass(Supplier.class);
     verify(metricRegistry)
         .registerGauge(
@@ -63,7 +52,31 @@ class GlobalMetricCollectorTest {
             eq("enterprise Edition is activated"),
             eeCaptor.capture(),
             eq("boolean"));
-    assertThat(eeCaptor.getValue().get()).isEqualTo(1L);
+    return eeCaptor.getValue();
+  }
+
+  @Test
+  void given_enterpriseEditionActive_should_returnOne() {
+    // Arrange
+    when(licenseCacheManager.isEnterpriseEditionActive()).thenReturn(true);
+
+    // Act
+    globalMetricCollector.init();
+
+    // Assert
+    assertThat(enterpriseEditionGauge().get()).isEqualTo(1L);
+  }
+
+  @Test
+  void given_enterpriseEditionNotInForce_should_returnZero() {
+    // Arrange
+    when(licenseCacheManager.isEnterpriseEditionActive()).thenReturn(false);
+
+    // Act
+    globalMetricCollector.init();
+
+    // Assert
+    assertThat(enterpriseEditionGauge().get()).isEqualTo(0L);
   }
 
   @Test

@@ -30,6 +30,6 @@ public class GlobalMetricCollector {
   }
 
   private long isEnterpriseEdition() {
-    return licenseCacheManager.getEnterpriseEditionInfo().isLicenseValidated() ? 1 : 0;
+    return licenseCacheManager.isEnterpriseEditionActive() ? 1 : 0;
   }
 }
