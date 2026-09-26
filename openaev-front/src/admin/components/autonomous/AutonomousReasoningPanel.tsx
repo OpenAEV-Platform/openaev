@@ -7,7 +7,9 @@ import {
   SendOutlined,
   WarningAmber,
 } from '@mui/icons-material';
-// fds:keep-mui the autonomous composer field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
+// fds:keep-mui survives the AI/EE screens wave: the panel only renders during an autonomous
+// run, which needs an agent the development platform does not have — the screen could not be
+// opened, and this wave does not convert a screen nobody has seen.
 import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';

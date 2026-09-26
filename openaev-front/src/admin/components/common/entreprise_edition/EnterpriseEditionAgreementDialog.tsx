@@ -10,9 +10,9 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 */
 
-// fds:keep-mui the licence agreement field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Button } from '@filigran/design-system';
-import { Alert, TextField } from '@mui/material';
+import { Button, Textarea } from '@filigran/design-system';
+// fds:keep-mui the pinned library predates its Alert: the component landed on the library's main on 2026-09-21 (#230), the pin d299fa4d6 is 2026-09-18. Lift at the next bump.
+import { Alert } from '@mui/material';
 import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -126,12 +126,10 @@ const EnterpriseEditionAgreementDialog = () => {
           </p>
         </Alert>
         <div>
-          <TextField
+          <Textarea
+            aria-label={t('Enterprise Edition license')}
             onChange={event => setEnterpriseLicense(event.target.value)}
-            multiline={true}
-            fullWidth={true}
             minRows={5}
-            variant="outlined"
             placeholder={t('Paste your Filigran OpenAEV Enterprise Edition license')}
           />
         </div>
