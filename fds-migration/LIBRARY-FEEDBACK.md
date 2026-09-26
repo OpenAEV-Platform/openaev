@@ -2493,3 +2493,43 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** The licence banner maps three urgency bands to three tokens and needs to name that union in its own props (`TopBanner`, `LicenseBanner`). It currently derives it with `NonNullable<ComponentProps<typeof Button>['color']>`, which works but says nothing to a reader.
 
 **The request.** Export `PrimitiveColorToken` (and, if useful, `PRIMITIVE_COLORS`) from the package entry, next to `ButtonProps`.
+
+## 62. `ProgressBar` has no indeterminate mode, and one product site cannot supply a percentage
+
+**Status.** Open. One site kept on MUI (`fds:keep-mui`): the phishing AI generation dialog's wait indicator.
+
+**Measured.** `ProgressBarProps` requires `value: number` (`dist/index.d.ts` at the pinned commit) and the RFC scopes the component to the determinate form, stating that indeterminate is excluded because "the sliding animation needs a keyframe in `theme.css`, outside the zone agents may edit" (§7, arbitration Q6).
+
+**Product need.** `PhishingAiGenerateButton` streams an agent's answer: the call has no length and no progress events, so there is no percentage to pass. The bar says "something is running", nothing more. A `Spinner` is the library's answer for that, but it is a 32px glyph where the screen draws a full-width bar under the form.
+
+**The request.** An indeterminate mode on `ProgressBar` (`value` optional, the sliding animation owned by the library), or a ruling that a wait of unknown length is a `Spinner` everywhere and the product changes the shape of this indicator.
+
+## 63. `--border-input-hover` is an alias of the primary text ink
+
+**Status.** Open. No workaround — the product renders the library's own hover state.
+
+**Measured.** Read on the rendered DOM of the Enterprise Edition licence dialog: a library `Textarea` at rest carries `border-color: rgba(0, 0, 0, 0)`; under the pointer the `hover:border-input-hover` utility resolves `--border-input-hover` to `#f2f2f3` in dark mode. `theme.css` declares it as `var(--text-default-primary)` — literally an alias of the body ink, so it follows that ink into each mode (`--gray-100` dark, `--gray-900` light) and the 1px hover outline of a field is always drawn at the strength reserved for text.
+
+**Product need.** The hover state has to say "this field is under the pointer" without reading louder than the focus ring beside it: focus draws a 2px ring in the focus token, hover currently draws a 1px pure white line.
+
+**The request.** A hover border value from the border family rather than the text family — the same relationship the resting and focus states already have to their own tokens.
+
+## 64. `Checkbox` does not draw the required marker its text fields draw
+
+**Status.** Open. The marker is not reinstated by hand in the product: writing a `*` in the label would put it inside the accessible name.
+
+**Measured.** `CheckboxProps` accepts `required` and forwards it (the rendered control carries `aria-required="true"`), but nothing visible marks the field: `InputProps` and `TextareaProps` both document "renders `*` and sets aria-required", `CheckboxProps` documents neither. MUI's `FormControlLabel required` drew a ` *` after the label, so the AI terms dialog lost its marker at conversion.
+
+**Product need.** One mandatory checkbox — the Filigran AI terms acceptance — whose label used to end with an asterisk.
+
+**The request.** Draw the `*` in the label row when `required` is set, as `Input` and `Textarea` already do, so the marker stays out of the accessible name. Not urgent for the product: the obligation is also carried by `aria-required` and by the confirm button, which stays disabled until the box is ticked.
+
+## 65. `Textarea` and `Input` have no way to take the helper text out of the flow
+
+**Status.** Open. One site kept on MUI (`fds:keep-mui`): the chained-scenario event condition row.
+
+**Measured.** `InputProps` and `TextareaProps` accept `helperText` and `error` and render them under the field, in normal flow. MUI's `slotProps.formHelperText` lets a consumer position that node; the library exposes no slot, no class hook and no prop for it, and its helper is rendered inside the field's own column.
+
+**Product need.** `EventConditionRow` draws one condition on a single line — field, operator, expected value, case toggle. Its value field floats the helper text absolutely (`slotProps={{ formHelperText: { sx: floatingHelperTextSx } }}`), so that an error message appears without pushing the rest of the row down. Converted as is, the first validation error would shift every following row.
+
+**The request.** A way to render the helper outside the field's flow — a slot, a class hook on the helper node, or a documented `helperTextPlacement` — so a dense row can show an error without reflowing.

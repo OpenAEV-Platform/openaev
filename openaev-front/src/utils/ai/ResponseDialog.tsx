@@ -1,9 +1,8 @@
-import { Button, IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
+import { Button, IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Spinner, Textarea } from '@filigran/design-system';
 import { RichTextEditor } from '@filigran/rich-text-editor';
 import { RefreshOutlined } from '@mui/icons-material';
-import { LoadingButton } from '@mui/lab';
-// fds:keep-mui the AI response fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Alert, Box, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
+// fds:keep-mui the pinned library predates its Alert: the component landed on the library's main on 2026-09-21 (#230), the pin d299fa4d6 is 2026-09-18. Lift at the next bump.
+import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 // As we can ask AI after and follow up, there is a dependency lifecycle here that can be accepted
 // TODO: Cleanup a bit in upcoming version
 // eslint-disable-next-line import/no-cycle
@@ -220,14 +219,13 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
   const renderContentEditors = () => (
     <>
       {(format === 'text' || format === 'json') && (
-        <TextField
-          inputRef={textFieldRef}
+        <Textarea
+          ref={textFieldRef}
+          aria-label={t('Result')}
           disabled={effectiveDisabled}
           rows={Math.round(height / 23)}
           value={content}
-          multiline={true}
           onChange={event => setContent(event.target.value)}
-          fullWidth={true}
         />
       )}
       {format === 'html' && (
@@ -376,7 +374,7 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
                   height: '100%',
                 }}
                 >
-                  <CircularProgress size={40} />
+                  <Spinner size="xl" />
                 </Box>
               )}
 
@@ -427,9 +425,9 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
           {t('Close')}
         </Button>
         {isAcceptable && (
-          <LoadingButton loading={effectiveDisabled} variant="contained" color="primary" disabled={!!agentError} onClick={() => handleAccept(content)}>
+          <Button type="button" loading={effectiveDisabled} disabled={!!agentError} onClick={() => handleAccept(content)}>
             {t('Accept')}
-          </LoadingButton>
+          </Button>
         )}
       </DialogActions>
     </Dialog>

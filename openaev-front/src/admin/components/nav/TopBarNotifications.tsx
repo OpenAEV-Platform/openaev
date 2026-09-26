@@ -29,7 +29,9 @@ const TopBarNotifications = () => {
     <Tooltip>
       <TooltipTrigger asChild>
         {/* The Badge wraps the LINK, not the glyph: it describes its child, and the glyph slot is aria-hidden. */}
-        <Badge content={unreadCount} dot invisible={unreadCount === 0}>
+        {/* The link is styled with the tertiary icon-button variants, so it paints no
+            resting surface: the badge has to tuck in to stay attached to the glyph. */}
+        <Badge content={unreadCount} dot invisible={unreadCount === 0} bareAnchor="md">
           <TopBarIconLink
             aria-label={t('Notifications')}
             to="/admin/profile/notifications"

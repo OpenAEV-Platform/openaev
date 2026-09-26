@@ -1,6 +1,5 @@
-// fds:keep-mui the AI terms checkbox stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
-import { Button } from '@filigran/design-system';
-import { Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Typography } from '@mui/material';
+import { Button, Checkbox, Text } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogTitle, Stack } from '@mui/material';
 import type React from 'react';
 import { useContext, useState } from 'react';
 
@@ -40,9 +39,9 @@ const FiligranAiCguDialog: React.FC<FiligranAiCguDialogProps> = ({ open, onClose
       <DialogTitle>{t('Validate the Filigran AI Terms')}</DialogTitle>
       <DialogContent>
         <Stack gap={3}>
-          <Typography>
+          <Text variant="content-base">
             {t('Please take a moment to review our "Filigran AI Terms". Our chatbot is here to assist you, but it\'s important to understand how it works and what to expect. Please read the full terms to know how we protect your data and ensure service quality.')}
-          </Typography>
+          </Text>
           <Stack
             alignItems="center"
             gap={2}
@@ -52,13 +51,11 @@ const FiligranAiCguDialog: React.FC<FiligranAiCguDialogProps> = ({ open, onClose
                 {t('Read the Filigran AI Terms')}
               </a>
             </Button>
-            <FormControlLabel
+            <Checkbox
               checked={isChecked}
               required
-              control={<Checkbox />}
               label={t('I have read, I understand and I accept the Filigran AI terms')}
-              labelPlacement="end"
-              onChange={(_, checked) => setIsChecked(checked)}
+              onCheckedChange={checked => setIsChecked(checked === true)}
             />
           </Stack>
         </Stack>

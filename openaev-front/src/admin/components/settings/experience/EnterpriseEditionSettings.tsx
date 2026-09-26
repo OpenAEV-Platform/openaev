@@ -1,4 +1,4 @@
-import { Button, Icon } from '@filigran/design-system';
+import { Button, Icon, Text } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesomeOutlined,
@@ -65,7 +65,7 @@ const EnterpriseEditionSettings: React.FC = () => {
   const activatedFooter = !isEnterpriseEditionByConfig
     ? (
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <Button type="button" priority="secondary" size="sm" onClick={() => setOpenEEChanges(true)}>
+          <Button type="button" variant="destructive" priority="secondary" onClick={() => setOpenEEChanges(true)}>
             {t('Disable Enterprise Edition')}
           </Button>
           <EnterpriseEditionButton />
@@ -148,7 +148,7 @@ const EnterpriseEditionSettings: React.FC = () => {
                 <ExperienceDetailRow label={t('XTM One (Agentic IA)')} divider={false}>
                   {isCguPending
                     ? (
-                        <Button type="button" priority="secondary" size="sm" onClick={() => setOpenValidateTermsOfUse(true)} style={{ lineHeight: '12px' }}>
+                        <Button type="button" priority="secondary" size="sm" onClick={() => setOpenValidateTermsOfUse(true)}>
                           {t('Validate the Filigran AI Terms')}
                         </Button>
                       )
@@ -175,9 +175,9 @@ const EnterpriseEditionSettings: React.FC = () => {
               <ExperienceHeadline>
                 {t('Unlock powerful capabilities with OpenAEV Enterprise Edition')}
               </ExperienceHeadline>
-              <Typography variant="body2" color="text.secondary">
+              <Text variant="content-base" className="text-default-secondary">
                 {t('Get enterprise-grade automation, remediation, and deployment flexibility - trusted by governments, financial institutions, and global enterprises. Deployment flexibility with SaaS, on-premise, and Bring-Your-Own-Cloud to match your needs.')}
-              </Typography>
+              </Text>
               <div
                 style={{
                   display: 'grid',

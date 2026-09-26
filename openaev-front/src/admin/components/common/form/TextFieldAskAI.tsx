@@ -1,5 +1,7 @@
 import { Button, IconButton, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-// fds:keep-mui the AI prompt fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
+// fds:keep-mui survives the AI/EE screens wave: the seven fields live in the two option
+// dialogs ("Generate a message", "Generate an article"), reachable only from an inject or
+// an article context, and this component renders nothing at all while the AI terms are off.
 import { Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, Menu, MenuItem, SvgIcon, TextField } from '@mui/material';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
