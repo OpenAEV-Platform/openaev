@@ -1,6 +1,6 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckOutlined } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -112,7 +112,7 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
         color: 'text.secondary',
       }}
       >
-        <Typography variant="body2">{t('No technique matches your search.')}</Typography>
+        <Text variant="content-compact" className="text-default-secondary">{t('No technique matches your search.')}</Text>
       </Box>
     );
   }
@@ -146,30 +146,17 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
               backgroundColor: theme.palette.background.paper,
             }}
             >
-              <Typography sx={{
-                fontFamily: theme.typography.h1.fontFamily,
-                fontWeight: 600,
-                fontSize: 11,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'text.primary',
-                lineHeight: 1.3,
-              }}
-              >
+              <Text variant="content-caption" className="uppercase font-semibold" style={{ letterSpacing: '0.08em' }}>
                 <EllipsisTooltip>{phase.phase_name}</EllipsisTooltip>
-              </Typography>
-              <Typography sx={{
-                fontSize: 10.5,
-                color: 'text.secondary',
-              }}
-              >
+              </Text>
+              <Text variant="content-caption" className="text-default-secondary">
                 {selectedInColumn > 0
                   ? t('{selected}/{total} selected', {
                       selected: selectedInColumn,
                       total: techniques.length,
                     })
                   : t('{count} techniques', { count: techniques.length })}
-              </Typography>
+              </Text>
             </Box>
             <Box sx={{
               display: 'flex',
@@ -216,19 +203,18 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
                   >
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Typography sx={{
-                          fontSize: 11.5,
-                          fontWeight: isSelected ? 600 : 500,
-                          lineHeight: 1.3,
-                          color: 'text.primary',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
+                        <Text
+                          variant={isSelected ? 'content-compact-bold' : 'content-compact'}
+                          // The library ships no line-clamp utility; the two-line clamp stays explicit.
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
                         >
                           {technique.attack_pattern_name}
-                        </Typography>
+                        </Text>
                       </TooltipTrigger>
                       {technique.attack_pattern_name && <TooltipContent>{technique.attack_pattern_name}</TooltipContent>}
                     </Tooltip>
@@ -239,18 +225,13 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
                       marginTop: 0.25,
                     }}
                     >
-                      <Typography sx={{
-                        fontSize: 9.5,
-                        fontFamily: 'monospace',
-                        color: 'text.secondary',
-                        flex: 1,
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
+                      <Text
+                        variant="content-caption"
+                        className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-default-secondary"
+                        style={{ fontFamily: 'monospace' }}
                       >
                         {technique.attack_pattern_external_id}
-                      </Typography>
+                      </Text>
                       {arsenalCount > 0 && (
                         <Tooltip>
                           <TooltipTrigger asChild>

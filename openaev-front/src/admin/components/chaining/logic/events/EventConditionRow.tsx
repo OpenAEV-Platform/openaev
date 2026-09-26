@@ -1,7 +1,9 @@
 import { IconButton, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
-// fds:keep-mui the event condition value field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
+// fds:keep-mui survives the AI/EE screens wave: the field carries slotProps to float its
+// helper text, so an error does not shift the condition row. The library field has no slot
+// for that, and no way to take the helper out of the flow (LIBRARY-FEEDBACK.md 65).
 import { Box, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
 
