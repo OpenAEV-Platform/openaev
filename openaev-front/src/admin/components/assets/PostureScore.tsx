@@ -1,4 +1,4 @@
-import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
 import { Box, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -147,9 +147,10 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
 
   const pillars = breakdown.filter(entry => entry.success + entry.failed > 0);
 
-  // Mini ring gauge geometry (sized to sit next to the 30px HeroStat icon boxes).
-  const ringSize = 30;
-  const ringRadius = 12;
+  // Mini ring gauge geometry, sized on the 24px glyph the neighbouring
+  // HeroStat tiles carry, so the row of icons reads level.
+  const ringSize = 24;
+  const ringRadius = 9.5;
   const circumference = 2 * Math.PI * ringRadius;
   const fill = score === null ? 0 : score / 100;
 
@@ -177,13 +178,16 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
           <Box
             onClick={() => setExplainOpen(true)}
             {...explainA11yProps}
+            // The tile is one of the hero stats beside it, so it wears their
+            // chrome: 8px inset, the subtle-soft border, the 24px glyph slot.
             sx={{
               'display': 'flex',
               'alignItems': 'center',
               'gap': 1,
               'minWidth': 0,
-              'padding': 0.5,
+              'padding': 1,
               'borderRadius': 1,
+              'border': '1px solid var(--border-elevation-subtle-soft)',
               'cursor': 'pointer',
               'transition': 'background-color 120ms',
               '&:hover': { backgroundColor: tint(color, 8) },
@@ -229,8 +233,8 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
               }}
               >
                 <Box sx={{
-                  width: 6,
-                  height: 6,
+                  width: 5,
+                  height: 5,
                   borderRadius: '50%',
                   background: color,
                   boxShadow: `0 0 6px ${tint(color, 80)}`,
@@ -238,27 +242,21 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                 />
               </Box>
             </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{
-                fontFamily: '"Geologica", sans-serif',
-                fontSize: 18,
-                fontWeight: 500,
-                lineHeight: 1.05,
-                color: score === null ? 'text.primary' : color,
-              }}
-              >
+            {/* Value and label on ONE line, in the hero stat's own type: the
+                score's colour stays on the ring, which is what carries it. */}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              minWidth: 0,
+            }}
+            >
+              <Text variant="content-base-bold" className="text-default-primary">
                 {displayValue}
-              </Typography>
-              <Typography sx={{
-                fontSize: 9.5,
-                fontWeight: 600,
-                letterSpacing: '0.07em',
-                textTransform: 'uppercase',
-                color: 'text.secondary',
-              }}
-              >
+              </Text>
+              <Text variant="content-compact" className="text-default-secondary">
                 {t('Posture score')}
-              </Typography>
+              </Text>
             </Box>
           </Box>
         </TooltipTrigger>
