@@ -456,7 +456,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   severity="info"
                 />
               )}
-              <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
               <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
               {exercise.exercise_category && (
                 <ItemCategory
@@ -465,10 +464,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   size="small"
                 />
               )}
+              {/* The launch facts read as one pair: when it runs, then in which state.
+                  Same severity so the two share a background. */}
               <Chip
                 label={exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-                severity="neutral"
+                severity="info"
               />
+              <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
             </>
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the
