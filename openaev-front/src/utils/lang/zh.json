@@ -9,6 +9,7 @@
   "Enterprise Edition license": "企业版许可证",
   "Installation mode": "安装模式",
   "Response choices": "回答选项",
+  "The scheduling can only be changed before the simulation starts. Resetting it reopens the date and clears the collected results.": "仅可在模拟开始前修改计划。重置会重新开放日期并清除已收集的结果。",
   "View in scenario": "在场景中查看",
   "_": "_",
   "-": "-",
