@@ -465,35 +465,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   size="small"
                 />
               )}
-              {/* Belonging to a scenario is a FACT about this run, not something you do
-                  to it: it reads beside the other facts, not among the controls. A redirect,
-                  so a fixed label — the destination names itself, and the scenario's name
-                  stays in the tooltip. */}
-              {parentScenarioId && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span style={{ display: 'inline-flex' }}>
-                      {canAccessParentScenario
-                        ? (
-                            <Button priority="tertiary" asChild>
-                              <Link to={`${SCENARIO_BASE_URL}/${parentScenarioId}`}>
-                                <RouteOutlined fontSize="small" aria-hidden />
-                                {t('View in scenario')}
-                              </Link>
-                            </Button>
-                          )
-                        : (
-                            <Button type="button" priority="tertiary" startIcon={<RouteOutlined fontSize="small" />} disabled>
-                              {t('View in scenario')}
-                            </Button>
-                          )}
-                    </span>
-                  </TooltipTrigger>
-                  {/* The destination names itself; the label stays fixed so the action
-                      row keeps one geometry from one simulation to the next. */}
-                  <TooltipContent>{parentScenario?.scenario_name ?? t('Parent scenario')}</TooltipContent>
-                </Tooltip>
-              )}
               <Chip
                 label={exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
                 severity="neutral"
@@ -599,6 +570,34 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   actions={actions}
                   onDelete={() => navigate('/admin/simulations')}
                 />
+              )}
+              {/* Trial placement: the redirect back to the parent scenario, immediately
+                  after the overflow menu. A fixed label, so the row keeps one geometry; the
+                  scenario's name stays in the tooltip. */}
+              {parentScenarioId && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span style={{ display: 'inline-flex' }}>
+                      {canAccessParentScenario
+                        ? (
+                            <Button priority="tertiary" asChild>
+                              <Link to={`${SCENARIO_BASE_URL}/${parentScenarioId}`}>
+                                <RouteOutlined fontSize="small" aria-hidden />
+                                {t('View in scenario')}
+                              </Link>
+                            </Button>
+                          )
+                        : (
+                            <Button type="button" priority="tertiary" startIcon={<RouteOutlined fontSize="small" />} disabled>
+                              {t('View in scenario')}
+                            </Button>
+                          )}
+                    </span>
+                  </TooltipTrigger>
+                  {/* The destination names itself; the label stays fixed so the action
+                      row keeps one geometry from one simulation to the next. */}
+                  <TooltipContent>{parentScenario?.scenario_name ?? t('Parent scenario')}</TooltipContent>
+                </Tooltip>
               )}
               {/* Configuration promoted to a first-class button (not buried in the
                   overflow) so teams/players setup is discoverable, with an
