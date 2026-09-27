@@ -30,16 +30,14 @@ const ChannelHeader = () => {
 
   return (
     <DetailHero
+      // A channel with its own logo fills the square; the fallback is a glyph,
+      // so it keeps the framed thumbnail.
+      iconFills={!!hasLogo}
       iconNode={hasLogo
         ? (
             <img
               src={buildTenantApiPath(`/api/images/channels/id/${channelId}/${mode}`)}
               alt={channel.channel_name}
-              style={{
-                maxWidth: 36,
-                maxHeight: 36,
-                objectFit: 'contain',
-              }}
             />
           )
         : <ChannelIcon type={channel.channel_type} />}
