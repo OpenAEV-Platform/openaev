@@ -48,10 +48,11 @@ const Catalog = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     <>
       <ConnectorMarketplace
         items={items}
-        renderFooterAction={item => (
+        renderFooterAction={(item, view) => (
           <DeployButton
             onDeployBtnClick={e => onDeployBtnClick(e, item)}
             deploymentCount={item.deployedCount}
+            size={view === 'card' ? 'sm' : 'md'}
           />
         )}
       />
