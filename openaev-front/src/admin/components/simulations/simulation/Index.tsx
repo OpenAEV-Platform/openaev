@@ -6,6 +6,7 @@ import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/au
 import { fetchExercise } from '../../../../actions/Exercise';
 import { fetchScenarioFromSimulation } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
+import { STICKY_RAIL_GUTTER } from '../../../../components/common/menu/RightMenu';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
@@ -110,14 +111,12 @@ const IndexComponent: FunctionComponent<{
     }),
   }), [exercise?.exercise_id, exercise?.exercise_name]);
 
-  // Autonomous runs reserve the right column for the always-open reasoning panel; otherwise keep
-  // the legacy right rail only on the Execution timeline.
-  let contentPaddingRight = 0;
-  if (isAutonomous) {
-    contentPaddingRight = panelWidth;
-  } else if (location.pathname.includes('/execution')) {
-    contentPaddingRight = 200;
-  }
+  // The autonomous reasoning panel is pinned to the whole page, so the page is
+  // padded for it. The Execution rail only navigates that tab, so its gutter is
+  // reserved around the routed content instead - the hero and the tab bar keep
+  // the full width.
+  const pagePaddingRight = isAutonomous ? panelWidth : 0;
+  const executionPaddingRight = !isAutonomous && location.pathname.includes('/execution') ? STICKY_RAIL_GUTTER : 0;
 
   const autonomousContext = useMemo(() => ({ isAutonomous }), [isAutonomous]);
 
@@ -125,8 +124,8 @@ const IndexComponent: FunctionComponent<{
     <AutonomousContext.Provider value={autonomousContext}>
       <PermissionsContext.Provider value={permissionsContext}>
         <DocumentContext.Provider value={documentContext}>
-          <div style={{ paddingRight: contentPaddingRight }}>
-            <SimulationShell exercise={exercise} autonomousRun={autonomousRun}>
+          <div style={{ paddingRight: pagePaddingRight }}>
+            <SimulationShell exercise={exercise} autonomousRun={autonomousRun} contentPaddingRight={executionPaddingRight}>
               <Suspense fallback={<Loader />}>
                 <Routes>
                   {/* Overview swaps to the AI cockpit for autonomous runs. */}
