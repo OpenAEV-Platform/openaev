@@ -497,7 +497,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
 
       {showPosture && (
         <SectionBlock title={t('Latest run posture')}>
-          <SamplePreview active={isSample} variant="subtle">
+          <SamplePreview active={isSample} variant="subtle" atPanelEdge>
             <PostureGauges
               expectationResultsByTypes={postureResults}
               humanValidationLink={!isSample && lastSimulationId ? `/admin/simulations/${lastSimulationId}/execution/validations` : undefined}
@@ -598,7 +598,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               the scenario's injects (muted boxes, coverage unknown): only grey
               it as an illustrative sample when even the techniques are not
               known yet (no injects with attack patterns). */}
-          <SamplePreview active={isSample && plannedInjectResults.length === 0} variant="subtle">
+          <SamplePreview active={isSample && plannedInjectResults.length === 0} variant="subtle" atPanelEdge>
             <MitreCoverageMatrix
               widgetId={`scenario-mitre-${scenarioId}`}
               injectResults={isSample ? plannedInjectResults : lastInjectResults}
