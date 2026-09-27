@@ -20,25 +20,25 @@ interface ItemCategoryProps {
 const renderIcon = (category: string, size: 'small' | 'medium' | 'large' | 'inherit' | undefined) => {
   switch (category) {
     case 'global-crisis':
-      return <PublicOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <PublicOutlined fontSize={size ?? 'medium'} />;
     case 'attack-scenario':
-      return <GpsFixedOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <GpsFixedOutlined fontSize={size ?? 'medium'} />;
     case 'media-pressure':
-      return <CampaignOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <CampaignOutlined fontSize={size ?? 'medium'} />;
     case 'data-exfiltration':
-      return <DatabaseExportOutline fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <DatabaseExportOutline fontSize={size ?? 'medium'} />;
     case 'capture-the-flag':
-      return <FlagOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <FlagOutlined fontSize={size ?? 'medium'} />;
     case 'vulnerability-exploitation':
-      return <ShieldBugOutline fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <ShieldBugOutline fontSize={size ?? 'medium'} />;
     case 'lateral-movement':
-      return <SwapHorizOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <SwapHorizOutlined fontSize={size ?? 'medium'} />;
     case 'url-filtering':
-      return <FilterAltOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <FilterAltOutlined fontSize={size ?? 'medium'} />;
     case 'all':
-      return <AppsOutlined fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <AppsOutlined fontSize={size ?? 'medium'} />;
     default:
-      return <CrosshairsQuestion fontSize={size ?? 'medium'} style={{ marginRight: 10 }} />;
+      return <CrosshairsQuestion fontSize={size ?? 'medium'} />;
   }
 };
 
@@ -48,9 +48,11 @@ const ItemCategory: FunctionComponent<ItemCategoryProps> = ({
   size,
 }) => {
   return (
+    // The gap belongs to the row, not to each of the ten icons.
     <div style={{
       display: 'flex',
       alignItems: 'center',
+      gap: 4,
     }}
     >
       {renderIcon(category, size)}
