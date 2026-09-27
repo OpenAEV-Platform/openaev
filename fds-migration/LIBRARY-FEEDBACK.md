@@ -2543,3 +2543,13 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** The hero body carries two nudges of different urgency: a red one for a blocking configuration gap, an amber one for a drift that can wait. Both are outlined buttons; only the red one has a variant.
 
 **The request.** An `alert` tone on `Button`, drawn from the `feedback-alert` family the design file names, so the amber nudge stops being hand-coloured.
+
+## 67. `Thumbnail` cannot be placed one elevation layer above its host
+
+**Status.** Open. Worked around in the product (the layer variable is repointed on a wrapper).
+
+**Measured.** `ThumbnailProps extends ComponentPropsWithoutRef<"div">`: it declares no `elevation`, so the prop cannot be typed through to the `Paper` it renders. That Paper applies its own `.layer-N` class, and `Paper.tsx` states the consequence in its own comment — the class "re-declares `--bg-elevation-default` ON THE PAPER ELEMENT ITSELF, so an inherited one loses", and setting `--bg-elevation-default` anywhere "DOES NOTHING, EVER".
+
+**Product need.** `Hero.rfc.md` says the Hero renders on layer 1 and "its Thumbnail sits one layer up". Inside a Hero the thumbnail therefore paints the hero's own fill: read on the rendered page, both were `rgb(13, 23, 43)` and only the thumbnail's border showed. The product now repoints `--bg-elevation-default-layer-1` on a wrapper, the one mechanism Paper documents as working, to get `rgb(19, 33, 62)`.
+
+**The request.** Accept `elevation` on `Thumbnail` and forward it to its `Paper` — or have `Hero`'s icon slot raise it, since the RFC already says where it belongs.

@@ -1,7 +1,7 @@
 import { Hero, HeroBody, HeroHeader, Paper, Text, Thumbnail, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type ComponentType, type ReactNode } from 'react';
+import { type ComponentType, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { compactNumber } from '../../../utils/number';
@@ -261,7 +261,7 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
         minWidth: 0,
       }}
       >
-        <Text variant="content-base-bold">
+        <Text variant="content-base-bold" className="text-default-primary">
           {isCompacted
             ? (
                 <Tooltip>
@@ -339,7 +339,19 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
   // the header/body split all come from the component (Figma 7910:12881).
   <Hero data-testid="detail-hero">
     <HeroHeader
-      icon={(iconNode || Icon) ? <Thumbnail>{iconNode ?? (Icon ? <Icon color="primary" /> : null)}</Thumbnail> : undefined}
+      icon={(iconNode || Icon)
+        ? (
+            // Hero.rfc.md: the thumbnail sits one layer above the hero. Thumbnail
+            // renders a library Paper, which re-declares `--bg-elevation-default` on
+            // ITSELF from its own layer class, so a `.layer-2` wrapper loses. Paper.tsx
+            // documents the one thing that does work: repointing the layer variable on
+            // an ancestor repaints the subtree. Without it the thumbnail paints the
+            // hero's own fill and only its border shows.
+            <span style={{ '--bg-elevation-default-layer-1': 'var(--bg-elevation-default-layer-2)' } as CSSProperties}>
+              <Thumbnail>{iconNode ?? (Icon ? <Icon color="primary" /> : null)}</Thumbnail>
+            </span>
+          )
+        : undefined}
       action={action && (
         <Box sx={{
           'display': 'flex',
