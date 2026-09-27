@@ -302,15 +302,11 @@ const SecurityPlatformDetail: FunctionComponent = () => {
     return <NotFound />;
   }
 
+  // The platform's own artwork fills the hero square, unframed (iconFills).
   const logo = (
     <img
       src={buildTenantApiPath(`/api/images/security_platforms/id/${platform.asset_id}/${theme.palette.mode}`)}
       alt={platform.asset_name}
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: 4,
-      }}
     />
   );
 
@@ -337,6 +333,7 @@ const SecurityPlatformDetail: FunctionComponent = () => {
       />
 
       <DetailHero
+        iconFills
         iconNode={logo}
         title={platform.asset_name}
         chips={<ItemSecurityPlatformType type={platform.security_platform_type} size="medium" />}
