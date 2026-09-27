@@ -471,6 +471,20 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
               />
             </>
           )}
+          // The alert-toned controls sit in the body row, right-aligned, where the
+          // design file draws them (Figma 7929:13294). Each self-hides when healthy.
+          bodyAction={permissions.canManage && !isAutonomous && (
+            <>
+              <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
+              <ExpectationsDriftIndicator
+                drift={expectationsDrift}
+                variant="simulation"
+                onRealign={onRealignExpectations}
+                onDismiss={onDismissExpectations}
+                placement="warning"
+              />
+            </>
+          )}
           action={(
             <>
               {/* "Collector(s) present" indicator - self-hides when no
@@ -480,21 +494,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 workflowId={exerciseWorkflowId}
                 launched={exercise.exercise_status !== 'SCHEDULED'}
               />
-              {/* Contextual configuration alert - self-hides when healthy. Autonomous runs are
-                  scoped and driven by the AI, so the "configure scope" nudge never applies. */}
-              {permissions.canManage && !isAutonomous && (
-                <HealthcheckIndicator healthchecks={healthchecks} exerciseId={exerciseId} />
-              )}
-              {/* Expectation drift warning - self-hides when aligned or dismissed. */}
-              {permissions.canManage && !isAutonomous && (
-                <ExpectationsDriftIndicator
-                  drift={expectationsDrift}
-                  variant="simulation"
-                  onRealign={onRealignExpectations}
-                  onDismiss={onDismissExpectations}
-                  placement="warning"
-                />
-              )}
               {/* Dismissed drift downgraded to a discreet icon - the drift is
                   acknowledged but still reviewable. */}
               {permissions.canManage && !isAutonomous && (
