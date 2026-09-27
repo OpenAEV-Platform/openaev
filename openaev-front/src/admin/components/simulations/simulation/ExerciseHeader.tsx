@@ -545,7 +545,14 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                         />
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent>{t('Modify the scheduling')}</TooltipContent>
+                    {/* A disabled control that never says why reads as broken. Stop leaves the
+                        simulation CANCELED, which does NOT reopen the date: only Reset returns it
+                        to SCHEDULED, and it clears the results. Say both. */}
+                    <TooltipContent>
+                      {exercise.exercise_status === 'SCHEDULED'
+                        ? t('Modify the scheduling')
+                        : t('The scheduling can only be changed before the simulation starts. Resetting it reopens the date and clears the collected results.')}
+                    </TooltipContent>
                   </Tooltip>
                 </>
               )}

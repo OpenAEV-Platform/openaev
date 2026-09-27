@@ -9,6 +9,7 @@
   "Enterprise Edition license": "Enterprise-Edition-Lizenz",
   "Installation mode": "Installationsmodus",
   "Response choices": "Antwortoptionen",
+  "The scheduling can only be changed before the simulation starts. Resetting it reopens the date and clears the collected results.": "Die Planung lässt sich nur vor dem Start der Simulation ändern. Ein Zurücksetzen gibt das Datum wieder frei und löscht die erfassten Ergebnisse.",
   "View in scenario": "Im Szenario anzeigen",
   "_": "_",
   "-": "Keine",
