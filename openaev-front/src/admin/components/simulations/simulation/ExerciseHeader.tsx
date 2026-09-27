@@ -465,6 +465,35 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   size="small"
                 />
               )}
+              {/* Belonging to a scenario is a FACT about this run, not something you do
+                  to it: it reads beside the other facts, not among the controls. A redirect,
+                  so a fixed label — the destination names itself, and the scenario's name
+                  stays in the tooltip. */}
+              {parentScenarioId && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span style={{ display: 'inline-flex' }}>
+                      {canAccessParentScenario
+                        ? (
+                            <Button priority="tertiary" asChild>
+                              <Link to={`${SCENARIO_BASE_URL}/${parentScenarioId}`}>
+                                <RouteOutlined fontSize="small" aria-hidden />
+                                {t('View in scenario')}
+                              </Link>
+                            </Button>
+                          )
+                        : (
+                            <Button type="button" priority="tertiary" startIcon={<RouteOutlined fontSize="small" />} disabled>
+                              {t('View in scenario')}
+                            </Button>
+                          )}
+                    </span>
+                  </TooltipTrigger>
+                  {/* The destination names itself; the label stays fixed so the action
+                      row keeps one geometry from one simulation to the next. */}
+                  <TooltipContent>{parentScenario?.scenario_name ?? t('Parent scenario')}</TooltipContent>
+                </Tooltip>
+              )}
               <Chip
                 label={exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
                 severity="neutral"
@@ -556,31 +585,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   where the full control surface
                   (pause / resume / stop / steer) lives; once stopped, relaunch happens from the
                   scenario's Normal / Autonomous launch buttons - there is no restart. */}
-              {parentScenarioId && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span style={{ display: 'inline-flex' }}>
-                      {canAccessParentScenario
-                        ? (
-                            <Button priority="tertiary" asChild>
-                              <Link to={`${SCENARIO_BASE_URL}/${parentScenarioId}`}>
-                                <RouteOutlined fontSize="small" aria-hidden />
-                                {t('View in scenario')}
-                              </Link>
-                            </Button>
-                          )
-                        : (
-                            <Button type="button" priority="tertiary" startIcon={<RouteOutlined fontSize="small" />} disabled>
-                              {t('View in scenario')}
-                            </Button>
-                          )}
-                    </span>
-                  </TooltipTrigger>
-                  {/* The destination names itself; the label stays fixed so the action
-                      row keeps one geometry from one simulation to the next. */}
-                  <TooltipContent>{parentScenario?.scenario_name ?? t('Parent scenario')}</TooltipContent>
-                </Tooltip>
-              )}
               {/* Entity-scoped reports - self-hides without the reporting access capability. Kept
                   right next to the overflow menu so the two "meta" actions sit together. */}
               <EntityReportsPanel
