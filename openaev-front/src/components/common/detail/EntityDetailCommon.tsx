@@ -348,7 +348,17 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
             // an ancestor repaints the subtree. Without it the thumbnail paints the
             // hero's own fill and only its border shows.
             <span style={{ '--bg-elevation-default-layer-1': 'var(--bg-elevation-default-layer-2)' } as CSSProperties}>
-              <Thumbnail>{iconNode ?? (Icon ? <Icon color="primary" /> : null)}</Thumbnail>
+              {/* The library's Thumbnail is fixed at 48 and paints Paper's
+                  `subtle-soft` border; the hero asks for 54 and the plain
+                  `subtle` one (LIBRARY-FEEDBACK.md 68). */}
+              <Thumbnail style={{
+                width: 54,
+                height: 54,
+                borderColor: 'var(--border-elevation-subtle)',
+              }}
+              >
+                {iconNode ?? (Icon ? <Icon color="primary" /> : null)}
+              </Thumbnail>
             </span>
           )
         : undefined}

@@ -2553,3 +2553,13 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** `Hero.rfc.md` says the Hero renders on layer 1 and "its Thumbnail sits one layer up". Inside a Hero the thumbnail therefore paints the hero's own fill: read on the rendered page, both were `rgb(13, 23, 43)` and only the thumbnail's border showed. The product now repoints `--bg-elevation-default-layer-1` on a wrapper, the one mechanism Paper documents as working, to get `rgb(19, 33, 62)`.
 
 **The request.** Accept `elevation` on `Thumbnail` and forward it to its `Paper` — or have `Hero`'s icon slot raise it, since the RFC already says where it belongs.
+
+## 68. `Thumbnail` fixes its size at 48 and its border at Paper's `subtle-soft`
+
+**Status.** Open. Worked around in the product (size and border colour set in `style`).
+
+**Measured.** `Thumbnail.tsx` at the bumped commit `0c4455419` renders `<Paper padding={0} className="flex size-12 …">` and states the intent in its own comment: "Size is fixed at 48. The set carried three sizes until 2026-08-23 and now carries one; a second size is a design decision, not a prop to anticipate." The border is Paper's, `--border-elevation-subtle-soft`, i.e. the subtle colour at 15% — read on the page as `color(srgb 0.168627 0.309804 0.552941 / 0.15)`.
+
+**Product need.** The design lead's ruling of 2026-09-27 for the entity hero: the thumbnail is **54 x 54** and carries the plain `--border-elevation-subtle`, `rgb(43, 79, 141)` — a frame that reads on the hero's surface rather than a hairline. The product sets both in `style` on the twenty-one pages that render the hero.
+
+**The request.** The second size the comment anticipated, as a `size` prop, and a way to ask for the plain `subtle` border — or a ruling that the hero's thumbnail is its own variant.
