@@ -1,23 +1,23 @@
-﻿import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { isImmutable } from 'immutable';
 import * as PropTypes from 'prop-types';
-import { useMemo } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useHelper } from '../store';
-import {
-  getLabelOfRemainingItems,
-  getRemainingItemsCount,
-  getVisibleItems,
-  truncate,
-} from '../utils/String';
+import { truncate } from '../utils/String';
+
+const GAP = 6;
 
 const useStyles = makeStyles()(() => ({
   inline: {
     display: 'flex',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
+    // Tags read as one row, never as a stack: a cell one line tall would clip
+    // the second line anyway. What does not fit is counted in the +N chip.
+    flexWrap: 'nowrap',
+    overflow: 'hidden',
+    gap: GAP,
   },
 }));
 
@@ -41,7 +41,6 @@ const ItemTags = (props) => {
       .map(tag => (isImmutable(tag) ? tag.toJS() : tag)),
   }));
 
-  // 🔥 Remplacement de Ramda.sortWith / ascend / prop
   const orderedTags = useMemo(
     () =>
       [...resolvedTags].sort((a, b) =>
@@ -50,40 +49,97 @@ const ItemTags = (props) => {
     [resolvedTags],
   );
 
-  const visibleTags = getVisibleItems(orderedTags, limit);
-  const tooltipLabel = getLabelOfRemainingItems(
-    orderedTags,
-    limit,
-    'tag_name',
-  );
-  const remainingTagsCount = getRemainingItemsCount(
-    orderedTags,
-    visibleTags,
-  );
+  const capped = useMemo(() => orderedTags.slice(0, limit), [orderedTags, limit]);
+  const allNames = useMemo(() => orderedTags.map(tag => tag.tag_name).join(', '), [orderedTags]);
+  const key = useMemo(() => capped.map(tag => tag.tag_id).join('|'), [capped]);
+
+  const container = useRef(null);
+  const widths = useRef({
+    key: null,
+    chips: [],
+    plus: 0,
+  });
+  // Everything is rendered for one pass so each chip can be measured; the count
+  // that fits is then what stays.
+  const [visibleCount, setVisibleCount] = useState(capped.length);
+
+  const fit = useCallback(() => {
+    const node = container.current;
+    const { chips, plus } = widths.current;
+    if (!node || chips.length === 0) return;
+    const available = node.clientWidth;
+    let used = 0;
+    let count = 0;
+    for (let i = 0; i < chips.length; i += 1) {
+      const next = used + (i > 0 ? GAP : 0) + chips[i];
+      const hidden = chips.length - (i + 1) + (orderedTags.length - chips.length);
+      const reserved = hidden > 0 ? GAP + plus : 0;
+      if (next + reserved > available) break;
+      used = next;
+      count = i + 1;
+    }
+    // One chip always shows, however narrow the column: an empty cell with a
+    // bare "+2" says less than a truncated name does.
+    setVisibleCount(Math.max(count, 1));
+  }, [orderedTags.length]);
+
+  useLayoutEffect(() => {
+    const node = container.current;
+    if (!node) return undefined;
+    if (widths.current.key !== key) {
+      // Measured while every chip is on screen, then kept: a chip's width only
+      // changes when its text does, which changes `key`.
+      const measured = [...node.querySelectorAll('[data-tag-chip]')].map(el => el.getBoundingClientRect().width);
+      if (measured.length === capped.length) {
+        const plusNode = node.querySelector('[data-tag-overflow]');
+        widths.current = {
+          key,
+          chips: measured,
+          plus: plusNode ? plusNode.getBoundingClientRect().width : 34,
+        };
+      }
+    }
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [key, capped.length, fit]);
+
+  // Before the first measurement every chip is rendered, so each one can be read.
+  const measuring = widths.current.key !== key;
+  const shown = measuring ? capped : capped.slice(0, visibleCount);
+  const hiddenCount = orderedTags.length - shown.length;
 
   return (
-    <div className={classes.inline}>
-      {visibleTags.length > 0 ? (
-        visibleTags.map(tag => (
-          <span key={tag.tag_id}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Chip label={truncate(tag.tag_name, truncateLimit)} color={tag.tag_color} />
-              </TooltipTrigger>
-              {tag.tag_name && <TooltipContent>{tag.tag_name}</TooltipContent>}
-            </Tooltip>
-          </span>
+    <div className={classes.inline} ref={container}>
+      {shown.length > 0 ? (
+        shown.map(tag => (
+          <Tooltip key={tag.tag_id}>
+            <TooltipTrigger asChild>
+              <Chip data-tag-chip label={truncate(tag.tag_name, truncateLimit)} color={tag.tag_color} />
+            </TooltipTrigger>
+            {tag.tag_name && <TooltipContent>{tag.tag_name}</TooltipContent>}
+          </Tooltip>
         ))
       ) : (
         <span>-</span>
       )}
 
-      {remainingTagsCount > 0 && (
+      {(hiddenCount > 0 || measuring) && orderedTags.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Chip label={`+${remainingTagsCount}`} />
+            <Chip
+              data-tag-overflow
+              label={`+${Math.max(hiddenCount, 1)}`}
+              style={measuring && hiddenCount <= 0 ? {
+                position: 'absolute',
+                visibility: 'hidden',
+              } : undefined}
+            />
           </TooltipTrigger>
-          {tooltipLabel && <TooltipContent>{tooltipLabel}</TooltipContent>}
+          {/* The whole list, not just what is hidden: the point of the chip is
+              to answer "which tags does this row carry". */}
+          <TooltipContent>{allNames}</TooltipContent>
         </Tooltip>
       )}
     </div>
