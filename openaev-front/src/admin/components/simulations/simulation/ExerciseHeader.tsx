@@ -460,7 +460,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 <ItemCategory
                   category={exercise.exercise_category}
                   label={t(exercise.exercise_category)}
-                  size="small"
                 />
               )}
               <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
