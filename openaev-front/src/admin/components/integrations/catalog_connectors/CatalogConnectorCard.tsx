@@ -242,10 +242,12 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
                       />
                     ) : (
                       <GroupsOutlined
-                        color="disabled"
                         sx={{
                           fontSize: 20,
                           flexShrink: 0,
+                          // Who supports the connector is a category, not a
+                          // state: the secondary ink, not the disabled one.
+                          color: 'var(--text-default-secondary)',
                         }}
                       />
                     )}
