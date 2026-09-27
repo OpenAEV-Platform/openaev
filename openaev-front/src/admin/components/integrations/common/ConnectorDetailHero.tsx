@@ -53,17 +53,12 @@ const ConnectorDetailHero = ({
 
   return (
     <DetailHero
+      // A connector ships its own artwork: it fills the square, unframed. The
+      // fallback is a glyph, so it keeps the thumbnail.
+      iconFills={!!logoSrc}
       iconNode={logoSrc
         ? (
-            <img
-              src={logoSrc}
-              alt={title}
-              style={{
-                width: 36,
-                height: 36,
-                objectFit: 'contain',
-              }}
-            />
+            <img src={logoSrc} alt={title} />
           )
         : (
             <HelpCenterOutlined sx={{

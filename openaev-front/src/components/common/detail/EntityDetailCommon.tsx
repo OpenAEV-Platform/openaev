@@ -315,13 +315,18 @@ export const HeroStats = ({ children, spread }: {
   </Box>
 );
 
-export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, action, stats, bodyAction, footer }: {
+/** The hero's icon square (Figma 7910:12881). */
+const HERO_ICON_SIZE = 54;
+
+export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, chips, action, stats, bodyAction, footer }: {
   icon?: ComponentType<{
     color?: 'primary';
     sx?: object;
   }>;
   /** Custom node rendered inside the icon box (e.g. a brand logo), overrides `icon`. */
   iconNode?: ReactNode;
+  /** The node is an image that fills the square itself: no thumbnail chrome around it. */
+  iconFills?: boolean;
   /** Small uppercase label rendered above the title (e.g. entity type). */
   overline?: ReactNode;
   title: string;
@@ -334,146 +339,173 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
   bodyAction?: ReactNode;
   /** Free-form extra hero row rendered after the stats (e.g. meta items). */
   footer?: ReactNode;
-}) => (
-  // The library's Hero: the surface, the two brand accents, the 24px inset and
-  // the header/body split all come from the component (Figma 7910:12881).
-  <Hero data-testid="detail-hero">
-    <HeroHeader
-      icon={(iconNode || Icon)
-        ? (
-            // Hero.rfc.md: the thumbnail sits one layer above the hero. Thumbnail
-            // renders a library Paper, which re-declares `--bg-elevation-default` on
-            // ITSELF from its own layer class, so a `.layer-2` wrapper loses. Paper.tsx
-            // documents the one thing that does work: repointing the layer variable on
-            // an ancestor repaints the subtree. Without it the thumbnail paints the
-            // hero's own fill and only its border shows.
-            <span style={{ '--bg-elevation-default-layer-1': 'var(--bg-elevation-default-layer-2)' } as CSSProperties}>
-              {/* The library's Thumbnail is fixed at 48 and paints Paper's
-                  `subtle-soft` border; the hero asks for 54 and the plain
-                  `subtle` one (LIBRARY-FEEDBACK.md 68). */}
-              <Thumbnail style={{
-                width: 54,
-                height: 54,
-                borderColor: 'var(--border-elevation-subtle)',
-              }}
-              >
-                {iconNode ?? (Icon ? <Icon color="primary" /> : null)}
-              </Thumbnail>
-            </span>
-          )
-        : undefined}
-      action={action && (
-        <Box sx={{
-          'display': 'flex',
-          'alignItems': 'center',
-          'gap': 1,
-          'flexShrink': 0,
-          'flexWrap': 'wrap',
-          'justifyContent': 'flex-end',
-          // One control geometry for every hero across the app: identical
-          // height, font, line-height and padding for all text buttons
-          // (outlined or contained), so no CTA ever looks smaller than its
-          // neighbors.
-          '& .MuiButton-root': {
-            height: 36,
-            fontSize: 13,
-            fontWeight: 500,
-            lineHeight: '21px',
-            paddingTop: 0,
-            paddingBottom: 0,
-            paddingInline: 1.5,
-          },
-          '& .MuiButton-root .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 },
-          '& .MuiToggleButton-root': {
-            width: 36,
-            height: 36,
-          },
-          // Only normalize IconButtons sitting directly in the cluster
-          // (custom nested toolbars keep their own internal sizing).
-          '& > .MuiIconButton-root': {
-            width: 36,
-            height: 36,
-            borderRadius: 1,
-          },
-          '& > .MuiIconButton-root .MuiSvgIcon-root': { fontSize: 20 },
-        }}
-        >
-          {action}
-        </Box>
-      )}
+}) => {
+  // An entity's own artwork fills the square and needs no frame: the
+  // thumbnail's border and padding exist to hold a glyph.
+  const filledIcon = (
+    <Box sx={{
+      'width': HERO_ICON_SIZE,
+      'height': HERO_ICON_SIZE,
+      'borderRadius': 1,
+      'overflow': 'hidden',
+      'flexShrink': 0,
+      '& > *': {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        display: 'block',
+      },
+    }}
     >
-      <Box sx={{
-        minWidth: 0,
-        flex: 1,
+      {iconNode}
+    </Box>
+  );
+  // Hero.rfc.md: the thumbnail sits one layer above the hero. Thumbnail
+  // renders a library Paper, which re-declares `--bg-elevation-default` on
+  // ITSELF from its own layer class, so a `.layer-2` wrapper loses. Paper.tsx
+  // documents the one thing that does work: repointing the layer variable on
+  // an ancestor repaints the subtree. Without it the thumbnail paints the
+  // hero's own fill and only its border shows.
+  const framedIcon = (
+    <span style={{ '--bg-elevation-default-layer-1': 'var(--bg-elevation-default-layer-2)' } as CSSProperties}>
+      {/* The library's Thumbnail is fixed at 48 and paints Paper's
+          `subtle-soft` border; the hero asks for 54 and the plain
+          `subtle` one (LIBRARY-FEEDBACK.md 68). */}
+      <Thumbnail style={{
+        width: HERO_ICON_SIZE,
+        height: HERO_ICON_SIZE,
+        borderColor: 'var(--border-elevation-subtle)',
       }}
       >
-        {overline && (
-          <Text variant="content-base-medium" className="block text-filigran-brand-primary">
-            {overline}
-          </Text>
-        )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Text
-              variant="title-md"
-              as="h1"
-              style={{
-                margin: 0,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                // Shrink the anchor to the actual title width (capped at the
-                // column) so the tooltip sits under the text instead of the
-                // center of a full-width block.
-                width: 'fit-content',
-                maxWidth: '100%',
-              }}
-            >
-              {title}
-            </Text>
-          </TooltipTrigger>
-          {title && <TooltipContent side="bottom" align="start">{title}</TooltipContent>}
-        </Tooltip>
-        {chips && (
+        {iconNode ?? (Icon ? <Icon color="primary" /> : null)}
+      </Thumbnail>
+    </span>
+  );
+
+  let heroIcon;
+  if (iconNode || Icon) {
+    heroIcon = iconFills ? filledIcon : framedIcon;
+  }
+
+  return (
+  // The library's Hero: the surface, the two brand accents, the 24px inset and
+  // the header/body split all come from the component (Figma 7910:12881).
+    <Hero data-testid="detail-hero">
+      <HeroHeader
+        icon={heroIcon}
+        action={action && (
           <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            marginTop: 0.5,
-            flexWrap: 'wrap',
+            'display': 'flex',
+            'alignItems': 'center',
+            'gap': 1,
+            'flexShrink': 0,
+            'flexWrap': 'wrap',
+            'justifyContent': 'flex-end',
+            // One control geometry for every hero across the app: identical
+            // height, font, line-height and padding for all text buttons
+            // (outlined or contained), so no CTA ever looks smaller than its
+            // neighbors.
+            '& .MuiButton-root': {
+              height: 36,
+              fontSize: 13,
+              fontWeight: 500,
+              lineHeight: '21px',
+              paddingTop: 0,
+              paddingBottom: 0,
+              paddingInline: 1.5,
+            },
+            '& .MuiButton-root .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 },
+            '& .MuiToggleButton-root': {
+              width: 36,
+              height: 36,
+            },
+            // Only normalize IconButtons sitting directly in the cluster
+            // (custom nested toolbars keep their own internal sizing).
+            '& > .MuiIconButton-root': {
+              width: 36,
+              height: 36,
+              borderRadius: 1,
+            },
+            '& > .MuiIconButton-root .MuiSvgIcon-root': { fontSize: 20 },
           }}
           >
-            {chips}
+            {action}
           </Box>
         )}
-      </Box>
-    </HeroHeader>
-    {(stats || bodyAction || footer) && (
-      <HeroBody>
+      >
         <Box sx={{
-          display: 'flex',
-          width: '100%',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: 2,
-          flexWrap: 'wrap',
+          minWidth: 0,
+          flex: 1,
         }}
         >
-          {stats ? <HeroStats>{stats}</HeroStats> : <span />}
-          {bodyAction && (
+          {overline && (
+            <Text variant="content-base-medium" className="block text-filigran-brand-primary">
+              {overline}
+            </Text>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Text
+                variant="title-md"
+                as="h1"
+                style={{
+                  margin: 0,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  // Shrink the anchor to the actual title width (capped at the
+                  // column) so the tooltip sits under the text instead of the
+                  // center of a full-width block.
+                  width: 'fit-content',
+                  maxWidth: '100%',
+                }}
+              >
+                {title}
+              </Text>
+            </TooltipTrigger>
+            {title && <TooltipContent side="bottom" align="start">{title}</TooltipContent>}
+          </Tooltip>
+          {chips && (
             <Box sx={{
               display: 'flex',
               alignItems: 'center',
               gap: 1,
-              flexShrink: 0,
+              marginTop: 0.5,
+              flexWrap: 'wrap',
             }}
             >
-              {bodyAction}
+              {chips}
             </Box>
           )}
         </Box>
-        {footer}
-      </HeroBody>
-    )}
-  </Hero>
-);
+      </HeroHeader>
+      {(stats || bodyAction || footer) && (
+        <HeroBody>
+          <Box sx={{
+            display: 'flex',
+            width: '100%',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 2,
+            flexWrap: 'wrap',
+          }}
+          >
+            {stats ? <HeroStats>{stats}</HeroStats> : <span />}
+            {bodyAction && (
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flexShrink: 0,
+              }}
+              >
+                {bodyAction}
+              </Box>
+            )}
+          </Box>
+          {footer}
+        </HeroBody>
+      )}
+    </Hero>
+  );
+};
