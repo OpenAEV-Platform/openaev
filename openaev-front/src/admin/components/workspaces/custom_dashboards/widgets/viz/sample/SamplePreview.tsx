@@ -117,8 +117,11 @@ const SamplePreview = ({ active, children, variant = 'full', atPanelEdge = false
         severity="neutral"
         style={{
           position: 'absolute',
-          top: 0,
-          right: 0,
+          // Out of the panel's 16px padding by half, so the marker sits 8px off
+          // its top and right edges - the same corner the reserved row puts it
+          // in, without a row this preview may have no room for.
+          top: -8,
+          right: -8,
           // Above the preview it labels, always: the faded content below can
           // carry its own positioned children, and a positioned sibling with
           // no z-index paints in DOM order only until one of them raises
