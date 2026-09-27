@@ -19,11 +19,13 @@ import buildSimulationTabs from './simulationTabs';
 const SimulationShell: FunctionComponent<{
   exercise: SimulationDetails;
   children: ReactNode;
+  /** Width reserved on the right of the routed content for a sticky rail. */
+  contentPaddingRight?: number;
   /** Present when this simulation is an autonomous (AI-driven) run: swaps the manual chaining tabs
    *  (Scope, Logic) for the AI cockpit and turns the hero observe-only (control lives on the parent
    *  scenario). */
   autonomousRun?: AutonomousRun | null;
-}> = ({ exercise, children, autonomousRun = null }) => {
+}> = ({ exercise, children, autonomousRun = null, contentPaddingRight = 0 }) => {
   const { t } = useFormatter();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
@@ -100,7 +102,7 @@ const SimulationShell: FunctionComponent<{
                   })}
                 </TabsList>
               </Tabs>
-              {children}
+              <div style={{ paddingRight: contentPaddingRight }}>{children}</div>
             </>
           )}
     </>
