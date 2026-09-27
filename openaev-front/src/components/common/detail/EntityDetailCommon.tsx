@@ -318,7 +318,7 @@ export const HeroStats = ({ children, spread }: {
 /** The hero's icon square (Figma 7910:12881). */
 const HERO_ICON_SIZE = 54;
 
-export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, chips, action, stats, bodyAction, footer }: {
+export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, subtitle, chips, chipsInline, action, stats, bodyAction, footer }: {
   icon?: ComponentType<{
     color?: 'primary';
     sx?: object;
@@ -330,7 +330,11 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, c
   /** Small uppercase label rendered above the title (e.g. entity type). */
   overline?: ReactNode;
   title: string;
+  /** One line under the title, in the secondary ink (e.g. a channel's subtitle). */
+  subtitle?: ReactNode;
   chips?: ReactNode;
+  /** Chips share the title's line instead of taking a row of their own. */
+  chipsInline?: boolean;
   action?: ReactNode;
   /** Tiny headline stats rendered as a second hero row (wrap in HeroStat). */
   stats?: ReactNode;
@@ -443,39 +447,59 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, c
               {overline}
             </Text>
           )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Text
-                variant="title-md"
-                as="h1"
-                style={{
-                  margin: 0,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  // Shrink the anchor to the actual title width (capped at the
-                  // column) so the tooltip sits under the text instead of the
-                  // center of a full-width block.
-                  width: 'fit-content',
-                  maxWidth: '100%',
-                }}
+          {/* Inline: title and chips are one line, 4px apart. Otherwise the
+              chips take their own row under the title. */}
+          <Box sx={{
+            display: 'flex',
+            alignItems: chipsInline ? 'center' : 'stretch',
+            flexDirection: chipsInline ? 'row' : 'column',
+            gap: chipsInline ? 0.5 : 0,
+            minWidth: 0,
+            flexWrap: chipsInline ? 'wrap' : 'nowrap',
+          }}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Text
+                  variant="title-md"
+                  as="h1"
+                  style={{
+                    margin: 0,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    // Shrink the anchor to the actual title width (capped at the
+                    // column) so the tooltip sits under the text instead of the
+                    // center of a full-width block.
+                    width: 'fit-content',
+                    maxWidth: '100%',
+                  }}
+                >
+                  {title}
+                </Text>
+              </TooltipTrigger>
+              {title && <TooltipContent side="bottom" align="start">{title}</TooltipContent>}
+            </Tooltip>
+            {chips && (
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                // Inline, the row's own 4px surrounds the chips, so they keep
+                // the same 4px between themselves rather than doubling it.
+                gap: chipsInline ? 0.5 : 1,
+                marginTop: chipsInline ? 0 : 0.5,
+                minWidth: 0,
+                flexWrap: 'wrap',
+              }}
               >
-                {title}
-              </Text>
-            </TooltipTrigger>
-            {title && <TooltipContent side="bottom" align="start">{title}</TooltipContent>}
-          </Tooltip>
-          {chips && (
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              marginTop: 0.5,
-              flexWrap: 'wrap',
-            }}
-            >
-              {chips}
-            </Box>
+                {chips}
+              </Box>
+            )}
+          </Box>
+          {subtitle && (
+            <Text variant="content-base" className="block text-default-secondary">
+              {subtitle}
+            </Text>
           )}
         </Box>
       </HeroHeader>
