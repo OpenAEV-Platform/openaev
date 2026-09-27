@@ -31,6 +31,18 @@ interface Props {
   disabled?: boolean;
 }
 
+// The library input is 36px tall. The help icon sits in a cell of exactly that
+// height, pinned to the bottom of the row: the label above the input varies in
+// height, so aligning on the row start or end always missed the field itself -
+// the icon used to sit 12px above the input's centre.
+const INPUT_HEIGHT = 36;
+
+const fieldWithHelpSx = {
+  display: 'grid',
+  gridTemplateColumns: '1fr auto',
+  alignItems: 'end',
+} as const;
+
 const ConnectorInstanceForm = ({
   initialConfigurationValues,
   configurationsDefinitionMap,
@@ -281,9 +293,7 @@ const ConnectorInstanceForm = ({
           <div
             key={field.id}
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr auto',
-              alignItems: 'start',
+              ...fieldWithHelpSx,
               gap: theme.spacing(2),
             }}
           >
@@ -292,16 +302,19 @@ const ConnectorInstanceForm = ({
               field={formatCatalogConnectorConfigurationToObject(definition, index, true)}
               readOnly={disabled}
             />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <InfoOutlined
-                  color="primary"
-                  fontSize="small"
-                  sx={{ mt: '25px' }}
-                />
-              </TooltipTrigger>
-              {definition.connector_configuration_description && <TooltipContent>{definition.connector_configuration_description}</TooltipContent>}
-            </Tooltip>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              height: INPUT_HEIGHT,
+            }}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <InfoOutlined color="primary" fontSize="small" />
+                </TooltipTrigger>
+                {definition.connector_configuration_description && <TooltipContent>{definition.connector_configuration_description}</TooltipContent>}
+              </Tooltip>
+            </div>
           </div>
         ))}
         {optionalFields.length > 0 && (
@@ -325,9 +338,7 @@ const ConnectorInstanceForm = ({
                   <div
                     key={field.id}
                     style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr auto',
-                      alignItems: 'end',
+                      ...fieldWithHelpSx,
                       gap: theme.spacing(2),
                     }}
                   >
@@ -336,15 +347,19 @@ const ConnectorInstanceForm = ({
                       field={formatCatalogConnectorConfigurationToObject(definition, index, false)}
                       readOnly={disabled}
                     />
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <InfoOutlined
-                          fontSize="small"
-                          color="primary"
-                        />
-                      </TooltipTrigger>
-                      {definition.connector_configuration_description && <TooltipContent>{definition.connector_configuration_description}</TooltipContent>}
-                    </Tooltip>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: INPUT_HEIGHT,
+                    }}
+                    >
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <InfoOutlined fontSize="small" color="primary" />
+                        </TooltipTrigger>
+                        {definition.connector_configuration_description && <TooltipContent>{definition.connector_configuration_description}</TooltipContent>}
+                      </Tooltip>
+                    </div>
                   </div>
                 ))}
               </AccordionDetails>

@@ -23,10 +23,10 @@ interface Props {
 // collapses into a "+N" chip - a chip is never clipped mid-label.
 // Exported for reuse by the lines view (CatalogConnectorLine).
 export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
-  const { containerRef, chipRefs, visibleCount } = useChipOverflow(useCases);
+  const { containerRef, chipRefs, overflowRef, visibleCount } = useChipOverflow(useCases);
 
   const hiddenCount = useCases.length - visibleCount;
-  const hiddenUseCases = useCases.slice(visibleCount);
+  const allUseCases = useCases.map(prettifyUseCase).join(', ');
 
   return (
     <Stack
@@ -42,16 +42,16 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
     >
       {useCases.map((useCase, index) => {
         const isVisible = index < visibleCount;
-        const canShrink = index === visibleCount - 1;
         return (
           <Box
             key={useCase}
             ref={(el: HTMLDivElement | null) => {
               chipRefs.current[index] = el;
             }}
+            // Never shrunk: the library Chip has no ellipsis, so a shrunk chip
+            // is a chip cut mid-word. What does not fit whole goes to "+N".
             sx={{
-              flexShrink: canShrink ? 1 : 0,
-              minWidth: canShrink ? 0 : 'auto',
+              flexShrink: 0,
               visibility: isVisible ? 'visible' : 'hidden',
               position: isVisible ? 'relative' : 'absolute',
             }}
@@ -65,14 +65,25 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
           </Box>
         );
       })}
-      {hiddenCount > 0 && (
+      {/* Always mounted, so its width is known before anything is hidden; it is
+          only taken out of the flow while there is nothing to count. */}
+      <Box
+        ref={overflowRef}
+        sx={{
+          flexShrink: 0,
+          visibility: hiddenCount > 0 ? 'visible' : 'hidden',
+          position: hiddenCount > 0 ? 'relative' : 'absolute',
+        }}
+      >
         <Tooltip>
           <TooltipTrigger asChild>
-            <Chip label={`+${hiddenCount}`} severity="info" style={{ flexShrink: 0 }} />
+            <Chip label={`+${Math.max(hiddenCount, 1)}`} severity="info" />
           </TooltipTrigger>
-          {hiddenUseCases.map(prettifyUseCase).join(', ') && <TooltipContent>{hiddenUseCases.map(prettifyUseCase).join(', ')}</TooltipContent>}
+          {/* The whole list, as everywhere else: the chip answers "which use
+              cases does this connector cover". */}
+          {allUseCases && <TooltipContent>{allUseCases}</TooltipContent>}
         </Tooltip>
-      )}
+      </Box>
     </Stack>
   );
 };
