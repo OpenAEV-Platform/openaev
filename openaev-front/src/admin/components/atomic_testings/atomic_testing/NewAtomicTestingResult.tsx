@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type InjectTarget } from '../../../../utils/api-types';
-import { expectationTypeIcon } from '../../common/ExpectationIconByType';
+import { expectationResultColor, expectationTypeIcon } from '../../common/ExpectationIconByType';
 
 const useStyles = makeStyles()(() => ({
   inline: {
@@ -28,17 +28,6 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
   const theme = useTheme();
   const { classes } = useStyles();
 
-  const getColor = (result: string | undefined): string => {
-    const colorMap: Record<string, string> = {
-      SUCCESS: 'rgb(107, 235, 112)',
-      PARTIAL: 'rgb(245, 166, 35)',
-      PENDING: 'rgb(128,128,128)',
-      FAILED: 'rgb(220, 81, 72)',
-      UNKNOWN: 'rgba(128,127,127,0.37)',
-    };
-    return colorMap[result ?? ''] ?? 'rgb(245, 166, 35)';
-  };
-
   return (
     <div className={classes.inline}>
       {'target_prevention_status' in target && (
@@ -46,7 +35,7 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
           <TooltipTrigger asChild>
             <PreventionIcon
               style={{
-                color: getColor(target.target_prevention_status),
+                color: expectationResultColor(target.target_prevention_status),
                 marginRight: theme.spacing(2),
                 fontSize: 22,
               }}
@@ -60,7 +49,7 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
           <TooltipTrigger asChild>
             <DetectionIcon
               style={{
-                color: getColor(target.target_detection_status),
+                color: expectationResultColor(target.target_detection_status),
                 marginRight: theme.spacing(2),
                 fontSize: 22,
               }}
@@ -74,7 +63,7 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
           <TooltipTrigger asChild>
             <VulnerabilityIcon
               style={{
-                color: getColor(target.target_vulnerability_status),
+                color: expectationResultColor(target.target_vulnerability_status),
                 marginRight: theme.spacing(2),
                 fontSize: 22,
               }}
@@ -88,7 +77,7 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
           <TooltipTrigger asChild>
             <HumanResponseIcon
               style={{
-                color: getColor(target.target_human_response_status),
+                color: expectationResultColor(target.target_human_response_status),
                 marginRight: theme.spacing(2),
                 fontSize: 22,
               }}
