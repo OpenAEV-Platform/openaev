@@ -86,7 +86,7 @@ const inlineStyles: {
   article_name: {
     float: 'left',
     width: '30%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -95,7 +95,7 @@ const inlineStyles: {
   article_author: {
     float: 'left',
     width: '20%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -103,7 +103,7 @@ const inlineStyles: {
   article_channel: {
     float: 'left',
     width: '25%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -111,7 +111,7 @@ const inlineStyles: {
   article_is_scheduled: {
     float: 'left',
     width: '25%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',

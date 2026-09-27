@@ -63,7 +63,7 @@ const inlineStyles: {
   variable_key: {
     float: 'left',
     width: '20%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -71,7 +71,7 @@ const inlineStyles: {
   variable_description: {
     float: 'left',
     width: '40%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -79,7 +79,7 @@ const inlineStyles: {
   variable_value: {
     float: 'left',
     width: '40%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',

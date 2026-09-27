@@ -88,7 +88,7 @@ const inlineStyles: Record<string, CSSProperties> = {
     float: 'left',
     width: '11%',
     marginRight: '1%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -97,7 +97,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   user_email: {
     float: 'left',
     width: '30%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -105,7 +105,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   user_options: {
     float: 'left',
     width: '15%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -113,7 +113,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   user_organization: {
     float: 'left',
     width: '18%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -121,7 +121,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   user_tags: {
     float: 'left',
     width: '25%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',

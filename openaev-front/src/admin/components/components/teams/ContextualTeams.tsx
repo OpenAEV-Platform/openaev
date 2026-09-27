@@ -24,7 +24,7 @@ const useStyles = makeStyles()(() => ({
     height: 50,
   },
   bodyItem: {
-    height: 20,
+    minHeight: 20,
     fontSize: 13,
     float: 'left',
     whiteSpace: 'nowrap',
@@ -81,7 +81,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_name: {
     float: 'left',
     width: '35%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -89,7 +89,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_users_number: {
     float: 'left',
     width: '10%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -97,7 +97,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_users_enabled_number: {
     float: 'left',
     width: '10%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -105,7 +105,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_tags: {
     float: 'left',
     width: '29%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -113,7 +113,7 @@ const inlineStylesContextual: Record<string, CSSProperties> = {
   team_contextual: {
     float: 'left',
     width: '8%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
