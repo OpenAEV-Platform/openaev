@@ -128,8 +128,13 @@ const Index = () => {
     paddingBottom: 3,
     marginRight: chatbotMargin > 0 ? `${chatbotMargin}px` : 0,
     transition: chatbotTransition,
-    overflowX: 'hidden',
-    overflowY: 'hidden',
+    // `clip` rather than `hidden`: both cut the same overflow, but `hidden`
+    // makes the element a scroll container, and a sticky descendant then
+    // resolves against it - a box that never scrolls, so nothing ever sticks.
+    // `clip` creates no scroll container, so the right-hand rails stick to the
+    // viewport. The vertical axis needs no clipping: the shell grows with its
+    // content and the page scrolls the document.
+    overflowX: 'clip' as const,
   };
   // load taxonomies at login and reload tenant-scoped data on tenant switch
   useDataLoader(() => {
