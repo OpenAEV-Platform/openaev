@@ -617,8 +617,9 @@ const ScenarioHeader = ({
         <Button type="button" priority="secondary" startIcon={<Stop fontSize="small" />} onClick={stop}>
           {t('Stop')}
         </Button>
-        {/* Even while scheduled, allow a one-off manual run outside
-            the recurrence - compact icon so it stays secondary to Stop. */}
+        {/* Even while scheduled, allow a one-off manual run outside the
+            recurrence. It is the hero's primary action, filled like the
+            "Lancer maintenant" the design file draws (Figma 7917:12983). */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Box component="span" sx={{ display: 'inline-flex' }}>
@@ -629,7 +630,7 @@ const ScenarioHeader = ({
                   onClick={handleLaunchNormal}
                   disabled={isScopeMissing}
                   data-testid="scenario-launch-now-button"
-                  priority="tertiary"
+                  priority="primary"
                   size="md"
                 />
               </span>
