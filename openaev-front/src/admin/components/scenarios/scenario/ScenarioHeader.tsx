@@ -735,22 +735,22 @@ const ScenarioHeader = ({
               </Tooltip>
             </>
           )}
+          // The alert-toned controls sit in the body row, right-aligned, where the
+          // design file draws them (Figma 7929:13294). Each self-hides when healthy.
+          bodyAction={canManage && (
+            <>
+              <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
+              <ExpectationsDriftIndicator
+                drift={expectationsDrift}
+                variant="scenario"
+                onRealign={onRealignExpectations}
+                onDismiss={onDismissExpectations}
+                placement="warning"
+              />
+            </>
+          )}
           action={(
             <>
-              {/* Contextual configuration alert - self-hides when healthy. */}
-              {canManage && (
-                <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />
-              )}
-              {/* Expectation drift warning - self-hides when aligned or dismissed. */}
-              {canManage && (
-                <ExpectationsDriftIndicator
-                  drift={expectationsDrift}
-                  variant="scenario"
-                  onRealign={onRealignExpectations}
-                  onDismiss={onDismissExpectations}
-                  placement="warning"
-                />
-              )}
               {/* Dismissed drift downgraded to a discreet icon - the drift is
                   acknowledged but still reviewable. */}
               {canManage && (
