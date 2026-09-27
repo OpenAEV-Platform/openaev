@@ -135,6 +135,11 @@ const Index = () => {
     // viewport. The vertical axis needs no clipping: the shell grows with its
     // content and the page scrolls the document.
     overflowX: 'clip' as const,
+    // A flex item is sized by its own content unless told otherwise. `hidden`
+    // used to grant that exemption implicitly; `clip` does not, so a wide table
+    // would push the shell past the viewport and give the page a horizontal
+    // scrollbar. Said explicitly, it holds whichever overflow value is used.
+    minWidth: 0,
   };
   // load taxonomies at login and reload tenant-scoped data on tenant switch
   useDataLoader(() => {
