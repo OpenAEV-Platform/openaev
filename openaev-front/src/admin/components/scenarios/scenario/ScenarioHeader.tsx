@@ -721,8 +721,8 @@ const ScenarioHeader = ({
           title={truncate(scenario.scenario_name, 80) ?? ''}
           chips={(
             <>
-              <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
               <ItemCategory category={scenario.scenario_category ?? 'Unknown'} label={t(scenario.scenario_category ?? 'Unknown')} />
+              <ItemSeverity severity={scenario.scenario_severity} label={t(scenario.scenario_severity ?? 'Unknown')} />
               {/* While a run owns the scenario, surface its status right next to severity/category -
                   the same chip a simulation shows - so the AI lifecycle reads at a glance. */}
               {autonomousRun && (
