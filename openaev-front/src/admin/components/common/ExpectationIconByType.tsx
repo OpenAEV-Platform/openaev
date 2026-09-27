@@ -48,6 +48,23 @@ export const expectationTypeColor = (_expectationType?: string): string => {
   return EXPECTATION_TYPE_IDENTITY_COLOR;
 };
 
+// Result colours for an expectation, taken from the library feedback palette.
+// PENDING (still running) stays brighter than UNKNOWN (never measured), so the
+// two neutral states keep reading apart. An unrecognised result falls back to
+// UNKNOWN rather than to the partial orange, which would claim a measurement
+// that was never made.
+const EXPECTATION_RESULT_COLOR: Record<string, string> = {
+  SUCCESS: 'var(--color-feedback-success-primary)',
+  PARTIAL: 'var(--color-feedback-warning-primary)',
+  PENDING: 'var(--color-feedback-neutral-primary)',
+  FAILED: 'var(--color-feedback-error-primary)',
+  UNKNOWN: 'var(--color-feedback-neutral-secondary)',
+};
+
+export const expectationResultColor = (result: string | undefined): string => {
+  return EXPECTATION_RESULT_COLOR[result ?? ''] ?? EXPECTATION_RESULT_COLOR.UNKNOWN;
+};
+
 export default function expectationIconByType(expectationType: string | undefined, style: CSSProperties = {}): ReactElement {
   const IconComponent = expectationTypeIcon(expectationType);
   return <IconComponent fontSize="small" style={style} />;
