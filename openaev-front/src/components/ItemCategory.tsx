@@ -5,7 +5,6 @@ import { type FunctionComponent } from 'react';
 interface ItemCategoryProps {
   category: string;
   label?: string;
-  size?: 'small' | 'medium' | 'large' | 'inherit';
 }
 
 // One icon per scenario category, chosen to read at a glance:
@@ -17,35 +16,40 @@ interface ItemCategoryProps {
 // - vulnerability-exploitation: a shield with a bug (exploited weakness)
 // - lateral-movement: horizontal swap arrows (host-to-host movement)
 // - url-filtering: a filter funnel (web content filtering)
-const renderIcon = (category: string, size: 'small' | 'medium' | 'large' | 'inherit' | undefined) => {
+// One size and one ink for every category glyph: it labels, it does not shout.
+const ICON_STYLE = {
+  fontSize: 16,
+  color: 'var(--text-default-secondary)',
+};
+
+const renderIcon = (category: string) => {
   switch (category) {
     case 'global-crisis':
-      return <PublicOutlined fontSize={size ?? 'medium'} />;
+      return <PublicOutlined style={ICON_STYLE} />;
     case 'attack-scenario':
-      return <GpsFixedOutlined fontSize={size ?? 'medium'} />;
+      return <GpsFixedOutlined style={ICON_STYLE} />;
     case 'media-pressure':
-      return <CampaignOutlined fontSize={size ?? 'medium'} />;
+      return <CampaignOutlined style={ICON_STYLE} />;
     case 'data-exfiltration':
-      return <DatabaseExportOutline fontSize={size ?? 'medium'} />;
+      return <DatabaseExportOutline style={ICON_STYLE} />;
     case 'capture-the-flag':
-      return <FlagOutlined fontSize={size ?? 'medium'} />;
+      return <FlagOutlined style={ICON_STYLE} />;
     case 'vulnerability-exploitation':
-      return <ShieldBugOutline fontSize={size ?? 'medium'} />;
+      return <ShieldBugOutline style={ICON_STYLE} />;
     case 'lateral-movement':
-      return <SwapHorizOutlined fontSize={size ?? 'medium'} />;
+      return <SwapHorizOutlined style={ICON_STYLE} />;
     case 'url-filtering':
-      return <FilterAltOutlined fontSize={size ?? 'medium'} />;
+      return <FilterAltOutlined style={ICON_STYLE} />;
     case 'all':
-      return <AppsOutlined fontSize={size ?? 'medium'} />;
+      return <AppsOutlined style={ICON_STYLE} />;
     default:
-      return <CrosshairsQuestion fontSize={size ?? 'medium'} />;
+      return <CrosshairsQuestion style={ICON_STYLE} />;
   }
 };
 
 const ItemCategory: FunctionComponent<ItemCategoryProps> = ({
   label,
   category,
-  size,
 }) => {
   return (
     // The gap belongs to the row, not to each of the ten icons.
@@ -55,7 +59,7 @@ const ItemCategory: FunctionComponent<ItemCategoryProps> = ({
       gap: 4,
     }}
     >
-      {renderIcon(category, size)}
+      {renderIcon(category)}
       {label && (
         <span style={{
           fontSize: 14,
