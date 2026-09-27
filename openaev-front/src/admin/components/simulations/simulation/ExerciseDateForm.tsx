@@ -108,9 +108,12 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
 
   return (
     <form id="exerciseDateForm" onSubmit={handleSubmit(submit)}>
+      {/* The switch is one of the fields, not a caption above them: same 16px
+          between it and the date as between the date and the time. */}
       <FormControlLabel
         control={<Switch onChange={handleChange} checked={checked} />}
         label={t('Manual launch')}
+        sx={{ marginBottom: 2 }}
       />
 
       <Stack spacing={{ xs: 2 }}>
