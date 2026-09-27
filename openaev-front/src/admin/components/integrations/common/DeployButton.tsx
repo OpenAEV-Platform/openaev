@@ -10,9 +10,11 @@ interface Props {
   onDeployBtnClick: (e: SyntheticEvent) => void;
   style?: CSSProperties;
   deploymentCount: number;
+  /** 'sm' in the card grid, where the footer shares its row with the use-case chips. */
+  size?: 'sm' | 'md';
 }
 
-const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) => {
+const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount, size = 'md' }: Props) => {
   const { t } = useFormatter();
   const {
     isValidated: isEnterpriseEdition,
@@ -53,7 +55,7 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
           <TooltipContent>{t('This connector has {count} deployed instance(s). Manage them from the Deployed tab.', { count: deploymentCount })}</TooltipContent>
         </Tooltip>
       )}
-      <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size="md" startIcon={isEnterpriseEdition ? null : <RocketLaunchOutlined fontSize="small" />} onClick={onDeployClickAction}>
+      <Button type="button" priority={isEnterpriseEdition ? 'primary' : 'secondary'} size={size} startIcon={isEnterpriseEdition ? null : <RocketLaunchOutlined fontSize="small" />} onClick={onDeployClickAction}>
         {t('Deploy')}
         {!isEnterpriseEdition && <EEChip />}
       </Button>
