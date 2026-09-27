@@ -114,7 +114,9 @@ const ExpectationsDriftIndicator: FunctionComponent<Props> = ({ drift, variant, 
             </Tooltip>
           )
         : (
-            <Button type="button" priority="secondary" size="sm" startIcon={<TrackChangesOutlined fontSize="small" sx={{ fontSize: 16 }} />} onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)} style={{ whiteSpace: 'nowrap' }}>
+            // The hero body's nudges carry their urgency in their tone, at the
+            // same 36px height as the rest of the row.
+            <Button type="button" variant="destructive" priority="secondary" size="md" startIcon={<TrackChangesOutlined fontSize="small" sx={{ fontSize: 16 }} />} onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)} style={{ whiteSpace: 'nowrap' }}>
               {t('Review expectations')}
             </Button>
           )}
