@@ -550,8 +550,10 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 </>
               )}
               {/* Unified parent-scenario pivot: whenever a simulation was run from a scenario (manual
-                  or autonomous), the top-right hero action is an outlined button carrying the scenario
-                  name. For autonomous runs the parent scenario is also where the full control surface
+                  or autonomous), the hero offers a quiet link back to it - a redirect, not an
+                  action, so it carries a fixed label rather than the scenario's name, which
+                  truncated and moved the row. For autonomous runs the parent scenario is also
+                  where the full control surface
                   (pause / resume / stop / steer) lives; once stopped, relaunch happens from the
                   scenario's Normal / Autonomous launch buttons - there is no restart. */}
               {parentScenarioId && (
@@ -560,39 +562,23 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                     <span style={{ display: 'inline-flex' }}>
                       {canAccessParentScenario
                         ? (
-                            <Button priority="secondary" asChild style={{ maxWidth: 220 }}>
+                            <Button priority="tertiary" asChild>
                               <Link to={`${SCENARIO_BASE_URL}/${parentScenarioId}`}>
                                 <RouteOutlined fontSize="small" aria-hidden />
-                                <Box
-                                  component="span"
-                                  sx={{
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {parentScenario?.scenario_name ?? t('Parent scenario')}
-                                </Box>
+                                {t('View in scenario')}
                               </Link>
                             </Button>
                           )
                         : (
-                            <Button type="button" priority="secondary" startIcon={<RouteOutlined fontSize="small" />} disabled style={{ maxWidth: 220 }}>
-                              <Box
-                                component="span"
-                                sx={{
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {parentScenario?.scenario_name ?? t('Parent scenario')}
-                              </Box>
+                            <Button type="button" priority="tertiary" startIcon={<RouteOutlined fontSize="small" />} disabled>
+                              {t('View in scenario')}
                             </Button>
                           )}
                     </span>
                   </TooltipTrigger>
-                  {(parentScenario?.scenario_name ?? t('Parent scenario')) && <TooltipContent>{parentScenario?.scenario_name ?? t('Parent scenario')}</TooltipContent>}
+                  {/* The destination names itself; the label stays fixed so the action
+                      row keeps one geometry from one simulation to the next. */}
+                  <TooltipContent>{parentScenario?.scenario_name ?? t('Parent scenario')}</TooltipContent>
                 </Tooltip>
               )}
               {/* Entity-scoped reports - self-hides without the reporting access capability. Kept
