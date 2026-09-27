@@ -280,8 +280,10 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
                 />
               ) : (
                 <GroupsOutlined
-                  color="disabled"
-                  sx={{ fontSize: 18 }}
+                  sx={{
+                    fontSize: 18,
+                    color: 'var(--text-default-secondary)',
+                  }}
                 />
               )}
             </span>
