@@ -138,7 +138,7 @@ const inlineStyles = {
   team_name: {
     float: 'left',
     width: '30%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -146,7 +146,7 @@ const inlineStyles = {
   team_users_number: {
     float: 'left',
     width: '15%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -154,7 +154,7 @@ const inlineStyles = {
   team_enabled: {
     float: 'left',
     width: '15%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -162,7 +162,7 @@ const inlineStyles = {
   team_tags: {
     float: 'left',
     width: '30%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -170,7 +170,7 @@ const inlineStyles = {
   document_name: {
     float: 'left',
     width: '35%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -178,7 +178,7 @@ const inlineStyles = {
   document_type: {
     float: 'left',
     width: '20%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -186,7 +186,7 @@ const inlineStyles = {
   document_tags: {
     float: 'left',
     width: '30%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -194,7 +194,7 @@ const inlineStyles = {
   document_attached: {
     float: 'left',
     width: '15%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',

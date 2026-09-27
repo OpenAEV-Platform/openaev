@@ -70,20 +70,20 @@ const headerStyles: Record<string, CSSProperties> = {
 const inlineStyles: Record<string, CSSProperties> = {
   channel_type: {
     width: '15%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
   channel_name: {
     width: '25%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
   channel_description: {
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
