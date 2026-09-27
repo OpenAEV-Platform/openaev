@@ -481,29 +481,41 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, c
       </HeroHeader>
       {(stats || bodyAction || footer) && (
         <HeroBody>
+          {/* HeroBody lays its children in a row, so a footer put beside the
+              stats gets pushed to the far right and reads as a stray caption.
+              The two rows are stacked here instead. */}
           <Box sx={{
             display: 'flex',
+            flexDirection: 'column',
             width: '100%',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
+            minWidth: 0,
             gap: 2,
-            flexWrap: 'wrap',
           }}
           >
-            {stats ? <HeroStats>{stats}</HeroStats> : <span />}
-            {bodyAction && (
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                flexShrink: 0,
-              }}
-              >
-                {bodyAction}
-              </Box>
-            )}
+            <Box sx={{
+              display: 'flex',
+              width: '100%',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap',
+            }}
+            >
+              {stats ? <HeroStats>{stats}</HeroStats> : <span />}
+              {bodyAction && (
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  flexShrink: 0,
+                }}
+                >
+                  {bodyAction}
+                </Box>
+              )}
+            </Box>
+            {footer}
           </Box>
-          {footer}
         </HeroBody>
       )}
     </Hero>
