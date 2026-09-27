@@ -217,7 +217,7 @@ const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: Exec
               now={now}
             />
           ) : (
-            <SamplePreview active>
+            <SamplePreview active atPanelEdge>
               <AttackTimeline
                 injects={sampleTimelineInjects}
                 teams={sampleTimelineTeams}
