@@ -44,7 +44,10 @@ export const NavbarItemContent: FunctionComponent<RowProps> = ({ icon, label, co
 export const NavbarSubmenuItemContent: FunctionComponent<Omit<RowProps, 'collapsed'>> = ({ icon, label }) => (
   <>
     {icon && (
-      <span className="inline-flex shrink-0 text-default-secondary" style={iconSpanStyle} aria-hidden="true">
+      // The icon takes the row's own ink instead of forcing the secondary one:
+      // idle they are the same value, and on the current row the glyph turns
+      // with its label instead of staying grey beside it.
+      <span className="inline-flex shrink-0" style={iconSpanStyle} aria-hidden="true">
         {icon}
       </span>
     )}
