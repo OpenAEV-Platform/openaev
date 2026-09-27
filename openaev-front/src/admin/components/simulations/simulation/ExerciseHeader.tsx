@@ -456,7 +456,6 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   severity="info"
                 />
               )}
-              <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
               {exercise.exercise_category && (
                 <ItemCategory
                   category={exercise.exercise_category}
@@ -464,6 +463,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   size="small"
                 />
               )}
+              <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
               {/* The launch facts read as one pair: when it runs, then in which state.
                   Same severity so the two share a background. */}
               <Chip
