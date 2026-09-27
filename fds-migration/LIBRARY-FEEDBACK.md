@@ -2533,3 +2533,13 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** `EventConditionRow` draws one condition on a single line — field, operator, expected value, case toggle. Its value field floats the helper text absolutely (`slotProps={{ formHelperText: { sx: floatingHelperTextSx } }}`), so that an error message appears without pushing the rest of the row down. Converted as is, the first validation error would shift every following row.
 
 **The request.** A way to render the helper outside the field's flow — a slot, a class hook on the helper node, or a documented `helperTextPlacement` — so a dense row can show an error without reflowing.
+
+## 66. `Button` has no alert tone, and the hero body asks for one
+
+**Status.** Open. The one site that needs it keeps its own colouring.
+
+**Measured.** `buttonVariants` declares `variant: "default" | "destructive" | "ia" | "highlight"` (`dist/index.d.ts` at the bumped commit `0c4455419`). The Hero example the design lead drew puts two outlined buttons in the body row: "1 a configurer" bordered `--color-feedback-error-primary`, which `variant="destructive" priority="secondary"` renders exactly, and "Vérifier les attentes" bordered `--color-feedback-alert-secondary` with `--color-feedback-alert-primary` ink — a tone no variant produces (Figma node `7929:13328`).
+
+**Product need.** The hero body carries two nudges of different urgency: a red one for a blocking configuration gap, an amber one for a drift that can wait. Both are outlined buttons; only the red one has a variant.
+
+**The request.** An `alert` tone on `Button`, drawn from the `feedback-alert` family the design file names, so the amber nudge stops being hand-coloured.

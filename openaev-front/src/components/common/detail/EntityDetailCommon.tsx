@@ -224,6 +224,8 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
   // non-numeric values (percentages, custom nodes) render untouched.
   const isCompacted = typeof value === 'number' && Math.abs(value) >= 1000;
   const displayValue = typeof value === 'number' ? compactNumber(value) : value;
+  // Figma node 7917:13045: a bordered tile, 8px inset, the 24px glyph, then the
+  // value and its label on ONE line — 14px semibold beside 12px secondary.
   const content = (
     <Box
       sx={{
@@ -231,10 +233,11 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
         alignItems: 'center',
         gap: 1,
         minWidth: 0,
-        padding: 0.5,
+        padding: 1,
+        borderRadius: 1,
+        border: '1px solid var(--border-elevation-subtle-soft)',
         ...(to
           ? {
-              'borderRadius': 1,
               'transition': 'background-color 120ms',
               '&:hover': { backgroundColor: alpha(accent, 0.06) },
             }
@@ -245,26 +248,20 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 30,
-        height: 30,
-        borderRadius: 1,
         flexShrink: 0,
         color: accent,
-        background: alpha(accent, 0.1),
-        boxShadow: `inset 0 0 12px ${alpha(accent, 0.13)}`,
       }}
       >
-        <Icon sx={{ fontSize: 16 }} />
+        <Icon sx={{ fontSize: 24 }} />
       </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{
-          fontFamily: '"Geologica", sans-serif',
-          fontSize: 18,
-          fontWeight: 500,
-          lineHeight: 1.05,
-          color: 'text.primary',
-        }}
-        >
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        minWidth: 0,
+      }}
+      >
+        <Text variant="content-base-bold">
           {isCompacted
             ? (
                 <Tooltip>
@@ -275,17 +272,10 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
                 </Tooltip>
               )
             : displayValue}
-        </Typography>
-        <Typography sx={{
-          fontSize: 9.5,
-          fontWeight: 600,
-          letterSpacing: '0.07em',
-          textTransform: 'uppercase',
-          color: 'text.secondary',
-        }}
-        >
+        </Text>
+        <Text variant="content-compact" className="text-default-secondary">
           {label}
-        </Typography>
+        </Text>
       </Box>
     </Box>
   );
@@ -298,50 +288,34 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
     : content;
 };
 
-// A horizontal cluster of hero stats separated by hairline dividers and
-// wrapping on narrow viewports. With `spread`, every stat takes an equal
-// share of the row so the cluster fills the full available width (used by
-// standalone stat bars, e.g. the simulation Execution tab).
+// A horizontal run of hero stat tiles, 8px apart, wrapping on narrow
+// viewports (Figma node 7929:13323 — the tiles carry their own border, so the
+// row draws no divider). With `spread`, every tile takes an equal share of the
+// row so the cluster fills the width (the simulation Execution tab).
 export const HeroStats = ({ children, spread }: {
   children: ReactNode;
   spread?: boolean;
-}) => {
-  const theme = useTheme();
-  return (
-    <Box sx={{
-      'display': 'flex',
-      'alignItems': 'center',
-      'flexWrap': 'wrap',
-      'columnGap': 4,
-      'rowGap': 1,
-      '& > *:not(:last-child)': {
-        paddingRight: 4,
-        borderRight: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-      },
-      ...(spread
-        ? {
-            '& > *': {
-              flex: 1,
-              minWidth: 150,
-            },
-          }
-        : {}),
-    }}
-    >
-      {children}
-    </Box>
-  );
-};
+}) => (
+  <Box sx={{
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 1,
+    ...(spread
+      ? {
+          '& > *': {
+            flex: 1,
+            minWidth: 150,
+          },
+        }
+      : {}),
+  }}
+  >
+    {children}
+  </Box>
+);
 
-// The hero header shared by ALL entity detail pages (scenario, simulation,
-// atomic testing, assets, teams, persons, findings, connectors...). When
-// `stats` is set, the headline metrics render as a second row of tiny
-// HeroStats inside the hero.
-//
-// The `action` node is wrapped in a normalized cluster: every top-level
-// Button / ToggleButton / IconButton is forced to the same 32px control
-// height so the top-right of every hero in the app looks identical.
-export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, action, stats, footer }: {
+export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, action, stats, bodyAction, footer }: {
   icon?: ComponentType<{
     color?: 'primary';
     sx?: object;
@@ -355,13 +329,15 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
   action?: ReactNode;
   /** Tiny headline stats rendered as a second hero row (wrap in HeroStat). */
   stats?: ReactNode;
+  /** Controls that belong to the body row, right-aligned beside the stats —
+   * the alert-toned ones the design file draws there (Figma 7929:13294). */
+  bodyAction?: ReactNode;
   /** Free-form extra hero row rendered after the stats (e.g. meta items). */
   footer?: ReactNode;
 }) => (
-  // The library's Hero: the surface, the two brand accents and the header/body
-  // split all come from the component now. Padding stays at 16 rather than the
-  // component's 24 so the twenty-one pages that render this keep their density.
-  <Hero padding={16} data-testid="detail-hero">
+  // The library's Hero: the surface, the two brand accents, the 24px inset and
+  // the header/body split all come from the component (Figma 7910:12881).
+  <Hero data-testid="detail-hero">
     <HeroHeader
       icon={(iconNode || Icon) ? <Thumbnail>{iconNode ?? (Icon ? <Icon color="primary" /> : null)}</Thumbnail> : undefined}
       action={action && (
@@ -377,7 +353,7 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
           // (outlined or contained), so no CTA ever looks smaller than its
           // neighbors.
           '& .MuiButton-root': {
-            height: 32,
+            height: 36,
             fontSize: 13,
             fontWeight: 500,
             lineHeight: '21px',
@@ -387,14 +363,14 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
           },
           '& .MuiButton-root .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 },
           '& .MuiToggleButton-root': {
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
           },
           // Only normalize IconButtons sitting directly in the cluster
           // (custom nested toolbars keep their own internal sizing).
           '& > .MuiIconButton-root': {
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             borderRadius: 1,
           },
           '& > .MuiIconButton-root .MuiSvgIcon-root': { fontSize: 20 },
@@ -410,12 +386,7 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
       }}
       >
         {overline && (
-          <Text
-            variant="content-caption"
-            className="block uppercase font-semibold text-filigran-brand-primary"
-            // The library ships no generic letter-spacing scale.
-            style={{ letterSpacing: '0.1em' }}
-          >
+          <Text variant="content-base-medium" className="block text-filigran-brand-primary">
             {overline}
           </Text>
         )}
@@ -455,9 +426,30 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
         )}
       </Box>
     </HeroHeader>
-    {(stats || footer) && (
+    {(stats || bodyAction || footer) && (
       <HeroBody>
-        {stats && <HeroStats>{stats}</HeroStats>}
+        <Box sx={{
+          display: 'flex',
+          width: '100%',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+        >
+          {stats ? <HeroStats>{stats}</HeroStats> : <span />}
+          {bodyAction && (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              flexShrink: 0,
+            }}
+            >
+              {bodyAction}
+            </Box>
+          )}
+        </Box>
         {footer}
       </HeroBody>
     )}
