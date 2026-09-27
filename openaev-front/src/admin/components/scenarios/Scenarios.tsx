@@ -86,7 +86,6 @@ const Scenarios = () => {
         <ItemCategory
           category={scenario.scenario_category ?? 'Unknown'}
           label={t(scenario.scenario_category ?? 'Unknown')}
-          size="medium"
         />
       ),
     },

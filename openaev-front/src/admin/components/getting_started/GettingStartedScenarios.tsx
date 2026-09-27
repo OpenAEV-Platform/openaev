@@ -70,7 +70,6 @@ const ScenarioCard = ({ scenario }: { scenario: Scenario }) => {
           <ItemCategory
             category={scenario.scenario_category ?? 'attack-scenario'}
             label={t(scenario.scenario_category ?? 'attack-scenario')}
-            size="small"
           />
         </Box>
         <ItemSeverity
