@@ -1,5 +1,4 @@
 import { Chip } from '@filigran/design-system';
-import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
 
@@ -43,17 +42,12 @@ const ChannelHeader = () => {
         : <ChannelIcon type={channel.channel_type} />}
       overline={t('Channel')}
       title={channel.channel_name ?? '-'}
-      chips={(
-        <Chip label={t(channel.channel_type ?? 'Unknown')} color={typeColor} />
-      )}
+      // The type qualifies the name, so it sits on its line; the subtitle is a
+      // sentence and takes the line under it.
+      chipsInline
+      chips={<Chip label={t(channel.channel_type ?? 'Unknown')} color={typeColor} />}
+      subtitle={channel.channel_description || undefined}
       action={<ChannelPopover channel={channel} variant="toggle" />}
-      footer={channel.channel_description
-        ? (
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {channel.channel_description}
-            </Typography>
-          )
-        : undefined}
     />
   );
 };
