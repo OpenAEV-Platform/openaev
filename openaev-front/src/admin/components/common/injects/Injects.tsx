@@ -69,7 +69,7 @@ const useStyles = makeStyles()(theme => ({
   item: { height: theme.spacing(6.25) },
   bodyItems: { display: 'flex' },
   bodyItem: {
-    height: theme.spacing(2.5),
+    minHeight: theme.spacing(2.5),
     fontSize: 13,
     whiteSpace: 'nowrap',
     overflow: 'hidden',

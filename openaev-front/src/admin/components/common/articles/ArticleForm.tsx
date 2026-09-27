@@ -87,7 +87,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   document_name: {
     float: 'left',
     width: '35%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -95,7 +95,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   document_type: {
     float: 'left',
     width: '20%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -103,7 +103,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   document_tags: {
     float: 'left',
     width: '30%',
-    height: 20,
+    minHeight: 20,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
