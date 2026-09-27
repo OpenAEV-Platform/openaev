@@ -2563,3 +2563,18 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** The design lead's ruling of 2026-09-27 for the entity hero: the thumbnail is **54 x 54** and carries the plain `--border-elevation-subtle`, `rgb(43, 79, 141)` — a frame that reads on the hero's surface rather than a hairline. The product sets both in `style` on the twenty-one pages that render the hero.
 
 **The request.** The second size the comment anticipated, as a `size` prop, and a way to ask for the plain `subtle` border — or a ruling that the hero's thumbnail is its own variant.
+
+## 69. No time-only field: `TimePicker` is deferred
+
+**Status.** Open. Two product sites held on MUI (`// fds:keep-mui`), no workaround.
+
+**Measured.** `DatePicker` at `d131bdbe` covers a date and, with `withTime`, a date **and** a clock; the shipped usage contract states the gap itself — "`<TimePicker … />` → not available, time-only field is deferred". There is no exported component whose value is a clock without a date, and `withTime` cannot be reduced to one: `DatePickerProps.value` is a `Date`, and the panel always opens on the calendar grid.
+
+**Product need.** Two OpenAEV controls hold a time and nothing else, both alongside a date field that now uses the library:
+
+- the simulation's scheduling form — a start date (converted) and its launch time, MUI `TimePicker` with `timeSteps={{ minutes: 15 }}` and a `minTime` that only binds when the date is today;
+- the notification trigger form — `<TextField type="time">`, labelled "Time (UTC)".
+
+Both keep MUI X and, with it, the `LocalizationProvider` the rest of the product no longer needs.
+
+**The request.** The deferred `TimePicker`, or a `timeOnly` mode on `DatePicker`. **Removal condition:** an exported time-only field carrying a minute step and a minimum time; the two holds and the `LocalizationProvider` then go in one commit.

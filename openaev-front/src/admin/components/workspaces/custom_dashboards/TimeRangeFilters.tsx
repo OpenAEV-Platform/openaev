@@ -6,9 +6,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@filigran/design-system';
-import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent } from 'react';
 
+import DateField from '../../../../components/fields/DateField';
 import { useFormatter } from '../../../../components/i18n';
 import { CUSTOM_TIME_RANGE, getTimeRangeItems } from './widgets/configuration/common/TimeRangeUtils';
 
@@ -57,33 +57,21 @@ const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleSta
       {
         timeRangeValue === CUSTOM_TIME_RANGE && (
           <>
-            <DateTimePicker
-              views={['year', 'month', 'day']}
+            <DateField
               value={startDateValue ? new Date(startDateValue) : null}
               maxDate={new Date(new Date(endDateValue ?? '').setUTCHours(24, 0, 0, 0))}
               onChange={(startDate) => {
-                handleStartDate(new Date(new Date(startDate!).setUTCHours(24, 0, 0, 0)).toISOString());
-              }}
-              slotProps={{
-                textField: {
-                  variant: 'outlined',
-                  size: 'small',
-                },
+                if (!startDate) return;
+                handleStartDate(new Date(new Date(startDate).setUTCHours(24, 0, 0, 0)).toISOString());
               }}
               label={t('Start date')}
             />
-            <DateTimePicker
-              views={['year', 'month', 'day']}
+            <DateField
               value={endDateValue ? new Date(endDateValue) : null}
               minDate={new Date(new Date(startDateValue ?? '').setUTCHours(24, 0, 0, 0))}
               onChange={(endDate) => {
-                handleEndDate(new Date(new Date(endDate!).setUTCHours(24, 0, 0, 0)).toISOString());
-              }}
-              slotProps={{
-                textField: {
-                  variant: 'outlined',
-                  size: 'small',
-                },
+                if (!endDate) return;
+                handleEndDate(new Date(new Date(endDate).setUTCHours(24, 0, 0, 0)).toISOString());
               }}
               label={t('End date')}
             />

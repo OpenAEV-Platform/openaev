@@ -269,6 +269,7 @@ const TriggerForm: FunctionComponent<Props> = ({
             </div>
           )}
           {period !== 'HOUR' && (
+            // fds:keep-mui the library has no time-only field; its TimePicker is deferred
             <TextField
               fullWidth
               type="time"

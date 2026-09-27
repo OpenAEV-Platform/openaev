@@ -2,12 +2,12 @@ import { Button, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UpdateOutlined } from '@mui/icons-material';
 import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import Transition from '../../../../components/common/Transition';
+import DateField from '../../../../components/fields/DateField';
 import { useFormatter } from '../../../../components/i18n';
 import {
   Cron,
@@ -449,49 +449,20 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                 gap: 2,
               }}
               >
-                <Controller
+                <DateField
                   control={control}
                   name="startDate"
-                  render={({ field, fieldState }) => (
-                    <DateTimePicker
-                      views={['year', 'month', 'day']}
-                      value={field.value ? new Date(field.value) : null}
-                      minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
-                      onChange={startDate => field.onChange(startDate?.toISOString())}
-                      onAccept={() => clearErrors(['hour', 'minute'])}
-                      slotProps={{
-                        textField: {
-                          fullWidth: true,
-                          error: !!fieldState.error,
-                          helperText: fieldState.error?.message,
-                          variant: 'outlined',
-                        },
-                      }}
-                      label={t('Start date')}
-                    />
-                  )}
+                  label={t('Start date')}
+                  minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
+                  onAccept={() => clearErrors(['hour', 'minute'])}
                 />
                 {frequency !== 'noRepeat' && (
-                  <Controller
+                  <DateField
                     control={control}
                     name="endDate"
-                    render={({ field, fieldState }) => (
-                      <DateTimePicker
-                        views={['year', 'month', 'day']}
-                        value={field.value ? new Date(field.value) : null}
-                        minDate={new Date(new Date().setUTCHours(24, 0, 0, 0))}
-                        onChange={endDate => field.onChange(endDate ? new Date(new Date(endDate).setUTCHours(0, 0, 0, 0)).toISOString() : null)}
-                        slotProps={{
-                          textField: {
-                            fullWidth: true,
-                            error: !!fieldState.error,
-                            helperText: fieldState.error?.message,
-                            variant: 'outlined',
-                          },
-                        }}
-                        label={t('End date (optional)')}
-                      />
-                    )}
+                    label={t('End date (optional)')}
+                    minDate={new Date(new Date().setUTCHours(24, 0, 0, 0))}
+                    toStorage={endDate => new Date(new Date(endDate).setUTCHours(0, 0, 0, 0)).toISOString()}
                   />
                 )}
               </Box>

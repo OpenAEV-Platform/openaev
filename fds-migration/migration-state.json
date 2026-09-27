@@ -219,7 +219,6 @@
         "openaev-front/src/admin/components/common/endpoints/fragments/EndpointAgentsExecutorsFragment.tsx",
         "openaev-front/src/admin/components/common/entreprise_edition/EEChip.tsx",
         "openaev-front/src/admin/components/common/form/TextFieldAskAI.tsx",
-        "openaev-front/src/admin/components/common/injects/ImportUploaderInjectFromXlsInjects.tsx",
         "openaev-front/src/admin/components/common/injects/InjectChainsForm.tsx",
         "openaev-front/src/admin/components/common/injects/InjectImportMenu.tsx",
         "openaev-front/src/admin/components/common/injects/InjectorContract.jsx",
