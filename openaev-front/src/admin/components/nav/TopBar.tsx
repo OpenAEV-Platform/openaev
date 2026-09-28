@@ -27,6 +27,7 @@ import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import useCapabilityGrants from '../../../utils/hooks/useCapabilityGrants';
+import { useFdsNavSurface, useFdsTheme } from '../../../utils/hooks/useFdsThemeScope';
 import AskArianeButton from '../ariane/AskArianeButton';
 import AskArianePanel from '../ariane/AskArianePanel';
 import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
@@ -91,6 +92,8 @@ const TopBar: FunctionComponent = () => {
   const [searchValue, setSearchValue] = useState(search ?? '');
   useEffect(() => setSearchValue(search ?? ''), [search]);
 
+  const { mode, custom } = useFdsTheme();
+  const navSurface = useFdsNavSurface(custom.nav, mode);
   const gradientStart = theme.palette.background.gradient?.start ?? theme.palette.background.default;
   const gradientEnd = theme.palette.background.gradient?.end ?? theme.palette.background.default;
 
@@ -108,6 +111,9 @@ const TopBar: FunctionComponent = () => {
           'zIndex': theme.zIndex.appBar,
           // FDS-WORKAROUND #17: re-declare the assembled gradient, stops opaque — remove when the library exposes a background hook — see fds-migration/LIBRARY-FEEDBACK.md
           '--gradient-default': `linear-gradient(90deg, ${gradientStart} 0%, ${gradientEnd} 100%)`,
+          // The bar and the rail share one ground by default; a navigation colour
+          // keeps them together instead of moving the rail alone.
+          ...navSurface,
         } as CSSProperties}
       >
         <HeaderGroup

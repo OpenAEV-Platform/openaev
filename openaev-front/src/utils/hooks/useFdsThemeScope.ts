@@ -52,6 +52,10 @@ const LAYER_FAMILY = [
   'border-elevation-default',
 ] as const;
 
+const NAV_GRADIENT = '--gradient-default';
+const SURFACE_LAYER_0 = '--bg-elevation-default-layer-0';
+const SURFACE_LAYER_0_END = '--bg-elevation-default-layer-0-gradient';
+
 const SURFACE_BY_SETTING = {
   background: 0,
   paper: 1,
@@ -152,10 +156,6 @@ export const movedBy = (
   return fromHsl([source[0], source[1], Math.max(0, Math.min(1, source[2] + applied))]);
 };
 
-const NAV_GRADIENT = '--gradient-default';
-const SURFACE_LAYER_0 = '--bg-elevation-default-layer-0';
-const SURFACE_LAYER_0_END = '--bg-elevation-default-layer-0-gradient';
-
 /**
  * The bar paints `var(--gradient-default)`, a composite the library resolves on
  * `:root`: its ingredients set lower in the tree do nothing, the value is inherited
@@ -233,6 +233,13 @@ const useFdsThemeScope = (mode: FdsThemeMode, custom: FdsCustomTheme = {}): FdsT
       : null;
     set(`--bg-elevation-default-layer-${DERIVED_SURFACE_LAYER}`, derivedSurface);
     surfaces.set(DERIVED_SURFACE_LAYER, derivedSurface);
+
+    // The far stop of the page gradient, which the rail paints too: without it a
+    // customised background fades back into the library's own colour.
+    const pageSurface = customised('background');
+    set(SURFACE_LAYER_0_END, pageSurface
+      ? movedBy(pageSurface, SURFACE_LAYER_0, SURFACE_LAYER_0_END, mode)
+      : null);
 
     surfaces.forEach((surface, layer) => {
       LAYER_FAMILY.forEach((family) => {
