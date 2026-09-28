@@ -5,7 +5,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 import static java.time.Instant.now;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -194,7 +193,11 @@ public class StreamApi extends RestBehavior {
 
   private void sendStreamEvent(FluxSink<Object> flux, BaseEvent event) {
     // Serialize the instance now for lazy session decoupling
-    event.setInstanceData(mapper.valueToTree(event.getInstance()));
+    sendStreamEvent(flux, event, mapper.valueToTree(event.getInstance()));
+  }
+
+  private void sendStreamEvent(FluxSink<Object> flux, BaseEvent event, JsonNode instanceData) {
+    event.setInstanceData(instanceData);
     ServerSentEvent<BaseEvent> message =
         ServerSentEvent.builder(event).event(EVENT_TYPE_MESSAGE).build();
     flux.next(message);
@@ -262,24 +265,29 @@ public class StreamApi extends RestBehavior {
             FluxSink<Object> fluxSink = consumer.fluxSink();
             if (!hasReadPermission(consumer, user, event)) {
               try {
-                String propertyId =
-                    event
-                        .getInstance()
-                        .getClass()
-                        .getDeclaredField("id")
-                        .getAnnotation(JsonProperty.class)
-                        .value();
+                String propertyId = event.getAttributeId();
+                if (propertyId == null || propertyId.isBlank()) {
+                  log.warn(
+                      "Class {} can't be streamed without an identifier",
+                      event.getInstance().getClass().getSimpleName());
+                  return;
+                }
                 ObjectNode deleteNode = mapper.createObjectNode();
                 deleteNode.set(
                     propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
                 BaseEvent userEvent = event.clone();
-                userEvent.setInstanceData(deleteNode);
                 userEvent.setType(DATA_DELETE);
-                sendStreamEvent(fluxSink, userEvent);
+                sendStreamEvent(fluxSink, userEvent, deleteNode);
               } catch (Exception e) {
                 String simpleName = event.getInstance().getClass().getSimpleName();
                 log.warn(String.format("Class %s can't be streamed", simpleName), e);
               }
+            } else if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
+                && !permissionService.hasCapabilityPermission(
+                    user, ResourceType.NOTIFIER, Action.READ)) {
+              ObjectNode instanceData = mapper.valueToTree(event.getInstance());
+              instanceData.putNull("notifier_configuration");
+              sendStreamEvent(fluxSink, event.clone(), instanceData);
             } else {
               sendStreamEvent(fluxSink, event);
             }
