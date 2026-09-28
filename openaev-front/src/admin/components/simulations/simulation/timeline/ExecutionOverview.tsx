@@ -207,25 +207,27 @@ const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: Exec
             sends strip as its footer - previews greyed sample data (like every
             widget of the platform) while the simulation has no injects yet. */}
         <SectionBlock title={t('Attack timeline')}>
-          {filteredInjects.length > 0 ? (
-            <AttackTimeline
-              injects={filteredInjects}
-              teams={teams}
-              onSelectInject={(id: string) => setSelectedInjectId(id)}
-              startDate={exercise?.exercise_start_date}
-              running={running}
-              now={now}
-            />
-          ) : (
-            <SamplePreview active atPanelEdge>
+          <div>
+            {filteredInjects.length > 0 ? (
               <AttackTimeline
-                injects={sampleTimelineInjects}
-                teams={sampleTimelineTeams}
-                onSelectInject={() => {}}
+                injects={filteredInjects}
+                teams={teams}
+                onSelectInject={(id: string) => setSelectedInjectId(id)}
+                startDate={exercise?.exercise_start_date}
+                running={running}
                 now={now}
               />
-            </SamplePreview>
-          )}
+            ) : (
+              <SamplePreview active atPanelEdge>
+                <AttackTimeline
+                  injects={sampleTimelineInjects}
+                  teams={sampleTimelineTeams}
+                  onSelectInject={() => {}}
+                  now={now}
+                />
+              </SamplePreview>
+            )}
+          </div>
           <Box sx={{
             marginTop: 2,
             paddingTop: 2,
