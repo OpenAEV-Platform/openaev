@@ -299,8 +299,9 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
               {/* Time of day (or interval + minute for hourly). */}
               <Box sx={{
                 display: 'flex',
-                alignItems: 'flex-start',
-                gap: 4,
+                // The switch sits level with the inputs, not with their labels.
+                alignItems: 'flex-end',
+                gap: 2,
                 flexWrap: 'wrap',
               }}
               >
@@ -356,18 +357,24 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                       </>
                     )
                   : (
-                      <TimeField
-                        label={t('Scheduling_time')}
-                        format="HH:mm"
-                        error={timeError}
-                        // The form keeps the clock as two numbers, not a date.
-                        value={new Date(1970, 0, 1, values.hour, values.minute)}
-                        onChange={(next) => {
-                          if (!next) return;
-                          setValue('hour', next.getHours(), { shouldValidate: true });
-                          setValue('minute', next.getMinutes(), { shouldValidate: true });
-                        }}
-                      />
+                      <Box sx={{
+                        flex: 1,
+                        minWidth: 200,
+                      }}
+                      >
+                        <TimeField
+                          label={t('Scheduling_time')}
+                          format="HH:mm"
+                          error={timeError}
+                          // The form keeps the clock as two numbers, not a date.
+                          value={new Date(1970, 0, 1, values.hour, values.minute)}
+                          onChange={(next) => {
+                            if (!next) return;
+                            setValue('hour', next.getHours(), { shouldValidate: true });
+                            setValue('minute', next.getMinutes(), { shouldValidate: true });
+                          }}
+                        />
+                      </Box>
                     )}
                 {['weekly', 'monthly'].includes(frequency) && (
                   <Stack
@@ -433,7 +440,15 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                     name="onlyWeekday"
                     render={({ field }) => (
                       <FormControlLabel
-                        sx={{ marginTop: 2 }}
+                        sx={{
+                          flex: 1,
+                          minWidth: 200,
+                          // The default label margins would shrink its share of the row.
+                          marginInline: 0,
+                          height: 36,
+                          // The hourly steppers are taller than an input, so centre on them.
+                          alignSelf: frequency === 'hourly' ? 'center' : 'flex-end',
+                        }}
                         control={(
                           <Switch
                             checked={field.value}
