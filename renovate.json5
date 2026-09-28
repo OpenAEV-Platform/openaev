@@ -354,6 +354,10 @@
                 '!/-maven-plugin$/',
             ],
             groupName: null,
+            // A version declared through a ${property} is grouped by Renovate under that property,
+            // and it reuses the batch's groupSlug to name the branch, so without this reset the
+            // dependency stays in the batch branch even though groupName is null.
+            groupSlug: null,
         },
         // These parse, sanitise or transport untrusted input, dompurify most of all: it is the XSS
         // boundary of the UI and a regression there is a security bug the E2E suite passes straight
