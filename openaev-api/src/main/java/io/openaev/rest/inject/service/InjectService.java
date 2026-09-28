@@ -615,19 +615,9 @@ public class InjectService {
   }
 
   private Inject saveInjectAndStatusAsQueuing(Inject inject) {
-    Inject savedInject = injectRepository.save(inject);
-    InjectStatus injectStatus = saveInjectStatusAsQueuing(savedInject);
-    savedInject.setStatus(injectStatus);
-    return savedInject;
-  }
-
-  private InjectStatus saveInjectStatusAsQueuing(Inject inject) {
-    InjectStatus injectStatus = new InjectStatus();
-    injectStatus.setInject(inject);
-    injectStatus.setTrackingSentDate(Instant.now());
-    injectStatus.setName(ExecutionStatus.QUEUING);
-    this.injectStatusRepository.save(injectStatus);
-    return injectStatus;
+    InjectStatus injectStatus = injectStatusService.createInjectStatusAsQueuing(inject);
+    inject.setStatus(injectStatus);
+    return injectRepository.save(inject);
   }
 
   /**
@@ -1003,13 +993,7 @@ public class InjectService {
   public void resetInjectByExercise(String simulationId) {
     List<Inject> injects = injectRepository.findAllInjectBySimulationId(simulationId);
     if (injects.isEmpty()) return;
-    injectStatusService.deleteAllInjectStatusByInjects(injects);
-    injects.forEach(
-        inject -> {
-          inject.clean();
-          inject.setAuthorisation(null);
-          inject.setTriggerNowDate(null);
-        });
+    injects.forEach(Inject::clean);
     injectRepository.saveAll(injects);
   }
 

@@ -71,6 +71,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
+  @Autowired private InjectorFixture injectorFixture;
   @Autowired private EntityManager entityManager;
 
   @Autowired private ComchecksExecutionJob comchecksExecutionJob;
@@ -225,8 +226,12 @@ class InjectsExecutionJobTest extends IntegrationTest {
   void givenComcheckNeedingExecution_shouldBuildInjectWithInjectorSet()
       throws JobExecutionException {
     // -- ARRANGE --
-    // Ensure the email injector contract exists in the database
-    injectorContractFixture.getWellKnownSingleEmailContract();
+    InjectorContract emailContract = injectorContractFixture.getWellKnownSingleEmailContract();
+    Injector emailInjector = injectorFixture.getWellKnownEmailInjector(true);
+    if (emailContract.getInjectors().stream()
+        .noneMatch(injector -> injector.getId().equals(emailInjector.getId()))) {
+      emailContract.addInjector(emailInjector);
+    }
 
     Exercise exercise = ExerciseFixture.getExercise();
     exercise.setStart(Instant.now().minus(1, ChronoUnit.MINUTES));
@@ -478,6 +483,9 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
               InjectorContract injectorContract =
                   injectorContractFixture.getWellKnownSingleEmailContract();
+              Injector emailInjector = injectorFixture.getWellKnownEmailInjector(true);
+              injectorContract.addInjector(emailInjector);
+
               Inject inject =
                   injectComposer
                       .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
@@ -485,6 +493,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
                       .persist()
                       .get();
               inject.setExercise(exercise);
+              inject.setInjector(emailInjector);
               injectRepository.save(inject);
               entityManager.flush();
 

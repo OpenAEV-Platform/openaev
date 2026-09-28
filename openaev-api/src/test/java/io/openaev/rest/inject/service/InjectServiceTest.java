@@ -201,30 +201,34 @@ class InjectServiceTest {
         new HashSet<>(capturedInject.getAssetGroups()));
   }
 
-  @DisplayName("resetInjectByExercise should reset execution state for a next run")
+  @DisplayName("resetInjectByExercise should reset execution state and delete authorisations")
   @Test
-  void given_resetInjectByExercise_should_clear_status_and_trigger_now_and_collect_status() {
+  void
+      given_resetInjectByExercise_should_clear_status_trigger_now_collect_status_and_authorisation() {
     // -- ARRANGE --
     Inject inject = new Inject();
     inject.setId("inject-reset");
     InjectStatus status = new InjectStatus();
     status.setId("status-reset");
     inject.setStatus(status);
+    InjectAuthorisation authorisation = new InjectAuthorisation();
+    inject.setAuthorisation(authorisation);
     inject.setTriggerNowDate(now());
     inject.setCollectExecutionStatus(CollectExecutionStatus.COLLECTING);
     when(injectRepository.findAllInjectBySimulationId("exercise-reset"))
         .thenReturn(List.of(inject));
-    doCallRealMethod().when(injectStatusService).deleteAllInjectStatusByInjects(List.of(inject));
 
     // -- ACT --
     injectService.resetInjectByExercise("exercise-reset");
 
     // -- ASSERT --
-    verify(injectAuthorisationRepository).deleteAllByInjectIds(List.of("inject-reset"));
-    verify(injectStatusRepository).deleteAllByIds(List.of("status-reset"));
+    verifyNoInteractions(
+        injectAuthorisationRepository, injectStatusService, injectStatusRepository);
     assertTrue(inject.getStatus().isEmpty());
+    assertNull(inject.getAuthorisation());
     assertNull(inject.getTriggerNowDate());
     assertEquals(CollectExecutionStatus.COLLECTING, inject.getCollectExecutionStatus());
+    verify(injectRepository).saveAll(List.of(inject));
   }
 
   @Test
