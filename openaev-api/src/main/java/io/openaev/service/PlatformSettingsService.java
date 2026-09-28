@@ -408,8 +408,7 @@ public class PlatformSettingsService {
         getValueFromMapOfSettings(
             dbSettings, themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key()));
     themeInput.setTextColor(
-        getValueFromMapOfSettings(
-            dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key()));
+        getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key()));
     themeInput.setLogoUrl(
         getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key()));
     themeInput.setLogoLoginUrl(
