@@ -63,7 +63,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -107,7 +106,7 @@ public class SecurityCoverageService {
    * @throws IOException there is an issue with serialisation
    */
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#securityCoverageStixId")
-  @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRES_NEW)
+  @Transactional
   public Scenario handleSecurityCoverageProcessing(
       TxCtx ctx, String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle)
       throws ParsingException, BundleValidationError, ConnectorError, IOException {
