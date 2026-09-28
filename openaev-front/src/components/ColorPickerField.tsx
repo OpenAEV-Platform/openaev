@@ -37,6 +37,8 @@ const ColorPickerField = <TFieldValues extends FieldValues = FieldValues>(
       error={fieldState.error?.message}
       value={field.value || ''}
       onValueChange={field.onChange}
+      // Three of the forms validate on touch: without the blur they never touch.
+      onBlur={field.onBlur}
       className={className ?? 'w-full'}
     />
   );

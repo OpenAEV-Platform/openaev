@@ -910,7 +910,7 @@
       "guards": [
         "imported-from-library"
       ],
-      "reason": "Colour wave. The product keeps two wrappers because two form libraries are in play - react-hook-form and, on the tag form alone, react-final-form - and the library component is controlled and form-agnostic by contract. Both hold the binding and nothing else; the twenty-two call sites render one of them.",
+      "reason": "Colour wave. The product keeps two wrappers because two form libraries are in play - react-hook-form and, on the tag form alone, react-final-form - and the library component is controlled and form-agnostic by contract. Both hold the binding and nothing else; the twenty call sites of the first and the single one of the second render one of them.",
       "files": [
         "openaev-front/src/components/ColorPickerField.tsx",
         "openaev-front/src/components/DeprecatedColorPickerField.jsx"
