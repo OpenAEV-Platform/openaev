@@ -66,7 +66,7 @@ const MarkingDefinitionForm: FunctionComponent<Props> = ({
     control,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = methods;
 
   useEffect(() => {
@@ -102,13 +102,9 @@ const MarkingDefinitionForm: FunctionComponent<Props> = ({
           required
         />
         <ColorPickerField
-          fullWidth
           label={t('Color')}
           required
-          error={!!errors.marking_definition_color}
-          helperText={errors.marking_definition_color?.message}
-          style={{ marginTop: 16 }}
-          readOnly
+          className="w-full mt-4"
           control={control as Control<MarkingDefinitionFormValues>}
           name="marking_definition_color"
         />
