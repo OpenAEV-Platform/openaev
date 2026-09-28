@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import Transition from '../../../../components/common/Transition';
 import DateField from '../../../../components/fields/DateField';
+import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import {
   Cron,
@@ -20,7 +21,7 @@ import {
 import handle from '../../../../utils/period/Period';
 import { minutesInFuture } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
-import TimeStepperField, { StepperColumn } from './TimeStepperField';
+import { StepperColumn } from './TimeStepperField';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -355,15 +356,17 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                       </>
                     )
                   : (
-                      <TimeStepperField
+                      <TimeField
                         label={t('Scheduling_time')}
-                        hour={values.hour}
-                        minute={values.minute}
-                        onChangeHour={next => setValue('hour', next, { shouldValidate: true })}
-                        onChangeMinute={next => setValue('minute', next, { shouldValidate: true })}
+                        format="HH:mm"
                         error={timeError}
-                        hourLabel={t('Hours')}
-                        minuteLabel={t('Minutes')}
+                        // The form keeps the clock as two numbers, not a date.
+                        value={new Date(1970, 0, 1, values.hour, values.minute)}
+                        onChange={(next) => {
+                          if (!next) return;
+                          setValue('hour', next.getHours(), { shouldValidate: true });
+                          setValue('minute', next.getMinutes(), { shouldValidate: true });
+                        }}
                       />
                     )}
                 {['weekly', 'monthly'].includes(frequency) && (
