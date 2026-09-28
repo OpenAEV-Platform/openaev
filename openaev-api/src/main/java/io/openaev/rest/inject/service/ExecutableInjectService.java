@@ -339,7 +339,7 @@ public class ExecutableInjectService {
     boolean isGroupTarget =
         !isDirectTarget
             && inject.getAssetGroups().stream()
-                .flatMap(group -> assetGroupService.assetsFromAssetGroup(group).stream())
+                .flatMap(group -> assetGroupService.assetsFromAssetGroup(group.getId()).stream())
                 .anyMatch(asset -> agentAssetId.equals(asset.getId()));
     if (!isDirectTarget && !isGroupTarget) {
       throw new ForbiddenException(
