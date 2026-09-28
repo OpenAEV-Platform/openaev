@@ -30,10 +30,7 @@ const KillChainPhaseForm: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-
-  // TextFieldController stores its value as a string, even with type="number":
-  // coerce it back to a number (undefined when emptied, which fails the
-  // required check) before validation.
+	
   const orderNumber = z.preprocess(
     value => (value === '' || value === null ? undefined : value),
     z.coerce.number({ message: t('This field is required.') }),
