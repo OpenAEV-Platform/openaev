@@ -16,7 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Organization;
@@ -59,10 +58,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Organizations deliberately remain on v1: v2 would mask unguarded primary-key lookups. */
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+@TestPropertySource(properties = "openaev.tenant.active-tables=organizations,tags")
 @DisplayName("Organization HTTP tenant isolation")
 class OrganizationHttpIsolationTest extends IntegrationTest {
 
@@ -124,8 +122,6 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
     @DisplayName("Foreign ID operations reject the organization without hydrating it")
     void given_foreignOrganization_should_rejectBeforeHydration(String operation) {
       // Arrange
-      TenantContext.setCurrentTenant(tenantA.getId());
-      TxCtx ctx = TxCtx.forTenant(tenantA.getId());
       Session session = entityManager.unwrap(Session.class);
       Statistics statistics = session.getSessionFactory().getStatistics();
       boolean statisticsEnabled = statistics.isStatisticsEnabled();
@@ -136,12 +132,11 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
         assertThatThrownBy(
                 () -> {
                   switch (operation) {
-                    case "read" -> organizationService.findById(ctx, organizationB.getId());
+                    case "read" -> organizationService.findById(organizationB.getId());
                     case "update" ->
                         organizationService.updateOrganization(
-                            ctx, organizationB.getId(), updateInput());
-                    case "delete" ->
-                        organizationService.deleteOrganization(ctx, organizationB.getId());
+                            organizationB.getId(), updateInput());
+                    case "delete" -> organizationService.deleteOrganization(organizationB.getId());
                     default -> throw new IllegalArgumentException(operation);
                   }
                 })
@@ -163,18 +158,14 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("An authorized lookup outside the ambient tenant restores the legacy filter")
-    void given_multiTenantScope_should_findOrganizationAndRestoreLegacyFilter() {
-      // Arrange
-      TenantContext.setCurrentTenant(tenantA.getId());
-      TxCtx ctx = TxCtx.forTenants(List.of(tenantA.getId(), tenantB.getId()));
-
+    @DisplayName("An authorized lookup outside the ambient tenant must respect the v2 tenant scope")
+    void given_multiTenantScope_should_findOrganizationUnderTheResolvedTenantScope() {
       // Act
-      Organization organization = organizationService.findById(ctx, organizationB.getId());
+      Organization organization = organizationService.findById(organizationB.getId());
 
       // Assert
       assertThat(organization.getId()).isEqualTo(organizationB.getId());
-      assertThat(entityManager.unwrap(Session.class).getEnabledFilter("tenantFilter")).isNotNull();
+      assertThat(entityManager.unwrap(Session.class).getEnabledFilter("tenantFilter")).isNull();
       assertThat(
               entityManager
                   .createQuery("select o.id from Organization o where o.id in :ids", String.class)
