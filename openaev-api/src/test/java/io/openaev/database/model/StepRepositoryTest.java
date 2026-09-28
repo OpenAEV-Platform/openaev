@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import static io.openaev.service.chaining.StepService.ACTIVE_STEP_STATUS;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
@@ -95,7 +96,7 @@ class StepRepositoryTest extends IntegrationTest {
     Step step =
         Step.builder()
             .stepAction(StepActionClass.INJECT_EXECUTION)
-            .status(StepStatus.TEMPLATE)
+            .status(StepStatus.RUN)
             .data("{\"inject_id\": \"" + inject.getId() + "\"}")
             .build();
 
@@ -106,7 +107,9 @@ class StepRepositoryTest extends IntegrationTest {
         .persist();
 
     // WHEN
-    Set<String> stepIds = stepRepository.findStepIdsByExpectationIds(Set.of(expectation.getId()));
+    Set<String> stepIds =
+        stepRepository.findStepIdsActiveByExpectationIds(
+            Set.of(expectation.getId()), ACTIVE_STEP_STATUS);
 
     // THEN
     Assertions.assertFalse(stepIds.isEmpty(), "Step IDs should be found");
@@ -172,21 +175,21 @@ class StepRepositoryTest extends IntegrationTest {
     Step step1 =
         Step.builder()
             .stepAction(StepActionClass.INJECT_EXECUTION)
-            .status(StepStatus.TEMPLATE)
+            .status(StepStatus.RUN)
             .data("{\"inject_id\": \"" + inject1.getId() + "\"}")
             .build();
 
     Step step2 =
         Step.builder()
             .stepAction(StepActionClass.INJECT_EXECUTION)
-            .status(StepStatus.TEMPLATE)
+            .status(StepStatus.READY)
             .data("{\"inject_id\": \"" + inject2.getId() + "\"}")
             .build();
 
     Step step3 =
         Step.builder()
             .stepAction(StepActionClass.INJECT_EXECUTION)
-            .status(StepStatus.TEMPLATE)
+            .status(StepStatus.RUN)
             .data("{\"inject_id\": \"" + inject3.getId() + "\"}")
             .build();
 
@@ -200,12 +203,13 @@ class StepRepositoryTest extends IntegrationTest {
 
     // WHEN: querying with all 4 expectation IDs
     Set<String> stepIds =
-        stepRepository.findStepIdsByExpectationIds(
+        stepRepository.findStepIdsActiveByExpectationIds(
             Set.of(
                 expectation1.getId(),
                 expectation2.getId(),
                 expectation3.getId(),
-                expectation4.getId()));
+                expectation4.getId()),
+            ACTIVE_STEP_STATUS);
 
     // THEN: should return step1 and step2, but not step3
     Assertions.assertEquals(2, stepIds.size(), "Should return exactly 2 step IDs");
@@ -215,8 +219,9 @@ class StepRepositoryTest extends IntegrationTest {
 
     // WHEN: querying with only expectations from inject1
     Set<String> stepIdsForInject1 =
-        stepRepository.findStepIdsByExpectationIds(
-            Set.of(expectation1.getId(), expectation2.getId(), expectation3.getId()));
+        stepRepository.findStepIdsActiveByExpectationIds(
+            Set.of(expectation1.getId(), expectation2.getId(), expectation3.getId()),
+            ACTIVE_STEP_STATUS);
 
     // THEN: should return only step1
     Assertions.assertEquals(1, stepIdsForInject1.size(), "Should return exactly 1 step ID");
@@ -224,7 +229,8 @@ class StepRepositoryTest extends IntegrationTest {
 
     // WHEN: querying with only expectation from inject2
     Set<String> stepIdsForInject2 =
-        stepRepository.findStepIdsByExpectationIds(Set.of(expectation4.getId()));
+        stepRepository.findStepIdsActiveByExpectationIds(
+            Set.of(expectation4.getId()), ACTIVE_STEP_STATUS);
 
     // THEN: should return only step2
     Assertions.assertEquals(1, stepIdsForInject2.size(), "Should return exactly 1 step ID");

@@ -64,4 +64,25 @@ public record CredentialFullOutput(
     @Schema(description = "Azure tenant id") @JsonProperty("credential_azure_tenant_id")
         String azureTenantId,
     @Schema(description = "Azure subscription id") @JsonProperty("credential_azure_subscription_id")
-        String azureSubscriptionId) {}
+        String azureSubscriptionId,
+    // GCP
+    @Schema(description = "GCP OAuth scope") @JsonProperty("credential_gcp_scope") String gcpScope,
+    @Schema(description = "GCP project id") @JsonProperty("credential_gcp_project_id")
+        String gcpProjectId,
+    @Schema(
+            description =
+                "Whether a GCP service account key file is stored; the key itself is never returned")
+        @JsonProperty("credential_gcp_private_key_defined")
+        boolean gcpPrivateKeyDefined,
+    @Schema(description = "GCP OAuth client id") @JsonProperty("credential_gcp_oauth_client_id")
+        String gcpOauthClientId,
+    @Schema(
+            description =
+                "Whether a GCP OAuth client secret is stored; the secret itself is never returned")
+        @JsonProperty("credential_gcp_oauth_client_secret_defined")
+        boolean gcpOauthClientSecretDefined,
+    @Schema(
+            description =
+                "Whether a GCP OAuth refresh token is stored; the token itself is never returned")
+        @JsonProperty("credential_gcp_oauth_refresh_token_defined")
+        boolean gcpOauthRefreshTokenDefined) {}

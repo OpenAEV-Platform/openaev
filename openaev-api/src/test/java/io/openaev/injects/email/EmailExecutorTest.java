@@ -152,6 +152,7 @@ public class EmailExecutorTest extends IntegrationTest {
             inject.getTeams(),
             inject.getAssets(),
             inject.getAssetGroups(),
+            Collections.emptyList(),
             userInjectContexts);
     Execution execution = new Execution(executableInject.isRuntime());
 

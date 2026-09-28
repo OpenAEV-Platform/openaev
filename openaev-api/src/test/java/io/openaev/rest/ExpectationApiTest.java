@@ -610,6 +610,7 @@ class ExpectationApiTest extends IntegrationTest {
               emptyList(),
               List.of(savedEndpoint),
               emptyList(),
+              emptyList(),
               emptyList());
       Expectation preventionExpectation =
           createExpectation(
@@ -697,6 +698,7 @@ class ExpectationApiTest extends IntegrationTest {
               savedInject,
               emptyList(),
               List.of(savedEndpoint),
+              emptyList(),
               emptyList(),
               emptyList());
       Expectation detectionExpectation =
@@ -1218,6 +1220,7 @@ class ExpectationApiTest extends IntegrationTest {
         emptyList(),
         List.of(savedEndpoint),
         includeAssetGroup ? List.of(savedAssetGroup) : emptyList(),
+        emptyList(),
         emptyList());
   }
 

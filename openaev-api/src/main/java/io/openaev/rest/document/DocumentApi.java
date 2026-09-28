@@ -26,6 +26,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -58,7 +59,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class DocumentApi extends RestBehavior {
 
   public static final String DOCUMENT_API = "/api/documents";
-  private static final String TENANT_DOCUMENT_API = TENANT_PREFIX + "/documents";
+  static final String TENANT_DOCUMENT_API = TENANT_PREFIX + "/documents";
   private static final String IMAGES_API = "/api/images";
   private static final String TENANT_IMAGES_API = TENANT_PREFIX + "/images";
   private static final String SECURITY_PLATFORM_IMAGES_API = IMAGES_API + "/security_platforms";
@@ -198,9 +199,12 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public Document document(TxCtx ctx, @PathVariable String documentId) {
-    return documentRepository
-        .findById(documentId)
-        .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    Document document =
+        documentRepository
+            .findById(documentId)
+            .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
+    return document;
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -214,6 +218,7 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
     return document.getTags();
   }
 
@@ -225,12 +230,15 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document documentTags(
       TxCtx ctx, @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
-    // Report generation outputs are read-only here (owned by the Reporting module).
-    documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
+    // Report generation outputs are read-only here (owned by the Reporting module). Checked after
+    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
+    // ordinary document, not the 400 that discloses the id is a report output.
+    documentService.assertNotReportingGenerationOutput(documentId);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return documentService.save(document);
   }
@@ -243,12 +251,15 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document updateDocumentInformation(
       TxCtx ctx, @PathVariable String documentId, @Valid @RequestBody DocumentUpdateInput input) {
-    // Report generation outputs are read-only here (owned by the Reporting module).
-    documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
+    // Report generation outputs are read-only here (owned by the Reporting module). Checked after
+    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
+    // ordinary document, not the 400 that discloses the id is a report output.
+    documentService.assertNotReportingGenerationOutput(documentId);
     document.setUpdateAttributes(input);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
 
@@ -308,12 +319,29 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public ResponseEntity<InputStreamResource> downloadDocument(
       TxCtx ctx, @PathVariable String documentId) {
-    return buildDocumentDownloadResponse(documentId);
+    Document document = documentService.document(documentId);
+    assertDocumentInRequestScope(ctx, document);
+    return buildDocumentDownloadResponse(document);
   }
 
-  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(String documentId) {
+  @GetMapping(TENANT_DOCUMENT_API + "/{documentId}/agent-file")
+  @Transactional
+  // TEMPORARY (#294): dedicated download route for the service-account (implant) token,
+  // scoped via AGENT_DOCUMENT_ACCESS/AGENT_DOCUMENT_READ instead of ACCESS_DOCUMENTS/READ,
+  // so the service-account never needs SEARCH. Remove once #294's durable per-document
+  // scoping solution replaces this workaround. Coordinated with implant repo route change.
+  @AccessControl(
+      resourceId = "#documentId",
+      actionPerformed = Action.AGENT_DOCUMENT_READ,
+      resourceType = ResourceType.DOCUMENT)
+  public ResponseEntity<InputStreamResource> downloadDocumentForAgent(
+      TxCtx ctx, @PathVariable String documentId) {
     Document document = documentService.document(documentId);
+    assertDocumentInRequestScope(ctx, document);
+    return buildDocumentDownloadResponse(document);
+  }
 
+  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(Document document) {
     String encodedFilename = DocumentService.encodeFileName(document.getName());
     InputStream in =
         fileService
@@ -353,9 +381,9 @@ public class DocumentApi extends RestBehavior {
             .findById(assetId)
             .orElseThrow(() -> new ElementNotFoundException("Security platform not found"));
     if (theme.equals("dark") && securityPlatform.getLogoDark() != null) {
-      return buildDocumentDownloadResponse(securityPlatform.getLogoDark().getId());
+      return buildDocumentDownloadResponse(securityPlatform.getLogoDark());
     } else if (securityPlatform.getLogoLight() != null) {
-      return buildDocumentDownloadResponse(securityPlatform.getLogoLight().getId());
+      return buildDocumentDownloadResponse(securityPlatform.getLogoLight());
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
@@ -382,9 +410,9 @@ public class DocumentApi extends RestBehavior {
     Channel channel = channelService.channel(channelId);
 
     if (theme.equals("dark") && channel.getLogoDark() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoDark().getId());
+      return buildDocumentDownloadResponse(channel.getLogoDark());
     } else if (channel.getLogoLight() != null) {
-      return buildDocumentDownloadResponse(channel.getLogoLight().getId());
+      return buildDocumentDownloadResponse(channel.getLogoLight());
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
@@ -447,7 +475,9 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public DocumentRelationsOutput getDocumentRelations(TxCtx ctx, @PathVariable String documentId) {
-    return toDocumentRelationsOutput(documentService.document(documentId));
+    Document document = documentService.document(documentId);
+    assertDocumentInRequestScope(ctx, document);
+    return toDocumentRelationsOutput(document);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -457,7 +487,40 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
   public void deleteDocument(TxCtx ctx, @PathVariable String documentId) {
+    assertDocumentInRequestScope(ctx, documentService.document(documentId));
     documentService.deleteDocument(documentId);
+  }
+
+  /**
+   * Refuses access to a document whose tenant is outside the request scope, with the same 404 as a
+   * missing document. The row is loaded through a primary-key {@code findById}, which is exempt
+   * from the Hibernate tenant filter, and {@code @AccessControl(DOCUMENT, ...)} is a capability
+   * check, not a tenant compare: without this guard a caller scoped to one tenant could reach or
+   * modify another tenant's document by id.
+   *
+   * <p>A request that narrows to an explicit tenant set (a path tenant, or an {@code X-Tenant-Ids}
+   * selector) is held to it. A request with no scope at all (an empty {@code TxCtx}, which on the
+   * non-prefixed route is a caller with no tenant membership and no selector) keeps today's
+   * behaviour: the check is not applied, so a by-id read or write behaves exactly as it did before
+   * this guard. A document with no tenant is a platform asset with no boundary and is always
+   * allowed.
+   */
+  // TODO v2: once documents get v2 activated
+  // https://github.com/OpenAEV-Platform/openaev/issues/7904,
+  // remove this check and its call sites: the statement inspector scopes the primary-key load
+  // itself, and the empty-scope case becomes the fail-closed behaviour of an unscoped request.
+  private void assertDocumentInRequestScope(TxCtx ctx, Document document) {
+    Tenant tenant = document.getTenant();
+    if (tenant == null || tenant.getId() == null) {
+      return;
+    }
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      return;
+    }
+    if (!scope.contains(tenant.getId())) {
+      throw new ElementNotFoundException("Document not found");
+    }
   }
 
   // -- EXERCISE & SENARIO--

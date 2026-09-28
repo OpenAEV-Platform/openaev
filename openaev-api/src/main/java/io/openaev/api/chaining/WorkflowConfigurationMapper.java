@@ -11,7 +11,7 @@ import io.openaev.database.model.ScopeVariable;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.service.chaining.ScopeSnapshotService;
-import io.openaev.utils.PrimitiveValueMaskingUtils;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -155,7 +155,7 @@ public class WorkflowConfigurationMapper {
         .id(variable.getId())
         .key(variable.getKey())
         .type(variable.getType())
-        .value(PrimitiveValueMaskingUtils.maskForDisplay(variable.getType(), variable.getValue()))
+        .value(SensitiveValueMaskingUtils.maskIfNeeded(variable.getType(), variable.getValue()))
         .description(variable.getDescription())
         .build();
   }

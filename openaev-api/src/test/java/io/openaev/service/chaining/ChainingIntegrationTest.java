@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
+import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
@@ -64,6 +65,9 @@ class ChainingIntegrationTest extends IntegrationTest {
   @Autowired private WorkflowRepository workflowRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private StepRepository stepRepository;
+  @Autowired private ConditionRepository conditionRepository;
+  @Autowired private WorkflowScopeRuleRepository workflowScopeRuleRepository;
+  @Autowired private ScopeVariableRepository scopeVariableRepository;
 
   // -- Setup inject
   @Autowired private StepService stepService;
@@ -346,11 +350,14 @@ class ChainingIntegrationTest extends IntegrationTest {
     }
 
     // -------------------------------------------------------------------------
-    // 4. DELETE SCENARIO → Scenario + Simulation + Steps + Workflows deleted
+    // 4. DELETE SCENARIO → scenario's own TEMPLATE subtree (Workflow, Steps, Conditions, Scope
+    // Rules, Scope Variables) deleted. Simulation and its own workflows (TEMPLATE copy + RUN) are
+    // untouched: they are independent copies made at launch time, not references to the
+    // scenario's TEMPLATE.
     // -------------------------------------------------------------------------
     @Test
     @WithMockUser(isAdmin = true)
-    void should_delete_scenario_and_cascade_to_simulation_steps_and_workflows() throws Exception {
+    void should_delete_scenario_template_entities_but_keep_simulation_intact() throws Exception {
       String response =
           mvc.perform(
                   post(tenantUri(TENANT_SCENARIO_URI))
@@ -372,9 +379,10 @@ class ChainingIntegrationTest extends IntegrationTest {
               .filter(w -> w.getScenario() != null && scenarioId.equals(w.getScenario().getId()))
               .findFirst()
               .orElseThrow();
+      String workflowTemplateId = workflowTemplate.getId();
 
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepInput step = buildValidStepInput(workflowTemplate.getId());
+      StepInput step = buildValidStepInput(workflowTemplateId);
       step.setDataStep(injectInput);
       mvc.perform(
               post(tenantUri(TENANT_STEP_URI))
@@ -382,6 +390,27 @@ class ChainingIntegrationTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(mapper.writeValueAsString(step)))
           .andExpect(status().isCreated());
+
+      // Attach a scope rule and a scope variable to the TEMPLATE workflow so their deletion can
+      // be verified alongside the steps/conditions.
+      WorkflowScopeRuleInput assetScopeRule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue(savedAsset.getId())
+              .build();
+      ScopeVariableInput scopeVariable =
+          ScopeVariableInput.builder()
+              .key("company_name")
+              .type(PrimitiveType.Text)
+              .value("Filigran")
+              .build();
+      workflowService.updateWorkflowConfiguration(
+          workflowTemplateId,
+          WorkflowConfigurationInput.builder()
+              .workflowScopeRules(List.of(assetScopeRule))
+              .workflowScopeVariables(List.of(scopeVariable))
+              .build());
 
       String simulationResult =
           mvc.perform(
@@ -394,7 +423,6 @@ class ChainingIntegrationTest extends IntegrationTest {
       String simulationId = mapper.readTree(simulationResult).get("exercise_id").asText();
 
       // Snapshots before deletion
-      String workflowTemplateId = workflowTemplate.getId();
       List<String> stepIds =
           stepRepository.findAll().stream()
               .filter(
@@ -402,8 +430,49 @@ class ChainingIntegrationTest extends IntegrationTest {
                       s.getWorkflow() != null && workflowTemplateId.equals(s.getWorkflow().getId()))
               .map(Step::getId)
               .toList();
-
       assertFalse(stepIds.isEmpty(), "Steps must exist before deletion");
+
+      List<String> conditionIds =
+          conditionRepository.findAll().stream()
+              .filter(c -> workflowTemplateId.equals(c.getWorkflowId()))
+              .map(Condition::getId)
+              .toList();
+      assertFalse(conditionIds.isEmpty(), "Conditions must exist before deletion");
+
+      List<String> scopeRuleIds =
+          workflowScopeRuleRepository.findAllByWorkflowId(workflowTemplateId).stream()
+              .map(WorkflowScopeRule::getId)
+              .toList();
+      assertFalse(scopeRuleIds.isEmpty(), "Scope rules must exist before deletion");
+
+      List<String> scopeVariableIds =
+          scopeVariableRepository.findAllByWorkflowId(workflowTemplateId).stream()
+              .map(ScopeVariable::getId)
+              .toList();
+      assertFalse(scopeVariableIds.isEmpty(), "Scope variables must exist before deletion");
+
+      // Snapshot the simulation-side workflows (its own TEMPLATE copy + RUN) before deletion: the
+      // scenario's TEMPLATE is only ever a source copied at launch time, so a RUN launched from a
+      // scenario never references the scenario's own TEMPLATE id in the first place.
+      Workflow simulationWorkflowTemplate =
+          workflowRepository.findAll().stream()
+              .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
+              .filter(
+                  w -> w.getSimulation() != null && simulationId.equals(w.getSimulation().getId()))
+              .findFirst()
+              .orElseThrow();
+      Workflow simulationWorkflowRun =
+          workflowRepository.findAll().stream()
+              .filter(
+                  w ->
+                      List.of(WorkflowStatus.RUN, WorkflowStatus.END, WorkflowStatus.STOP)
+                          .contains(w.getStatus()))
+              .filter(
+                  w -> w.getSimulation() != null && simulationId.equals(w.getSimulation().getId()))
+              .findFirst()
+              .orElseThrow();
+      String simulationWorkflowTemplateId = simulationWorkflowTemplate.getId();
+      String simulationWorkflowRunId = simulationWorkflowRun.getId();
 
       entityManager.clear();
       // DELETE
@@ -414,17 +483,18 @@ class ChainingIntegrationTest extends IntegrationTest {
       // Scenario deleted
       assertFalse(scenarioRepository.existsById(scenarioId));
 
-      // Workflows deleted (TEMPLATE + RUN)
+      // The scenario's own TEMPLATE workflow is deleted
       assertFalse(
           workflowRepository.existsById(workflowTemplateId),
-          "The Workflow TEMPLATE must be deleted");
+          "The scenario's own Workflow TEMPLATE must be deleted");
+
+      // The simulation's own TEMPLATE copy and RUN workflow are untouched
       assertTrue(
-          workflowRepository.findAll().stream()
-              .noneMatch(
-                  w ->
-                      w.getWorkflowTemplate() != null
-                          && workflowTemplateId.equals(w.getWorkflowTemplate().getId())),
-          "The Workflow RUN must be deleted");
+          workflowRepository.existsById(simulationWorkflowTemplateId),
+          "The simulation's own Workflow TEMPLATE must not be deleted");
+      assertTrue(
+          workflowRepository.existsById(simulationWorkflowRunId),
+          "The simulation's Workflow RUN must not be deleted");
 
       // Steps deleted
       stepIds.forEach(
@@ -432,7 +502,28 @@ class ChainingIntegrationTest extends IntegrationTest {
               assertFalse(
                   stepRepository.existsById(stepId), "Step " + stepId + " must be deleted"));
 
-      // Simulation deleted
+      // Conditions deleted
+      conditionIds.forEach(
+          conditionId ->
+              assertFalse(
+                  conditionRepository.existsById(conditionId),
+                  "Condition " + conditionId + " must be deleted"));
+
+      // Scope rules deleted
+      scopeRuleIds.forEach(
+          scopeRuleId ->
+              assertFalse(
+                  workflowScopeRuleRepository.existsById(scopeRuleId),
+                  "Scope rule " + scopeRuleId + " must be deleted"));
+
+      // Scope variables deleted
+      scopeVariableIds.forEach(
+          scopeVariableId ->
+              assertFalse(
+                  scopeVariableRepository.existsById(scopeVariableId),
+                  "Scope variable " + scopeVariableId + " must be deleted"));
+
+      // Simulation must not be deleted
       assertTrue(exerciseRepository.existsById(simulationId), "Simulation must not be deleted");
     }
 

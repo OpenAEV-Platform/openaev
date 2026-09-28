@@ -71,7 +71,6 @@ public class TenantUserService implements DependenciesManager {
     return UserMapper.toOutput(reloaded);
   }
 
-  /** Attaches a user to the specified tenant. Does nothing if already attached. */
   public void attachToTenant(@NotBlank String userId, @NotBlank String tenantId) {
     tenantRepository.addUserToTenant(userId, tenantId);
     tenantMembershipCacheManager.evict(userId, tenantId);

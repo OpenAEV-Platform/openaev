@@ -122,7 +122,7 @@ public class ProductInventoryMetricCollector {
     metricRegistry.registerGauge(
         "custom_dashboards_total",
         "Number of custom dashboards",
-        () -> safeCount(customDashboardRepository::count));
+        () -> safeCount(this::countCustomDashboards));
     metricRegistry.registerGauge(
         "reports_total", "Number of reports", () -> safeCount(reportingRepository::count));
     metricRegistry.registerGauge(
@@ -130,7 +130,7 @@ public class ProductInventoryMetricCollector {
     metricRegistry.registerGauge(
         "notification_triggers_total",
         "Number of notification triggers",
-        () -> safeCount(notificationTriggerRepository::count));
+        () -> safeCount(this::countNotificationTriggers));
     metricRegistry.registerGauge(
         "workflows_total",
         "Number of chaining workflows",
@@ -293,9 +293,21 @@ public class ProductInventoryMetricCollector {
     return countAcrossAllTenants(challengeRepository::count);
   }
 
+  /**
+   * Counts notification triggers across the whole platform (notification_triggers is v2-active).
+   */
+  long countNotificationTriggers() {
+    return countAcrossAllTenants(notificationTriggerRepository::count);
+  }
+
   /** Counts XLS import mappers across the whole platform (import_mappers is v2-active). */
   long countImportMappers() {
     return countAcrossAllTenants(importMapperRepository::count);
+  }
+
+  /** Counts custom dashboards across the whole platform (custom_dashboards is v2-active). */
+  long countCustomDashboards() {
+    return countAcrossAllTenants(customDashboardRepository::count);
   }
 
   private long countAcrossAllTenants(Supplier<Long> counter) {

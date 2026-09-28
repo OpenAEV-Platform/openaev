@@ -70,7 +70,11 @@ public final class InjectExpectationMapper {
         resolveTargetId(expectation),
         expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
             ? technicalInjectExpectation.getExpectedSecurityPlatforms()
-            : List.of());
+            : List.of(),
+        // Frozen at initialization and persisted on the expectation, so reading it directly is
+        // authoritative: a collector connected after creation must not clear the verdict.
+        expectation instanceof TechnicalInjectExpectation technicalCollectorMissing
+            && technicalCollectorMissing.isCollectorMissingAtInit());
   }
 
   public static List<InjectExpectationOutput> toOutputs(

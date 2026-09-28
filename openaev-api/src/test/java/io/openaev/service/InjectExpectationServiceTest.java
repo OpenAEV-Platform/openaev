@@ -10,19 +10,27 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
+import io.openaev.config.DefaultOpenAEVPrincipal;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +44,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class InjectExpectationServiceTest {
@@ -45,6 +56,9 @@ class InjectExpectationServiceTest {
   @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private InjectService injectService;
   @Mock private InjectExpectationLockService injectExpectationLockService;
+  @Mock private CollectorService collectorService;
+  @Mock private InjectorContractContentUtils injectorContractContentUtils;
+  @Mock private AuditLogger auditLogger;
 
   // Unstubbed: findByExternalReference defaults to Optional.empty(), so vulnerability verdicts
   // keep the legacy Expectations Vulnerability Manager attribution in these tests.
@@ -61,6 +75,12 @@ class InjectExpectationServiceTest {
     inject = InjectFixture.getDefaultInject();
     inject.setExpectations(List.of(createVulnerabilityInjectExpectation(inject, agent)));
     injectExpectationService.mapper = mapper;
+    ReflectionTestUtils.setField(injectExpectationService, "auditLogger", Optional.of(auditLogger));
+  }
+
+  @org.junit.jupiter.api.AfterEach
+  void clearSecurityContext() {
+    SecurityContextHolder.clearContext();
   }
 
   private void mockExpectation(BaseInjectExpectation expectation) {
@@ -96,6 +116,94 @@ class InjectExpectationServiceTest {
         ArgumentCaptor.forClass(InjectExpectationUpdateInput.class);
     verify(injectExpectationService, times(1)).updateInjectExpectation(any(), captor.capture());
     return captor.getValue();
+  }
+
+  private static io.openaev.model.inject.form.Expectation createFormExpectation(
+      BaseInjectExpectation.EXPECTATION_TYPE type) {
+    io.openaev.model.inject.form.Expectation expectation =
+        ExpectationFixture.createExpectation(type, "test-" + type.name().toLowerCase());
+    expectation.setExpectationGroup(false);
+    return expectation;
+  }
+
+  private AuditEvent invokeExpectationResultAudit(
+      BaseInjectExpectation expectation, InjectExpectationResult sourceResult) throws Exception {
+    Method method =
+        InjectExpectationService.class.getDeclaredMethod(
+            "logExpectationResultEvent",
+            BaseInjectExpectation.class,
+            InjectExpectationResult.class);
+    method.setAccessible(true);
+    method.invoke(injectExpectationService, expectation, sourceResult);
+
+    ArgumentCaptor<AuditEvent> auditEventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+    verify(auditLogger).logEvent(auditEventCaptor.capture());
+    return auditEventCaptor.getValue();
+  }
+
+  @Nested
+  @DisplayName("Expectation result audit logging")
+  class ExpectationResultAuditLogging {
+
+    @Test
+    @DisplayName("Automatic expectation result emits EXPECTATION_RESULT with SYSTEM origin")
+    void
+        given_automaticExpectationResult_should_emitExpectationResultAuditEvent_withAutomaticSourceAndSystemOrigin()
+            throws Exception {
+      // Arrange
+      BaseInjectExpectation expectation = createVulnerabilityInjectExpectation(inject, agent);
+      expectation.setId("expectation-automatic");
+      expectation.setExpectedScore(50.0);
+      expectation.setScore(75.0);
+      InjectExpectationResult sourceResult =
+          InjectExpectationResult.builder()
+              .sourceId("collector-1")
+              .sourceName("EDR Collector")
+              .sourceType("automatic")
+              .date("2026-08-05T10:15:30Z")
+              .build();
+
+      // Act
+      AuditEvent event = invokeExpectationResultAudit(expectation, sourceResult);
+
+      // Assert
+      assertEquals(AuditEventScope.EXPECTATION_RESULT, event.getEventScope());
+      assertEquals(AuditEventOrigin.SYSTEM, event.getOrigin());
+      assertEquals("automatic", event.getContextData().get("source_type"));
+    }
+
+    @Test
+    @DisplayName("Manual expectation result emits EXPECTATION_RESULT with REQUEST origin and user")
+    void
+        given_manualExpectationResult_should_emitExpectationResultAuditEvent_withManualSourceUserAttributionAndRequestOrigin()
+            throws Exception {
+      // Arrange
+      String userId = "user-42";
+      DefaultOpenAEVPrincipal principal =
+          new DefaultOpenAEVPrincipal(userId, List.of(), false, "en");
+      SecurityContextHolder.getContext()
+          .setAuthentication(new TestingAuthenticationToken(principal, null));
+
+      BaseInjectExpectation expectation = createVulnerabilityInjectExpectation(inject, agent);
+      expectation.setId("expectation-manual");
+      expectation.setExpectedScore(50.0);
+      expectation.setScore(null);
+      InjectExpectationResult sourceResult =
+          InjectExpectationResult.builder()
+              .sourceId("manual-source")
+              .sourceName(userId)
+              .sourceType("manual")
+              .build();
+
+      // Act
+      AuditEvent event = invokeExpectationResultAudit(expectation, sourceResult);
+
+      // Assert
+      assertEquals(AuditEventScope.EXPECTATION_RESULT, event.getEventScope());
+      assertEquals(AuditEventOrigin.SYSTEM, event.getOrigin());
+      assertEquals("manual", event.getContextData().get("source_type"));
+      assertEquals(userId, event.getContextData().get("source"));
+    }
   }
 
   @Test
@@ -660,7 +768,7 @@ class InjectExpectationServiceTest {
   }
 
   @Nested
-  @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType for assets")
+  @DisplayName("findExpectationsByInjectAndTargetAndTargetType for assets")
   class AssetSecurityPlatformEnrichmentTests {
 
     @Test
@@ -685,8 +793,8 @@ class InjectExpectationServiceTest {
           .thenReturn(List.of(agentExpectation));
 
       List<? extends BaseInjectExpectation> merged =
-          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-              "inject-id", "asset-id", "parent-id", "ASSETS");
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
 
       assertEquals(1, merged.size());
       assertEquals(List.of(collectorResult), merged.get(0).getResults());
@@ -732,8 +840,8 @@ class InjectExpectationServiceTest {
           .thenReturn(List.of(agentExpectation));
 
       List<? extends BaseInjectExpectation> merged =
-          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-              "inject-id", "asset-id", "parent-id", "ASSETS");
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
 
       assertEquals(1, merged.size());
       assertEquals(List.of(nucleiResult), merged.get(0).getResults());
@@ -765,8 +873,8 @@ class InjectExpectationServiceTest {
           .thenReturn(List.of(agentExpectation));
 
       List<? extends BaseInjectExpectation> merged =
-          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-              "inject-id", "asset-id", "parent-id", "ASSETS");
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
 
       assertEquals(1, merged.size());
       assertEquals(List.of(managerResult), merged.get(0).getResults());
@@ -784,8 +892,8 @@ class InjectExpectationServiceTest {
           .thenReturn(List.of());
 
       List<? extends BaseInjectExpectation> merged =
-          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-              "inject-id", "asset-id", "parent-id", "ASSETS");
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
 
       assertEquals(List.of(assetExpectation), merged);
     }
@@ -864,7 +972,7 @@ class InjectExpectationServiceTest {
   }
 
   @Nested
-  @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType for asset groups")
+  @DisplayName("findExpectationsByInjectAndTargetAndTargetType for asset groups")
   class AssetGroupSecurityPlatformEnrichmentTests {
 
     private InjectExpectationResult collectorResult(String result, Double score) {
@@ -878,8 +986,8 @@ class InjectExpectationServiceTest {
     }
 
     private List<? extends BaseInjectExpectation> merge() {
-      return injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-          "inject-id", "group-id", "parent-id", "ASSETS_GROUPS");
+      return injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+          "inject-id", "group-id", "ASSETS_GROUPS");
     }
 
     @Test

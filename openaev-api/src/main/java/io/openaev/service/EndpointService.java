@@ -431,6 +431,7 @@ public class EndpointService implements AuditLoggedService {
         endpointToSave.setTenant(new Tenant(inputToSave.getExecutor().getTenantId()));
         agentToUpdate.setAsset(endpointToSave);
         agentToUpdate.setLastSeen(inputToSave.getLastSeen());
+        agentToUpdate.setStatus(AgentStatus.ACTIVE);
         endpointsToSave.add(endpointToSave);
         agentsToSave.add(agentToUpdate);
         inputs.removeIf(
@@ -821,6 +822,7 @@ public class EndpointService implements AuditLoggedService {
   private void setUpdatedAgentAttributes(Agent agent, AgentRegisterInput input, Endpoint endpoint) {
     agent.setAsset(endpoint);
     agent.setLastSeen(input.getLastSeen());
+    agent.setStatus(AgentStatus.ACTIVE);
     agent.setExternalReference(input.getExternalReference());
     // For OpenAEV agent
     agent.setVersion(input.getAgentVersion());
@@ -848,6 +850,7 @@ public class EndpointService implements AuditLoggedService {
         input.isService() ? Agent.DEPLOYMENT_MODE.service : Agent.DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
+    agent.setStatus(AgentStatus.ACTIVE);
     agent.setTenant(new Tenant(input.getExecutor().getTenantId()));
   }
 

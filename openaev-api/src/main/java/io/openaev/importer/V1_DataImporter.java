@@ -23,6 +23,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
+import io.openaev.database.raw.RawUserIdentity;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -68,6 +69,8 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 @Slf4j
 @RequiredArgsConstructor
 public class V1_DataImporter implements Importer {
+  private static final String WORKFLOW_SCOPE_RULE_TEAM_MEMBERS = "workflow_scope_rule_team_members";
+  private static final String WORKFLOW_SCOPE_RULE_TEAM_MEMBER = "workflow_scope_rule_team_member";
 
   // region variables
   @Resource protected ObjectMapper mapper;
@@ -80,6 +83,7 @@ public class V1_DataImporter implements Importer {
   private final ExerciseRepository exerciseRepository;
   private final ScenarioService scenarioService;
   private final TeamRepository teamRepository;
+  private final TenantRepository tenantRepository;
   private final ObjectiveRepository objectiveRepository;
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
@@ -2571,40 +2575,34 @@ public class V1_DataImporter implements Importer {
         workflow.setSimulation(savedExercise);
       }
 
-      // Import scope rules
+      // -- chained scope import --
+      //
+      // Scope rules are imported before steps so the workflow can rebuild TEAM/PLAYER references
+      // and rehydrate the companion membership payload in the same pass.
       if (workflowNode.has("workflow_scope_rules")) {
+        // Team scope rules need both the scoped team identity and the exported companion members,
+        // so resolve the player lookup cache once and reuse it for all rules in this workflow.
+        Map<String, List<String>> workflowScopePlayersByLabel = loadWorkflowScopePlayersByLabel();
+        // The companion payload is exported separately from the rule itself; index it by the rule
+        // value so each TEAM rule can restore its users without a second pass over the JSON.
+        Map<String, JsonNode> teamMembersByRuleValue =
+            extractWorkflowScopeRuleTeamMembers(workflowNode);
         List<WorkflowScopeRule> scopeRules = new ArrayList<>();
         for (JsonNode ruleNode : workflowNode.get("workflow_scope_rules")) {
-          ScopeRuleSource ruleSource =
-              ruleNode.has("workflow_scope_rule_source")
-                      && !ruleNode.get("workflow_scope_rule_source").isNull()
-                  ? ScopeRuleSource.valueOf(ruleNode.get("workflow_scope_rule_source").asText())
-                  : null;
-          ScopeRuleValueType ruleValueType =
-              ruleNode.has("workflow_scope_rule_value_type")
-                      && !ruleNode.get("workflow_scope_rule_value_type").isNull()
-                  ? ScopeRuleValueType.valueOf(
-                      ruleNode.get("workflow_scope_rule_value_type").asText())
-                  : null;
+          ScopeRuleSource ruleSource = resolveWorkflowScopeRuleSource(ruleNode);
+          ScopeRuleValueType ruleValueType = resolveWorkflowScopeRuleValueType(ruleNode);
           if (WorkflowScopeRuleUtils.isAssetScopeRule(ruleSource, ruleValueType)) {
             continue;
           }
           WorkflowScopeRule rule =
-              WorkflowScopeRule.builder()
-                  .selectedMode(
-                      ruleNode.has("workflow_scope_rule_selected_mode")
-                              && !ruleNode.get("workflow_scope_rule_selected_mode").isNull()
-                          ? ScopeRuleSelectedMode.valueOf(
-                              ruleNode.get("workflow_scope_rule_selected_mode").asText())
-                          : null)
-                  .ruleSource(ruleSource)
-                  .ruleValue(
-                      ruleNode.has("workflow_scope_rule_value")
-                          ? ruleNode.get("workflow_scope_rule_value").asText()
-                          : null)
-                  .valueType(ruleValueType)
-                  .workflow(workflow)
-                  .build();
+              buildWorkflowScopeRule(
+                  ruleNode,
+                  workflow,
+                  baseIds,
+                  ruleSource,
+                  ruleValueType,
+                  teamMembersByRuleValue,
+                  workflowScopePlayersByLabel);
           scopeRules.add(rule);
         }
         workflow.setWorkflowScopeRules(scopeRules);
@@ -2672,6 +2670,365 @@ public class V1_DataImporter implements Importer {
       log.warn("Failed to import workflow (chaining)", e);
       throw new ImportException(e);
     }
+  }
+
+  // -- workflow-scope rule resolution --
+  //
+  // These helpers turn exported chained scope rows back into persisted TEAM/PLAYER entities and
+  // preserve the rule labels that the export captured for round-tripping.
+  private WorkflowScopeRule buildWorkflowScopeRule(
+      JsonNode ruleNode,
+      Workflow workflow,
+      Map<String, Base> baseIds,
+      ScopeRuleSource ruleSource,
+      ScopeRuleValueType ruleValueType,
+      Map<String, JsonNode> teamMembersByRuleValue,
+      Map<String, List<String>> workflowScopePlayersByLabel) {
+    ScopeRuleSelectedMode selectedMode = resolveWorkflowScopeRuleSelectedMode(ruleNode);
+    String rawValue = getTextValue(ruleNode, "workflow_scope_rule_value");
+    String importedLabel = getTextValue(ruleNode, "workflow_scope_rule_value_label");
+
+    if (ScopeRuleSource.TEAM.equals(ruleSource)) {
+      // TEAM rules preserve the team identity and, when available, the reconstructed membership
+      // list so chained imports round-trip the same audience context as the export.
+      WorkflowScopeTeamResolution teamResolution =
+          resolveWorkflowScopeTeam(rawValue, importedLabel, baseIds);
+      List<User> teamUsers =
+          resolveWorkflowScopeTeamMembers(
+              teamMembersByRuleValue.get(rawValue), baseIds, workflowScopePlayersByLabel);
+      if (teamResolution.created()) {
+        teamResolution.team().setUsers(teamUsers);
+        teamRepository.save(teamResolution.team());
+      }
+      return WorkflowScopeRule.builder()
+          .selectedMode(selectedMode)
+          .ruleSource(ruleSource)
+          .ruleValue(teamResolution.team().getId())
+          .ruleValueLabel(teamResolution.team().getName())
+          .valueType(ScopeRuleValueType.TEAM_ID)
+          .workflow(workflow)
+          .build();
+    }
+
+    if (ScopeRuleSource.PLAYER.equals(ruleSource)) {
+      User player =
+          resolveWorkflowScopePlayer(
+              rawValue, importedLabel, baseIds, null, workflowScopePlayersByLabel);
+      return WorkflowScopeRule.builder()
+          .selectedMode(selectedMode)
+          .ruleSource(ruleSource)
+          .ruleValue(player.getId())
+          .ruleValueLabel(player.getNameOrEmail())
+          .valueType(ScopeRuleValueType.PLAYER_ID)
+          .workflow(workflow)
+          .build();
+    }
+
+    return WorkflowScopeRule.builder()
+        .selectedMode(selectedMode)
+        .ruleSource(ruleSource)
+        .ruleValue(rawValue)
+        .ruleValueLabel(importedLabel)
+        .valueType(ruleValueType)
+        .workflow(workflow)
+        .build();
+  }
+
+  private Map<String, JsonNode> extractWorkflowScopeRuleTeamMembers(JsonNode workflowNode) {
+    // Scope-rule companions are exported as a separate collection to keep the rule payload small
+    // while still preserving team membership details for import.
+    Map<String, JsonNode> teamMembersByRuleValue = new HashMap<>();
+    JsonNode membersNode = workflowNode.get(WORKFLOW_SCOPE_RULE_TEAM_MEMBERS);
+    if (membersNode == null || !membersNode.isArray()) {
+      return teamMembersByRuleValue;
+    }
+
+    for (JsonNode memberNode : membersNode) {
+      if (memberNode == null || memberNode.isNull()) {
+        continue;
+      }
+      String ruleValue = getTextValue(memberNode, "workflow_scope_rule_value");
+      JsonNode teamUsersNode = memberNode.get(WORKFLOW_SCOPE_RULE_TEAM_MEMBER);
+      if (hasText(ruleValue) && teamUsersNode != null && teamUsersNode.isArray()) {
+        teamMembersByRuleValue.put(ruleValue, teamUsersNode);
+      }
+    }
+    return teamMembersByRuleValue;
+  }
+
+  private List<User> resolveWorkflowScopeTeamMembers(
+      @Nullable JsonNode companionMembersNode,
+      Map<String, Base> baseIds,
+      Map<String, List<String>> workflowScopePlayersByLabel) {
+    JsonNode membersNode = companionMembersNode;
+    if (membersNode == null || !membersNode.isArray()) {
+      return new ArrayList<>();
+    }
+
+    List<User> users = new ArrayList<>();
+    for (JsonNode memberNode : membersNode) {
+      if (memberNode == null || memberNode.isNull()) {
+        continue;
+      }
+      String rawValue =
+          memberNode.isTextual() ? memberNode.asText() : getTextValue(memberNode, "user_id");
+      String label = resolveWorkflowScopePlayerLabel(memberNode, rawValue);
+      users.add(
+          resolveWorkflowScopePlayer(
+              rawValue, label, baseIds, memberNode, workflowScopePlayersByLabel));
+    }
+    return users;
+  }
+
+  private ScopeRuleSelectedMode resolveWorkflowScopeRuleSelectedMode(JsonNode ruleNode) {
+    return ruleNode.has("workflow_scope_rule_selected_mode")
+            && !ruleNode.get("workflow_scope_rule_selected_mode").isNull()
+        ? ScopeRuleSelectedMode.valueOf(ruleNode.get("workflow_scope_rule_selected_mode").asText())
+        : null;
+  }
+
+  private ScopeRuleSource resolveWorkflowScopeRuleSource(JsonNode ruleNode) {
+    return ruleNode.has("workflow_scope_rule_source")
+            && !ruleNode.get("workflow_scope_rule_source").isNull()
+        ? ScopeRuleSource.valueOf(ruleNode.get("workflow_scope_rule_source").asText())
+        : null;
+  }
+
+  private ScopeRuleValueType resolveWorkflowScopeRuleValueType(JsonNode ruleNode) {
+    return ruleNode.has("workflow_scope_rule_value_type")
+            && !ruleNode.get("workflow_scope_rule_value_type").isNull()
+        ? ScopeRuleValueType.valueOf(ruleNode.get("workflow_scope_rule_value_type").asText())
+        : null;
+  }
+
+  private WorkflowScopeTeamResolution resolveWorkflowScopeTeam(
+      String rawValue, String label, Map<String, Base> baseIds) {
+    if (hasText(rawValue) && baseIds.get(rawValue) instanceof Team cachedTeam) {
+      return new WorkflowScopeTeamResolution(cachedTeam, false);
+    }
+
+    String tenantId = TenantContext.getCurrentTenant();
+    if (hasText(rawValue)) {
+      Optional<Team> existingTeam = teamRepository.findByIdAndTenantId(rawValue, tenantId);
+      if (existingTeam.isPresent()) {
+        baseIds.put(rawValue, existingTeam.get());
+        return new WorkflowScopeTeamResolution(existingTeam.get(), false);
+      }
+    }
+
+    if (hasText(label)) {
+      List<Team> existingTeams = teamRepository.findByNameIgnoreCaseAndNotContextual(label);
+      if (!existingTeams.isEmpty()) {
+        Team existingTeam = existingTeams.getFirst();
+        if (hasText(rawValue)) {
+          baseIds.put(rawValue, existingTeam);
+        }
+        return new WorkflowScopeTeamResolution(existingTeam, false);
+      }
+    }
+
+    Team team = new Team();
+    team.setName(hasText(label) ? label : rawValue);
+    team.setContextual(false);
+    team.setTenant(new Tenant(tenantId));
+    Team savedTeam = teamRepository.save(team);
+    if (hasText(rawValue)) {
+      baseIds.put(rawValue, savedTeam);
+    }
+    return new WorkflowScopeTeamResolution(savedTeam, true);
+  }
+
+  // -- workflow-scope player lookup --
+  //
+  private User resolveWorkflowScopePlayer(
+      String rawValue,
+      String label,
+      Map<String, Base> baseIds,
+      @Nullable JsonNode sourceNode,
+      Map<String, List<String>> workflowScopePlayersByLabel) {
+    if (hasText(rawValue) && baseIds.get(rawValue) instanceof User cachedUser) {
+      return cachedUser;
+    }
+
+    String tenantId = TenantContext.getCurrentTenant();
+    String sourceEmail = sourceNode == null ? null : getTextValue(sourceNode, "user_email");
+    if (hasText(sourceEmail)) {
+      Optional<User> bySourceEmail = userRepository.findByEmailIgnoreCase(sourceEmail);
+      if (bySourceEmail.isPresent()) {
+        attachUserToTenant(bySourceEmail.get(), tenantId);
+        if (hasText(rawValue)) {
+          baseIds.put(rawValue, bySourceEmail.get());
+        }
+        return bySourceEmail.get();
+      }
+    }
+
+    String email = resolveWorkflowScopePlayerEmail(label, rawValue);
+    Optional<User> globalUser = userRepository.findByEmailIgnoreCase(email);
+    if (globalUser.isPresent()) {
+      attachUserToTenant(globalUser.get(), tenantId);
+      if (hasText(rawValue)) {
+        baseIds.put(rawValue, globalUser.get());
+      }
+      return globalUser.get();
+    }
+
+    if (hasText(rawValue)) {
+      Optional<User> existingUser =
+          userRepository.findAllByIdInAndTenantId(List.of(rawValue), tenantId).stream().findFirst();
+      if (existingUser.isPresent()) {
+        attachUserToTenant(existingUser.get(), tenantId);
+        baseIds.put(rawValue, existingUser.get());
+        return existingUser.get();
+      }
+      Optional<User> globalById = userRepository.findById(rawValue);
+      if (globalById.isPresent()) {
+        attachUserToTenant(globalById.get(), tenantId);
+        baseIds.put(rawValue, globalById.get());
+        return globalById.get();
+      }
+    }
+
+    if (hasText(label)) {
+      Optional<User> existingUser =
+          resolveWorkflowScopePlayerByLabel(label, tenantId, workflowScopePlayersByLabel);
+      if (existingUser.isPresent()) {
+        attachUserToTenant(existingUser.get(), tenantId);
+        if (hasText(rawValue)) {
+          baseIds.put(rawValue, existingUser.get());
+        }
+        return existingUser.get();
+      }
+    }
+    User player = createWorkflowScopePlayer(label, rawValue, sourceNode);
+    User savedPlayer = userRepository.save(player);
+    if (hasText(rawValue)) {
+      baseIds.put(rawValue, savedPlayer);
+    }
+    return savedPlayer;
+  }
+
+  private Optional<User> resolveWorkflowScopePlayerByLabel(
+      String label, String tenantId, Map<String, List<String>> workflowScopePlayersByLabel) {
+    String normalizedLabel = label.trim().toLowerCase(Locale.ROOT);
+    List<String> matchingIds = workflowScopePlayersByLabel.getOrDefault(normalizedLabel, List.of());
+    if (matchingIds.isEmpty()) {
+      return Optional.empty();
+    }
+    Optional<User> tenantScoped =
+        userRepository.findAllByIdInAndTenantId(matchingIds, tenantId).stream().findFirst();
+    if (tenantScoped.isPresent()) {
+      return tenantScoped;
+    }
+    return userRepository.findById(matchingIds.getFirst());
+  }
+
+  private Map<String, List<String>> loadWorkflowScopePlayersByLabel() {
+    // Build one global label index up front so chained imports can resolve repeated team member
+    // labels without repeating the same projection query for every unresolved rule.
+    Map<String, List<String>> playersByLabel = new HashMap<>();
+    for (RawUserIdentity player : userRepository.rawAllIdentities()) {
+      String userId = player.getUser_id();
+      String email = player.getUser_email();
+      if (hasText(email)) {
+        playersByLabel
+            .computeIfAbsent(email.toLowerCase(Locale.ROOT), ignored -> new ArrayList<>())
+            .add(userId);
+      }
+      String displayName = resolvePlayerDisplayName(player);
+      if (hasText(displayName)) {
+        playersByLabel
+            .computeIfAbsent(displayName.toLowerCase(Locale.ROOT), ignored -> new ArrayList<>())
+            .add(userId);
+      }
+    }
+    return playersByLabel;
+  }
+
+  private static String resolvePlayerDisplayName(RawUserIdentity player) {
+    if (hasText(player.getUser_firstname()) && hasText(player.getUser_lastname())) {
+      return player.getUser_firstname() + " " + player.getUser_lastname();
+    }
+    return player.getUser_email();
+  }
+
+  private User createWorkflowScopePlayer(
+      String label, String rawValue, @Nullable JsonNode sourceNode) {
+    User player = new User();
+    String sourceEmail = sourceNode == null ? null : getTextValue(sourceNode, "user_email");
+    player.setEmail(
+        hasText(sourceEmail) ? sourceEmail : resolveWorkflowScopePlayerEmail(label, rawValue));
+    if (sourceNode != null) {
+      String firstname = getTextValue(sourceNode, "user_firstname");
+      String lastname = getTextValue(sourceNode, "user_lastname");
+      if (hasText(firstname)) {
+        player.setFirstname(firstname);
+      }
+      if (hasText(lastname)) {
+        player.setLastname(lastname);
+      }
+    }
+    player.setTenants(new ArrayList<>(List.of(new Tenant(TenantContext.getCurrentTenant()))));
+
+    if ((sourceNode == null
+            || (!hasText(getTextValue(sourceNode, "user_firstname"))
+                && !hasText(getTextValue(sourceNode, "user_lastname"))))
+        && hasText(label)
+        && !label.contains("@")) {
+      String[] nameParts = label.trim().split("\\s+", 2);
+      if (nameParts.length == 2) {
+        player.setFirstname(nameParts[0]);
+        player.setLastname(nameParts[1]);
+      }
+    }
+
+    return player;
+  }
+
+  private void attachUserToTenant(User user, String tenantId) {
+    if (user == null || !hasText(user.getId())) {
+      return;
+    }
+    tenantRepository.addUserToTenant(user.getId(), tenantId);
+  }
+
+  private String resolveWorkflowScopePlayerEmail(String label, String rawValue) {
+    if (hasText(label) && label.contains("@")) {
+      return label.trim().toLowerCase(Locale.ROOT);
+    }
+
+    String seed = hasText(label) ? label : rawValue;
+    String normalized =
+        seed == null
+            ? "imported-player"
+            : seed.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", ".");
+    normalized = normalized.replaceAll("^\\.+|\\.+$", "");
+    if (!hasText(normalized)) {
+      normalized = "imported-player";
+    }
+    return normalized + "@openaev.import";
+  }
+
+  private String resolveWorkflowScopePlayerLabel(JsonNode memberNode, String rawValue) {
+    if (memberNode == null || memberNode.isNull()) {
+      return rawValue;
+    }
+    if (memberNode.isTextual()) {
+      return rawValue;
+    }
+
+    String firstname = getTextValue(memberNode, "user_firstname");
+    String lastname = getTextValue(memberNode, "user_lastname");
+    if (hasText(firstname) && hasText(lastname)) {
+      return firstname + " " + lastname;
+    }
+
+    String email = getTextValue(memberNode, "user_email");
+    if (hasText(email)) {
+      return email;
+    }
+
+    return rawValue;
   }
 
   private List<SkippedWorkflowStep> importWorkflowSteps(
@@ -2794,6 +3151,8 @@ public class V1_DataImporter implements Importer {
     }
     return skippedSteps;
   }
+
+  private record WorkflowScopeTeamResolution(Team team, boolean created) {}
 
   /**
    * Evaluates whether a chaining workflow step can be materialised on the target instance. A step
@@ -3364,7 +3723,6 @@ public class V1_DataImporter implements Importer {
     rewriteInjectInjector(dataObject);
     dataObject.remove("inject_assets");
     dataObject.remove("inject_asset_groups");
-    dataObject.remove("inject_teams");
     dataObject.remove("inject_exercise");
     dataObject.remove("inject_scenario");
     // A simulation can be imported on a different instance: the source creator user UUID is
@@ -3390,6 +3748,11 @@ public class V1_DataImporter implements Importer {
     // (exercise_tags / scenario_tags / payload_tags), so every exported tag is already resolved
     // here; any unresolved id is dropped (degraded but non-blocking) rather than left dangling.
     rewriteImportedTagIds(dataObject, "inject_tags", baseIds);
+    // Audience-centric chaining steps consume Inject#teams at run time, so the imported
+    // step_data must keep its team targets. Like tags and documents, team ids are rewritten
+    // through baseIds when possible and dropped only when they resolve to nothing on the target.
+    rewriteImportedTeamIds(dataObject, baseIds);
+    seedWorkflowScopeTeamTargets(dataObject, workflow);
     // Rewrite the inject_documents attachment references: documents are recreated with a NEW UUID
     // on the target instance, so the source ids serialized in step_data must be mapped to the
     // resolved target documents or the imported step silently loses valid attachments at run time.
@@ -3468,6 +3831,86 @@ public class V1_DataImporter implements Importer {
       }
     }
     parent.set(field, rewritten);
+  }
+
+  /**
+   * Rewrites the {@code inject_teams} array of a serialized step_data inject in place, mapping each
+   * SOURCE-instance team id to the resolved TARGET team id via {@code baseIds}. When an id is not
+   * seeded in {@code baseIds} but already exists on the target tenant (re-import on the same
+   * instance without a bundled team object), it is kept as-is. Unresolvable ids are dropped so the
+   * step does not keep a dead audience reference.
+   */
+  private void rewriteImportedTeamIds(ObjectNode dataObject, Map<String, Base> baseIds) {
+    JsonNode teamsNode = dataObject.get("inject_teams");
+    if (teamsNode == null || !teamsNode.isArray()) {
+      return;
+    }
+    String tenantId = TenantContext.getCurrentTenant();
+    ArrayNode rewritten = mapper.createArrayNode();
+    for (JsonNode teamIdNode : teamsNode) {
+      if (teamIdNode == null || teamIdNode.isNull() || !teamIdNode.isTextual()) {
+        continue;
+      }
+      String rawId = teamIdNode.asText();
+      if (!hasText(rawId)) {
+        continue;
+      }
+      if (baseIds.get(rawId) instanceof Team resolvedTeam && resolvedTeam.getId() != null) {
+        rewritten.add(resolvedTeam.getId());
+        continue;
+      }
+      if (baseIds.get(rawId) != null) {
+        continue;
+      }
+      boolean resolved =
+          teamRepository
+              .findByIdAndTenantId(rawId, tenantId)
+              .map(
+                  existing -> {
+                    baseIds.put(rawId, existing);
+                    rewritten.add(existing.getId());
+                    return true;
+                  })
+              .orElse(false);
+      if (!resolved) {
+        log.debug("Dropped unresolved team id {} while rewriting step_data teams", rawId);
+      }
+    }
+    if (rewritten.isEmpty()) {
+      dataObject.remove("inject_teams");
+    } else {
+      dataObject.set("inject_teams", rewritten);
+    }
+  }
+
+  /**
+   * Seeds audience steps from workflow TEAM scope rules when the step itself does not already carry
+   * explicit team targets.
+   */
+  private void seedWorkflowScopeTeamTargets(ObjectNode dataObject, Workflow workflow) {
+    if (workflow == null || workflow.getWorkflowScopeRules() == null) {
+      return;
+    }
+    JsonNode teamsNode = dataObject.get("inject_teams");
+    if (teamsNode != null && teamsNode.isArray() && !teamsNode.isEmpty()) {
+      return;
+    }
+
+    ArrayNode seededTeams = mapper.createArrayNode();
+    for (WorkflowScopeRule rule : workflow.getWorkflowScopeRules()) {
+      if (rule == null
+          || !ScopeRuleSource.TEAM.equals(rule.getRuleSource())
+          || !hasText(rule.getRuleValue())) {
+        continue;
+      }
+      seededTeams.add(rule.getRuleValue());
+    }
+
+    if (seededTeams.isEmpty()) {
+      dataObject.remove("inject_teams");
+    } else {
+      dataObject.set("inject_teams", seededTeams);
+    }
   }
 
   /**

@@ -31,7 +31,7 @@ import useSimulationPermissions from '../../../utils/permissions/useSimulationPe
 
 interface ValidateChallengeResult {
   result: string;
-  entities?: { simulationChallengesReaders?: Record<string, SimulationChallengesReader> };
+  entities?: { simulationchallengesreaders?: Record<string, SimulationChallengesReader> };
 }
 
 const NO_CATEGORY = 'null';
@@ -41,7 +41,7 @@ const ChallengesPlayer = () => {
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
   const [currentChallengeEntry, setCurrentChallengeEntry] = useState<ChallengeInformation | null>(null);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [submissionOutcome, setSubmissionOutcome] = useState<'success' | 'failure' | null>(null);
   const [userId] = useQueryParameter(['user']);
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { challengesReader }: { challengesReader: SimulationChallengesReader } = useHelper(
@@ -59,7 +59,7 @@ const ChallengesPlayer = () => {
 
   const handleClose = () => {
     setCurrentChallengeEntry(null);
-    setHasSubmitted(false);
+    setSubmissionOutcome(null);
   };
 
   useEffect(() => {
@@ -74,22 +74,24 @@ const ChallengesPlayer = () => {
     }
     dispatch(validateChallenge(exerciseId, challengeId, userId, data)).then(
       (response: ValidateChallengeResult) => {
-        const challengeEntries = response.entities?.simulationChallengesReaders?.[response.result]?.exercise_challenges ?? [];
-        setCurrentChallengeEntry(
-          challengeEntries.find(entry => entry.challenge_detail?.challenge_id === challengeId) ?? null,
-        );
-        setHasSubmitted(true);
+        const challengeEntries = response.entities?.simulationchallengesreaders?.[response.result]?.exercise_challenges ?? [];
+        const updatedEntry = challengeEntries.find(entry => entry.challenge_detail?.challenge_id === challengeId);
+        if (updatedEntry) {
+          setCurrentChallengeEntry(updatedEntry);
+        }
+        const answered = updatedEntry?.challenge_expectation?.inject_expectation_results?.find(r => r.result != null);
+        setSubmissionOutcome(answered?.result === SUCCESS ? 'success' : 'failure');
       },
     );
   };
 
   // Result
-
   const resultList = currentExpectation?.inject_expectation_results ?? [];
+  const answeredResults = resultList.filter(r => r.result != null);
 
-  const hasResult = () => resultList.length > 0 || hasSubmitted;
-  const validResult = () => resultList.length > 0 && resultList.some(r => r.result === SUCCESS);
-  const invalidResult = () => (resultList.length === 0 && hasSubmitted) || resultList.every(r => r.result === FAILED);
+  const hasResult = () => answeredResults.length > 0 || submissionOutcome !== null;
+  const validResult = () => answeredResults.some(r => r.result === SUCCESS);
+  const invalidResult = () => answeredResults.some(r => r.result === FAILED) || submissionOutcome === 'failure';
   const maxAttemptsExceeded = () => !!currentChallenge?.challenge_max_attempts && (currentAttempt ?? 0) >= currentChallenge.challenge_max_attempts;
 
   if (!exercise) {
@@ -103,11 +105,11 @@ const ChallengesPlayer = () => {
     return acc;
   }, {});
 
-  const challengeStatus: (result: InjectExpectationResult) => ({
+  const challengeStatus: (result: InjectExpectationResult | undefined) => ({
     color: 'inherit' | 'success' | 'error';
     icon: JSX.Element;
-  }) = (result: InjectExpectationResult) => {
-    if (result.result == null) {
+  }) = (result: InjectExpectationResult | undefined) => {
+    if (result?.result == null) {
       return {
         color: 'inherit',
         icon: <PendingActionsOutlined fontSize="large" />,
@@ -221,8 +223,8 @@ const ChallengesPlayer = () => {
                   return null;
                 }
                 const status = challengeStatus(
-                  challengeEntry.challenge_expectation?.inject_expectation_results?.[0]
-                  ?? ({} as InjectExpectationResult));
+                  challengeEntry.challenge_expectation?.inject_expectation_results?.[0],
+                );
                 return (
                   <ChallengeCard
                     key={challenge.challenge_id}
@@ -272,7 +274,7 @@ const ChallengesPlayer = () => {
                 </Alert>
               )}
               {invalidResult() && (
-                <Alert severity="error" onClose={() => setHasSubmitted(false)}>
+                <Alert severity="error" onClose={() => setSubmissionOutcome(null)}>
                   {t('Flag is not correct! Try again...')}
                   {maxAttemptsExceeded() && (
                     <>

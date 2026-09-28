@@ -8,12 +8,13 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.finding.form.FindingInput;
+import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.utils.mapper.FindingMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Hibernate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -26,53 +27,38 @@ public class FindingApi extends RestBehavior {
   public static final String TENANT_FINDING_URI = TENANT_PREFIX + "/findings";
 
   private final FindingService findingService;
+  private final FindingMapper findingMapper;
 
   // -- CRUD --
 
-  /**
-   * Resolves, inside the scoped transaction, every lazy association that {@code Finding}'s
-   * serialization reaches.
+  /*
+   * On the lazy associations of Finding and the v2 tenant scope.
    *
-   * <p>Two of them reach v2-active tables. {@code Finding.getAssetGroups()} is a computed
-   * {@code @JsonProperty} walking {@code inject.getAssetGroups()} on {@code asset_groups}, and
-   * {@code Finding.assets} is a lazy {@code @ManyToMany} on {@code assets}. Jackson resolves both
-   * AFTER this method returns, through open-in-view: the session is still open, so nothing throws,
-   * but the transaction and its {@code app.current_tenants} scope are gone and the statement
-   * inspector fail-closes the query. The endpoint then returns 200 with {@code
-   * finding_asset_groups: []} and {@code finding_assets: []} for every finding, whatever the data.
+   * main resolved them by hand before returning the entity (withScopedAssociationsInitialized,
+   * #7856): Finding.getAssetGroups() and Finding.assets are lazy and reach v2-active tables, and
+   * Jackson used to walk them AFTER the controller returned, through open-in-view - session still
+   * open, but transaction and app.current_tenants scope gone, so the statement inspector
+   * fail-closed the query and the endpoint answered 200 with empty arrays.
    *
-   * <p>{@code finding_tags}, {@code finding_teams} and {@code finding_users} are lazy too but their
-   * tables are not active; they belong here the day they are.
+   * These endpoints no longer serialize the entity: FindingMapper.toFindingOutput builds the DTO
+   * inside the transaction, so every association is read while the scope is still alive. The
+   * defect is therefore addressed by construction rather than by an explicit initialisation list -
+   * which is also why the note main left on finding_tags, finding_teams and finding_users, "they
+   * belong here the day they are active", no longer needs acting on: they are read in the same
+   * place, active or not.
    *
-   * <p>Carrying a {@code TxCtx} is necessary and not sufficient; the load has to happen here. Same
-   * fix and same reason as {@code SecurityPlatformApi.withManagerLinksInitialized} (#7026). {@code
-   * FindingAssetGroupSinkTest} pins it, and pins it from a non-transactional test, because a
-   * transactional one keeps the scope alive through serialization and proves nothing.
+   * FindingAssetGroupSinkTest still pins the observable behaviour, and still from a
+   * non-transactional test.
    */
-  private static Finding withScopedAssociationsInitialized(Finding finding) {
-    if (finding.getInject() != null) {
-      Hibernate.initialize(finding.getInject().getAssetGroups());
-      // One level deeper, and this is not decoration. Each asset group serializes its own assets as
-      // ids through MultiIdListSerializer, which walks the lazy collection while Jackson runs -
-      // after the transaction and its scope are gone. Initialising the groups alone leaves every
-      // asset_group_assets array empty, which is the same defect as the one above, one level down.
-      finding
-          .getInject()
-          .getAssetGroups()
-          .forEach(group -> Hibernate.initialize(group.getAssets()));
-    }
-    Hibernate.initialize(finding.getAssets());
-    return finding;
-  }
 
   @GetMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
-  public ResponseEntity<Finding> finding(TxCtx ctx, @PathVariable @NotNull final String id) {
-    return ResponseEntity.ok(withScopedAssociationsInitialized(this.findingService.finding(id)));
+  public ResponseEntity<FindingOutput> finding(TxCtx ctx, @PathVariable @NotNull final String id) {
+    return ResponseEntity.ok(this.findingMapper.toFindingOutput(this.findingService.finding(id)));
   }
 
   @GetMapping({FINDING_URI + "/{id}/summary", TENANT_FINDING_URI + "/{id}/summary"})
@@ -89,10 +75,10 @@ public class FindingApi extends RestBehavior {
   @PostMapping({FINDING_URI, TENANT_FINDING_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.FINDING)
-  public ResponseEntity<Finding> createFinding(
+  public ResponseEntity<FindingOutput> createFinding(
       TxCtx ctx, @RequestBody @Valid @NotNull final FindingInput input) {
     return ResponseEntity.ok(
-        withScopedAssociationsInitialized(
+        this.findingMapper.toFindingOutput(
             this.findingService.createFinding(
                 ctx, input.toFinding(new Finding()), input.getInjectId())));
   }
@@ -103,14 +89,14 @@ public class FindingApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.FINDING)
-  public ResponseEntity<Finding> updateFinding(
+  public ResponseEntity<FindingOutput> updateFinding(
       TxCtx ctx,
       @PathVariable @NotNull final String id,
       @RequestBody @Valid @NotNull final FindingInput input) {
     Finding existingFinding = this.findingService.finding(id);
     Finding updatedFinding = input.toFinding(existingFinding);
     return ResponseEntity.ok(
-        withScopedAssociationsInitialized(
+        this.findingMapper.toFindingOutput(
             this.findingService.updateFinding(updatedFinding, input.getInjectId())));
   }
 

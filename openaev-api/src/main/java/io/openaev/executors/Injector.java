@@ -39,7 +39,10 @@ public abstract class Injector {
         throw new UnsupportedOperationException("Inject is empty");
       }
       // If inject is too old, reject the execution
-      if (isScheduledInject && !isInInjectableRange(executableInject.getInjection())) {
+      if (isScheduledInject
+          && !isInInjectableRange(
+              executableInject.getInjection(),
+              this.context.getOpenAEVConfig().getInjectStalenessThreshold())) {
         throw new UnsupportedOperationException(
             "Inject is now too old for execution: id "
                 + executableInject.getInjection().getId()

@@ -281,7 +281,7 @@ public class SecurityPlatformApi {
       })
   public List<RawDocument> documentsFromSecurityPlatform(
       TxCtx ctx, @PathVariable String securityPlatformId) {
-    return documentService.documentsForSecurityPlatform(securityPlatformId);
+    return documentService.documentsForSecurityPlatform(ctx, securityPlatformId);
   }
 
   @GetMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})

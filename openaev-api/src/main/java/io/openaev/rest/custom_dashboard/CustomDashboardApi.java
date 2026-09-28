@@ -3,7 +3,7 @@ package io.openaev.rest.custom_dashboard;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
@@ -37,6 +37,7 @@ public class CustomDashboardApi extends RestBehavior {
   public static final String CUSTOM_DASHBOARDS_URI = "/api/custom-dashboards";
   public static final String TENANT_CUSTOM_DASHBOARDS_URI = TENANT_PREFIX + "/custom-dashboards";
   private final CustomDashboardService customDashboardService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CRUD --
 
@@ -45,9 +46,10 @@ public class CustomDashboardApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> createCustomDashboard(
       TxCtx ctx, @RequestBody @Valid @NotNull final CustomDashboardInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return ResponseEntity.ok(
         this.customDashboardService.createCustomDashboard(
-            input.toCustomDashboard(new CustomDashboard())));
+            input.toCustomDashboard(new CustomDashboard()), tenantId));
   }
 
   @GetMapping
@@ -101,7 +103,7 @@ public class CustomDashboardApi extends RestBehavior {
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Void> deleteCustomDashboard(
       TxCtx ctx, @PathVariable @NotBlank final String customDashboardId) {
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     this.customDashboardService.deleteCustomDashboard(tenantId, customDashboardId);
     return ResponseEntity.noContent().build();
   }

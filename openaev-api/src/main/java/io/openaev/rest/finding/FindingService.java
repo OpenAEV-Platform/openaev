@@ -16,6 +16,7 @@ import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.utils.mapper.FindingMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -37,6 +38,7 @@ public class FindingService {
   private final InjectService injectService;
 
   private final FindingRepository findingRepository;
+  private final FindingMapper findingMapper;
   private final FindingWriter findingWriter;
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
   private final AssetRepository assetRepository;
@@ -61,10 +63,9 @@ public class FindingService {
   }
 
   /**
-   * Group-wide summary of a finding, deduplicated by (type, value) across every occurrence in the
-   * tenant. The finding overview hero relies on this instead of the picked representative row, so
-   * the first/last seen and impact counts reflect the whole group rather than one arbitrary
-   * occurrence.
+   * Resolves the group-wide data backing the summary of a finding - the group being every
+   * occurrence sharing its (type, value) in the tenant - and delegates the assembly of the output
+   * to the mapper.
    */
   public FindingSummaryOutput findingSummary(@NotNull final String id) {
     Finding finding = finding(id);
@@ -75,18 +76,14 @@ public class FindingService {
     FindingRepository.FindingSeenAggregate seen =
         this.findingRepository.findSeenAggregate(type, value, tenantId);
 
-    return FindingSummaryOutput.builder()
-        .id(finding.getId())
-        .type(type)
-        .value(value)
-        .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
-        .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())
-        .occurrences(seen != null ? seen.getOccurrences() : 1)
-        .assetsCount(this.findingRepository.countDistinctAssets(type, value, tenantId))
-        .teamsCount(this.findingRepository.countDistinctTeams(type, value, tenantId))
-        .usersCount(this.findingRepository.countDistinctUsers(type, value, tenantId))
-        .assetGroupsCount(this.findingRepository.countDistinctAssetGroups(type, value, tenantId))
-        .build();
+    FindingMapper.FindingImpactCounts counts =
+        new FindingMapper.FindingImpactCounts(
+            this.findingRepository.countDistinctAssets(type, value, tenantId),
+            this.findingRepository.countDistinctTeams(type, value, tenantId),
+            this.findingRepository.countDistinctUsers(type, value, tenantId),
+            this.findingRepository.countDistinctAssetGroups(type, value, tenantId));
+
+    return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
   }
 
   public Finding createFinding(

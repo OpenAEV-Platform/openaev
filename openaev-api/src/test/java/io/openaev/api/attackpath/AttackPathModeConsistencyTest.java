@@ -87,7 +87,8 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
     AttackPathExpandDTO expand = graphService.expandEndpoint(SIM, "host-x");
     assertThat(expand.findings())
         .extracting(AttackPathNodeDTO::getValue)
-        .containsExactly("admin:secret");
+        // masked server-side: credentials are sensitive
+        .containsExactly("admin:se******");
   }
 
   @Test

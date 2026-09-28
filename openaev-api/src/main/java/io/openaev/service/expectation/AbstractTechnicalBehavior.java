@@ -19,8 +19,11 @@ import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 
 /** Shared behavior for technical expectations (detection/prevention/vulnerability). */
@@ -68,16 +71,23 @@ public abstract class AbstractTechnicalBehavior
 
     Inject inject = executableInject.getInjection().getInject();
     // Detection / prevention expectations can only ever be fulfilled by a security platform
-    // collector: with none able to answer this template's expected platforms, nothing would fill
-    // the expectation, so we create none (neither leaves nor parents). Vulnerability expectations
-    // are fulfilled by the assessment injector itself (e.g. Nuclei), not a collector, so they are
-    // always created regardless (see requiresCollectorToInitialize).
+    // collector. When none is able to answer this template's expected platforms, nothing could ever
+    // fill the expectation, so instead of leaving it pending forever we still create the full tree
+    // but resolve every leaf immediately as a definitive failure (score 0, failure label): nothing
+    // can be detected/prevented when nothing is able to observe it. Vulnerability expectations are
+    // fulfilled by the assessment injector itself (e.g. Nuclei), not a collector, so they never
+    // take
+    // this path (see requiresCollectorToInitialize).
     List<Collector> collectors = resolveCollectors(inject.getTenant().getId(), expectationTemplate);
-    if (requiresCollectorToInitialize() && collectors.isEmpty()) {
-      return;
-    }
+    boolean requiresCollectorToInitialize = computeCollectorMissingAtInit(collectors);
 
     List<TechnicalInjectExpectation> allExpectations = new ArrayList<>();
+    // Asset-group parents are created ONCE per distinct group, after every asset of the group has
+    // been walked, and only for groups that produced at least one asset expectation. Building the
+    // group parent inside the per-asset loop created one parent row per asset of the group (three
+    // "Prevention" cards for a three-endpoint group), and every collector update then propagated
+    // to all of them.
+    Map<String, AssetGroup> assetGroupsToInitialize = new LinkedHashMap<>();
 
     // Executors pre-cache the resolved assets; direct callers (e.g. atomic testing, chaining)
     // may not, so fall back to resolving them from the inject.
@@ -119,10 +129,16 @@ public abstract class AbstractTechnicalBehavior
                     allExpectations.add(
                         buildExpectationForTarget(
                             expectationTemplate, assetGroup, assetToExecute.asset(), null));
-                    allExpectations.add(
-                        buildExpectationForTarget(expectationTemplate, assetGroup, null, null));
+                    assetGroupsToInitialize.putIfAbsent(assetGroup.getId(), assetGroup);
                   });
         });
+
+    assetGroupsToInitialize
+        .values()
+        .forEach(
+            assetGroup ->
+                allExpectations.add(
+                    buildExpectationForTarget(expectationTemplate, assetGroup, null, null)));
 
     allExpectations.stream()
         .filter(e -> !isAssetGroupExpectation(e))
@@ -131,7 +147,23 @@ public abstract class AbstractTechnicalBehavior
                 isAgentExpectation(e) || isAgentlessAssetExpectationNecessary(e.getAsset(), inject))
         .forEach(
             e -> {
-              initializeResults(e, collectors);
+              // Pending per-collector result rows are seeded on AGENT leaves only. An agentless
+              // leaf (AI target, endpoint scanned by an assessment injector such as Nuclei) is
+              // answered by a single direct verdict written on the row itself: seeding placeholder
+              // rows next to it means the first real verdict never completes the row
+              // (computeScore waits for every seeded source), while the expiration manager skips
+              // agentless rows that already carry a result - so the expectation stays pending
+              // forever. The expiration ordering guarantee still applies to an agentless leaf a
+              // collector may answer: the expiration manager must stay a fallback that acts only
+              // after the expected collectors had their poll cycles. Signatures are computed for
+              // every leaf below.
+              if (!requiresCollectorToInitialize) {
+                if (isAgentExpectation(e)) {
+                  initializeResults(e, collectors);
+                } else {
+                  guaranteeExpirationOrdering(e, collectors);
+                }
+              }
               String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
               List<ExpectationSignature> expectationSignatures =
                   computeSignatures(
@@ -142,6 +174,13 @@ public abstract class AbstractTechnicalBehavior
                       injectService.getValueTargetedAssetMap(inject));
               e.setSignatures(convertToInjectExpectationSignatures(expectationSignatures, e));
             });
+    if (requiresCollectorToInitialize) {
+      allExpectations.forEach(
+          e -> {
+            e.setScore(FAILED_SCORE_VALUE);
+            e.setCollectorMissingAtInit(true);
+          });
+    }
     injectExpectationRepository.saveAll(allExpectations);
   }
 
@@ -182,6 +221,10 @@ public abstract class AbstractTechnicalBehavior
         tenantCollectors, expectation.getExpectedSecurityPlatforms());
   }
 
+  private boolean computeCollectorMissingAtInit(List<Collector> resolvedCollectors) {
+    return requiresCollectorToInitialize() && resolvedCollectors.isEmpty();
+  }
+
   /**
    * Whether a security platform collector is required for this behavior to create expectations.
    * Detection / prevention are collector-fulfilled, so with no matching collector no expectation is
@@ -203,8 +246,21 @@ public abstract class AbstractTechnicalBehavior
     if (!(expectation instanceof TechnicalInjectExpectation tech)) {
       return List.of();
     }
-    applyExpirationOrderingGuarantee(tech, collectors);
+    guaranteeExpirationOrdering(tech, collectors);
     return setUpFromCollectors(collectors);
+  }
+
+  /**
+   * Expiration ordering guarantee of a collector-fulfilled leaf: the expiration is raised to at
+   * least two poll cycles of the collectors expected to answer it, so the expiration manager only
+   * ever acts as a fallback. Applied with the pending rows on agent leaves ({@link
+   * #buildDefaultResults}) and on its own on agentless leaves, which carry no placeholder.
+   * Vulnerability expectations are answered by the assessment injector itself, not by a polling
+   * collector, and override this to a no-op.
+   */
+  protected void guaranteeExpirationOrdering(
+      TechnicalInjectExpectation leaf, List<Collector> collectors) {
+    applyExpirationOrderingGuarantee(leaf, collectors);
   }
 
   // ----- END INITIALIZE
@@ -255,37 +311,61 @@ public abstract class AbstractTechnicalBehavior
   @Override
   public List<? extends BaseInjectExpectation> recomputeParentScores(
       BaseInjectExpectation expectation) {
-    Inject inject = expectation.getInject();
-    BaseInjectExpectation.EXPECTATION_TYPE type = expectation.getType();
+    if (!(expectation instanceof TechnicalInjectExpectation tech)) {
+      return List.of();
+    }
+    Inject inject = tech.getInject();
+    BaseInjectExpectation.EXPECTATION_TYPE type = tech.getType();
+
+    List<TechnicalInjectExpectation> sameType =
+        inject.getExpectations().stream()
+            .filter(TechnicalInjectExpectation.class::isInstance)
+            .map(TechnicalInjectExpectation.class::cast)
+            .filter(e -> type.equals(e.getType()))
+            .toList();
+
+    Map<String, List<TechnicalInjectExpectation>> agentsByAssetId =
+        sameType.stream()
+            .filter(ExpectationUtils::isAgentExpectation)
+            .filter(e -> e.getAsset() != null)
+            .collect(Collectors.groupingBy(e -> e.getAsset().getId()));
+
+    Map<String, List<TechnicalInjectExpectation>> assetsByAssetGroupId =
+        sameType.stream()
+            .filter(ExpectationUtils::isAssetExpectation)
+            .filter(e -> e.getAssetGroup() != null)
+            .collect(Collectors.groupingBy(e -> e.getAssetGroup().getId()));
 
     List<TechnicalInjectExpectation> updatedParents = new ArrayList<>();
-    updatedParents.addAll(
-        recomputeLevel(
-            getAssetsExpectationsByInjectAndType(inject, type),
-            ExpectationUtils::getAgentsExpectationsForAsset));
-    updatedParents.addAll(
-        recomputeLevel(
-            getAssetGroupsExpectationsByInjectAndType(inject, type),
-            ExpectationUtils::getAssetsExpectationsOfAssetGroup));
+    sameType.stream()
+        .filter(ExpectationUtils::isAssetExpectation)
+        .forEach(
+            asset ->
+                recomputeParent(
+                        asset, agentsByAssetId.getOrDefault(asset.getAsset().getId(), List.of()))
+                    .ifPresent(updatedParents::add));
+    sameType.stream()
+        .filter(ExpectationUtils::isAssetGroupExpectation)
+        .forEach(
+            group ->
+                recomputeParent(
+                        group,
+                        assetsByAssetGroupId.getOrDefault(group.getAssetGroup().getId(), List.of()))
+                    .ifPresent(updatedParents::add));
     return updatedParents;
   }
 
-  private List<TechnicalInjectExpectation> recomputeLevel(
-      List<TechnicalInjectExpectation> parents,
-      Function<TechnicalInjectExpectation, List<TechnicalInjectExpectation>> childrenResolver) {
-    List<TechnicalInjectExpectation> updated = new ArrayList<>();
-    for (TechnicalInjectExpectation parent : parents) {
-      List<TechnicalInjectExpectation> children = childrenResolver.apply(parent);
-      if (!children.isEmpty()) {
-        Double score =
-            computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), children);
-        // A definitive direct VULNERABLE verdict written on the parent row (e.g. by an assessment
-        // injector such as Nuclei) must survive the children rollup.
-        parent.setScore(reconcileWithDirectVulnerableVerdict(parent, score));
-        updated.add(parent);
-      }
+  private Optional<TechnicalInjectExpectation> recomputeParent(
+      TechnicalInjectExpectation parent, List<TechnicalInjectExpectation> children) {
+    if (children.isEmpty()) {
+      return Optional.empty();
     }
-    return updated;
+    Double score =
+        computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), children);
+    // A definitive direct VULNERABLE verdict written on the parent row (e.g. by an assessment
+    // injector such as Nuclei) must survive the children rollup.
+    parent.setScore(reconcileWithDirectVulnerableVerdict(parent, score));
+    return Optional.of(parent);
   }
 
   // -- END RECOMPUTE PARENT SCORE

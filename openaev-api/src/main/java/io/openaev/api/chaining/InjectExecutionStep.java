@@ -43,9 +43,9 @@ import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
-import io.openaev.utils.IpAddressUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
+import io.openaev.validator.IpAddressUtils;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -224,6 +224,7 @@ public class InjectExecutionStep implements ActionStep {
               inject.getTeams(),
               inject.getAssets(),
               inject.getAssetGroups(),
+              inject.getSecretReferences(),
               users,
               true,
               readyStep.getId());

@@ -102,7 +102,7 @@ class ArticleBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(team), List.of(), List.of(), List.of());
+              false, false, inject, List.of(team), List.of(), List.of(), List.of(), List.of());
 
       Article article =
           articleComposer

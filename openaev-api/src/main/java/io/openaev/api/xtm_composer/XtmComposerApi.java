@@ -8,6 +8,7 @@ import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -67,6 +68,8 @@ public class XtmComposerApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public XtmComposerOutput refreshConnectivity(
       TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
+    AuditLogContext.setEnabled(false);
+
     return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now());
   }
 
@@ -141,6 +144,8 @@ public class XtmComposerApi extends RestBehavior {
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody ConnectorInstanceLogsInput input) {
+    // Don't audit log because already in UI of each connector
+    AuditLogContext.setEnabled(false);
     orchestrationService.pushLogsByConnectorInstance(
         xtmComposerId, connectorInstanceId, input.getLogs());
   }

@@ -35,6 +35,11 @@ public record CredentialInput(
     @JsonProperty("azure_client_secret") String azureClientSecret,
     @JsonProperty("azure_tenant_id") String azureTenantId,
     @JsonProperty("azure_subscription_id") String azureSubscriptionId,
+    @JsonProperty("gcp_scope") String gcpScope,
+    @JsonProperty("gcp_project_id") String gcpProjectId,
+    @JsonProperty("gcp_oauth_client_id") String gcpOauthClientId,
+    @JsonProperty("gcp_oauth_client_secret") String gcpOauthClientSecret,
+    @JsonProperty("gcp_oauth_refresh_token") String gcpOauthRefreshToken,
     @JsonProperty("credential_tags") List<String> credentialTagIds) {
 
   public CredentialInput(
@@ -56,6 +61,7 @@ public record CredentialInput(
         credentialPassword,
         credentialHashAlgorithm,
         credentialHash,
+        // AWS
         null,
         null,
         null,
@@ -65,6 +71,13 @@ public record CredentialInput(
         null,
         null,
         null,
+        // AZURE
+        null,
+        null,
+        null,
+        null,
+        null,
+        // GCP
         null,
         null,
         null,

@@ -1,10 +1,17 @@
 import countriesJson from '../static/geo/countries.json';
-import { type AttackPattern, type Exercise, type KillChainPhase, type Organization, type Scenario, type Tag, type UserTenantOutput } from './api-types';
+import {
+  type AttackPattern,
+  type KillChainPhase,
+  type Organization,
+  type Tag,
+  type UserTenantOutput,
+} from './api-types';
 
 interface Country {
   code: string;
   name: string;
 }
+
 type Countries = Country[];
 
 export interface Option {
@@ -70,32 +77,6 @@ export const killChainPhaseOptions = (
     killChainPhaseItem => ({
       id: killChainPhaseItem.phase_id,
       label: `[${killChainPhaseItem.phase_kill_chain_name}] ${killChainPhaseItem.phase_name}`,
-    }) as Option,
-  );
-
-export const exerciseOptions = (
-  exercise_ids: string[],
-  exercisesMap: Record<string, Exercise>,
-) => (exercise_ids ?? [])
-  .map(exerciseId => exercisesMap[exerciseId])
-  .filter(exerciseItem => exerciseItem !== undefined)
-  .map(
-    exerciseItem => ({
-      id: exerciseItem.exercise_id,
-      label: exerciseItem.exercise_name,
-    }) as Option,
-  );
-
-export const scenarioOptions = (
-  scenario_ids: string[],
-  scenariosMap: Record<string, Scenario>,
-) => (scenario_ids ?? [])
-  .map(scenarioId => scenariosMap[scenarioId])
-  .filter(scenarioItem => scenarioItem !== undefined)
-  .map(
-    scenarioItem => ({
-      id: scenarioItem.scenario_id,
-      label: scenarioItem.scenario_name,
     }) as Option,
   );
 

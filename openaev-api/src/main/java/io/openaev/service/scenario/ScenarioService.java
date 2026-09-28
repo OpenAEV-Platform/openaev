@@ -966,7 +966,7 @@ public class ScenarioService {
     zipEntry.setComment(EXPORT_ENTRY_SCENARIO);
     zipExport.putNextEntry(zipEntry);
     ObjectNode exportNode = objectMapper.valueToTree(scenarioFileExport);
-    workflowExportInitializer.enrichWorkflowStepDataForExport(
+    workflowExportInitializer.enrichWorkflowDataForExport(
         exportNode, "scenario_workflow", objectMapper);
     zipExport.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));
     zipExport.closeEntry();

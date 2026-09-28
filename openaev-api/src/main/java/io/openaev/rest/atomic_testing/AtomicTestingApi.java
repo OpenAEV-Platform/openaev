@@ -272,11 +272,10 @@ public class AtomicTestingApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
-      @PathVariable String targetType,
-      @RequestParam(required = false) String parentTargetId) {
+      @PathVariable String targetType) {
     return toOutputs(
-        injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-            injectId, targetId, parentTargetId, targetType));
+        injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+            injectId, targetId, targetType));
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/asset_with_agents")

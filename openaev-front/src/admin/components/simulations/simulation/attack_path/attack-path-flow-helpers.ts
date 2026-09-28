@@ -1189,31 +1189,15 @@ export const buildFindingPathFlow = (
 // resolved through FILTER_TO_FINDING_TYPES, defaulting to the type itself so new types work with no code.
 export type AttackPathFindingFilter = 'endpoints' | string;
 
-// Finding types whose value is a captured secret; masked by default in the UI (spec §14). Only
-// credentials and sid are masked here; revealing remains a permission-gated action.
-export const SENSITIVE_FINDING_TYPES = new Set(['credentials', 'sid']);
-
-// Mask a finding value for display (rendered as text by the callers — never as HTML). Credentials
-// keep the username visible but mask the secret ("user:pass" -> "user : ••••••"); sid is fully
-// masked; a `file` value is the full location but displays as its basename (the full path stays
-// available in the detail panel); everything else is shown as-is.
-export const maskFindingValue = (typeFindings?: string, value?: string): string => {
+// Present a finding value for display. Secret values are masked by the BACKEND (see
+// SensitiveValueMaskingUtils), so nothing is hidden here: this only shortens a `file` value, whose
+// stored form is the full location, to its basename so nodes and cards stay legible. The full path
+// remains available in the finding detail panel.
+export const displayFindingValue = (typeFindings?: string, value?: string): string => {
   if (!value) {
     return '';
   }
-  if (typeFindings === 'credentials') {
-    const sep = value.search(/[:\s]/);
-    // Only reveal the username half when there is a real "username<sep>secret" split; a value with
-    // no separator (or one starting with it) is treated as a bare secret and fully masked, so we
-    // never render a captured secret in the clear.
-    return sep > 0 ? `${value.slice(0, sep)} : ••••••` : '••••••••';
-  }
-  if (SENSITIVE_FINDING_TYPES.has(typeFindings ?? '')) {
-    return '••••••••';
-  }
   if (typeFindings === 'file') {
-    // The stored value is the full location (e.g. \\host\SYSVOL\dir\secret.ps1); show only the
-    // basename so nodes/cards stay legible. The full path is kept in the finding detail panel.
     const segments = value.split(/[\\/]/).filter(Boolean);
     return segments.length > 0 ? segments[segments.length - 1] : value;
   }
@@ -1492,7 +1476,7 @@ export const buildKillChainMeta = (dto: AttackPathDTO | null | undefined): Map<s
 const causalKeyLabel = (key: CausalConsumedKey, t: ApTranslate): string =>
   (key.eventName && key.eventName.trim()
     ? t('Triggered {event}', { event: key.eventName })
-    : `${key.keyType} = ${maskFindingValue(key.keyType, key.value)}`);
+    : `${key.keyType} = ${displayFindingValue(key.keyType, key.value)}`);
 
 /**
  * Build the additive kill-chain causal edges for a set of flow nodes (issue 6647).

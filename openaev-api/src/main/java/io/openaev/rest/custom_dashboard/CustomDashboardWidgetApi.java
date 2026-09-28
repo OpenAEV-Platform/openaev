@@ -4,6 +4,7 @@ import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOA
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -32,6 +33,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   public static final String TENANT_CUSTOM_DASHBOARDS_WIDGET_URI =
       TENANT_CUSTOM_DASHBOARDS_URI + "/{id}/widgets";
   private final WidgetService widgetService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CRUD --
 
@@ -45,7 +47,9 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String id,
       @RequestBody @Valid @NotNull final WidgetInput input) {
-    return ResponseEntity.ok(this.widgetService.createWidget(id, input.toWidget(new Widget())));
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return ResponseEntity.ok(
+        this.widgetService.createWidget(id, input.toWidget(new Widget()), tenantId));
   }
 
   @GetMapping

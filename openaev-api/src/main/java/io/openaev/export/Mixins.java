@@ -297,6 +297,7 @@ public class Mixins {
         "workflow_scope_rule_source",
         "workflow_scope_rule_value",
         "workflow_scope_rule_value_type",
+        "workflow_scope_rule_value_label",
       })
   public static class WorkflowScopeRuleExport {}
 

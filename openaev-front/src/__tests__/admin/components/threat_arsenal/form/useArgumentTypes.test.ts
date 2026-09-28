@@ -1,9 +1,14 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ fetchArgumentTypes: vi.fn() }));
+const mocks = vi.hoisted(() => ({ fetchPrimitiveTypeDescriptors: vi.fn() }));
 
-vi.mock('../../../../../actions/payloads/payload-argument-actions', () => ({ default: mocks.fetchArgumentTypes }));
+vi.mock('../../../../../actions/payloads/primitive-type-actions', () => ({ fetchPrimitiveTypeDescriptors: mocks.fetchPrimitiveTypeDescriptors }));
+
+const descriptors = (...types: string[]) => types.map(type => ({
+  primitive_type: type,
+  capabilities: { supported_operators: [] },
+}));
 
 const importUseArgumentTypes = async () => {
   const module = await import('../../../../../admin/components/threat_arsenal/form/useArgumentTypes');
@@ -13,12 +18,12 @@ const importUseArgumentTypes = async () => {
 describe('useArgumentTypes', () => {
   beforeEach(() => {
     vi.resetModules();
-    mocks.fetchArgumentTypes.mockReset();
+    mocks.fetchPrimitiveTypeDescriptors.mockReset();
   });
 
   it('given_multipleConsumers_should_fetchArgumentTypesOnce', async () => {
     // Arrange
-    mocks.fetchArgumentTypes.mockResolvedValue(['text', 'targeted-asset', 'asset']);
+    mocks.fetchPrimitiveTypeDescriptors.mockResolvedValue(descriptors('text', 'targeted-asset', 'asset'));
     const useArgumentTypes = await importUseArgumentTypes();
 
     // Act
@@ -37,7 +42,7 @@ describe('useArgumentTypes', () => {
     await waitFor(() => expect(laterHook.result.current.isLoading).toBe(false));
 
     // Assert
-    expect(mocks.fetchArgumentTypes).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchPrimitiveTypeDescriptors).toHaveBeenCalledTimes(1);
     expect(laterHook.result.current.argumentTypes).toEqual(['asset', 'targeted-asset', 'text']);
     expect(laterHook.result.current.argumentWithDefaultValueTypes).toEqual(new Set(['asset', 'text']));
   });
@@ -45,9 +50,9 @@ describe('useArgumentTypes', () => {
   it('given_aRejectedRequest_should_retryForTheNextConsumer', async () => {
     // Arrange
     const error = new Error('Unable to load argument types');
-    mocks.fetchArgumentTypes
+    mocks.fetchPrimitiveTypeDescriptors
       .mockRejectedValueOnce(error)
-      .mockResolvedValueOnce(['text']);
+      .mockResolvedValueOnce(descriptors('text'));
     const useArgumentTypes = await importUseArgumentTypes();
 
     // Act
@@ -59,7 +64,7 @@ describe('useArgumentTypes', () => {
     await waitFor(() => expect(retryHook.result.current.isLoading).toBe(false));
 
     // Assert
-    expect(mocks.fetchArgumentTypes).toHaveBeenCalledTimes(2);
+    expect(mocks.fetchPrimitiveTypeDescriptors).toHaveBeenCalledTimes(2);
     expect(retryHook.result.current.argumentTypes).toEqual(['text']);
     expect(retryHook.result.current.error).toBeNull();
   });

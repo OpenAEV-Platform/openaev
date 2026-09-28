@@ -46,7 +46,7 @@ public class XtmHubApi extends RestBehavior {
   @Transactional(readOnly = true)
   public ResponseEntity<XtmHubRegistrationOutput> getRegistration(TxCtx ctx) {
     return this.xtmHubService
-        .getRegistration()
+        .getRegistration(ctx)
         .map(xtmHubRegistrationMapper::toXtmHubRegistrationOutput)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.noContent().build());
@@ -65,7 +65,7 @@ public class XtmHubApi extends RestBehavior {
   public XtmHubRegistrationOutput register(
       TxCtx ctx, @Valid @RequestBody XtmHubRegisterInput input) {
     return xtmHubRegistrationMapper.toXtmHubRegistrationOutput(
-        this.xtmHubService.register(input.getToken()));
+        this.xtmHubService.register(ctx, input.getToken()));
   }
 
   @PutMapping(
@@ -79,7 +79,7 @@ public class XtmHubApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void unregister(TxCtx ctx) {
-    this.xtmHubService.unregister();
+    this.xtmHubService.unregister(ctx);
   }
 
   @PostMapping(
@@ -98,7 +98,7 @@ public class XtmHubApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
   public ResponseEntity<XtmHubRegistrationOutput> refreshConnectivity(TxCtx ctx) {
-    return Optional.ofNullable(this.xtmHubService.refreshConnectivity())
+    return Optional.ofNullable(this.xtmHubService.refreshConnectivity(ctx))
         .map(xtmHubRegistrationMapper::toXtmHubRegistrationOutput)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.noContent().build());
@@ -116,7 +116,7 @@ public class XtmHubApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
   public void autoRegister(TxCtx ctx, @Valid @RequestBody XtmHubRegisterInput input) {
-    this.xtmHubService.autoRegister(input.getToken());
+    this.xtmHubService.autoRegister(ctx, input.getToken());
   }
 
   @PostMapping(

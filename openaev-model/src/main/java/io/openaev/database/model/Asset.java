@@ -12,6 +12,7 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.DomainConstraint;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -250,6 +251,31 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_mac_addresses")
   private String[] macAddresses;
 
+  /**
+   * The markings this asset carries — its sensitivity labels, not a clearance.
+   *
+   * <p>🔴 <b>Read filtering does not come from this field.</b> It comes from the statement
+   * inspector rewriting every query on {@code assets} with {@code
+   * is_marking_set_allowed(marking_ids)} once the table is on {@code
+   * openaev.marking.active-tables}. That is the whole point of the design: no repository or service
+   * read code knows markings exist. This mapping exists so the set can be <i>written</i> and
+   * displayed, nothing more.
+   *
+   * <p>Semantics of the column, all of which follow from the {@code <@} predicate: a row is visible
+   * only when the reader holds <b>every</b> marking on it (AND, the STIX reading), and {@code null}
+   * or empty means unmarked and therefore visible to everyone — a marking can only ever reduce
+   * visibility, never grant it.
+   *
+   * <p>Stored inline as {@code text[]} rather than through a join table (design §3.2, Option 2), so
+   * there is <b>no foreign key</b> to {@code marking_definitions}. Validity of the ids is therefore
+   * an application concern: writes must go through the marking write guard, and deleting a
+   * definition must scrub the arrays (design §5.7).
+   */
+  @Type(StringArrayType.class)
+  @Column(name = "marking_ids", columnDefinition = "text[]")
+  @JsonProperty("asset_markings")
+  private String[] markingIds;
+
   public void setHostname(String hostname) {
     // Locale.ROOT keeps hostname normalization stable regardless of the JVM default locale
     // (e.g. the Turkish dotless-i), since hostnames are not locale-specific text.
@@ -316,19 +342,20 @@ public class Asset implements TenantBase {
 
   // Read-only activity status derived from the agents linked to this asset (agents live on the
   // Endpoint subclass, but the correlated subquery works on the base assets table for every
-  // category - non-agent assets simply resolve to AGENTLESS). The active window mirrors
-  // AgentHelper.ACTIVE_THRESHOLD (1 hour). Filterable so the inventory can filter by status.
+  // category - non-agent assets simply resolve to AGENTLESS). Filterable so the inventory can
+  // filter by status.
   @Queryable(filterable = true, sortable = true, refEnumClazz = ASSET_ACTIVITY_STATUS.class)
   @Formula(
       "(CASE"
           + " WHEN NOT EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = asset_id)"
           + " THEN 'AGENTLESS'"
           + " WHEN EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = asset_id"
-          + " AND ag.agent_last_seen > now() - interval '1 hour') THEN 'ACTIVE'"
+          + " AND ag.agent_status = 'ACTIVE') THEN 'ACTIVE'"
           + " ELSE 'INACTIVE' END)")
   @Enumerated(EnumType.STRING)
   @JsonProperty("asset_status")
   @Schema(description = "Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS)")
+  @AuditLogIgnore
   private ASSET_ACTIVITY_STATUS activityStatus;
 
   @ManyToOne

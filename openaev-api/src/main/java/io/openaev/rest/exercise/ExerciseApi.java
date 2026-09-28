@@ -17,6 +17,7 @@ import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -125,6 +126,7 @@ public class ExerciseApi extends RestBehavior {
   private final WorkflowService workflowService;
   private final ExpectationsDriftService expectationsDriftService;
   private final EnterpriseEditionService enterpriseEditionService;
+  private final TenantWriteScopeResolver writeScopeResolver;
   private final LicenseCacheManager licenseCacheManager;
 
   // endregion
@@ -516,11 +518,10 @@ public class ExerciseApi extends RestBehavior {
       exercise.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       exercise.setCustomDashboard(
           this.tenantSettingsService
-              .findSetting(
-                  TenantContext.getCurrentTenant(),
-                  TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
+              .findSetting(tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)

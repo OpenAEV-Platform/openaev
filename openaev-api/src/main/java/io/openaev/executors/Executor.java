@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionStatus.EXECUTING;
 import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -19,10 +20,14 @@ import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
+import java.io.IOException;
 import java.time.Instant;
+import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Component
 @RequiredArgsConstructor
@@ -44,6 +49,7 @@ public class Executor {
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
   private final ConnectorInstanceService connectorInstanceService;
   private final InjectExpectationService injectExpectationService;
+  private final OpenAEVConfig openAEVConfig;
 
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
@@ -51,15 +57,31 @@ public class Executor {
   private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
       throws Exception {
     Inject inject = executableInject.getInjection().getInject();
+    String authorisationCode = injectService.getAuthorisationCodeIfNeeded(executableInject);
     String jsonInject =
         mapper.writeValueAsString(
-            executableInjectDTOMapper.toExecutableInjectDTO(executableInject));
+            executableInjectDTOMapper.toExecutableInjectDTO(executableInject, authorisationCode));
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
     injectExpectationService.computeAndSaveExpectations(executableInject, injector.getType());
 
-    rabbitmqService.publish(injector.getId(), jsonInject);
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              try {
+                rabbitmqService.publish(injector.getId(), jsonInject);
+              } catch (IOException | TimeoutException e) {
+                throw new IllegalStateException("Failed to publish inject after commit", e);
+              }
+            }
+          });
+    } else {
+      rabbitmqService.publish(injector.getId(), jsonInject);
+    }
+
     injectStatus.addInfoTrace(
         "The inject has been published and is now waiting to be consumed.",
         ExecutionTraceAction.EXECUTION);
@@ -140,7 +162,8 @@ public class Executor {
       throw new UnsupportedOperationException("Inject is empty");
     }
     // If inject is too old, reject the execution
-    if (isScheduledInject && !isInInjectableRange(inject)) {
+    if (isScheduledInject
+        && !isInInjectableRange(inject, openAEVConfig.getInjectStalenessThreshold())) {
       throw new UnsupportedOperationException(
           "Inject is now too old for execution: id "
               + inject.getId()

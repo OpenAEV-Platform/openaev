@@ -2,7 +2,8 @@ package io.openaev.service.notification;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.Notifier;
@@ -18,9 +19,11 @@ import io.openaev.notification.engine.ResolvedNotifier;
 import io.openaev.notification.engine.WebhookTargetValidator;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.UserService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,28 +45,36 @@ public class NotifierService {
   private final UserService userService;
   private final NotificationTriggerCacheService triggerCacheService;
   private final WebhookTargetValidator webhookTargetValidator;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   public Optional<Notifier> findById(@NotBlank final String id) {
-    return notifierRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant());
+    return notifierRepository.findById(id);
   }
 
   @Transactional
-  public List<Notifier> findAll() {
-    seedBuiltInNotifiers(TenantContext.getCurrentTenant());
-    return notifierRepository.findAllByTenantId(TenantContext.getCurrentTenant());
+  public List<Notifier> findAll(@NotNull final TxCtx ctx) {
+    seedBuiltInsWhenScopePinsOneTenant(ctx);
+    List<Notifier> notifiers = new ArrayList<>();
+    notifierRepository.findAll().forEach(notifiers::add);
+    return notifiers;
   }
 
   @Transactional
-  public Page<Notifier> search(@NotNull final SearchPaginationInput searchPaginationInput) {
-    seedBuiltInNotifiers(TenantContext.getCurrentTenant());
+  public Page<Notifier> search(
+      @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
+    seedBuiltInsWhenScopePinsOneTenant(ctx);
     return buildPaginationJPA(notifierRepository::findAll, searchPaginationInput, Notifier.class);
   }
 
   @Transactional
-  public Notifier create(@NotNull final Notifier notifier) {
+  public Notifier create(@NotNull final TxCtx ctx, @NotNull final Notifier notifier) {
     requireCustomizableType(notifier.getType());
     validateConfiguration(notifier.getType(), notifier.getConfiguration());
     notifier.setBuiltIn(false);
+    // Attribution is explicit since notifiers went v2-active: the listener that used to stamp the
+    // ambient TenantContext is gone, and an ambiguous or missing scope must be refused, not
+    // guessed.
+    notifier.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
     return notifierRepository.save(notifier);
   }
 
@@ -102,7 +113,7 @@ public class NotifierService {
    * mirroring OpenCTI's notifier test endpoint. Deliberately not transactional: webhook/email
    * dispatch is blocking I/O and must not hold a database connection for its duration.
    */
-  public void test(@NotBlank final String id) {
+  public void test(@NotNull final TxCtx ctx, @NotBlank final String id) {
     Notifier notifier =
         findById(id).orElseThrow(() -> new ElementNotFoundException("Notifier not found: " + id));
     String userId = userService.currentUser().getId();
@@ -118,7 +129,7 @@ public class NotifierService {
             null,
             null,
             List.of(),
-            TenantContext.getCurrentTenant(),
+            writeScopeResolver.tenantForWrite(ctx, null),
             List.of(userId),
             List.of(ResolvedNotifier.from(notifier)));
     NotificationContent.Group group =
@@ -138,6 +149,19 @@ public class NotifierService {
   @Transactional
   public void ensureBuiltInNotifiers(@NotBlank final String tenantId) {
     seedBuiltInNotifiers(tenantId);
+  }
+
+  /**
+   * Backfill for tenants provisioned before the built-ins existed; {@link #ensureBuiltInNotifiers}
+   * at tenant creation is the primary path.
+   */
+  private void seedBuiltInsWhenScopePinsOneTenant(final TxCtx ctx) {
+    Set<String> scoped = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    // Skipped under a multi-tenant scope: provisioning is a write and there is no single tenant to
+    // attribute it to.
+    if (scoped.size() == 1) {
+      seedBuiltInNotifiers(scoped.iterator().next());
+    }
   }
 
   // Non-transactional worker so transactional methods of this class can share the logic without

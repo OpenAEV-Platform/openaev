@@ -1,5 +1,5 @@
 import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type CredentialInput, type SearchPaginationInput } from '../../utils/api-types';
+import { type SearchPaginationInput } from '../../utils/api-types';
 
 const CREDENTIAL_URI = '/api/credentials';
 
@@ -15,12 +15,14 @@ export const fetchCredentialContracts = () => {
   return simpleCall(`${CREDENTIAL_URI}/contracts`);
 };
 
-export const createCredential = (input: CredentialInput) => {
-  return simplePostCall(CREDENTIAL_URI, input, undefined, true, true);
+// Both write endpoints are multipart: an `input` JSON part plus one part per uploaded file
+// (currently only the GCP service account key). The FormData is built by CredentialForm.
+export const createCredential = (formData: FormData) => {
+  return simplePostCall(CREDENTIAL_URI, formData, undefined, true, true);
 };
 
-export const updateCredential = (credentialId: string, input: CredentialInput) => {
-  return simplePutCall(`${CREDENTIAL_URI}/${credentialId}`, input, undefined, true, true);
+export const updateCredential = (credentialId: string, formData: FormData) => {
+  return simplePutCall(`${CREDENTIAL_URI}/${credentialId}`, formData, undefined, true, true);
 };
 
 export const deleteCredential = (credentialId: string) => {

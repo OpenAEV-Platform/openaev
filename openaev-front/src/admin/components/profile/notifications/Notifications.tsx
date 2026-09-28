@@ -37,6 +37,7 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type NotificationBulkProcessingInput, type NotificationOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import ToolBar from '../../common/ToolBar';
+import NotificationCenterTabs from '../NotificationCenterTabs';
 import DigestNotificationDialog from './DigestNotificationDialog';
 import NotificationOperationChip from './NotificationOperationChip';
 import { eventsOf, eventUrl, getFirstOperation, operationIcon } from './notificationUtils';
@@ -221,11 +222,12 @@ const Notifications = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{ label: t('Profile') }, {
-          label: t('Notifications'),
+        elements={[{
+          label: t('Notification center'),
           current: true,
         }]}
       />
+      <NotificationCenterTabs current="alerts" />
       <PaginationComponentV2
         fetch={searchNotificationsToLoad}
         searchPaginationInput={searchPaginationInput}

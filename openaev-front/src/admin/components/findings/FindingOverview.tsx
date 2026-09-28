@@ -11,7 +11,7 @@ import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
-import type { Finding, FindingSummaryOutput } from '../../../utils/api-types';
+import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
 import ContractOutputElementType from './ContractOutputElementType';
 import FindingOccurrences from './FindingOccurrences';
@@ -25,7 +25,7 @@ const FindingOverview = () => {
   const theme = useTheme();
   const { findingId } = useParams() as { findingId: string };
 
-  const [finding, setFinding] = useState<Finding | null>(null);
+  const [finding, setFinding] = useState<FindingOutput | null>(null);
   // Group-wide aggregates are computed server-side: a Finding row is ONE
   // occurrence (per inject), so its own dates/links cannot answer "since when
   // and how widely has this been seen?".
@@ -33,7 +33,7 @@ const FindingOverview = () => {
   const [cvssScore, setCvssScore] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchFinding(findingId).then(response => setFinding(response.data as Finding));
+    fetchFinding(findingId).then(response => setFinding(response.data as FindingOutput));
     fetchFindingSummary(findingId).then(response => setSummary(response.data as FindingSummaryOutput));
   }, [findingId]);
 

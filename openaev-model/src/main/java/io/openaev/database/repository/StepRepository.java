@@ -127,6 +127,29 @@ public interface StepRepository extends JpaRepository<Step, String> {
   Optional<String> findStepIdByInjectId(@Param("injectId") String injectId);
 
   /**
+   * Return the stepId associated to a given injectId if it exists and step active.
+   *
+   * @param injectId the injectId for which we want the associated step
+   * @param status the list of active step statuses to consider
+   * @return An optional filled with the stepId if found
+   */
+  @Query(
+      value =
+          """
+      SELECT step_id
+      FROM steps
+      WHERE jsonb_path_exists(
+        step_data,
+        '$.** ? (@.inject_id == $id)',
+        jsonb_build_object('id', to_jsonb(:injectId))
+      ) and step_status::text in (:#{#status.![name()]})
+      LIMIT 1
+      """,
+      nativeQuery = true)
+  Optional<String> findStepIdActiveByInjectId(
+      @Param("injectId") String injectId, @Param("status") List<StepStatus> status);
+
+  /**
    * Resolves the tenant that owns a step: step -&gt; workflow -&gt; simulation -&gt; tenant. Used
    * to stamp the tenant on chaining events (#6357). NATIVE on purpose: {@code exercises} is a v1
    * {@code @Filter} entity ({@code tenantFilter}), so a JPQL path through it would be re-filtered
@@ -191,6 +214,7 @@ public interface StepRepository extends JpaRepository<Step, String> {
    * Returns the step IDs associated with any of the given inject IDs in a single query.
    *
    * @param injectIds the inject IDs for which we want the associated steps
+   * @param status the list of active step statuses to consider
    * @return set of step IDs that reference any of the given inject IDs
    */
   @Query(
@@ -206,11 +230,12 @@ public interface StepRepository extends JpaRepository<Step, String> {
           s.step_data,
           '$.** ? (@.inject_id == $id)',
           jsonb_build_object('id', to_jsonb(i.inject_id))
-        )
+      ) and step_status::text in (:#{#status.![name()]})
       )
       """,
       nativeQuery = true)
-  Set<String> findStepIdsByInjectIds(@Param("injectIds") Set<String> injectIds);
+  Set<String> findStepIdsActiveByInjectIds(
+      @Param("injectIds") Set<String> injectIds, @Param("status") List<StepStatus> status);
 
   @Query(
       value =
@@ -225,11 +250,13 @@ public interface StepRepository extends JpaRepository<Step, String> {
             s.step_data,
             '$.** ? (@.inject_id == $id)',
             jsonb_build_object('id', to_jsonb(ie.inject_id))
-          )
+          ) AND s.step_status::text in (:#{#status.![name()]})
         )
         """,
       nativeQuery = true)
-  Set<String> findStepIdsByExpectationIds(@Param("expectationIds") Set<String> expectationIds);
+  Set<String> findStepIdsActiveByExpectationIds(
+      @Param("expectationIds") Set<String> expectationIds,
+      @Param("status") List<StepStatus> status);
 
   List<Step> findAllStepByWorkflow_IdAndStatusIn(String id, List<StepStatus> run);
 

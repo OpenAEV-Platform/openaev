@@ -242,9 +242,9 @@ class WorkflowConfigurationMapperTest {
       WorkflowConfigurationOutput output = toOutput(workflow);
 
       // Assert
-      assertEquals("S*******3", output.getWorkflowScopeVariables().get(0).getValue());
-      assertEquals("ABC******456", output.getWorkflowScopeVariables().get(1).getValue());
-      assertEquals("XYZ***654", output.getWorkflowScopeVariables().get(2).getValue());
+      assertEquals("Se******", output.getWorkflowScopeVariables().get(0).getValue());
+      assertEquals("AB******", output.getWorkflowScopeVariables().get(1).getValue());
+      assertEquals("XY******", output.getWorkflowScopeVariables().get(2).getValue());
       assertEquals("NotSensitive", output.getWorkflowScopeVariables().get(3).getValue());
     }
   }

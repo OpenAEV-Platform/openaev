@@ -44,7 +44,7 @@ import { download } from '../../../../../utils/utils';
 import ChainingUpdatedBanner from '../../../chaining/ChainingUpdatedBanner';
 import useSnapshotUpdated from '../../../chaining/useSnapshotUpdated';
 import attackPathStatusColor from './attack-path-colors';
-import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, ENDPOINT_BATCH_SIZE, expandPathSet, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, maskFindingValue, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_SHARED_EP_CLUSTER_ID, applyFindingFilter, type AttackPathFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, displayFindingValue, ENDPOINT_BATCH_SIZE, expandPathSet, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, orderSimulationPickerOptions, type PathFinding, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from './attack-path-flow-helpers';
 import { AP_GLOBAL_STYLES, AP_PANEL_DEFAULT_WIDTH, AP_PANEL_MAX_WIDTH, AP_PANEL_MIN_WIDTH, AP_VIEW_HEIGHT, AP_VISUALLY_HIDDEN } from './attack-path-styles';
 import AttackPathHeader, { type FindingCard, type SearchOption } from './AttackPathHeader';
 import AttackPathLegend from './AttackPathLegend';
@@ -184,26 +184,6 @@ const CATEGORY_OF_TYPE: Record<string, string> = {
   cve: 'cves',
   share: 'shares',
   file: 'files',
-};
-
-// Match a drawer finding value to a graph finding value. Credentials are the ONLY category whose
-// values the backend masks in the drawer DTOs (AttackPathGraphService masks the secret half but
-// keeps the username: "user:pass" -> "user:••••"; the graph node keeps the raw value), so compare
-// only the username before the separator for that type; every other type compares exactly.
-// Other secret types (password_policy, sid) are masked in the FRONT for display only
-// (maskFindingValue), are not drawer categories (CATEGORY_OF_TYPE has no entry, so no drawer item
-// of those types ever reaches this matcher), and carry no plaintext half to compare anyway — they
-// resolve by their exact graph node id instead of by value.
-const findingValuesMatch = (type: string, a: string, b: string): boolean => {
-  if (a === b) {
-    return true;
-  }
-  if (type === 'credentials') {
-    const ua = a.split(/[:\s]/)[0];
-    const ub = b.split(/[:\s]/)[0];
-    return !!ua && ua === ub;
-  }
-  return false;
 };
 
 /**
@@ -1090,7 +1070,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       // not just its type cluster (the backend escapes `\`/`|`, so a share value never matches a
       // rebuilt `NODE_FINDING|type|value`, hence matching on typeFindings+value like highlightGraphFinding).
       const canonicalId = (fullDto?.attackPathNodes ?? [])
-        .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === (item.type ?? '') && findingValuesMatch(item.type ?? '', n.value ?? n.label ?? '', item.value ?? ''))?.id;
+        .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === (item.type ?? '') && (n.value ?? n.label ?? '') === (item.value ?? ''))?.id;
       if (!chainMode) {
         // Non-chain path-focus view: the finding's own node only exists once its type cluster is
         // expanded (see the auto-expand effect below), so leave selectedFindingId null here — the
@@ -1476,15 +1456,13 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     const { endpointKey } = pathFinding;
     const applyExec = (ids: string[]) => setHighlightedExecutionIds(new Set(ids));
     const matchIn = (items: AttackPathFindingItemDTO[]) =>
-      items.find(it => it.endpointKey === endpointKey && (it.type ?? '') === type && findingValuesMatch(type, it.value ?? '', value));
+      items.find(it => it.endpointKey === endpointKey && (it.type ?? '') === type && (it.value ?? '') === value);
     // Authoritative for EVERY finding type: the full graph's execution→findings links, resolved by the
-    // finding's own CANONICAL node id (exact match on the RAW value, unlike the drawer's category page
-    // whose credential values are masked server-side). Tried FIRST — a credentials category match is
-    // ambiguous whenever two findings share a username but differ only by password/hash, since
-    // findingValuesMatch() compares just the username for that type (the drawer can't compare masked
-    // secrets): picking the category-page match first would silently attribute the wrong producing
-    // action to whichever entry happens to sort first in the page. The canonical lookup below never has
-    // this ambiguity because it compares the full, unmasked value.
+    // finding's own CANONICAL node id. Tried FIRST — a credentials match stays ambiguous whenever two
+    // findings mask to the same string (same two leading characters on each part), and picking the
+    // category-page match first would silently attribute the wrong producing action to whichever entry
+    // happens to sort first in the page. The canonical lookup resolves by node id instead, which the
+    // backend derives from the full value, so it never has this ambiguity.
     const canonicalId = (fullDto?.attackPathNodes ?? [])
       .find(n => n.type === 'FINDING' && (n.typeFindings ?? '') === type && (n.value ?? n.label) === value)?.id;
     const fromFull = canonicalId
@@ -1631,7 +1609,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     fetchFindingsByCategory(simulationId, category, 0, DRAWER_FETCH_SIZE)
       .then((r) => {
         const match = (r.data.items ?? []).find(it =>
-          it.endpointKey === endpointKey && (it.type ?? '') === type && findingValuesMatch(type, it.value ?? '', value));
+          it.endpointKey === endpointKey && (it.type ?? '') === type && (it.value ?? '') === value);
         setHighlightedExecutionIds(new Set(match?.executionIds ?? []));
       })
       .catch(() => setHighlightedExecutionIds(new Set()));
@@ -1677,7 +1655,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         for (const fid of e.findingsNodeIds ?? []) {
           const f = findingById.get(fid);
           const type = f?.typeFindings ?? '';
-          const value = maskFindingValue(type, f?.value);
+          const value = displayFindingValue(type, f?.value);
           if (!type || !value) {
             continue;
           }
@@ -1705,7 +1683,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         const byType = new Map<string, string[]>();
         for (const it of lists.flat()) {
           const type = it.type ?? '';
-          const value = maskFindingValue(type, it.value);
+          const value = displayFindingValue(type, it.value);
           if (!type || !value) {
             continue;
           }
@@ -2270,7 +2248,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     for (const f of endpointFindings) {
       const type = f.typeFindings ?? 'unknown';
       const arr = byType.get(type) ?? [];
-      arr.push(maskFindingValue(f.typeFindings, f.value ?? f.label ?? ''));
+      arr.push(displayFindingValue(f.typeFindings, f.value ?? f.label ?? ''));
       byType.set(type, arr);
     }
     return [...byType.entries()].map(([type, values]) => ({
@@ -2944,7 +2922,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                 endpoint/finding master panel (below), and its back arrow returns here. */}
               {findingDetail && !detailExecutionId && (
                 <FindingDetailPanel
-                  value={maskFindingValue(findingDetail.type, findingDetail.value)}
+                  value={displayFindingValue(findingDetail.type, findingDetail.value)}
                   type={findingDetail.type}
                   simulationId={simulationId}
                   endpointLabel={findingEndpoint?.hostname || findingEndpoint?.label || findingEndpoint?.ref || pathFinding?.endpointKey || t('Endpoint')}

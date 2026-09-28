@@ -10,7 +10,6 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
-import co.elastic.clients.util.TriConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,6 +52,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.TriVoid;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -185,13 +185,12 @@ public class InjectorContractService implements DependenciesManager {
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
       @NotNull final Pageable pageable,
-      @NotNull
-          TriConsumer<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector) {
+      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector) {
     CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
     Root<InjectorContract> injectorContractRoot = cq.from(InjectorContract.class);
-    selector.accept(cb, cq, injectorContractRoot);
+    selector.apply(cb, cq, injectorContractRoot);
 
     // Always apply access spec
     Specification<InjectorContract> accessSpec =
@@ -668,7 +667,7 @@ public class InjectorContractService implements DependenciesManager {
 
   // -- CRITERIA BUILDER --
   private record OutputModeConfig(
-      TriConsumer<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector,
+      TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector,
       Function<Tuple, ? extends InjectorContractBaseOutput> mapper) {}
 
   /** Maps each output mode to its criteria selector and tuple mapper. */

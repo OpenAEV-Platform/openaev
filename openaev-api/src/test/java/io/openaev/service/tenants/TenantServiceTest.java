@@ -309,6 +309,27 @@ class TenantServiceTest extends IntegrationTest {
   }
 
   @Test
+  void should_evict_membership_cache_of_tenant_members_on_soft_delete() {
+    // -- ARRANGE --
+    Tenant tenant = getTenant("Tenant A");
+    Tenant created = tenantComposer.forTenant(tenant).persist().get();
+    String userId = testUserHolder.get().getId();
+    tenantRepository.addUserToTenant(userId, created.getId());
+    // Populate the cache while the tenant is still active.
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isTrue();
+
+    // -- ACT --
+    tenantService.softDelete(created.getId());
+
+    // -- ASSERT --
+    // TenantMembershipCacheManager filters on t.tenant_deleted_at IS NULL: without an eviction,
+    // the membership would incorrectly still read as active until the cache's TTL expires.
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isFalse();
+  }
+
+  @Test
   void should_reactivate_soft_deleted_tenant() {
     // -- ARRANGE --
     Tenant tenant = getTenant("Tenant A");
@@ -320,6 +341,28 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertThat(reactivated.getDeletedAt()).isNull();
+  }
+
+  @Test
+  void should_evict_membership_cache_of_tenant_members_on_reactivate() {
+    // -- ARRANGE --
+    Tenant tenant = getTenant("Tenant A");
+    Tenant created = tenantComposer.forTenant(tenant).persist().get();
+    String userId = testUserHolder.get().getId();
+    tenantRepository.addUserToTenant(userId, created.getId());
+    tenantService.softDelete(created.getId());
+    // Populate the cache while the tenant is soft-deleted (membership reads as inactive).
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isFalse();
+
+    // -- ACT --
+    tenantService.reactivate(created.getId());
+
+    // -- ASSERT --
+    // Without an eviction here, the member would incorrectly stay denied until the cache's TTL
+    // expires, even though the tenant is active again.
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isTrue();
   }
 
   @Test

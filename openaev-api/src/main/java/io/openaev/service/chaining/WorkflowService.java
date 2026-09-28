@@ -14,6 +14,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -21,8 +22,9 @@ import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
-import io.openaev.utils.IpAddressUtils;
-import io.openaev.utils.PrimitiveValueMaskingUtils;
+import io.openaev.utils.SensitiveValueMaskingUtils;
+import io.openaev.validator.IpAddressUtils;
+import io.openaev.validator.primitive.PrimitiveFormatValidator;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -63,7 +65,6 @@ public class WorkflowService {
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
   private final AssetRepository assetRepository;
-  private final AssetAgentJobRepository assetAgentJobRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
@@ -513,25 +514,6 @@ public class WorkflowService {
     return saveWorkflowRun(run);
   }
 
-  /**
-   * Launches a workflow for a scenario by creating a simulation-level template and a run from it.
-   *
-   * @param workflowTemplateScenario the scenario's workflow template
-   * @param simulation the simulation to attach the run to
-   * @return the created workflow run
-   */
-  public Workflow launchWorkflowScenario(Workflow workflowTemplateScenario, Exercise simulation) {
-    // Copy workflow TEMPLATE (scenario) to a new workflow TEMPLATE (simulation)
-    Workflow workflowTemplateSimulation =
-        copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation);
-    workflowTemplateSimulation = saveWorkflowRun(workflowTemplateSimulation);
-
-    // Copy workflow TEMPLATE (simulation) to a new workflow execution RUN (simulation)
-    Workflow run = copyWorkflowTemplateToRun(workflowTemplateSimulation);
-
-    return saveWorkflowRun(run);
-  }
-
   /** Increments the version and clears the edited flag when the template has pending runs. */
   private Workflow updateEditedWorkflow(Workflow workflowTemplate) {
     if (workflowTemplate.isEdited() && !workflowTemplate.getWorkflowsExecuted().isEmpty()) {
@@ -682,6 +664,7 @@ public class WorkflowService {
 
     for (ScopeVariableInput input : variableInputs) {
       if (input.getId() == null) {
+        assertScopeVariableValueFormat(input.getType(), input.getValue());
         existing.add(buildScopeVariable(input, workflow));
         changed = true;
       } else {
@@ -730,10 +713,34 @@ public class WorkflowService {
 
   private void updateScopeVariable(ScopeVariable existing, ScopeVariableInput input) {
     String resolvedValue = resolveScopeVariableValueForPersistence(existing, input);
+    assertScopeVariableValueFormat(input.getType(), resolvedValue);
     existing.setKey(input.getKey());
     existing.setType(input.getType());
     existing.setValue(resolvedValue);
     existing.setDescription(input.getDescription());
+  }
+
+  /**
+   * Rejects a scope variable whose value does not match the format of its declared type.
+   *
+   * <p>A variable carries a single exact value, so the format applies unconditionally - unlike a
+   * condition, where the operator decides (IN / NIN are substring matches, IS_NULL carries no
+   * value). {@link ConditionType#EQ} expresses exactly that contract.
+   *
+   * <p>Must be called on the <em>resolved</em> value, never on the raw payload: a masked value sent
+   * back unchanged by the frontend ({@code 1******1}) would otherwise be rejected even though the
+   * stored value is perfectly valid.
+   *
+   * @throws BadRequestException if the value does not satisfy the type's format
+   */
+  private void assertScopeVariableValueFormat(PrimitiveType type, String value) {
+    if (PrimitiveFormatValidator.isAccepted(type, ConditionType.EQ, value)) {
+      return;
+    }
+    throw new BadRequestException(
+        "The value of a '"
+            + type.label
+            + "' variable does not match the expected format for that type.");
   }
 
   /**
@@ -745,7 +752,7 @@ public class WorkflowService {
    */
   private String resolveScopeVariableValueForPersistence(
       ScopeVariable existing, ScopeVariableInput input) {
-    if (PrimitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
+    if (SensitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
         existing.getType(), existing.getValue(), input.getValue())) {
       return existing.getValue();
     }
@@ -1009,52 +1016,11 @@ public class WorkflowService {
 
   @Transactional(rollbackFor = Exception.class)
   public void cancelSimulationEndWorkflowRun(List<Workflow> workflows) {
-    List<Step> stepsToUpdate = new ArrayList<>();
-    List<String> injectsIds = new ArrayList<>();
     workflows.forEach(
         workflow -> {
           // Workflow -> END transition (also freezes the end scope snapshot - ADR-006):
           endWorkflow(workflow, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
-
-          // Step delay queue -> DELETE
-          stepDelayQueueService.deleteAllByWorkflowRun(workflow);
-
-          // Steps active -> END  active and get inject ids for remove asset agent jobs
-          List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
-          steps.forEach(
-              step -> {
-                String injectId =
-                    step.getData() != null
-                        ? StepService.getField(step.getData(), "inject_id")
-                        : null;
-                if (injectId != null) injectsIds.add(injectId);
-                step.setStatus(StepStatus.END);
-              });
-
-          stepsToUpdate.addAll(steps);
-
-          // Workflow States -> DELETE  (only use for execution)
-          deleteWorkflowStatesBySimulationId(workflow.getSimulation().getId());
         });
-
-    // Asset agent jobs -> DELETE all by inject id
-    deleteAllAssetAgentJobs(injectsIds, TenantContext.getCurrentTenant());
-
-    stepService.saveSteps(stepsToUpdate);
-  }
-
-  private void deleteAllAssetAgentJobs(List<String> injectsIds, String tenantId) {
-    if (CollectionUtils.isEmpty(injectsIds)) return;
-    assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(injectsIds, tenantId);
-  }
-
-  /**
-   * Deletes all workflow states associated with workflows of the given simulation.
-   *
-   * @param simulationId the ID of the simulation whose workflow states should be cleared
-   */
-  public void deleteWorkflowStatesBySimulationId(String simulationId) {
-    workflowStateService.deleteAllBySimulationId(simulationId);
   }
 
   // -- Configuration Update --
@@ -1114,6 +1080,20 @@ public class WorkflowService {
     }
 
     return new ConfigurationChange(rulesChanged || variablesChanged || changed, rulesChanged);
+  }
+
+  /**
+   * Deletes all workflow states of the given simulation as part of a reset. Called directly by
+   * simulation ID rather than via {@link #findWorkflowRunBySimulationId(String)}: the reset flows
+   * calling this fire only once the simulation is already CANCELED/FINISHED, at which point its
+   * chaining workflow(s) are already END - so a RUN-status lookup would always return empty and
+   * silently skip the cleanup.
+   *
+   * @param exerciseId the ID of the simulation whose workflow states should be cleared
+   */
+  public void resetSimulationDeleteWorkflow(String exerciseId) {
+    workflowEndService.deleteWorkflowStatesBySimulationId(
+        exerciseId, WorkflowEndService.WORKFLOW_END_CAUSE.DELETED);
   }
 
   /**
@@ -1419,8 +1399,24 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
-    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
-    startWorkflow(workflowRun);
+    doStartWorkflowBySimulationId(workflowTemplate);
+  }
+
+  /**
+   * Starts a workflow run for a simulation only when a simulation TEMPLATE workflow exists.
+   *
+   * <p>This is the scheduled-execution counterpart of the manual start flow: manual launches always
+   * create the simulation TEMPLATE first, while scheduled chained simulations create that template
+   * earlier and only need the run started once the simulation becomes runnable.
+   *
+   * @param simulationId id of the simulation to start if chained
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowBySimulationIdIfPresent(String simulationId) throws ChainingException {
+    Optional<Workflow> workflowTemplate = findWorkflowTemplateBySimulationId(simulationId);
+    if (workflowTemplate.isPresent()) {
+      doStartWorkflowBySimulationId(workflowTemplate.get());
+    }
   }
 
   /**
@@ -1437,11 +1433,15 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-
-    Workflow workflowRun = launchWorkflowScenario(workflowTemplateScenario, simulation);
-    Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
+    Workflow workflowTemplateSimulation =
+        saveWorkflowRun(copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation));
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
+    doStartWorkflowBySimulationId(workflowTemplateSimulation);
+  }
+
+  private void doStartWorkflowBySimulationId(Workflow workflowTemplate) throws ChainingException {
+    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
     startWorkflow(workflowRun);
   }
 
@@ -1481,7 +1481,6 @@ public class WorkflowService {
    *
    * @param workflowRun the workflow run to start
    */
-  @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
     // Telemetry: one chaining workflow run started.
     resultsMetricCollector.recordWorkflowRun();
@@ -1651,7 +1650,7 @@ public class WorkflowService {
           "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
           workflowRun.getId());
-      workflowEndService.markWorkflowEnded(
+      workflowEndService.manageWorkflowEnd(
           workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
       return workflowRun;
     }
@@ -1675,7 +1674,7 @@ public class WorkflowService {
     if (!hasActiveSteps
         && !workflowRun.isKeepAlive()
         && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
-      workflowEndService.markWorkflowEnded(
+      workflowEndService.manageWorkflowEnd(
           workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
     }
 
