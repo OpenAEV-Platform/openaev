@@ -22,7 +22,7 @@ const THEME_DARK_DEFAULT_SECONDARY = EE_COLOR;
 const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--bg-elevation-default-layer-3'];
 const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--bg-elevation-default-layer-1'];
 const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--bg-elevation-heading-layer-0'];
-const THEME_DARK_DEFAULT_TEXT = FDS.colors.dark['--text-alert'];
+const THEME_DARK_DEFAULT_TEXT = FDS.colors.dark['--text-default-primary'];
 // Modal surface: the design system's layer-2 elevation, the same ground OpenCTI's
 // modals sit on. Read from the token map, never retyped.
 export const THEME_DARK_DIALOG_BACKGROUND = FDS.colors.dark['--bg-elevation-default-layer-2'];

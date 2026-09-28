@@ -24,7 +24,7 @@ const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--bg-elevation-default-layer
 // NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item"
 // flag: this specific, visibly-notable white -> #f2f2f3 shift is not signed off.
 const THEME_LIGHT_DEFAULT_NAV = '#ffffff';
-const THEME_LIGHT_DEFAULT_TEXT = FDS.colors.light['--text-alert'];
+const THEME_LIGHT_DEFAULT_TEXT = FDS.colors.light['--text-default-primary'];
 // Modal surface: the design system's layer-2 elevation, the light counterpart of
 // the dark modal ground.
 export const THEME_LIGHT_DIALOG_BACKGROUND = FDS.colors.light['--bg-elevation-default-layer-2'];

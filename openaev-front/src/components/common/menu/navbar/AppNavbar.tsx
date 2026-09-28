@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router';
 
 import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
 import useAuth from '../../../../utils/hooks/useAuth';
+import { useFdsNavSurface, useFdsTheme } from '../../../../utils/hooks/useFdsThemeScope';
 import { useFormatter } from '../../../i18n';
 import MadeByFiligran from './MadeByFiligran';
 import { hasHref, type NavMenuEntries, type NavMenuItem, type NavMenuItemWithHref, type NavMenuSubItem } from './nav-menu-model';
@@ -110,6 +111,10 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
 
   const railWidth = collapsed ? NAV_COLLAPSED_WIDTH : NAV_OPEN_WIDTH;
 
+  // The rail's own colour: a composite token, scoped here — see useFdsNavSurface.
+  const { mode, custom } = useFdsTheme();
+  const navSurface = useFdsNavSurface(custom.nav, mode);
+
   return (
     <>
       {/* FDS-WORKAROUND #20: in-flow spacer holding the fixed rail's place — remove when `Navbar` ships the spacer — see fds-migration/LIBRARY-FEEDBACK.md */}
@@ -137,6 +142,7 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
         // content in the in-flow <main> paints over it. Mirror the TopBar's Header,
         // which sets theme.zIndex.appBar for the same reason.
         style={{
+          ...navSurface,
           position: 'fixed',
           top: bannerHeightNumber,
           left: 0,
