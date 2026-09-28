@@ -692,15 +692,18 @@ class TenantScopedEntrypointsTxCtxArchTest {
   /**
    * The rule above checks the methods it finds and nothing else: an entry naming a method that was
    * renamed or removed matches no method, is silently skipped, and the guard it stood for is gone
-   * without a failing build. Every listed entry must resolve to a method of the class it names.
+   * without a failing build. Every listed entry must resolve to a request-mapped method of the
+   * class it names. The mapping is part of what is checked: a handler that survives a refactoring
+   * but stops being an endpoint retires its guard just as quietly as a rename does.
    */
   @ArchTest
-  static void every_listed_entrypoint_names_an_existing_method(JavaClasses classes) {
+  static void every_listed_entrypoint_names_an_existing_endpoint(JavaClasses classes) {
     List<String> unresolved =
         TX_SCOPED_ENTRYPOINTS.stream().filter(entry -> !resolves(classes, entry)).sorted().toList();
     assertTrue(
         unresolved.isEmpty(),
-        "Entries of TX_SCOPED_ENTRYPOINTS naming no existing method, rename or remove them: "
+        "Entries of TX_SCOPED_ENTRYPOINTS naming no existing request-mapped method, rename or"
+            + " remove them: "
             + unresolved);
   }
 
@@ -709,6 +712,17 @@ class TenantScopedEntrypointsTxCtxArchTest {
     String owner = entry.substring(0, separator);
     String method = entry.substring(separator + 1);
     return classes.contain(owner)
-        && classes.get(owner).getMethods().stream().anyMatch(m -> m.getName().equals(method));
+        && classes.get(owner).getMethods().stream()
+            .anyMatch(m -> m.getName().equals(method) && isRequestMapped(m));
+  }
+
+  /** Whether the method carries one of Spring's {@code @*Mapping} annotations. */
+  private static boolean isRequestMapped(JavaMethod method) {
+    return method.getAnnotations().stream()
+        .map(annotation -> annotation.getRawType().getName())
+        .anyMatch(
+            name ->
+                name.startsWith("org.springframework.web.bind.annotation.")
+                    && name.endsWith("Mapping"));
   }
 }
