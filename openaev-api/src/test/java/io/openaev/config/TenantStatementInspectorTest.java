@@ -1181,10 +1181,10 @@ class TenantStatementInspectorTest {
     @ValueSource(
         strings = {
           "rawAllDocuments",
-          "rawAllDocumentsByChannelId",
-          "rawAllDocumentsBySecurityPlatformId",
-          "rawAllDocumentsByChallengeId",
-          "rawAllDocumentsByPayloadId",
+          "rawAllDocumentsByChannelIdAndTenantIds",
+          "rawAllDocumentsBySecurityPlatformIdAndTenantIds",
+          "rawAllDocumentsByChallengeIdAndTenantIds",
+          "rawAllDocumentsByPayloadIdAndTenantIds",
           "findAllDistinctByScenarioId",
           "findAllDistinctBySimulationId",
           "findAllDistinctOnInjectsByScenarioId"
@@ -1206,10 +1206,10 @@ class TenantStatementInspectorTest {
     @ValueSource(
         strings = {
           "rawAllDocuments",
-          "rawAllDocumentsByChannelId",
-          "rawAllDocumentsBySecurityPlatformId",
-          "rawAllDocumentsByChallengeId",
-          "rawAllDocumentsByPayloadId"
+          "rawAllDocumentsByChannelIdAndTenantIds",
+          "rawAllDocumentsBySecurityPlatformIdAndTenantIds",
+          "rawAllDocumentsByChallengeIdAndTenantIds",
+          "rawAllDocumentsByPayloadIdAndTenantIds"
         })
     void groupByQueriesKeepDocumentsUnwrapped(String method) throws Exception {
       String out = rewrite(method);
@@ -1238,7 +1238,7 @@ class TenantStatementInspectorTest {
     @Test
     @DisplayName("the channel logo join is wrapped once channels is active")
     void channelJoinsAreFilteredByChannelId() throws Exception {
-      String out = rewrite("rawAllDocumentsByChannelId");
+      String out = rewrite("rawAllDocumentsByChannelIdAndTenantIds");
       assertTrue(out.contains("can_access_tenant(chl_light.tenant_id)"), out);
       assertTrue(out.contains("can_access_tenant(chl_dark.tenant_id)"), out);
     }
@@ -1246,7 +1246,7 @@ class TenantStatementInspectorTest {
     @Test
     @DisplayName("the security platform logo join is wrapped once assets is active")
     void assetJoinsAreFilteredBySecurityPlatformId() throws Exception {
-      String out = rewrite("rawAllDocumentsBySecurityPlatformId");
+      String out = rewrite("rawAllDocumentsBySecurityPlatformIdAndTenantIds");
       assertTrue(out.contains("can_access_tenant(sp_light.tenant_id)"), out);
       assertTrue(out.contains("can_access_tenant(sp_dark.tenant_id)"), out);
     }
@@ -1281,7 +1281,10 @@ class TenantStatementInspectorTest {
       // predicate appeared here too, those assertions would be vacuous.
       String sql =
           io.openaev.database.repository.DocumentRepository.class
-              .getMethod("rawAllDocumentsByChannelId", String.class)
+              .getMethod(
+                  "rawAllDocumentsByChannelIdAndTenantIds",
+                  String.class,
+                  java.util.Collection.class)
               .getAnnotation(org.springframework.data.jpa.repository.Query.class)
               .value();
       TenantStatementInspector documentsInactive =
