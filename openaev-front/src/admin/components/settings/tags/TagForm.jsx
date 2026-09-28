@@ -39,7 +39,7 @@ class TagFormComponent extends Component {
             <DeprecatedColorPickerField
               name="tag_color"
               label={t('Color')}
-              style={{ marginTop: 20 }}
+              className="w-full mt-5"
             />
             <div style={{
               float: 'right',
