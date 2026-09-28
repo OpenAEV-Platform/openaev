@@ -1,12 +1,12 @@
 import { Button, Combobox, ComboboxChips, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { GridLegacy, MenuItem, Typography } from '@mui/material';
-import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import type { LoggedHelper } from '../../../../actions/helper';
+import DateField from '../../../../components/fields/DateField';
 import SelectField from '../../../../components/fields/SelectField';
 import TagField from '../../../../components/fields/TagField';
 import TextField from '../../../../components/fields/TextField';
@@ -217,28 +217,14 @@ const ExerciseForm: FunctionComponent<Props> = ({
       />
       {!edit
         && (
-          <Controller
+          <DateField
             control={control}
             name="exercise_start_date"
-            render={({ field }) => (
-              <MuiDateTimePicker
-                value={field.value ? new Date(field.value) : null}
-                label={t('Start date (optional)')}
-                minDateTime={new Date()}
-                slotProps={{
-                  textField: {
-                    variant: 'outlined',
-                    fullWidth: true,
-                    style: { marginTop: 20 },
-                    error: !!errors.exercise_start_date,
-                    helperText: errors.exercise_start_date?.message,
-                  },
-                }}
-                onChange={date => field.onChange(date?.toISOString())}
-                ampm={false}
-                format="yyyy-MM-dd HH:mm:ss"
-              />
-            )}
+            label={t('Start date (optional)')}
+            withTime
+            minDateTime={new Date()}
+            format="yyyy-MM-dd HH:mm:ss"
+            className="w-full mt-5"
           />
         )}
       <Controller
