@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  * <p>This is a floor, not the robust fix: the entrypoint list is hardcoded, so it protects against
  * deletion on a known method but not against a new scoped endpoint added without {@code TxCtx}. The
  * self-maintaining version (a {@code @RequiresTxScope} marker plus a compile-time rule in
- * openaev-annotation-processor) is tracked as a follow-up.
+ * openaev-build-services) is tracked as a follow-up.
  */
 @AnalyzeClasses(packages = "io.openaev", importOptions = ImportOption.DoNotIncludeTests.class)
 class TenantScopedEntrypointsTxCtxArchTest {

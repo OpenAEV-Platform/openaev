@@ -87,15 +87,25 @@ Audit logging will allow you to have a trace of the actions performed using API 
 
     Please note that only modifying actions are logged (creating, updating, deleting) and not reading actions.
 
-| Parameter                          | Environment variable               | Default value    | Description                                                                                                                                              |
-|:-------------------------------------|:--------------------------------------|:-------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |                  | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console |
-| openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false            | Parameter to stop the platform if audit logging is failing.                                                                                              |
-| logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
-| openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs             | Preferred setting for the audit log directory when `file` transport is enabled.                                                                          |
-| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit            | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                       |
-|                                    | AUDIT_LOG_DIR                      | logs             | Legacy compatibility env var for the audit log directory. When set, it overrides `openaev.audit-logs.file.dir`.                                          |
-|                                    | AUDIT_LOG_FILENAME                 | audit            | Legacy compatibility env var for the audit log basename. When set, it overrides `openaev.audit-logs.file.filename`; `audit` and `audit.log` are accepted. |
+| Parameter                          | Environment variable               | Default value | Description                                                                                                                                               |
+|:-----------------------------------|:-----------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |               | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console  |
+| openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false         | Parameter to stop the platform if audit logging is failing.                                                                                               |
+| logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |               | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                           |
+| openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs          | Preferred setting for the audit log directory when `file` transport is enabled.                                                                           |
+| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit         | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                        |
+|                                    | AUDIT_LOG_DIR                      | logs          | Legacy compatibility env var for the audit log directory. When set, it overrides `openaev.audit-logs.file.dir`.                                           |
+|                                    | AUDIT_LOG_FILENAME                 | audit         | Legacy compatibility env var for the audit log basename. When set, it overrides `openaev.audit-logs.file.filename`; `audit` and `audit.log` are accepted. |
+
+#### Inject execution
+
+The inject execution engine is the component responsible for executing the actions described in the various contracts
+registered in OpenAEV.
+
+| Parameter                                     | Environment variable                          | Default value | Description                                                                                                                                                                                                                                                                                          |
+|:----------------------------------------------|:----------------------------------------------|:--------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Recommended value: `4` (four minutes). Supported values: positive integers. Duration in minutes for the grace period after a time-based inject's configured start time, within which the inject is considered for execution. After this period, an inject will be deemed "too old" and set in error. |
+
 
 #### Credential status validation
 
@@ -153,22 +163,22 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 
 - With a classic authentication, you can use either ElasticSearch or OpenSearch as an engine.
 
-| Parameter              | Environment variable   | Default value         | Description                                                                                    |
-|:--------------------------|:--------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------|
-| engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                    |
-| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch and `opensearch` for OpenSearch) |
-| engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                              |
-| engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                             |
-| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the database                                          |
+| Parameter              | Environment variable   | Default value         | Description                                                                                                                            |
+|:--------------------------|:--------------------------|:--------------------------|:---------------------------------------------------------------------------------------------------------------------------------------|
+| engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                                                            |
+| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch 8 -default-, `elk9` for Elasticsearch 9 and `opensearch` for OpenSearch) |
+| engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                                                                      |
+| engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                                                                     |
+| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the database                                                                                  |
 
 - With AWS SigV4 authentication, you can use Amazon OpenSearch or Amazon OpenSearch Serverless as an engine.
 
-| Parameter                | Environment variable     | Default value         | Description                                                                                                |
-|:----------------------------|:----------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
-| engine.engine-aws-mode   | ENGINE_ENGINE_AWS_MODE   |                       | Whether to use AWS SigV4 authentication Amazon OpenSearch or Amazon OpenSearch Serverless (`es` or `aoss`) |
-| engine.engine-selector   | ENGINE_ENGINE_SELECTOR   |                       | Engine to use for storage and search (`opensearch` for OpenSearch)                                         |
-| engine.engine-aws-host   | ENGINE_ENGINE_AWS_HOST   |                       | URL of the OpenSearch database, no http(s) prefix                                                          |
-| engine.engine-aws-region | ENGINE_ENGINE_AWS_REGION |                       | Example: eu-west-3                                                                                         |
+| Parameter                    | Environment variable     | Default value         | Description                                                                                                |
+|:-----------------------------|:-------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
+| engine.engine-aws-mode       | ENGINE_ENGINE_AWS_MODE   |                       | Whether to use AWS SigV4 authentication Amazon OpenSearch or Amazon OpenSearch Serverless (`es` or `aoss`) |
+| engine.engine-selector       | ENGINE_ENGINE_SELECTOR   |                       | Engine to use for storage and search (`opensearch` for OpenSearch)                                         |
+| engine.engine-aws-host       | ENGINE_ENGINE_AWS_HOST   |                       | URL of the OpenSearch database, no http(s) prefix                                                          |
+| engine.engine-aws-region     | ENGINE_ENGINE_AWS_REGION |                       | Example: eu-west-3                                                                                         |
 
 !!! tip "Adding the needed authorization to AWS OpenSearch"
 

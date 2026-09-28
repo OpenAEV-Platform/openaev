@@ -61,7 +61,7 @@ services:
   # Development Elasticsearch (persistent storage)
   openaev-dev-elasticsearch:
     container_name: openaev-dev-elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.1
     volumes:
       - esdata:/usr/share/elasticsearch/data
       - essnapshots:/usr/share/elasticsearch/snapshots
@@ -161,7 +161,7 @@ services:
   # Test Elasticsearch (ephemeral - no volume for clean test runs)
   openaev-test-elasticsearch:
     container_name: openaev-test-elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.1
     environment:
       - discovery.type=single-node
       - xpack.ml.enabled=false
@@ -202,7 +202,7 @@ services:
   # Kibana - Elasticsearch UI for development
   openaev-dev-kibana:
     container_name: openaev-dev-kibana
-    image: docker.elastic.co/kibana/kibana:8.19.15
+    image: docker.elastic.co/kibana/kibana:9.5.1
     environment:
       - ELASTICSEARCH_HOSTS=http://openaev-dev-elasticsearch:9200
     restart: unless-stopped
@@ -214,7 +214,7 @@ services:
   # Kibana - Elasticsearch UI for testing
   openaev-test-kibana:
     container_name: openaev-test-kibana
-    image: docker.elastic.co/kibana/kibana:8.19.15
+    image: docker.elastic.co/kibana/kibana:9.5.1
     environment:
       - ELASTICSEARCH_HOSTS=http://openaev-test-elasticsearch:9200
     restart: unless-stopped
