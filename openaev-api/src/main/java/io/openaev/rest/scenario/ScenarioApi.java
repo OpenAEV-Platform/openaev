@@ -180,7 +180,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,
