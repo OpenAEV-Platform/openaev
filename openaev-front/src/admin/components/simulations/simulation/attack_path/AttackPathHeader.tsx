@@ -106,6 +106,10 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
         'backgroundColor': active ? alpha(accent, 0.08) : 'transparent',
         'transition': 'background-color 120ms, border-color 120ms',
         '&:hover': { backgroundColor: alpha(accent, 0.06) },
+        '&.Mui-focusVisible': {
+          borderColor: accent,
+          boxShadow: `0 0 0 2px ${alpha(accent, 0.25)}`,
+        },
       }}
     >
       <Box sx={{

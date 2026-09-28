@@ -281,9 +281,29 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
   );
   return to
     ? (
-        <Link to={to} style={{ textDecoration: 'none' }}>
+        <Box
+          component={Link}
+          to={to}
+          onKeyDown={(event) => {
+            if (event.key === ' ') {
+              event.preventDefault();
+              event.currentTarget.click();
+            }
+          }}
+          sx={{
+            'textDecoration': 'none',
+            'display': 'block',
+            'borderRadius': 1,
+            'outline': 'none',
+            '&:focus-visible': { boxShadow: `0 0 0 2px ${alpha(accent, 0.3)}` },
+            '&:focus-visible > div': {
+              borderColor: accent,
+              backgroundColor: alpha(accent, 0.08),
+            },
+          }}
+        >
           {content}
-        </Link>
+        </Box>
       )
     : content;
 };
