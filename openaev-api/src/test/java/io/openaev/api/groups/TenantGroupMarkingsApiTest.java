@@ -188,7 +188,8 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given a marking from another tenant, should refuse to assign it")
+    @DisplayName(
+        "given a marking from another tenant (the user has no access to), should refuse to assign it")
     void given_markingFromAnotherTenant_should_refuse() throws Exception {
       // -- ARRANGE --
       String otherTenantId = tenantHelper.createTenant("marking-assign-other").getId();
