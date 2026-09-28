@@ -14,6 +14,8 @@ import jakarta.mail.internet.MimeMessage;
 import java.util.Optional;
 import java.util.Properties;
 import org.assertj.core.api.AssertionsForClassTypes;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -38,6 +40,26 @@ public class SmtpServiceTest {
   @Autowired private SettingRepository settingRepository;
 
   @Autowired private SmtpService smtpService;
+
+  private Object originalMailSender;
+  private Object originalEnabled;
+
+  /**
+   * The service is a singleton of a context that outlives this class, and its scheduled connection
+   * check writes the platform setting outside any test transaction. Whatever this class flips on
+   * the bean must be put back, or the check keeps writing for the rest of the fork.
+   */
+  @BeforeAll
+  void rememberServiceState() {
+    originalMailSender = ReflectionTestUtils.getField(smtpService, "mailSender");
+    originalEnabled = ReflectionTestUtils.getField(smtpService, "enabled");
+  }
+
+  @AfterAll
+  void restoreServiceState() {
+    ReflectionTestUtils.setField(smtpService, "mailSender", originalMailSender);
+    ReflectionTestUtils.setField(smtpService, "enabled", originalEnabled);
+  }
 
   @BeforeEach
   void resetMocks() {
