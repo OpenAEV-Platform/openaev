@@ -1,4 +1,5 @@
 import { Navbar, NavbarItem, NavbarSeparator, NavbarSubmenu, NavbarSubmenuItem } from '@filigran/design-system';
+import { useTheme } from '@mui/material/styles';
 import { Fragment, type FunctionComponent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
@@ -43,6 +44,7 @@ interface Props {
 
 const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerElement }) => {
   const { t } = useFormatter();
+  const theme = useTheme();
   const location = useLocation();
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
@@ -129,11 +131,17 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
         // Only the wordmark is pinned to the bottom; the library renders its collapse toggle below this slot.
         footer={!isWhitemarkEnabled ? <MadeByFiligran collapsed={collapsed} /> : undefined}
         // FDS-WORKAROUND #20: fixed, never sticky — `sticky` drifted 0.41px — remove when the library positions the rail — see fds-migration/LIBRARY-FEEDBACK.md
+        // The library ships no positioning/z-index (NavbarProps only extends the
+        // native <nav> props), so the product owns the stacking level too: without
+        // an explicit zIndex the fixed rail sits at `auto` and horizontally-scrolled
+        // content in the in-flow <main> paints over it. Mirror the TopBar's Header,
+        // which sets theme.zIndex.appBar for the same reason.
         style={{
           position: 'fixed',
           top: bannerHeightNumber,
           left: 0,
           height: `calc(100dvh - ${2 * bannerHeightNumber}px)`,
+          zIndex: theme.zIndex.appBar,
         }}
       >
         {headerNode && (
