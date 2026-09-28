@@ -20,8 +20,12 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * to the default tenant while the rows attributed explicitly follow the request scope, and one
  * request writes to two tenants. Running the work here keeps the whole unit in the write tenant.
  *
- * <p>It does nothing when the ambient tenant already is the write tenant, which is always the case
- * on the prefixed route. It goes away with the ambient tenant layer.
+ * <p>It does nothing when the ambient tenant AND the {@code tenantFilter} of the current
+ * transaction are already on the write tenant, which is the case on the prefixed route. An ambient
+ * tenant that matches is not enough: a transaction opened by the background primitive arms no
+ * filter at all, and one whose caller moved the ambient tenant after entry keeps the filter the
+ * aspect armed, so in both cases the v1 reads inside the call would run on the wrong tenant, or on
+ * none. It goes away with the ambient tenant layer.
  *
  * <p>Inside the call the {@code tenantFilter} of the current transaction follows the write tenant.
  * On return it goes back to exactly the state found on entry: armed on the same tenant, or absent
@@ -52,13 +56,17 @@ public class AmbientTenantBridge {
 
   /** Same as {@link #callInTenant} for work that declares a checked exception. */
   public <T> T callInTenantChecked(String tenantId, Callable<T> work) throws Exception {
-    if (tenantId == null || tenantId.equals(TenantContext.getCurrentTenant())) {
+    if (tenantId == null) {
+      return work.call();
+    }
+    boolean inTransaction = TransactionSynchronizationManager.isActualTransactionActive();
+    TenantFilterState previousFilter = inTransaction ? snapshotTenantFilter() : null;
+    if (tenantId.equals(TenantContext.getCurrentTenant())
+        && (previousFilter == null || previousFilter.isOn(tenantId))) {
       return work.call();
     }
     String previousTenant =
         TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
-    boolean inTransaction = TransactionSynchronizationManager.isActualTransactionActive();
-    TenantFilterState previousFilter = inTransaction ? snapshotTenantFilter() : null;
     TenantContext.setCurrentTenant(tenantId);
     if (inTransaction) {
       session().enableFilter(TENANT_FILTER).setParameter(TENANT_PARAMETER, tenantId);
@@ -108,5 +116,9 @@ public class AmbientTenantBridge {
   /** What {@code tenantFilter} looked like when the bridge was entered. */
   private record TenantFilterState(boolean enabled, String tenantId) {
     static final TenantFilterState DISABLED = new TenantFilterState(false, null);
+
+    boolean isOn(String candidate) {
+      return enabled && candidate.equals(tenantId);
+    }
   }
 }

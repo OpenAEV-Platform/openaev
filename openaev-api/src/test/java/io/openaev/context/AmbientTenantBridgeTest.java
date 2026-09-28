@@ -175,6 +175,73 @@ class AmbientTenantBridgeTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("When the ambient tenant already is the write tenant")
+  class WhenTheAmbientTenantAlreadyMatches {
+
+    @Test
+    @DisplayName("given_noFilterArmedAndAmbientAlreadyTheWriteTenant_should_stillArmTheFilter")
+    void given_noFilterArmedAndAmbientAlreadyTheWriteTenant_should_stillArmTheFilter() {
+      tenantTx.execute(
+          TxCtx.forTenant(tenantB),
+          () -> {
+            // Arrange: the primitive arms no v1 filter and the job runner has already set the
+            // ambient tenant to the job's tenant, which is also the write tenant here
+            Session session = entityManager.unwrap(Session.class);
+            assertNull(session.getEnabledFilter(TENANT_FILTER), "precondition: no v1 filter armed");
+            TenantContext.setCurrentTenant(tenantB);
+
+            // Act
+            List<String> seenDuring =
+                bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleOrganizations);
+
+            // Assert
+            assertEquals(
+                List.of(organizationB),
+                seenDuring,
+                "inside the call the v1 reads are confined to the write tenant, not unfiltered");
+            assertNull(
+                session.getEnabledFilter(TENANT_FILTER),
+                "the state found at entry, no filter, is restored");
+            return null;
+          });
+    }
+
+    @Test
+    @DisplayName(
+        "given_filterArmedOnAnotherTenantAndAmbientAlreadyTheWriteTenant_should_followTheWriteTenant")
+    void
+        given_filterArmedOnAnotherTenantAndAmbientAlreadyTheWriteTenant_should_followTheWriteTenant() {
+      rawTransaction()
+          .execute(
+              status -> {
+                // Arrange: the transaction aspect armed the filter on A at entry, then the caller
+                // moved the ambient tenant to B before reaching the bridge with B as write tenant
+                Session session = entityManager.unwrap(Session.class);
+                session.enableFilter(TENANT_FILTER).setParameter("tenantId", tenantA);
+                TenantContext.setCurrentTenant(tenantB);
+
+                // Act
+                List<String> seenDuring =
+                    bridge.callInTenant(
+                        tenantB, AmbientTenantBridgeTest.this::visibleOrganizations);
+
+                // Assert
+                assertEquals(
+                    List.of(organizationB),
+                    seenDuring,
+                    "inside the call the v1 reads follow the write tenant, not the filter armed at"
+                        + " entry");
+                assertEquals(
+                    tenantA,
+                    enabledFilterTenant(session),
+                    "the filter goes back to the tenant it was armed on");
+                assertEquals(tenantB, TenantContext.getCurrentTenant(), "ambient tenant restored");
+                return null;
+              });
+    }
+  }
+
+  @Nested
   @DisplayName("Outside any transaction")
   class OutsideATransaction {
 
