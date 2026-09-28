@@ -407,7 +407,14 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
             {t('On macOS, only Advanced installation as System is currently available.')}
           </Alert>
         )}
-        <div>
+        <div
+          style={{
+            marginTop: theme.spacing(2),
+            display: 'flex',
+            flexDirection: 'row',
+            gap: '20px',
+          }}
+        >
           <RadioGroup
             aria-label={t('Installation mode')}
             orientation="horizontal"
