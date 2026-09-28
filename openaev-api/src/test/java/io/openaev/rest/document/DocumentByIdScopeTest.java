@@ -328,11 +328,9 @@ class DocumentByIdScopeTest extends IntegrationTest {
             + " discloses the id is a report output")
     void given_reportOutputOwnedByAnotherTenant_should_return404NotBadRequestOnPutTags()
         throws Exception {
-      // Arrange: document owned by B, report generation owned by the caller's path tenant A. On
-      // path
-      // A the report-output check (existsByDocumentId, filtered by the ambient tenant A) sees the A
-      // generation and would answer 400; the scope check must run first and answer 404, the same as
-      // for any out-of-scope document.
+      // Arrange: document owned by B, report generation owned by the caller's path tenant A. The
+      // report-output check sees that generation whatever the scope and would answer 400; the
+      // scoped lookup must run first and answer 404, the same as for any out-of-scope document.
       String id = seedBDocument();
       String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-ro-tags-a").getId();
       seedReportGenerationInTenant(tenantA, id);

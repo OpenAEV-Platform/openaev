@@ -238,7 +238,7 @@ public class DocumentService {
    * @throws BadRequestException when the document is a report generation output
    */
   public void assertNotReportingGenerationOutput(@NotBlank final String documentId) {
-    if (reportingGenerationRepository.existsByDocumentId(documentId)) {
+    if (reportingGenerationRepository.countByDocumentId(documentId) > 0) {
       throw new BadRequestException(
           "Document is a generated report managed by the Reporting module and cannot be modified"
               + " or deleted from here.");

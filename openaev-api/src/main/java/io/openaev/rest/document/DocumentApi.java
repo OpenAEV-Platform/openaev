@@ -198,25 +198,37 @@ public class DocumentApi extends RestBehavior {
   public Page<RawPaginationDocument> searchDocuments(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
-    // Report generation outputs are read-only from this generic surface: their lifecycle
-    // (naming, storage, deletion) belongs to the Reporting module.
-    // TODO(documents-management sweep): generalize a "system-owned document" contract instead
-    // of per-owner exclusion lists (security platform logos, report outputs, ...).
-    Set<String> reportingDocumentIds = new HashSet<>(reportingGenerationRepository.documentIds());
-    return buildPaginationJPA(
+    Page<Document> page =
+        buildPaginationJPA(
             (Specification<Document> specification, Pageable pageable) ->
                 this.documentRepository.findAll(specification, pageable),
             searchPaginationInput,
-            Document.class)
-        .map(
-            (document) -> {
-              var rawPaginationDocument = new RawPaginationDocument(document);
-              boolean isReportingOutput = reportingDocumentIds.contains(document.getId());
-              rawPaginationDocument.setDocument_can_be_deleted(
-                  !securityPlatformLogos.contains(document) && !isReportingOutput);
-              rawPaginationDocument.setDocument_can_be_updated(!isReportingOutput);
-              return rawPaginationDocument;
-            });
+            Document.class);
+    // Report generation outputs are read-only from this generic surface: their lifecycle
+    // (naming, storage, deletion) belongs to the Reporting module. Asked for the documents of this
+    // page only, so the answer is the same on both routes and does not grow with the number of
+    // tenants.
+    // TODO(documents-management sweep): generalize a "system-owned document" contract instead
+    // of per-owner exclusion lists (security platform logos, report outputs, ...).
+    Set<String> reportingDocumentIds = reportingOutputsAmong(page.getContent());
+    return page.map(
+        (document) -> {
+          var rawPaginationDocument = new RawPaginationDocument(document);
+          boolean isReportingOutput = reportingDocumentIds.contains(document.getId());
+          rawPaginationDocument.setDocument_can_be_deleted(
+              !securityPlatformLogos.contains(document) && !isReportingOutput);
+          rawPaginationDocument.setDocument_can_be_updated(!isReportingOutput);
+          return rawPaginationDocument;
+        });
+  }
+
+  private Set<String> reportingOutputsAmong(List<Document> documents) {
+    if (documents.isEmpty()) {
+      return Set.of();
+    }
+    return new HashSet<>(
+        reportingGenerationRepository.documentIdsAmong(
+            documents.stream().map(Document::getId).toList()));
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}", TENANT_DOCUMENT_API + "/{documentId}"})
@@ -355,6 +367,10 @@ public class DocumentApi extends RestBehavior {
   public ResponseEntity<InputStreamResource> downloadDocument(
       TxCtx ctx, @PathVariable String documentId) {
     Document document = documentService.document(documentId);
+    // The boundary here is the scoped lookup above, not the owning tenant passed along: the
+    // document is addressed by its own id, so its own tenant is where its bytes belong. The
+    // argument locates the object, it does not check anything, unlike the routes that reach a
+    // document through a parent and pass the parent's tenant.
     return buildDocumentDownloadResponse(document, tenantIdOrNull(document));
   }
 
@@ -371,6 +387,8 @@ public class DocumentApi extends RestBehavior {
   public ResponseEntity<InputStreamResource> downloadDocumentForAgent(
       TxCtx ctx, @PathVariable String documentId) {
     Document document = documentService.document(documentId);
+    // Same as above: the scope of the lookup is the boundary, the owning tenant only locates the
+    // object.
     return buildDocumentDownloadResponse(document, tenantIdOrNull(document));
   }
 
