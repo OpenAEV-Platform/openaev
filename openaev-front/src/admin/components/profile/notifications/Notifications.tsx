@@ -1,6 +1,6 @@
 import { Badge, Button, Checkbox, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckCircleOutlined, DeleteOutlined, NotificationsOutlined, UnpublishedOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -40,7 +40,7 @@ const inlineStyles: Record<string, CSSProperties> = {
   notification_operation: { width: '12%' },
   notification_message: { width: '45%' },
   notification_created_at: { width: '20%' },
-  notification_name: { width: '23%' },
+  notification_name: { width: '16%' },
 };
 
 const Notifications = () => {
@@ -189,6 +189,7 @@ const Notifications = () => {
             <Chip
               severity={notification.notification_type === 'LIVE' ? 'medium' : 'info'}
               label={notification.notification_name ?? '-'}
+              style={{ maxWidth: '100%' }}
               onClick={(event) => {
               // Quick filter on the trigger: only this trigger's notifications.
                 event.preventDefault();
@@ -299,7 +300,11 @@ const Notifications = () => {
                   divider
                   disablePadding
                   secondaryAction={(
-                    <>
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    >
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <IconButton
@@ -315,20 +320,26 @@ const Notifications = () => {
                         </TooltipTrigger>
                         <TooltipContent>{notification.notification_is_read ? t('Mark as unread') : t('Mark as read')}</TooltipContent>
                       </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <IconButton
-                            icon={<DeleteOutlined fontSize="small" />}
-                            aria-label={t('Delete')}
-                            onClick={() => setNotificationToDelete(notification)}
-                            variant="destructive"
-                            priority="tertiary"
-                            size="sm"
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent>{t('Delete')}</TooltipContent>
-                      </Tooltip>
-                    </>
+                      <Box sx={{
+                        ml: '4px',
+                        display: 'inline-flex',
+                      }}
+                      >
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <IconButton
+                              icon={<DeleteOutlined fontSize="small" />}
+                              aria-label={t('Delete')}
+                              onClick={() => setNotificationToDelete(notification)}
+                              variant="destructive"
+                              priority="tertiary"
+                              size="sm"
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent>{t('Delete')}</TooltipContent>
+                        </Tooltip>
+                      </Box>
+                    </Box>
                   )}
                 >
                   <ListItemButton
