@@ -21,6 +21,8 @@ interface CommonProps {
   infoTooltip?: ReactNode;
   className?: string;
   onAccept?: (value: Date | null) => void;
+  /** Forwarded to the field: forms validating on touch need the blur. */
+  onBlur?: () => void;
 }
 
 interface FormProps<T extends FieldValues> extends CommonProps {
@@ -50,7 +52,7 @@ type Props<T extends FieldValues> = FormProps<T> | ControlledProps;
  */
 const TimeField = <T extends FieldValues = FieldValues>({
   label, required, disabled, clearable, minTime, maxTime, minutesStep,
-  format, timezone, helperText, infoTooltip, className, onAccept,
+  format, timezone, helperText, infoTooltip, className, onAccept, onBlur,
   ...binding
 }: Props<T>) => {
   const { t, locale } = useFormatter();
@@ -89,6 +91,10 @@ const TimeField = <T extends FieldValues = FieldValues>({
             {...shared}
             value={field.value ? new Date(field.value) : null}
             onChange={time => field.onChange(time ? time.toISOString() : undefined)}
+            onBlur={() => {
+              field.onBlur();
+              onBlur?.();
+            }}
             error={fieldState.error?.message}
           />
         )}
@@ -97,7 +103,7 @@ const TimeField = <T extends FieldValues = FieldValues>({
   }
 
   const { value, onChange, error } = binding as ControlledProps;
-  return <TimePicker {...shared} value={value} onChange={time => onChange(time)} error={error} />;
+  return <TimePicker {...shared} value={value} onChange={time => onChange(time)} onBlur={onBlur} error={error} />;
 };
 
 export default TimeField;

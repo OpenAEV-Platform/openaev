@@ -134,6 +134,8 @@ const ReportingScheduleFields: FunctionComponent<Props> = ({ showEnabledSwitch =
               error={error?.message}
               value={parseClock(field.value)}
               onChange={next => field.onChange(next ? formatClock(next) : '')}
+              // The form validates on touch, and the touch is the blur.
+              onBlur={field.onBlur}
             />
           )}
         />

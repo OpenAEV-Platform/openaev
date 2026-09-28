@@ -22,6 +22,8 @@ interface CommonProps {
   infoTooltip?: ReactNode;
   className?: string;
   onAccept?: (value: Date | null) => void;
+  /** Forwarded to the field: forms validating on touch need the blur. */
+  onBlur?: () => void;
 }
 
 interface FormProps<T extends FieldValues> extends CommonProps {
@@ -60,7 +62,7 @@ type Props<T extends FieldValues> = FormProps<T> | ControlledProps;
  */
 const DateField = <T extends FieldValues = FieldValues>({
   label, withTime, required, disabled, clearable, minDate, maxDate,
-  minDateTime, maxDateTime, format, helperText, infoTooltip, className, onAccept,
+  minDateTime, maxDateTime, format, helperText, infoTooltip, className, onAccept, onBlur,
   ...binding
 }: Props<T>) => {
   const { t, locale } = useFormatter();
@@ -110,6 +112,10 @@ const DateField = <T extends FieldValues = FieldValues>({
             {...shared}
             value={field.value ? new Date(field.value) : null}
             onChange={date => field.onChange(date ? (toStorage ?? ((d: Date) => d.toISOString()))(date) : clearedValue)}
+            onBlur={() => {
+              field.onBlur();
+              onBlur?.();
+            }}
             error={fieldState.error?.message}
           />
         )}
@@ -123,6 +129,7 @@ const DateField = <T extends FieldValues = FieldValues>({
       {...shared}
       value={value}
       onChange={date => onChange(date)}
+      onBlur={onBlur}
       error={error}
     />
   );
