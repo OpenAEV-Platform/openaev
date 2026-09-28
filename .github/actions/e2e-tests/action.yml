@@ -51,6 +51,10 @@ inputs:
     description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
     required: false
     default: ""
+  no-cache:
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -61,29 +65,10 @@ runs:
         search-engine: ${{ inputs.search-engine }}
         search-engine-image: ${{ inputs.search-engine-image }}
 
-    - name: Set up Node.js 24
-      uses: actions/setup-node@v7
-      with:
-        node-version: "24.21.0"
-    - name: Install corepack
-      run: npm install -g corepack
-      shell: bash
-    - name: Get Yarn cache directory
-      id: yarn-cache-dir
-      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
-      shell: bash
-      working-directory: openaev-front
-    - name: Cache Yarn dependencies
-      uses: actions/cache@v6
-      with:
-        path: ${{ steps.yarn-cache-dir.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
     - name: Install frontend dependencies
-      run: yarn install --immutable
-      shell: bash
-      working-directory: openaev-front
+      uses: ./.github/actions/yarn-install
+      with:
+        no-cache: ${{ inputs.no-cache }}
     - name: Resolve Playwright version
       id: pw-version
       run: |
@@ -92,32 +77,42 @@ runs:
         echo "Playwright $VERSION"
       shell: bash
       working-directory: openaev-front
-    - name: Cache Playwright browsers
+    - name: Restore Playwright browsers
       id: playwright-cache
-      uses: actions/cache@v6
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
       with:
         path: ~/.cache/ms-playwright
-        # Browser builds track the Playwright version, not the whole lockfile, so an
-        # unrelated dependency bump no longer forces a re-download.
+        # Cache browser downloads by Playwright version, not the full lockfile.
         key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
         restore-keys: |
           playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-
+    # Refresh system dependencies best-effort; GitHub runners provide the required libraries.
+    - name: Install Playwright system dependencies
+      run: |
+        BROWSER="${{ inputs.browser }}"
+        [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
+        sudo apt-get update || echo "⚠️ apt-get update failed; continuing"
+        yarn playwright install-deps chromium $BROWSER \
+          || echo "⚠️ System dependency refresh failed; continuing with the runner image's own libraries"
+      shell: bash
+      working-directory: openaev-front
     - name: Install Playwright browsers (${{ inputs.browser }} + chromium for setup)
       if: steps.playwright-cache.outputs.cache-hit != 'true'
       run: |
         BROWSER="${{ inputs.browser }}"
         [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
-        yarn playwright install --with-deps chromium $BROWSER
+        yarn playwright install chromium $BROWSER
       shell: bash
       working-directory: openaev-front
-    - name: Install Playwright system dependencies (cache hit)
-      if: steps.playwright-cache.outputs.cache-hit == 'true'
-      run: |
-        BROWSER="${{ inputs.browser }}"
-        [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
-        yarn playwright install-deps chromium $BROWSER
-      shell: bash
-      working-directory: openaev-front
+
+    # Only main writes: PR-scoped caches cannot warm other PRs.
+    - name: Save Playwright browsers
+      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.playwright-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw-version.outputs.version }}
 
     - name: Obtain Docker image
       id: image-source
@@ -143,7 +138,6 @@ runs:
           oci-archive:${{ inputs.docker-image }}.tar \
           docker-archive:docker-image.tar:openaev:ci
         rm -f ${{ inputs.docker-image }}.tar ${{ inputs.docker-image }}.tar.gz
-        # Load into Docker daemon from file (reliable)
         docker load -i docker-image.tar
         rm -f docker-image.tar
         IMAGE_ID=$(docker images openaev:ci --format '{{.ID}}')

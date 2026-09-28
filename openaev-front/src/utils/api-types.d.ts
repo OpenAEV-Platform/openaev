@@ -555,6 +555,7 @@ export interface Asset {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -767,6 +768,24 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
+export interface AssetMarkingsOutput {
+  /**
+   * Asset Id
+   * @minLength 1
+   */
+  asset_id: string;
+  /**
+   * Markings currently carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
+   * Asset name
+   * @minLength 1
+   */
+  asset_name: string;
+}
+
 export interface AssetOptionOutput {
   /** Product-facing asset category, used to group options in pickers */
   category?: string;
@@ -936,6 +955,10 @@ export interface AssetSnapshotOutput {
   asset_snapshot_id?: string;
   /** Frozen asset name. */
   asset_snapshot_name?: string;
+}
+
+export interface AssetUpdateMarkingsInput {
+  asset_markings: string[];
 }
 
 export interface AtomicInjectorContractOutput {
@@ -3991,6 +4014,7 @@ export interface Endpoint {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -4280,6 +4304,11 @@ export interface EndpointOutput {
   asset_internet_facing?: boolean;
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /**
    * Asset name
    * @minLength 1
@@ -6131,6 +6160,7 @@ export interface Group {
   group_grants?: Grant[];
   /** @minLength 1 */
   group_id: string;
+  group_markings?: string[];
   /** @minLength 1 */
   group_name: string;
   group_roles?: string[];
@@ -6148,6 +6178,10 @@ export interface GroupGrantInput {
     | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
+}
+
+export interface GroupUpdateMarkingsInput {
+  group_markings: string[];
 }
 
 export interface GroupUpdateRolesInput {
@@ -8128,6 +8162,7 @@ export interface NotificationTriggerInput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -8236,6 +8271,7 @@ export interface NotificationTriggerOutput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -10760,6 +10796,7 @@ export interface RoleInput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -10842,6 +10879,7 @@ export interface RoleOutput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11460,6 +11498,7 @@ export interface SecurityPlatform {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -12334,6 +12373,24 @@ export interface TenantGroupCreateInput {
   group_name: string;
 }
 
+export interface TenantGroupMarkingsOutput {
+  /**
+   * Group Id
+   * @minLength 1
+   */
+  group_id: string;
+  /**
+   * Markings currently granted by the group
+   * @uniqueItems true
+   */
+  group_markings?: string[];
+  /**
+   * Group name
+   * @minLength 1
+   */
+  group_name: string;
+}
+
 export interface TenantInput {
   tenant_description?: string;
   /** @minLength 1 */
@@ -12857,6 +12914,16 @@ export interface UpdateExerciseInput {
   exercise_tags?: string[];
 }
 
+export interface UpdateMeEmailInput {
+  /** @minLength 1 */
+  user_current_password: string;
+  /**
+   * @format email
+   * @minLength 1
+   */
+  user_email: string;
+}
+
 export interface UpdateMePasswordInput {
   /** @minLength 1 */
   user_current_password: string;
@@ -12866,11 +12933,6 @@ export interface UpdateMePasswordInput {
 
 export interface UpdateProfileInput {
   user_country?: string;
-  /**
-   * @format email
-   * @minLength 1
-   */
-  user_email: string;
   /** @minLength 1 */
   user_firstname: string;
   user_home_dashboard?: string;
@@ -13001,6 +13063,7 @@ export interface User {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
