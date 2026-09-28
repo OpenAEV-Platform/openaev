@@ -469,14 +469,14 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonIgnore
   public void clean() {
     this.setStatus(null); // note this does not delete the status record in the db
+    this.setAuthorisation(null);
     this.communications.clear();
     this.expectations.clear();
+    this.setTriggerNowDate(null);
     if (this.findings == null) {
       this.findings = new ArrayList<>();
-    } else if (org.hibernate.Hibernate.isInitialized(this.findings)) {
-      this.findings.clear();
     } else {
-      this.findings = new ArrayList<>();
+      this.findings.clear();
     }
     this.setCollectExecutionStatus(COLLECTING);
   }

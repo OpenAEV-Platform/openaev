@@ -469,14 +469,20 @@ public class InjectStatusService {
    * @param injects the list of injects
    */
   public void deleteAllInjectStatusByInjects(List<Inject> injects) {
-    List<String> injectIds = injects.stream().map(Inject::getId).toList();
     List<String> injectStatusIds =
         injects.stream()
             .map(Inject::getStatus)
             .flatMap(i -> i.map(InjectStatus::getId).stream())
             .toList();
-    injectAuthorisationRepository.deleteAllByInjectIds(injectIds);
     injectStatusRepository.deleteAllByIds(injectStatusIds);
+  }
+
+  public InjectStatus createInjectStatusAsQueuing(Inject inject) {
+    InjectStatus injectStatus = new InjectStatus();
+    injectStatus.setInject(inject);
+    injectStatus.setTrackingSentDate(Instant.now());
+    injectStatus.setName(ExecutionStatus.QUEUING);
+    return injectStatus;
   }
 
   // -- AUDIT LOGGING --

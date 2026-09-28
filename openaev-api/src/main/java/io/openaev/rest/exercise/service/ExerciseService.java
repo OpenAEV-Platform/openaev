@@ -691,15 +691,12 @@ public class ExerciseService {
       }
     }
     if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
-      exercise.setStart(null);
-      exercise.setEnd(null);
       // Reset pauses
-      exercise.setCurrentPause(null);
       pauseExerciseService.deleteAllPauseByExerciseId(exercise.getId());
       // Reset injects outcome, communications and expectations
       injectService.resetInjectByExercise(exercise.getId());
       // Reset lessons learned answers
-      this.lessonsService.resetLessonsAnswer(exerciseId);
+      this.lessonsService.resetLessonsAnswer(exercise.getId());
 
       entityManager.flush();
       entityManager.clear();
