@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -51,6 +52,7 @@ import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -116,6 +118,9 @@ public class V1_DataImporter implements Importer {
   private final InjectorService injectorService;
 
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
+
+  private final AmbientTenantBridge ambientTenantBridge;
+  private final EntityManager entityManager;
 
   // endregion
 
@@ -224,6 +229,60 @@ public class V1_DataImporter implements Importer {
       Asset asset,
       AssetGroup assetGroup,
       String suffix) {
+    // Resolve the write tenant once. A bundle imported into an existing simulation or scenario is
+    // written in the tenant of that parent, which must lie inside the request scope; a bundle with
+    // no parent takes the single tenant of the scope. Documents, tags, challenges and channels are
+    // attributed to it explicitly; the roots that are not tenant-active yet (exercise, scenario,
+    // injects, teams, payloads) are still stamped from the ambient tenant and matched against
+    // existing rows through it. Running the whole import with the ambient tenant aligned on the
+    // write tenant keeps the bundle in one tenant on every route.
+    String writeTenant =
+        tenantWriteScopeResolver.tenantForWrite(ctx, parentTenantId(exercise, scenario));
+    // The nested importers resolve the tenant of the rows they create (tags, challenges, channels,
+    // kill chain phases, security platforms) from the scope they are given: hand them the resolved
+    // tenant so every row follows it even when the request scope holds several tenants.
+    return ambientTenantBridge.callInTenant(
+        writeTenant,
+        () -> {
+          ImportResult result =
+              importBundle(
+                  TxCtx.forTenant(writeTenant),
+                  importNode,
+                  docReferences,
+                  exercise,
+                  scenario,
+                  asset,
+                  assetGroup,
+                  suffix,
+                  writeTenant);
+          // The rows saved above are only queued: a row reached through a cascade is stamped from
+          // the ambient tenant when it is flushed, so the flush must happen before the bridge
+          // restores the ambient tenant, not at the next query or at commit.
+          entityManager.flush();
+          return result;
+        });
+  }
+
+  private static String parentTenantId(Exercise exercise, Scenario scenario) {
+    if (exercise != null && exercise.getTenant() != null) {
+      return exercise.getTenant().getId();
+    }
+    if (scenario != null && scenario.getTenant() != null) {
+      return scenario.getTenant().getId();
+    }
+    return null;
+  }
+
+  private ImportResult importBundle(
+      TxCtx ctx,
+      JsonNode importNode,
+      Map<String, ImportEntry> docReferences,
+      Exercise exercise,
+      Scenario scenario,
+      Asset asset,
+      AssetGroup assetGroup,
+      String suffix,
+      String writeTenant) {
     Map<String, Base> baseIds = new HashMap<>();
 
     String prefix = "inject_";
@@ -235,12 +294,17 @@ public class V1_DataImporter implements Importer {
       prefix = "payload_";
     }
     importTags(ctx, importNode, prefix, baseIds);
+    // The imported documents are created off the write tenant and stored under it, so a removed
+    // TenantBaseListener never has to stamp them, and the create/update decision is scoped to the
+    // write tenant rather than the ambient filter.
     Exercise savedExercise =
         Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
     Scenario savedScenario =
         Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
-    importDocuments(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
-    importDocument(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
+    importDocuments(
+        importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
+    importDocument(
+        importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
 
     // Should be done after tags & documents
     if (prefix.equals("payload_")) {
@@ -585,6 +649,8 @@ public class V1_DataImporter implements Importer {
    * @param prefix1 field prefix for the first node (e.g. "payload_")
    * @param node2 second JSON node (may be {@code null})
    * @param prefix2 field prefix for the second node (e.g. "injector_contract_")
+   * @param writeTenant tenant whose preset domain is the fallback when no domain resolves; a lookup
+   *     by name alone is ambiguous when the request scope holds several tenants
    * @return a deduplicated set of resolved domains, never empty
    */
   protected Set<Domain> mergeDomains(
@@ -592,14 +658,17 @@ public class V1_DataImporter implements Importer {
       JsonNode node1,
       String prefix1,
       @Nullable JsonNode node2,
-      @Nullable String prefix2) {
+      @Nullable String prefix2,
+      String writeTenant) {
     Set<Domain> domains = new LinkedHashSet<>(importDomains(node1, prefix1, baseIds));
     if (node2 != null) {
       domains.addAll(importDomains(node2, prefix2, baseIds));
     }
     if (domains.isEmpty()) {
       domains.add(
-          domainService.findOptionalByName(PresetDomain.getToClassify().getName()).orElseThrow());
+          domainService
+              .findOptionalByName(PresetDomain.getToClassify().getName(), writeTenant)
+              .orElseThrow());
     }
     return domains;
   }
@@ -785,6 +854,7 @@ public class V1_DataImporter implements Importer {
       JsonNode importNode,
       String prefix,
       Map<String, ImportEntry> docReferences,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       Map<String, Base> baseIds) {
@@ -795,7 +865,8 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(
+                nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, baseIds);
           }
         });
     // Handle argument documents
@@ -807,7 +878,8 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(
+                nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, baseIds);
           }
         });
   }
@@ -816,6 +888,7 @@ public class V1_DataImporter implements Importer {
       JsonNode importNode,
       String prefix,
       Map<String, ImportEntry> docReferences,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       Map<String, Base> baseIds) {
@@ -830,7 +903,8 @@ public class V1_DataImporter implements Importer {
     if (target != null) {
       ImportEntry entry = docReferences.get(target);
       if (entry != null) {
-        handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+        handleDocumentWithEntry(
+            nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, baseIds);
       }
     }
   }
@@ -839,17 +913,22 @@ public class V1_DataImporter implements Importer {
       JsonNode nodeDoc,
       ImportEntry entry,
       String target,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       Map<String, Base> baseIds) {
     String contentType = new MimetypesFileTypeMap().getContentType(entry.getEntry().getName());
+    // Scope the create/update decision to the write tenant: an unscoped lookup runs under the
+    // ambient filter, so a document with the same target in another tenant would be reused and
+    // re-linked here instead of a fresh one being created for the import's tenant.
     Optional<Document> targetDocument =
-        this.documentRepository.findFirstByTargetOrderByIdAsc(target);
+        this.documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(target, writeTenant);
 
     if (targetDocument.isPresent()) {
       updateExistingDocument(nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);
     } else {
-      uploadNewDocument(nodeDoc, entry, target, savedExercise, savedScenario, contentType, baseIds);
+      uploadNewDocument(
+          nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, contentType, baseIds);
     }
   }
 
@@ -879,18 +958,22 @@ public class V1_DataImporter implements Importer {
       JsonNode nodeDoc,
       ImportEntry entry,
       String target,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       String contentType,
       Map<String, Base> baseIds) {
     try {
+      // Store the object under the write tenant, the same tenant the row below is attributed to, so
+      // it is retrievable whatever the ambient TenantContext (the header route sets none).
       this.documentService.uploadFile(
-          target, entry.getData(), entry.getContentLength(), contentType);
+          writeTenant, target, entry.getData(), entry.getContentLength(), contentType);
     } catch (Exception e) {
       throw new ImportException(e);
     }
 
     Document document = new Document();
+    document.setTenant(new Tenant(writeTenant));
     document.setTarget(target);
     document.setName(nodeDoc.get("document_name").textValue());
     document.setDescription(nodeDoc.get("document_description").textValue());
@@ -1681,7 +1764,8 @@ public class V1_DataImporter implements Importer {
             importNode,
             "injector_contract_",
             importNode.get("injector_contract_payload"),
-            "payload_"));
+            "payload_",
+            tenantWriteScopeResolver.tenantForWrite(ctx, null)));
 
     // Attack patterns
     injectorContract.setAttackPatterns(
@@ -1790,7 +1874,13 @@ public class V1_DataImporter implements Importer {
 
     // Domains — merge from payload and injector contract nodes, fallback to ToClassify
     Set<Domain> domains =
-        mergeDomains(baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
+        mergeDomains(
+            baseIds,
+            payloadNode,
+            "payload_",
+            injectorContractNode,
+            "injector_contract_",
+            tenantWriteScopeResolver.tenantForWrite(ctx, null));
     payloadCreateInput.setDomainIds(
         domains.stream().map(Domain::getId).collect(Collectors.toList()));
 
@@ -2438,13 +2528,21 @@ public class V1_DataImporter implements Importer {
    * platform id ({@code detection_remediation_security_platform}); legacy exports carry a collector
    * type name ({@code detection_remediation_collector_type}, e.g. {@code openaev_crowdstrike})
    * which is humanized to a platform name, resolved case-insensitively and created as a manual
-   * platform when absent - so old exports keep importing without any collector installed.
+   * platform when absent - so old exports keep importing without any collector installed. Both
+   * lookups are confined to the tenant the import writes into: the id and the name come from the
+   * import file, and the request scope the statement inspector applies may hold several tenants of
+   * the caller (the injects import endpoints take no tenant selector), so a lookup scoped only by
+   * the inspector could bind a platform of another of the caller's tenants to the imported
+   * remediation.
    */
   private Optional<SecurityPlatform> resolveDetectionRemediationSecurityPlatform(
       TxCtx ctx, JsonNode detectionNode) {
+    // ctx is the single-tenant write scope threaded down from importData.
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     String platformId = getTextValue(detectionNode, "detection_remediation_security_platform");
     if (!platformId.isEmpty()) {
-      Optional<SecurityPlatform> byId = securityPlatformRepository.findById(platformId);
+      Optional<SecurityPlatform> byId =
+          securityPlatformRepository.findByIdAndTenantId(platformId, writeTenant);
       if (byId.isPresent()) {
         return byId;
       }
@@ -2456,15 +2554,15 @@ public class V1_DataImporter implements Importer {
     CollectorTypeHumanizer.HumanizedPlatform humanized =
         CollectorTypeHumanizer.humanize(collectorTypeName);
     Optional<SecurityPlatform> byName =
-        securityPlatformRepository.findFirstByNameIgnoreCaseOrderByIdAsc(humanized.name());
+        securityPlatformRepository.findFirstByNameIgnoreCaseAndTenantIdOrderByIdAsc(
+            humanized.name(), writeTenant);
     if (byName.isPresent()) {
       return byName;
     }
     SecurityPlatform created = new SecurityPlatform();
     // The platform is a row of the tenant-active assets table, so the fallback creation needs the
-    // importing tenant explicitly: ctx is the import request's scope, threaded down from
-    // buildPayloadCreateInput rather than read from the v1 thread-local.
-    created.setTenant(new Tenant(tenantWriteScopeResolver.tenantForWrite(ctx, null)));
+    // write tenant explicitly rather than the v1 thread-local.
+    created.setTenant(new Tenant(writeTenant));
     created.setName(humanized.name());
     created.setSecurityPlatformType(humanized.type());
     return Optional.of(securityPlatformRepository.save(created));
@@ -3756,7 +3854,10 @@ public class V1_DataImporter implements Importer {
     // Rewrite the inject_documents attachment references: documents are recreated with a NEW UUID
     // on the target instance, so the source ids serialized in step_data must be mapped to the
     // resolved target documents or the imported step silently loses valid attachments at run time.
-    rewriteImportedInjectDocuments(dataObject, baseIds);
+    // An id the bundle does not carry is resolved in the tenant the import writes into, never in
+    // the whole request scope: ctx is the single-tenant write scope threaded down from importData.
+    rewriteImportedInjectDocuments(
+        dataObject, baseIds, tenantWriteScopeResolver.tenantForWrite(ctx, null));
     JsonNode injectContractNode = dataObject.get("inject_injector_contract");
     if (injectContractNode instanceof ObjectNode injectContractObject) {
       rewriteImportedTagIds(injectContractObject, "injector_contract_tags", baseIds);
@@ -3923,13 +4024,14 @@ public class V1_DataImporter implements Importer {
    * <p>Elements keep their serialized shape: link objects ({@code MultiModelSerializer} output,
    * matched on {@code document_id}) are rewritten in place, scalar id entries (the defensive shape
    * also accepted by {@code InjectDocumentDeserializer}) are replaced by the resolved id. An id not
-   * seeded in {@code baseIds} but already present on the target tenant (re-import on the same
+   * seeded in {@code baseIds} but already present in the write tenant (re-import on the same
    * instance without a bundled file) is kept as-is. An id that resolves to nothing is dropped: the
    * run-time lookup in {@code InjectExecutionStep#getInjectFromDataStep} is tenant-filtered and
    * would drop the attachment anyway, so dropping here keeps the persisted step data free of dead
    * references.
    */
-  private void rewriteImportedInjectDocuments(ObjectNode dataObject, Map<String, Base> baseIds) {
+  private void rewriteImportedInjectDocuments(
+      ObjectNode dataObject, Map<String, Base> baseIds, String writeTenant) {
     JsonNode documentsNode = dataObject.get("inject_documents");
     if (documentsNode == null || !documentsNode.isArray()) {
       return;
@@ -3946,7 +4048,7 @@ public class V1_DataImporter implements Importer {
       if (!hasText(rawId)) {
         continue;
       }
-      String resolvedId = resolveImportedDocumentId(rawId, baseIds);
+      String resolvedId = resolveImportedDocumentId(rawId, baseIds, writeTenant);
       if (resolvedId == null) {
         continue;
       }
@@ -3962,20 +4064,24 @@ public class V1_DataImporter implements Importer {
 
   /**
    * Resolves a step_data document reference to a TARGET-instance document id: the {@code baseIds}
-   * mapping seeded by the document import first, then a tenant-scoped lookup (re-import on the same
-   * instance where the export did not bundle the file), {@code null} when the id resolves to
-   * nothing. The fallback is tenant-scoped on purpose: the raw id comes from the import file and a
-   * bare {@code findById} could match another tenant's document. A successful fallback is cached
-   * back into {@code baseIds}, so an id referenced by several links or steps costs at most one
-   * query per import instead of one per occurrence.
+   * mapping seeded by the document import first, then a lookup confined to the tenant the import
+   * writes into (re-import on the same instance where the export did not bundle the file), {@code
+   * null} when the id resolves to nothing. The raw id comes from the import file, and the request
+   * scope the statement inspector applies may hold several tenants of the caller (the injects
+   * import endpoints take no tenant selector), so a lookup scoped only by the inspector could bind
+   * a document of another of the caller's tenants into the imported step. The explicit tenant
+   * predicate keeps the link inside the write tenant; the inspector still applies on top. A
+   * successful fallback is cached back into {@code baseIds}, so an id referenced by several links
+   * or steps costs at most one query per import instead of one per occurrence.
    */
-  private String resolveImportedDocumentId(String rawId, Map<String, Base> baseIds) {
+  private String resolveImportedDocumentId(
+      String rawId, Map<String, Base> baseIds, String writeTenant) {
     if (baseIds.get(rawId) instanceof Document resolvedDocument
         && resolvedDocument.getId() != null) {
       return resolvedDocument.getId();
     }
     return documentRepository
-        .findByIdAndTenantId(rawId, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(rawId, writeTenant)
         .map(
             document -> {
               baseIds.put(rawId, document);

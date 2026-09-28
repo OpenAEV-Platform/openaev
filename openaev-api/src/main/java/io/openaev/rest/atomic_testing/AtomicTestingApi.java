@@ -11,6 +11,7 @@ import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -376,10 +377,13 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read/write (the import reads InjectorContract#getFirstInjector()).
-      // The handler does not use it directly.
-      TxCtx ctx, @RequestPart("file") MultipartFile file, HttpServletResponse response)
+      // The TxCtx parameter signals the transaction aspect to set the tenant scope for this
+      // read/write (the import reads InjectorContract#getFirstInjector()) and gives the importer
+      // the single tenant the imported rows are attributed to; without a selector it is resolved
+      // from the caller's memberships so tenant-unaware clients keep working.
+      @RequireTenantSelector TxCtx ctx,
+      @RequestPart("file") MultipartFile file,
+      HttpServletResponse response)
       throws Exception {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");

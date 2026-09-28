@@ -221,7 +221,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new IOException())
         .when(mockZipJsonService)
-        .handleImport(any(), eq("custom_dashboard_name"), isNull(), isNull(), eq(""));
+        .handleImport(any(), eq("custom_dashboard_name"), isNull(), isNull(), eq(""), any());
 
     // EXECUTE
     datapack.process(new Tenant(TenantContext.getCurrentTenant()));

@@ -46,7 +46,7 @@ public class StixApi extends RestBehavior {
       value = "/process-bundle",
       consumes = MediaType.APPLICATION_JSON_VALUE,
       produces = MediaType.APPLICATION_JSON_VALUE)
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   @Operation(
       summary = "Process a STIX bundle",
       description =
