@@ -411,6 +411,21 @@ public class CredentialService {
   }
 
   /**
+   * Resolves one credential into its plaintext runtime payload through the backing provider.
+   *
+   * @param credential the credential reference to resolve
+   * @return the resolved plaintext secret payload
+   */
+  @Transactional(readOnly = true)
+  public SecretResolvedValue resolveCredentialSecret(
+      @NotNull final CredentialSecretReference credential) {
+    SecretsProvider secretProvider =
+        secretsProviderResolver.resolveByConnectorInstanceId(
+            credential.getTenant().getId(), credential.getConnectorInstanceId());
+    return secretProvider.getResolvedSecret(credential);
+  }
+
+  /**
    * Searches tenant credentials using pageable query input.
    *
    * @param ctx transaction context carrying tenant scope

@@ -168,20 +168,6 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.INJECT_SECRET, Action.RESOLVE)),
 
-  // Marking definitions
-  ACCESS_MARKING_DEFINITION(
-      null,
-      CapabilityGroup.MARKING,
-      EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.MARKING_DEFINITION, Action.READ),
-      pair(ResourceType.MARKING_DEFINITION, Action.SEARCH)),
-  MANAGE_MARKING_DEFINITION(
-      ACCESS_MARKING_DEFINITION,
-      pair(ResourceType.MARKING_DEFINITION, Action.WRITE),
-      pair(ResourceType.MARKING_DEFINITION, Action.CREATE)),
-  DELETE_MARKING_DEFINITION(
-      MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
-
   // Dashboards
   ACCESS_DASHBOARDS(
       null,
@@ -448,6 +434,27 @@ public enum Capability {
       pair(ResourceType.GROUP_ROLE, Action.DELETE),
       pair(ResourceType.USER, Action.DELETE)),
 
+  // Sessions
+  MANAGE_SESSIONS(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.SESSION, Action.READ),
+      pair(ResourceType.SESSION, Action.WRITE)),
+
+  // Marking definitions
+  ACCESS_MARKING_DEFINITION(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.MARKING_DEFINITION, Action.READ),
+      pair(ResourceType.MARKING_DEFINITION, Action.SEARCH)),
+  MANAGE_MARKING_DEFINITION(
+      ACCESS_MARKING_DEFINITION,
+      pair(ResourceType.MARKING_DEFINITION, Action.WRITE),
+      pair(ResourceType.MARKING_DEFINITION, Action.CREATE)),
+  DELETE_MARKING_DEFINITION(
+      MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
       null,
@@ -473,20 +480,20 @@ public enum Capability {
       pair(ResourceType.PLATFORM_ROLE, Action.DELETE),
       pair(ResourceType.PLATFORM_USER, Action.DELETE)),
 
-  // Sessions
-  MANAGE_SESSIONS(
-      null,
-      CapabilityGroup.SECURITY,
-      EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.SESSION, Action.READ),
-      pair(ResourceType.SESSION, Action.WRITE)),
-
   MANAGE_PLATFORM_SESSIONS(
       null,
       CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.PLATFORM),
       pair(ResourceType.PLATFORM_SESSION, Action.READ),
       pair(ResourceType.PLATFORM_SESSION, Action.WRITE)),
+
+  // Agent installation quick fix: the agent installer command embeds a service-account
+  // bearer token, so it must not be reachable by unauthenticated/uncapable users.
+  INSTALL_AGENT(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.AGENT_INSTALLER, Action.READ)),
 
   // STIX
   MANAGE_STIX_BUNDLE(
@@ -505,7 +512,21 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.JOB, Action.READ),
       pair(ResourceType.JOB, Action.WRITE),
-      pair(ResourceType.AGENT, Action.CREATE));
+      pair(ResourceType.AGENT, Action.CREATE)),
+
+  /**
+   * TEMPORARY (see #294): dedicated capability so the service-account (implant) token can download
+   * a document by known ID without holding ACCESS_DOCUMENTS (which also grants SEARCH, i.e.
+   * platform-wide document listing). Must remain hidden=true: never assignable manually via the
+   * RBAC UI or API. Remove once #294 lands.
+   */
+  AGENT_DOCUMENT_ACCESS(
+      null,
+      CapabilityGroup.SERVICE,
+      true,
+      true,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.DOCUMENT, Action.AGENT_DOCUMENT_READ));
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 

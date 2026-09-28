@@ -111,9 +111,9 @@ public class WorkflowUpdateEventAspect {
             : "";
 
     if (!injectId.isEmpty()) {
-      Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
+      Optional<String> stepId = stepService.findStepIdActiveByInjectId(injectId);
       if (stepId.isEmpty()) {
-        log.info("Step not found for inject {}", injectId);
+        log.info("Step active not found for inject {}", injectId);
         return;
       }
       try {
@@ -147,7 +147,7 @@ public class WorkflowUpdateEventAspect {
           "@WorkflowUpdateEvent.injectIds SpEL must return a Collection or a String");
     }
 
-    Set<String> stepIds = stepService.findStepIdsByInjectIds(injectIds);
+    Set<String> stepIds = stepService.findStepIdsActiveByInjectIds(injectIds);
     sendEvents(stepIds);
   }
 
@@ -173,7 +173,7 @@ public class WorkflowUpdateEventAspect {
           "@WorkflowUpdateEvent.expectationIDsdSpEL must return a Collection or a String");
     }
 
-    Set<String> stepIds = stepService.findStepIdsByExpectationIds(expectationIds);
+    Set<String> stepIds = stepService.findStepIdsActiveByExpectationIds(expectationIds);
     sendEvents(stepIds);
   }
 

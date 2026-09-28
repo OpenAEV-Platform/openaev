@@ -18,7 +18,8 @@ import { useFormatter } from '../../../components/i18n';
 import type { ScopeVariableInput } from '../../../utils/api-types';
 import { formatPrimitiveTypeLabel } from '../../../utils/String';
 import { zodImplement } from '../../../utils/Zod';
-import useArgumentTypes from '../threat_arsenal/form/useArgumentTypes';
+import { getPrimitiveFormatError } from './logic/primitive-types';
+import usePrimitiveTypeDescriptors from './logic/usePrimitiveTypeDescriptors';
 
 interface ScopeVariableCreateDialogProps {
   open: boolean;
@@ -42,18 +43,20 @@ const ScopeVariableCreateDialog = ({
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const { argumentTypes } = useArgumentTypes();
+  // A variable holds a single exact value, so the type's format applies unconditionally - unlike a
+  // condition, where the operator decides. The backend enforces the same rule on save.
+  const { descriptorsByType, primitiveTypes } = usePrimitiveTypeDescriptors();
   const typeItems = useMemo(
-    () => argumentTypes.map(at => ({
-      value: at,
-      label: t(formatPrimitiveTypeLabel(at)),
+    () => primitiveTypes.map(type => ({
+      value: type,
+      label: t(formatPrimitiveTypeLabel(type)),
     })),
-    [argumentTypes, t],
+    [primitiveTypes, t],
   );
 
   const scopeVariableTypes = useMemo(
-    () => argumentTypes as [ScopeVariableInput['scope_variable_type'], ...ScopeVariableInput['scope_variable_type'][]],
-    [argumentTypes],
+    () => primitiveTypes as [ScopeVariableInput['scope_variable_type'], ...ScopeVariableInput['scope_variable_type'][]],
+    [primitiveTypes],
   );
 
   const existingVariablePairs = useMemo(
@@ -76,6 +79,19 @@ const ScopeVariableCreateDialog = ({
         scope_variable_description: z.string().optional(),
       })
       .superRefine((data, context) => {
+        const formatError = getPrimitiveFormatError(
+          data.scope_variable_type,
+          data.scope_variable_value.trim(),
+          descriptorsByType,
+        );
+        if (formatError) {
+          context.addIssue({
+            code: 'custom',
+            path: ['scope_variable_value'],
+            message: t(formatError),
+          });
+        }
+
         const normalizedKey = data.scope_variable_key.trim();
         const pairKey = `${normalizedKey}::${data.scope_variable_type}`;
         if (existingVariablePairs.has(pairKey)) {
@@ -93,7 +109,7 @@ const ScopeVariableCreateDialog = ({
           });
         }
       }),
-    [existingVariablePairs, t, scopeVariableTypes],
+    [descriptorsByType, existingVariablePairs, t, scopeVariableTypes],
   );
 
   const methods = useForm<VariableFormValues>({
@@ -133,6 +149,17 @@ const ScopeVariableCreateDialog = ({
       void trigger(erroredFields);
     }
   }, [currentKey, currentType, getFieldState, trigger]);
+
+  // Changing the type changes which format the value must satisfy, in both directions: a value that
+  // was valid as text is not necessarily a valid IPv4, and the error raised for the previous type
+  // must disappear once a compatible one is picked. Only revalidate a value the user has actually
+  // entered, so selecting a type first never greets them with an error on an untouched field.
+  useEffect(() => {
+    const { isDirty: valueIsDirty, error } = getFieldState('scope_variable_value');
+    if (valueIsDirty || error) {
+      void trigger('scope_variable_value');
+    }
+  }, [currentType, getFieldState, trigger]);
 
   const handleClose = () => {
     reset();

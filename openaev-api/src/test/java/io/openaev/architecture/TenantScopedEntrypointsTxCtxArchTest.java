@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  * <p>This is a floor, not the robust fix: the entrypoint list is hardcoded, so it protects against
  * deletion on a known method but not against a new scoped endpoint added without {@code TxCtx}. The
  * self-maintaining version (a {@code @RequiresTxScope} marker plus a compile-time rule in
- * openaev-annotation-processor) is tracked as a follow-up.
+ * openaev-build-services) is tracked as a follow-up.
  */
 @AnalyzeClasses(packages = "io.openaev", importOptions = ImportOption.DoNotIncludeTests.class)
 class TenantScopedEntrypointsTxCtxArchTest {
@@ -543,9 +543,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.dashboard.DashboardApi#attackPaths",
           "io.openaev.rest.exercise.ExerciseApi#createExercise",
           "io.openaev.rest.scenario.ScenarioApi#createScenario",
-          "io.openaev.api.chaining.ChainingApi#createSimulation",
-          "io.openaev.api.chaining.ChainingApi#createScenarioChaining",
-          // chaining duplications copy injects, so they serialize the phase lists
           // Propagation.SUPPORTS handlers: they hold no transaction, so the TxCtx here exists only
           // to be threaded into the service method that opens one (same shape as
           // ScenarioApi#bulkDeleteScenarios). Dropping it would silently empty the phase lists.

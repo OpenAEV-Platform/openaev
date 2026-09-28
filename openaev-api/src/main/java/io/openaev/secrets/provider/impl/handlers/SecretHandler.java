@@ -4,6 +4,7 @@ import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 
 public interface SecretHandler {
@@ -17,6 +18,8 @@ public interface SecretHandler {
   Secret buildOrUpdate(Secret existingSecret, SecretStoreRequest request);
 
   SecretMetadata toMetadata(Secret secret);
+
+  SecretResolvedValue toResolvedValue(Secret secret);
 
   /**
    * Validates that the stored secret is still usable.

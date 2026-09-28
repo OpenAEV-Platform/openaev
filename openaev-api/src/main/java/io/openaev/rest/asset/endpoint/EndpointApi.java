@@ -129,13 +129,16 @@ public class EndpointApi extends RestBehavior {
     return this.endpointService.getEndpointJobs(input);
   }
 
+  // Deprecated but kept open to ResourceType.JOB (not ASSET) so old agents relying on this API to
+  // fetch their jobs can still upgrade: ASSET would let any asset-management user (ACCESS_ASSETS)
+  // leak jobs/tokens for any endpoint, whereas JOB is only granted via AGENT_RUNTIME_ACCESS.
   @Deprecated(since = "1.11.0")
   @LogExecutionTime
   @GetMapping({
     ENDPOINT_URI + "/jobs/{endpointExternalReference}",
     TENANT_ENDPOINT_URI + "/jobs/{endpointExternalReference}"
   })
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(
       TxCtx ctx, @PathVariable @NotBlank final String endpointExternalReference) {

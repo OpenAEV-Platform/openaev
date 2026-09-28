@@ -3,6 +3,7 @@ package io.openaev.secrets.provider.impl.handlers;
 import io.openaev.database.model.*;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
@@ -81,6 +82,20 @@ public class AzureServicePrincipalHandler implements SecretHandler {
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
+  }
+
+  @Override
+  public SecretResolvedValue toResolvedValue(Secret secret) {
+    if (!(secret instanceof AzureServicePrincipalSecret azureSecret)) {
+      throw new IllegalArgumentException(
+          "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
+    }
+    return SecretResolvedValue.forAzureServicePrincipal(
+        azureSecret.getAzureEnvironment(),
+        azureSecret.getAzureClientId(),
+        nativeEncryptionService.decrypt(azureSecret.getAzureClientSecret()),
+        azureSecret.getAzureTenantId(),
+        azureSecret.getAzureSubscriptionId());
   }
 
   /**

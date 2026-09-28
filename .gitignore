@@ -38,3 +38,11 @@ openaev-dev/telemetry-output/
 
 ### macOS ###
 .DS_Store
+
+### maven ###
+dependency-reduced-pom.xml
+
+### Python ###
+# .github/scripts/ holds CI helper scripts that are also meant to be run locally
+__pycache__/
+*.pyc

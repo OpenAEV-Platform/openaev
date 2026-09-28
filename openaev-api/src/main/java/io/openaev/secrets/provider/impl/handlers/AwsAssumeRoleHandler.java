@@ -8,6 +8,7 @@ import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.impl.validators.AwsCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
@@ -101,6 +102,31 @@ public class AwsAssumeRoleHandler implements SecretHandler {
           awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId());
     }
     throw new IllegalArgumentException("Secret type mismatch: expected AWS_ASSUME_ROLE secret");
+  }
+
+  @Override
+  public SecretResolvedValue toResolvedValue(Secret secret) {
+    if (!(secret instanceof AwsAssumeRoleSecret awsAssumeRoleSecret)) {
+      throw new IllegalArgumentException("Secret type mismatch: expected AWS_ASSUME_ROLE secret");
+    }
+    String externalId = null;
+    if (awsAssumeRoleSecret.getAwsExternalId() != null) {
+      externalId = nativeEncryptionService.decrypt(awsAssumeRoleSecret.getAwsExternalId());
+    }
+
+    String sourceProfileSecretAccessKey = null;
+    if (STATIC_ACCESS_KEY.equals(awsAssumeRoleSecret.getAwsSourceIdentityType())) {
+      sourceProfileSecretAccessKey =
+          nativeEncryptionService.decrypt(awsAssumeRoleSecret.getAwsSourceProfileSecretAccessKey());
+    }
+
+    return SecretResolvedValue.forAwsAssumeRole(
+        awsAssumeRoleSecret.getAwsDefaultRegion(),
+        awsAssumeRoleSecret.getAwsRoleArn(),
+        awsAssumeRoleSecret.getAwsSourceIdentityType(),
+        externalId,
+        awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId(),
+        sourceProfileSecretAccessKey);
   }
 
   @Override

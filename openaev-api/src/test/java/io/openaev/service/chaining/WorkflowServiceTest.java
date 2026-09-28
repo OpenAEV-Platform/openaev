@@ -13,11 +13,9 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.ScopeVariableRepository;
-import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
@@ -28,6 +26,7 @@ import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.sql.SQLException;
 import java.util.*;
@@ -67,6 +66,7 @@ class WorkflowServiceTest {
   @Mock private ScopeService scopeService;
   @Mock private LessonsService lessonsService;
   @Mock private WorkflowStateService workflowStateService;
+  @Mock private WorkflowStateRepository workflowStateRepository;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
   @Mock private ResultsMetricCollector resultsMetricCollector;
@@ -88,7 +88,9 @@ class WorkflowServiceTest {
             injectStatusService,
             resultsMetricCollector,
             workflowRepository,
-            scopeSnapshotService);
+            scopeSnapshotService,
+            assetAgentJobRepository,
+            workflowStateRepository);
 
     workflowService =
         new WorkflowService(
@@ -103,7 +105,6 @@ class WorkflowServiceTest {
             workflowScopeRuleRepository,
             scopeVariableRepository,
             assetRepository,
-            assetAgentJobRepository,
             assetGroupRepository,
             teamRepository,
             userRepository,
@@ -1268,7 +1269,6 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
-              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -1489,6 +1489,112 @@ class WorkflowServiceTest {
     }
 
     @Test
+    @DisplayName("should reject a new variable whose value does not match its declared type")
+    void given_newVariableWithMalformedValue_should_throwBadRequest() {
+      // Arrange - a variable carries a single exact value, so the type's format always applies
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "target", PrimitiveType.IPv4, "not-an-ip", null)));
+
+      // Act & Assert
+      assertThrows(
+          BadRequestException.class,
+          () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+      verify(workflowRepository, never()).save(any(Workflow.class));
+    }
+
+    @Test
+    @DisplayName("should accept a new variable whose value matches its declared type")
+    void given_newVariableWithWellFormedValue_should_createVariable() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "target", PrimitiveType.IPv4, "10.0.0.1", null)));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertEquals("10.0.0.1", result.getWorkflowScopeVariables().getFirst().getValue());
+    }
+
+    @Test
+    @DisplayName("should accept any value on a type that constrains no format")
+    void given_newVariableOnUnconstrainedType_should_createVariable() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "note", PrimitiveType.Text, "anything ###", null)));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertEquals("anything ###", result.getWorkflowScopeVariables().getFirst().getValue());
+    }
+
+    @Test
+    @DisplayName("should reject an update that makes an existing variable value malformed")
+    void given_updateWithMalformedValue_should_throwBadRequest() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("target");
+      existing.setType(PrimitiveType.IPv4);
+      existing.setValue("10.0.0.1");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(varId, "target", PrimitiveType.IPv4, "999.0.0.1", null)));
+
+      // Act & Assert
+      assertThrows(
+          BadRequestException.class,
+          () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+    }
+
+    @Test
+    @DisplayName("should validate the resolved value, not the masked echo sent back by the client")
+    void given_maskedEchoOnValidatedType_should_notRejectTheStoredValue() {
+      // Arrange - the stored value is masked in responses, and the client echoes the mask back
+      // while retyping the variable to a format-validated type. Validating the payload would
+      // reject "1******1"; validating the resolved value accepts the stored address.
+      Workflow workflow = buildTemplate(false);
+      String address = "10.0.0.1";
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("secret_host");
+      existing.setType(PrimitiveType.Password);
+      existing.setValue(address);
+      existing.setDescription("old desc");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      String maskedEcho = SensitiveValueMaskingUtils.maskIfNeeded(PrimitiveType.Password, address);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(
+              new ScopeVariableInput(
+                  varId, "secret_host", PrimitiveType.IPv4, maskedEcho, "new desc")));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
+      assertEquals(address, updated.getValue());
+      assertEquals(PrimitiveType.IPv4, updated.getType());
+    }
+
+    @Test
     @DisplayName("should translate the database uniqueness violation into a business message")
     void given_databaseDuplicateKeyViolation_should_throwAlreadyExistingException() {
       // Arrange - the duplicate is reported by the database on flush
@@ -1619,7 +1725,6 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
-              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -1810,7 +1915,6 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
-              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -2081,7 +2185,6 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
-              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -2859,7 +2962,7 @@ class WorkflowServiceTest {
     @Test
     @DisplayName(
         "ends the run, deletes its delay queue and states, and removes its asset agent"
-            + " jobs by inject id")
+            + " jobs of the simulation")
     void given_singleRunWithActiveSteps_should_endItAndCleanUpDependencies() {
       // Arrange
       Exercise simulation = exerciseWithId("sim-1");
@@ -2870,17 +2973,6 @@ class WorkflowServiceTest {
               .simulation(simulation)
               .build();
 
-      Step activeStepWithInject =
-          Step.builder()
-              .id("step-1")
-              .status(StepStatus.RUN)
-              .data("{\"inject_id\": \"inject-1\"}")
-              .build();
-      Step activeStepWithoutInject =
-          Step.builder().id("step-2").status(StepStatus.READY).data("{}").build();
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
-          .thenReturn(new ArrayList<>(List.of(activeStepWithInject, activeStepWithoutInject)));
-
       // Act
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
@@ -2889,18 +2981,20 @@ class WorkflowServiceTest {
 
       // Assert
       assertEquals(WorkflowStatus.END, run.getStatus());
+      verify(scopeSnapshotService).freezeEnd(run);
+      verify(stepService)
+          .endActiveStepsByWorkflowId("wf-run-1", WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+      verify(stepDelayQueueService)
+          .deleteAllByWorkflowRun(run, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+      verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
+      verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-1");
       verify(workflowRepository).save(run);
-      verify(stepDelayQueueService).deleteAllByWorkflowRun(run);
-      verify(workflowStateService).deleteAllBySimulationId("sim-1");
-      assertEquals(StepStatus.END, activeStepWithInject.getStatus());
-      assertEquals(StepStatus.END, activeStepWithoutInject.getStatus());
-      verify(assetAgentJobRepository).deleteAllByInjectIdsAndTenantId(List.of("inject-1"), TENANT);
-      verify(stepService).saveSteps(List.of(activeStepWithInject, activeStepWithoutInject));
+      verifyNoInteractions(exerciseRepository);
     }
 
     @Test
-    @DisplayName("aggregates inject ids and ended steps across multiple workflow runs")
-    void given_multipleRuns_should_aggregateInjectIdsAndSaveAllStepsOnce() {
+    @DisplayName("ends each workflow run independently and cleans up its own simulation")
+    void given_multipleRuns_should_endEachRunIndependently() {
       // Arrange
       Exercise simulation1 = exerciseWithId("sim-1");
       Exercise simulation2 = exerciseWithId("sim-2");
@@ -2917,35 +3011,24 @@ class WorkflowServiceTest {
               .simulation(simulation2)
               .build();
 
-      Step step1 =
-          Step.builder()
-              .id("step-1")
-              .status(StepStatus.RUN)
-              .data("{\"inject_id\": \"inject-1\"}")
-              .build();
-      Step step2 =
-          Step.builder()
-              .id("step-2")
-              .status(StepStatus.RUN)
-              .data("{\"inject_id\": \"inject-2\"}")
-              .build();
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
-          .thenReturn(new ArrayList<>(List.of(step1)));
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-2"))
-          .thenReturn(new ArrayList<>(List.of(step2)));
-
       // Act
+      WorkflowEndService.WORKFLOW_END_CAUSE cause = WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED;
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
         workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
       }
 
       // Assert
-      verify(workflowStateService).deleteAllBySimulationId("sim-1");
-      verify(workflowStateService).deleteAllBySimulationId("sim-2");
-      verify(assetAgentJobRepository)
-          .deleteAllByInjectIdsAndTenantId(List.of("inject-1", "inject-2"), TENANT);
-      verify(stepService).saveSteps(List.of(step1, step2));
+      assertEquals(WorkflowStatus.END, run1.getStatus());
+      assertEquals(WorkflowStatus.END, run2.getStatus());
+      verify(stepService).endActiveStepsByWorkflowId("wf-run-1", cause);
+      verify(stepService).endActiveStepsByWorkflowId("wf-run-2", cause);
+      verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
+      verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-2", TENANT);
+      verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-1");
+      verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-2");
+      verify(workflowRepository).save(run1);
+      verify(workflowRepository).save(run2);
     }
 
     @Test
@@ -2959,7 +3042,6 @@ class WorkflowServiceTest {
               .status(WorkflowStatus.END)
               .simulation(simulation)
               .build();
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1")).thenReturn(new ArrayList<>());
 
       // Act
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
@@ -2969,7 +3051,8 @@ class WorkflowServiceTest {
 
       // Assert
       assertEquals(WorkflowStatus.END, run.getStatus());
-      verifyNoInteractions(scopeSnapshotService);
+      verifyNoInteractions(
+          scopeSnapshotService, stepService, stepDelayQueueService, exerciseRepository);
       verify(workflowRepository).save(run);
     }
   }

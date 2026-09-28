@@ -7,6 +7,7 @@ import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
+import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.impl.validators.GcpCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
@@ -108,6 +109,19 @@ public class GcpOAuth2Handler implements SecretHandler {
           gcpSecret.getOauthClientId(),
           gcpSecret.getOauthClientSecret() != null,
           gcpSecret.getOauthRefreshToken() != null);
+    }
+    throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
+  }
+
+  @Override
+  public SecretResolvedValue toResolvedValue(Secret secret) {
+    if (secret instanceof GcpOAuth2Secret gcpSecret) {
+      return SecretResolvedValue.forGcpOAuth2(
+          gcpSecret.getScope(),
+          gcpSecret.getProjectId(),
+          gcpSecret.getOauthClientId(),
+          nativeEncryptionService.decrypt(gcpSecret.getOauthClientSecret()),
+          nativeEncryptionService.decrypt(gcpSecret.getOauthRefreshToken()));
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
   }
