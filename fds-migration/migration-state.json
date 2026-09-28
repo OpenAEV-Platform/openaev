@@ -899,7 +899,7 @@
       "guards": [
         "imported-from-library"
       ],
-      "reason": "Time wave. The two time-of-day controls go through one field, src/components/fields/TimeField.tsx: the simulation launch time and the notification trigger, whose stored value is an HH:mm wall clock read and written in UTC. MUI X left the product with them.",
+      "reason": "Time wave. Every time-of-day control goes through one field, src/components/fields/TimeField.tsx: the simulation launch time, the notification trigger and the reporting schedule, the last two storing an HH:mm wall clock. MUI X left the product with them.",
       "files": [
         "openaev-front/src/components/fields/TimeField.tsx"
       ]

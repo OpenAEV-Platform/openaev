@@ -2370,9 +2370,11 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 
 ## 49. `Input` has no `type="time"`
 
+**Status.** Moot for this product at `2df82e96`: both sites now use the library `TimePicker` through `src/components/fields/TimeField.tsx` (see #69), so neither needs `type="time"` on `Input`. The request below stands only for a field that wants the browser's own control rather than a picker.
+
 **Measured.** `InputProps.type` is the closed union `"text" | "password" | "number" | "email"` (`Input.tsx` line 100 at the pin). The product has two time-of-day fields (`TriggerForm.tsx`, `ReportingScheduleFields.tsx`) whose value is an `HH:mm` string edited with the browser's native time control.
 
-**Consequence.** Both fields stay on the MUI `TextField`, marked `fds:keep-mui` and pointing here, in forms whose every other field is now the library's.
+**Consequence.** Both fields stayed on the MUI `TextField`, marked `fds:keep-mui` and pointing here, in forms whose every other field was already the library's.
 
 **The request.** Accept `type="time"` (and the other native text-like types the platform will meet: `url`, `tel`, `date`) on `Input`, with the browser's own control left in place — the same stance the number variant already takes for its native semantics.
 
@@ -2570,11 +2572,11 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 
 **Measured.** `DatePicker` at `d131bdbe` covers a date and, with `withTime`, a date **and** a clock; the shipped usage contract states the gap itself — "`<TimePicker … />` → not available, time-only field is deferred". There is no exported component whose value is a clock without a date, and `withTime` cannot be reduced to one: `DatePickerProps.value` is a `Date`, and the panel always opens on the calendar grid.
 
-**Product need.** Two OpenAEV controls hold a time and nothing else, both alongside a date field that now uses the library:
+**Product need.** Two OpenAEV controls held a time and nothing else, both alongside a date field that had already moved to the library:
 
-- the simulation's scheduling form — a start date (converted) and its launch time, MUI `TimePicker` with `timeSteps={{ minutes: 15 }}` and a `minTime` that only binds when the date is today;
+- the simulation's scheduling form — a start date and its launch time, MUI `TimePicker` with `timeSteps={{ minutes: 15 }}` and a `minTime` that only binds when the date is today;
 - the notification trigger form — `<TextField type="time">`, labelled "Time (UTC)".
 
-Both keep MUI X and, with it, the `LocalizationProvider` the rest of the product no longer needs.
+Both held MUI X and, with it, the `LocalizationProvider` the rest of the product no longer needed. Both now go through `TimeField`, as does the reporting schedule's time of day, which had held its own MUI field for `type="time"` (see #49). No time-only control is left on MUI.
 
 **The request.** The deferred `TimePicker`, or a `timeOnly` mode on `DatePicker`. **Removal condition:** an exported time-only field carrying a minute step and a minimum time; the two holds and the `LocalizationProvider` then go in one commit. **Met:** `TimePicker` ships `minutesStep`, `minTime`/`maxTime` and `timezone`, which also let the notification trigger say UTC rather than imply it.
