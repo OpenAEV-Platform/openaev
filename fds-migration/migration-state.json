@@ -888,9 +888,20 @@
       "guards": [
         "imported-from-library"
       ],
-      "reason": "Date wave. Every date and date-time control goes through one field, src/components/fields/DateField.tsx, so the library component is imported in exactly one place; the twelve converted sites render that field. Two time-only controls stay on MUI with a fds:keep-mui reason and are not listed: the library has no time-only field (LIBRARY-FEEDBACK 69).",
+      "reason": "Date wave. Every date and date-time control goes through one field, src/components/fields/DateField.tsx, so the library component is imported in exactly one place; the twelve converted sites render that field.",
       "files": [
         "openaev-front/src/components/fields/DateField.tsx"
+      ]
+    },
+    {
+      "component": "TimePicker",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Time wave. The two time-of-day controls go through one field, src/components/fields/TimeField.tsx: the simulation launch time and the notification trigger, whose stored value is an HH:mm wall clock read and written in UTC. MUI X left the product with them.",
+      "files": [
+        "openaev-front/src/components/fields/TimeField.tsx"
       ]
     }
   ],

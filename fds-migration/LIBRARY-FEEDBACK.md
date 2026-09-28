@@ -2566,7 +2566,7 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 
 ## 69. No time-only field: `TimePicker` is deferred
 
-**Status.** Open. Two product sites held on MUI (`// fds:keep-mui`), no workaround.
+**Status.** Closed by the library at `2df82e96` (#240) and consumed: both sites now use `TimePicker` through `src/components/fields/TimeField.tsx`, and MUI X left the product with them — `LocalizationProvider`, the two `MuiPickers*` theme blocks and the dependency are gone.
 
 **Measured.** `DatePicker` at `d131bdbe` covers a date and, with `withTime`, a date **and** a clock; the shipped usage contract states the gap itself — "`<TimePicker … />` → not available, time-only field is deferred". There is no exported component whose value is a clock without a date, and `withTime` cannot be reduced to one: `DatePickerProps.value` is a `Date`, and the panel always opens on the calendar grid.
 
@@ -2577,4 +2577,4 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 
 Both keep MUI X and, with it, the `LocalizationProvider` the rest of the product no longer needs.
 
-**The request.** The deferred `TimePicker`, or a `timeOnly` mode on `DatePicker`. **Removal condition:** an exported time-only field carrying a minute step and a minimum time; the two holds and the `LocalizationProvider` then go in one commit.
+**The request.** The deferred `TimePicker`, or a `timeOnly` mode on `DatePicker`. **Removal condition:** an exported time-only field carrying a minute step and a minimum time; the two holds and the `LocalizationProvider` then go in one commit. **Met:** `TimePicker` ships `minutesStep`, `minTime`/`maxTime` and `timezone`, which also let the notification trigger say UTC rather than imply it.

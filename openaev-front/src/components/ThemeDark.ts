@@ -1,7 +1,6 @@
 import { alpha, buttonClasses, darken, lighten, type ThemeOptions } from '@mui/material';
-// Type-only: declares the MUI X picker keys used in `components` below.
-import type {} from '@mui/x-date-pickers/themeAugmentation';
 
+// Type-only: declares the MUI X picker keys used in `components` below.
 import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
 import { hexToRGB } from '../utils/Colors';
@@ -559,29 +558,6 @@ const ThemeDark = (
           // fields from the colour scheme, not from the text colour.
           '&[type="time"], &[type="date"], &[type="datetime-local"]': { colorScheme: 'dark' },
         },
-      },
-    },
-    // The date picker draws its own outlined input (MUI X), so the same paint as above.
-    // The picker draws its own field, so MuiTextField's outlined default never
-    // reaches it and the control fell back to the underlined standard variant.
-    MuiPickersTextField: { defaultProps: { variant: 'outlined' } },
-    MuiPickersOutlinedInput: {
-      styleOverrides: {
-        root: {
-          'backgroundColor': 'var(--bg-input-default)',
-          'borderRadius': 'var(--radius-sm)',
-          'minHeight': 36,
-          'padding': '0 8px 0 12px',
-          '& .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'transparent' },
-          '&:hover .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-hover)' },
-          '&.Mui-focused .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-focus)' },
-          '&.Mui-error .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-error)' },
-          '&.Mui-disabled': {
-            'backgroundColor': 'transparent',
-            '& .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-elevation-disabled)' },
-          },
-        },
-        sectionsContainer: { padding: '8px 0' },
       },
     },
     MuiTextField: {

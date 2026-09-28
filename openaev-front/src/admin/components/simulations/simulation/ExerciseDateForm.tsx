@@ -1,13 +1,12 @@
 import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FormControlLabel, Stack, Switch } from '@mui/material';
-// fds:keep-mui the library has no time-only field; its TimePicker is deferred
-import { TimePicker } from '@mui/x-date-pickers';
 import { type ChangeEvent, type FunctionComponent, useState } from 'react';
-import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
+import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import DateField from '../../../../components/fields/DateField';
+import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import { type ExerciseUpdateStartDateInput } from '../../../../utils/api-types';
 import { minutesInFuture } from '../../../../utils/Time';
@@ -128,31 +127,13 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
           onAccept={() => clearErrors('time')}
         />
 
-        <Controller
+        <TimeField
           control={control}
           name="time"
-          render={({ field, fieldState }) => (
-            <TimePicker
-              label={t('Scheduling_time')}
-              openTo="hours"
-              timeSteps={{ minutes: 15 }}
-              skipDisabled
-              thresholdToRenderTimeInASingleColumn={100}
-              disabled={checked}
-              closeOnSelect={false}
-              value={field.value ? new Date(field.value) : null}
-              minTime={new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() === new Date(getValues('date')).getTime() ? new Date() : undefined}
-              onChange={time => (field.onChange(time?.toISOString()))}
-              slotProps={{
-                textField: {
-                  fullWidth: true,
-                  error: !!fieldState.error,
-                  helperText: fieldState.error?.message,
-                  variant: 'outlined',
-                },
-              }}
-            />
-          )}
+          label={t('Scheduling_time')}
+          disabled={checked}
+          minutesStep={15}
+          minTime={new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime() === new Date(getValues('date')).getTime() ? new Date() : undefined}
         />
       </Stack>
 
