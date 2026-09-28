@@ -11,13 +11,16 @@ const GAP = 6;
 
 const useStyles = makeStyles()(() => ({
   inline: {
-    display: 'flex',
-    alignItems: 'center',
+    'display': 'flex',
+    'alignItems': 'center',
     // Tags read as one row, never as a stack: a cell one line tall would clip
     // the second line anyway. What does not fit is counted in the +N chip.
-    flexWrap: 'nowrap',
-    overflow: 'hidden',
-    gap: GAP,
+    'flexWrap': 'nowrap',
+    'overflow': 'hidden',
+    'gap': GAP,
+    '& [data-tag-chip], & [data-tag-chip] > span': { minWidth: 0 },
+    '& [data-tag-overflow]': { flexShrink: 0 },
+    '&[data-measuring] [data-tag-chip]': { flexShrink: 0 },
   },
 }));
 
@@ -111,7 +114,7 @@ const ItemTags = (props) => {
   const hiddenCount = orderedTags.length - shown.length;
 
   return (
-    <div className={classes.inline} ref={container}>
+    <div className={classes.inline} ref={container} data-measuring={measuring ? '' : undefined}>
       {shown.length > 0 ? (
         shown.map(tag => (
           <Tooltip key={tag.tag_id}>
