@@ -17,13 +17,18 @@ const ColorPickerFieldBase = ({
     onChange(color && color.hex ? color.hex : '');
   };
   const message = touched && (error || submitError);
+  const hasError = touched && invalid;
+  const errorColor = 'var(--color-feedback-error-primary)';
   return (
     <>
       <TextFieldFds
-        label={label}
-        error={touched && invalid ? (message || true) : undefined}
+        label={hasError ? <span style={{ color: errorColor }}>{label}</span> : label}
+        // Show validation text without switching the end icon to the error glyph.
+        error={undefined}
+        helperText={hasError ? <span style={{ color: errorColor }}>{message}</span> : undefined}
         {...inputProps}
         onChange={onChange}
+        onClick={event => setAnchorEl(event.currentTarget)}
         {...others}
         endIcon={{
           type: 'iconButton',
