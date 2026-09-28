@@ -5,6 +5,7 @@ import LogoCollapsed from '../static/images/logo_light.png';
 import LogoText from '../static/images/logo_text_light.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
+import { movedBy } from '../utils/hooks/useFdsThemeScope';
 import { FDS } from './fds-tokens.generated';
 import quietControlSpacing from './quietControlSpacing';
 import { FONT_FAMILY_CODE, INLINE_CONTROL_HEIGHT, type LabelColor, LabelColorDict } from './Theme';
@@ -154,6 +155,13 @@ const ThemeLight = (
     // OpenAEV components use `text.secondary` pervasively for muted labels,
     // while OpenCTI reserves muting for `text.tertiary`.
     text: {
+      // Declared, because MUI fills what a theme leaves out with its own
+      // built-ins: these two slots held pure white and white at 70%, out of
+      // reach of the customer's text colour.
+      primary: text_color,
+      secondary: text_color === THEME_LIGHT_DEFAULT_TEXT
+        ? FDS.colors.light['--text-default-secondary']
+        : movedBy(text_color, '--text-default-primary', '--text-default-secondary', 'light') ?? FDS.colors.light['--text-default-secondary'],
       tertiary: '#717172',
       light: FDS.colors.light['--color-feedback-neutral-tertiary'],
       disabled: '#6E7788',
