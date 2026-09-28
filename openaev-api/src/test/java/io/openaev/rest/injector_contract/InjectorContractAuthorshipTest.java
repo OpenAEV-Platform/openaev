@@ -92,7 +92,7 @@ class InjectorContractAuthorshipTest {
         .when(injectorContractRepository.save(any(InjectorContract.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
     lenient()
-        .when(organizationService.findOrCreateByName(PUBLISHER))
+        .when(organizationService.findOrCreateByName(PUBLISHER, anyString()))
         .thenReturn(publisherOrganization);
     lenient().when(userService.currentUser()).thenReturn(sessionUser);
   }
