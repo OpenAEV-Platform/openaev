@@ -72,7 +72,8 @@ public class ThreatArsenalImportService {
               }
               InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
               return contract;
-            });
+            },
+            tenantId);
     return threatArsenalMapper.toThreatArsenalAction(response.persistedData());
   }
 

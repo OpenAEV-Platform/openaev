@@ -782,7 +782,8 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
 
     for (Document expected : documentComposer.generatedItems) {
       Optional<Document> docFromDb =
-          documentRepository.findFirstByNameOrderByIdAsc(expected.getName());
+          documentRepository.findFirstByNameAndTenantIdOrderByIdAsc(
+              expected.getName(), Tenant.DEFAULT_TENANT_UUID);
       if (docFromDb.isEmpty()) {
         Assertions.fail("Document " + expected.getName() + " not found");
       }

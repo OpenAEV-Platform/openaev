@@ -16,6 +16,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -399,7 +400,8 @@ class V1_DataImporterTest extends IntegrationTest {
         domainRepository.findByName(PresetDomain.getToClassify().getName()).orElseThrow();
 
     Set<Domain> importDomain =
-        this.importer.mergeDomains(new HashMap<>(), this.importNode, "payload_", null, null);
+        this.importer.mergeDomains(
+            new HashMap<>(), this.importNode, "payload_", null, null, Tenant.DEFAULT_TENANT_UUID);
 
     assertEquals(1, importDomain.size());
     assertEquals(domainToClassify.getId(), importDomain.stream().findFirst().get().getId());
@@ -419,7 +421,12 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     Set<Domain> mergedDomains =
         importer.mergeDomains(
-            new HashMap<>(), injectorContractNode, "injector_contract_", null, null);
+            new HashMap<>(),
+            injectorContractNode,
+            "injector_contract_",
+            null,
+            null,
+            Tenant.DEFAULT_TENANT_UUID);
 
     // -- Assert --
     assertEquals(1, mergedDomains.size());
