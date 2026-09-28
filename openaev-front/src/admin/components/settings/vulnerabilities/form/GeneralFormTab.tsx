@@ -4,7 +4,7 @@ import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
-import DateTimeFieldController from '../../../../../components/fields/DateTimeFieldController';
+import DateField from '../../../../../components/fields/DateField';
 import SelectFieldController from '../../../../../components/fields/SelectFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
@@ -47,7 +47,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
 
       {/* QUICK INFO */}
       <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Quick Info')}</Typography>
-      <DateTimeFieldController name="vulnerability_published" label={t('NVD Published Date')} />
+      <DateField name="vulnerability_published" label={t('NVD Published Date')} />
       <TextFieldController name="vulnerability_source_identifier" label={t('Source')} />
       <SelectFieldController name="vulnerability_vuln_status" label={t('Vulnerability status')} items={vulnerabilityStatus} />
 
@@ -61,8 +61,8 @@ const GeneralFormTab = ({ editing = false }: Props) => {
         gap: theme.spacing(2),
       }}
       >
-        <DateTimeFieldController name="vulnerability_cisa_exploit_add" label={t('Date Added')} />
-        <DateTimeFieldController name="vulnerability_cisa_action_due" label={t('Due Date')} />
+        <DateField name="vulnerability_cisa_exploit_add" label={t('Date Added')} />
+        <DateField name="vulnerability_cisa_action_due" label={t('Due Date')} />
       </div>
 
       {/* CWES */}

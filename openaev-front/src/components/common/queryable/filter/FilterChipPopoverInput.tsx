@@ -8,12 +8,12 @@ import {
   ComboboxInput,
   ComboboxTrigger,
 } from '@filigran/design-system';
-import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useCallback, useContext, useEffect, useState } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { debounce } from '../../../../utils/utils';
+import DateField from '../../../fields/DateField';
 import { useFormatter } from '../../../i18n';
 import { FilterContext } from './context';
 import { type FilterHelpers } from './FilterHelpers';
@@ -216,18 +216,13 @@ export const BasicFilterDate: FunctionComponent<Props> = ({
     helpers.handleUpdateValuesById(filter.id, [date.toISOString()]);
   };
   return (
-    <DateTimePicker
+    <DateField
       label={t(filter.key)}
+      withTime
       onChange={(date) => {
         if (date) {
           handleValueChange(date);
         }
-      }}
-      slotProps={{
-        textField: {
-          variant: 'outlined',
-          fullWidth: true,
-        },
       }}
     />
   );

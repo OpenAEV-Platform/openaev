@@ -6,8 +6,6 @@ import {
   ComboboxInput,
   ComboboxLabel,
 } from '@filigran/design-system';
-// fds:keep-mui the time-of-day field needs `type="time"`, which the library Input does not offer — LIBRARY-FEEDBACK #49
-import { TextField as MuiTextField } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -15,12 +13,20 @@ import { searchPlayerByIdAsOption, searchPlayersAsOption } from '../../../../act
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
+import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import { type Option } from '../../../../utils/Option';
 import { REPORTING_FORMATS, REPORTING_SCHEDULE_PERIODS, SCHEDULE_PERIOD_LABELS, WEEKDAY_LABELS } from '../ReportingFormUtils';
 import ReportingAutocompleteField from './ReportingAutocompleteField';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// The form stores the time of day as an HH:mm string, not a date.
+const CLOCK_REGEX = /^(\d{2}):(\d{2})$/;
+const parseClock = (value: string) => {
+  const parts = CLOCK_REGEX.exec(value ?? '');
+  return parts ? new Date(1970, 0, 1, Number(parts[1]), Number(parts[2])) : null;
+};
+const formatClock = (date: Date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
 /**
  * Schedule form fields, shared between the creation wizard (step 4) and the
@@ -122,14 +128,14 @@ const ReportingScheduleFields: FunctionComponent<Props> = ({ showEnabledSwitch =
           control={control}
           name="schedule_time"
           render={({ field, fieldState: { error } }) => (
-            <MuiTextField
-              {...field}
-              type="time"
-              fullWidth
+            <TimeField
               label={t('Time of day')}
-              slotProps={{ inputLabel: { shrink: true } }}
-              error={!!error}
-              helperText={error?.message}
+              format="HH:mm"
+              error={error?.message}
+              value={parseClock(field.value)}
+              onChange={next => field.onChange(next ? formatClock(next) : '')}
+              // The form validates on touch, and the touch is the blur.
+              onBlur={field.onBlur}
             />
           )}
         />

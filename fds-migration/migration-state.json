@@ -219,7 +219,6 @@
         "openaev-front/src/admin/components/common/endpoints/fragments/EndpointAgentsExecutorsFragment.tsx",
         "openaev-front/src/admin/components/common/entreprise_edition/EEChip.tsx",
         "openaev-front/src/admin/components/common/form/TextFieldAskAI.tsx",
-        "openaev-front/src/admin/components/common/injects/ImportUploaderInjectFromXlsInjects.tsx",
         "openaev-front/src/admin/components/common/injects/InjectChainsForm.tsx",
         "openaev-front/src/admin/components/common/injects/InjectImportMenu.tsx",
         "openaev-front/src/admin/components/common/injects/InjectorContract.jsx",
@@ -881,6 +880,28 @@
       "reason": "The document and credential file pickers. The form value stays a single File, or a plain string in edit mode meaning \"keep the stored file\" — the string is shown as the placeholder rather than leaving the control looking empty. The mime fragments the product filters on go in as the native accept attribute, the byte ceiling as maxSize with its counter, and the two rejection cases the product used to word itself are told apart by the rejection reason.",
       "files": [
         "openaev-front/src/components/fields/FileFieldController.tsx"
+      ]
+    },
+    {
+      "component": "DatePicker",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Date wave. Every date and date-time control goes through one field, src/components/fields/DateField.tsx, so the library component is imported in exactly one place; the twelve converted sites render that field.",
+      "files": [
+        "openaev-front/src/components/fields/DateField.tsx"
+      ]
+    },
+    {
+      "component": "TimePicker",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Time wave. Every time-of-day control goes through one field, src/components/fields/TimeField.tsx: the simulation launch time, the notification trigger and the reporting schedule, the last two storing an HH:mm wall clock. MUI X left the product with them.",
+      "files": [
+        "openaev-front/src/components/fields/TimeField.tsx"
       ]
     }
   ],
