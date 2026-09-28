@@ -185,7 +185,12 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
     @DisplayName("by channel id: the caller sees the document behind its own channel logo")
     void given_ownChannel_should_returnItsDocument() {
       assertTrue(
-          idsOf(scoped(tenantA, () -> documentRepository.rawAllDocumentsByChannelId(channelA)))
+          idsOf(
+                  scoped(
+                      tenantA,
+                      () ->
+                          documentRepository.rawAllDocumentsByChannelIdAndTenantIds(
+                              channelA, bothTenants())))
               .contains(docA1),
           "the channel's own logo document must be listed");
     }
@@ -196,7 +201,12 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
       // channelB does resolve to docB1 through the join, so the empty result is the documents scope
       // at work, not a missing row. The next test proves the row is reachable under B's scope.
       assertTrue(
-          scoped(tenantA, () -> documentRepository.rawAllDocumentsByChannelId(channelB)).isEmpty(),
+          scoped(
+                  tenantA,
+                  () ->
+                      documentRepository.rawAllDocumentsByChannelIdAndTenantIds(
+                          channelB, bothTenants()))
+              .isEmpty(),
           "B's channel document must not leak into A's scope");
     }
 
@@ -206,7 +216,12 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
       // The red half: without the documents scope excluding it, the previous test's empty result
       // would be empty for any scope and would prove nothing. Under B's scope the row is there.
       assertTrue(
-          idsOf(scoped(tenantB, () -> documentRepository.rawAllDocumentsByChannelId(channelB)))
+          idsOf(
+                  scoped(
+                      tenantB,
+                      () ->
+                          documentRepository.rawAllDocumentsByChannelIdAndTenantIds(
+                              channelB, bothTenants())))
               .contains(docB1),
           "B's own scope must still see B's channel document");
     }
@@ -219,14 +234,16 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
                   scoped(
                       tenantA,
                       () ->
-                          documentRepository.rawAllDocumentsBySecurityPlatformId(
-                              securityPlatformA)))
+                          documentRepository.rawAllDocumentsBySecurityPlatformIdAndTenantIds(
+                              securityPlatformA, bothTenants())))
               .contains(docA1),
           "the security platform's own logo document must be listed");
       assertTrue(
           scoped(
                   tenantA,
-                  () -> documentRepository.rawAllDocumentsBySecurityPlatformId(securityPlatformB))
+                  () ->
+                      documentRepository.rawAllDocumentsBySecurityPlatformIdAndTenantIds(
+                          securityPlatformB, bothTenants()))
               .isEmpty(),
           "B's security platform document must not leak into A's scope");
     }
@@ -235,7 +252,12 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
     @DisplayName("by challenge id: the caller sees the challenge's document")
     void given_ownChallenge_should_returnItsDocument() {
       assertTrue(
-          idsOf(scoped(tenantA, () -> documentRepository.rawAllDocumentsByChallengeId(challengeA)))
+          idsOf(
+                  scoped(
+                      tenantA,
+                      () ->
+                          documentRepository.rawAllDocumentsByChallengeIdAndTenantIds(
+                              challengeA, bothTenants())))
               .contains(docA1),
           "the challenge's own document must be listed");
     }
@@ -244,7 +266,12 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
     @DisplayName("by payload id: the caller sees the payload's file document")
     void given_ownPayload_should_returnItsDocument() {
       assertTrue(
-          idsOf(scoped(tenantA, () -> documentRepository.rawAllDocumentsByPayloadId(payloadA)))
+          idsOf(
+                  scoped(
+                      tenantA,
+                      () ->
+                          documentRepository.rawAllDocumentsByPayloadIdAndTenantIds(
+                              payloadA, bothTenants())))
               .contains(docA1),
           "the payload's file-drop document must be listed");
     }
@@ -332,6 +359,16 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
 
   private <T> T scoped(String tenantId, Supplier<T> read) {
     return tenantTx.execute(TxCtx.forTenant(tenantId), read);
+  }
+
+  /**
+   * Both tenants, passed as the explicit {@code tenantIds} predicate these queries gained with
+   * #8024. Handing the query the widest list its own predicate accepts leaves the statement
+   * inspector as the only thing that can exclude a row, which is what this class is here to prove.
+   * A test that passed the caller's tenant here would pass with the inspector switched off.
+   */
+  private List<String> bothTenants() {
+    return List.of(tenantA, tenantB);
   }
 
   private static List<String> idsOf(List<RawDocument> documents) {
