@@ -120,6 +120,34 @@ incident. Do not trade them away to make a test pass.
     to `JpaRepository` if the repository genuinely needs one of those extras,
     and then scope every call site through a tenant-aware `Specification`.
 
+13. **A handled error that returns success must not cross an inner
+    `@Transactional`.** Every controller entrypoint is already wrapped in a
+    transaction, which is what carries the tenant scope. If the endpoint
+    catches an exception and returns 200 (or any success status), and that
+    exception escaped another `@Transactional` bean method on the way, that
+    inner interceptor has already marked the shared transaction rollback-only.
+    The catch then returns success, and the commit throws
+    `UnexpectedRollbackException`: a 500 the caller cannot distinguish from a
+    real server error, and a queue-backed caller retries it for ever.
+
+    This bit `POST /api/stix/process-bundle` (#8102): the bundle is rejected on
+    purpose with a 200 and an error acknowledgement for OpenCTI, but
+    `SecurityCoverageService.handleSecurityCoverageProcessing` declares
+    `@Transactional(rollbackFor = Exception.class)`, so even a checked business
+    exception marks the transaction. Note that Spring does NOT roll back on a
+    checked exception by default; a broad `rollbackFor` is what turns a handled
+    rejection into a failed transaction.
+
+    When you activate a table, check every entrypoint on its paths that catches
+    and returns success. The fix is on the INNER boundary, not the outer one
+    (the outer interceptor never sees an exception caught inside the method it
+    wraps): `noRollbackFor` on the inner method, a narrower `rollbackFor`, or
+    validating before anything writes. Removing the wrapping `@Transactional`
+    is not an option, it is the tenant scope.
+
+    The background equivalent of this rule is in Phase 5b: never catch and
+    continue inside one transaction.
+
 ## Baseline: controller entrypoints already carry `TxCtx`
 
 Every `@Transactional` method under `io.openaev.api/**` and
