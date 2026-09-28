@@ -177,6 +177,7 @@ const ScopeDefinition = ({
           onUpdate={handleUpdate}
           autonomous={autonomous}
           autonomousTimeoutSeconds={autonomousTimeoutSeconds}
+          readOnly={readOnly}
         />
       </Box>
     </Box>

@@ -16,6 +16,7 @@ interface Props {
   autonomous?: boolean;
   /** OpenAEV-owned autonomous session timeout in seconds (default 24h). Only used when autonomous. */
   autonomousTimeoutSeconds?: number | null;
+  readOnly?: boolean;
 }
 
 const DEFAULT_AUTONOMOUS_TIMEOUT_SECONDS = 24 * 3600;
@@ -29,10 +30,11 @@ interface LimitSectionProps {
   tooltip: string;
   enabled: boolean;
   onToggle: () => void;
+  disabled?: boolean;
   children: ReactNode;
 }
 
-const LimitSection = ({ icon, title, tooltip, enabled, onToggle, children }: LimitSectionProps) => {
+const LimitSection = ({ icon, title, tooltip, enabled, onToggle, disabled = false, children }: LimitSectionProps) => {
   const theme = useTheme();
   return (
     <Box sx={{
@@ -74,7 +76,11 @@ const LimitSection = ({ icon, title, tooltip, enabled, onToggle, children }: Lim
           aria-label={title}
           checked={enabled}
           onCheckedChange={onToggle}
-          style={{ marginLeft: 'auto' }}
+          disabled={disabled}
+          style={{
+            marginLeft: 'auto',
+            opacity: disabled ? 0.5 : 1,
+          }}
         />
       </Box>
       <Box sx={{
@@ -90,7 +96,13 @@ const LimitSection = ({ icon, title, tooltip, enabled, onToggle, children }: Lim
   );
 };
 
-const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate, autonomous = false, autonomousTimeoutSeconds }: Props) => {
+const ScopeExecutionLimits = ({
+  workflowConfiguration,
+  onUpdate,
+  autonomous = false,
+  autonomousTimeoutSeconds,
+  readOnly = false,
+}: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -171,6 +183,7 @@ const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate, autonomous = fa
           : t('Maximum total runtime for the entire chained scenario. Execution stops automatically once the timeout is reached.')}
         enabled={timeoutEnabled}
         onToggle={handleToggleTimeout}
+        disabled={readOnly || autonomous}
       >
         <div>
           <Select value={String(hours)} onValueChange={handleHoursChange} disabled={!timeoutEnabled}>
@@ -212,6 +225,7 @@ const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate, autonomous = fa
             tooltip={t('Controls how often an attack step is executed. Useful for simulating brute-force or slow, stealthy attacks.')}
             enabled={rateLimitEnabled}
             onToggle={handleToggleRateLimit}
+            disabled={readOnly}
           >
             <div>
               <Select value={String(maxAttempts)} onValueChange={handleMaxAttemptsChange} disabled={!rateLimitEnabled}>
