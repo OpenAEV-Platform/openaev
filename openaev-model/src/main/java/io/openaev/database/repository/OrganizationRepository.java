@@ -4,7 +4,6 @@ import io.openaev.database.model.Organization;
 import io.openaev.database.raw.RawOrganization;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -17,10 +16,11 @@ public interface OrganizationRepository
     extends CrudRepository<Organization, String>, JpaSpecificationExecutor<Organization> {
 
   @NotNull
-  Optional<Organization> findById(@NotNull String id);
+  List<Organization> findByNameIgnoreCase(@NotNull final String name);
 
   @NotNull
-  List<Organization> findByNameIgnoreCase(@NotNull final String name);
+  List<Organization> findByNameIgnoreCaseAndTenantId(
+      @NotNull final String name, @NotNull final String tenantId);
 
   // Native array_agg builds the read-only projection; no ORM write/listener side effects are lost.
   @Query(

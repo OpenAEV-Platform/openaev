@@ -53,7 +53,7 @@ public class OrganizationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Page<Organization> organizations(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return organizationService.organizationPagination(ctx, searchPaginationInput);
+    return organizationService.organizationPagination(searchPaginationInput);
   }
 
   @GetMapping({
@@ -66,7 +66,7 @@ public class OrganizationApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ORGANIZATION)
   public Organization organization(TxCtx ctx, @PathVariable String organizationId) {
-    return organizationService.findById(ctx, organizationId);
+    return organizationService.findById(organizationId);
   }
 
   /**
@@ -89,7 +89,7 @@ public class OrganizationApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String organizationId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    organizationService.findById(ctx, organizationId);
+    organizationService.findById(organizationId);
     return injectSearchService.getPageOfInjectResultsForOrganization(
         organizationId, searchPaginationInput);
   }
@@ -116,7 +116,7 @@ public class OrganizationApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String organizationId,
       @Valid @RequestBody OrganizationUpdateInput input) {
-    return organizationService.updateOrganization(ctx, organizationId, input);
+    return organizationService.updateOrganization(organizationId, input);
   }
 
   @DeleteMapping({
@@ -129,7 +129,7 @@ public class OrganizationApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ORGANIZATION)
   public void deleteOrganization(TxCtx ctx, @PathVariable String organizationId) {
-    organizationService.deleteOrganization(ctx, organizationId);
+    organizationService.deleteOrganization(organizationId);
   }
 
   @ApiResponses(
@@ -161,13 +161,13 @@ public class OrganizationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsByName(
       TxCtx ctx, @RequestParam(required = false) final String searchText) {
-    return organizationService.optionsByName(ctx, searchText);
+    return organizationService.optionsByName(searchText);
   }
 
   @PostMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
-    return organizationService.optionsById(ctx, ids);
+    return organizationService.optionsById(ids);
   }
 }

@@ -373,7 +373,7 @@ public class PhishingLandingPageService {
     injectorContract.setDomains(
         this.domainService.upsertDomainEntities(contract.getDomains(), tenantId));
     injectorContract.setAuthorOrganization(
-        this.organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR));
+        this.organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR, tenantId));
 
     // MITRE ATT&CK association, resolved by external id against the tenant's imported patterns
     // exactly

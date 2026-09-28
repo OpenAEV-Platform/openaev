@@ -257,6 +257,7 @@ class TenantActiveTableAccessArchTest {
           "injectors",
           "tags",
           "tag_rules",
+          "organizations",
           "channels",
           "domains",
           "attackpath_execution",
@@ -847,6 +848,23 @@ class TenantActiveTableAccessArchTest {
                   + " the repository: resolving it in an unscoped context silently yields an empty"
                   + " notifier list, and the dispatch pipeline then delivers nothing at all. New"
                   + " callers must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule organizations_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying HTTP entrypoints and the owning service are scoped explicitly.
+              io.openaev.rest.organization.OrganizationApi.class,
+              io.openaev.service.organization.OrganizationService.class,
+              io.openaev.rest.payload.service.PayloadUpsertService.class,
+              io.openaev.service.InjectorService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.OrganizationRepository.class)
+          .because(
+              "organizations is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule channels_repository_access_is_reviewed =
