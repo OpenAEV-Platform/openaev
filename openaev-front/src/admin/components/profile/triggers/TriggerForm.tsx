@@ -1,11 +1,10 @@
 import { Button, Checkbox, Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
-// fds:keep-mui the time-of-day field needs `type="time"`, which the library Input does not offer — LIBRARY-FEEDBACK #49
-import { TextField } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 
 import { searchNotificationTriggers } from '../../../../actions/notifications/notification-trigger-actions';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import TextFieldFds from '../../../../components/fields/TextFieldFds';
+import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import { type FilterGroup, type NotificationTriggerInput, type NotificationTriggerOutput } from '../../../../utils/api-types';
 import NotifierField from './NotifierField';
@@ -22,6 +21,16 @@ interface Props {
 }
 
 /** Creation / edition form for live and digest notification triggers. */
+// The stored value is an HH:mm wall clock in UTC; the field speaks Date.
+const timeAsDate = (value: string): Date | null => {
+  const [hours, minutes] = value.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return new Date(Date.UTC(1970, 0, 1, hours, minutes));
+};
+
+const timeAsString = (value: Date): string =>
+  `${String(value.getUTCHours()).padStart(2, '0')}:${String(value.getUTCMinutes()).padStart(2, '0')}`;
+
 const TriggerForm: FunctionComponent<Props> = ({
   triggerType,
   onSubmit,
@@ -269,14 +278,15 @@ const TriggerForm: FunctionComponent<Props> = ({
             </div>
           )}
           {period !== 'HOUR' && (
-            <TextField
-              fullWidth
-              type="time"
+            <TimeField
               label={t('Time (UTC)')}
-              value={time}
-              onChange={e => setTime(e.target.value)}
-              style={{ marginTop: 20 }}
-              slotProps={{ inputLabel: { shrink: true } }}
+              // The trigger stores a wall clock in UTC, not an instant: the
+              // field reads and writes the same HH:mm the backend keeps.
+              timezone="UTC"
+              format="HH:mm"
+              value={timeAsDate(time)}
+              onChange={next => setTime(next ? timeAsString(next) : '')}
+              className="w-full mt-5"
             />
           )}
         </>

@@ -1,9 +1,7 @@
-import { Button, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TableViewOutlined } from '@mui/icons-material';
-import { Alert, Box } from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers';
-import { InformationOutline } from 'mdi-material-ui';
+import { Alert } from '@mui/material';
 import moment from 'moment-timezone';
 import { type FunctionComponent, type SyntheticEvent, useContext, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -13,6 +11,7 @@ import { z } from 'zod';
 import { searchMappers } from '../../../../actions/mapper/mapper-actions';
 import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import DateField from '../../../../components/fields/DateField';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type ImportMapper,
@@ -331,42 +330,12 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
         />
         {needLaunchDate
           && (
-            <Controller
+            <DateField
               control={control}
               name="startDate"
-              render={({ field, fieldState }) => (
-                <DateTimePicker
-                  views={['year', 'month', 'day']}
-                  value={field.value ? new Date(field.value) : null}
-                  minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
-                  onChange={startDate => field.onChange(startDate?.toISOString())}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      error: !!fieldState.error,
-                      helperText: fieldState.error && fieldState.error?.message,
-                      label: (
-                        <Box display="flex" alignItems="center">
-                          {t('Start date')}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <InformationOutline
-                                fontSize="small"
-                                color="primary"
-                                style={{
-                                  marginLeft: 4,
-                                  cursor: 'default',
-                                }}
-                              />
-                            </TooltipTrigger>
-                            <TooltipContent>{t('The imported file contains absolute dates (ex.: 9h30). A starting date must be provided for the Scenario to be build')}</TooltipContent>
-                          </Tooltip>
-                        </Box>
-                      ),
-                    },
-                  }}
-                />
-              )}
+              label={t('Start date')}
+              infoTooltip={t('The imported file contains absolute dates (ex.: 9h30). A starting date must be provided for the Scenario to be build')}
+              minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
             />
           )}
         <Controller

@@ -2,12 +2,13 @@ import { Button, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UpdateOutlined } from '@mui/icons-material';
 import { Alert, Box, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Switch, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import Transition from '../../../../components/common/Transition';
+import DateField from '../../../../components/fields/DateField';
+import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import {
   Cron,
@@ -20,7 +21,7 @@ import {
 import handle from '../../../../utils/period/Period';
 import { minutesInFuture } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
-import TimeStepperField, { StepperColumn } from './TimeStepperField';
+import { StepperColumn } from './TimeStepperField';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -298,8 +299,9 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
               {/* Time of day (or interval + minute for hourly). */}
               <Box sx={{
                 display: 'flex',
-                alignItems: 'flex-start',
-                gap: 4,
+                // The switch sits level with the inputs, not with their labels.
+                alignItems: 'flex-end',
+                gap: 2,
                 flexWrap: 'wrap',
               }}
               >
@@ -355,16 +357,24 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                       </>
                     )
                   : (
-                      <TimeStepperField
-                        label={t('Scheduling_time')}
-                        hour={values.hour}
-                        minute={values.minute}
-                        onChangeHour={next => setValue('hour', next, { shouldValidate: true })}
-                        onChangeMinute={next => setValue('minute', next, { shouldValidate: true })}
-                        error={timeError}
-                        hourLabel={t('Hours')}
-                        minuteLabel={t('Minutes')}
-                      />
+                      <Box sx={{
+                        flex: 1,
+                        minWidth: 200,
+                      }}
+                      >
+                        <TimeField
+                          label={t('Scheduling_time')}
+                          format="HH:mm"
+                          error={timeError}
+                          // The form keeps the clock as two numbers, not a date.
+                          value={new Date(1970, 0, 1, values.hour, values.minute)}
+                          onChange={(next) => {
+                            if (!next) return;
+                            setValue('hour', next.getHours(), { shouldValidate: true });
+                            setValue('minute', next.getMinutes(), { shouldValidate: true });
+                          }}
+                        />
+                      </Box>
                     )}
                 {['weekly', 'monthly'].includes(frequency) && (
                   <Stack
@@ -430,7 +440,15 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                     name="onlyWeekday"
                     render={({ field }) => (
                       <FormControlLabel
-                        sx={{ marginTop: 2 }}
+                        sx={{
+                          flex: 1,
+                          minWidth: 200,
+                          // The default label margins would shrink its share of the row.
+                          marginInline: 0,
+                          height: 36,
+                          // The hourly steppers are taller than an input, so centre on them.
+                          alignSelf: frequency === 'hourly' ? 'center' : 'flex-end',
+                        }}
                         control={(
                           <Switch
                             checked={field.value}
@@ -449,49 +467,20 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                 gap: 2,
               }}
               >
-                <Controller
+                <DateField
                   control={control}
                   name="startDate"
-                  render={({ field, fieldState }) => (
-                    <DateTimePicker
-                      views={['year', 'month', 'day']}
-                      value={field.value ? new Date(field.value) : null}
-                      minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
-                      onChange={startDate => field.onChange(startDate?.toISOString())}
-                      onAccept={() => clearErrors(['hour', 'minute'])}
-                      slotProps={{
-                        textField: {
-                          fullWidth: true,
-                          error: !!fieldState.error,
-                          helperText: fieldState.error?.message,
-                          variant: 'outlined',
-                        },
-                      }}
-                      label={t('Start date')}
-                    />
-                  )}
+                  label={t('Start date')}
+                  minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
+                  onAccept={() => clearErrors(['hour', 'minute'])}
                 />
                 {frequency !== 'noRepeat' && (
-                  <Controller
+                  <DateField
                     control={control}
                     name="endDate"
-                    render={({ field, fieldState }) => (
-                      <DateTimePicker
-                        views={['year', 'month', 'day']}
-                        value={field.value ? new Date(field.value) : null}
-                        minDate={new Date(new Date().setUTCHours(24, 0, 0, 0))}
-                        onChange={endDate => field.onChange(endDate ? new Date(new Date(endDate).setUTCHours(0, 0, 0, 0)).toISOString() : null)}
-                        slotProps={{
-                          textField: {
-                            fullWidth: true,
-                            error: !!fieldState.error,
-                            helperText: fieldState.error?.message,
-                            variant: 'outlined',
-                          },
-                        }}
-                        label={t('End date (optional)')}
-                      />
-                    )}
+                    label={t('End date (optional)')}
+                    minDate={new Date(new Date().setUTCHours(24, 0, 0, 0))}
+                    toStorage={endDate => new Date(new Date(endDate).setUTCHours(0, 0, 0, 0)).toISOString()}
                   />
                 )}
               </Box>
