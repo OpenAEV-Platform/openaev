@@ -3637,6 +3637,7 @@
   "Should not be empty": "空にすることはできません",
   "Should not exceed {max_length} characters": "{max_length}文字を超えないこと",
   "Show alerts": "アラートを表示",
+  "Show all actions again": "すべてのアクションを再表示",
   "Show all assets": "すべてのアセットを表示",
   "Show conversations": "会話を表示",
   "Show covered TTP only": "カバーされたTTPのみを表示",

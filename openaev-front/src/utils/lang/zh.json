@@ -3637,6 +3637,7 @@
   "Should not be empty": "不能为空",
   "Should not exceed {max_length} characters": "不应超过 {max_length} 个字符",
   "Show alerts": "显示警报",
+  "Show all actions again": "重新显示所有操作",
   "Show all assets": "显示所有资产",
   "Show conversations": "显示对话",
   "Show covered TTP only": "只显示覆盖的 TTP",
