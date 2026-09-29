@@ -19,6 +19,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -114,11 +116,12 @@ public class PhishingEmailTemplateService {
     if (idsToDelete.isEmpty()) {
       return idsToDelete;
     }
-    // A search-driven bulk delete is scoped by the caller's request scope, so every matched
-    // template shares one tenant; take it from any one of them.
-    String tenantId = toDelete.getFirst().getTenant().getId();
+    // A multi-id X-Tenant-Ids scope can legitimately match templates of several tenants, so every
+    // distinct tenant touched by this batch gets its own resync.
+    Set<String> tenantIds =
+        toDelete.stream().map(t -> t.getTenant().getId()).collect(Collectors.toSet());
     emailTemplateRepository.deleteAllById(idsToDelete);
-    resyncLandingPageContracts(tenantId);
+    tenantIds.forEach(this::resyncLandingPageContracts);
     return idsToDelete;
   }
 

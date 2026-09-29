@@ -61,6 +61,38 @@ class PhishingEmailTemplateServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "bulkDelete resyncs every distinct tenant reachable through a multi-tenant scope, not just"
+          + " the first matched template's")
+  void bulkDelete_should_resyncEveryDistinctTenantInScope() {
+    // -- ARRANGE --
+    PhishingEmailTemplate tenantOneTemplate = new PhishingEmailTemplate();
+    tenantOneTemplate.setId("et-1");
+    tenantOneTemplate.setName("First");
+    tenantOneTemplate.setTenant(new Tenant("tenant-1"));
+    PhishingEmailTemplate tenantTwoTemplate = new PhishingEmailTemplate();
+    tenantTwoTemplate.setId("et-2");
+    tenantTwoTemplate.setName("Second");
+    tenantTwoTemplate.setTenant(new Tenant("tenant-2"));
+    when(emailTemplateRepository.findAll(any(Specification.class)))
+        .thenReturn(List.of(tenantOneTemplate, tenantTwoTemplate));
+
+    PhishingEmailTemplateBulkProcessingInput input = new PhishingEmailTemplateBulkProcessingInput();
+    input.setEmailTemplateIdsToProcess(List.of("et-1", "et-2"));
+
+    // -- ACT --
+    List<String> deleted = phishingEmailTemplateService.bulkDelete(input);
+
+    // -- ASSERT --
+    assertEquals(List.of("et-1", "et-2"), deleted);
+    verify(emailTemplateRepository).deleteAllById(List.of("et-1", "et-2"));
+    // A multi-id X-Tenant-Ids scope can legitimately match templates of several tenants: every one
+    // of them must have its landing page contracts resynced, not only the first matched template's.
+    verify(landingPageService).resyncAllContracts("tenant-1");
+    verify(landingPageService).resyncAllContracts("tenant-2");
+  }
+
+  @Test
   @DisplayName("bulkDelete is a no-op that skips the re-sync when nothing matches")
   void bulkDelete_should_skipResyncWhenNothingMatches() {
     // -- ARRANGE --
