@@ -165,27 +165,30 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("an empty scope (deny-all) is not flagged: a documented limit, pinned")
-  void given_emptyScope_should_notFlagTheWrite() {
+  @DisplayName("an empty scope (deny-all) is recorded and reported, never gated: the third state")
+  void given_emptyScope_should_beRecordedAndReportedNeverGated() {
     // Arrange: TxCtx.missing() sets app.current_tenants to '' and can_access_tenant refuses every
-    // row, so a write made there is outside the scope by definition. The trigger stays silent on
-    // purpose: the test utilities reset a transaction to '' after tenant onboarding, so raising the
-    // empty scope flags the fixture writes of nearly every isolation test. Folding the two named
-    // fixture frames (TenantIsolationTestHelper, WithMockUserTestExecutionListener) into the
-    // test-frame heuristic is not enough to widen this signal safely: measured on a full sharded
-    // collection with that fold in place, the guard raised still surfaces 393 distinct signatures,
-    // not the handful predicted, spanning many subsystems that drive production services directly
-    // from a test. Widening it again needs that sweep done first, not another fixture-frame fold.
+    // row, so a write made there is outside the scope by definition, exactly the class this
+    // detector exists to catch (a background job or a request that lands with no v2 scope). The
+    // trigger now raises for it (scope='' comes through as a structured, empty scope field, not
+    // silence); routing it away from the gate and the baseline is the Java side's job
+    // (WriteAttrGateExtension.keyed/emptyScopeSignatures), proven separately in
+    // WriteAttrGateExtensionTest because a synchronous write issued straight from this test carries
+    // no production entry frame and so is invisible to both of those methods by the same rule as
+    // any
+    // other test-driven write.
     startScoped("");
 
     // Act
     seedScenario(tenantB);
 
-    // Assert
+    // Assert: the raw recorder sees it now, where it used to stay silent. If the trigger's guard is
+    // restored to exclude the empty scope again, this assertion goes red.
     WriteAttrDetectorRecorder.stop();
-    assertFalse(
+    assertTrue(
         flagged("scenarios", Relation.OTHER),
-        "the empty scope is a documented limit; widening it re-opens the flood measured when folding the fixture frames was tried");
+        "an empty-scope write must now be recorded by the trigger, got "
+            + WriteAttrDetectorRecorder.violations());
   }
 
   private void installTrigger() {
