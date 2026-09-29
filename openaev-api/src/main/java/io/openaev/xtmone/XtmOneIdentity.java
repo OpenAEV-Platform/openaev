@@ -196,6 +196,10 @@ public class XtmOneIdentity {
         String authority = uri.getRawAuthority();
         int colon = authority.lastIndexOf(':');
         host = colon >= 0 ? authority.substring(0, colon) : authority;
+        if (!host.matches("[A-Za-z0-9_.-]+")) {
+          // A bracketed IPv6 literal is a server name; anything else here is malformed.
+          return Optional.empty();
+        }
         String digits = colon >= 0 ? authority.substring(colon + 1) : null;
         if (digits != null && !digits.matches("\\d{1,5}")) {
           // Integer.parseInt would read a sign: -2 or +80 is no port.

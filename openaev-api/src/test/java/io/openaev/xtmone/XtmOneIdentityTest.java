@@ -244,6 +244,8 @@ class XtmOneIdentityTest {
     "https://xtm.example.com:443/base/, https://xtm.example.com/base",
     "http://xtm_one:4000, http://xtm_one:4000",
     "http://xtm-one:4000, http://xtm-one:4000",
+    "http://[::1]:4000/, http://[::1]:4000",
+    "HTTP://[FD00::1]:80, http://[fd00::1]",
   })
   @DisplayName("URLs are compared in one spelling")
   void canonicalizesUrls(String url, String expected) {
@@ -267,6 +269,11 @@ class XtmOneIdentityTest {
     "http://xtm_one:+80",
     "http://xtm_one:",
     "http://xtm-one:-2",
+    "http://foo:bar:80",
+    "http://xtm_one:bar:80",
+    "http://::1",
+    "http://::1:4000",
+    "http://xtm%20one:4000",
   })
   @DisplayName("anything but an http(s) URL has no canonical form")
   void refusesNonHttpUrls(String url) {
