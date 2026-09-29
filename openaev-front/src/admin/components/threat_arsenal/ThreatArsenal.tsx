@@ -19,7 +19,6 @@ import Breadcrumbs from '../../../components/Breadcrumbs';
 import DialogDelete from '../../../components/common/DialogDelete';
 import ExportButton from '../../../components/common/ExportButton';
 import { useAuthorFacetOptions } from '../../../components/common/facets/ContractFacets';
-import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -44,6 +43,7 @@ import ThreatArsenalHero from './ThreatArsenalHero';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import { THREAT_ARSENAL_LIST_HEADERS, THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 import ThreatArsenalListRow from './ThreatArsenalListRow';
+import { hasOrphanedScopeFilters, toggleOrphanedScope } from './threatArsenalOrphanedScopeUtils';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
 import ThreatArsenalSortSelect from './ThreatArsenalSortSelect';
@@ -183,49 +183,14 @@ const ThreatArsenal = () => {
     queryableHelpers.textSearchHelpers.handleTextSearch('');
   };
 
-  // Quick "purge orphans" shortcut: narrow the list to the dead "question mark"
-  // cards and turn on select-all so the floating Delete action purges them at
-  // once. A question-mark card is an action with NO injector AND NO payload:
-  //  - no injector (`action_injectors` empty) => its injector was removed, so it
-  //    can never run;
-  //  - no payload (`action_payload_status` empty) => this excludes manually
-  //    created payloads, which have a payload (hence a real icon) and run fine
-  //    even when momentarily unlinked from an injector.
-  // Scoping via filters keeps the bulk delete from touching healthy actions.
-  // The button is a toggle (#8071): its state is derived from the filters, so it
-  // also reflects a scope restored from local storage or built by hand.
-  const isEmptyFilterActive = (key: string) => (searchPaginationInput.filterGroup?.filters ?? [])
-    .some(filter => filter.key === key && filter.operator === 'empty');
-  const isOrphanedScopeActive = isEmptyFilterActive('action_injectors')
-    && isEmptyFilterActive('action_payload_status');
-
-  const handleToggleOrphaned = () => {
-    queryableHelpers.filterHelpers.handleRemoveFilterByKey('action_injectors');
-    queryableHelpers.filterHelpers.handleRemoveFilterByKey('action_payload_status');
-    if (isOrphanedScopeActive) {
-      // Leaving the orphan scope: drop the select-all it turned on, otherwise the
-      // floating Delete action would target every healthy action of the list.
-      handleClearSelectedElements();
-      return;
-    }
-    queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
-      id: generateFilterId(),
-      key: 'action_injectors',
-      operator: 'empty',
-      values: [],
-      mode: 'and',
-    });
-    queryableHelpers.filterHelpers.handleAddFilterWithEmptyValue({
-      id: generateFilterId(),
-      key: 'action_payload_status',
-      operator: 'empty',
-      values: [],
-      mode: 'and',
-    });
-    if (!selectAll) {
-      handleToggleSelectAll();
-    }
-  };
+  const isOrphanedScopeActive = hasOrphanedScopeFilters(searchPaginationInput.filterGroup);
+  const handleToggleOrphaned = () => toggleOrphanedScope({
+    isActive: isOrphanedScopeActive,
+    filterHelpers: queryableHelpers.filterHelpers,
+    selectAll,
+    handleToggleSelectAll,
+    handleClearSelectedElements,
+  });
 
   // Fire and forget, like every other massive operation in the platform: the dialog
   // closes and the selection clears immediately, progress is reported by the
