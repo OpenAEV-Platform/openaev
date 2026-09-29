@@ -60,7 +60,7 @@ jobs:
   ocsf-parser-generation-stability:
     strategy:
       matrix:
-        version: [ "1.9.0" ]
+        version: ["1.9.0"]
     name: "🔎 OCSF Parser Generation Stability"
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -71,7 +71,14 @@ jobs:
         with:
           java-version: "21"
           distribution: temurin
-          cache: maven
+      - name: Restore Maven dependencies
+        if: ${{ !inputs.no-cache }}
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-v2-${{ runner.os }}-${{ runner.arch }}-
       - name: "Install OpenAEV maven plugin"
         run: |
           mvn -B clean install -pl openaev-maven-plugin
