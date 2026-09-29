@@ -24,8 +24,8 @@ on:
         description: "PR head commit SHA"
         required: true
         type: string
-      comment_id:
-        description: "PR comment ID to update"
+      deployment_id:
+        description: "GitHub deployment ID to report status on"
         required: true
         type: string
 
@@ -115,7 +115,7 @@ jobs:
           PR_NUMBER: ${{ inputs.pr_number }}
           HEAD_REF: ${{ inputs.head_ref }}
           HEAD_SHA: ${{ inputs.head_sha }}
-          COMMENT_ID: ${{ inputs.comment_id }}
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
           BUILD_RESULT: ${{ needs.docker-merge.result }}
         run: |
           mkdir -p metadata
@@ -123,9 +123,9 @@ jobs:
             --arg pr "$PR_NUMBER" \
             --arg ref "$HEAD_REF" \
             --arg sha "$HEAD_SHA" \
-            --arg cid "$COMMENT_ID" \
+            --arg did "$DEPLOYMENT_ID" \
             --arg res "$BUILD_RESULT" \
-            '{pr_number: $pr, head_ref: $ref, head_sha: $sha, comment_id: $cid, build_result: $res}' \
+            '{pr_number: $pr, head_ref: $ref, head_sha: $sha, deployment_id: $did, build_result: $res}' \
             > metadata/deploy-metadata.json
       - uses: actions/upload-artifact@v7
         with:
