@@ -59,7 +59,7 @@ const InjectCredentialReferencesList = ({ disabled = false, errorLabel, label, m
     });
   }, [credentialIds, credentialsMap, dispatch]);
 
-  const onCredentialChange = (updatedCredentialIds: string[]) => setValue(name, updatedCredentialIds, { shouldValidate: true });
+  const onCredentialChange = (updatedCredentialIds: string[]) => setValue('inject_secret_references', updatedCredentialIds, { shouldValidate: true });
   const onCredentialRemoveFromInject = (credentialId: string) => onCredentialChange(credentialIds.filter(id => id !== credentialId));
 
   return (

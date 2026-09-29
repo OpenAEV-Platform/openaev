@@ -38,6 +38,9 @@ public class AtomicTestingInput {
   @JsonProperty("inject_asset_groups")
   private List<String> assetGroups = new ArrayList<>();
 
+  @JsonProperty("inject_secret_references")
+  private List<String> secretReferences = new ArrayList<>();
+
   @JsonProperty("inject_documents")
   private List<InjectDocumentInput> documents = new ArrayList<>();
 

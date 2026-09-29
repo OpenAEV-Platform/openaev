@@ -273,6 +273,7 @@ const InjectForm = ({
         inject_teams: data.inject_all_teams ? [] : data.inject_teams,
         inject_assets: data.inject_assets,
         inject_asset_groups: data.inject_asset_groups,
+        inject_secret_references: data.inject_secret_references,
         inject_documents: data.inject_documents,
         inject_depends_duration,
         inject_depends_on: data.inject_depends_on ? data.inject_depends_on : [],
