@@ -33,7 +33,6 @@ import DeployScenario from './components/scenarios/DeployScenario';
 
 const Home = lazy(() => import('./components/Home'));
 const DashboardResults = lazy(() => import('./components/workspaces/custom_dashboards/results/DashboardResults'));
-// Lazy like every other route: keeps the inject detail tree (incl. charts) out of the main admin chunk
 const InjectIndex = lazy(() => import('./components/simulations/simulation/injects/InjectIndex'));
 const IndexProfile = lazy(() => import('./components/profile/Index'));
 const ProfileNotifications = lazy(() => import('./components/profile/notifications/Notifications'));
@@ -123,17 +122,12 @@ const Index = () => {
     paddingTop: 2,
     paddingLeft: 2.5,
     paddingRight: 2.5,
-    // Global bottom breathing room: without it every page's last row sits flush
-    // against the viewport edge and feels "cut off". Set once here for the whole app.
+    // Bottom breathing room for every page, set once.
     paddingBottom: 3,
     marginRight: chatbotMargin > 0 ? `${chatbotMargin}px` : 0,
     transition: chatbotTransition,
-    // `clip` rather than `hidden`: both cut the same overflow, but `hidden`
-    // makes the element a scroll container, and a sticky descendant then
-    // resolves against it - a box that never scrolls, so nothing ever sticks.
-    // `clip` creates no scroll container, so the right-hand rails stick to the
-    // viewport. The vertical axis needs no clipping: the shell grows with its
-    // content and the page scrolls the document.
+    // `clip`, not `hidden`: `hidden` makes this a scroll container, and a sticky
+    // descendant then resolves against a box that never scrolls.
     overflowX: 'clip' as const,
     // A flex item is sized by its own content unless told otherwise. `hidden`
     // used to grant that exemption implicitly; `clip` does not, so a wide table

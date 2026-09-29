@@ -32,16 +32,11 @@ const DIRECT_TOKENS = {
 } as const satisfies Record<keyof FdsCustomTheme, string>;
 
 /**
- * An elevation layer is a family — surface, field highlight, borders — and only the
- * surface has a setting, so a custom colour arriving alone leaves the rest of its
- * layer on the library's value. Each member moves by the step the LIBRARY puts
- * between the surface and that member: the step is read, never hardcoded, because
- * its sign flips between modes and between layers.
+ * Only the surface has a setting, so each member moves by the step the LIBRARY puts
+ * between them — read, never hardcoded: its sign flips between modes and layers.
  *
- * The disabled members are deliberately absent. The library holds them near-neutral
- * (5% saturation against a customer surface at 68%), and that desaturation is what
- * makes a disabled control read as disabled; moving only the luminance would keep
- * the customer's hue and paint a "disabled" button that reads as active.
+ * The disabled members are absent on purpose: the library holds them near-neutral
+ * (5% saturation), and that is what makes a disabled control read as disabled.
  */
 const LAYER_FAMILY = [
   'bg-elevation-highlight',
@@ -116,11 +111,7 @@ const fromHsl = ([h, s, l]: [number, number, number]): string => {
   return `#${f(0)}${f(8)}${f(4)}`;
 };
 
-/**
- * A field must stay visibly apart from its surface. The library's own step is uneven
- * — faint at layer 2, where the drawers live — so the floor is the library's BEST
- * step, never an invented value.
- */
+/** The library's own step is faint at layer 2, so the floor is its BEST step. */
 const highlightFloor = (mode: FdsThemeMode): number => {
   const palette = FDS.colors[mode] as Record<string, string>;
   let best = 0;
@@ -132,11 +123,7 @@ const highlightFloor = (mode: FdsThemeMode): number => {
   return best;
 };
 
-/**
- * `custom` moved by the library's own step between `from` and `to`, mirrored rather
- * than clamped when there is no room: a border that lands ON its surface stops
- * being a border.
- */
+/** `custom` moved by the library's step, mirrored rather than clamped when out of room. */
 export const movedBy = (
   custom: string,
   from: string,
@@ -157,9 +144,8 @@ export const movedBy = (
 };
 
 /**
- * The bar paints `var(--gradient-default)`, a composite the library resolves on
- * `:root`: its ingredients set lower in the tree do nothing, the value is inherited
- * already substituted. Only the composite, set on the bar, moves it.
+ * The bar paints the composite `--gradient-default`, resolved on `:root`: its
+ * ingredients set lower in the tree do nothing. Only the composite moves it.
  */
 export const useFdsNavSurface = (
   navColor: string | null | undefined,
@@ -208,16 +194,14 @@ const useFdsThemeScope = (mode: FdsThemeMode, custom: FdsCustomTheme = {}): FdsT
       else root.style.removeProperty(token);
     };
 
-    // A setting equal to the library's own value is NOT an override: writing it
-    // would pin the default theme to today's palette and freeze it against any
-    // future library change.
+    // A setting equal to the library's value is not an override: writing it would
+    // freeze the default theme against any future library change.
     const customised = (setting: keyof FdsCustomTheme): string | null => {
       const value = resolved[setting];
       if (!value) return null;
       return value.toLowerCase() === palette[DIRECT_TOKENS[setting]]?.toLowerCase() ? null : value;
     };
 
-    // Every layer the customer touched, plus the drawer layer derived from paper.
     const surfaces = new Map<number, string | null>();
     (Object.keys(SURFACE_BY_SETTING) as (keyof typeof SURFACE_BY_SETTING)[]).forEach((setting) => {
       surfaces.set(SURFACE_BY_SETTING[setting], customised(setting));
@@ -264,7 +248,6 @@ const useFdsThemeScope = (mode: FdsThemeMode, custom: FdsCustomTheme = {}): FdsT
       set(DIRECT_TOKENS[setting], customised(setting));
     });
 
-    // Secondary and disabled text hold the same distance from primary as the library's.
     const primaryText = customised('text');
     TEXT_FAMILY.forEach((token) => {
       set(token, primaryText ? movedBy(primaryText, '--text-default-primary', token, mode) : null);

@@ -9,9 +9,6 @@ import { compactNumber } from '../../../utils/number';
 // not trip react-refresh/only-export-components on this component file.
 import { SECTION_LABEL_SX } from './detailStyles';
 
-// A single labelled field inside an information section. One shape for every
-// label/value pair in the product: the label in 12px secondary ink, 8px of
-// gap, the value under it in 14px primary ink.
 export const Field = ({ label, children }: {
   label: string;
   children: ReactNode;
@@ -31,26 +28,18 @@ export const Field = ({ label, children }: {
   </div>
 );
 
-// A titled section with an outlined paper body (mirrors AssetGroupDetail). The
-// wrapper fills the grid cell height so side-by-side sections align at the
-// bottom (the Paper stretches to match the taller sibling).
+// A titled section whose body fills its grid cell, so siblings align at the bottom.
 export const Section = ({ title, children }: {
   title: string;
   children: ReactNode;
 }) => (
-  // GRID, not flex-column: with `title` set the library renders its own wrapper
-  // around header + surface, and `style` reaches the SURFACE, never that
-  // wrapper. A flex column therefore leaves the wrapper at content height and
-  // side-by-side panels stop aligning (measured: 58px vs 130px). One grid row
-  // at `1fr` stretches the wrapper without needing to style it, and `flex: 1`
-  // below makes the surface fill it — PAPER-GAP-INVENTORY §13.2.
+  // GRID, not flex-column: with `title` set, `style` reaches the library SURFACE,
+  // never the wrapper it draws around header + surface, so a flex column leaves
+  // that wrapper at content height (measured 58px against 130px).
   <div style={{
     display: 'grid',
-    // `minmax(0, 1fr)` and not just `1fr`: an implicit grid column is `auto`,
-    // i.e. sized to max-content, so the library's wrapper grew past the panel
-    // (measured 354px inside a 340px track) and the title never truncated —
-    // it overflowed. The explicit 0 minimum is what lets `min-w-0 truncate`
-    // do its job inside.
+    // `minmax(0, 1fr)`, not `1fr`: an implicit column is max-content sized, so the
+    // wrapper grew past its track (354px in 340px) and the title overflowed.
     gridTemplateColumns: 'minmax(0, 1fr)',
     gridTemplateRows: '1fr',
     height: '100%',
@@ -71,25 +60,16 @@ export const Section = ({ title, children }: {
   </div>
 );
 
-// An information grid section (auto-fitting labelled fields), packed densely
-// into as many columns as fit - the compact, OpenCTI-style overview card.
-// The optional `action` slot renders right-aligned in the library header row.
-// That row is a CONSTANT 24px whether or not an action is present, so a Paper
-// top-aligns with an action-bearing sibling column for free. `action={null}`
-// call sites predate the library header — back then the product drew a short
-// header without an action and a 32px one with, and the null forced the tall
-// variant. It no longer does anything; keep or drop it, but do not re-derive
-// an alignment need from it.
+// The library header row is a CONSTANT 24px with or without an `action`, so
+// siblings top-align for free; `action={null}` at call sites does nothing.
 export const InformationGrid = ({ title, action, children }: {
   title: string;
   action?: ReactNode;
   children: ReactNode;
 }) => (
-  // One grid row at `1fr` — see Section above for why this cannot be a flex
-  // column once `title` is set.
+  // See Section: grid, not flex, once `title` is set.
   <div style={{
     display: 'grid',
-    // `minmax(0, 1fr)`, not `1fr` — see Section above.
     gridTemplateColumns: 'minmax(0, 1fr)',
     gridTemplateRows: '1fr',
     height: '100%',
@@ -118,12 +98,7 @@ export const InformationGrid = ({ title, action, children }: {
   </div>
 );
 
-// Lays the related-entity sections in an adaptive multi-column grid: two (or
-// more) sections sit side by side on wide screens, while a lone section spans
-// the full width (auto-fit collapses the empty track). An explicit `columns`
-// template (e.g. '2fr 2fr 1fr') overrides the equal split on large screens
-// when the sections have known, unequal content densities; smaller screens
-// keep the adaptive wrap.
+// `columns` overrides the equal split on wide screens; narrow screens keep the wrap.
 export const DetailSections = ({ children, columns }: {
   children: ReactNode;
   columns?: string;
@@ -144,44 +119,26 @@ export const DetailSections = ({ children, columns }: {
   </Box>
 );
 
-// A full-width titled block: uppercase overline label above an outlined Paper.
-// Use for embedded lists (injects played, findings) on overview pages so the
-// section-title styling stays consistent and is defined once.
-// Standalone section label (same look as the SectionBlock title) for sections
-// that must render flat on the page background, without the Paper wrapper
-// (e.g. standard entity lists on detail pages).
 export const SectionLabel = ({ children }: { children: ReactNode }) => (
   <Typography sx={SECTION_LABEL_SX}>{children}</Typography>
 );
 
 export const SectionBlock = ({ title, action, children, disablePadding, centerContent }: {
   title: string;
-  // Right-aligned node in the library header row (same geometry as the
-  // InformationGrid action slot). That row is a constant 24px with or without
-  // an action, so `action={null}` — an idiom from the product's own two-height
-  // header — is now a no-op rather than an alignment lever.
   action?: ReactNode;
   children: ReactNode;
   disablePadding?: boolean;
-  // Vertically centers the content when a side-by-side sibling stretches the
-  // Paper taller than the content (grid alignItems: stretch). A plain
-  // `height: 100%` on the child does not resolve inside the flex-grown Paper,
-  // so the Paper itself must become the centering flex container.
+  // The Paper itself centers: `height: 100%` on the child does not resolve
+  // inside a flex-grown Paper.
   centerContent?: boolean;
 }) => (
-  // One grid row at `1fr` — see Section above for why this cannot be a flex
-  // column once `title` is set.
+  // See Section: grid, not flex, once `title` is set.
   <div style={{
     display: 'grid',
-    // `minmax(0, 1fr)`, not `1fr` — see Section above.
     gridTemplateColumns: 'minmax(0, 1fr)',
     gridTemplateRows: '1fr',
-    // No `height: 100%` here. As a GRID item under DetailSections the block
-    // is already stretched to its row by `alignItems: stretch`, so the
-    // declaration bought nothing there — while inside a FLEX COLUMN (the
-    // channel page stacks two of these) every block claimed the whole column
-    // height at once and they drew on top of each other, hiding the first
-    // one's submit button under the next block.
+    // No `height: 100%`: inside a flex column every block claimed the whole
+    // height and they drew on top of each other.
     minHeight: 0,
   }}
   >
@@ -207,10 +164,6 @@ export const SectionBlock = ({ title, action, children, disablePadding, centerCo
   </div>
 );
 
-// A single headline stat rendered in the entity hero, mirroring the custom
-// dashboard NumberWidget look & feel: a tinted rounded icon box next to a big
-// Geologica number with an uppercase caption beneath it. When `to` is set the
-// whole stat becomes a pivot link.
 export const HeroStat = ({ icon: Icon, label, value, color, to }: {
   icon: ComponentType<{ sx?: object }>;
   label: string;
@@ -220,12 +173,8 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
 }) => {
   const theme = useTheme();
   const accent = color ?? theme.palette.primary.main;
-  // Numeric values are shortened ("70.9K") with the exact count in a tooltip;
-  // non-numeric values (percentages, custom nodes) render untouched.
   const isCompacted = typeof value === 'number' && Math.abs(value) >= 1000;
   const displayValue = typeof value === 'number' ? compactNumber(value) : value;
-  // Figma node 7917:13045: a bordered tile, 8px inset, the 24px glyph, then the
-  // value and its label on ONE line — 14px semibold beside 12px secondary.
   const content = (
     <Box
       sx={{
@@ -308,10 +257,7 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
     : content;
 };
 
-// A horizontal run of hero stat tiles, 8px apart, wrapping on narrow
-// viewports (Figma node 7929:13323 — the tiles carry their own border, so the
-// row draws no divider). With `spread`, every tile takes an equal share of the
-// row so the cluster fills the width (the simulation Execution tab).
+// With `spread`, every tile takes an equal share so the cluster fills the width.
 export const HeroStats = ({ children, spread }: {
   children: ReactNode;
   spread?: boolean;
@@ -358,14 +304,12 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, s
   action?: ReactNode;
   /** Tiny headline stats rendered as a second hero row (wrap in HeroStat). */
   stats?: ReactNode;
-  /** Controls that belong to the body row, right-aligned beside the stats —
-   * the alert-toned ones the design file draws there (Figma 7929:13294). */
+  /** Controls belonging to the body row, right-aligned beside the stats. */
   bodyAction?: ReactNode;
   /** Free-form extra hero row rendered after the stats (e.g. meta items). */
   footer?: ReactNode;
 }) => {
-  // An entity's own artwork fills the square and needs no frame: the
-  // thumbnail's border and padding exist to hold a glyph.
+  // Artwork fills the square: the thumbnail's frame exists to hold a glyph.
   const filledIcon = (
     <Box sx={{
       'width': HERO_ICON_SIZE,
@@ -384,12 +328,8 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, s
       {iconNode}
     </Box>
   );
-  // Hero.rfc.md: the thumbnail sits one layer above the hero. Thumbnail
-  // renders a library Paper, which re-declares `--bg-elevation-default` on
-  // ITSELF from its own layer class, so a `.layer-2` wrapper loses. Paper.tsx
-  // documents the one thing that does work: repointing the layer variable on
-  // an ancestor repaints the subtree. Without it the thumbnail paints the
-  // hero's own fill and only its border shows.
+  // Thumbnail renders a library Paper, which re-declares `--bg-elevation-default`
+  // on ITSELF, so a `.layer-2` wrapper loses: repoint the variable instead.
   const framedIcon = (
     <span style={{ '--bg-elevation-default-layer-1': 'var(--bg-elevation-default-layer-2)' } as CSSProperties}>
       {/* The library's Thumbnail is fixed at 48 and paints Paper's
@@ -412,8 +352,6 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, s
   }
 
   return (
-  // The library's Hero: the surface, the two brand accents, the 24px inset and
-  // the header/body split all come from the component (Figma 7910:12881).
     <Hero data-testid="detail-hero">
       <HeroHeader
         icon={heroIcon}
@@ -425,10 +363,7 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, s
             'flexShrink': 0,
             'flexWrap': 'wrap',
             'justifyContent': 'flex-end',
-            // One control geometry for every hero across the app: identical
-            // height, font, line-height and padding for all text buttons
-            // (outlined or contained), so no CTA ever looks smaller than its
-            // neighbors.
+            // One control geometry for every hero, so no CTA looks smaller.
             '& .MuiButton-root': {
               height: 36,
               fontSize: 13,
@@ -443,8 +378,7 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, s
               width: 36,
               height: 36,
             },
-            // Only normalize IconButtons sitting directly in the cluster
-            // (custom nested toolbars keep their own internal sizing).
+            // Direct children only: nested toolbars keep their own sizing.
             '& > .MuiIconButton-root': {
               width: 36,
               height: 36,
@@ -488,9 +422,7 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, s
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    // Shrink the anchor to the actual title width (capped at the
-                    // column) so the tooltip sits under the text instead of the
-                    // center of a full-width block.
+                    // Anchor on the title width, so the tooltip sits under the text.
                     width: 'fit-content',
                     maxWidth: '100%',
                   }}
@@ -504,8 +436,6 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, s
               <Box sx={{
                 display: 'flex',
                 alignItems: 'center',
-                // Inline, the row's own 4px surrounds the chips, so they keep
-                // the same 4px between themselves rather than doubling it.
                 gap: chipsInline ? 0.5 : 1,
                 marginTop: chipsInline ? 0 : 0.5,
                 minWidth: 0,

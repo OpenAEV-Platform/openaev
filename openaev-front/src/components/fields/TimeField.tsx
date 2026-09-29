@@ -45,11 +45,7 @@ interface ControlledProps extends CommonProps {
 
 type Props<T extends FieldValues> = FormProps<T> | ControlledProps;
 
-/**
- * The product's single time-of-day field, over the library TimePicker. Same two
- * bindings as DateField, and the same things settled once: the product locale,
- * the translated names the clock renders, and the width on the field itself.
- */
+/** The product's single time-of-day field. Same two bindings as DateField. */
 const TimeField = <T extends FieldValues = FieldValues>({
   label, required, disabled, clearable, minTime, maxTime, minutesStep,
   format, timezone, helperText, infoTooltip, className, onAccept, onBlur,

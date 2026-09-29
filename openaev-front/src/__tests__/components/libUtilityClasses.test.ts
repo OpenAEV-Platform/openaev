@@ -4,11 +4,8 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * The product builds no Tailwind of its own: every utility class it writes has to
- * exist in the stylesheet the library ships. A class that does not simply does
- * nothing, silently — no type error, no lint error, no failing render. This walks
- * the sources and checks each class against that stylesheet, rather than against a
- * list of the ones already known to be missing.
+ * The product builds no Tailwind of its own, and a class the library does not ship
+ * fails silently — no type error, no lint error, no failing render.
  */
 const CSS = path.join(
   process.cwd(),
@@ -16,12 +13,7 @@ const CSS = path.join(
 );
 const SRC = path.join(process.cwd(), 'src');
 
-/**
- * A class is only checked when the library owns its FAMILY — the segment before the
- * first dash, e.g. `text-` or `tracking-`. That keeps the product's own selectors
- * (`reporting-sheet`, `app-navbar`) and third-party ones (`layout`, `noDrag`) out of
- * it, while a `text-…` or `bg-…` that the stylesheet does not define is a mistake.
- */
+/** Checked only when the library owns the FAMILY, so product selectors stay out. */
 const familyOf = (cls: string) => (cls.includes('-') ? cls.slice(0, cls.indexOf('-') + 1) : null);
 
 const walk = (dir: string, out: string[] = []): string[] => {

@@ -83,8 +83,7 @@ import ExerciseStatus from './ExerciseStatus';
 import SecurityPlatformIndicator from './SecurityPlatformIndicator';
 import SimulationConfiguration from './SimulationConfiguration';
 
-// Exported for testing: the lifecycle CTAs are pure props-driven UI, so they are covered on their
-// own rather than through the whole (store/router-bound) header.
+// Exported for testing: props-driven UI, covered without the store-bound header.
 export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing, isChaining }: {
   exerciseId: Exercise['exercise_id'];
   exerciseStatus: Exercise['exercise_status'];
@@ -105,11 +104,8 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
     onLoading(true);
     try {
       await dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
-      // Stop (CANCELED) and Reset (SCHEDULED) both delete injects server-side
-      // (a chained simulation drops its run injects, a reset always clears the
-      // outcome). The merge-only entity store never evicts on refetch, so
-      // reconcile it explicitly or the Execution screens keep showing the
-      // deleted injects as completed until a full page reload.
+      // Stop and Reset delete injects server-side, and the merge-only store never
+      // evicts on refetch — reconcile it or Execution keeps showing them.
       if (status.exercise_status === 'CANCELED' || status.exercise_status === 'SCHEDULED') {
         await dispatch(reconcileExerciseInjects(exerciseId));
       }
@@ -137,10 +133,8 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
         return (<div />);
       }
       case 'RUNNING': {
-        // Chaining does not support pausing (the queue-based engine has no pause semantics), so
-        // the CTA simply does not exist for a chained simulation - the backend refuses it too.
-        // Resume ('PAUSED' below) stays available so a simulation already paused in database can
-        // still be resumed. Stop remains offered by dangerousButton().
+        // Chaining has no pause semantics and the backend refuses it, so no CTA.
+        // Resume stays available for a simulation already paused in database.
         if (permissions.canLaunch && !isChaining) {
           return (
             <Button type="button" variant="destructive" priority="secondary" startIcon={<PauseOutlined fontSize="small" />} onClick={() => setOpenChangeStatus('PAUSED')} disabled={isLoading}>

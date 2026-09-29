@@ -20,11 +20,7 @@ export const contrastRatio = (a: string, b: string): number | null => {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 };
 
-/**
- * A field the customer left empty still renders — as the library's own token — so
- * a pair is judged against what will actually be painted, not against the two
- * inputs alone.
- */
+/** An empty field still renders, so a pair is judged on what is actually painted. */
 const painted = (value: string | undefined, token: string, mode: FdsThemeMode): string =>
   value || (FDS.colors[mode] as Record<string, string>)[token] || '';
 

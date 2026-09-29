@@ -10,9 +10,8 @@ import { useFormatter } from '../../i18n';
 
 // The library publishes the header height; the fallback applies only if its stylesheet failed to load.
 const HEADER_HEIGHT = 'var(--fds-header-height, 68px)';
-// The app shell's own bottom padding (admin/Index.tsx). A sticky rail may not
-// leave its container, so a rail one viewport tall would be shoved 24px up at
-// the end of the scroll; ending level with that padding, it never is.
+// The shell's own bottom padding (admin/Index.tsx): a sticky rail cannot leave
+// its container, so a full-height rail would be shoved 24px up at the end of the scroll.
 const PAGE_BOTTOM_PADDING = 24;
 /** The rail itself, and the breathing room between it and the content it sits beside. */
 const RAIL_WIDTH = 200;
@@ -38,10 +37,9 @@ interface Props {
   /** Optional element rendered above the entries (e.g. a scope/context switcher). */
   header?: ReactNode;
   /**
-   * 'drawer' pins the rail to the whole page, under the header bar. 'sticky'
-   * starts it where it is rendered - under a tab bar, for a menu that only
-   * navigates that tab's content - and sticks it to the header on scroll. A
-   * sticky rail sits in a 200px gutter its container must reserve.
+   * 'drawer' pins the rail to the page under the header bar; 'sticky' starts it
+   * where it is rendered and sticks to the header on scroll, in a 200px gutter
+   * its container must reserve.
    */
   variant?: 'drawer' | 'sticky';
 }
@@ -56,13 +54,8 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header, variant = 'drawe
   // Banner plus header bar, kept as a CSS expression so the library's height stays the single source.
   const topOffset = `calc(${bannerHeightNumber}px + ${HEADER_HEIGHT})`;
 
-  // One layer above the page, so the panel reads as a panel. The nav
-  // token resolves to the page ground itself (#070d18 on both), which
-  // left the bar indistinguishable from the content beside it and only
-  // a 1px hairline to separate them - the sibling product's bar is
-  // lighter than its page, which is the same step said in tokens.
-  // Same edge as the sibling product's right panel: the soft subtle
-  // border, not MUI's own docked hairline.
+  // One layer above the page: the nav token resolves to the page ground itself
+  // (#070d18 on both), which left the bar indistinguishable from the content.
   const surface = {
     backgroundColor: 'var(--bg-elevation-default-layer-1)',
     backgroundImage: 'none',
@@ -75,14 +68,10 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header, variant = 'drawe
       {header}
       <MenuList component="nav" sx={{ paddingTop: 0.5 }}>
         {entries.map((entry, idx) => {
-          // Highlight the entry on its own route AND on any nested route
-          // (e.g. a detail/overview page like ".../users/{id}"), ignoring any
-          // query string on the entry's target path.
+          // Also highlight on nested routes, ignoring the entry's query string.
           const targetPath = (entry.activePath ?? entry.path).split('?')[0];
           const isCurrentTab = location.pathname === targetPath
             || location.pathname.startsWith(`${targetPath}/`);
-          // Icon styling mirrors OpenCTI's NavToolbarMenu: compact 16px glyph,
-          // muted tertiary color when idle, lighter + full opacity when active.
           const iconColor = isCurrentTab ? theme.palette.text.light : theme.palette.text.tertiary;
           const iconOpacity = isCurrentTab ? 1 : 0.5;
           return (
@@ -129,9 +118,7 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header, variant = 'drawe
         sx={{
           ...surface,
           // Floated, so the content beside it is not pushed down, and dropped
-          // into the gutter its container reserves - which lands its right edge
-          // on the page's own right padding, and leaves RAIL_GAP between the
-          // rail and the content beside it.
+          // into the gutter its container reserves.
           float: 'right',
           marginRight: `-${STICKY_RAIL_GUTTER}px`,
           // Up over the tab bar's bottom margin, so the rail starts on its border.

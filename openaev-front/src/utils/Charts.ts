@@ -176,8 +176,7 @@ export const lineChartOptions = ({
     tickPlacement: 'on',
     labels: {
       formatter: (value: string) => (xFormatter ? xFormatter(value) : value),
-      // Kept horizontal: a tilted first date reaches even further left than a
-      // centered one and gets clipped again. Crowded dates are hidden instead.
+      // Horizontal: a tilted first date reaches further left and clips again.
       ...(isTimeSeries && {
         rotate: 0,
         hideOverlappingLabels: true,
@@ -256,8 +255,7 @@ export const areaChartOptions = (
     tickPlacement: 'on',
     labels: {
       formatter: (value: string) => (xFormatter ? xFormatter(value) : value),
-      // Kept horizontal: a tilted first date reaches even further left than a
-      // centered one and gets clipped again. Crowded dates are hidden instead.
+      // Horizontal: a tilted first date reaches further left and clips again.
       ...(isTimeSeries && {
         rotate: 0,
         hideOverlappingLabels: true,

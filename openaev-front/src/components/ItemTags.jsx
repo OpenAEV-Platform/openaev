@@ -13,8 +13,7 @@ const useStyles = makeStyles()(() => ({
   inline: {
     'display': 'flex',
     'alignItems': 'center',
-    // Tags read as one row, never as a stack: a cell one line tall would clip
-    // the second line anyway. What does not fit is counted in the +N chip.
+    // One row, never a stack: what does not fit is counted in the +N chip.
     'flexWrap': 'nowrap',
     'overflow': 'hidden',
     'gap': GAP,
@@ -34,9 +33,7 @@ const ItemTags = (props) => {
     truncateLimit = 6;
   }
 
-  // Resolve only this row's tags instead of subscribing to (and converting) the entire tags
-  // collection per rendered row: in a 50-row list that used to mean 50 full toJS conversions of
-  // the tags store on every dispatch
+  // Only this row's tags: subscribing to the whole store meant one toJS per row, per dispatch.
   const { resolvedTags } = useHelper(helper => ({
     resolvedTags: (tags ?? [])
       .map(tagId => helper.getTag(tagId))
@@ -62,8 +59,7 @@ const ItemTags = (props) => {
     chips: [],
     plus: 0,
   });
-  // Everything is rendered for one pass so each chip can be measured; the count
-  // that fits is then what stays.
+  // One pass with every chip rendered, so each can be measured.
   const [visibleCount, setVisibleCount] = useState(capped.length);
 
   const fit = useCallback(() => {
@@ -81,8 +77,7 @@ const ItemTags = (props) => {
       used = next;
       count = i + 1;
     }
-    // One chip always shows, however narrow the column: an empty cell with a
-    // bare "+2" says less than a truncated name does.
+    // One chip always shows: a bare "+2" says less than a truncated name.
     setVisibleCount(Math.max(count, 1));
   }, [orderedTags.length]);
 
@@ -90,8 +85,7 @@ const ItemTags = (props) => {
     const node = container.current;
     if (!node) return undefined;
     if (widths.current.key !== key) {
-      // Measured while every chip is on screen, then kept: a chip's width only
-      // changes when its text does, which changes `key`.
+      // A chip's width only changes when its text does, which changes `key`.
       const measured = [...node.querySelectorAll('[data-tag-chip]')].map(el => el.getBoundingClientRect().width);
       if (measured.length === capped.length) {
         const plusNode = node.querySelector('[data-tag-overflow]');
@@ -108,7 +102,6 @@ const ItemTags = (props) => {
     return () => observer.disconnect();
   }, [key, capped.length, fit]);
 
-  // Before the first measurement every chip is rendered, so each one can be read.
   const measuring = widths.current.key !== key;
   const shown = measuring ? capped : capped.slice(0, visibleCount);
   const hiddenCount = orderedTags.length - shown.length;

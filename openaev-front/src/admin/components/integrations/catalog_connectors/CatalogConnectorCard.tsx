@@ -16,12 +16,8 @@ interface Props {
   footerAction?: ReactNode;
 }
 
-// Use-case chips shown in the footer-left, exact same anatomy as OpenCTI's
-// IngestionCatalogChip: outlined primary, 12px sentence-case label, no icon,
-// rgba(0,0,0,0.1) background, 4px radius. Overflow behavior mirrors OpenCTI:
-// chips that fit are shown, the last visible one may ellipsize, the rest
-// collapses into a "+N" chip - a chip is never clipped mid-label.
-// Exported for reuse by the lines view (CatalogConnectorLine).
+// Use-case chips for the footer-left; exported for the lines view.
+// Chips that fit are shown, the rest collapse into "+N" — never clipped mid-label.
 export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
   const { containerRef, chipRefs, overflowRef, visibleCount } = useChipOverflow(useCases);
 
@@ -48,8 +44,7 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
             ref={(el: HTMLDivElement | null) => {
               chipRefs.current[index] = el;
             }}
-            // Keep fixed-size chips for overflow counting; label truncation is
-            // handled by the chip's own max width.
+            // Fixed-size chips, so the overflow count is measurable.
             sx={{
               flexShrink: 0,
               maxWidth: '100%',
@@ -106,9 +101,8 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
   };
 
   return (
-    // The hover styles live on this wrapper so they also apply when the inner
-    // action area is disabled (cards without a detail page). Same hover, fixed
-    // height and anatomy as the OpenCTI integrations marketplace card.
+    // Hover on the wrapper, so it still applies when the inner action area is
+    // disabled (cards without a detail page).
     <Box
       data-testid="connector-card"
       sx={{

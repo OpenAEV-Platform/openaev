@@ -8,27 +8,17 @@ import { useReportSample } from './SampleContext';
 interface Props {
   active: boolean;
   children: ReactNode;
-  /**
-   * 'full' greys the content entirely (grayscale + dim); 'subtle' only
-   * desaturates it partially, for hero widgets where motion and color are
-   * part of the message even in preview mode.
-   */
+  /** 'full' greys the content entirely; 'subtle' only desaturates it. */
   variant?: 'full' | 'subtle';
   /**
-   * Set when the preview fills a panel from its top edge: the marker then
-   * reaches 8px back out of the panel's own 16px padding, so it sits in the
-   * corner rather than level with the content. Leave it off anywhere the
-   * preview starts below something else - the marker would climb onto it.
+   * Set when the preview fills a panel from its top edge: the marker reaches 8px
+   * back out of the panel's 16px padding. Leave it off when the preview starts
+   * below something else, or the marker climbs onto it.
    */
   atPanelEdge?: boolean;
 }
 
-/**
- * Wraps a widget visualization. When `active`, the content is rendered greyed
- * out (grayscale + reduced opacity, non-interactive) with a small "Sample"
- * chip, so users can preview the final look of the widget before any real
- * data exists.
- */
+/** Wraps a widget visualization, greyed out with a "Sample" chip when `active`. */
 const SamplePreview = ({ active, children, variant = 'full', atPanelEdge = false }: Props) => {
   const { t } = useFormatter();
   const reportSample = useReportSample();

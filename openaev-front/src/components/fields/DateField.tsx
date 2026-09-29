@@ -53,12 +53,8 @@ interface ControlledProps extends CommonProps {
 type Props<T extends FieldValues> = FormProps<T> | ControlledProps;
 
 /**
- * The product's single date field, over the library DatePicker.
- *
- * Two bindings: `name` drives react-hook-form (value stored as an ISO string),
- * `value`/`onChange` a plain controlled field for filters. Everything the
- * library leaves to the consumer is settled here - the locale, the calendar's
- * translated names, the width - so no call site repeats it.
+ * The product's single date field. Two bindings: `name` for react-hook-form,
+ * `value`/`onChange` for a controlled field.
  */
 const DateField = <T extends FieldValues = FieldValues>({
   label, withTime, required, disabled, clearable, minDate, maxDate,
@@ -68,7 +64,6 @@ const DateField = <T extends FieldValues = FieldValues>({
   const { t, locale } = useFormatter();
   const formContext = useFormContext<T>();
 
-  // Every rendered string in the panel is a prop with an English default.
   const labels = {
     openCalendarLabel: t('Open calendar'),
     clearLabel: t('Clear'),
