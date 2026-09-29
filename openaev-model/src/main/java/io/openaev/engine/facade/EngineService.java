@@ -1,6 +1,7 @@
 package io.openaev.engine.facade;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.raw.RawUserAuth;
@@ -77,25 +78,28 @@ public interface EngineService {
   /**
    * Count using parameters
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param runtime the count runtime to use
    * @return a count object, including the current and previous interval count and the difference
    *     between the two
    */
-  EsCountInterval count(RawUserAuth user, CountRuntime runtime);
+  EsCountInterval count(TxCtx ctx, RawUserAuth user, CountRuntime runtime);
 
   /**
    * Calculates average using parameters
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param averageRuntime the average runtime to use
    * @return an object label-average
    */
-  EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime);
+  EsAvgs average(TxCtx ctx, RawUserAuth user, AverageRuntime averageRuntime);
 
   /**
    * Get the series in a Histogram model
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param widgetConfig the config of the widget
    * @param config the config of the histogram series
@@ -104,6 +108,7 @@ public interface EngineService {
    * @return the resulting series
    */
   EsSeries termHistogram(
+      TxCtx ctx,
       RawUserAuth user,
       StructuralHistogramWidget widgetConfig,
       WidgetConfigurationWithSeries.Series config,
@@ -113,15 +118,18 @@ public interface EngineService {
   /**
    * Get a list of series in a Histogram model
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param runtime the structural histogram runtime to use
    * @return a list of series
    */
-  List<EsSeries> multiTermHistogram(RawUserAuth user, StructuralHistogramRuntime runtime);
+  List<EsSeries> multiTermHistogram(
+      TxCtx ctx, RawUserAuth user, StructuralHistogramRuntime runtime);
 
   /**
    * Get the series in a date histogram model
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param widgetConfig the config of the widget
    * @param config the config of the histogram series
@@ -130,6 +138,7 @@ public interface EngineService {
    * @return the resulting series
    */
   EsSeries dateHistogram(
+      TxCtx ctx,
       RawUserAuth user,
       DateHistogramWidget widgetConfig,
       WidgetConfigurationWithSeries.Series config,
@@ -139,20 +148,22 @@ public interface EngineService {
   /**
    * Get a list of series in a date histogram model
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param runtime the structural histogram runtime to use
    * @return a list of series
    */
-  List<EsSeries> multiDateHistogram(RawUserAuth user, DateHistogramRuntime runtime);
+  List<EsSeries> multiDateHistogram(TxCtx ctx, RawUserAuth user, DateHistogramRuntime runtime);
 
   /**
    * Get a list of entities
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param runtime the list runtime to use
    * @return entities result containing data and total count
    */
-  EsEntities entities(RawUserAuth user, ListRuntime runtime);
+  EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime);
 
   /**
    * Create the list configuration using entities and filters
@@ -167,12 +178,13 @@ public interface EngineService {
   /**
    * Global search on ES
    *
+   * @param ctx the tenant scope of the request
    * @param user the user to use
    * @param search the search string
    * @param filter a list of filters
    * @return the list of results
    */
-  List<EsSearch> search(RawUserAuth user, String search, Filters.FilterGroup filter);
+  List<EsSearch> search(TxCtx ctx, RawUserAuth user, String search, Filters.FilterGroup filter);
 
   /**
    * Indexes a single document into the specified search engine index.

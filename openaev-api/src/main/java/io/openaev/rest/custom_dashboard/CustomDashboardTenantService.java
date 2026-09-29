@@ -2,6 +2,7 @@ package io.openaev.rest.custom_dashboard;
 
 import static io.openaev.config.SessionHelper.currentUser;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.CustomDashboardRepository;
@@ -67,38 +68,43 @@ public class CustomDashboardTenantService {
 
   @Transactional(readOnly = true)
   public EsCountInterval homeDashboardCount(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.count(widgetId, parameters);
+    return dashboardService.count(ctx, widgetId, parameters);
   }
 
   @Transactional(readOnly = true)
   public EsAvgs homeDashboardAverage(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.average(widgetId, parameters);
+    return dashboardService.average(ctx, widgetId, parameters);
   }
 
   @Transactional(readOnly = true)
   public List<EsSeries> homeDashboardSeries(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.series(widgetId, parameters);
+    return dashboardService.series(ctx, widgetId, parameters);
   }
 
   @Transactional(readOnly = true)
   public EsEntities homeDashboardEntities(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       @Nullable final EntitiesPaginationInput input) {
     isWidgetInHomeDashboard(tenantId, widgetId);
     return dashboardService.entities(
+        ctx,
         widgetId,
         input == null ? new HashMap<>() : input.getParameters(),
         input == null ? null : input.getPagination());
@@ -106,21 +112,23 @@ public class CustomDashboardTenantService {
 
   @Transactional(readOnly = true)
   public WidgetToEntitiesOutput homeDashboardEntitiesRuntime(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       @NotBlank WidgetToEntitiesInput input) {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.widgetToEntitiesRuntime(widgetId, input);
+    return dashboardService.widgetToEntitiesRuntime(ctx, widgetId, input);
   }
 
   @Transactional(readOnly = true)
   public List<EsAttackPath> homeDashboardAttackPaths(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.attackPaths(widgetId, parameters);
+    return dashboardService.attackPaths(ctx, widgetId, parameters);
   }
 
   // -- PRIVATE HELPERS --
