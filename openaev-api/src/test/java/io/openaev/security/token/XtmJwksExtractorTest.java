@@ -3,6 +3,9 @@ package io.openaev.security.token;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +18,9 @@ import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.JwtFixture;
 import io.openaev.xtmone.XtmOneConfig;
+import io.openaev.xtmone.XtmOneIdentity;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
@@ -23,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -54,13 +61,20 @@ class XtmJwksExtractorTest {
 
   @BeforeEach
   void setUp() {
+    ObjectMapper objectMapper = new ObjectMapper();
     extractor =
         new XtmJwksExtractor(
-            xtmOneConfig, userService, httpClientFactory, new ObjectMapper(), openAEVConfig);
+            xtmOneConfig,
+            userService,
+            httpClientFactory,
+            objectMapper,
+            openAEVConfig,
+            new XtmOneIdentity(xtmOneConfig, httpClientFactory, objectMapper));
     request = new MockHttpServletRequest();
-    // Reached by every case: the configured-check and the trusted-issuer list come first.
+    // Reached by every case: the configured-check and the trusted-issuer check come first. The
+    // split-horizon cases configure another URL.
     when(xtmOneConfig.isConfigured()).thenReturn(true);
-    when(xtmOneConfig.getUrl()).thenReturn(TRUSTED_ISSUER);
+    lenient().when(xtmOneConfig.getUrl()).thenReturn(TRUSTED_ISSUER);
   }
 
   @SuppressWarnings("unchecked")
@@ -125,7 +139,6 @@ class XtmJwksExtractorTest {
     JwtFixture.Bundle forged =
         JwtFixture.generateXtmJwksJwtBundle(TRUSTED_ISSUER, EMAIL, AUDIENCE, false);
     stubJwks(legitimate.jwks());
-    when(openAEVConfig.getBaseUrl()).thenReturn(AUDIENCE);
 
     assertThatThrownBy(() -> extractor.authUser(forged.jwtToken(), request))
         .isInstanceOf(JwtException.class);
@@ -142,11 +155,57 @@ class XtmJwksExtractorTest {
     JwtFixture.Bundle bundle =
         JwtFixture.generateXtmJwksJwtBundle(TRUSTED_ISSUER, EMAIL, AUDIENCE, true);
     stubJwks(bundle.jwks());
-    when(openAEVConfig.getBaseUrl()).thenReturn(AUDIENCE);
 
     assertThatThrownBy(() -> extractor.authUser(bundle.jwtToken(), request))
         .isInstanceOf(JwtException.class);
     assertThat(request.getAttribute(XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE)).isNull();
+    verifyNoInteractions(userService);
+  }
+
+  @Test
+  @DisplayName(
+      "XTM One reached on an internal URL: its published issuer is trusted, keys come from the"
+          + " configured URL")
+  @SuppressWarnings("unchecked")
+  void publishedIssuerIsVerifiedWithKeysFromTheConfiguredUrl() throws Exception {
+    String internalUrl = "http://xtm-one:4000";
+    String publicIssuer = "http://localhost:8090";
+    when(xtmOneConfig.getUrl()).thenReturn(internalUrl);
+    JwtFixture.Bundle bundle =
+        JwtFixture.generateXtmJwksJwtBundle(publicIssuer, EMAIL, AUDIENCE + "/", false);
+    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
+        .thenReturn("{\"issuer\":\"" + publicIssuer + "/\"}", bundle.jwks());
+    when(openAEVConfig.getBaseUrl()).thenReturn(AUDIENCE);
+    when(userService.findByEmailIgnoreCase(EMAIL)).thenReturn(Optional.of(new User()));
+
+    Optional<User> user = extractor.authUser(bundle.jwtToken(), request);
+
+    assertThat(user).isPresent();
+    ArgumentCaptor<ClassicHttpRequest> requests = ArgumentCaptor.forClass(ClassicHttpRequest.class);
+    verify(httpClient, times(2))
+        .execute(requests.capture(), (HttpClientResponseHandler<String>) any());
+    List<String> urls = new ArrayList<>();
+    for (ClassicHttpRequest sent : requests.getAllValues()) {
+      urls.add(sent.getUri().toString());
+    }
+    assertThat(urls)
+        .containsExactly(internalUrl + "/xtm/auth/metadata", internalUrl + "/xtm/auth/jwks");
+  }
+
+  @Test
+  @DisplayName("an issuer XTM One does not publish is refused when XTM One publishes none")
+  @SuppressWarnings("unchecked")
+  void unpublishedIssuerIsRefused() throws Exception {
+    when(xtmOneConfig.getUrl()).thenReturn("http://xtm-one:4000");
+    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
+        .thenReturn(null);
+    JwtFixture.Bundle bundle =
+        JwtFixture.generateXtmJwksJwtBundle("http://localhost:8090", EMAIL, AUDIENCE, false);
+
+    assertThatThrownBy(() -> extractor.authUser(bundle.jwtToken(), request))
+        .isInstanceOf(AuthenticationError.class);
     verifyNoInteractions(userService);
   }
 
