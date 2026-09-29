@@ -27,22 +27,14 @@
 # tenant, tenant creation writing the tenant being created, or produced only under a test that arms
 # the table inactive. The relevant tables and the follow-up leads are in the task report.
 
-# --- Test-helper tenant provisioning. The write is test-driven (the helper creates a tenant and its
-# default catalog rows), but the helper is named *TestHelper and lives in io.openaev.utils, which the
-# detector's test-frame heuristic does not yet recognise, so it is attributed to the helper rather
-# than auto-waived. Retired by either of two events: the heuristic treating *TestHelper as a test
-# frame (the lines fold into the TenantService.create group below), or the activation of
-# collector_types (#7933) and of the phishing tables (#7901), which decide where the shared catalog
-# lives.
-collector_types DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenantWithCurrentUser
-phishing_email_templates DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenantWithCurrentUser
-phishing_landing_pages DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenantWithCurrentUser
-collector_types DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenantWithCapabilities
-phishing_email_templates DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenantWithCapabilities
-phishing_landing_pages DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenantWithCapabilities
-collector_types DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenant
-phishing_email_templates DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenant
-phishing_landing_pages DEFAULT io.openaev.utils.TenantIsolationTestHelper.createTenant
+# --- RETIRED: the *TestHelper heuristic event fired. The nine lines that used to sit here
+# (collector_types/phishing_email_templates/phishing_landing_pages DEFAULT against
+# TenantIsolationTestHelper.createTenantWithCurrentUser/.createTenantWithCapabilities/.createTenant)
+# were test-driven tenant provisioning attributed to the helper because it is named *TestHelper and
+# lives in io.openaev.utils, which the test-frame heuristic did not yet recognise. The heuristic now
+# treats the .mockUser. sub-package and the *TestHelper suffix as test frames
+# (WriteAttrStack.isTestFrame), so the same writes now resolve past the helper to the production
+# frame that actually asked for them, TenantService.create, and fold into the group below instead.
 
 # --- Tenant creation, shared catalog. Creating a tenant seeds the catalog rows (collector_types,
 # phishing_*) into the default tenant while the scope is the creating request's, the same rows the
@@ -65,26 +57,14 @@ phishing_landing_pages DEFAULT io.openaev.service.tenants.TenantService.create
 users_tenants OTHER io.openaev.service.tenants.TenantService.create
 domains OTHER io.openaev.service.tenants.TenantService.create
 
-# --- V1 scenario import driven directly by a test. KillChainPhaseImportAttributionTest calls the
-# importer itself with TxCtx.forTenant(tenantB) (not the import endpoints), so the importer is the
-# outermost production frame. Kill chain phases are attributed explicitly on that path (the point of
-# the test); the other rows the import creates (scenario, injects, payloads, contracts and their
-# links, domains, attack patterns) are still stamped by the v1 listener from TenantContext, which
-# the test leaves on the default tenant, so they land in the default tenant while the transaction's
-# v2 scope is tenant B. In production the importer is reached through the import endpoints, where
-# the tenant path sets TenantContext; on the non-prefixed route the same class as the group below
-# applies and is handled by the activation of these tables. The documents activation (#7904)
-# attributes the importer's writes from the request scope: re-check these lines when it merges,
-# they are expected to stop being produced.
-scenarios DEFAULT io.openaev.importer.V1_DataImporter.importData
-payloads DEFAULT io.openaev.importer.V1_DataImporter.importData
-injects DEFAULT io.openaev.importer.V1_DataImporter.importData
-injectors_injector_contracts DEFAULT io.openaev.importer.V1_DataImporter.importData
-injectors_contracts_domains DEFAULT io.openaev.importer.V1_DataImporter.importData
-injectors_contracts DEFAULT io.openaev.importer.V1_DataImporter.importData
-injectors_contracts_attack_patterns DEFAULT io.openaev.importer.V1_DataImporter.importData
-domains DEFAULT io.openaev.importer.V1_DataImporter.importData
-attack_patterns DEFAULT io.openaev.importer.V1_DataImporter.importData
+# --- RETIRED by the documents activation (#7904), confirmed on a re-check
+# (KillChainPhaseImportAttributionTest under the shadow arguments produces neither the write-attribution
+# nor the fail-closed violation any more). The nine lines that used to sit here (scenarios, payloads,
+# injects, injectors_injector_contracts, injectors_contracts_domains, injectors_contracts,
+# injectors_contracts_attack_patterns, domains, attack_patterns, all DEFAULT against
+# io.openaev.importer.V1_DataImporter.importData) were the v1 importer, driven directly by the test with
+# TxCtx.forTenant(tenantB), stamping its other rows from the v1 listener's ambient TenantContext (left on
+# the default tenant). The importer now attributes those writes from the request's write scope instead.
 
 # --- Real wrong-tenant writes on the non-prefixed route (X-Tenant-Ids), on tables that are not
 # active yet. The header route sets the v2 read scope but leaves the v1 TenantContext unset, so
@@ -100,13 +80,22 @@ attack_patterns DEFAULT io.openaev.importer.V1_DataImporter.importData
 #   groups TenantGroupApi.createGroup              -> activation of groups (#6433)
 #   injectors_contracts and its attack-pattern link rows,
 #     InjectorContractApi.updateInjectorContract    -> activation of injectors_contracts (#7905)
+#   exercises TenantScopedJobRunner.supplyInTenant   -> activation of exercises (#6434)
 # The detector's own attribution tests drive these paths on purpose (a deferred insert of a merged
 # copy, a composite-key row, a collection's link rows) and move to raw writes when the table
 # activates. The groups and injectors_contracts lines were invisible before those tests: the same
-# request shapes were waived as test-driven by the attribution holes the tests pin.
+# request shapes were waived as test-driven by the attribution holes the tests pin. The
+# TenantScopedJobRunner.supplyInTenant line is the same class through the background primitive
+# instead of the header route: ScenarioToExerciseDocumentAttributionTest runs the conversion under
+# the source tenant's v2 scope on purpose (supplyInTenant(tenantA, ...)), but Exercise is still on
+# v1 @Filter (board.md's "still on v1 @Filter" list), so the new exercise row is stamped by the v1
+# listener from the ambient TenantContext (deliberately a third tenant, to prove the cloned document
+# stays attributed by its own merge-carried tenant rather than by that ambient value) instead of
+# from the v2 scope the primitive set. exercises is not active, so no cross-tenant read exists today.
 scenarios DEFAULT io.openaev.rest.scenario.ScenarioApi.createScenario
 scenarios DEFAULT io.openaev.api.autonomous.AutonomousRunApi.create
 exercises DEFAULT io.openaev.api.autonomous.AutonomousRunApi.create
+exercises OTHER io.openaev.scheduler.TenantScopedJobRunner.supplyInTenant
 groups DEFAULT io.openaev.api.groups.TenantGroupApi.createGroup
 injectors_contracts DEFAULT io.openaev.rest.injector_contract.InjectorContractApi.updateInjectorContract
 injectors_contracts_attack_patterns DEFAULT io.openaev.rest.injector_contract.InjectorContractApi.updateInjectorContract
@@ -130,15 +119,19 @@ collector_types DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob
 phishing_email_templates DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
 phishing_landing_pages DEFAULT io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.execute
 
-# --- Produced only under a test that arms its own activation list without collectors
-# (CweHttpIsolationTest activates cwes alone, so collectors is inactive there and the bulk insert
-# reaches the default tenant's collector). The write reaches another tenant precisely because
-# isolation is off in that test's allowlist; in production collectors is active. A sibling case,
-# ImportMapperHttpInertWhenInactiveTest updating another tenant's mapper with import_mappers
-# inactive, is not listed: it arms nothing itself, so under the production list the table is active,
-# the update is refused and no write happens. Retired when CweHttpIsolationTest arms collectors as
-# well, or when the fixture stops relying on an inactive collectors table.
+# --- Produced only under a test whose own active-tables assumption does not hold under the
+# production shadow-prod list. CweHttpIsolationTest activates cwes alone, so collectors is inactive
+# there and the bulk insert reaches the default tenant's collector: the write reaches another tenant
+# precisely because isolation is off in that test's allowlist; in production collectors is active.
+# ImportMapperHttpInertWhenInactiveTest is the same shape from the other side: its own header claims
+# import_mappers is inactive "by default" and its sibling ImportMapperHttpIsolationTest proves the
+# active case, but it arms nothing itself, so under the production active-tables list (which already
+# carries import_mappers) the update is NOT refused the way its header assumes; a full
+# collection under that exact list is what surfaced this (a prior claim in this file said no write
+# happens here, traced wrong or against a stale list). Retired when CweHttpIsolationTest arms
+# collectors as well, or when either fixture stops relying on a table it assumes is inactive.
 collectors DEFAULT io.openaev.rest.vulnerability.VulnerabilityApi.bulkInsertVulnerabilitiesForCollector
+import_mappers OTHER io.openaev.rest.mapper.MapperApi.updateImportMapper
 
 # --- Produced only by the detector's own attribution tests, which drive a production frame under a
 # scope that does not contain the written tenant to prove the write is still attributed after a

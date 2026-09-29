@@ -170,9 +170,12 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     // Arrange: TxCtx.missing() sets app.current_tenants to '' and can_access_tenant refuses every
     // row, so a write made there is outside the scope by definition. The trigger stays silent on
     // purpose: the test utilities reset a transaction to '' after tenant onboarding, so raising the
-    // empty scope flags the fixture writes of nearly every isolation test. Widening it again means
-    // folding those fixture frames into the test-frame heuristic first, then re-freezing the
-    // baseline.
+    // empty scope flags the fixture writes of nearly every isolation test. Folding the two named
+    // fixture frames (TenantIsolationTestHelper, WithMockUserTestExecutionListener) into the
+    // test-frame heuristic is not enough to widen this signal safely: measured on a full sharded
+    // collection with that fold in place, the guard raised still surfaces 393 distinct signatures,
+    // not the handful predicted, spanning many subsystems that drive production services directly
+    // from a test. Widening it again needs that sweep done first, not another fixture-frame fold.
     startScoped("");
 
     // Act
@@ -182,7 +185,7 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     WriteAttrDetectorRecorder.stop();
     assertFalse(
         flagged("scenarios", Relation.OTHER),
-        "the empty scope is a documented limit; widening it re-opens the fixture flood");
+        "the empty scope is a documented limit; widening it re-opens the flood measured when folding the fixture frames was tried");
   }
 
   private void installTrigger() {

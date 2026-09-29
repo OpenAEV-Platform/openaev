@@ -28,10 +28,17 @@ import java.util.stream.Collectors;
  *       deny-all scope of {@code TxCtx.missing()}, where {@code can_access_tenant} refuses every
  *       row, so by the read filter's own definition every write made there is outside the scope. It
  *       is also the state the test utilities put a transaction in on purpose after tenant
- *       onboarding, so raising it flags the fixture writes of nearly every isolation test (measured
- *       on one shard: two thirds of its tests failed the gate, on four fixture signatures) and
- *       buries the signal. The near-miss test pins the limit; lifting it needs the fixture frames
- *       folded into the test-frame heuristic first.
+ *       onboarding, so raising it flags the fixture writes of nearly every isolation test. Folding
+ *       the two fixture frames that carried the bulk of that flood into the test-frame heuristic
+ *       ({@link WriteAttrStack#entryFrame}: {@code .mockUser.} and {@code *TestHelper}) is not
+ *       enough to widen this signal safely: measured on a full sharded collection with that fold in
+ *       place, the guard raised still surfaces 393 distinct signatures, not the handful an earlier
+ *       three-class benchmark had predicted, spanning attack-path seeding, connector/manager
+ *       bootstrap, exercises, chaining, datapacks and more. That is a systemic pattern of tests
+ *       driving production services directly (the same shape already documented for the V1 importer
+ *       group above), not a small set of named fixture classes, so it needs its own dedicated sweep
+ *       rather than a same-change baseline addition. The near-miss test pins the limit; lifting it
+ *       needs that sweep first.
  *   <li>{@code NEW.tenant_id} in the scope list -> silent. A correctly attributed write, including
  *       the {@code fallbackSelector} default-tenant write, whose scope IS the default tenant.
  *   <li>{@code NEW.tenant_id} NULL -> raised as {@code tenant=NULL}; Java flags it only on a strict
