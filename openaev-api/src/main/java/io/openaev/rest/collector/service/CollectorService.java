@@ -222,16 +222,17 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * Ensures a {@link CollectorType} row exists for the given type name. Creates one if it does not
    * already exist (upsert semantics scoped to the current tenant).
    *
+   * @param tenantId the tenant the caller is scoped to; stamped explicitly on a newly created row
    * @param type the collector type name (e.g. "openaev_crowdstrike")
    * @return the existing or newly created {@link CollectorType}
    */
-  public CollectorType ensureCollectorTypeExists(String type) {
+  public CollectorType ensureCollectorTypeExists(String tenantId, String type) {
     return collectorTypeRepository
         .findByName(type)
         .orElseGet(
             () -> {
               CollectorType ct = new CollectorType(type);
-              // Tenant is auto-assigned by TenantBaseListener @PrePersist
+              ct.setTenant(new Tenant(tenantId));
               return collectorTypeRepository.save(ct);
             });
   }
@@ -270,7 +271,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
     }
 
-    CollectorType collectorType = ensureCollectorTypeExists(type);
+    CollectorType collectorType = ensureCollectorTypeExists(tenantId, type);
 
     // Full composite key lookup: identity is (collector_id, tenant_id).
     Collector collector =
