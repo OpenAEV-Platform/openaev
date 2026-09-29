@@ -17,12 +17,11 @@ import { Field } from 'react-final-form';
 const renderAutocomplete = ({
   label,
   placeholder,
-  input: { onChange, value, onBlur, name },
+  input: { onChange, value, onBlur, name, multiple = false },
   meta: { touched, invalid, error },
   style,
   openCreate,
   options = [],
-  multiple = false,
   freeSolo = false,
   disableClearable = false,
   disabled = false,
