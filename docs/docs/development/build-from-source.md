@@ -45,7 +45,7 @@ first start.
 
 **Start the development dependencies docker stack**
 
-Preconfigured containers for the support services (PostgreSQL, MinIO, RabbitMQ, Elasticsearch)
+Preconfigured containers for the support services (PostgreSQL, Silo, RabbitMQ, Elasticsearch)
 live in `./openaev-dev`. Copy the example environment file, then start the four required services:
 
 ```shell
@@ -72,9 +72,10 @@ All required settings are listed in the [Configuration documentation](../deploym
 
 ### Building and running
 Maven is used for package management and building the main server binary.
-OpenAEV is a Spring Boot application and thus can be built and started
-in one (two) fell swoop(s) with
+On a fresh clone, install all modules first, then start the API with the `dev`
+Spring profile:
 ```shell
+mvn clean install -DskipTests
 mvn spring-boot:run -pl openaev-api -DskipTests -Dspring-boot.run.profiles=dev
 ```
 
@@ -111,16 +112,9 @@ Execute `yarn start` to start a frontend locally:
 ```shell
 yarn start
 ```
-The banner should come up soon after:
-```
-  VITE v8.2.2  ready in 168 ms
-
-  ➜  Local:   http://localhost:3001/
-  ➜  Network: use --host to expose
-  ➜  press h + enter to show help
-```
-It is possible to navigate to http://localhost:3001/ by default. Note that the backend needs
-to be running otherwise the GUI will not come up in the browser.
+When the Vite dev server is ready, it prints a local URL (by default
+http://localhost:3001/). Note that the backend needs to be running otherwise the GUI will
+not come up in the browser.
 
 !!! tip "IntelliJ IDEA run configuration"
 
