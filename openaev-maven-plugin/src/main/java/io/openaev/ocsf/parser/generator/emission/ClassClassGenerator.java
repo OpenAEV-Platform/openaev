@@ -65,7 +65,7 @@ public class ClassClassGenerator extends ClassGenerator {
         fm.withAnnotation(
             new AnnotationMeta(JsonDeserialize.class)
                 .withLiteralAttribute(
-                    "using", metadata.schemaPackage() + ".ObjectNodeDeserialiser.class"));
+                    "using", metadata.schemaPackage() + ".JsonNodeDeserialiser.class"));
       }
       meta = meta.withField(fm);
     }

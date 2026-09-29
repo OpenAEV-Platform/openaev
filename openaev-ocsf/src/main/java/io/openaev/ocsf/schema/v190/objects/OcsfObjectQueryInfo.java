@@ -11,7 +11,7 @@ public class OcsfObjectQueryInfo extends OcsfObject {
   /** The data returned from the query execution. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
-      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
+      using = io.openaev.ocsf.schema.v190.JsonNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 
   /** The query name for a saved or scheduled query. */

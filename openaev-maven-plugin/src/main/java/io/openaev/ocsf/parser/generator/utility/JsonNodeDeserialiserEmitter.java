@@ -3,7 +3,7 @@ package io.openaev.ocsf.parser.generator.utility;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.ocsf.parser.generator.emission.ClassMetadata;
 import io.openaev.ocsf.parser.generator.emission.Emitter;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
@@ -14,11 +14,11 @@ import io.openaev.ocsf.parser.generator.emission.meta.method.ArgumentMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
 import java.io.IOException;
 
-public class ObjectNodeDeserialiserEmitter implements Emitter {
+public class JsonNodeDeserialiserEmitter implements Emitter {
   private final String helperClassPackage;
   private final ClassMetadata md;
 
-  public ObjectNodeDeserialiserEmitter(String helperClassPackage, ClassMetadata md) {
+  public JsonNodeDeserialiserEmitter(String helperClassPackage, ClassMetadata md) {
     this.helperClassPackage = helperClassPackage;
     this.md = md;
   }
@@ -28,7 +28,7 @@ public class ObjectNodeDeserialiserEmitter implements Emitter {
     ClassMeta classMeta =
         new ClassMeta()
             .withPackage(helperClassPackage)
-            .withName("ObjectNodeDeserialiser")
+            .withName("JsonNodeDeserialiser")
             .withExtend(
                 new ExtendMeta(JsonDeserializer.class.getCanonicalName())
                     .withGenericTypeArgument(md.fullyQualifiedClassName()))
@@ -41,7 +41,7 @@ public class ObjectNodeDeserialiserEmitter implements Emitter {
                         return new %s(p.readValueAs(%s.class));
                         """
                             .formatted(
-                                md.fullyQualifiedClassName(), ObjectNode.class.getCanonicalName()))
+                                md.fullyQualifiedClassName(), JsonNode.class.getCanonicalName()))
                     .withAnnotation(new AnnotationMeta(Override.class))
                     .withArgument(new ArgumentMeta(JsonParser.class, "p"))
                     .withArgument(new ArgumentMeta(DeserializationContext.class, "ctxt"))

@@ -9,7 +9,7 @@ public class OcsfObjectPolicy extends OcsfObject {
    */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
-      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
+      using = io.openaev.ocsf.schema.v190.JsonNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 
   /** The description of the policy. */

@@ -83,7 +83,7 @@ public class OcsfObjectScim extends OcsfObject {
    */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "scim_group_schema")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
-      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
+      using = io.openaev.ocsf.schema.v190.JsonNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT scimGroupSchemaField;
 
   /**
@@ -94,7 +94,7 @@ public class OcsfObjectScim extends OcsfObject {
    */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "scim_user_schema")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
-      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
+      using = io.openaev.ocsf.schema.v190.JsonNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT scimUserSchemaField;
 
   /**

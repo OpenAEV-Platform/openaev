@@ -435,6 +435,6 @@ public class OcsfClassConfigState extends OcsfClass {
    */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
-      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
+      using = io.openaev.ocsf.schema.v190.JsonNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT unmappedField;
 }
