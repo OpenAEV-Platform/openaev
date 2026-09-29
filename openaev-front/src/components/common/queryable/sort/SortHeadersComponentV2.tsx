@@ -3,6 +3,7 @@ import { ArrowDropDownOutlined, ArrowDropUpOutlined } from '@mui/icons-material'
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
+import { FDS } from '../../../fds-tokens.generated';
 import { useFormatter } from '../../../i18n';
 import { type Header } from '../../SortHeadersList';
 import useBodyItemsStyles from '../style/style';
@@ -25,6 +26,7 @@ const useStyles = makeStyles()(theme => ({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     fontWeight: 400,
+    fontSize: FDS.scalars['--text-2'],
   },
   headerItem: { color: theme.palette.text.secondary },
 }));

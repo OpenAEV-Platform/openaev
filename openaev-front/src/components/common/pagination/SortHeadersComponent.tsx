@@ -3,6 +3,7 @@ import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type SearchPaginationInput } from '../../../utils/api-types';
+import { FDS } from '../../fds-tokens.generated';
 import { useFormatter } from '../../i18n';
 import useBodyItemsStyles from '../queryable/style/style';
 
@@ -23,6 +24,7 @@ const useStyles = makeStyles()(theme => ({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     fontWeight: 400,
+    fontSize: FDS.scalars['--text-2'],
   },
 }));
 

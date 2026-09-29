@@ -323,7 +323,7 @@ const ThemeDark = (
       color: text_color,
     },
     body1: {
-      fontSize: '0.9rem',
+      fontSize: FDS.scalars['--text-3'],
       color: text_color,
     },
     overline: {

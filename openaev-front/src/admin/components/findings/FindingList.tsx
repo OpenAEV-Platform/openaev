@@ -11,6 +11,7 @@ import SortHeadersComponentV2 from '../../../components/common/queryable/sort/So
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import Empty from '../../../components/Empty';
+import { FDS } from '../../../components/fds-tokens.generated';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
@@ -116,7 +117,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
                 backgroundColor: theme.palette.background.accent,
                 border: `1px solid ${theme.palette.divider}`,
                 fontFamily: 'Consolas, monaco, monospace',
-                fontSize: 12,
+                fontSize: FDS.scalars['--text-3'],
                 lineHeight: '18px',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
