@@ -80,7 +80,9 @@ public class DatabaseSnapshotManager {
   /**
    * Restore database to the snapshot. Atomic: either the database holds exactly the snapshot
    * afterwards, or nothing changed and the exception names the table and the row that could not be
-   * restored.
+   * restored. This closes the empty-table window, not concurrent writes: a writer that commits a
+   * brand-new row between the DELETE and the COMMIT is not undone, since the restore never deletes
+   * a second time.
    */
   public void restoreToSnapshotState() {
     if (!snapshotCreated) {
