@@ -16,14 +16,13 @@ import CredentialsList from '../../../../assets/credentials/CredentialsList';
 import InjectAddCredentials from '../../../../simulations/simulation/injects/credentials/InjectAddCredentials';
 
 interface Props {
-  name: string;
   disabled?: boolean;
   errorLabel?: string | null;
   label?: string | boolean;
   multiple?: boolean;
 }
 
-const InjectCredentialReferencesList = ({ name, disabled = false, errorLabel, label, multiple = true }: Props) => {
+const InjectCredentialReferencesList = ({ disabled = false, errorLabel, label, multiple = true }: Props) => {
   const { control, setValue } = useFormContext();
   const dispatch = useAppDispatch();
   const [credentials, setCredentials] = useState<CredentialOutput[]>([]);
@@ -31,7 +30,7 @@ const InjectCredentialReferencesList = ({ name, disabled = false, errorLabel, la
 
   const credentialIdsWatched = useWatch({
     control,
-    name,
+    name: 'inject_secret_references',
   }) as string[];
 
   const credentialIds = useMemo(

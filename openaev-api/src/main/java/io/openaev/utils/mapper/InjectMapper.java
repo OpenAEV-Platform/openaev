@@ -73,6 +73,8 @@ public class InjectMapper {
         .type(inject.getType())
         .tagIds(inject.getTags().stream().map(Tag::getId).toList())
         .documentIds(documentIds)
+        .secretReferences(
+            inject.getSecretReferences().stream().map(SecretReference::getId).toList())
         .injectorContract(toInjectorContractOutput(injectorContract))
         .status(injectStatusMapper.toInjectStatusSimple(inject.getStatus()))
         .expectations(toInjectExpectationSimples(inject.getExpectations()))
