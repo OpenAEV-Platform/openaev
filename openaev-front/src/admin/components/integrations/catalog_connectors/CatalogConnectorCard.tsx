@@ -48,17 +48,23 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
             ref={(el: HTMLDivElement | null) => {
               chipRefs.current[index] = el;
             }}
-            // Never shrunk: the library Chip has no ellipsis, so a shrunk chip
-            // is a chip cut mid-word. What does not fit whole goes to "+N".
+            // Keep fixed-size chips for overflow counting; label truncation is
+            // handled by the chip's own max width.
             sx={{
               flexShrink: 0,
+              maxWidth: '100%',
+              minWidth: 0,
               visibility: isVisible ? 'visible' : 'hidden',
               position: isVisible ? 'relative' : 'absolute',
             }}
           >
             <Tooltip>
               <TooltipTrigger asChild>
-                <Chip label={prettifyUseCase(useCase)} severity="info" />
+                <Chip
+                  label={prettifyUseCase(useCase)}
+                  severity="info"
+                  style={{ maxWidth: '100%' }}
+                />
               </TooltipTrigger>
               {prettifyUseCase(useCase) && <TooltipContent>{prettifyUseCase(useCase)}</TooltipContent>}
             </Tooltip>
