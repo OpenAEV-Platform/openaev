@@ -334,7 +334,7 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
             {t('For the moment, the following snippet or script will not add the agent at boot. Please be sure to add it in rc.local or other files to make it persistent. We will release proper packages in the near future.')}
           </Alert>
         )}
-        <pre style={{ margin: theme.spacing(2, 0, 1) }}>{displayedCode}</pre>
+        <pre style={{ margin: theme.spacing(2, 0, 2) }}>{displayedCode}</pre>
         <div style={{
           display: 'flex',
           justifyContent: 'center',
