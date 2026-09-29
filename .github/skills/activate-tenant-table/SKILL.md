@@ -337,8 +337,11 @@ blanket wiring cannot fix by construction:
    and for the association name as well:
 
    ```bash
-   grep -rn "join(\"{association}\"\|{Entity}\b" openaev-api/src/main/java --include="*.java"
-   grep -rn "groupBy\|GROUP BY" openaev-api/src/main/java --include="*.java" | grep -i "{association}\|{table}"
+   # Two stages, and the order matters: the join and the GROUP BY are usually tens of lines apart,
+   # so a single pipeline that keeps only lines containing the association name finds nothing.
+   # First the FILES that reach the table, then the grouping sites inside those files.
+   files=$(grep -rl "join(\"{association}\"\|{Entity}\b" openaev-api/src/main/java --include="*.java")
+   echo "$files" | xargs -r grep -n "groupBy(\|GROUP BY"
    ```
 
    Then read each query that groups by that table's id: every other column of
@@ -528,7 +531,7 @@ form. The symptom is a 500 on a search or list endpoint, after go-live.
 **The site is often NOT in your table's own service.** The query that breaks may
 be rooted on a different entity and reach your table through an association, in
 which case neither the table name nor its entity name appears near the
-`groupBy`. On the `collector_types` activation (#7903) the 500 came from
+`groupBy`. On the `collector_types` activation (#7933) the 500 came from
 `InjectorContractService`: it joins `payloadJoin.join("collectorType",
 JoinType.LEFT)`, projects `collector_types.name`, and groups by
 `collector_types.id` alone. Nothing in that file mentions `collector_types`, and
@@ -541,13 +544,19 @@ Find every site before activating:
 # every GROUP BY in code that can reach the table, then read each one:
 # does it group on an id alone while multiselecting other columns of the same table?
 grep -rn "groupBy(" openaev-api/src/main/java --include="*.java"
-# and the joins that reach the table by association name rather than table name
-grep -rn "join(\"{association}\"" openaev-api/src/main/java --include="*.java"
+# and, for a table reached by association rather than by name, the files that join it first,
+# then the grouping sites inside them (the two are rarely on neighbouring lines)
+grep -rl "join(\"{association}\"" openaev-api/src/main/java --include="*.java" \
+  | xargs -r grep -n "groupBy(\|GROUP BY"
 ```
 
 Fix by listing every non-aggregated projected column in the `GROUP BY`. It is
 equivalent for the planner and does not depend on the FROM item being a base
-table. Worked example, `AssetGroupQueryHelper` in the `asset_groups`
+table. The codebase already does this correctly next door, which is the quickest
+way to see the difference: `InjectSearchService` joins `collectorType` the same
+way and groups by `collectorTypeJoin.get("name")`, the column it projects, so
+that query survives the activation untouched while `InjectorContractService`'s
+does not. Worked example, `AssetGroupQueryHelper` in the `asset_groups`
 activation (#6435):
 
 ```java
