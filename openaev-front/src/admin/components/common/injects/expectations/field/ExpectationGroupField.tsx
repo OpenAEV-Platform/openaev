@@ -10,6 +10,7 @@ import { type ExpectationInputForm } from '../Expectation';
 
 const useStyles = makeStyles()(theme => ({
   marginTop_2: { marginTop: theme.spacing(2) },
+  marginTop_1: { marginTop: theme.spacing(1) },
   container: {
     display: 'flex',
     alignItems: 'end',
@@ -55,6 +56,7 @@ const ExpectationGroupField: FunctionComponent<Props> = ({
             </Tooltip>
           </FormLabel>
           <RadioGroup
+            className={classes.marginTop_1}
             aria-labelledby={validationModeLabelId}
             value={String(value)}
             onValueChange={next => onChange(next === 'true')}
