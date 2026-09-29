@@ -3382,6 +3382,7 @@
   "Should not be empty": "Не должен быть пустым",
   "Should not exceed {max_length} characters": "Не должно превышать {max_length} символов",
   "Show alerts": "Показать оповещения",
+  "Show all actions again": "Снова показать все действия",
   "Show all assets": "Показать все активы",
   "Show conversations": "Показать диалоги",
   "Show covered TTP only": "Показать только покрытые ТТП",

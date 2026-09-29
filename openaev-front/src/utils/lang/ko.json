@@ -3382,6 +3382,7 @@
   "Should not be empty": "비어 있지 않아야 합니다",
   "Should not exceed {max_length} characters": "{max_length} 자를 초과하지 않아야 합니다",
   "Show alerts": "경고 표시",
+  "Show all actions again": "모든 작업 다시 표시",
   "Show all assets": "모든 자산 표시",
   "Show conversations": "대화 보기",
   "Show covered TTP only": "커버된 TTP만 표시",
