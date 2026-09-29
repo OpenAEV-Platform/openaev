@@ -144,11 +144,27 @@ final class WriteAttrStack {
     return false;
   }
 
+  /**
+   * {@code .mockUser.} and the {@code *TestHelper} suffix cover the fixture plumbing measured
+   * earlier ({@code TenantIsolationTestHelper}, {@code WithMockUserTestExecutionListener}): neither
+   * lives under {@code .fixtures.}, {@code .utilstest.} or {@code .composers.}, nor is named {@code
+   * *Test}/{@code *IT}/{@code *Benchmark}, so without this they were picked as the outermost
+   * application frame and a fully test-driven write (tenant onboarding, mock-user provisioning)
+   * looked production-attributed. Neither marker is a bare {@code io.openaev.utils.} prefix on
+   * purpose: that package also holds production utility classes ({@code AgentUtils}, {@code
+   * StringUtils}, ...) under the identical package name, compiled from {@code src/main} rather than
+   * {@code src/test}, and a stack frame carries no source-root information to tell them apart. A
+   * package-wide prefix would misclassify a production utility frame as test-driven the day one of
+   * them is ever the outermost application frame on some path (a static helper invoked directly by
+   * a background entry point, say); {@code .mockUser.} is a test-only sub-package and {@code
+   * *TestHelper} is a test-only naming convention, so both are unambiguous.
+   */
   private static boolean isTestFrame(StackTraceElement frame) {
     String className = frame.getClassName();
     if (className.contains(".fixtures.")
         || className.contains(".utilstest.")
-        || className.contains(".composers.")) {
+        || className.contains(".composers.")
+        || className.contains(".mockUser.")) {
       return true;
     }
     String outer =
@@ -156,7 +172,8 @@ final class WriteAttrStack {
     String simpleName = outer.substring(outer.lastIndexOf('.') + 1);
     return simpleName.endsWith("Test")
         || simpleName.endsWith("IT")
-        || simpleName.endsWith("Benchmark");
+        || simpleName.endsWith("Benchmark")
+        || simpleName.endsWith("TestHelper");
   }
 
   private static String frameSignature(StackTraceElement frame) {

@@ -121,4 +121,56 @@ class WriteAttrStackTest {
           WriteAttrStack.outermostTestFrame(stack));
     }
   }
+
+  @Nested
+  @DisplayName("Fixture-helper frames")
+  class FixtureHelperFrames {
+
+    /**
+     * The onboarding shape an earlier measurement found: a test's {@code @BeforeEach} calls the
+     * tenant-isolation helper, which asks the service layer to create the tenant. Before this
+     * change the helper frame (not named {@code *Test}/{@code *IT}, not under {@code .fixtures.})
+     * was picked as the outermost application frame, so the write was attributed to test plumbing
+     * instead of being recognised as fully test-driven.
+     */
+    @Test
+    @DisplayName("Given the tenant-isolation helper on the stack, should not be the entry frame")
+    void given_tenantIsolationHelperOnStack_should_notBeTheEntryFrame() {
+      StackTraceElement[] stack = {
+        frame("io.openaev.service.tenants.TenantService", "create", 184),
+        frame("io.openaev.utils.TenantIsolationTestHelper", "createTenant", 187),
+        frame("io.openaev.utils.TenantIsolationTestHelper", "createTenantWithCurrentUser", 66),
+        frame("io.openaev.rest.scenario.ScenarioApiTest", "setUp", 40),
+      };
+      assertEquals(
+          "io.openaev.service.tenants.TenantService.create:184", WriteAttrStack.entryFrame(stack));
+    }
+
+    @Test
+    @DisplayName(
+        "Given only the tenant-isolation helper and the mock-user listener, should have no entry frame")
+    void given_onlyFixturePlumbingOnStack_should_haveNoEntryFrame() {
+      StackTraceElement[] stack = {
+        frame(
+            "io.openaev.utils.mockUser.WithMockUserTestExecutionListener", "beforeTestMethod", 108),
+        frame("io.openaev.utils.TenantIsolationTestHelper", "createTenantWithCurrentUser", 66),
+      };
+      assertNull(WriteAttrStack.entryFrame(stack));
+    }
+
+    /**
+     * The rule must not swallow a real production package that happens to share the {@code
+     * io.openaev.utils} package name: production utility classes live there too (e.g. {@code
+     * io.openaev.utils.AgentUtils}), so the marker is the {@code .mockUser.} sub-package and the
+     * {@code *TestHelper} suffix, never a bare {@code io.openaev.utils.} prefix.
+     */
+    @Test
+    @DisplayName("Given a production utils class outermost, should still be the entry frame")
+    void given_productionUtilsClassOutermost_should_stillBeTheEntryFrame() {
+      StackTraceElement[] stack = {
+        frame("io.openaev.utils.AgentUtils", "resolve", 42),
+      };
+      assertEquals("io.openaev.utils.AgentUtils.resolve:42", WriteAttrStack.entryFrame(stack));
+    }
+  }
 }
