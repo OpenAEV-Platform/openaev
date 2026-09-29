@@ -321,12 +321,29 @@ blanket wiring cannot fix by construction:
    Spot-check the entrypoints this activation actually needs rather than
    assuming full coverage.
 6. **Query shapes that stop being valid SQL once the table is wrapped.** The
-   inspector rewrites `FROM {table} t` into a derived table. PostgreSQL's
+   inspector rewrites `FROM {table} t` into a derived table, and it does the
+   same to the table on the other side of a JOIN. PostgreSQL's
    functional-dependency rule — selecting ungrouped columns is legal when the
    `GROUP BY` covers the table's primary key — applies to BASE TABLES only, so
    any `GROUP BY` relying on it becomes invalid SQL. See the GROUP BY section
    below; this one is not a `TxCtx` problem at all and no amount of wiring
    fixes it.
+
+   **The table-name grep below cannot find this shape.** A Criteria query joins
+   by association name, so the table name never appears in the Java source:
+   `InjectorContractService` reaches `collector_types` through
+   `payloadJoin.join("collectorType", JoinType.LEFT)` and `grep -rn
+   "collector_types"` over that file returns nothing. Grep for the ENTITY name
+   and for the association name as well:
+
+   ```bash
+   grep -rn "join(\"{association}\"\|{Entity}\b" openaev-api/src/main/java --include="*.java"
+   grep -rn "groupBy\|GROUP BY" openaev-api/src/main/java --include="*.java" | grep -i "{association}\|{table}"
+   ```
+
+   Then read each query that groups by that table's id: every other column of
+   it that the SELECT projects must be in the `GROUP BY` too, or the statement
+   stops being valid the moment the table activates.
 
 ```bash
 grep -rln "{EntityRepository}" openaev-api/src/main/java openaev-model/src/main/java
@@ -508,12 +525,24 @@ normal way list and search endpoints are written here.
 `active-tables`, so the inspector never fires and the query keeps its base-table
 form. The symptom is a 500 on a search or list endpoint, after go-live.
 
+**The site is often NOT in your table's own service.** The query that breaks may
+be rooted on a different entity and reach your table through an association, in
+which case neither the table name nor its entity name appears near the
+`groupBy`. On the `collector_types` activation (#7903) the 500 came from
+`InjectorContractService`: it joins `payloadJoin.join("collectorType",
+JoinType.LEFT)`, projects `collector_types.name`, and groups by
+`collector_types.id` alone. Nothing in that file mentions `collector_types`, and
+the service belongs to another feature entirely. Follow the INCOMING
+associations to your table, then read the queries of whatever owns them.
+
 Find every site before activating:
 
 ```bash
 # every GROUP BY in code that can reach the table, then read each one:
-# does it group on the id alone while multiselecting other columns?
+# does it group on an id alone while multiselecting other columns of the same table?
 grep -rn "groupBy(" openaev-api/src/main/java --include="*.java"
+# and the joins that reach the table by association name rather than table name
+grep -rn "join(\"{association}\"" openaev-api/src/main/java --include="*.java"
 ```
 
 Fix by listing every non-aggregated projected column in the `GROUP BY`. It is
