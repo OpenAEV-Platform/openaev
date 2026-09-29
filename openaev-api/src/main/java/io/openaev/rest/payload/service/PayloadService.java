@@ -527,6 +527,7 @@ public class PayloadService {
    */
   public FileDrop createFileDropPayload(TxCtx ctx, String documentId) {
     Document document = this.documentService.document(documentId);
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
 
     FileDrop fileDrop = new FileDrop();
     fileDrop.setFileDropFile(document);
@@ -543,14 +544,14 @@ public class PayloadService {
           BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
           BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
+    fileDrop.setTenant(new Tenant(writeTenant));
 
     FileDrop saved = payloadRepository.save(fileDrop);
     synchroniseInjectorContractBasedOnPayload(
         saved,
         List.of(),
         domainService.upserts(
-            Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())),
-            writeScopeResolver.tenantForWrite(ctx, null)),
+            Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())), writeTenant),
         tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
@@ -562,10 +563,25 @@ public class PayloadService {
    * @return the Dynamic DNS Resolution payload
    */
   public DnsResolution getDynamicDnsResolutionPayload(TxCtx ctx) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+    String tenantScopedId = dynamicDnsResolutionIdFor(writeTenant);
     return payloadRepository
-        .findById(DYNAMIC_DNS_RESOLUTION_UUID)
+        .findById(tenantScopedId)
         .map(DnsResolution.class::cast)
-        .orElseGet(() -> createDynamicDnsResolutionPayload(ctx));
+        .orElseGet(() -> createDynamicDnsResolutionPayload(ctx, writeTenant, tenantScopedId));
+  }
+
+  /**
+   * This built-in payload is a per-tenant singleton: the primary key used to be a single hardcoded
+   * UUID shared by every tenant, which made a second tenant's creation collide on the row the first
+   * tenant already owns (the v2 scope hides that row from the second tenant's read). Deriving the
+   * id from the tenant keeps creation idempotent per tenant while giving each tenant its own row.
+   */
+  private String dynamicDnsResolutionIdFor(String tenantId) {
+    return UUID.nameUUIDFromBytes(
+            (DYNAMIC_DNS_RESOLUTION_UUID + ":" + tenantId)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8))
+        .toString();
   }
 
   /**
@@ -574,10 +590,12 @@ public class PayloadService {
    *
    * @return the created Dynamic DNS Resolution payload
    */
-  @Lock(type = LockResourceType.PAYLOAD, key = DYNAMIC_DNS_RESOLUTION_UUID)
-  private DnsResolution createDynamicDnsResolutionPayload(TxCtx ctx) {
+  @Lock(type = LockResourceType.PAYLOAD, key = "#tenantId")
+  private DnsResolution createDynamicDnsResolutionPayload(
+      TxCtx ctx, String tenantId, String tenantScopedId) {
     DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
-    dynamicDnsResolutionPayload.setId(DYNAMIC_DNS_RESOLUTION_UUID);
+    dynamicDnsResolutionPayload.setId(tenantScopedId);
+    dynamicDnsResolutionPayload.setTenant(new Tenant(tenantId));
     dynamicDnsResolutionPayload.setHostname(DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
     dynamicDnsResolutionPayload.setName("Dynamic DNS Resolution");
     dynamicDnsResolutionPayload.setDescription("Dynamic DNS Resolution by argument");
@@ -608,7 +626,7 @@ public class PayloadService {
                 PresetDomain.getEndpoint(),
                 PresetDomain.getNetwork(),
                 PresetDomain.getUrlFiltering()),
-            writeScopeResolver.tenantForWrite(ctx, null)),
+            tenantId),
         tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }

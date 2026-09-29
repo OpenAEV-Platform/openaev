@@ -14,10 +14,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Command;
+import io.openaev.database.model.Document;
+import io.openaev.database.model.Executable;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.PayloadInputFixture;
@@ -47,7 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
  * same scope inside the test transaction is tolerated, changing it would hit the nesting guard.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=payloads")
+@TestPropertySource(properties = "openaev.tenant.active-tables=payloads,documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("payloads read and write isolation through the real HTTP endpoint")
 class PayloadHttpIsolationTest extends IntegrationTest {
@@ -224,6 +227,33 @@ class PayloadHttpIsolationTest extends IntegrationTest {
             post("/api/tenants/{tenantId}/payloads/{payloadId}/duplicate", tenantA, payloadB)
                 .with(csrf()))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName(
+      "under tenant A's path: an executable payload whose file belongs to tenant B does not"
+          + " leak B's document and does not crash the read")
+  void executableWithCrossTenantDocumentDoesNotLeakOrCrash() throws Exception {
+    Document bDocument = DocumentFixture.getDocumentJpeg();
+    bDocument.setTenant(new Tenant(tenantB));
+    entityManager.persist(bDocument);
+
+    Executable executable = (Executable) PayloadFixture.createDefaultExecutable(bDocument);
+    executable.setName("executable-with-b-document");
+    executable.setTenant(new Tenant(tenantA));
+    entityManager.persist(executable);
+    entityManager.flush();
+    entityManager.clear();
+    String executableId = executable.getId();
+
+    String response =
+        mvc.perform(get(PAYLOAD_BY_ID, tenantA, executableId))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertTrue(
+        !response.contains(bDocument.getName()),
+        "B's document name must never appear in A's payload read");
   }
 
   // Ground-truth reads, bypassing the scope: raw JDBC on the test's own connection sees the
