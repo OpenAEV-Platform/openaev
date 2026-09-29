@@ -88,12 +88,17 @@ final class WriteAttrHibernateListeners {
    * unwired, degrading the detector to stack-based attribution rather than failing the run.
    */
   static void register(EntityManagerFactory entityManagerFactory) {
+    SessionFactoryImplementor sessionFactory;
     try {
-      SessionFactoryImplementor sessionFactory =
-          entityManagerFactory.unwrap(SessionFactoryImplementor.class);
-      if (!WIRED.add(sessionFactory)) {
-        return;
-      }
+      sessionFactory = entityManagerFactory.unwrap(SessionFactoryImplementor.class);
+    } catch (RuntimeException e) {
+      // Never turn a wiring failure into a test failure; the detector falls back to the stack.
+      return;
+    }
+    if (!WIRED.add(sessionFactory)) {
+      return;
+    }
+    try {
       EventListenerRegistry registry =
           sessionFactory.getServiceRegistry().requireService(EventListenerRegistry.class);
       AskCapture ask = new AskCapture();
@@ -112,7 +117,9 @@ final class WriteAttrHibernateListeners {
       registry.appendListeners(EventType.FLUSH, clear);
       registry.appendListeners(EventType.AUTO_FLUSH, clear);
     } catch (RuntimeException e) {
-      // Never turn a wiring failure into a test failure; the detector falls back to the stack.
+      // Registration failed partway: unwire so the next context refresh retries from scratch
+      // instead of being permanently stuck on stack-only attribution.
+      WIRED.remove(sessionFactory);
     }
   }
 
@@ -139,6 +146,28 @@ final class WriteAttrHibernateListeners {
       return nonTenant == 1 && key != null ? key.toString() : null;
     }
     return id.toString();
+  }
+
+  /**
+   * The tenant component of a composite {@code (id, tenant_id)} key, null for a single-column key
+   * (a plain table's id is already unique on its own, no per-row tenant disambiguation needed). The
+   * connector tables use the same static business id across tenants ({@code ConnectorCompositeId}),
+   * so {@link #rowKeyOf} alone collides between two tenants' rows of the same id; this is folded
+   * into the row key {@link WriteAttrEntryFrames} stores so a later write to the same id in a
+   * different tenant cannot resolve through the earlier one's binding.
+   */
+  static String tenantKeyOf(EntityPersister persister, Object id) {
+    if (id == null || !(persister.getIdentifierType() instanceof CompositeType composite)) {
+      return null;
+    }
+    String[] names = composite.getPropertyNames();
+    Object[] values = composite.getPropertyValues(id);
+    for (int i = 0; i < names.length; i++) {
+      if ("tenant".equals(names[i]) || "tenantId".equals(names[i])) {
+        return values[i] == null ? null : values[i].toString();
+      }
+    }
+    return null;
   }
 
   /**
@@ -222,6 +251,7 @@ final class WriteAttrHibernateListeners {
         WriteAttrEntryFrames.promoteToRow(
             tableOf(persister.getMappedTableDetails().getTableName()),
             rowKeyOf(persister, id),
+            tenantKeyOf(persister, id),
             entity);
       } catch (RuntimeException e) {
         // observation only

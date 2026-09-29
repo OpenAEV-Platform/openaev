@@ -27,8 +27,8 @@ import java.util.Objects;
  *       that request.
  *   <li>At {@code pre-insert}/{@code pre-update}, {@link #promoteToRow} moves that frame to a
  *       {@code table + row key} entry, the same key the trigger emits in its warning. {@link
- *       WriteAttrDetectorListener} then looks it up by {@link #capturedFrame} when it reads the
- *       warning.
+ *       WriteAttrDetectorListener} then looks it up by {@link #consumeCapturedFrame} when it reads
+ *       the warning.
  * </ol>
  *
  * <p>A many-to-many link row has no entity and no single-column key, so it cannot be promoted. Its
@@ -67,7 +67,7 @@ final class WriteAttrEntryFrames {
   private static final ThreadLocal<FrameHolder> STATEMENT = new ThreadLocal<>();
 
   /** Distinguishes "captured, frame is null (test-driven)" from "not captured at all". */
-  private record FrameHolder(String frame) {}
+  record FrameHolder(String frame) {}
 
   /** Owners of one join table disagreed on their frame within one flush: not captured. */
   private static final FrameHolder AMBIGUOUS = new FrameHolder("\0ambiguous");
@@ -107,14 +107,21 @@ final class WriteAttrEntryFrames {
    * reader can find it by the identity the trigger emits. A no-op when the entity was never asked
    * for through {@code persist}/{@code merge} (a dirty update with no explicit call), leaving the
    * reader to fall back to the live stack.
+   *
+   * <p>{@code tenantKey}, when non-null (a composite {@code (id, tenant_id)} key), is folded into
+   * the stored key: the connector tables reuse the same static business id across tenants, so
+   * {@code rowKey} alone is ambiguous between two tenants' rows of the same id within one test. A
+   * row promoted with a tenant key is only ever looked up with the matching tenant ({@link
+   * #consumeCapturedFrame}), never through the bare {@code table + rowKey} pair, so it cannot be
+   * resolved through a different tenant's binding of the same id.
    */
-  static void promoteToRow(String table, String rowKey, Object entity) {
+  static void promoteToRow(String table, String rowKey, String tenantKey, Object entity) {
     if (table == null || rowKey == null || entity == null) {
       return;
     }
     FrameHolder held = ASKED.get().get(entity);
     if (held != null) {
-      BY_ROW.get().put(rowKey(table, rowKey), held);
+      BY_ROW.get().put(rowKey(table, rowKey, tenantKey), held);
     }
   }
 
@@ -150,19 +157,33 @@ final class WriteAttrEntryFrames {
    * join table is bound to one owner in the current flush), so its captured frame is authoritative
    * and the live stack must not be consulted. False for a synchronous write (native SQL, {@code
    * JdbcTemplate}), whose live stack is already the asking stack.
+   *
+   * <p>A row-level match is consumed (removed from {@link #BY_ROW}) the moment it resolves a
+   * warning: the binding has no statement or write identity of its own, so without retiring it, a
+   * later write to the same {@code table + id} in the same test (a native/bulk write, or a JPA
+   * write the listeners did not capture) would resolve through this stale binding ahead of its own
+   * live stack and could be attributed to a frame that never asked for it. A join-table binding
+   * (found only when {@code id} is null or unmatched) is left alone: it is scoped to, and cleared
+   * at, the current flush, and is meant to serve every row of that flush's collection write.
    */
-  static boolean isCaptured(String table, String id) {
-    return holder(table, id) != null;
-  }
-
-  /**
-   * The production entry frame captured for a written row, meaningful only when {@link #isCaptured}
-   * is true. Null means the JPA write was asked for straight from test code with no production
-   * frame on the stack, which the gate then waives as test-driven.
-   */
-  static String capturedFrame(String table, String id) {
-    FrameHolder held = holder(table, id);
-    return held == null ? null : held.frame();
+  static FrameHolder consumeCapturedFrame(String table, String id, String tenant) {
+    if (table == null) {
+      return null;
+    }
+    if (id != null) {
+      if (tenant != null) {
+        FrameHolder qualified = BY_ROW.get().remove(rowKey(table, id, tenant));
+        if (qualified != null) {
+          return qualified;
+        }
+      }
+      FrameHolder unqualified = BY_ROW.get().remove(rowKey(table, id, null));
+      if (unqualified != null) {
+        return unqualified;
+      }
+    }
+    FrameHolder byTable = BY_FLUSH_TABLE.get().get(table.toLowerCase(Locale.ROOT));
+    return byTable == AMBIGUOUS ? null : byTable;
   }
 
   /** Drops this thread's captured attributions. Called per test so nothing leaks across tests. */
@@ -173,21 +194,7 @@ final class WriteAttrEntryFrames {
     STATEMENT.remove();
   }
 
-  private static FrameHolder holder(String table, String id) {
-    if (table == null) {
-      return null;
-    }
-    if (id != null) {
-      FrameHolder byRow = BY_ROW.get().get(rowKey(table, id));
-      if (byRow != null) {
-        return byRow;
-      }
-    }
-    FrameHolder byTable = BY_FLUSH_TABLE.get().get(table.toLowerCase(Locale.ROOT));
-    return byTable == AMBIGUOUS ? null : byTable;
-  }
-
-  private static String rowKey(String table, String id) {
-    return table.toLowerCase(Locale.ROOT) + '\0' + id;
+  private static String rowKey(String table, String id, String tenant) {
+    return table.toLowerCase(Locale.ROOT) + '\0' + id + '\0' + (tenant == null ? "" : tenant);
   }
 }
