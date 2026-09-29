@@ -4,7 +4,7 @@ import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import CredentialsPicker from "../../../../assets/credentials/CredentialsPicker";
+import CredentialsPicker from '../../../../assets/credentials/CredentialsPicker';
 
 const useStyles = makeStyles()(theme => ({
   icon: { minWidth: 30 },
