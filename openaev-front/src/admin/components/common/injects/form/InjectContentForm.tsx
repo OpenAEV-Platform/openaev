@@ -188,6 +188,7 @@ const InjectContentForm = ({
         name="inject_secret_references"
         disabled={enhancedFieldsMapByType.get('credential-reference')?.readOnly || readOnly}
         errorLabel={err}
+        multiple={enhancedFieldsMapByType.get('credential-reference')?.multiple}
       />
     </div>
   );
