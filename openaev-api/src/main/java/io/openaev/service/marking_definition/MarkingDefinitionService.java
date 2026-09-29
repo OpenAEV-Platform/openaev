@@ -13,6 +13,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
@@ -27,6 +28,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MarkingDefinitionService {
 
   private final MarkingDefinitionRepository repository;
+  private final ActionMetricCollector actionMetricCollector;
   private final AllTablesWithMarkingIds allTablesWithMarkingIds;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final JdbcTemplate jdbcTemplate;
@@ -118,6 +122,7 @@ public class MarkingDefinitionService {
     entity.setTenant(new Tenant(tenantId));
     MarkingDefinition saved = repository.save(entity);
     markingClearanceCacheManager.evictAll();
+    runAfterCommit(actionMetricCollector::addMarkingDefinitionCreatedCount);
     return saved;
   }
 
@@ -156,6 +161,7 @@ public class MarkingDefinitionService {
       // the one case that always pays for evictAll().
       markingClearanceCacheManager.evictAll();
     }
+    runAfterCommit(actionMetricCollector::addMarkingDefinitionUpdatedCount);
     return saved;
   }
 
@@ -208,6 +214,28 @@ public class MarkingDefinitionService {
               + " SET marking_ids = array_remove(marking_ids, ?) WHERE marking_ids @> ARRAY[?]::text[]",
           markingDefinitionId,
           markingDefinitionId);
+    }
+  }
+
+  /**
+   * Defers {@code action} until the surrounding transaction commits, matching {@link
+   * io.openaev.service.tenants.TenantService}'s pattern for post-commit side effects: {@code
+   * repository.save} may not flush until commit, so running the metric increment eagerly would
+   * record a creation/update even if a later step (mapping, constraint, or commit failure) rolls
+   * the transaction back. Falls back to running immediately when no transaction is active (e.g.
+   * direct unit invocation outside a Spring transaction).
+   */
+  private void runAfterCommit(Runnable action) {
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              action.run();
+            }
+          });
+    } else {
+      action.run();
     }
   }
 
