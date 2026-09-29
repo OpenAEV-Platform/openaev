@@ -2,7 +2,7 @@ import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -65,11 +65,17 @@ const DocumentForm: FunctionComponent<Props> = ({
     formState: { isSubmitting, isDirty },
   } = methods;
 
+  const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleSubmit(onSubmit)(e);
+  };
+
   return (
     <FormProvider {...methods}>
       <form
         id="documentForm"
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmitWithoutPropagation}
       >
         <Box sx={{
           display: 'flex',
