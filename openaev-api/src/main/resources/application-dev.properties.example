@@ -225,7 +225,11 @@ executor.openaev.binaries.version=prerelease
 # INJECTORS #
 #############
 openaev.rabbitmq.prefix=openaev
-openaev.rabbitmq.hostname=host.docker.internal # you can also set it to localhost, but in case you wish to have injectors installed locally through your docker containers, you must use host.docker.internal instead and then point this domain to 127.0.0.1 in your /etc/hosts
+# Use host.docker.internal so Dockerized injectors can reach RabbitMQ on the host
+# (add `127.0.0.1 host.docker.internal` to /etc/hosts on macOS/Windows if missing).
+# Use localhost instead if you do not run injectors in Docker.
+# Do not put comments on the same line as the value — Java properties treat them as part of the value.
+openaev.rabbitmq.hostname=host.docker.internal
 openaev.rabbitmq.user=guest
 openaev.rabbitmq.pass=guest
 openaev.rabbitmq.queue-type=classic

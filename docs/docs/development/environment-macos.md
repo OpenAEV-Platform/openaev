@@ -167,7 +167,9 @@ This starts:
     127.0.0.1 host.docker.internal
     ```
 
-    Use `localhost` instead if you do not run injectors in Docker.
+    Use `localhost` instead if you do not run injectors in Docker. Keep the value on its own
+    line with no trailing comment — Java properties treat `# ...` on the same line as part of
+    the hostname and RabbitMQ will fail to resolve it.
 
 Then copy the Spring Boot development profile and start the backend and frontend as described in [Build from source](build-from-source.md).
 
