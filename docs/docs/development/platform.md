@@ -54,11 +54,10 @@ mvn spotless:apply
 
 ## Running the backend
 
-Run the main application class from your IDE or with Maven (the `dev` Spring
-profile — not the empty Maven `-Pdev` profile):
+Run the main application class from your IDE or with Maven:
 
 ```bash
-mvn spring-boot:run -pl openaev-api -DskipTests -Dspring-boot.run.profiles=dev
+mvn spring-boot:run -pl openaev-api -Dspring-boot.run.profiles=dev
 ```
 
 The backend starts on port `8080` by default.

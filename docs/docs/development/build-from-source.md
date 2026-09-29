@@ -24,8 +24,7 @@ cd openaev
 ## Backend
 
 ### Configuring
-Development uses a `dev` Spring profile. Copy the version-controlled example rather than
-`application.properties` (the latter is incomplete for local development):
+Development uses a `dev` Spring profile. Create your local configuration from the example file:
 
 ```shell
 cp ./openaev-api/src/main/resources/application-dev.properties.example \
@@ -76,7 +75,7 @@ On a fresh clone, install all modules first, then start the API with the `dev`
 Spring profile:
 ```shell
 mvn clean install -DskipTests
-mvn spring-boot:run -pl openaev-api -DskipTests -Dspring-boot.run.profiles=dev
+mvn spring-boot:run -pl openaev-api -Dspring-boot.run.profiles=dev
 ```
 
 !!! tip "IntelliJ IDEA run configuration"
