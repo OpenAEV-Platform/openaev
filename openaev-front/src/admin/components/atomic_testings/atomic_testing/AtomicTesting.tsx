@@ -354,7 +354,7 @@ const AtomicTesting = () => {
       <Grid
         size={{
           xs: 12,
-          md: 6,
+          xl: 6,
         }}
         sx={{
           display: 'flex',
@@ -387,7 +387,7 @@ const AtomicTesting = () => {
       <Grid
         size={{
           xs: 12,
-          md: 6,
+          xl: 6,
         }}
         sx={{
           display: 'flex',
