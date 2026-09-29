@@ -22,10 +22,10 @@ import org.hibernate.annotations.UuidGenerator;
  *
  * <p>A domain must pass DNS ownership verification (a TXT challenge record) before it can be used:
  * only a {@link CustomDomainStatus#VERIFIED} domain is offered to landing pages and answered by the
- * public {@code domain-check} endpoint that fronts on-demand TLS. The hostname is globally unique so
- * an inbound request can be mapped to exactly one tenant without ambiguity; because that mapping is
- * consulted from an unauthenticated public request with no tenant of its own, the lookup behind it
- * ({@code CustomDomainRepository#findStatusByHostname}) runs under an explicit {@code
+ * public {@code domain-check} endpoint that fronts on-demand TLS. The hostname is globally unique
+ * so an inbound request can be mapped to exactly one tenant without ambiguity; because that mapping
+ * is consulted from an unauthenticated public request with no tenant of its own, the lookup behind
+ * it ({@code CustomDomainRepository#findStatusByHostname}) runs under an explicit {@code
  * TxCtx.allTenants()} scope (see {@code CustomDomainPublicLookupService}) rather than the caller's
  * request scope. All admin CRUD stays tenant-scoped through the v2 statement inspector.
  *

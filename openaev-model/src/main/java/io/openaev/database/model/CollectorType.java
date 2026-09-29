@@ -21,8 +21,8 @@ import org.hibernate.annotations.UuidGenerator;
  *
  * <p>This entity is fully switched to v2 tenant isolation (statement inspector + {@code
  * can_access_tenant}). Keep the v1 {@code @Filter} and {@code TenantBaseListener} removed to avoid
- * mixed isolation/write-attribution modes; {@code CollectorService#ensureCollectorTypeExists} stamps
- * {@code tenant} explicitly.
+ * mixed isolation/write-attribution modes; {@code CollectorService#ensureCollectorTypeExists}
+ * stamps {@code tenant} explicitly.
  */
 @Entity
 @Table(name = "collector_types")

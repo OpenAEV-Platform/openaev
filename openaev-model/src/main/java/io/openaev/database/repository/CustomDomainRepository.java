@@ -22,9 +22,7 @@ public interface CustomDomainRepository
   @Query("SELECT d FROM CustomDomain d WHERE d.id = :id")
   Optional<CustomDomain> findById(@NotNull @Param("id") String id);
 
-  /**
-   * Tenant-scoped case-insensitive hostname lookup, used to reject duplicates within a tenant.
-   */
+  /** Tenant-scoped case-insensitive hostname lookup, used to reject duplicates within a tenant. */
   @Query("SELECT d FROM CustomDomain d WHERE lower(d.hostname) = lower(:hostname)")
   Optional<CustomDomain> findByHostnameIgnoreCase(@Param("hostname") String hostname);
 
