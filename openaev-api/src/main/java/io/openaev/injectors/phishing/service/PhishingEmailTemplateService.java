@@ -3,7 +3,10 @@ package io.openaev.injectors.phishing.service;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.PhishingEmailTemplate;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.helper.StreamHelper;
@@ -37,6 +40,7 @@ public class PhishingEmailTemplateService {
 
   private final PhishingEmailTemplateRepository emailTemplateRepository;
   private final PhishingLandingPageService landingPageService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   public List<PhishingEmailTemplate> emailTemplates() {
     return StreamHelper.fromIterable(emailTemplateRepository.findAll());
@@ -54,19 +58,22 @@ public class PhishingEmailTemplateService {
     return emailTemplateRepository.findById(id).orElseThrow(ElementNotFoundException::new);
   }
 
-  public PhishingEmailTemplate upsert(@NotNull final PhishingEmailTemplate emailTemplate) {
+  public PhishingEmailTemplate upsert(
+      final TxCtx ctx, @NotNull final PhishingEmailTemplate emailTemplate) {
+    if (emailTemplate.getTenant() == null) {
+      emailTemplate.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
+    }
     emailTemplate.setUpdatedAt(Instant.now());
     PhishingEmailTemplate saved = emailTemplateRepository.save(emailTemplate);
-    resyncLandingPageContracts();
+    resyncLandingPageContracts(saved.getTenant().getId());
     return saved;
   }
 
   public void delete(@NotBlank final String id) {
-    if (!emailTemplateRepository.findById(id).isPresent()) {
-      throw new ElementNotFoundException();
-    }
+    PhishingEmailTemplate existing =
+        emailTemplateRepository.findById(id).orElseThrow(ElementNotFoundException::new);
     emailTemplateRepository.deleteById(id);
-    resyncLandingPageContracts();
+    resyncLandingPageContracts(existing.getTenant().getId());
   }
 
   /**
@@ -102,20 +109,21 @@ public class PhishingEmailTemplateService {
           specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
     }
 
-    List<String> idsToDelete =
-        emailTemplateRepository.findAll(specification).stream()
-            .map(PhishingEmailTemplate::getId)
-            .toList();
+    List<PhishingEmailTemplate> toDelete = emailTemplateRepository.findAll(specification);
+    List<String> idsToDelete = toDelete.stream().map(PhishingEmailTemplate::getId).toList();
     if (idsToDelete.isEmpty()) {
       return idsToDelete;
     }
+    // A search-driven bulk delete is scoped by the caller's request scope, so every matched
+    // template shares one tenant; take it from any one of them.
+    String tenantId = toDelete.getFirst().getTenant().getId();
     emailTemplateRepository.deleteAllById(idsToDelete);
-    resyncLandingPageContracts();
+    resyncLandingPageContracts(tenantId);
     return idsToDelete;
   }
 
   /** Rebuilds every landing page contract so the email-template chooser reflects current rows. */
-  private void resyncLandingPageContracts() {
-    landingPageService.resyncAllContracts();
+  private void resyncLandingPageContracts(final String tenantId) {
+    landingPageService.resyncAllContracts(tenantId);
   }
 }

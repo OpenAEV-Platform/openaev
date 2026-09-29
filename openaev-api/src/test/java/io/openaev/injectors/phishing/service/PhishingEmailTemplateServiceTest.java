@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.PhishingEmailTemplate;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.injectors.phishing.form.PhishingEmailTemplateBulkProcessingInput;
 import io.openaev.rest.exception.BadRequestException;
@@ -38,9 +39,11 @@ class PhishingEmailTemplateServiceTest {
     PhishingEmailTemplate first = new PhishingEmailTemplate();
     first.setId("et-1");
     first.setName("First");
+    first.setTenant(new Tenant("tenant-1"));
     PhishingEmailTemplate second = new PhishingEmailTemplate();
     second.setId("et-2");
     second.setName("Second");
+    second.setTenant(new Tenant("tenant-1"));
     when(emailTemplateRepository.findAll(any(Specification.class)))
         .thenReturn(List.of(first, second));
 
@@ -54,7 +57,7 @@ class PhishingEmailTemplateServiceTest {
     assertEquals(List.of("et-1", "et-2"), deleted);
     verify(emailTemplateRepository).deleteAllById(List.of("et-1", "et-2"));
     // A single re-sync for the whole batch, not one per deleted template.
-    verify(landingPageService).resyncAllContracts();
+    verify(landingPageService).resyncAllContracts("tenant-1");
   }
 
   @Test
@@ -72,7 +75,7 @@ class PhishingEmailTemplateServiceTest {
     // -- ASSERT --
     assertTrue(deleted.isEmpty());
     verify(emailTemplateRepository, never()).deleteAllById(any());
-    verify(landingPageService, never()).resyncAllContracts();
+    verify(landingPageService, never()).resyncAllContracts(any());
   }
 
   @Test
