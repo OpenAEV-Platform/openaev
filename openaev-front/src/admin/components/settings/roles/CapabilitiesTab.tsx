@@ -43,7 +43,7 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
     const children: string[] = [];
 
     const collectCheckableValues = (c: CapabilityOutput) => {
-      if (c.capability_checkable && c.capability_value && canAssignCapability(c)) {
+      if (c.capability_checkable && c.capability_value) {
         children.push(c.capability_value);
       }
       c.capability_children?.forEach(child => collectCheckableValues(child));
@@ -58,13 +58,13 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
     for (const cap of caps) {
       if (cap.capability_children) {
         const directChild = cap.capability_children.find(child => child.capability_value === targetValue);
-        if (directChild && cap.capability_checkable && cap.capability_value && canAssignCapability(cap)) {
+        if (directChild && cap.capability_checkable && cap.capability_value) {
           return [...parents, cap.capability_value];
         }
 
         const foundParents = getAllParents(targetValue, cap.capability_children,
-          cap.capability_checkable && cap.capability_value && canAssignCapability(cap) ? [...parents, cap.capability_value] : parents);
-        if (foundParents.length > (cap.capability_checkable && cap.capability_value && canAssignCapability(cap) ? parents.length + 1 : parents.length)) {
+          cap.capability_checkable && cap.capability_value ? [...parents, cap.capability_value] : parents);
+        if (foundParents.length > (cap.capability_checkable && cap.capability_value ? parents.length + 1 : parents.length)) {
           return foundParents;
         }
       }
