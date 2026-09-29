@@ -29,7 +29,6 @@ import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -53,6 +52,9 @@ public class ExecutableInjectService {
   private final AssetGroupService assetGroupService;
 
   @Resource protected ObjectMapper mapper;
+
+  static final String PAYLOAD_ACCESS_DENIED =
+      "Agent is not allowed to retrieve the payload of this inject";
 
   private static final Set<String> RESERVED_PLACEHOLDERS = Set.of("location", "payload_location");
   private static final Pattern argumentsRegex = Pattern.compile("#\\{([^#{}]+)}");
@@ -317,39 +319,34 @@ public class ExecutableInjectService {
    * the requesting agent's asset is actually targeted by the inject, either directly or through one
    * of its asset groups (static or dynamic membership).
    *
-   * <p>When the agent itself does not exist, this check is skipped: the request is already rejected
-   * downstream (404) once {@code addStartImplantExecutionTraceByInject} fails to resolve it, so
-   * there is nothing extra to enforce here.
+   * <p>Every failure (unknown inject, unknown agent, agent without asset, agent not targeted) maps
+   * to the same 403 and message, so the endpoint does not reveal whether an inject or agent id
+   * exists. The precise reason is only logged server-side.
    */
-  private void assertAgentIsInjectTarget(Inject inject, String agentId) {
-    Optional<Agent> agent = agentRepository.findById(agentId);
-    if (agent.isEmpty()) {
-      return;
+  private Inject resolveInjectTargetingAgent(String injectId, String agentId) {
+    Inject inject = injectService.findInjectOrNull(injectId);
+    Asset agentAsset = agentRepository.findById(agentId).map(Agent::getAsset).orElse(null);
+    if (inject == null || agentAsset == null || !isInjectTarget(inject, agentAsset.getId())) {
+      log.warn(
+          "Executable payload denied: inject {} (found: {}), agent {} (asset found: {})",
+          injectId,
+          inject != null,
+          agentId,
+          agentAsset != null);
+      throw new ForbiddenException(PAYLOAD_ACCESS_DENIED);
     }
-    Asset agentAsset = agent.get().getAsset();
-    if (agentAsset == null) {
-      throw new ForbiddenException(
-          "Agent "
-              + agentId
-              + " has no associated asset and cannot be validated as an inject target");
-    }
-    String agentAssetId = agentAsset.getId();
-    boolean isDirectTarget =
-        inject.getAssets().stream().anyMatch(asset -> agentAssetId.equals(asset.getId()));
-    boolean isGroupTarget =
-        !isDirectTarget
-            && inject.getAssetGroups().stream()
-                .flatMap(group -> assetGroupService.assetsFromAssetGroup(group.getId()).stream())
-                .anyMatch(asset -> agentAssetId.equals(asset.getId()));
-    if (!isDirectTarget && !isGroupTarget) {
-      throw new ForbiddenException(
-          "Agent " + agentId + " is not a target of inject " + inject.getId());
-    }
+    return inject;
+  }
+
+  private boolean isInjectTarget(Inject inject, String agentAssetId) {
+    return inject.getAssets().stream().anyMatch(asset -> agentAssetId.equals(asset.getId()))
+        || inject.getAssetGroups().stream()
+            .flatMap(group -> assetGroupService.assetsFromAssetGroup(group.getId()).stream())
+            .anyMatch(asset -> agentAssetId.equals(asset.getId()));
   }
 
   private Payload getExecutablePayloadInject(String injectId, String agentId) throws Exception {
-    Inject inject = injectService.inject(injectId);
-    assertAgentIsInjectTarget(inject, agentId);
+    Inject inject = resolveInjectTargetingAgent(injectId, agentId);
     InjectorContract contract =
         inject
             .getInjectorContract()

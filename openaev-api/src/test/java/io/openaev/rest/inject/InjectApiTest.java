@@ -38,6 +38,7 @@ import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationF
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.InjectStatusService;
@@ -1000,6 +1001,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutablePayloadInjectWithArguments() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       PayloadPrerequisite prerequisite = new PayloadPrerequisite();
       prerequisite.setGetCommand("cd ./src");
       prerequisite.setExecutor("bash");
@@ -1020,6 +1023,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
 
@@ -1031,7 +1038,13 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                  get(
+                      INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -1065,6 +1078,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void given_argumentWithShellMetacharacters_should_neutralizeThem() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       PayloadPrerequisite prerequisite = new PayloadPrerequisite();
       prerequisite.setGetCommand("cd ./src");
       prerequisite.setExecutor("bash");
@@ -1084,6 +1099,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
 
@@ -1094,7 +1113,13 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                  get(
+                      INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -1115,6 +1140,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void given_targetedAssetArgument_should_replaceByAssetIDs() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       String command =
           "echo separatebyspace : #{asset-separate-by-space} separatebycoma : #{asset-separate-by-comma}";
       Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null);
@@ -1139,7 +1166,7 @@ class InjectApiTest extends IntegrationTest {
       endpoint1.setIps(endpoint1IP);
       endpoint1.setSeenIp("seen-ip-endpoint1");
       EndpointComposer.Composer endpointWrapper1 =
-          endpointComposer.forEndpoint(endpoint1).persist();
+          endpointComposer.forEndpoint(endpoint1).withAgent(targetAgentWrapper).persist();
 
       Endpoint endpoint2 = EndpointFixture.createEndpoint();
       endpoint2.setHostname("endpoint2-hostname");
@@ -1182,7 +1209,13 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                  get(
+                      INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -1335,10 +1368,76 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(status().isForbidden());
     }
 
+    @DisplayName("Should return 403 when the inject does not exist (F408690-41)")
+    @Test
+    void given_unknownInject_should_returnForbidden() throws Exception {
+      // -- PREPARE --
+      // A 404 here would let any token holder probe whether an inject id exists.
+      AgentComposer.Composer agentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpointComposer
+          .forEndpoint(EndpointFixture.createEndpoint())
+          .withAgent(agentWrapper)
+          .persist();
+
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              get(INJECT_URI
+                      + "/"
+                      + UUID.randomUUID()
+                      + "/"
+                      + agentWrapper.get().getId()
+                      + "/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThat(result.getResolvedException())
+                      .isInstanceOf(ForbiddenException.class));
+    }
+
+    @DisplayName("Should return 403 when the agent does not exist (F408690-41)")
+    @Test
+    void given_unknownAgent_should_returnForbidden() throws Exception {
+      // -- PREPARE --
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(
+                          payloadComposer.forPayload(PayloadFixture.createDefaultCommand())))
+              .persist()
+              .get();
+
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              get(INJECT_URI
+                      + "/"
+                      + injectSaved.getId()
+                      + "/"
+                      + UUID.randomUUID()
+                      + "/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThat(result.getResolvedException())
+                      .isInstanceOf(ForbiddenException.class));
+    }
+
     @DisplayName("Get obfuscate command")
     @Test
     void getExecutableObfuscatePayloadInject() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       Command payloadCommand =
           PayloadFixture.createCommand("psh", "echo Hello World", List.of(), "echo cleanup cmd");
 
@@ -1356,6 +1455,10 @@ class InjectApiTest extends IntegrationTest {
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
       doNothing()
@@ -1365,7 +1468,13 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+                  get(
+                      INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -1389,6 +1498,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutableCmdPayloadInject() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       Command payloadCommand =
           PayloadFixture.createCommand("cmd", "echo Hello World", List.of(), "echo cleanup cmd");
 
@@ -1406,6 +1517,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
       doNothing()
@@ -1415,7 +1530,13 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+                  get(
+                      INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -1439,6 +1560,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void shouldNotGetExecutableCmdPayloadInject() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       Command payloadCommand =
           PayloadFixture.createCommand("cmd", "echo Hello World", List.of(), "echo cleanup cmd");
 
@@ -1456,6 +1579,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
       doNothing()
@@ -1464,7 +1591,13 @@ class InjectApiTest extends IntegrationTest {
 
       // -- EXECUTE & ASSERT --
       mvc.perform(
-              get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+              get(
+                  INJECT_URI
+                      + "/"
+                      + injectSaved.getId()
+                      + "/"
+                      + targetAgentWrapper.get().getId()
+                      + "/executable-payload")
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isBadRequest());
@@ -1477,6 +1610,8 @@ class InjectApiTest extends IntegrationTest {
         given_documentArgumentOverriddenInInjectContent_should_returnActualDocumentIdInPayloadArguments()
             throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       // Simulate a payload whose document argument has a generic default (e.g., a template UUID)
       String payloadDefaultDocumentId = UUID.randomUUID().toString();
       PayloadArgument docArg =
@@ -1501,6 +1636,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
 
@@ -1511,7 +1650,13 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                  get(
+                      INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())

@@ -24,6 +24,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -356,11 +357,16 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     @DisplayName("should not be forbidden with AGENT_RUNTIME_ACCESS capability")
     @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
     void given_agentRuntimeAccess_should_allowGetPayload() throws Exception {
-      // Act & Assert — will get 404 (inject not found) which proves RBAC passed
+      // Act & Assert — the unknown inject is rejected by the object-level gate (ForbiddenException),
+      // not by the RBAC aspect (ResponseStatusException), which proves RBAC passed
       mvc.perform(
               get(INJECT_URI + "/" + FAKE_INJECT_ID + "/" + FAKE_AGENT_ID + "/executable-payload")
                   .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThat(result.getResolvedException())
+                      .isInstanceOf(ForbiddenException.class));
     }
   }
 
