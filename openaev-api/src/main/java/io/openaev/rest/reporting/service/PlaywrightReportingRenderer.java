@@ -490,42 +490,60 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
         tenantId, () -> this.documentService.save(document));
   }
 
-  private void markRunning(final RenderJob job) {
-    this.reportingGenerationRepository
-        .findByIdAndTenantId(job.generationId(), job.tenantId())
-        .ifPresent(
-            generation -> {
-              generation.setStatus(ReportingGenerationStatus.RUNNING);
-              this.reportingGenerationRepository.save(generation);
-            });
+  // Package-private so a test can pin the RUNNING status update under the job's own tenant scope
+  // (reporting_generations is tenant-active).
+  void markRunning(final RenderJob job) {
+    // reporting_generations is tenant-active: the read/write below needs the v2 primitive scope
+    // of the job's own tenant, or the inspector fail-closes it and the status update is silently
+    // skipped.
+    this.tenantScopedJobRunner.runInTenant(
+        job.tenantId(),
+        () ->
+            this.reportingGenerationRepository
+                .findByIdAndTenantId(job.generationId(), job.tenantId())
+                .ifPresent(
+                    generation -> {
+                      generation.setStatus(ReportingGenerationStatus.RUNNING);
+                      this.reportingGenerationRepository.save(generation);
+                    }));
   }
 
   // Package-private so a test can pin, with documents armed, that attaching the stored document to
   // the generation and saving it does not reach the documents table through the inspector on the
   // render thread (which has no v2 scope), so it never fail-closes there.
   void completeWithSuccess(final RenderJob job, final Document document) {
-    this.reportingGenerationRepository
-        .findByIdAndTenantId(job.generationId(), job.tenantId())
-        .ifPresent(
-            generation -> {
-              generation.setStatus(ReportingGenerationStatus.SUCCESS);
-              generation.setDocument(document);
-              generation.setErrorMessage(null);
-              generation.setCompletedAt(Instant.now());
-              this.reportingGenerationRepository.save(generation);
-            });
+    // Same primitive-scope need as markRunning: reporting_generations is tenant-active.
+    this.tenantScopedJobRunner.runInTenant(
+        job.tenantId(),
+        () ->
+            this.reportingGenerationRepository
+                .findByIdAndTenantId(job.generationId(), job.tenantId())
+                .ifPresent(
+                    generation -> {
+                      generation.setStatus(ReportingGenerationStatus.SUCCESS);
+                      generation.setDocument(document);
+                      generation.setErrorMessage(null);
+                      generation.setCompletedAt(Instant.now());
+                      this.reportingGenerationRepository.save(generation);
+                    }));
   }
 
-  private void completeWithError(final RenderJob job, final String message) {
-    this.reportingGenerationRepository
-        .findByIdAndTenantId(job.generationId(), job.tenantId())
-        .ifPresent(
-            generation -> {
-              generation.setStatus(ReportingGenerationStatus.ERROR);
-              generation.setErrorMessage(truncate(message, 1000));
-              generation.setCompletedAt(Instant.now());
-              this.reportingGenerationRepository.save(generation);
-            });
+  // Package-private so a test can pin the ERROR status update under the job's own tenant scope
+  // (reporting_generations is tenant-active).
+  void completeWithError(final RenderJob job, final String message) {
+    // Same primitive-scope need as markRunning: reporting_generations is tenant-active.
+    this.tenantScopedJobRunner.runInTenant(
+        job.tenantId(),
+        () ->
+            this.reportingGenerationRepository
+                .findByIdAndTenantId(job.generationId(), job.tenantId())
+                .ifPresent(
+                    generation -> {
+                      generation.setStatus(ReportingGenerationStatus.ERROR);
+                      generation.setErrorMessage(truncate(message, 1000));
+                      generation.setCompletedAt(Instant.now());
+                      this.reportingGenerationRepository.save(generation);
+                    }));
   }
 
   private static String slugify(final String name) {

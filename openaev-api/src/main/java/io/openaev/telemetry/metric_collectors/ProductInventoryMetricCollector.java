@@ -124,7 +124,7 @@ public class ProductInventoryMetricCollector {
         "Number of custom dashboards",
         () -> safeCount(this::countCustomDashboards));
     metricRegistry.registerGauge(
-        "reports_total", "Number of reports", () -> safeCount(reportingRepository::count));
+        "reports_total", "Number of reports", () -> safeCount(this::countReportings));
     metricRegistry.registerGauge(
         "mappers_total", "Number of XLS import mappers", () -> safeCount(this::countImportMappers));
     metricRegistry.registerGauge(
@@ -323,6 +323,11 @@ public class ProductInventoryMetricCollector {
   /** Counts vulnerabilities across the whole platform (vulnerabilities is v2-active). */
   long countVulnerabilities() {
     return countAcrossAllTenants(vulnerabilityRepository::count);
+  }
+
+  /** Counts reportings across the whole platform (reportings is v2-active). */
+  long countReportings() {
+    return countAcrossAllTenants(reportingRepository::count);
   }
 
   private long countAcrossAllTenants(Supplier<Long> counter) {
