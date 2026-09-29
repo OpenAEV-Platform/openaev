@@ -12462,6 +12462,8 @@ export interface ThemeInput {
   primary_color?: string;
   /** Secondary color of the theme */
   secondary_color?: string;
+  /** Text color of the theme */
+  text_color?: string;
 }
 
 export interface ThreatArsenalAction {

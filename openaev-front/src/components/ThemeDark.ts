@@ -5,6 +5,7 @@ import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
+import { movedBy } from '../utils/hooks/useFdsThemeScope';
 import { FDS } from './fds-tokens.generated';
 import quietControlSpacing from './quietControlSpacing';
 import { FONT_FAMILY_CODE, INLINE_CONTROL_HEIGHT, type LabelColor, LabelColorDict } from './Theme';
@@ -22,7 +23,7 @@ const THEME_DARK_DEFAULT_SECONDARY = EE_COLOR;
 const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--bg-elevation-default-layer-3'];
 const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--bg-elevation-default-layer-1'];
 const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--bg-elevation-heading-layer-0'];
-const THEME_DARK_DEFAULT_TEXT = FDS.colors.dark['--text-alert'];
+const THEME_DARK_DEFAULT_TEXT = FDS.colors.dark['--text-default-primary'];
 // Modal surface: the design system's layer-2 elevation, the same ground OpenCTI's
 // modals sit on. Read from the token map, never retyped.
 export const THEME_DARK_DIALOG_BACKGROUND = FDS.colors.dark['--bg-elevation-default-layer-2'];
@@ -151,6 +152,13 @@ const ThemeDark = (
     // OpenAEV components use `text.secondary` pervasively for muted labels,
     // while OpenCTI reserves muting for `text.tertiary`.
     text: {
+      // Declared, because MUI fills what a theme leaves out with its own
+      // built-ins: these two slots held pure white and white at 70%, out of
+      // reach of the customer's text colour.
+      primary: text_color,
+      secondary: text_color === THEME_DARK_DEFAULT_TEXT
+        ? FDS.colors.dark['--text-default-secondary']
+        : movedBy(text_color, '--text-default-primary', '--text-default-secondary', 'dark') ?? FDS.colors.dark['--text-default-secondary'],
       tertiary: '#848592',
       light: FDS.colors.dark['--text-input-label'],
       disabled: '#75829A',

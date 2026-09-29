@@ -410,6 +410,8 @@ public class PlatformSettingsService {
     themeInput.setAccentColor(
         getValueFromMapOfSettings(
             dbSettings, themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key()));
+    themeInput.setTextColor(
+        getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key()));
     themeInput.setLogoUrl(
         getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key()));
     themeInput.setLogoLoginUrl(
@@ -542,6 +544,9 @@ public class PlatformSettingsService {
             dbSettings,
             themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key(),
             input.getAccentColor()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key(), input.getTextColor()));
     settingsToSave.add(
         resolveFromMap(
             dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key(), input.getLogoUrl()));

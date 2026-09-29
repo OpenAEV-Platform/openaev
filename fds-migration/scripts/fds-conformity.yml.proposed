@@ -24,6 +24,7 @@ on:
       - "openaev-front/src/components/fds-tokens.generated.ts"
       - "openaev-front/src/components/ThemeDark.ts"
       - "openaev-front/src/components/ThemeLight.ts"
+      - "openaev-front/src/utils/hooks/useFdsThemeScope.ts"
 
 jobs:
   check:
@@ -34,3 +35,6 @@ jobs:
         with:
           node-version: 20
       - run: node fds-migration/scripts/check-fds-conformity.mjs --warn
+      # Blocking on purpose: a stale token snapshot makes the theme bridge
+      # compare a customer colour against a default that no longer exists.
+      - run: node fds-migration/scripts/check-theme-bridge.mjs

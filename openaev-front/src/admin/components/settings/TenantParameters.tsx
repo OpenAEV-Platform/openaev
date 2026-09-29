@@ -196,6 +196,7 @@ const TenantParameters = () => {
             <SectionLabel>{t('Dark theme')}</SectionLabel>
             <Paper padding={16}>
               <ThemeForm
+                mode="dark"
                 onSubmit={onUpdateDarkTheme}
                 initialValues={initialValuesDark}
                 canNotManage={cannotManage}
@@ -206,6 +207,7 @@ const TenantParameters = () => {
             <SectionLabel>{t('Light theme')}</SectionLabel>
             <Paper padding={16}>
               <ThemeForm
+                mode="light"
                 onSubmit={onUpdateLightTheme}
                 initialValues={initialValuesLight}
                 canNotManage={cannotManage}
