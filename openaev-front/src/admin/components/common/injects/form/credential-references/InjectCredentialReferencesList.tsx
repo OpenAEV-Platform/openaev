@@ -61,7 +61,7 @@ const InjectCredentialReferencesList = ({ name, disabled = false, errorLabel, la
   }, [credentialIds, credentialsMap, dispatch]);
 
   const onCredentialChange = (updatedCredentialIds: string[]) => setValue(name, updatedCredentialIds, { shouldValidate: true });
-  const onRemoveCredential = (credentialId: string) => onCredentialChange(credentialIds.filter(id => id !== credentialId));
+  const onCredentialRemoveFromInject = (credentialId: string) => onCredentialChange(credentialIds.filter(id => id !== credentialId));
 
   return (
     <>
@@ -72,8 +72,7 @@ const InjectCredentialReferencesList = ({ name, disabled = false, errorLabel, la
           <CredentialPopover
             credentialId={credential.credential_id!}
             credentialName={credential.credential_name!}
-            onUpdate={() => onCredentialChange(credentialIds)}
-            onDelete={onRemoveCredential}
+            onRemove={onCredentialRemoveFromInject}
             disabled={disabled}
           />
         )}
