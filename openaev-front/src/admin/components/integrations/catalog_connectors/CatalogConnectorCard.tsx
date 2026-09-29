@@ -130,9 +130,10 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
           height: 280,
           borderRadius: 1,
           display: 'flex',
-          // Same card surface as OpenCTI's marketplace (background.secondary):
-          // slightly lighter than the page so cards pop against the hero.
-          backgroundColor: theme.palette.mode === 'dark' ? '#0c1524' : undefined,
+          // Slightly lighter than the page, so cards pop against the hero. Read
+          // from the palette slot this literal was copying, which moved to a
+          // library token: the default surface shifts from #0c1524 to #13213e.
+          backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.secondary : undefined,
         }}
       >
         <CardActionArea
