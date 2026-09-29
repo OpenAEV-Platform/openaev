@@ -1,5 +1,7 @@
 package io.openaev.rest.reporting.service;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.database.repository.ReportingScheduleRepository;
 import jakarta.persistence.EntityManager;
@@ -12,10 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Loads reporting schedules cross-tenant for the scheduling engine, mirroring the notification
- * engine's {@code NotificationTriggerLoader}. The Hibernate {@code tenantFilter} is enabled with
- * the thread's tenant by {@code HibernateFilterTransactionAspect} on every transactional method, so
- * engine loads - which must see every tenant's schedules - explicitly disable it and return
- * schedules with the associations needed after the session closes fully initialized (fetch joins).
+ * engine's {@code NotificationTriggerLoader}. {@code reporting_schedules} is tenant-active: the
+ * engine load, which must see every tenant's schedules, opens its own transaction through {@link
+ * TenantScopedTransaction} under {@link TxCtx#allTenants()}, never {@code @Transactional} alone -
+ * an unscoped read of an active table fails closed and silently returns nothing. The {@code
+ * disableFilter} call is defensive, kept so that a future {@code @Transactional} hop on this
+ * session cannot silently re-scope this cross-tenant read of the still-v1 tables it joins (owner,
+ * recipient users).
  */
 @Service
 @RequiredArgsConstructor
@@ -23,26 +28,36 @@ public class ReportingScheduleLoader {
 
   private final ReportingScheduleRepository reportingScheduleRepository;
   private final EntityManager entityManager;
+  private final TenantScopedTransaction tenantTx;
 
   /**
    * Loads every enabled schedule of every tenant, with reporting, owner, tenant and recipient users
    * initialized so callers can use the detached entities outside the session.
    */
-  @Transactional(readOnly = true)
   public List<ReportingSchedule> loadEnabledSchedules() {
-    // Schedules must be found cross-tenant: the engine fires for all tenants
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-    return reportingScheduleRepository.findAllEnabledForScheduling();
+    return tenantTx.execute(
+        TxCtx.allTenants(),
+        () -> {
+          disableV1TenantFilter();
+          return reportingScheduleRepository.findAllEnabledForScheduling();
+        });
   }
 
   /**
-   * Persists the last-run marker of a schedule (double-fire guard). Uses a managed reload by id
-   * (unaffected by the tenant filter) so only the {@code lastRunAt} column is updated.
+   * Persists the last-run marker of a schedule (double-fire guard). Uses a managed reload by id.
+   * Callers run this inside the primitive scope of the schedule's own tenant (see {@link
+   * io.openaev.rest.reporting.service.ReportingScheduleService#executeSchedule}); on its own this
+   * method sets no scope.
    */
   @Transactional
   public void markLastRun(String scheduleId, Instant lastRunAt) {
     reportingScheduleRepository
         .findById(scheduleId)
         .ifPresent(schedule -> schedule.setLastRunAt(lastRunAt));
+  }
+
+  // No-op when the filter was never enabled; see the class javadoc.
+  private void disableV1TenantFilter() {
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
   }
 }
