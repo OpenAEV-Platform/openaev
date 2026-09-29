@@ -27,9 +27,12 @@ public class DataSourceProxyBeanPostProcessor implements BeanPostProcessor {
       // Another datasource-proxy already wrapped this bean (only ever a test-scope detector in the
       // same JVM; nothing wraps the datasource before debug mode in production). Add the SQL logger
       // to the existing chain instead of skipping, so debug logging still sees every statement.
+      // Exact-class equality, not isInstance: same identity semantics as the test-side detector
+      // wiring (DetectorDataSourceProxies.addListenerOnce), which must use exact equality since it
+      // is generic over whichever listener type is being chained.
       boolean alreadyInstalled =
           proxy.getProxyConfig().getQueryListener().getListeners().stream()
-              .anyMatch(MaskingSqlLoggingListener.class::isInstance);
+              .anyMatch(existing -> existing.getClass() == MaskingSqlLoggingListener.class);
       if (!alreadyInstalled) {
         log.warn(
             "Debug mode: adding SQL statement logging to already-proxied datasource '{}'",
