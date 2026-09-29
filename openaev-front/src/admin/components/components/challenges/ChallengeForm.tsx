@@ -54,6 +54,7 @@ const useStyles = makeStyles()(() => ({
     marginTop: 5,
     paddingTop: 0,
     paddingLeft: 0,
+    alignItems: 'flex-end',
   },
 }));
 
@@ -436,15 +437,22 @@ const ChallengeForm: FunctionComponent<Props> = ({
                   style={{ marginRight: theme.spacing(2.5) }}
                 />
                 {flagFields.length > 1 && (
-                  <IconButton
-                    icon={<DeleteOutlined />}
-                    variant="destructive"
-                    aria-label={t('Delete')}
-                    onClick={() => removeFlag(index)}
-                    aria-haspopup="true"
-                    priority="tertiary"
-                    size="sm"
-                  />
+                  <div style={{
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  >
+                    <IconButton
+                      icon={<DeleteOutlined />}
+                      variant="destructive"
+                      aria-label={t('Delete')}
+                      onClick={() => removeFlag(index)}
+                      aria-haspopup="true"
+                      priority="tertiary"
+                      size="sm"
+                    />
+                  </div>
                 )}
               </ListItem>
             ))}
