@@ -74,4 +74,16 @@ class WriteAttrSummaryMarkerTest {
                 + " text; it must match WriteAttrGateExtension.ATTRIBUTE_MARKER verbatim")
         .contains(WriteAttrGateExtension.ATTRIBUTE_MARKER);
   }
+
+  @Test
+  @DisplayName("the summary reads the gate's empty-scope report by its exact file name")
+  void given_actionYml_should_containTheEmptyScopeReportFileName() {
+    assertThat(actionYmlText())
+        .as(
+            "the shadow summary locates the empty-scope report by this exact file name; it must"
+                + " match WriteAttrGateExtension.EMPTY_SCOPE_REPORT_FILE verbatim, or a rename on"
+                + " either side silently stops the section from ever appearing (the script's `-f`"
+                + " check just finds nothing and prints no section, no error)")
+        .contains(WriteAttrGateExtension.EMPTY_SCOPE_REPORT_FILE);
+  }
 }

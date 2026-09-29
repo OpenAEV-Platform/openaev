@@ -429,6 +429,27 @@ runs:
           } >> "$S"
         fi
 
+        # Writes made under a deny-all scope (no v2 scope set at all): reported by the gate, never
+        # gated, since sweeping the current flood of test-driven signatures is its own follow-up.
+        # This file's name is WriteAttrGateExtension.EMPTY_SCOPE_REPORT_FILE verbatim, pinned by
+        # WriteAttrSummaryMarkerTest; the header text itself is read back from the file, not
+        # hardcoded here, so it needs no matching pin.
+        EMPTYSCOPE="$REPORTS/writeattr-emptyscope.txt"
+        if [ -f "$EMPTYSCOPE" ]; then
+          {
+            echo "### Empty-scope writes ($(head -n1 "$EMPTYSCOPE" | sed 's/^# //'))"
+            echo
+            echo "Writes made under a deny-all scope (no v2 scope set): reported, never gated, expected"
+            echo "to be numerous today because tests drive production services directly, tracked by its"
+            echo "own sweep."
+            echo
+            echo '```'
+            tail -n +2 "$EMPTYSCOPE"
+            echo '```'
+            echo
+          } >> "$S"
+        fi
+
         # A shard whose trigger could not be installed ran with no write-attribution signal at all:
         # its Spring contexts failed to refresh on the install and every later context retried.
         # Loud, never a job failure (same rule as the context-load warning above).
