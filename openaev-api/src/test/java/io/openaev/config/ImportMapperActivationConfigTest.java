@@ -430,4 +430,10 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesAttackPathExecutionRemediation() throws Exception {
     assertActiveTableEntry("attackpath_execution_remediation");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains phishing_results")
+  void prodConfigActivatesPhishingResults() throws Exception {
+    assertActiveTableEntry("phishing_results");
+  }
 }

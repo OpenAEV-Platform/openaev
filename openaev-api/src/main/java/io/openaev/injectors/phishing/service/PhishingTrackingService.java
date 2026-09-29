@@ -4,6 +4,8 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForTeamManualValidation;
 import static java.time.Instant.now;
 
+import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
@@ -12,6 +14,7 @@ import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.TableTopInjectExpectation;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -244,6 +247,7 @@ public class PhishingTrackingService {
   private final TeamRepository teamRepository;
   private final StepRepository stepRepository;
   private final FindingService findingService;
+  private final PhishingTrackingPublicLookupService publicLookupService;
 
   /** Generates a URL-safe, unguessable per-recipient tracking token. */
   public static String generateToken() {
@@ -288,6 +292,15 @@ public class PhishingTrackingService {
       final String stepId) {
     PhishingResult result = new PhishingResult();
     result.setToken(generateToken());
+    // phishing_results is tenant-active: the row's tenant no longer follows from TenantBaseListener
+    // and must be attributed explicitly. This method runs in its own REQUIRES_NEW transaction (see
+    // the class javadoc above), so it cannot safely touch a lazy association on `inject` - it may
+    // be
+    // the still-uncommitted, suspended entity the chaining case passes in. The ambient
+    // TenantContext
+    // is the one thing this class's own invariant already guarantees is set correctly here ("the
+    // executor runs inside the inject execution job, tenant filter set").
+    result.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     if (stepId != null) {
       result.setStep(stepRepository.getReferenceById(stepId));
     } else {
@@ -374,10 +387,64 @@ public class PhishingTrackingService {
   /**
    * Resolves the owning tenant of a tracking token with no tenant context set. The public landing /
    * tracking endpoints no longer carry the tenant in the URL (the token is globally unique), so the
-   * caller uses this to recover and set the tenant before any tenant-filtered work runs.
+   * caller uses this to recover and set the tenant before any tenant-filtered work runs. Delegates
+   * to {@link PhishingTrackingPublicLookupService}, which reads under an explicit all-tenants
+   * scope: once {@code phishing_results} is tenant-active, an unscoped native read here would fail
+   * closed.
    */
   public Optional<String> resolveTenantIdByToken(@NotBlank final String token) {
-    return phishingResultRepository.findTenantIdByToken(token);
+    return publicLookupService.tenantIdByToken(token);
+  }
+
+  /**
+   * Entry point for the token-only public routes ({@code HostedPublicApi}): the caller has already
+   * resolved the token's owning tenant (via {@link #resolveTenantIdByToken}) and hands it back here
+   * as an explicit {@link TxCtx}. Runs in its own {@code REQUIRES_NEW} transaction so the tenant
+   * scope can be set for it without redefining the scope of the outer HTTP transaction, which
+   * opened with no tenant (the request itself never names one). See {@code
+   * TenantScopeTransactionAspect}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> resolveAndBackfillByToken(
+      final TxCtx ctx, @NotBlank final String token) {
+    return resolveAndBackfillByToken(token);
+  }
+
+  /**
+   * Scoped entry point for {@code markOpened}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markOpened(
+      final TxCtx ctx, @NotBlank final String token, final String ip, final String userAgent) {
+    return markOpened(token, ip, userAgent);
+  }
+
+  /**
+   * Scoped entry point for {@code markClicked}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markClicked(
+      final TxCtx ctx, @NotBlank final String token, final String ip, final String userAgent) {
+    return markClicked(token, ip, userAgent);
+  }
+
+  /**
+   * Scoped entry point for {@code markSubmitted}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}. {@code resolvedLandingPage} keeps feeding credential capture, as in the unscoped
+   * overload below: the caller resolved it under its own single-tenant scope and {@code
+   * phishing_landing_pages} is tenant-active, so this method must not re-resolve it.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markSubmitted(
+      final TxCtx ctx,
+      @NotBlank final String token,
+      final Map<String, String> fields,
+      final String ip,
+      final String userAgent,
+      final PhishingLandingPage resolvedLandingPage) {
+    return markSubmitted(token, fields, ip, userAgent, resolvedLandingPage);
   }
 
   /**
