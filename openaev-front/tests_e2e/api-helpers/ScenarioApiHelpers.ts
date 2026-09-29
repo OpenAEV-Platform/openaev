@@ -1,7 +1,9 @@
 import { type APIRequestContext } from '@playwright/test';
 
+import { tenantApiPath } from '../utils/url';
+
 class ScenarioApiHelpers {
-  readonly scenarioUri = '/api/scenarios';
+  readonly scenarioUri = tenantApiPath('/api/scenarios');
   constructor(private request: APIRequestContext) {}
 
   async createScenario(name?: string) {

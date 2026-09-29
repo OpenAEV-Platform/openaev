@@ -29,12 +29,10 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
@@ -50,6 +48,27 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class AssetGroupApiTest extends IntegrationTest {
 
+  // asset_groups is v2-active (#6435): a create needs a single-tenant scope, so these functional
+  // tests go through the tenant route like a real client does. Posting to the plain URI now
+  // returns 400 by design (TenantWriteScopeResolver refuses to attribute an ambiguous write), a
+  // behaviour the pilot pins in ImportMapperHttpIsolationTest#createWithoutSelectorIsRejected.
+  private static final String TENANT_ASSET_GROUP_URI = "/api/tenants/{tenantId}/asset_groups";
+
+  @BeforeEach
+  void createTenantTheMockUserBelongsTo() throws Exception {
+    // Per method, never cached: the class is @TestInstance(PER_CLASS) but WithMockUser recreates
+    // the user before EVERY test method, so a tenant linked to one method's user is not linked to
+    // the next one's, and the write would come back 403.
+    writeTenantId =
+        tenantIsolationHelper
+            .createTenantWithCurrentUser("ag-api-" + java.util.UUID.randomUUID())
+            .getId();
+    // Everything this test creates must land in the SAME tenant it then writes the asset group
+    // into. Without this, a tag saved under the ambient tenant is invisible to a create scoped to
+    // writeTenantId (Tag is still a v1 @Filter entity) and the asset group comes back with no tags.
+    tenantIsolationHelper.switchToTenant(writeTenantId, entityManager);
+  }
+
   private static final String ASSET_GROUP_NAME = "assetGroup Test";
 
   @Autowired private MockMvc mvc;
@@ -61,6 +80,14 @@ class AssetGroupApiTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+
+  /**
+   * A tenant the mock user is really a member of. Since asset_groups went v2-active a create needs
+   * a single-tenant scope, and the scope comes from the caller's membership: posting to the plain
+   * URI is a 400 (ambiguous) and posting to a tenant the caller does not belong to is a 403. The
+   * helper wires the membership the same way the isolation tests do.
+   */
+  private String writeTenantId;
 
   @DisplayName(
       "Given valid AssetGroupInput, should create and get assetGroup without dynamic filter successfully")
@@ -76,7 +103,7 @@ class AssetGroupApiTest extends IntegrationTest {
     // --EXECUTE--
     String response =
         mvc.perform(
-                post(ASSET_GROUP_URI)
+                post(TENANT_ASSET_GROUP_URI, writeTenantId)
                     .content(asJsonString(assetGroupInput))
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -142,7 +169,7 @@ class AssetGroupApiTest extends IntegrationTest {
     // --EXECUTE--
     String response =
         mvc.perform(
-                post(ASSET_GROUP_URI)
+                post(TENANT_ASSET_GROUP_URI, writeTenantId)
                     .content(asJsonString(assetGroupInput))
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -193,7 +220,7 @@ class AssetGroupApiTest extends IntegrationTest {
     // --EXECUTE--
     String response =
         mvc.perform(
-                post(ASSET_GROUP_URI)
+                post(TENANT_ASSET_GROUP_URI, writeTenantId)
                     .content(asJsonString(assetGroupInput))
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -697,89 +724,6 @@ class AssetGroupApiTest extends IntegrationTest {
               List.of("win-host"),
               List.of("windowsX86", "windowsArm")),
           Arguments.of("asset_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
-    }
-  }
-
-  @Nested
-  @DisplayName("Tenant Isolation")
-  @WithMockUser
-  class TenantIsolation {
-
-    @Test
-    @DisplayName("AssetGroup created in tenant X should be readable from tenant X")
-    void given_assetGroupInTenantX_should_beReadableFromTenantX() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-
-      AssetGroupInput input = createDefaultAssetGroupInput("Same Tenant AssetGroup");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String assetGroupId = JsonPath.read(createResponse, "$.asset_group_id");
-
-      // -------- Act & Assert — read from same tenant should succeed --------
-      mvc.perform(
-              get("/api/tenants/" + tenantX.getId() + "/asset_groups/" + assetGroupId)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("AssetGroup search in tenant Y should NOT return asset groups from tenant X")
-    void given_assetGroupInTenantX_should_notAppearInTenantYSearch() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
-
-      AssetGroupInput input = createDefaultAssetGroupInput("CrossTenantSearchAssetGroup");
-
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-
-      // Evict L1 cache
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — search from tenant Y --------
-      SearchPaginationInput searchInput =
-          PaginationFixture.simpleTextSearch("CrossTenantSearchAssetGroup");
-
-      String searchResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/asset_groups/search")
-                      .content(asJsonString(searchInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
     }
   }
 }

@@ -1,25 +1,21 @@
 import type { Dispatch } from 'redux';
 
 import { delReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../../utils/Action';
-import type { PlatformRoleInput, PlatformRoleOutput, SearchPaginationInput } from '../../../utils/api-types';
+import type { RoleInput, RoleOutput, SearchPaginationInput } from '../../../utils/api-types';
 import { PLATFORM_ROLE_SCHEMA_KEY, platformRole } from './platform-role-schema';
 
-export const PLATFORM_ROLES_URI = '/api/platform-roles';
+const PLATFORM_ROLES_URI = '/api/platform-roles';
 
 // -- CREATE --
 
-export const addPlatformRole = (data: PlatformRoleInput) => (dispatch: Dispatch) => {
+export const createPlatformRole = (data: RoleInput) => (dispatch: Dispatch) => {
   return postReferential(platformRole, PLATFORM_ROLES_URI, data)(dispatch);
 };
 
 // -- READ --
 
-export const fetchPlatformRoleById = (platformRoleId: PlatformRoleOutput['platform_role_id']) => {
+export const fetchPlatformRoleById = (platformRoleId: RoleOutput['role_id']) => {
   return simpleCall(`${PLATFORM_ROLES_URI}/${platformRoleId}`);
-};
-
-export const fetchPlatformRoleCapabilities = (platformRoleId: string) => {
-  return simpleCall(`${PLATFORM_ROLES_URI}/${platformRoleId}/capabilities`);
 };
 
 // -- SEARCH --
@@ -37,7 +33,7 @@ export const findPlatformRoles = (platformRoleIds: string[]) => {
 // -- UPDATE --
 
 export const updatePlatformRole
-  = (platformRoleId: PlatformRoleOutput['platform_role_id'], data: PlatformRoleInput) =>
+  = (platformRoleId: RoleOutput['role_id'], data: RoleInput) =>
     (dispatch: Dispatch) => {
       const uri = `${PLATFORM_ROLES_URI}/${platformRoleId}`;
       return putReferential(platformRole, uri, data)(dispatch);
@@ -46,7 +42,7 @@ export const updatePlatformRole
 // -- DELETE --
 
 export const deletePlatformRole
-  = (platformRoleId: PlatformRoleOutput['platform_role_id']) =>
+  = (platformRoleId: RoleOutput['role_id']) =>
     (dispatch: Dispatch) => {
       const uri = `${PLATFORM_ROLES_URI}/${platformRoleId}`;
       return delReferential(uri, PLATFORM_ROLE_SCHEMA_KEY, platformRoleId)(dispatch);

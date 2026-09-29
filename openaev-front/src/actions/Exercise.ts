@@ -1,6 +1,15 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../utils/Action';
+import {
+  delReferential,
+  getReferential,
+  postReferential,
+  putReferential,
+  simpleCall,
+  simpleDelCall,
+  simplePostCall,
+  simplePutCall,
+} from '../utils/Action';
 import type {
   CreateExerciseInput,
   Exercise,
@@ -10,6 +19,7 @@ import type {
   ExerciseUpdateStatusInput,
   ExerciseUpdateTagsInput,
   ExpectationUpdateInput,
+  GetExercisesInput,
   LessonsInput,
   SearchPaginationInput,
   UpdateExerciseInput,
@@ -20,7 +30,7 @@ type AppDispatch = Dispatch;
 
 export const fetchExercises = () => (dispatch: AppDispatch) => getReferential(schema.arrayOfExercises, '/api/exercises')(dispatch);
 
-export const fetchExercisesById = (exerciseIds: string[]) => (dispatch: AppDispatch) => postReferential(schema.arrayOfExercises, '/api/exercises/search-by-id', exerciseIds, undefined, false)(dispatch);
+export const fetchExercisesById = (getExercisesInput: GetExercisesInput) => (dispatch: AppDispatch) => postReferential(schema.arrayOfExercises, '/api/exercises/search-by-id', getExercisesInput, undefined, false)(dispatch);
 
 export const searchExercises = (paginationInput: SearchPaginationInput) => simplePostCall('/api/exercises/search', paginationInput);
 

@@ -1,0 +1,86 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the entity.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the entity.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "sensor_layer" : {
+      "type" : "string_t",
+      "description" : "The technology or sensor layer that emitted the data, normalized to the caption of <code>sensor_layer_id</code>. When <code>sensor_layer_id</code> is <code>99</code> (Other), this attribute must contain the source-specific label.",
+      "requirement" : "optional",
+      "caption" : "Sensor Layer",
+      "type_name" : "String"
+    },
+    "sensor_layer_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The analyzed data is emitted by, or originates from an email gateway or email security system.",
+          "caption" : "Email"
+        },
+        "6" : {
+          "description" : "The analyzed data is emitted by, or originates from a cyber threat intelligence (CTI) system or by matching observables against a threat intelligence feed or report.",
+          "caption" : "Threat Intel"
+        },
+        "0" : {
+          "description" : "The sensor layer type is Unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The analyzed data is emitted by, or originates from a network, firewall, or IPS sensor.",
+          "caption" : "Network"
+        },
+        "2" : {
+          "description" : "The analyzed data is emitted by, or originates from an endpoint device or agent running on an OS.",
+          "caption" : "Endpoint"
+        },
+        "99" : {
+          "description" : "The sensor layer type is not mapped. See the <code>sensor_layer</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "The analyzed data is emitted by, or originates from an identity and access management (IAM) system or service.",
+          "caption" : "IAM"
+        },
+        "5" : {
+          "description" : "The analyzed data is emitted by, or originates from a proxy server (e.g., forward or reverse proxy, web gateway).",
+          "caption" : "Proxy"
+        },
+        "7" : {
+          "description" : "The analyzed data is emitted by, or originates from an application (e.g., web application, SaaS platform, or custom business application).",
+          "caption" : "Application"
+        }
+      },
+      "description" : "The normalized identifier of the sensor layer that emitted the data. For example, use this to classify the detection surface (e.g., IPS sensor, endpoint agent, email gateway). When the type is not listed, use <code>99</code> (Other) and populate <code>sensor_layer</code> with the source-specific label.",
+      "requirement" : "required",
+      "caption" : "Sensor Layer ID",
+      "sibling" : "sensor_layer",
+      "type_name" : "Integer"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "sensor_info",
+  "description" : "The Sensor Information object describes a control point sensor that emits data, or originates detections. It can be part of an endpoint or agent running on an OS, a SaaS application, a network device, a Cyber Threat Intelligence (CTI) system, or other detection and enforcement technologies.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Sensor Information",
+  "_links" : [ ]
+}

@@ -97,11 +97,8 @@ class AuditLoggerRoleTest extends IntegrationTest {
       // -- ARRANGE --
       String roleName = "audit-role-" + UUID.randomUUID();
       RoleInput createInput =
-          RoleInput.builder()
-              .name(roleName)
-              .description("role for audit integration test")
-              .capabilities(Set.of(Capability.ACCESS_ASSESSMENT))
-              .build();
+          new RoleInput(
+              roleName, "role for audit integration test", Set.of(Capability.ACCESS_ASSESSMENT));
 
       // -- ACT --
       String createResponse =
@@ -119,11 +116,10 @@ class AuditLoggerRoleTest extends IntegrationTest {
       // -- ARRANGE --
       String roleId = JsonPath.read(createResponse, "$.role_id");
       RoleInput assignCapabilitiesInput =
-          RoleInput.builder()
-              .name(roleName)
-              .description("role for audit integration test")
-              .capabilities(Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSETS))
-              .build();
+          new RoleInput(
+              roleName,
+              "role for audit integration test",
+              Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSETS));
 
       // -- ACT --
       long firstUpdateSizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
@@ -153,11 +149,10 @@ class AuditLoggerRoleTest extends IntegrationTest {
 
       // -- ARRANGE --
       RoleInput updateCapabilitiesInput =
-          RoleInput.builder()
-              .name(roleName)
-              .description("role for audit integration test")
-              .capabilities(Set.of(Capability.MANAGE_ASSESSMENT, Capability.MANAGE_ASSETS))
-              .build();
+          new RoleInput(
+              roleName,
+              "role for audit integration test",
+              Set.of(Capability.MANAGE_ASSESSMENT, Capability.MANAGE_ASSETS));
 
       // -- ACT --
       long secondUpdateSizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
@@ -201,10 +196,7 @@ class AuditLoggerRoleTest extends IntegrationTest {
       // needs no wiring of its own - this pins that.
       String roleName = "audit-role-" + UUID.randomUUID();
       RoleInput createInput =
-          RoleInput.builder()
-              .name(roleName)
-              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
-              .build();
+          new RoleInput(roleName, null, Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
 
       long sizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
       mvc.perform(
@@ -235,11 +227,8 @@ class AuditLoggerRoleTest extends IntegrationTest {
       // -- ARRANGE --
       String roleName = "audit-tags-role-" + UUID.randomUUID();
       RoleInput createInput =
-          RoleInput.builder()
-              .name(roleName)
-              .description("role for tags capability audit test")
-              .capabilities(Set.of(Capability.ACCESS_TAGS))
-              .build();
+          new RoleInput(
+              roleName, "role for tags capability audit test", Set.of(Capability.ACCESS_TAGS));
 
       String createResponse =
           mvc.perform(
@@ -255,12 +244,10 @@ class AuditLoggerRoleTest extends IntegrationTest {
 
       String roleId = JsonPath.read(createResponse, "$.role_id");
       RoleInput assignTagsCapabilitiesInput =
-          RoleInput.builder()
-              .name(roleName)
-              .description("role for tags capability audit test")
-              .capabilities(
-                  Set.of(Capability.ACCESS_TAGS, Capability.MANAGE_TAGS, Capability.DELETE_TAGS))
-              .build();
+          new RoleInput(
+              roleName,
+              "role for tags capability audit test",
+              Set.of(Capability.ACCESS_TAGS, Capability.MANAGE_TAGS, Capability.DELETE_TAGS));
 
       // -- ACT --
       long updateSizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;

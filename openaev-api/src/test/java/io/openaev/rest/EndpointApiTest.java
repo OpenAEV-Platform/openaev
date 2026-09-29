@@ -63,6 +63,7 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
@@ -70,6 +71,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
+// @TestPropertySource REPLACES the allowlist, so only assets is active in this context. That is a
+// known reduction: the AgentExecutorJoin nested test below is about the eager agent-to-executor
+// join, and executors is inactive here, so it exercises the join without the rewrite. Adding
+// executors to this list was tried and turns four of this class's tests red on their executor
+// fixtures, which is a separate piece of work; executors has its own activation and its own
+// coverage. Widen this list when that fixture work is done, not inside this activation.
+@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 class EndpointApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -261,6 +269,7 @@ class EndpointApiTest extends IntegrationTest {
     EndpointRegisterInput registerInput =
         createWindowsEndpointRegisterInput(List.of(tag.getId()), externalReference);
     Endpoint endpoint = new Endpoint();
+    endpoint.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     endpoint.setUpdateAttributes(registerInput);
     endpoint.setIps(EndpointMapper.setIps(registerInput.getIps()));
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(registerInput.getMacAddresses()));
@@ -314,6 +323,7 @@ class EndpointApiTest extends IntegrationTest {
     EndpointRegisterInput registerInput =
         createWindowsEndpointRegisterInput(List.of(tag.getId()), externalReference);
     Endpoint endpoint = new Endpoint();
+    endpoint.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     endpoint.setUpdateAttributes(registerInput);
     endpoint.setIps(EndpointMapper.setIps(registerInput.getIps()));
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(registerInput.getMacAddresses()));
@@ -355,6 +365,7 @@ class EndpointApiTest extends IntegrationTest {
     String externalReference = "external01";
     EndpointInput endpointInput = createWindowsEndpointInput(List.of(tag.getId()));
     Endpoint endpoint = new Endpoint();
+    endpoint.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     endpoint.setUpdateAttributes(endpointInput);
     endpoint.setIps(EndpointMapper.setIps(endpointInput.getIps()));
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(endpointInput.getMacAddresses()));
@@ -404,6 +415,7 @@ class EndpointApiTest extends IntegrationTest {
     String externalReference = "external01";
     EndpointInput endpointInput = createWindowsEndpointInput(List.of(tag.getId()));
     Endpoint endpoint = new Endpoint();
+    endpoint.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     endpoint.setUpdateAttributes(endpointInput);
     endpoint.setIps(EndpointMapper.setIps(endpointInput.getIps()));
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(endpointInput.getMacAddresses()));
@@ -759,6 +771,17 @@ class EndpointApiTest extends IntegrationTest {
     return filter;
   }
 
+  /**
+   * These assert v2 isolation, which only exists when the table is in {@code
+   * openaev.tenant.active-tables}. The test profile declares none, so the activation lives on the
+   * OUTER class: putting {@code @TestPropertySource} here instead builds a second Spring context
+   * where the mock user provisioned into the parent's {@code TestUserHolder} is missing, and every
+   * test dies on "The given id must not be null" before reaching its assertion.
+   *
+   * <p>Before the activation these rode on the v1 {@code @Filter}. Removing it turned exactly one
+   * of the four red; the other three stayed green while isolating nothing, which is the reason the
+   * outer annotation is not optional.
+   */
   @Nested
   @DisplayName("Tenant Isolation")
   @WithMockUser(isAdmin = true)

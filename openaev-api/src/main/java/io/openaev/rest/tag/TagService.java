@@ -7,7 +7,10 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
 
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.tag.form.TagCreateInput;
@@ -28,31 +31,41 @@ import org.springframework.stereotype.Service;
 public class TagService {
 
   private final TagRepository tagRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CREATE --
 
-  public Tag createTag(TagCreateInput input) {
+  public Tag createTag(TagCreateInput input, String tenantId) {
+    tenantId = requireTenantId(tenantId);
     Tag tag = new Tag();
     tag.setUpdateAttributes(input);
+    tag.setTenant(new Tenant(tenantId));
     return tagRepository.save(tag);
   }
 
-  public Tag createTag(String name) {
+  public Tag createTag(TxCtx ctx, String name) {
     TagCreateInput tagCreateInput = new TagCreateInput();
     tagCreateInput.setName(name);
     tagCreateInput.setColor(Tag.WellKnown.getOrDefault(name, generateRandomColor()));
-    return upsertTag(tagCreateInput);
+    return upsertTag(ctx, tagCreateInput);
   }
 
-  public Tag upsertTag(TagCreateInput input) {
-    Optional<Tag> tag = tagRepository.findByName(input.getName().toLowerCase());
+  public Tag upsertTag(TagCreateInput input, String tenantId) {
+    tenantId = requireTenantId(tenantId);
+    Optional<Tag> tag =
+        tagRepository.findByNameAndTenantId(input.getName().toLowerCase(), tenantId);
     if (tag.isPresent()) {
       return tag.get();
     } else {
       Tag newTag = new Tag();
       newTag.setUpdateAttributes(input);
+      newTag.setTenant(new Tenant(tenantId));
       return tagRepository.save(newTag);
     }
+  }
+
+  public Tag upsertTag(TxCtx ctx, TagCreateInput input) {
+    return upsertTag(input, writeScopeResolver.tenantForWrite(ctx, null));
   }
 
   /**
@@ -61,7 +74,8 @@ public class TagService {
    * @param names collection of strings, each representing a requested tag
    * @return set of tags exactly matching the provided set of names
    */
-  public Set<Tag> findOrCreateTagsFromNames(Set<String> names) {
+  public Set<Tag> findOrCreateTagsFromNames(TxCtx ctx, Set<String> names) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Set<Tag> tags = new HashSet<>();
 
     if (names != null) {
@@ -73,7 +87,7 @@ public class TagService {
         tagCreateInput.setName(label);
         tagCreateInput.setColor(generateRandomColor());
 
-        tags.add(upsertTag(tagCreateInput));
+        tags.add(upsertTag(tagCreateInput, tenantId));
       }
     }
 
@@ -85,17 +99,19 @@ public class TagService {
    *
    * @return the complete set of well known tags
    */
-  public Set<Tag> ensureWellKnownTags() {
+  public Set<Tag> ensureWellKnownTags(TxCtx ctx) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Set<Tag> wellKnownTags = new HashSet<>();
     for (Map.Entry<String, String> entry : Tag.WellKnown.entrySet()) {
       wellKnownTags.add(
           this.tagRepository
-              .findByName(entry.getKey())
+              .findByNameAndTenantId(entry.getKey(), tenantId)
               .orElseGet(
                   () -> {
                     Tag tag = new Tag();
                     tag.setName(entry.getKey());
                     tag.setColor(entry.getValue());
+                    tag.setTenant(new Tenant(tenantId));
                     return tagRepository.save(tag);
                   }));
     }
@@ -149,5 +165,12 @@ public class TagService {
     return fromIterable(this.tagRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
+  }
+
+  private String requireTenantId(String tenantId) {
+    if (tenantId == null || tenantId.isBlank()) {
+      throw new IllegalArgumentException("Tag writes require a non-blank tenantId");
+    }
+    return tenantId;
   }
 }

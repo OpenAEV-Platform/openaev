@@ -4,7 +4,7 @@
   <parent>
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>3.260831.0</version>
+    <version>3.260923.0</version>
   </parent>
   <artifactId>openaev-maven-plugin</artifactId>
   <packaging>maven-plugin</packaging>
@@ -16,7 +16,40 @@
     <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
     <commons-lang3.version>3.20.0</commons-lang3.version>
   </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson-bom.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
   <dependencies>
+    <!-- Source: https://mvnrepository.com/artifact/ch.qos.logback/logback-classic -->
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+      <version>${httpclient5.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
@@ -31,7 +64,7 @@
     <dependency>
       <groupId>org.apache.maven.plugin-tools</groupId>
       <artifactId>maven-plugin-annotations</artifactId>
-      <version>3.15.2</version>
+      <version>3.16.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -57,6 +90,12 @@
       <version>3.27.7</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.46</version>
+      <scope>compile</scope>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -74,7 +113,7 @@
       <plugins>
         <plugin>
           <artifactId>maven-plugin-plugin</artifactId>
-          <version>3.15.2</version>
+          <version>3.16.0</version>
         </plugin>
       </plugins>
     </pluginManagement>

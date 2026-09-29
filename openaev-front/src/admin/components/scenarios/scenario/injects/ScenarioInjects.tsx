@@ -28,6 +28,7 @@ import {
   ViewModeContext,
 } from '../../../common/Context';
 import Injects from '../../../common/injects/Injects';
+import { buildScenarioVariablesConfigurationUrl } from '../../ScenarioConfigurationTab';
 import articleContextForScenario from '../articles/articleContextForScenario';
 import teamContextForScenario from '../teams/teamContextForScenario';
 
@@ -88,6 +89,7 @@ const ScenarioInjects: FunctionComponent = () => {
                   articles={articles}
                   variables={variables}
                   uriVariable={`/admin/scenarios/${scenarioId}/injects`}
+                  variablesConfigurationUri={buildScenarioVariablesConfigurationUrl(scenarioId)}
                   setViewMode={handleViewMode}
                   availableButtons={availableButtons}
                 />

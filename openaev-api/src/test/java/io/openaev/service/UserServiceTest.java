@@ -60,6 +60,30 @@ class UserServiceTest extends IntegrationTest {
   }
 
   @Test
+  void given_inputWithoutPassword_should_createUserWithBlankPassword() {
+    // -- ACT --
+    UserInput input =
+        new UserInput(
+            "no-password@test.invalid",
+            "No",
+            "Password",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            null);
+    User created = userService.createUser(input, UserCreationScope.PLATFORM);
+
+    // -- ASSERT --
+    assertThat(created.getId()).isNotNull();
+    assertThat(created.getEmail()).isEqualTo("no-password@test.invalid");
+    assertThat(created.getPassword()).isBlank();
+  }
+
+  @Test
   @DisplayName("given_inputWithTenantIds_should_createUserAndEvictMembershipCacheWithoutThrowing")
   void given_inputWithTenantIds_should_createUserAndEvictMembershipCache() {
     // -- ARRANGE --

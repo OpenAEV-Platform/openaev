@@ -1,2 +1,2 @@
 io.openaev.utilstest.DefaultTenantExtension
-
+io.openaev.config.FailClosedGateExtension

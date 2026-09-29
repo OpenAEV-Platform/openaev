@@ -1,35 +1,19 @@
 package io.openaev.rest.role.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.Capability;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Set;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.extern.jackson.Jacksonized;
 
-@Builder(toBuilder = true)
-@Getter
-@Jacksonized
-@EqualsAndHashCode
-public class RoleOutput {
-  @JsonProperty("role_id")
-  @NotBlank
-  private String id;
+/** Shared by the tenant role API and the platform role API. */
+public record RoleOutput(
+    @JsonProperty(ALIAS_ID) @NotBlank String id,
+    @JsonProperty(ALIAS_NAME) @NotBlank String name,
+    @JsonProperty(ALIAS_DESCRIPTION) String description,
+    @JsonProperty(ALIAS_CAPABILITIES) Set<Capability> capabilities) {
 
-  @JsonProperty("role_name")
-  @NotBlank
-  private String name;
-
-  @JsonProperty("role_description")
-  private String description;
-
-  @JsonProperty("role_capabilities")
-  private Set<String> capabilities;
-
-  @JsonProperty("role_created_at")
-  private String createdAt;
-
-  @JsonProperty("role_updated_at")
-  private String updatedAt;
+  public static final String ALIAS_ID = "role_id";
+  public static final String ALIAS_NAME = "role_name";
+  public static final String ALIAS_DESCRIPTION = "role_description";
+  public static final String ALIAS_CAPABILITIES = "role_capabilities";
 }

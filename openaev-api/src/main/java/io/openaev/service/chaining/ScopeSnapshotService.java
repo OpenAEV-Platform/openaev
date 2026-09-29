@@ -2,7 +2,6 @@ package io.openaev.service.chaining;
 
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.TeamRepository;
@@ -262,9 +261,13 @@ public class ScopeSnapshotService {
 
   private ScopeRuleSnapshot resolveAssetSnapshot(String assetId) {
     try {
-      Asset asset =
-          tenantTx.executeNew(
-              TxCtx.forTenant(TenantContext.getCurrentTenant()), () -> assetService.asset(assetId));
+      // Reads under the caller's own scope, exactly like resolveSecurityPlatformSnapshot below.
+      // This used to open a REQUIRES_NEW transaction scoped to TenantContext.getCurrentTenant(),
+      // which falls back to the DEFAULT tenant: on the timeout job, which sets no thread-local,
+      // every asset of another tenant failed to resolve and its rule was frozen as
+      // DELETED_DURING_EXECUTION although the asset still existed. Scoping is the caller's job, and
+      // both freeze paths now establish it.
+      Asset asset = assetService.asset(assetId);
       if (asset == null) {
         return null;
       }

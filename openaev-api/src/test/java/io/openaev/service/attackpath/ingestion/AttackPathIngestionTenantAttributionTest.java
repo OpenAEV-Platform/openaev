@@ -240,6 +240,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     platform.setExternalReference("platform-trace-1");
     platform.setName("Trace platform");
     platform.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+    platform.setTenant(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
     platform = securityPlatformRepository.save(platform);
     Inject persistedInject = InjectFixture.getDefaultInject();
@@ -313,6 +314,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     platform.setExternalReference(collectorExternalReference);
     platform.setName("Ext-ref platform");
     platform.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
+    platform.setTenant(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
     platform = securityPlatformRepository.save(platform);
     Inject persistedInject = InjectFixture.getDefaultInject();

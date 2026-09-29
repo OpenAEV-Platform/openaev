@@ -4,6 +4,7 @@ import static io.openaev.utils.log.LogUtils.*;
 import static java.util.logging.Level.*;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.log.form.LogDetailsInput;
 import io.openaev.utils.log.LogUtils;
@@ -44,6 +45,7 @@ public class LogApi extends RestBehavior {
       })
   @AccessControl(skipRBAC = true)
   public ResponseEntity<String> logDetails(
+      TxCtx ctx,
       @Parameter(
               description = "Details of the log message, including level, message, and stacktrace.",
               required = true)

@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TxCtx;
 import io.openaev.service.notification.NotificationService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,7 +48,7 @@ public class NotificationApi {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The paginated notifications")})
   public Page<NotificationOutput> searchMyNotifications(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return notificationService
         .searchMyNotifications(searchPaginationInput)
         .map(notificationMapper::toNotificationOutput);
@@ -62,7 +63,7 @@ public class NotificationApi {
       description = "Number of unread notifications for the current user")
   @Transactional
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The unread count")})
-  public long unreadNotificationsCount() {
+  public long unreadNotificationsCount(TxCtx ctx) {
     return notificationService.unreadCount();
   }
 
@@ -83,6 +84,7 @@ public class NotificationApi {
         @ApiResponse(responseCode = "404", description = "Notification not found")
       })
   public NotificationOutput markNotificationRead(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the notification")
           final String notificationId,
       @RequestParam(name = "read", defaultValue = "true") final boolean read) {
@@ -99,7 +101,7 @@ public class NotificationApi {
       description = "Mark all of the current user's notifications as read")
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Notifications updated")})
-  public void markAllNotificationsRead() {
+  public void markAllNotificationsRead(TxCtx ctx) {
     notificationService.markAllRead();
   }
 
@@ -117,7 +119,7 @@ public class NotificationApi {
         @ApiResponse(responseCode = "200", description = "The ids of the deleted notifications")
       })
   public List<String> bulkDeleteNotifications(
-      @RequestBody @Valid final NotificationBulkProcessingInput input) {
+      TxCtx ctx, @RequestBody @Valid final NotificationBulkProcessingInput input) {
     return notificationService.bulkDelete(input);
   }
 
@@ -135,6 +137,7 @@ public class NotificationApi {
         @ApiResponse(responseCode = "200", description = "The ids of the updated notifications")
       })
   public List<String> bulkMarkNotificationsRead(
+      TxCtx ctx,
       @RequestBody @Valid final NotificationBulkProcessingInput input,
       @RequestParam(name = "read", defaultValue = "true") final boolean read) {
     return notificationService.bulkMarkRead(input, read);
@@ -157,6 +160,7 @@ public class NotificationApi {
         @ApiResponse(responseCode = "404", description = "Notification not found")
       })
   public void deleteNotification(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the notification")
           final String notificationId) {
     notificationService.delete(notificationId);

@@ -25,6 +25,18 @@ public class SecretReferenceService {
   }
 
   /**
+   * Finds a secret reference by identifier.
+   *
+   * @param secretReferenceId the identifier of the reference to retrieve
+   * @return the existing reference, or empty when not found
+   */
+  @Transactional(readOnly = true)
+  public java.util.Optional<SecretReference> findById(String secretReferenceId) {
+    return secretReferenceRepository.findById(
+        Objects.requireNonNull(secretReferenceId, "secretReferenceId must not be null"));
+  }
+
+  /**
    * Deletes a secret reference.
    *
    * @param secretReference the secret reference to delete

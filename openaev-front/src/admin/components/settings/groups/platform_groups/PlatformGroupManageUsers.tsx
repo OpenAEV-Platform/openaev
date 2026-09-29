@@ -1,8 +1,10 @@
 import { type FC, useEffect, useState } from 'react';
 
-import { fetchPlatformGroupUserIds } from '../../../../../actions/platform/platform-group/platform-group-action';
+import { fetchPlatformGroupRoleIds, fetchPlatformGroupUserIds } from '../../../../../actions/platform/platform-group/platform-group-action';
 import { findPlatformUsers, searchPlatformUsers } from '../../../../../actions/platform/users/platform-user-action';
-import GroupManageUsers from '../tenant_groups/GroupManageUsers';
+import { CAPABILITY_SCOPES } from '../../../../../utils/permissions/types';
+import RoleScopeProvider from '../../roles/RoleScopeProvider';
+import GroupManageUsers from '../GroupManageUsers';
 
 interface Props {
   platformGroupId: string;
@@ -20,27 +22,32 @@ const PlatformGroupManageUsers: FC<Props> = ({
   onSubmit,
 }) => {
   const [userIds, setUserIds] = useState<string[]>([]);
+  const [roleIds, setRoleIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
-      fetchPlatformGroupUserIds(platformGroupId).then(
-        (result: { data: string[] }) => {
-          setUserIds(result.data ?? []);
-        },
-      );
+      fetchPlatformGroupUserIds(platformGroupId).then((result: { data: string[] }) => {
+        setUserIds(result.data ?? []);
+      });
+      fetchPlatformGroupRoleIds(platformGroupId).then((result: { data: string[] }) => {
+        setRoleIds(result.data ?? []);
+      });
     }
   }, [open, platformGroupId]);
 
   return (
-    <GroupManageUsers
-      initialState={userIds}
-      groupName={groupName}
-      open={open}
-      onClose={onClose}
-      onSubmit={onSubmit}
-      searchUsersFn={searchPlatformUsers}
-      findUsersFn={findPlatformUsers}
-    />
+    <RoleScopeProvider scope={CAPABILITY_SCOPES.PLATFORM}>
+      <GroupManageUsers
+        initialState={userIds}
+        groupRoleIds={roleIds}
+        groupName={groupName}
+        open={open}
+        onClose={onClose}
+        onSubmit={onSubmit}
+        searchUsersFn={searchPlatformUsers}
+        findUsersFn={findPlatformUsers}
+      />
+    </RoleScopeProvider>
   );
 };
 

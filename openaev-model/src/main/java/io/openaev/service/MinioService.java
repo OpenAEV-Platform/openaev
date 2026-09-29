@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -72,6 +73,30 @@ public class MinioService implements DependenciesManager {
             .contentType(contentType)
             .build());
     return getTenantPath(fileName);
+  }
+
+  /**
+   * Uploads a file under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}. Use this when the write tenant is resolved from the request scope, so the
+   * object lands under the same tenant the row is attributed to.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param fileName the target file path/name in the bucket
+   * @param data the input stream containing the file data
+   * @param size the size of the file in bytes
+   * @param contentType the MIME type of the file
+   * @return the full tenant-prefixed path of the uploaded file
+   * @throws Exception if the upload fails
+   */
+  public String uploadFileForTenant(
+      String tenantId, String fileName, InputStream data, long size, String contentType)
+      throws Exception {
+    String objectKey = getPathForTenant(tenantId, fileName);
+    minioClient.putObject(
+        PutObjectArgs.builder().bucket(bucket()).object(objectKey).stream(data, size, -1)
+            .contentType(contentType)
+            .build());
+    return objectKey;
   }
 
   public String uploadStreamInTenantPath(String fileName, String name, InputStream data)
@@ -179,6 +204,24 @@ public class MinioService implements DependenciesManager {
         RemoveObjectArgs.builder().bucket(bucket()).object(getTenantPath(name)).build());
   }
 
+  /**
+   * Deletes a file under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}. The delete-side counterpart of {@link #uploadFileForTenant}: use it when the
+   * owning row's tenant is known, so the object is removed from the same path it was written to,
+   * whatever scope the caller runs under.
+   *
+   * @param tenantId the tenant whose path the object is removed from
+   * @param name the object name to delete
+   * @throws Exception if the deletion fails
+   */
+  public void deleteFileForTenant(String tenantId, String name) throws Exception {
+    minioClient.removeObject(
+        RemoveObjectArgs.builder()
+            .bucket(bucket())
+            .object(getPathForTenant(tenantId, name))
+            .build());
+  }
+
   public void deleteDirectoryInTenantPath(String directory) {
     try {
       deleteObjectsByPrefix(getTenantPath(directory), false);
@@ -189,16 +232,56 @@ public class MinioService implements DependenciesManager {
 
   // -- HELPERS --
 
-  public void isTenantPathExists() throws Exception {
-    isTenantPathExists(minioClient);
+  public void checkStorageAccessible() throws Exception {
+    checkStorageAccessible(minioClient);
   }
 
   /**
-   * Same as {@link #isTenantPathExists()} but using the provided client, so callers (e.g. health
-   * checks) can use a client configured with short timeouts.
+   * Verifies the object storage is reachable, the credentials are valid and the bucket is listable.
+   *
+   * <p>A tenant path is only a key prefix, not an object: statting it fails whenever the tenant has
+   * no file yet, and plain S3 has no directory markers at all. A one-key listing proves access
+   * without requiring anything to be stored, and succeeds on an empty tenant.
+   *
+   * <p>Takes the client as a parameter so callers (e.g. health checks) can pass one configured with
+   * short timeouts.
    */
-  public void isTenantPathExists(MinioClient client) throws Exception {
-    client.statObject(StatObjectArgs.builder().bucket(bucket()).object(getTenantPath("")).build());
+  public void checkStorageAccessible(MinioClient client) throws Exception {
+    Iterator<Result<Item>> results =
+        client
+            .listObjects(
+                ListObjectsArgs.builder()
+                    .bucket(bucket())
+                    .prefix(getTenantPath(""))
+                    .maxKeys(1)
+                    .build())
+            .iterator();
+    // The listing is lazy and reports failures as an error Result, so it must be consumed.
+    if (results.hasNext()) {
+      results.next().get();
+    }
+  }
+
+  /**
+   * Total size of the objects stored in the bucket, in bytes, all tenants included.
+   *
+   * <p>Object storage exposes no aggregated size, so the whole bucket listing has to be walked:
+   * this is a costly operation (one listing round-trip per 1 000 objects) and must never be called
+   * on a hot path without caching.
+   *
+   * @return the sum of the object sizes in bytes
+   */
+  public long computeUsedSize() {
+    long usedSize = 0L;
+    for (Result<Item> result : listObjects("", false)) {
+      try {
+        usedSize += result.get().size();
+      } catch (Exception e) {
+        throw new IllegalStateException(
+            "Unable to read object metadata while computing used size", e);
+      }
+    }
+    return usedSize;
   }
 
   // -- PRIVATE --

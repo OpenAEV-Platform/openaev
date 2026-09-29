@@ -25,6 +25,7 @@ import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { ArticleContext, ChallengeContext, InjectContext, TeamContext } from '../../../common/Context';
 import InjectContractPicker from '../../../common/injects/create/InjectContractPicker';
 import InjectCreationConfig from '../../../common/injects/create/InjectCreationConfig';
+import { buildSimulationVariablesConfigurationUrl } from '../../SimulationConfigurationTab';
 import articleContextForExercise from '../articles/articleContextForExercise';
 import teamContextForExercise from '../teams/teamContextForExercise';
 
@@ -114,7 +115,7 @@ const SimulationInjectCreation: FunctionComponent = () => {
                       onBack={closeConfig}
                       presetInjectDuration={presetInjectDuration}
                       articlesFromExerciseOrScenario={articles}
-                      uriVariable={listUrl}
+                      uriVariable={buildSimulationVariablesConfigurationUrl(exerciseId, pickerUrl)}
                       variablesFromExerciseOrScenario={variables}
                     />
                   )

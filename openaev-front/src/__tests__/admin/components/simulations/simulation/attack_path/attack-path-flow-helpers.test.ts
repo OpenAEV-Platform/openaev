@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, displayIp, expandPathSet, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, maskFindingValue, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_CHILD_WALK_PASSES, AP_FLOW_CAUSAL_EDGE_TYPE, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, AP_TYPE_OVERFLOW_ID, applyFindingFilter, type AttackPathFlowEdge, type AttackPathFlowNode, buildAttackPathFlow, buildCausalChainFlow, buildCausalEdges, buildClusteredAttackPathFlow, buildFindingPathFlow, buildKillChainMeta, buildLocalActionExecIndex, displayFindingValue, displayIp, expandPathSet, FILTER_TO_FINDING_TYPES, findingCategoryNoun, friendlyNodeId, LOCAL_ACTION_ID_PREFIX, orderSimulationPickerOptions, pivotEndpointIds, scopeChainFlowToEndpoint, scopeChainFlowToSeeds } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 // Identity translator with {param} interpolation, mirroring the formatter's key fallback, so the label
@@ -289,30 +289,29 @@ describe('file finding type wiring', () => {
   });
 });
 
-describe('maskFindingValue', () => {
-  it('masks secret finding types', () => {
-    expect(maskFindingValue('credentials', 'admin:secret')).toBe('admin : ••••••');
-    expect(maskFindingValue('credentials', 'nosecrethere')).toBe('••••••••');
-    expect(maskFindingValue('credentials', ':secretonly')).toBe('••••••••');
-    expect(maskFindingValue('sid', 'S-1-5-21')).toBe('••••••••');
+describe('displayFindingValue', () => {
+  it('shows secret values as the backend returned them, already masked', () => {
+    // masking is server-side now: the helper must not mask a second time, nor reveal anything
+    expect(displayFindingValue('credentials', 'admin:se******')).toBe('admin:se******');
+    expect(displayFindingValue('sid', 'S-1-5-21')).toBe('S-1-5-21');
   });
 
   it('shows non-secret finding values as-is', () => {
-    expect(maskFindingValue('cve', 'CVE-2023-1')).toBe('CVE-2023-1');
-    expect(maskFindingValue('port', '443')).toBe('443');
-    expect(maskFindingValue('username', 'bob')).toBe('bob');
-    expect(maskFindingValue('password_policy', 'complex')).toBe('complex');
+    expect(displayFindingValue('cve', 'CVE-2023-1')).toBe('CVE-2023-1');
+    expect(displayFindingValue('port', '443')).toBe('443');
+    expect(displayFindingValue('username', 'bob')).toBe('bob');
+    expect(displayFindingValue('password_policy', 'complex')).toBe('complex');
   });
 
   it('displays a file as its basename, keeping the full path out of the label', () => {
-    expect(maskFindingValue('file', '\\\\WINTERFELL\\SYSVOL\\scripts\\secret.ps1')).toBe('secret.ps1');
-    expect(maskFindingValue('file', 'ftp01:/home/user/config.ini')).toBe('config.ini');
+    expect(displayFindingValue('file', '\\\\WINTERFELL\\SYSVOL\\scripts\\secret.ps1')).toBe('secret.ps1');
+    expect(displayFindingValue('file', 'ftp01:/home/user/config.ini')).toBe('config.ini');
     // A bare name (no separators) is returned unchanged.
-    expect(maskFindingValue('file', 'notes.txt')).toBe('notes.txt');
+    expect(displayFindingValue('file', 'notes.txt')).toBe('notes.txt');
   });
 
   it('returns an empty string for an undefined value', () => {
-    expect(maskFindingValue('port', undefined)).toBe('');
+    expect(displayFindingValue('port', undefined)).toBe('');
   });
 });
 

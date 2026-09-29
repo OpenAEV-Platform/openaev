@@ -11,6 +11,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -27,7 +28,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-@TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages")
+@TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages,challenges")
 @WithMockUser(isAdmin = true)
 @DisplayName("SimulationChallengeApi isolation when security_coverages is v2-active")
 class SimulationChallengeApiSecurityCoverageIsolationTest extends IntegrationTest {
@@ -84,7 +85,12 @@ class SimulationChallengeApiSecurityCoverageIsolationTest extends IntegrationTes
 
   private Challenge createChallengeForTenant(String tenantId) {
     return inTenant(
-        tenantId, () -> challengeRepository.save(ChallengeFixture.createDefaultChallenge()));
+        tenantId,
+        () -> {
+          Challenge challenge = ChallengeFixture.createDefaultChallenge();
+          challenge.setTenant(entityManager.getReference(Tenant.class, tenantId));
+          return challengeRepository.save(challenge);
+        });
   }
 
   private <T> T inTenant(String tenantId, Supplier<T> work) {

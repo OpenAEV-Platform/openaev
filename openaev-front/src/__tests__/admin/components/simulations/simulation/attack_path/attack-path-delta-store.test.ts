@@ -20,7 +20,9 @@ const HOST_Y = 'NODE_ENDPOINT|host-y';
 const EDGE_X = 'EDGE_EXECUTIONS|NODE_INJECTOR|nmap|NODE_ENDPOINT|host-x';
 const EDGE_Y = 'EDGE_EXECUTIONS|NODE_INJECTOR|nmap|NODE_ENDPOINT|host-y';
 const FINDING_TYPE_NODE = 'NODE_FINDINGS_TYPE|credentials|host-x';
-const FINDING_NODE = 'NODE_FINDING|credentials|admin:secret';
+// A sensitive finding node id hashes its value server-side (NODE_FINDING_H); the front never
+// rebuilds these ids, it only carries them.
+const FINDING_NODE = 'NODE_FINDING_H|credentials|3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b';
 
 // The graph as the collapsed snapshot returns it early in a run: one injector, one reached endpoint.
 const snapshotV1: AttackPathDTO = {

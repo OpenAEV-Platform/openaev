@@ -27,6 +27,7 @@ public enum AuditEventScope {
   INJECT_FINAL_STATUS,
   EXPECTATION_RESULT,
   INJECT_QUEUED,
+  INJECT_RESOLVE,
 
   // System
   RETENTION_PURGE,
@@ -42,6 +43,7 @@ public enum AuditEventScope {
       case DELETE -> DELETE;
       case LAUNCH -> STATUS_CHANGE;
       case DUPLICATE -> DUPLICATE;
+      case RESOLVE -> INJECT_RESOLVE;
       case LOGIN -> LOGIN;
       case LOGOUT -> LOGOUT;
       case UNAUTHORIZED -> UNAUTHORIZED;

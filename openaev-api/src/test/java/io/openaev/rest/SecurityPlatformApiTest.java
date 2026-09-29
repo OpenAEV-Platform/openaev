@@ -50,6 +50,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
   private static final String SECURITY_PLATFORM_NAME = "My Security Platform ";
 
   @Autowired private MockMvc mvc;
+
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private TagComposer tagComposer;
@@ -66,7 +67,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @DisplayName("Test create SecurityPlatform")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createSecurityPlatformShouldSucceed() throws Exception {
     SecurityPlatformInput input = new SecurityPlatformInput();
     input.setName("PlatformA");
@@ -84,7 +85,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @DisplayName("Test create duplicate SecurityPlatform fails")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createDuplicateSecurityPlatformShouldFail() throws Exception {
     SecurityPlatformInput input = new SecurityPlatformInput();
     input.setName("PlatformB");
@@ -112,7 +113,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @DisplayName("Test update SecurityPlatform to duplicate name/type fails")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateSecurityPlatformToDuplicateShouldFail() throws Exception {
     // Create first platform
     securityPlatformComposer
@@ -151,7 +152,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @DisplayName("Test update SecurityPlatform to new name succeeds")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateSecurityPlatformToNewNameShouldSucceed() throws Exception {
     SecurityPlatformInput input = new SecurityPlatformInput();
     input.setName("PlatformE");
@@ -186,7 +187,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @DisplayName("Upsert matched by external reference updates description and tags")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void upsertByExternalReferenceShouldUpdateDescriptionAndTags() throws Exception {
     SecurityPlatform platform =
         SecurityPlatformFixture.createDefault(
@@ -221,7 +222,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @DisplayName("Upsert from a redeployed collector matches on name/type and adopts the new ref")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void upsertWithNewExternalReferenceShouldMatchOnNameAndType() throws Exception {
     // Platform created by a previous collector deployment: the Integration Manager
     // generates a fresh collector id per deployment, so the re-registration upsert
@@ -264,7 +265,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @DisplayName("security_platform_collectors reflects the live collector link, not the stale ref")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void securityPlatformCollectorsShouldReflectLiveCollectorLink() throws Exception {
     // A collector-created platform: external reference set at creation and a collector
     // actively declaring the platform as its own.
@@ -311,7 +312,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
   @DisplayName("Test optionsByName")
   @ParameterizedTest
   @MethodSource("optionsByNameTestParameters")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void optionsByNameTest(String searchText, Integer expectedNumberOfResults) throws Exception {
     // --PREPARE--
     prepareOptionsSecurityPlatformTestData();
@@ -336,7 +337,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
   @DisplayName("Test optionsById")
   @ParameterizedTest
   @MethodSource("optionsByIdTestParameters")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void optionsByIdTest(Integer numberOfSecurityPlatformToProvide, Integer expectedNumberOfResults)
       throws Exception {
     List<SecurityPlatformComposer.Composer> securityPlatforms =

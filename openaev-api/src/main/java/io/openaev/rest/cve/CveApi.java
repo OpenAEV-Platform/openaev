@@ -118,7 +118,7 @@ public class CveApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.VULNERABILITY)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteCve(@PathVariable String cveId) {
+  public void deleteCve(TxCtx ctx, @PathVariable String cveId) {
     vulnerabilityService.deleteById(cveId);
   }
 }

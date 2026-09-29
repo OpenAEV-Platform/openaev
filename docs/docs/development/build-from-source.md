@@ -63,7 +63,7 @@ services (pgAdmin, Kibana, OpenSearch).
 Edit `application-dev.properties` so it matches the Compose services. At minimum it must include:
 
 - PostgreSQL
-- MinIO
+- S3 object storage (Silo in the development stack)
 - RabbitMQ
 - Engine (Elasticsearch or OpenSearch)
 
@@ -73,7 +73,7 @@ All required settings are listed in the [Configuration documentation](../deploym
 ### Building and running
 Maven is used for package management and building the main server binary.
 OpenAEV is a Spring Boot application and thus can be built and started
-in one fell swoop with
+in one (two) fell swoop(s) with
 ```shell
 mvn spring-boot:run -pl openaev-api -DskipTests -Dspring-boot.run.profiles=dev
 ```

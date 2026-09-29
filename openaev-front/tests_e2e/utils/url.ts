@@ -17,4 +17,19 @@ export const tenantUrl = (path: string, tenantId: string = DEFAULT_TENANT_UUID):
   return `/${tenantId}${normalizedPath}`;
 };
 
+/**
+ * Builds a tenant-prefixed API path for E2E request fixtures.
+ * Example: tenantApiPath('/api/scenarios') → '/api/tenants/{DEFAULT_TENANT_UUID}/scenarios'
+ */
+export const tenantApiPath = (
+  path: string,
+  tenantId: string = DEFAULT_TENANT_UUID,
+): string => {
+  if (!path.startsWith('/api/')) {
+    return path;
+  }
+  const pathAfterApi = path.slice('/api'.length);
+  return `/api/tenants/${tenantId}${pathAfterApi}`;
+};
+
 export default appUrl;

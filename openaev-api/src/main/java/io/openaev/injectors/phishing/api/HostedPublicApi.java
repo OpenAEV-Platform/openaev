@@ -3,6 +3,7 @@ package io.openaev.injectors.phishing.api;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.injectors.phishing.form.PhishingSubmitInput;
@@ -57,7 +58,8 @@ public class HostedPublicApi extends RestBehavior {
   @GetMapping(HOSTED_URI + "/o/{token}")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<byte[]> open(@PathVariable String token, HttpServletRequest request) {
+  public ResponseEntity<byte[]> open(
+      TxCtx ctx, @PathVariable String token, HttpServletRequest request) {
     if (!bindTenant(token)) {
       return pixelResponse();
     }
@@ -73,7 +75,8 @@ public class HostedPublicApi extends RestBehavior {
   @GetMapping(HOSTED_URI + "/page/{token}")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public PhishingLandingPageReader page(@PathVariable String token, HttpServletRequest request) {
+  public PhishingLandingPageReader page(
+      TxCtx ctx, @PathVariable String token, HttpServletRequest request) {
     if (!bindTenant(token)) {
       return null;
     }
@@ -91,6 +94,7 @@ public class HostedPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public Map<String, String> submit(
+      TxCtx ctx,
       @PathVariable String token,
       @RequestBody PhishingSubmitInput input,
       HttpServletRequest request) {
@@ -116,7 +120,7 @@ public class HostedPublicApi extends RestBehavior {
   @GetMapping(HOSTED_URI + "/domain-check")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<Void> domainCheck(@RequestParam("domain") String domain) {
+  public ResponseEntity<Void> domainCheck(TxCtx ctx, @RequestParam("domain") String domain) {
     return customDomainService.isHostnameVerified(domain)
         ? ResponseEntity.ok().build()
         : ResponseEntity.notFound().build();

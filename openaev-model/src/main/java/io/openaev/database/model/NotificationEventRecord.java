@@ -3,7 +3,6 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -13,7 +12,6 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
@@ -25,13 +23,15 @@ import org.hibernate.annotations.UuidGenerator;
  *
  * <p>Deliberately not listened ({@link #isListened()}): these rows are engine internals and must
  * not be broadcast over SSE.
+ *
+ * <p>Fully on multi-tenancy v2. The single writer ({@code NotificationEngineService.recordEvents})
+ * stamps the trigger's tenant explicitly inside a per-tenant scoped transaction, so the v1
+ * {@code @Filter} and {@code TenantBaseListener} are gone and must not come back.
  */
 @Entity
 @Getter
 @Setter
 @Table(name = "notification_events")
-@EntityListeners(TenantBaseListener.class)
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class NotificationEventRecord implements TenantBase {
 
   @Id

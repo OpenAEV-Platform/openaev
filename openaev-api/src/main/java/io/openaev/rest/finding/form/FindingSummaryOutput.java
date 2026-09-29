@@ -31,7 +31,7 @@ public class FindingSummaryOutput {
   @NotNull
   private ContractOutputType type;
 
-  @Schema(description = "Finding value")
+  @Schema(description = "Finding value, masked when the finding type holds secret material")
   @JsonProperty("finding_value")
   private String value;
 

@@ -94,11 +94,12 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @DisplayName("Create simulation succeed with default dashboard")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_exercise_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboard defaultDashboard = new CustomDashboard();
     defaultDashboard.setName("Default scenario dashboard");
+    defaultDashboard.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
 
     ExerciseInput exerciseInput = new ExerciseInput();
@@ -145,7 +146,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
   @DisplayName("Create chained exercise fails without enterprise edition")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void given_chainedExerciseCreationWithoutEE_should_fail() throws Exception {
     // Arrange
     CreateExerciseInput exerciseInput = new CreateExerciseInput();
@@ -283,6 +286,7 @@ public class ExerciseApiTest extends IntegrationTest {
     TagRule tagRule = new TagRule();
     tagRule.setTag(tag2);
     tagRule.setAssetGroups(List.of(assetGroup));
+    tagRule.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     this.tagRuleRepository.save(tagRule);
 
     Exercise exercise = this.exerciseRepository.save(ExerciseFixture.createDefaultCrisisExercise());
@@ -816,22 +820,11 @@ public class ExerciseApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
 
-      CreateExerciseInput input = new CreateExerciseInput();
-      input.setName("Isolation Test Exercise");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/exercises")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the read call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String exerciseId = seedExerciseInTenant(tenantX, "Isolation Test Exercise");
 
       // -------- Act — read from tenant Y (expect 404) --------
       int responseStatus =
@@ -892,20 +885,11 @@ public class ExerciseApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
 
-      CreateExerciseInput input = new CreateExerciseInput();
-      input.setName("CrossTenantSearchExercise");
-
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/exercises")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-
-      // Evict L1 cache so findById() hits the DB
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the search call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      seedExerciseInTenant(tenantX, "CrossTenantSearchExercise");
 
       // -------- Act — search from tenant Y --------
       SearchPaginationInput searchInput =
@@ -938,26 +922,11 @@ public class ExerciseApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
 
-      CreateExerciseInput input = new CreateExerciseInput();
-      input.setName("Update Isolation Test Exercise");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/exercises")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
-
-      // Evict L1 cache so findById() hits the DB
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert): creating under tenant X's path via the API would set the
+      // tenant scope (TxCtx) to X on this test's wrapping transaction, and the update call below
+      // sets it to Y - the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String exerciseId = seedExerciseInTenant(tenantX, "Update Isolation Test Exercise");
 
       // -------- Act — update from tenant Y --------
       UpdateExerciseInput updateInput = new UpdateExerciseInput();
@@ -989,26 +958,11 @@ public class ExerciseApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.DELETE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
 
-      CreateExerciseInput input = new CreateExerciseInput();
-      input.setName("Delete Isolation Test Exercise");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/exercises")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
-
-      // Evict L1 cache so deleteById() hits the DB
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert): creating under tenant X's path via the API would set the
+      // tenant scope (TxCtx) to X on this test's wrapping transaction, and the delete call below
+      // sets it to Y - the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String exerciseId = seedExerciseInTenant(tenantX, "Delete Isolation Test Exercise");
 
       // -------- Act — delete from tenant Y --------
       int responseStatus =
@@ -1034,26 +988,11 @@ public class ExerciseApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
 
-      CreateExerciseInput input = new CreateExerciseInput();
-      input.setName("Results Isolation Test Exercise");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/exercises")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String exerciseId = JsonPath.read(createResponse, "$.exercise_id");
-
-      // Evict L1 cache
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert): creating under tenant X's path via the API would set the
+      // tenant scope (TxCtx) to X on this test's wrapping transaction, and the results call below
+      // sets it to Y - the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String exerciseId = seedExerciseInTenant(tenantX, "Results Isolation Test Exercise");
 
       // -------- Act — get results from tenant Y (expect 404) --------
       int responseStatus =
@@ -1109,24 +1048,20 @@ public class ExerciseApiTest extends IntegrationTest {
 
       String exerciseId = JsonPath.read(exerciseResponse, "$.exercise_id");
 
-      // Create team in tenant Y
-      io.openaev.rest.team.form.TeamCreateInput teamInput =
-          new io.openaev.rest.team.form.TeamCreateInput();
-      teamInput.setName("CrossTenant Team");
-
-      String teamResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/teams")
-                      .content(asJsonString(teamInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String teamId = JsonPath.read(teamResponse, "$.team_id");
+      // Create team in tenant Y - seeded directly (native insert), not through the create
+      // endpoint: creating under tenant X's path already set the tenant scope (TxCtx) to X on
+      // this test's wrapping transaction, and createTeam under tenant Y would try to change it -
+      // the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "CrossTenant Team")
+          .setParameter("tenant", tenantY.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
@@ -1196,24 +1131,20 @@ public class ExerciseApiTest extends IntegrationTest {
 
       String exerciseId = JsonPath.read(exerciseResponse, "$.exercise_id");
 
-      // Create team in tenant Y
-      io.openaev.rest.team.form.TeamCreateInput teamInput =
-          new io.openaev.rest.team.form.TeamCreateInput();
-      teamInput.setName("CrossTenant AddTeam");
-
-      String teamResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/teams")
-                      .content(asJsonString(teamInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String teamId = JsonPath.read(teamResponse, "$.team_id");
+      // Create team in tenant Y - seeded directly (native insert), not through the create
+      // endpoint: creating under tenant X's path already set the tenant scope (TxCtx) to X on
+      // this test's wrapping transaction, and createTeam under tenant Y would try to change it -
+      // the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "CrossTenant AddTeam")
+          .setParameter("tenant", tenantY.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
@@ -1283,24 +1214,20 @@ public class ExerciseApiTest extends IntegrationTest {
 
       String exerciseId = JsonPath.read(exerciseResponse, "$.exercise_id");
 
-      // Create team in tenant Y
-      io.openaev.rest.team.form.TeamCreateInput teamInput =
-          new io.openaev.rest.team.form.TeamCreateInput();
-      teamInput.setName("CrossTenant RemoveTeam");
-
-      String teamResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/teams")
-                      .content(asJsonString(teamInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String teamId = JsonPath.read(teamResponse, "$.team_id");
+      // Create team in tenant Y - seeded directly (native insert), not through the create
+      // endpoint: creating under tenant X's path already set the tenant scope (TxCtx) to X on
+      // this test's wrapping transaction, and createTeam under tenant Y would try to change it -
+      // the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "CrossTenant RemoveTeam")
+          .setParameter("tenant", tenantY.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
@@ -1328,6 +1255,30 @@ public class ExerciseApiTest extends IntegrationTest {
 
       // -------- Assert — team from another tenant should not be found --------
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    /**
+     * Seeds an exercise directly via native insert instead of the create endpoint: creating through
+     * the API sets the tenant scope (TxCtx) on this test's wrapping transaction, which conflicts
+     * with a subsequent call scoped to a different tenant within the same test (see
+     * TenantScopeTransactionAspect).
+     */
+    private String seedExerciseInTenant(Tenant tenant, String name) {
+      String exerciseId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+                  + " exercise_mail_from, tenant_id)"
+                  + " VALUES (:id, :name, :status, :mailFrom, CAST(:tenant AS uuid))")
+          .setParameter("id", exerciseId)
+          .setParameter("name", name)
+          .setParameter("status", ExerciseStatus.SCHEDULED.name())
+          .setParameter("mailFrom", "isolation-test@openaev.io")
+          .setParameter("tenant", tenant.getId())
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+      return exerciseId;
     }
   }
 }

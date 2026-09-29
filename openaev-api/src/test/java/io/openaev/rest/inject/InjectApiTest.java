@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -43,6 +42,9 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.jobs.InjectsExecutionJob;
+import io.openaev.secrets.provider.SecretResolvedValue;
+import io.openaev.secrets.provider.SecretsProvider;
+import io.openaev.secrets.provider.SecretsProviderResolver;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.scenario.ScenarioService;
@@ -63,10 +65,13 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import net.javacrumbs.jsonunit.core.Option;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -123,13 +128,17 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private DocumentRepository documentRepository;
+  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private CommunicationRepository communicationRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
+  @Autowired private InjectAuthorisationRepository injectAuthorisationRepository;
+  @Autowired private SecretReferenceRepository secretReferenceRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private FindingRepository findingRepository;
   @Autowired private UserRepository userRepository;
   @Resource private ObjectMapper objectMapper;
   @MockitoBean private JavaMailSender javaMailSender;
+  @MockitoBean private SecretsProviderResolver secretsProviderResolver;
 
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
@@ -140,8 +149,8 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    emailInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
     managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
     // The manager bootstrap above joins this test's transaction and pins its scope to the default
     // tenant (ManagerCreator.setScopeOnCurrentTransaction). Inject endpoints carrying a TxCtx then
@@ -169,9 +178,12 @@ class InjectApiTest extends IntegrationTest {
     Document document1 = new Document();
     document1.setName("Document 1");
     document1.setType("image");
+    // documents is v2-active: the removed listener no longer stamps the tenant, so attribute it.
+    document1.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Document document2 = new Document();
     document2.setName("Document 2");
     document2.setType("pdf");
+    document2.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     DOCUMENT1 = documentRepository.save(document1);
     DOCUMENT2 = documentRepository.save(document2);
 
@@ -186,6 +198,231 @@ class InjectApiTest extends IntegrationTest {
     AGENT = agentRepository.save(agent);
 
     domainComposer.reset();
+  }
+
+  @Nested
+  @Transactional
+  @DisplayName("Resolve inject attachment secret")
+  class ResolveInjectAttachmentSecretTest {
+
+    private Inject inject;
+    private CredentialSecretReference credentialReference;
+    private InjectAttachmentInput input;
+
+    @BeforeEach
+    void setUp() {
+      inject = InjectFixture.getDefaultInject();
+      inject.setExercise(EXERCISE);
+      inject.setInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject = injectRepository.save(inject);
+      InjectStatus injectStatus = new InjectStatus();
+      injectStatus.setInject(inject);
+      injectStatus.setName(ExecutionStatus.PENDING);
+      injectStatus = injectStatusComposer.forInjectStatus(injectStatus).persist().get();
+      inject.setStatus(injectStatus);
+      inject = injectRepository.save(inject);
+
+      credentialReference = CredentialSecretReferenceFixture.getUsernamePasswordReference();
+      credentialReference.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+      credentialReference.setStatus(SecretReference.SECRET_STATUS.ACTIVE);
+      credentialReference.setConnectorInstanceId("connector-instance-id");
+      credentialReference = secretReferenceRepository.save(credentialReference);
+
+      inject.setSecretReferences(new ArrayList<>(List.of(credentialReference)));
+      injectRepository.save(inject);
+
+      InjectAuthorisation authorisation = new InjectAuthorisation();
+      authorisation.setInject(inject);
+      authorisation.setCode(io.openaev.helper.CryptoHelper.hashWithSHA256("auth-code"));
+      authorisation.setIssuedAt(Instant.now());
+      injectAuthorisationRepository.save(authorisation);
+
+      input = new InjectAttachmentInput();
+      input.setAttachmentId(credentialReference.getId());
+      input.setAuthorisation("auth-code");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Admin should resolve an active inject attachment secret")
+    void given_adminAndValidAuthorisation_should_resolveInjectAttachmentSecret() throws Exception {
+      SecretsProvider provider = mock(SecretsProvider.class);
+      when(provider.getResolvedSecret(any()))
+          .thenReturn(SecretResolvedValue.forUsernamePassword("alice", "secret123"));
+      when(secretsProviderResolver.resolveByConnectorInstanceId(
+              Tenant.DEFAULT_TENANT_UUID, "connector-instance-id"))
+          .thenReturn(provider);
+
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("type").isEqualTo("USERNAME_PASSWORD");
+      assertThatJson(response).node("value.username").isEqualTo("alice");
+      assertThatJson(response).node("value.password").isEqualTo("secret123");
+      verify(provider).getResolvedSecret(any(CredentialSecretReference.class));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.RESOLVE_INJECT_SECRET})
+    @DisplayName(
+        "Resolve inject secret capability should allow resolving an active inject attachment secret")
+    void given_resolveInjectSecretCapability_should_resolveInjectAttachmentSecret()
+        throws Exception {
+      SecretsProvider provider = mock(SecretsProvider.class);
+      when(provider.getResolvedSecret(any()))
+          .thenReturn(SecretResolvedValue.forUsernamePassword("bob", "hunter2"));
+      when(secretsProviderResolver.resolveByConnectorInstanceId(
+              Tenant.DEFAULT_TENANT_UUID, "connector-instance-id"))
+          .thenReturn(provider);
+
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("value.username").isEqualTo("bob");
+      assertThatJson(response).node("value.password").isEqualTo("hunter2");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Invalid authorisation should be forbidden")
+    void given_invalidAuthorisation_should_forbidResolvingInjectAttachmentSecret()
+        throws Exception {
+      input.setAuthorisation("wrong-code");
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertEquals(
+                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Inactive credential should be rejected")
+    void given_inactiveCredential_should_rejectResolvingInjectAttachmentSecret() throws Exception {
+      credentialReference.setStatus(SecretReference.SECRET_STATUS.TIMEOUT);
+      secretReferenceRepository.save(credentialReference);
+
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("message").isEqualTo("CREDENTIAL_INACTIVE");
+    }
+
+    private static Stream<SecretReference.SECRET_STATUS> credentialAccessDeniedStatuses() {
+      return Stream.of(
+          SecretReference.SECRET_STATUS.AUTH_FAILED,
+          SecretReference.SECRET_STATUS.PERMISSION_DENIED);
+    }
+
+    @ParameterizedTest
+    @MethodSource("credentialAccessDeniedStatuses")
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Credential access denied statuses should be forbidden")
+    void given_credentialAccessDeniedStatuses_should_forbidResolvingInjectAttachmentSecret(
+        SecretReference.SECRET_STATUS status) throws Exception {
+      credentialReference.setStatus(status);
+      secretReferenceRepository.save(credentialReference);
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertEquals(
+                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Inject not in progress should deny credential access")
+    void given_injectStatusNotInProgress_should_denyCredentialAccess() throws Exception {
+      InjectStatus injectStatus = inject.getStatus().orElseThrow();
+      injectStatus.setName(ExecutionStatus.DRAFT);
+      injectStatusRepository.save(injectStatus);
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertEquals(
+                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Attachment not on inject should be not found")
+    void given_attachmentNotOnInject_should_returnNotFound() throws Exception {
+      input.setAttachmentId("missing-attachment");
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound())
+          .andExpect(
+              result ->
+                  assertEquals("CREDENTIAL_NOT_FOUND", result.getResolvedException().getMessage()));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName(
+        "Missing resolve inject secret capability should forbid resolving an inject attachment secret")
+    void given_missingResolveInjectSecretCapability_should_forbidResolvingInjectAttachmentSecret()
+        throws Exception {
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
   }
 
   // BULK DELETE
@@ -1047,9 +1284,12 @@ class InjectApiTest extends IntegrationTest {
           .satisfies(
               expectation ->
                   assertThat(
-                          expectation.getSignatures().stream()
-                              .filter(
-                                  s -> EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(s.getType())))
+                          ((TechnicalInjectExpectation) expectation)
+                              .getSignatures().stream()
+                                  .filter(
+                                      s ->
+                                          EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(
+                                              s.getType())))
                       .hasSize(1));
     }
 
@@ -1492,9 +1732,10 @@ class InjectApiTest extends IntegrationTest {
             injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
         List<InjectExpectationSignature> endDatesignatures =
-            injectExpectationSaved.getFirst().getSignatures().stream()
-                .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
-                .toList();
+            ((TechnicalInjectExpectation) injectExpectationSaved.getFirst())
+                .getSignatures().stream()
+                    .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
+                    .toList();
         assertEquals(1, endDatesignatures.size());
       }
 
@@ -2096,6 +2337,38 @@ class InjectApiTest extends IntegrationTest {
         assertTrue(injectTestHelper.findFindingsByInjectId(portScanInject.getId()).isEmpty());
       }
 
+      @Test
+      @DisplayName("Should not create PortScan findings when extracted port is invalid")
+      void shouldNotCreatePortScanFindingsWhenExtractedPortIsInvalid() throws Exception {
+        // -- PREPARE --
+        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$1");
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$2");
+        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$3");
+        ContractOutputElement portScanElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.PortsScan,
+                "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):([A-Za-z0-9-]+)\\s+\\S+\\s+(LISTENING)",
+                Set.of(hostGroup, portGroup, serviceGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portScanElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portScanInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(
+            "{\"stdout\":\"192.168.1.10:70000 0.0.0.0:0 LISTENING\\n"
+                + "10.0.0.5:abc 0.0.0.0:0 LISTENING\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portScanInject.getId(), input);
+
+        // -- ASSERT --
+        assertTrue(injectTestHelper.findFindingsByInjectId(portScanInject.getId()).isEmpty());
+      }
+
       // Port
 
       @Test
@@ -2157,6 +2430,34 @@ class InjectApiTest extends IntegrationTest {
         String agentId = (String) setup[1];
 
         InjectExecutionInput input = buildStdoutInput("no ports here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portInject.getId(), input);
+
+        // -- ASSERT --
+        assertTrue(injectTestHelper.findFindingsByInjectId(portInject.getId()).isEmpty());
+      }
+
+      @Test
+      @DisplayName("Should not create Port findings when extracted port is invalid")
+      void shouldNotCreatePortFindingsWhenExtractedPortIsInvalid() throws Exception {
+        // -- PREPARE --
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$1");
+        ContractOutputElement portElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Port,
+                "(?:TCP|UDP)\\s+[\\d\\.]+:([A-Za-z0-9-]+)",
+                Set.of(portGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            "  TCP    192.168.1.10:abc            0.0.0.0:0              LISTENING\\n"
+                + "  TCP    192.168.1.10:99999            0.0.0.0:0              LISTENING\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
 
         // -- EXECUTE --
         performCallbackRequest(agentId, portInject.getId(), input);
@@ -3329,10 +3630,10 @@ class InjectApiTest extends IntegrationTest {
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetA", Tenant.DEFAULT_TENANT_UUID);
         List<Endpoint> endpointsB =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetB", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetB", Tenant.DEFAULT_TENANT_UUID);
         assertEquals(1, endpointsA.size());
         assertEquals(1, endpointsB.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
@@ -3423,7 +3724,7 @@ class InjectApiTest extends IntegrationTest {
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetA", Tenant.DEFAULT_TENANT_UUID);
         assertEquals(1, endpointsA.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
       }
@@ -3554,7 +3855,7 @@ class InjectApiTest extends IntegrationTest {
                 () -> {
                   List<Endpoint> endpointsA =
                       endpointRepository.findByExternalReference(
-                          "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
+                          "https://shodan.io/.../assetA", Tenant.DEFAULT_TENANT_UUID);
                   return endpointsA.isEmpty();
                 });
       }
@@ -3627,7 +3928,7 @@ class InjectApiTest extends IntegrationTest {
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetC", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetC", Tenant.DEFAULT_TENANT_UUID);
         assertEquals(1, endpointsA.size());
         assertEquals("", endpointsA.getFirst().getHostname());
         assertEquals(Endpoint.PLATFORM_TYPE.Unknown, endpointsA.getFirst().getPlatform());

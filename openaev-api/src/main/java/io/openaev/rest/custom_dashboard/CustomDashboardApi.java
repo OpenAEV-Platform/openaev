@@ -3,7 +3,8 @@ package io.openaev.rest.custom_dashboard;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -36,6 +37,7 @@ public class CustomDashboardApi extends RestBehavior {
   public static final String CUSTOM_DASHBOARDS_URI = "/api/custom-dashboards";
   public static final String TENANT_CUSTOM_DASHBOARDS_URI = TENANT_PREFIX + "/custom-dashboards";
   private final CustomDashboardService customDashboardService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CRUD --
 
@@ -43,16 +45,17 @@ public class CustomDashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> createCustomDashboard(
-      @RequestBody @Valid @NotNull final CustomDashboardInput input) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final CustomDashboardInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return ResponseEntity.ok(
         this.customDashboardService.createCustomDashboard(
-            input.toCustomDashboard(new CustomDashboard())));
+            input.toCustomDashboard(new CustomDashboard()), tenantId));
   }
 
   @GetMapping
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
-  public ResponseEntity<List<CustomDashboardOutput>> customDashboards() {
+  public ResponseEntity<List<CustomDashboardOutput>> customDashboards(TxCtx ctx) {
     return ResponseEntity.ok(this.customDashboardService.customDashboards());
   }
 
@@ -60,7 +63,7 @@ public class CustomDashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Page<CustomDashboard>> customDashboards(
-      @RequestBody @NotNull @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @NotNull @Valid final SearchPaginationInput searchPaginationInput) {
     return ResponseEntity.ok(this.customDashboardService.customDashboards(searchPaginationInput));
   }
 
@@ -71,7 +74,7 @@ public class CustomDashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> customDashboard(
-      @PathVariable @NotBlank final String customDashboardId) {
+      TxCtx ctx, @PathVariable @NotBlank final String customDashboardId) {
     return ResponseEntity.ok(this.customDashboardService.customDashboard(customDashboardId));
   }
 
@@ -82,6 +85,7 @@ public class CustomDashboardApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> updateCustomDashboard(
+      TxCtx ctx,
       @PathVariable @NotBlank final String customDashboardId,
       @RequestBody @Valid @NotNull final CustomDashboardInput input) {
     CustomDashboard existingCustomDashboard =
@@ -98,8 +102,8 @@ public class CustomDashboardApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Void> deleteCustomDashboard(
-      @PathVariable @NotBlank final String customDashboardId) {
-    String tenantId = TenantContext.getCurrentTenant();
+      TxCtx ctx, @PathVariable @NotBlank final String customDashboardId) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     this.customDashboardService.deleteCustomDashboard(tenantId, customDashboardId);
     return ResponseEntity.noContent().build();
   }
@@ -110,14 +114,14 @@ public class CustomDashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return this.customDashboardService.findAllAsOptions(searchText);
   }
 
   @PostMapping("/options")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return this.customDashboardService.findAllByIdsAsOptions(ids);
   }
 
@@ -131,7 +135,7 @@ public class CustomDashboardApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "Dashboard used in the resource")})
   public List<FilterUtilsJpa.Option> optionsByResourceId(
-      @PathVariable @NotBlank final String resourceId) {
+      TxCtx ctx, @PathVariable @NotBlank final String resourceId) {
     return this.customDashboardService.findAllByResourceIdAsOptions(resourceId);
   }
 }

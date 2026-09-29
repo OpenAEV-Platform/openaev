@@ -4,6 +4,7 @@ import static io.openaev.database.model.AssetType.Values.ENDPOINT_TYPE;
 import static io.openaev.database.model.AssetType.Values.SECURITY_PLATFORM_TYPE;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.inject.service.ContractOutputContext;
@@ -97,14 +98,14 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
    * @param assetNode The JSON node representing the endpoint asset
    */
   private void processEndpoint(ExecutionProcessingContext executionContext, JsonNode assetNode) {
-    EndpointInput input = buildEndpointInput(assetNode);
     String tenantId = executionContext.inject().getTenant().getId();
+    EndpointInput input = buildEndpointInput(assetNode, tenantId);
     Optional<Endpoint> existing = endpointService.findExistingEndpoint(input, tenantId);
     if (existing.isPresent()) {
       log.info("Endpoint already exists: {} (id={})", input.getName(), existing.get().getId());
       return;
     }
-    Endpoint created = endpointService.createEndpoint(input);
+    Endpoint created = endpointService.createEndpoint(input, tenantId);
     log.info("Created endpoint: {} (id={})", input.getName(), created.getId());
   }
 
@@ -114,7 +115,7 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
    * @param assetNode The JSON node representing the endpoint asset
    * @return EndpointInput populated with asset data
    */
-  private EndpointInput buildEndpointInput(JsonNode assetNode) {
+  private EndpointInput buildEndpointInput(JsonNode assetNode, String tenantId) {
     JsonNode extended = assetNode.path(EXTENDED_ATTRIBUTES);
 
     EndpointInput input = new EndpointInput();
@@ -131,7 +132,9 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
       tagNames.add(tag.asText());
     }
     input.setTagIds(
-        tagService.findOrCreateTagsFromNames(tagNames).stream().map(Tag::getId).toList());
+        tagService.findOrCreateTagsFromNames(TxCtx.forTenant(tenantId), tagNames).stream()
+            .map(Tag::getId)
+            .toList());
 
     // Platform and arch
     input.setPlatform(Endpoint.PLATFORM_TYPE.fromString(extended.path(PLATFORM).asText()));

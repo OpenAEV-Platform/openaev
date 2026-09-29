@@ -34,8 +34,9 @@ public class NotificationMatchingService {
   private final EntityManager entityManager;
 
   /**
-   * Returns true when the trigger matches the given entity. Must run with the caller's {@code
-   * TenantContext} set to the trigger's tenant so the Hibernate tenant filter scopes the re-check.
+   * Returns true when the trigger matches the given entity. Background callers must carry both
+   * scopes for the trigger tenant: {@code TenantContext} for v1-filtered reads and {@code TxCtx}
+   * for v2-active table reads.
    */
   @Transactional(readOnly = true)
   public boolean matches(

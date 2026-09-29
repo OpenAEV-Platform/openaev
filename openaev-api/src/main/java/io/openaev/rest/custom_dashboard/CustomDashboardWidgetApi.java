@@ -4,6 +4,8 @@ import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOA
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Widget;
@@ -31,6 +33,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   public static final String TENANT_CUSTOM_DASHBOARDS_WIDGET_URI =
       TENANT_CUSTOM_DASHBOARDS_URI + "/{id}/widgets";
   private final WidgetService widgetService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CRUD --
 
@@ -41,9 +44,12 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> createWidget(
+      TxCtx ctx,
       @PathVariable @NotBlank final String id,
       @RequestBody @Valid @NotNull final WidgetInput input) {
-    return ResponseEntity.ok(this.widgetService.createWidget(id, input.toWidget(new Widget())));
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return ResponseEntity.ok(
+        this.widgetService.createWidget(id, input.toWidget(new Widget()), tenantId));
   }
 
   @GetMapping
@@ -52,7 +58,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public ResponseEntity<List<Widget>> widgets(@PathVariable @NotBlank final String id) {
+  public ResponseEntity<List<Widget>> widgets(TxCtx ctx, @PathVariable @NotBlank final String id) {
     return ResponseEntity.ok(this.widgetService.widgets(id));
   }
 
@@ -63,7 +69,9 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> widget(
-      @PathVariable @NotBlank final String id, @PathVariable @NotBlank final String widgetId) {
+      TxCtx ctx,
+      @PathVariable @NotBlank final String id,
+      @PathVariable @NotBlank final String widgetId) {
     return ResponseEntity.ok(this.widgetService.widget(id, widgetId));
   }
 
@@ -74,6 +82,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> updateWidget(
+      TxCtx ctx,
       @PathVariable @NotBlank final String id,
       @PathVariable @NotBlank final String widgetId,
       @RequestBody @Valid @NotNull final WidgetInput input) {
@@ -89,6 +98,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> updateWidgetLayout(
+      TxCtx ctx,
       @PathVariable @NotBlank final String id,
       @PathVariable @NotBlank final String widgetId,
       @RequestBody @Valid @NotNull final WidgetLayout layout) {
@@ -104,7 +114,9 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Void> deleteWidget(
-      @PathVariable @NotBlank final String id, @PathVariable @NotBlank final String widgetId) {
+      TxCtx ctx,
+      @PathVariable @NotBlank final String id,
+      @PathVariable @NotBlank final String widgetId) {
     this.widgetService.deleteWidget(id, widgetId);
     return ResponseEntity.noContent().build();
   }

@@ -6,20 +6,16 @@ import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-hel
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Scenario } from '../../../../utils/api-types';
+import { ScenarioConfigurationTab } from '../ScenarioConfigurationTab';
 import ScenarioArticles from './articles/ScenarioArticles';
 import ScenarioTeams from './teams/ScenarioTeams';
 import ScenarioVariables from './variables/ScenarioVariables';
 
-// The scenario authoring context (teams, variables, media pressure) surfaced
-// from the hero "Configuration" action, one section per tab, so the Injects
-// tab stays focused on the inject list alone.
-// Challenges are authored inside injects, so they are not configured here -
-// the hero exposes a "Preview challenges page" action instead.
-const ScenarioConfiguration: FunctionComponent = () => {
+const ScenarioConfiguration: FunctionComponent<{ initialTab?: ScenarioConfigurationTab }> = ({ initialTab = ScenarioConfigurationTab.TEAMS }) => {
   const { t } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState<ScenarioConfigurationTab>(initialTab);
 
   return (
     <Box sx={{ paddingTop: 1 }}>
@@ -35,9 +31,9 @@ const ScenarioConfiguration: FunctionComponent = () => {
           <Tab label={t('Media pressure')} />
         </Tabs>
       </Box>
-      {tab === 0 && <ScenarioTeams scenarioTeamsUsers={scenario.scenario_teams_users} />}
-      {tab === 1 && <ScenarioVariables />}
-      {tab === 2 && <ScenarioArticles />}
+      {tab === ScenarioConfigurationTab.TEAMS && <ScenarioTeams scenarioTeamsUsers={scenario.scenario_teams_users} />}
+      {tab === ScenarioConfigurationTab.VARIABLES && <ScenarioVariables />}
+      {tab === ScenarioConfigurationTab.MEDIA_PRESSURE && <ScenarioArticles />}
     </Box>
   );
 };

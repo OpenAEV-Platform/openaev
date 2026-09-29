@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 import static io.openaev.database.specification.ExerciseSpecification.*;
+import static io.openaev.database.specification.TeamSpecification.fromExercise;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -24,6 +25,7 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
@@ -56,6 +58,7 @@ import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -65,6 +68,7 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.TeamOutputVisibilityUtils;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
@@ -84,6 +88,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -119,6 +124,7 @@ public class ExerciseService {
   private final UserService userService;
   private final GrantService grantService;
   private final ExerciseTeamUserService exerciseTeamUserService;
+  private final ScopeService scopeService;
 
   private final ExerciseMapper exerciseMapper;
   private final InjectMapper injectMapper;
@@ -228,6 +234,18 @@ public class ExerciseService {
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
   }
 
+  /**
+   * Initializes the lazy {@code exercise_documents} a raw {@link Exercise} response serializes as
+   * an id array. Serialization runs open-in-view after the controller transaction has committed,
+   * where the tenant scope no longer exists: a lazy load at that point fails closed and the array
+   * comes back empty. Call it on the endpoints that manage the exercise documents and return the
+   * entity.
+   */
+  public Exercise withDocumentLinksInitialized(Exercise exercise) {
+    Hibernate.initialize(exercise.getDocuments());
+    return exercise;
+  }
+
   public RawSimulationIndexing rawSimulation(@NotBlank final String simulationId) {
     RawSimulationIndexing rawSimulation = exerciseRepository.rawDetailsById(simulationId);
     if (rawSimulation == null) {
@@ -245,6 +263,26 @@ public class ExerciseService {
             ? exerciseRepository.rawByExerciseIds(exerciseIds)
             : exerciseRepository.rawGrantedByExerciseIds(currentUser().getId(), exerciseIds);
     return exerciseMapper.getExerciseSimples(exercises);
+  }
+
+  @Transactional(readOnly = true)
+  public List<TeamOutput> getExerciseTeams(@NotBlank final String exerciseId) {
+    String workflowId = rawSimulation(exerciseId).getExercise_workflow_id();
+    return StringUtils.hasText(workflowId)
+        ? getWorkflowExerciseTeams(exerciseId, workflowId)
+        : getTimeBasedExerciseTeams(exerciseId);
+  }
+
+  private List<TeamOutput> getWorkflowExerciseTeams(
+      final String exerciseId, final String workflowId) {
+    List<TeamOutput> teams =
+        teamService.find(
+            fromIds(scopeService.getValidTeams(workflowId).stream().map(Team::getId).toList()));
+    return TeamOutputVisibilityUtils.markExerciseVisibility(teams, exerciseId);
+  }
+
+  private List<TeamOutput> getTimeBasedExerciseTeams(final String exerciseId) {
+    return this.teamService.find(fromExercise(exerciseId));
   }
 
   // -- UPDATE --
@@ -266,8 +304,10 @@ public class ExerciseService {
     duplicateTeamUsers(exerciseDuplicate, exerciseOrigin, contextualTeams);
     getListOfArticles(exerciseDuplicate, exerciseOrigin);
     getListOfVariables(exerciseDuplicate, exerciseOrigin);
-    getObjectives(exerciseDuplicate, exerciseOrigin);
-    getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    if (exerciseOrigin.isLessonsEnabled()) {
+      getObjectives(exerciseDuplicate, exerciseOrigin);
+      getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    }
     return exerciseRepository.save(exerciseDuplicate);
   }
 
@@ -287,6 +327,7 @@ public class ExerciseService {
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
+    exerciseDuplicate.setLessonsEnabled(exerciseOrigin.isLessonsEnabled());
     exerciseDuplicate.setTags(new HashSet<>(exerciseOrigin.getTags()));
     exerciseDuplicate.setReplyTos(new ArrayList<>(exerciseOrigin.getReplyTos()));
     exerciseDuplicate.setDocuments(new ArrayList<>(exerciseOrigin.getDocuments()));
@@ -598,7 +639,8 @@ public class ExerciseService {
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the list of deleted simulation ids
    */
-  public List<String> bulkDelete(@NotNull final ExerciseBulkProcessingInput input) {
+  public List<String> bulkDelete(
+      final TxCtx ctx, @NotNull final ExerciseBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
@@ -609,6 +651,7 @@ public class ExerciseService {
     User user = userService.currentUser();
     List<String> exerciseIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Exercise> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -640,7 +683,7 @@ public class ExerciseService {
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
+        ctx, "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
   }
 
   // Still declares ChainingException: startWorkflowBySimulationId (chaining engine start)
@@ -722,7 +765,7 @@ public class ExerciseService {
           });
       if (workflowService.isSimulationChaining(exercise.getId())) {
         // DELETE workflow states
-        workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
+        workflowService.resetSimulationDeleteWorkflow(exercise.getId());
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
@@ -815,7 +858,7 @@ public class ExerciseService {
     lessonsService.resetLessonsAnswer(exercise.getId());
 
     // 4. CLEAR WORKFLOW STATES
-    workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
+    workflowService.resetSimulationDeleteWorkflow(exercise.getId());
 
     // 5. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
     TransactionSynchronizationManager.registerSynchronization(

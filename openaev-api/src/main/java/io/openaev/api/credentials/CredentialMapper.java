@@ -38,6 +38,12 @@ public final class CredentialMapper {
         .azureClientId(secretMetadata.azureClientId())
         .azureTenantId(secretMetadata.azureTenantId())
         .azureSubscriptionId(secretMetadata.azureSubscriptionId())
+        .gcpScope(secretMetadata.gcpScope())
+        .gcpProjectId(secretMetadata.gcpProjectId())
+        .gcpPrivateKeyDefined(secretMetadata.gcpPrivateKeyDefined())
+        .gcpOauthClientId(secretMetadata.gcpOauthClientId())
+        .gcpOauthClientSecretDefined(secretMetadata.gcpOauthClientSecretDefined())
+        .gcpOauthRefreshTokenDefined(secretMetadata.gcpOauthRefreshTokenDefined())
         .build();
   }
 

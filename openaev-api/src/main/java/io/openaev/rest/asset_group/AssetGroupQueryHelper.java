@@ -13,7 +13,6 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Root;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +27,11 @@ public class AssetGroupQueryHelper {
     // Array aggregations
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, assetGroupRoot, "assets");
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, assetGroupRoot, "tags");
+    // asset_group_dynamic_filter is a json column, and json has no equality operator in
+    // PostgreSQL, so it cannot appear in a GROUP BY as-is. The jsonb cast that the projection
+    // already needs is groupable, so build it once and reuse it in both places.
+    Expression<String> dynamicFilterAsJsonb =
+        cb.function("to_jsonb", String.class, assetGroupRoot.get("dynamicFilter"));
 
     // Multiselect
     cq.multiselect(
@@ -38,14 +42,27 @@ public class AssetGroupQueryHelper {
             // It now adds distinct query which cannot work with json fields so we have to cast it
             // as jsonb first
             // Correct fix would be to change field in the db to jsonb
-            cb.function("to_jsonb", String.class, assetGroupRoot.get("dynamicFilter"))
-                .alias("asset_group_dynamic_filter"),
+            dynamicFilterAsJsonb.alias("asset_group_dynamic_filter"),
             assetIdsExpression.alias("asset_group_assets"),
             tagIdsExpression.alias("asset_group_tags"))
         .distinct(true);
 
-    // Group by
-    cq.groupBy(Collections.singletonList(assetGroupRoot.get("id")));
+    // Group by every non-aggregated column, not just the id.
+    //
+    // Grouping on the id alone relies on PostgreSQL's functional-dependency rule: selecting
+    // ungrouped columns is legal when the GROUP BY covers the table's PRIMARY KEY. That rule
+    // applies to BASE TABLES only. Once asset_groups is v2-active the tenant statement inspector
+    // rewrites "FROM asset_groups ag" into "FROM (SELECT * FROM asset_groups ag WHERE
+    // can_access_tenant(...)) AS ag", a DERIVED table, and PostgreSQL can no longer infer the
+    // dependency: the query stops being valid SQL and the search endpoint returns 500.
+    // Listing the columns explicitly is equivalent for the planner and does not depend on the
+    // FROM item being a base table.
+    cq.groupBy(
+        List.of(
+            assetGroupRoot.get("id"),
+            assetGroupRoot.get("name"),
+            assetGroupRoot.get("description"),
+            dynamicFilterAsJsonb));
   }
 
   // -- EXECUTION --

@@ -81,6 +81,10 @@ public class ScenarioMapper {
         .lessonsEnabled(rawScenario.getScenario_lessons_enabled())
         .from(rawScenario.getScenario_mail_from())
         .fromName(rawScenario.getScenario_mail_from_name())
+        .replyTos(
+            rawScenario.getScenario_reply_to() != null
+                ? rawScenario.getScenario_reply_to()
+                : Set.of())
         .mainFocus(rawScenario.getScenario_main_focus())
         .defaultKillChain(rawScenario.getScenario_default_kill_chain())
         .footer(rawScenario.getScenario_message_footer())

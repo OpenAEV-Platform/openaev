@@ -3,6 +3,7 @@ package io.openaev.rest;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -44,18 +45,21 @@ public class HomeApi {
   // "api" and "swagger-ui" use prefix matching (no $) to also exclude paths like
   // "/api-docs" and "/swagger-ui.html" registered by springdoc-openapi.
   // The other terms (login, logout, etc.) use exact matching ($) since they have no sibling paths.
+  // "actuator" must stay excluded even when no actuator endpoint is exposed: otherwise an
+  // unmapped /actuator/* path answers 200 text/html instead of 404, which silently hides a
+  // misconfigured scrape behind what looks like a working page.
   // Note: prefix matching is required since Spring Framework 6.2 (Spring Boot 3.5) changed
   // route resolution, causing the catch-all (produces=TEXT_HTML) to take precedence over
   // JSON-producing controllers for browser requests (Accept: text/html).
   @GetMapping(
       path = {
         "/",
-        "/{path:^(?!api|login$|logout$|oauth2$|saml2$|assets$|static$|swagger-ui).*$}/**"
+        "/{path:^(?!api|actuator$|login$|logout$|oauth2$|saml2$|assets$|static$|swagger-ui).*$}/**"
       },
       produces = MediaType.TEXT_HTML_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true) // No RBAC check for home endpoint
-  public ResponseEntity<String> home() {
+  public ResponseEntity<String> home(TxCtx ctx) {
     ClassPathResource classPathResource = new ClassPathResource("/build/index.html");
     if (!classPathResource.exists()) {
       // Local development: the SPA bundle is not on the classpath because the frontend is served by

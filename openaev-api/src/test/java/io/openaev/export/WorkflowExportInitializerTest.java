@@ -2,7 +2,10 @@ package io.openaev.export;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -19,9 +22,15 @@ import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.ScopeRuleValueType;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Team;
+import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -36,8 +45,17 @@ class WorkflowExportInitializerTest {
     ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     WorkflowExportInitializer workflowExportInitializer = new WorkflowExportInitializer();
     InjectorContractRepository injectorContractRepository = mock(InjectorContractRepository.class);
+    TeamRepository teamRepository = mock(TeamRepository.class);
+    ConditionRepository conditionRepository = mock(ConditionRepository.class);
+    InjectorContractContentUtils injectorContractContentUtils =
+        mock(InjectorContractContentUtils.class);
     ReflectionTestUtils.setField(
         workflowExportInitializer, "injectorContractRepository", injectorContractRepository);
+    ReflectionTestUtils.setField(workflowExportInitializer, "teamRepository", teamRepository);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer, "conditionRepository", conditionRepository);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer, "injectorContractContentUtils", injectorContractContentUtils);
 
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId("contract-id");
@@ -45,6 +63,10 @@ class WorkflowExportInitializerTest {
     injectorContract.setTags(Set.of(tag("tag-id-1"), tag("tag-id-2")));
     when(injectorContractRepository.findById("contract-id"))
         .thenReturn(Optional.of(injectorContract));
+    when(conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
+            eq("workflow-id"), eq(ConditionType.MAPPER)))
+        .thenReturn(java.util.List.of());
+    when(injectorContractContentUtils.hasField(injectorContract, "teams")).thenReturn(false);
 
     ObjectNode exportNode = objectMapper.createObjectNode();
     ObjectNode workflowNode = objectMapper.createObjectNode();
@@ -150,7 +172,7 @@ class WorkflowExportInitializerTest {
     exportNode.set("exercise_workflow", workflowNode);
 
     // -- Act --
-    workflowExportInitializer.enrichWorkflowStepDataForExport(
+    workflowExportInitializer.enrichWorkflowDataForExport(
         exportNode, "exercise_workflow", objectMapper);
 
     // -- Assert --
@@ -214,6 +236,133 @@ class WorkflowExportInitializerTest {
     assertStepDataDefaults(stepDataWithoutContract);
   }
 
+  @Test
+  void given_workflowScopeRuleWithTeam_should_exportTeamMembersCompanionList() throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    WorkflowExportInitializer workflowExportInitializer = new WorkflowExportInitializer();
+    TeamRepository teamRepository = mock(TeamRepository.class);
+    ConditionRepository conditionRepository = mock(ConditionRepository.class);
+    ReflectionTestUtils.setField(workflowExportInitializer, "teamRepository", teamRepository);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer, "conditionRepository", conditionRepository);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer,
+        "injectorContractRepository",
+        mock(InjectorContractRepository.class));
+    when(conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
+            "workflow-id", ConditionType.MAPPER))
+        .thenReturn(java.util.List.of());
+
+    Team team = new Team();
+    team.setId("team-id");
+    team.setUsers(
+        new ArrayList<>(
+            java.util.List.of(
+                user("user-1", "alice@example.org", "Alice", "One"),
+                user("user-2", "bob@example.org", "Bob", "Two"))));
+    when(teamRepository.findByIdAndTenantId(eq("team-id"), nullable(String.class)))
+        .thenReturn(Optional.of(team));
+
+    ObjectNode exportNode = objectMapper.createObjectNode();
+    ObjectNode workflowNode = objectMapper.createObjectNode();
+    ArrayNode scopeRules = objectMapper.createArrayNode();
+    scopeRules.add(
+        scopeRule(
+            objectMapper,
+            ScopeRuleSelectedMode.ALLOWLIST.name(),
+            ScopeRuleSource.TEAM.name(),
+            "team-id",
+            ScopeRuleValueType.TEAM_ID.name()));
+    workflowNode.set("workflow_scope_rules", scopeRules);
+    exportNode.set("exercise_workflow", workflowNode);
+
+    workflowExportInitializer.enrichWorkflowDataForExport(
+        exportNode, "exercise_workflow", objectMapper);
+
+    ObjectNode exportedWorkflow = (ObjectNode) exportNode.get("exercise_workflow");
+    assertFalse(
+        ((ObjectNode) exportedWorkflow.get("workflow_scope_rules").get(0))
+            .has("workflow_scope_rule_team_member"));
+    ArrayNode teamMembers = (ArrayNode) exportedWorkflow.get("workflow_scope_rule_team_members");
+    assertEquals(1, teamMembers.size());
+    assertEquals("team-id", teamMembers.get(0).get("workflow_scope_rule_value").asText());
+    ArrayNode exportedTeamUsers =
+        (ArrayNode) teamMembers.get(0).get("workflow_scope_rule_team_member");
+    assertEquals(2, exportedTeamUsers.size());
+    assertEquals("alice@example.org", exportedTeamUsers.get(0).get("user_email").asText());
+    assertEquals("bob@example.org", exportedTeamUsers.get(1).get("user_email").asText());
+  }
+
+  @Test
+  void given_audienceCentricStepWithScopedTeams_should_exportInjectedTeams() throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    WorkflowExportInitializer workflowExportInitializer = new WorkflowExportInitializer();
+    TeamRepository teamRepository = mock(TeamRepository.class);
+    ConditionRepository conditionRepository = mock(ConditionRepository.class);
+    InjectorContractRepository injectorContractRepository = mock(InjectorContractRepository.class);
+    InjectorContractContentUtils injectorContractContentUtils =
+        mock(InjectorContractContentUtils.class);
+    ReflectionTestUtils.setField(workflowExportInitializer, "teamRepository", teamRepository);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer, "conditionRepository", conditionRepository);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer, "injectorContractRepository", injectorContractRepository);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer, "injectorContractContentUtils", injectorContractContentUtils);
+    when(conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
+            "workflow-id", ConditionType.MAPPER))
+        .thenReturn(java.util.List.of());
+
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId("contract-id");
+    injectorContract.setAttackPatterns(new ArrayList<>());
+    when(injectorContractRepository.findById("contract-id"))
+        .thenReturn(Optional.of(injectorContract));
+    when(injectorContractContentUtils.hasField(injectorContract, "teams")).thenReturn(true);
+
+    ObjectNode exportNode = objectMapper.createObjectNode();
+    ObjectNode workflowNode = objectMapper.createObjectNode();
+    ArrayNode scopeRules = objectMapper.createArrayNode();
+    scopeRules.add(
+        scopeRule(
+            objectMapper,
+            ScopeRuleSelectedMode.ALLOWLIST.name(),
+            ScopeRuleSource.TEAM.name(),
+            "team-id-1",
+            ScopeRuleValueType.TEAM_ID.name()));
+    scopeRules.add(
+        scopeRule(
+            objectMapper,
+            ScopeRuleSelectedMode.ALLOWLIST.name(),
+            ScopeRuleSource.TEAM.name(),
+            "team-id-2",
+            ScopeRuleValueType.TEAM_ID.name()));
+    workflowNode.set("workflow_scope_rules", scopeRules);
+
+    ArrayNode steps = objectMapper.createArrayNode();
+    ObjectNode step = objectMapper.createObjectNode();
+    step.put("step_action_class", "INJECT");
+    ObjectNode stepData = objectMapper.createObjectNode();
+    ObjectNode stepContract = objectMapper.createObjectNode();
+    stepContract.put("injector_contract_id", "contract-id");
+    stepData.set("inject_injector_contract", stepContract);
+    step.set("step_data", stepData);
+    steps.add(step);
+    workflowNode.set("workflow_steps", steps);
+    exportNode.set("exercise_workflow", workflowNode);
+
+    workflowExportInitializer.enrichWorkflowDataForExport(
+        exportNode, "exercise_workflow", objectMapper);
+
+    ObjectNode exportedStepData =
+        (ObjectNode)
+            exportNode.get("exercise_workflow").get("workflow_steps").get(0).get("step_data");
+    ArrayNode exportedTeams = (ArrayNode) exportedStepData.get("inject_teams");
+    assertEquals(2, exportedTeams.size());
+    assertEquals("team-id-1", exportedTeams.get(0).asText());
+    assertEquals("team-id-2", exportedTeams.get(1).asText());
+  }
+
   private static void assertStepDataDefaults(ObjectNode stepData) {
     assertTrue(stepData.has("inject_id"));
     assertTrue(stepData.get("inject_id").isNull());
@@ -232,6 +381,7 @@ class WorkflowExportInitializerTest {
 
   private static void assertContractMetadata(ObjectNode contractNode) {
     assertEquals("contract-id", contractNode.get("injector_contract_id").asText());
+    assertNotNull(contractNode.get("injector_contract_domains"));
     ArrayNode domains = (ArrayNode) contractNode.get("injector_contract_domains");
     assertEquals(2, domains.size());
     assertTrue(containsText(domains, "domain-id-1"));
@@ -260,6 +410,33 @@ class WorkflowExportInitializerTest {
     rule.put("workflow_scope_rule_value", value);
     rule.put("workflow_scope_rule_value_type", valueType);
     return rule;
+  }
+
+  private static User user(String id, String email, String firstname, String lastname) {
+    User user = new User();
+    user.setId(id);
+    user.setEmail(email);
+    user.setFirstname(firstname);
+    user.setLastname(lastname);
+    return user;
+  }
+
+  @Test
+  void given_workflowScopeRuleWithLabel_should_exportValueLabel() throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    objectMapper.addMixIn(WorkflowScopeRule.class, Mixins.WorkflowScopeRuleExport.class);
+
+    WorkflowScopeRule rule =
+        WorkflowScopeRule.builder()
+            .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+            .ruleSource(ScopeRuleSource.TEAM)
+            .ruleValue("team-id")
+            .ruleValueLabel("Blue Team")
+            .valueType(ScopeRuleValueType.TEAM_ID)
+            .build();
+
+    ObjectNode exportedRule = (ObjectNode) objectMapper.valueToTree(rule);
+    assertEquals("Blue Team", exportedRule.get("workflow_scope_rule_value_label").asText());
   }
 
   private static void assertScopeRule(

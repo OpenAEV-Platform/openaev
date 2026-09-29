@@ -42,7 +42,8 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public Iterable<LessonsCategory> scenarioLessonsCategories(@PathVariable String scenarioId) {
+  public Iterable<LessonsCategory> scenarioLessonsCategories(
+      TxCtx ctx, @PathVariable String scenarioId) {
     return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromScenario(scenarioId));
   }
 
@@ -102,7 +103,9 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public LessonsCategory createScenarioLessonsCategory(
-      @PathVariable String scenarioId, @Valid @RequestBody LessonsCategoryCreateInput input) {
+      TxCtx ctx,
+      @PathVariable String scenarioId,
+      @Valid @RequestBody LessonsCategoryCreateInput input) {
     Scenario scenario =
         scenarioRepository
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
@@ -122,7 +125,8 @@ public class ScenarioLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
-  public Iterable<LessonsCategory> emptyScenarioLessons(@PathVariable String scenarioId) {
+  public Iterable<LessonsCategory> emptyScenarioLessons(
+      TxCtx ctx, @PathVariable String scenarioId) {
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
             .findAll(LessonsCategorySpecification.fromScenario(scenarioId))
@@ -147,6 +151,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public LessonsCategory updateScenarioLessonsCategory(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryUpdateInput input) {
@@ -169,7 +174,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenarioLessonsCategory(
-      @PathVariable String scenarioId, @PathVariable String lessonsCategoryId) {
+      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String lessonsCategoryId) {
     lessonsCategoryRepository.deleteById(lessonsCategoryId);
   }
 
@@ -183,6 +188,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public LessonsCategory updateScenarioLessonsCategoryTeams(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryTeamsInput input) {
@@ -204,7 +210,8 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public Iterable<LessonsQuestion> scenarioLessonsQuestions(@PathVariable String scenarioId) {
+  public Iterable<LessonsQuestion> scenarioLessonsQuestions(
+      TxCtx ctx, @PathVariable String scenarioId) {
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromScenario(scenarioId))
         .stream()
@@ -226,7 +233,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Iterable<LessonsQuestion> scenarioLessonsCategoryQuestions(
-      @PathVariable String scenarioId, @PathVariable String lessonsCategoryId) {
+      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String lessonsCategoryId) {
     return lessonsQuestionRepository.findAll(
         LessonsQuestionSpecification.fromCategory(lessonsCategoryId));
   }
@@ -241,6 +248,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public LessonsQuestion createScenarioLessonsQuestion(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsQuestionCreateInput input) {
@@ -266,6 +274,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public LessonsQuestion updateScenarioLessonsQuestion(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @PathVariable String lessonsQuestionId,
       @Valid @RequestBody LessonsQuestionUpdateInput input) {
@@ -290,7 +299,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public void deleteScenarioLessonsQuestion(
-      @PathVariable String scenarioId, @PathVariable String lessonsQuestionId) {
+      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String lessonsQuestionId) {
     lessonsQuestionRepository.deleteById(lessonsQuestionId);
   }
 }

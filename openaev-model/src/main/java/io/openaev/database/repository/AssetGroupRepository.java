@@ -21,6 +21,11 @@ import org.springframework.stereotype.Repository;
 public interface AssetGroupRepository
     extends CrudRepository<AssetGroup, String>, JpaSpecificationExecutor<AssetGroup> {
 
+  // Kept deliberately at the asset_groups go-live. The runbook's Phase 7 removes tenant filters
+  // that read the v1 thread-local; this one takes the tenant as an explicit argument, is called by
+  // WorkflowService's rule-label switch alongside the identical Asset, Team and Player lookups, and
+  // narrowing only the AssetGroup branch would make that switch inconsistent for no gain. The
+  // inspector scopes the statement on top of it; the two agree.
   Optional<AssetGroup> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   Optional<AssetGroup> findByExternalReferenceAndTenantId(
@@ -95,6 +100,10 @@ public interface AssetGroupRepository
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
           + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
+          // TODO v2: once injects gets v2 activated, drop this predicate; the inspector will
+          // scope the join automatically. It stays for now because the Hibernate @Filter does not
+          // reach a JPQL join on a still-v1 table here. No issue number: epic #6393 has no injects
+          // activation issue yet, and the table name is what the future Phase 7.5 grep looks for.
           + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
   List<AssetGroup> findAllBySimulationOrScenarioIdAndName(
       String simulationOrScenarioId, String name);
@@ -103,8 +112,7 @@ public interface AssetGroupRepository
       value =
           "SELECT ag.* "
               + "FROM asset_groups ag "
-              + "INNER JOIN injects_asset_groups iag ON ag.asset_group_id = iag.asset_group_id "
-              + "WHERE ag.tenant_id = :#{#tenantContext.currentTenant}",
+              + "INNER JOIN injects_asset_groups iag ON ag.asset_group_id = iag.asset_group_id",
       nativeQuery = true)
   List<AssetGroup> findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios();
 
@@ -119,7 +127,6 @@ public interface AssetGroupRepository
         INNER JOIN findings f ON f.finding_inject_id = i.inject_id
         INNER JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-    AND ag.tenant_id = :#{#tenantContext.currentTenant};
     """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
@@ -138,7 +145,6 @@ public interface AssetGroupRepository
         LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
         WHERE i.inject_id = :sourceId OR i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-      AND ag.tenant_id = :#{#tenantContext.currentTenant};
     """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(

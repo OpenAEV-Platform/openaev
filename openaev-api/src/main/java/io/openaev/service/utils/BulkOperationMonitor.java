@@ -9,6 +9,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -172,16 +174,22 @@ public class BulkOperationMonitor {
    * still RUNNING but not updated for {@link #STALE_RUNNING_AFTER} (node died mid-operation:
    * progress is journaled on every chunk, so a live operation is never that quiet) are self-healed
    * to FAILED before reading.
+   *
+   * <p>{@code tenantIds} null or empty means no tenant filter (only {@code userId} narrows the
+   * result); a non-empty set narrows to operations tagged with one of those tenants. Callers on a
+   * fail-closed path (e.g. an HTTP handler deriving the set from a {@code TxCtx}) must reject an
+   * empty resolved scope themselves before calling this method — this method treats "no ids" as "no
+   * filter", not "no access".
    */
-  public List<BulkOperation> findForUser(String userId, String tenantId) {
+  public List<BulkOperation> findForUser(String userId, Collection<String> tenantIds) {
     evictExpired();
     Map<String, BulkOperation> byId = new LinkedHashMap<>();
-    journalFind(userId, tenantId).forEach(op -> byId.put(op.id(), op));
+    journalFind(userId, tenantIds).forEach(op -> byId.put(op.id(), op));
     // Overlay live operations: fresher than the journal, and the only source if a journal
     // write failed.
     operations.values().stream()
         .filter(op -> userId == null || Objects.equals(op.userId(), userId))
-        .filter(op -> tenantId == null || Objects.equals(op.tenantId(), tenantId))
+        .filter(op -> tenantIds == null || tenantIds.isEmpty() || tenantIds.contains(op.tenantId()))
         .forEach(op -> byId.put(op.id(), op));
     List<BulkOperation> result = new ArrayList<>(byId.values());
     result.sort(
@@ -264,7 +272,7 @@ public class BulkOperationMonitor {
         HISTORY_SIZE);
   }
 
-  private List<BulkOperation> journalFind(String userId, String tenantId) {
+  private List<BulkOperation> journalFind(String userId, Collection<String> tenantIds) {
     if (userId == null) {
       return List.of();
     }
@@ -294,7 +302,7 @@ public class BulkOperationMonitor {
                       : rs.getTimestamp("operation_finished_at").toInstant(),
                   rs.getString("operation_tenant_id"),
                   rs.getString("operation_user_id"));
-      if (tenantId == null) {
+      if (tenantIds == null || tenantIds.isEmpty()) {
         return jdbcTemplate.query(
             "SELECT * FROM bulk_operations WHERE operation_user_id = ?"
                 + " ORDER BY operation_started_at DESC LIMIT ?",
@@ -302,13 +310,19 @@ public class BulkOperationMonitor {
             userId,
             HISTORY_SIZE);
       }
+      // IN-clause sized to the resolved scope; a single-tenant scope (the common HTTP case) is
+      // just an IN-list of one, no need for a separate equality-query branch.
+      String placeholders = tenantIds.stream().map(id -> "?").collect(Collectors.joining(","));
+      List<Object> args = new ArrayList<>();
+      args.add(userId);
+      args.addAll(tenantIds);
+      args.add(HISTORY_SIZE);
       return jdbcTemplate.query(
-          "SELECT * FROM bulk_operations WHERE operation_user_id = ? AND operation_tenant_id = ?"
-              + " ORDER BY operation_started_at DESC LIMIT ?",
+          "SELECT * FROM bulk_operations WHERE operation_user_id = ? AND operation_tenant_id IN ("
+              + placeholders
+              + ") ORDER BY operation_started_at DESC LIMIT ?",
           rowMapper,
-          userId,
-          tenantId,
-          HISTORY_SIZE);
+          args.toArray());
     } catch (Exception e) {
       log.error("Failed to load bulk operation history: {}", e.getMessage(), e);
       return List.of();

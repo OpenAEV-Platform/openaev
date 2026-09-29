@@ -48,7 +48,7 @@ public class XtmHubApiTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Should save registration data")
   public void whenRegisterUpdateRegistrationData() throws Exception {
     String token = "token";
@@ -94,7 +94,7 @@ public class XtmHubApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Should delete registration data")
   public void whenUnregisterDeleteRegistrationData() throws Exception {
     // Setup: register first so there is something to delete
@@ -125,7 +125,7 @@ public class XtmHubApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Should return registration data when registered")
   public void whenGetRegistrationAndRegistered_ShouldReturnRegistration() throws Exception {
     // Setup: register first
@@ -157,7 +157,7 @@ public class XtmHubApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Should return 204 when not registered")
   public void whenGetRegistrationAndNotRegistered_ShouldReturn204() throws Exception {
     mvc.perform(get(XtmHubApi.XTMHUB_URI + "/registration").accept(MediaType.APPLICATION_JSON))
@@ -169,16 +169,15 @@ public class XtmHubApiTest extends IntegrationTest {
   @DisplayName("Should scope registration to the correct tenant and not leak to other tenants")
   public void whenRegisterForCustomTenant_ShouldSaveForThatTenantOnlyAndIsolateFromOthers()
       throws Exception {
-    // Setup: create a second tenant and switch context to it
+    // Setup: create a second tenant
     Tenant customTenant = tenantIsolationTestHelper.createTenantWithCurrentUser("Custom Tenant");
-    tenantIsolationTestHelper.switchToTenant(customTenant.getId(), entityManager);
 
     XtmHubRegisterInput input = new XtmHubRegisterInput();
     input.setToken("custom-tenant-token");
 
     // When: register under the custom tenant
     mvc.perform(
-            put(XtmHubApi.XTMHUB_URI + "/register")
+            put(XtmHubApi.TENANT_XTMHUB_URI + "/register", customTenant.getId())
                 .with(csrf())
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)

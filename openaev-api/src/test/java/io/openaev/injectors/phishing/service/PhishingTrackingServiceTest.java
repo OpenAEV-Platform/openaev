@@ -124,26 +124,6 @@ class PhishingTrackingServiceTest {
   }
 
   @Test
-  @DisplayName(
-      "initializeExpectationsAsResisted should pre-score every phishing step to its expected score")
-  void initializeExpectationsAsResisted_should_preScoreStepsGreen() {
-    // -- ARRANGE --
-    ManualInjectExpectation opened = new ManualInjectExpectation();
-    opened.setName(PhishingTrackingService.STEP_OPENED);
-    opened.setUser(new User());
-    opened.setExpectedScore(100.0);
-    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
-
-    // -- ACT --
-    phishingTrackingService.initializeExpectationsAsResisted("inject-1");
-
-    // -- ASSERT --
-    assertEquals(100.0, opened.getScore(), "a never-interacted step must stay GREEN (resisted)");
-    assertNotNull(opened.getResults());
-    verify(injectExpectationRepository).save(opened);
-  }
-
-  @Test
   @DisplayName("markClicked should flip the opened and clicked steps to compromised (RED)")
   void markClicked_should_compromiseOpenedAndClickedSteps() {
     // -- ARRANGE --

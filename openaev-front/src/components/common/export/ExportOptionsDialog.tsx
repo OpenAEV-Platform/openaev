@@ -1,7 +1,8 @@
 import {
   Button,
   Checkbox,
-  Dialog, DialogActions,
+  Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   Table,
@@ -10,6 +11,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
 } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
@@ -92,18 +94,17 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
                   </TableCell>
                 </TableRow>
               )}
-              {!isChaining
-                && (
-                  <TableRow>
-                    <TableCell>{t('Players')}</TableCell>
-                    <TableCell style={{ textAlign: 'center' }}>
-                      <Checkbox
-                        checked={exportPlayers}
-                        onChange={handleToggleExportPlayers}
-                      />
-                    </TableCell>
-                  </TableRow>
-                )}
+              {!isChaining && (
+                <TableRow>
+                  <TableCell>{t('Players')}</TableCell>
+                  <TableCell style={{ textAlign: 'center' }}>
+                    <Checkbox
+                      checked={exportPlayers}
+                      onChange={handleToggleExportPlayers}
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
               <TableRow>
                 <TableCell>{t('Variable values')}</TableCell>
                 <TableCell style={{ textAlign: 'center' }}>
@@ -115,7 +116,14 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
               </TableRow>
               {isChaining && (
                 <TableRow>
-                  <TableCell>{t('Scope definition')}</TableCell>
+                  <TableCell>
+                    <Typography component="div" variant="body2">
+                      {t('Scope definition')}
+                    </Typography>
+                    <Typography component="div" variant="caption" color="text.secondary">
+                      {t('Includes workflow scope rules for teams/personas, IPs, subnets, domains, and other scope targets.')}
+                    </Typography>
+                  </TableCell>
                   <TableCell style={{ textAlign: 'center' }}>
                     <Checkbox
                       checked={exportScopeDefinition}

@@ -4,10 +4,12 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.fixtures.FileFixture.WELL_KNOWN_FILES;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
@@ -27,6 +29,7 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -65,6 +68,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   @Autowired private ArticleService articleService;
   @Resource protected ObjectMapper mapper;
   @Autowired private FileService fileService;
+  @Autowired private EntityManager manager;
   @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
   @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
 
@@ -96,79 +100,82 @@ class ExerciseApiExportTest extends IntegrationTest {
   }
 
   private Exercise getExercise() {
-    return exerciseComposer
-        .forExercise(ExerciseFixture.createDefaultCrisisExercise())
-        .withArticle(
-            articleComposer
-                .forArticle(ArticleFixture.getArticleNoChannel())
-                .withChannel(channelComposer.forChannel(ChannelFixture.getChannel())))
-        .withLessonCategory(
-            lessonsCategoryComposer
-                .forLessonsCategory(LessonsCategoryFixture.createLessonCategory())
-                .withLessonsQuestion(
-                    lessonsQuestionsComposer.forLessonsQuestion(
-                        LessonsQuestionFixture.createLessonsQuestion())))
-        .withTeam(
-            teamComposer
-                .forTeam(TeamFixture.getEmptyTeam())
-                .withOrganisation(
-                    organizationComposer.forOrganization(
-                        OrganizationFixture.createDefaultOrganisation()))
-                .withTag(tagComposer.forTag(TagFixture.getTagWithText("Team tag")))
-                .withUser(
-                    userComposer
-                        .forUser(UserFixture.getUser())
-                        .withTag(tagComposer.forTag(TagFixture.getTagWithText("User tag")))
-                        .withOrganization(
-                            organizationComposer
-                                .forOrganization(OrganizationFixture.createOrganization())
-                                .withTag(
-                                    tagComposer.forTag(
-                                        TagFixture.getTagWithText("Organization tag"))))))
-        .withTeamUsers()
-        .withInject(
-            injectComposer
-                .forInject(InjectFixture.getInjectWithoutContract())
-                .withTag(tagComposer.forTag(TagFixture.getTagWithText("Inject tag")))
-                .withInjectorContract(
-                    injectorContractComposer
-                        .forInjectorContract(
-                            InjectorContractFixture.createDefaultInjectorContract())
-                        .withChallenge(
-                            challengeComposer
-                                .forChallenge(ChallengeFixture.createDefaultChallenge())
-                                .withTag(
-                                    tagComposer.forTag(
-                                        TagFixture.getTagWithText("Challenge tag"))))))
-        .withInject(
-            injectComposer
-                .forInject(InjectFixture.getInjectWithoutContract())
-                .withInjectorContract(
-                    injectorContractComposer
-                        .forInjectorContract(
-                            InjectorContractFixture.createDefaultInjectorContract())
-                        .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
-                        .withDomain(
-                            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
-                        .withPayload(
-                            payloadComposer
-                                .forPayload(PayloadFixture.createDefaultFileDrop())
-                                .withFileDrop(
-                                    documentComposer
-                                        .forDocument(
-                                            DocumentFixture.getDocument(
-                                                FileFixture.getBadCoffeeFileContent()))
-                                        .withInMemoryFile(FileFixture.getBadCoffeeFileContent())))))
-        .withDocument(
-            documentComposer
-                .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
-                .withTag(tagComposer.forTag(TagFixture.getTagWithText("Document tag")))
-                .withInMemoryFile(FileFixture.getPlainTextFileContent()))
-        .withObjective(objectiveComposer.forObjective(ObjectiveFixture.getObjective()))
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("Exercise tag")))
-        .withVariable(variableComposer.forVariable(VariableFixture.getVariable()))
-        .persist()
-        .get();
+    ExerciseComposer.Composer exercise =
+        exerciseComposer
+            .forExercise(ExerciseFixture.createDefaultCrisisExercise())
+            .withArticle(
+                articleComposer
+                    .forArticle(ArticleFixture.getArticleNoChannel())
+                    .withChannel(channelComposer.forChannel(ChannelFixture.getChannel())))
+            .withLessonCategory(
+                lessonsCategoryComposer
+                    .forLessonsCategory(LessonsCategoryFixture.createLessonCategory())
+                    .withLessonsQuestion(
+                        lessonsQuestionsComposer.forLessonsQuestion(
+                            LessonsQuestionFixture.createLessonsQuestion())))
+            .withTeam(
+                teamComposer
+                    .forTeam(TeamFixture.getEmptyTeam())
+                    .withOrganisation(
+                        organizationComposer.forOrganization(
+                            OrganizationFixture.createDefaultOrganisation()))
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("Team tag")))
+                    .withUser(
+                        userComposer
+                            .forUser(UserFixture.getUser())
+                            .withTag(tagComposer.forTag(TagFixture.getTagWithText("User tag")))
+                            .withOrganization(
+                                organizationComposer
+                                    .forOrganization(OrganizationFixture.createOrganization())
+                                    .withTag(
+                                        tagComposer.forTag(
+                                            TagFixture.getTagWithText("Organization tag"))))))
+            .withTeamUsers()
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getInjectWithoutContract())
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("Inject tag")))
+                    .withInjectorContract(
+                        injectorContractComposer
+                            .forInjectorContract(
+                                InjectorContractFixture.createDefaultInjectorContract())
+                            .withChallenge(
+                                challengeComposer
+                                    .forChallenge(ChallengeFixture.createDefaultChallenge())
+                                    .withTag(
+                                        tagComposer.forTag(
+                                            TagFixture.getTagWithText("Challenge tag"))))))
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getInjectWithoutContract())
+                    .withInjectorContract(
+                        injectorContractComposer
+                            .forInjectorContract(
+                                InjectorContractFixture.createDefaultInjectorContract())
+                            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                            .withDomain(
+                                domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+                            .withPayload(
+                                payloadComposer
+                                    .forPayload(PayloadFixture.createDefaultFileDrop())
+                                    .withFileDrop(
+                                        documentComposer
+                                            .forDocument(
+                                                DocumentFixture.getDocument(
+                                                    FileFixture.getBadCoffeeFileContent()))
+                                            .withInMemoryFile(
+                                                FileFixture.getBadCoffeeFileContent())))))
+            .withDocument(
+                documentComposer
+                    .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("Document tag")))
+                    .withInMemoryFile(FileFixture.getPlainTextFileContent()))
+            .withObjective(objectiveComposer.forObjective(ObjectiveFixture.getObjective()))
+            .withTag(tagComposer.forTag(TagFixture.getTagWithText("Exercise tag")))
+            .withVariable(variableComposer.forVariable(VariableFixture.getVariable()));
+    exercise.get().setLessonsEnabled(true);
+    exercise.persist();
+    return exercise.get();
   }
 
   private String getJsonExportFromZip(byte[] zipBytes, String entryName) throws IOException {
@@ -195,6 +202,12 @@ class ExerciseApiExportTest extends IntegrationTest {
         exportMapper.writeValueAsString(
             ExerciseFileExport.fromExercise(ex, exportMapper, challengeService, articleService)
                 .withOptions(0));
+    JsonNode exportedExercise = mapper.readTree(actualJson);
+    assertTrue(
+        exportedExercise.get("exercise_information").get("exercise_lessons_enabled").asBoolean());
+    assertTrue(exportedExercise.has("exercise_objectives"));
+    assertTrue(exportedExercise.has("exercise_lessons_categories"));
+    assertTrue(exportedExercise.has("exercise_lessons_questions"));
 
     assertThatJson(expectedJson)
         .whenIgnoringPaths(
@@ -208,6 +221,35 @@ class ExerciseApiExportTest extends IntegrationTest {
             "exercise_injects[*].inject_injector_contract.injector_contract_domains[*].domain_updated_at")
         .isObject()
         .isEqualTo(actualJson);
+  }
+
+  @DisplayName("Given a lessons-enabled simulation, exported lessons flags are present")
+  @Test
+  @WithMockUser(isAdmin = true)
+  public void given_a_lessons_enabled_simulation_exported_lessons_flags_are_present()
+      throws Exception {
+    Exercise ex = getExercise();
+    ex.setLessonsEnabled(true);
+    ex.setLessonsAnonymized(true);
+    manager.flush();
+    manager.clear();
+
+    byte[] response =
+        mvc.perform(
+                get(EXERCISE_URI + "/" + ex.getId() + "/export").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsByteArray();
+
+    String actualJson = getJsonExportFromZip(response, ex.getName());
+    JsonNode exerciseInfo = mapper.readTree(actualJson).get("exercise_information");
+    assertTrue(exerciseInfo.get("exercise_lessons_enabled").asBoolean());
+    assertTrue(exerciseInfo.get("exercise_lessons_anonymized").asBoolean());
+    JsonNode exportedExercise = mapper.readTree(actualJson);
+    assertTrue(exportedExercise.has("exercise_objectives"));
+    assertTrue(exportedExercise.has("exercise_lessons_categories"));
+    assertTrue(exportedExercise.has("exercise_lessons_questions"));
   }
 
   @DisplayName(

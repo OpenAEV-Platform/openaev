@@ -140,7 +140,7 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
           },
         }}
       >
-        <MenuList dense>
+        <MenuList dense data-testid="tenant-switcher-popover">
           {tenants.map((tenant) => {
             const selected = isSelected(tenant);
             return (

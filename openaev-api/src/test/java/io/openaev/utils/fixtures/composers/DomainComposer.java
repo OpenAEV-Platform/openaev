@@ -1,6 +1,7 @@
 package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.Domain;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DomainRepository;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,7 @@ public class DomainComposer extends ComposerBase<Domain> {
 
   public Composer forDomain(Domain domain) {
     generatedItems.add(domain);
+    domain.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     return new Composer(domain);
   }
 }

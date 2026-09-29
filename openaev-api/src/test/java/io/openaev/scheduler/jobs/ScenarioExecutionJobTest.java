@@ -9,10 +9,13 @@ import static org.mockito.Mockito.mockStatic;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -42,11 +45,13 @@ import org.springframework.test.context.TestExecutionListeners;
 class ScenarioExecutionJobTest extends IntegrationTest {
 
   @Autowired private ScenarioExecutionJob job;
+  @Autowired private InjectsExecutionJob injectsExecutionJob;
   @Autowired private ScenarioComposer scenarioComposer;
 
   @Autowired private ScenarioService scenarioService;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private WorkflowRepository workflowRepository;
 
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private EntityManager entityManager;
@@ -58,6 +63,9 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
   @AfterEach
   void after() {
+    entityManager.unwrap(org.hibernate.Session.class).disableFilter("tenantFilter");
+    entityManager.clear();
+    workflowRepository.deleteAll();
     exerciseRepository.deleteAll();
     scenarioRepository.deleteAll();
   }
@@ -122,8 +130,83 @@ class ScenarioExecutionJobTest extends IntegrationTest {
       assertEquals(1, createdExercises.size());
       Exercise createdExercise = createdExercises.getFirst();
       assertNotNull(createdExercise.getStart());
+      assertThat(workflowRepository.existsBySimulationId(createdExercise.getId())).isFalse();
 
       EXERCISE_ID = createdExercise.getId();
+    }
+
+    /**
+     * Creates a chained recurring scenario due in one minute, runs {@link ScenarioExecutionJob},
+     * and returns the resulting simulation. The simulation is expected to be SCHEDULED with only
+     * its workflow TEMPLATE provisioned (no RUN yet).
+     */
+    private Exercise createDueChainedScheduledExercise() throws Exception {
+      ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"));
+      int minuteToStart = (zonedDateTime.getMinute() + 1) % 60;
+      int hourToStart = (zonedDateTime.getHour() + ((zonedDateTime.getMinute() + 1) / 60)) % 24;
+
+      Scenario scenario = ScenarioFixture.getScenario();
+      scenario.setRecurrence(
+          "0 " + minuteToStart + " " + hourToStart + " * * *"); // Every day now + 1 minute
+      Scenario scenarioSaved = scenarioService.createScenario(scenario);
+      scenarioSaved = scenarioService.createScenarioChaining(scenarioSaved);
+      SCENARIO_ID_3 = scenarioSaved.getId();
+
+      job.execute(null);
+
+      List<Exercise> createdExercises =
+          fromIterable(exerciseRepository.findAll()).stream()
+              .filter(exercise -> exercise.getScenario() != null)
+              .filter(exercise -> SCENARIO_ID_3.equals(exercise.getScenario().getId()))
+              .toList();
+      assertEquals(1, createdExercises.size());
+      return createdExercises.getFirst();
+    }
+
+    @DisplayName("Create chained simulation template based on recurring scenario now")
+    @Test
+    void given_chained_cron_in_one_minute_should_create_template_and_delay_run() throws Exception {
+      // -- PREPARE & EXECUTE --
+      Exercise createdExercise = createDueChainedScheduledExercise();
+
+      // -- ASSERT --
+      assertNotNull(createdExercise.getStart());
+      assertEquals(ExerciseStatus.SCHEDULED, createdExercise.getStatus());
+      assertThat(workflowRepository.existsBySimulationId(createdExercise.getId())).isTrue();
+      assertThat(
+              workflowRepository.findAllBySimulation_IdAndStatus(
+                  createdExercise.getId(), WorkflowStatus.RUN))
+          .isEmpty();
+      assertNotNull(
+          exerciseRepository.rawDetailsById(createdExercise.getId()).getExercise_workflow_id());
+    }
+
+    @DisplayName("Create chained workflow run when scheduled chained simulation auto-starts")
+    @Test
+    void given_chained_cron_in_one_minute_should_create_run_when_auto_start_runs()
+        throws Exception {
+      // -- PREPARE --
+      Exercise createdExercise = createDueChainedScheduledExercise();
+      createdExercise.setStart(Instant.now().minusSeconds(60));
+      exerciseRepository.save(createdExercise);
+
+      // -- EXECUTE --
+      // injectsExecutionJob.execute(...) both auto-starts due simulations and starts their
+      // chained workflow run; calling autoStartDueExercises() alone would not start the workflow.
+      injectsExecutionJob.execute(null);
+
+      // -- ASSERT --
+      // The fixture scenario has no step templates, so the workflow run created on auto-start
+      // completes immediately (no step is ever ready) and the simulation is finished in the same
+      // call. This still proves the RUN was created and started: without the auto-start wiring,
+      // no RUN would exist at all and the simulation would remain SCHEDULED.
+      Exercise startedExercise = exerciseRepository.findById(createdExercise.getId()).orElseThrow();
+      assertThat(startedExercise.getStatus()).isEqualTo(ExerciseStatus.FINISHED);
+      assertThat(
+              workflowRepository.findAllBySimulation_IdAndStatus(
+                  createdExercise.getId(), WorkflowStatus.END))
+          .singleElement()
+          .satisfies(workflow -> assertThat(workflow.getWorkflowTemplate()).isNotNull());
     }
 
     @DisplayName("Already created simulation based on recurring scenario")

@@ -164,40 +164,40 @@ class EndpointServiceTest {
     }
 
     @Test
-    @DisplayName("given inactive agent should remove source tag and not add it")
-    void given_inactiveAgent_should_removeSourceTagAndNotAdd() {
+    @DisplayName("given inactive agent heartbeat should reactivate and restore source tag")
+    void given_inactiveAgentHeartbeat_should_reactivateAndAddSourceTag() {
       // Arrange
       Executor csExecutor = createExecutor("CrowdStrike", "openaev_crowdstrike");
-      AgentRegisterInput input = createAgentRegisterInput(csExecutor, "cs-device-inactive");
-      input.setLastSeen(Instant.now().minusSeconds(7200));
+      AgentRegisterInput input = createAgentRegisterInput(csExecutor, "cs-device-reactivate");
+      input.setLastSeen(Instant.now());
 
       Endpoint existingEndpoint = EndpointFixture.createEndpoint();
       existingEndpoint.setId("inactive-endpoint-id");
       existingEndpoint.setTenant(new Tenant(TENANT_ID));
 
-      Agent existingAgent = AgentFixture.createAgent(existingEndpoint, "cs-device-inactive");
+      Agent existingAgent = AgentFixture.createAgent(existingEndpoint, "cs-device-reactivate");
       existingAgent.setExecutor(csExecutor);
+      existingAgent.setStatus(AgentStatus.INACTIVE);
 
       Tag csTag = new Tag();
       csTag.setName("source:crowdstrike");
+      csTag.setColor("#FF0000");
 
       when(agentService.saveAllAgents(any())).thenAnswer(inv -> inv.getArgument(0));
-      when(endpointRepository.findAllById(Set.of("inactive-endpoint-id")))
-          .thenReturn(List.of(existingEndpoint));
-      when(tagRepository.findByAssetIdAndTenantId("inactive-endpoint-id", TENANT_ID))
-          .thenReturn(new HashSet<>(Set.of(csTag)));
+      when(tagRepository.findByNameAndTenantId("source:crowdstrike", TENANT_ID))
+          .thenReturn(Optional.of(csTag));
 
       // Act
       endpointService.syncAgentsEndpoints(
           new ArrayList<>(List.of(input)), List.of(existingAgent), TENANT_ID);
 
       // Assert
-      verify(tagRepository, never()).findByNameAndTenantId("source:crowdstrike", TENANT_ID);
-      ArgumentCaptor<List<Endpoint>> savedEndpoints = ArgumentCaptor.forClass(List.class);
-      verify(endpointRepository).saveAll(savedEndpoints.capture());
-      assertThat(savedEndpoints.getValue().getFirst().getTags())
+      verify(endpointRepository, never()).saveAll(any());
+      verify(endpointRepository).save(existingEndpoint);
+      assertThat(existingAgent.getStatus()).isEqualTo(AgentStatus.ACTIVE);
+      assertThat(existingEndpoint.getTags())
           .extracting(Tag::getName)
-          .doesNotContain("source:crowdstrike");
+          .contains("source:crowdstrike");
     }
   }
 

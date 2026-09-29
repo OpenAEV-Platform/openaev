@@ -67,9 +67,8 @@ class AttackPathFindingsListTest extends IntegrationTest {
     AttackPathFindingItemDTO item = page.items().get(0);
     assertThat(item.type()).isEqualTo("credentials");
     assertThat(item.value())
-        .as("the username is kept, the secret is masked, server-side")
-        .startsWith("admin:")
-        .doesNotContain("secret");
+        .as("the whole value is masked server-side, username included")
+        .isEqualTo("admin:se******");
     assertThat(item.endpointKey()).isEqualTo("host-x");
     assertThat(item.endpointNodeId()).isEqualTo(AttackPathIds.endpointNode("host-x"));
     assertThat(item.executionIds())
@@ -104,8 +103,7 @@ class AttackPathFindingsListTest extends IntegrationTest {
         .extracting(AttackPathFindingItemDTO::endpointNodeId)
         .containsExactlyInAnyOrder(
             AttackPathIds.endpointNode("host-x"), AttackPathIds.endpointNode("host-y"));
-    assertThat(page.items())
-        .allSatisfy(i -> assertThat(i.value()).startsWith("admin:").doesNotContain("secret"));
+    assertThat(page.items()).allSatisfy(i -> assertThat(i.value()).isEqualTo("admin:se******"));
   }
 
   @Test

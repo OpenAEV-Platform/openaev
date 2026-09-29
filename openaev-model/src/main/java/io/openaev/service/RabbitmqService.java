@@ -11,14 +11,24 @@ import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.queue.QueueExecution;
 import io.openaev.service.queue.Queueable;
 import io.openaev.service.rabbitmq.RabbitmqManagementClient;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -62,10 +72,70 @@ public class RabbitmqService {
   /** Connection timeout for health check probes, so a degraded broker fails fast. */
   private static final int HEALTH_CHECK_CONNECTION_TIMEOUT_MS = 5_000;
 
+  private static final long DEFAULT_PUBLISH_TIMEOUT_MS = 30_000;
+  private static final int DEFAULT_PUBLISH_THREADS = 20;
+  private static final long PUBLISH_THREAD_KEEP_ALIVE_SECONDS = 60;
+
+  @Value("${openaev.rabbitmq.publish-timeout-ms:30000}")
+  private long publishTimeoutMs;
+
+  /** A publish always holds a database connection, so it cannot outrun the pool. */
+  @Value("${spring.datasource.hikari.maximum-pool-size:20}")
+  private int publishThreads;
+
+  private ExecutorService publishExecutor;
+
   private final RabbitmqConfig rabbitmqConfig;
   private final ConnectionFactory connectionFactory;
   private final RabbitmqDriver rabbitmqDriver;
   private final RabbitmqManagementClient managementClient;
+
+  // -- LIFECYCLE --
+
+  /**
+   * A {@link SynchronousQueue} accepts a publish only if a thread can run it now, so nothing piles
+   * up behind a stalled broker.
+   */
+  @PostConstruct
+  void initPublishExecutor() {
+    if (publishTimeoutMs <= 0) {
+      log.warn(
+          "openaev.rabbitmq.publish-timeout-ms must be strictly positive, got {}; falling back to"
+              + " {} ms",
+          publishTimeoutMs,
+          DEFAULT_PUBLISH_TIMEOUT_MS);
+      publishTimeoutMs = DEFAULT_PUBLISH_TIMEOUT_MS;
+    }
+    if (publishThreads <= 0) {
+      log.warn(
+          "spring.datasource.hikari.maximum-pool-size must be strictly positive, got {}; sizing the"
+              + " publish executor with {} threads",
+          publishThreads,
+          DEFAULT_PUBLISH_THREADS);
+      publishThreads = DEFAULT_PUBLISH_THREADS;
+    }
+    ThreadPoolExecutor executor =
+        new ThreadPoolExecutor(
+            publishThreads,
+            publishThreads,
+            PUBLISH_THREAD_KEEP_ALIVE_SECONDS,
+            TimeUnit.SECONDS,
+            new SynchronousQueue<>(),
+            runnable -> {
+              Thread thread = new Thread(runnable, "rabbitmq-publish");
+              thread.setDaemon(true);
+              return thread;
+            });
+    executor.allowCoreThreadTimeOut(true);
+    publishExecutor = executor;
+  }
+
+  @PreDestroy
+  void shutdownPublishExecutor() {
+    if (publishExecutor != null) {
+      publishExecutor.shutdownNow();
+    }
+  }
 
   // -- CONFIGURATION --
 
@@ -104,7 +174,8 @@ public class RabbitmqService {
    * @param injectType the type of inject, used to construct the routing key
    * @param publishedJson the JSON payload to publish
    * @throws IOException if an I/O error occurs during publishing
-   * @throws TimeoutException if the connection or publishing times out
+   * @throws TimeoutException if publishing exceeds {@code openaev.rabbitmq.publish-timeout-ms}, or
+   *     if no publish thread is available because the broker is stalling every one of them
    */
   public void publish(String injectType, String publishedJson)
       throws IOException, TimeoutException {
@@ -115,6 +186,52 @@ public class RabbitmqService {
       throw new IllegalArgumentException("publishedJson cannot be null or empty");
     }
 
+    Future<Void> pending;
+    try {
+      pending =
+          publishExecutor.submit(
+              () -> {
+                doPublish(injectType, publishedJson);
+                return null;
+              });
+    } catch (RejectedExecutionException ex) {
+      log.error(
+          "No publish thread available for inject type '{}'; every one of the {} threads is still"
+              + " waiting on RabbitMQ",
+          injectType,
+          publishThreads);
+      TimeoutException saturated = new TimeoutException("No RabbitMQ publish thread available");
+      saturated.initCause(ex);
+      throw saturated;
+    }
+    try {
+      pending.get(publishTimeoutMs, TimeUnit.MILLISECONDS);
+    } catch (TimeoutException ex) {
+      pending.cancel(true);
+      log.error(
+          "Publish to RabbitMQ did not return within {} ms for inject type '{}'; giving up so the"
+              + " caller's transaction is not held open",
+          publishTimeoutMs,
+          injectType);
+      throw ex;
+    } catch (InterruptedException ex) {
+      pending.cancel(true);
+      Thread.currentThread().interrupt();
+      throw new IOException("Interrupted while publishing to RabbitMQ", ex);
+    } catch (ExecutionException ex) {
+      Throwable cause = ex.getCause();
+      if (cause instanceof IOException ioCause) {
+        throw ioCause;
+      }
+      if (cause instanceof TimeoutException timeoutCause) {
+        throw timeoutCause;
+      }
+      throw new IOException("Failed to publish to RabbitMQ", cause);
+    }
+  }
+
+  private void doPublish(String injectType, String publishedJson)
+      throws IOException, TimeoutException {
     try (Connection connection = connectionFactory.newConnection();
         Channel channel = connection.createChannel()) {
       String routingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType;

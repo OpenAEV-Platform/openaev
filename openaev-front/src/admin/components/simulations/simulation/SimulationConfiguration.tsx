@@ -6,6 +6,7 @@ import { type ExercisesHelper } from '../../../../actions/exercises/exercise-hel
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Exercise } from '../../../../utils/api-types';
+import SimulationConfigurationTab from '../SimulationConfigurationTab';
 import ExerciseArticles from './articles/ExerciseArticles';
 import SimulationTeams from './teams/SimulationTeams';
 import SimulationVariables from './variables/SimulationVariables';
@@ -15,11 +16,11 @@ import SimulationVariables from './variables/SimulationVariables';
 // tab stays focused on the inject list alone (mirrors the scenario).
 // Challenges are authored inside injects, so they are not configured here -
 // the hero exposes a "Preview challenges page" action instead.
-const SimulationConfiguration: FunctionComponent = () => {
+const SimulationConfiguration: FunctionComponent<{ initialTab?: SimulationConfigurationTab }> = ({ initialTab = SimulationConfigurationTab.TEAMS }) => {
   const { t } = useFormatter();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState<SimulationConfigurationTab>(initialTab);
 
   return (
     <Box sx={{ paddingTop: 1 }}>
@@ -35,9 +36,9 @@ const SimulationConfiguration: FunctionComponent = () => {
           <Tab label={t('Media pressure')} />
         </Tabs>
       </Box>
-      {tab === 0 && <SimulationTeams exerciseTeamsUsers={exercise.exercise_teams_users ?? []} />}
-      {tab === 1 && <SimulationVariables />}
-      {tab === 2 && <ExerciseArticles />}
+      {tab === SimulationConfigurationTab.TEAMS && <SimulationTeams exerciseTeamsUsers={exercise.exercise_teams_users ?? []} />}
+      {tab === SimulationConfigurationTab.VARIABLES && <SimulationVariables />}
+      {tab === SimulationConfigurationTab.MEDIA_PRESSURE && <ExerciseArticles />}
     </Box>
   );
 };

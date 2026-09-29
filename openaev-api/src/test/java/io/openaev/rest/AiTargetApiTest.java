@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 class AiTargetApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+
   @Autowired private AiTargetRepository aiTargetRepository;
   @Autowired private EntityManager entityManager;
 
@@ -62,7 +63,7 @@ class AiTargetApiTest extends IntegrationTest {
 
   @DisplayName("Create AI target")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createAiTargetShouldSucceed() throws Exception {
     mvc.perform(
             post(AI_TARGET_URI)
@@ -77,7 +78,7 @@ class AiTargetApiTest extends IntegrationTest {
 
   @DisplayName("Get AI target by id")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void getAiTargetShouldSucceed() throws Exception {
     String id = createAiTarget("Target-B");
 
@@ -89,7 +90,7 @@ class AiTargetApiTest extends IntegrationTest {
 
   @DisplayName("Update AI target")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateAiTargetShouldSucceed() throws Exception {
     String id = createAiTarget("Target-C");
 
@@ -107,7 +108,7 @@ class AiTargetApiTest extends IntegrationTest {
 
   @DisplayName("Delete AI target")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void deleteAiTargetShouldSucceed() throws Exception {
     String id = createAiTarget("Target-D");
 
@@ -120,7 +121,7 @@ class AiTargetApiTest extends IntegrationTest {
 
   @DisplayName("Search AI targets returns the created target")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void searchAiTargetsShouldSucceed() throws Exception {
     createAiTarget("Target-Searchable");
 
@@ -137,7 +138,7 @@ class AiTargetApiTest extends IntegrationTest {
 
   @DisplayName("Options by name returns matching AI targets")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void optionsByNameShouldSucceed() throws Exception {
     createAiTarget("Optionable-1");
     createAiTarget("Optionable-2");
@@ -158,7 +159,7 @@ class AiTargetApiTest extends IntegrationTest {
 
   @DisplayName("Options by id returns the requested AI target")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void optionsByIdShouldSucceed() throws Exception {
     String id = createAiTarget("OptionById-1");
 

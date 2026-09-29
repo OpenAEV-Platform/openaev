@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 @Order(
-    Ordered.LOWEST_PRECEDENCE - 3) // Execute before @Transactional (LP-2), so the lock wraps the tx
+    Ordered.LOWEST_PRECEDENCE - 5) // Execute before @Transactional (LP-4), so the lock wraps the tx
 public class LockAspect {
 
   private final ConcurrentHashMap<LockResourceType, Striped<Lock>> lockStripes;

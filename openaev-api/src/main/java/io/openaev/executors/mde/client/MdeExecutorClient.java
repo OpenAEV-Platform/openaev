@@ -4,6 +4,7 @@ import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.M
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.mde.config.MdeExecutorConfig;
@@ -51,6 +52,15 @@ public class MdeExecutorClient {
   private static final String MACHINE_ACTIONS_URI = "/machineactions";
   private static final String ADVANCED_QUERIES_URI = "/advancedqueries/run";
 
+  /**
+   * MDE {@code onboardingStatus} of a device that actually runs the Defender sensor and can execute
+   * Live Response. Discovered-only devices ({@code CanBeOnboarded}, {@code Unsupported}, {@code
+   * InsufficientInfo}) reject {@code runliveresponse} with HTTP 400 {@code
+   * ClientVersionNotSupported}, so they must never be synced as OpenAEV assets, otherwise every
+   * inject on them fails with a silent timeout.
+   */
+  private static final String ONBOARDED_STATUS = "Onboarded";
+
   private final MdeExecutorConfig config;
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final HttpClientFactory httpClientFactory;
@@ -65,12 +75,9 @@ public class MdeExecutorClient {
    */
   public List<MdeDevice> devicesAll() {
     try {
-      String formattedDateTime =
-          DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
-              .withZone(ZoneOffset.UTC)
-              .format(Instant.now().minusMillis(io.openaev.service.EndpointService.DELETE_TTL));
       String filterValue =
-          URLEncoder.encode("lastSeen gt " + formattedDateTime, StandardCharsets.UTF_8);
+          URLEncoder.encode(
+              buildDevicesFilter(null, activeSinceThresholdIso()), StandardCharsets.UTF_8);
       String json = get(MACHINES_URI + "?$filter=" + filterValue + "&$top=10000");
       MdeDeviceListResponse response = objectMapper.readValue(json, new TypeReference<>() {});
       return response.getValue() != null ? response.getValue() : List.of();
@@ -84,18 +91,14 @@ public class MdeExecutorClient {
    * Returns all devices belonging to the given MDE device group (rbacGroupId).
    *
    * <p>The MDE API filters machines by {@code rbacGroupId}. For active machines only, we also
-   * filter by {@code lastSeen} within the active threshold.
+   * filter by {@code lastSeen} within the active threshold, and restrict to genuinely onboarded
+   * devices (see {@link #ONBOARDED_STATUS}).
    */
   public List<MdeDevice> devices(String deviceGroupId) {
     try {
-      String formattedDateTime =
-          DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
-              .withZone(ZoneOffset.UTC)
-              .format(Instant.now().minusMillis(io.openaev.service.EndpointService.DELETE_TTL));
       String filterValue =
           URLEncoder.encode(
-              "rbacGroupId eq " + deviceGroupId + " and lastSeen gt " + formattedDateTime,
-              StandardCharsets.UTF_8);
+              buildDevicesFilter(deviceGroupId, activeSinceThresholdIso()), StandardCharsets.UTF_8);
       String json = get(MACHINES_URI + "?$filter=" + filterValue + "&$top=10000");
       MdeDeviceListResponse response = objectMapper.readValue(json, new TypeReference<>() {});
       return response.getValue() != null ? response.getValue() : List.of();
@@ -201,6 +204,34 @@ public class MdeExecutorClient {
   }
 
   // -- PRIVATE --
+
+  /**
+   * Builds the OData {@code $filter} for the {@code /machines} listing. Restricts to devices seen
+   * within the active window, optionally scoped to an RBAC device group, and, crucially, to
+   * genuinely {@link #ONBOARDED_STATUS onboarded} devices only. MDE's inventory also exposes merely
+   * discovered ("CanBeOnboarded") machines that have no Live-Response-capable sensor; syncing them
+   * would create OpenAEV assets whose every inject fails with a silent HTTP 400.
+   */
+  @VisibleForTesting
+  static String buildDevicesFilter(String deviceGroupId, String lastSeenThresholdIso) {
+    StringBuilder filter = new StringBuilder();
+    if (deviceGroupId != null && !deviceGroupId.isBlank()) {
+      filter.append("rbacGroupId eq ").append(deviceGroupId.trim()).append(" and ");
+    }
+    filter.append("lastSeen gt ").append(lastSeenThresholdIso);
+    filter.append(" and onboardingStatus eq '").append(ONBOARDED_STATUS).append("'");
+    return filter.toString();
+  }
+
+  /**
+   * ISO-8601 UTC threshold below which a device is considered stale (older than the endpoint delete
+   * TTL), formatted for the MDE {@code lastSeen gt} OData clause.
+   */
+  private static String activeSinceThresholdIso() {
+    return DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+        .withZone(ZoneOffset.UTC)
+        .format(Instant.now().minusMillis(io.openaev.service.EndpointService.DELETE_TTL));
+  }
 
   /**
    * Cancels stale Pending Live Response actions on a machine before a new dispatch. MDE permits a

@@ -14,6 +14,7 @@ import { type Header } from '../../../../components/common/SortHeadersList';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
 import { type NotificationTriggerOutput } from '../../../../utils/api-types';
+import NotificationCenterTabs from '../NotificationCenterTabs';
 import { TriggerEventChips, TriggerResourceChip, TriggerTypeChip } from './TriggerChips';
 import TriggerCreate from './TriggerCreate';
 import TriggerPopover from './TriggerPopover';
@@ -91,11 +92,12 @@ const Triggers = () => {
     <>
       <Breadcrumbs
         variant="list"
-        elements={[{ label: t('Profile') }, {
-          label: t('Triggers'),
+        elements={[{
+          label: t('Notification center'),
           current: true,
         }]}
       />
+      <NotificationCenterTabs current="triggers" />
       <PaginationComponentV2
         fetch={searchNotificationTriggers}
         searchPaginationInput={searchPaginationInput}

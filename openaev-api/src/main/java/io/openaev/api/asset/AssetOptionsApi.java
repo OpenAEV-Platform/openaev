@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.AssetService;
@@ -53,7 +54,7 @@ public class AssetOptionsApi {
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The matching options")})
   public List<AssetOptionOutput> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return assetService.getOptionsByName(searchText, PageRequest.of(0, 50));
   }
 
@@ -67,7 +68,7 @@ public class AssetOptionsApi {
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The resolved options")})
   public List<FilterUtilsJpa.Option> optionsByIds(
-      @RequestBody(required = false) final List<String> ids) {
+      TxCtx ctx, @RequestBody(required = false) final List<String> ids) {
     // A missing or empty body simply resolves to no options rather than a client error.
     return assetService.getOptionsByIds(ids);
   }

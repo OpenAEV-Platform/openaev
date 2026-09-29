@@ -33,7 +33,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Aspect
 @Component
-@Order(Ordered.LOWEST_PRECEDENCE) // Inner to audit aspect (LOWEST_PRECEDENCE - 1)
+// Innermost of the chain: inner to the audit aspect (LP-1) and, crucially, to both tenant scoping
+// aspects (LP-3 / LP-2). The permission check below loads entities to resolve a resource's parent,
+// so it must never run before the tenant scope of its own transaction has been written.
+@Order(Ordered.LOWEST_PRECEDENCE)
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAspect {

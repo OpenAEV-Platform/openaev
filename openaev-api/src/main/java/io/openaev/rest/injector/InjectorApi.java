@@ -199,7 +199,8 @@ public class InjectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get injector image by type")
   @Transactional
-  public ResponseEntity<InputStreamResource> getInjectorImage(@PathVariable String injectorType) {
+  public ResponseEntity<InputStreamResource> getInjectorImage(
+      TxCtx ctx, @PathVariable String injectorType) {
     return this.fileService.getConnectorImage(ConnectorType.INJECTOR, injectorType);
   }
 
@@ -245,6 +246,7 @@ public class InjectorApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevImplant(
+      TxCtx ctx,
       @PathVariable String platform,
       @PathVariable String architecture,
       @RequestParam(required = false) final String injectId,

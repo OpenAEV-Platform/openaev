@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import io.openaev.context.BulkOperationContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Inject;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -27,13 +28,15 @@ public class BulkInjectService {
   private final InjectService injectService;
   private final BulkOperationMonitor bulkOperationMonitor;
 
-  public List<Inject> bulkUpdateWithMonitoring(InjectBulkUpdateInputs input) {
-    List<Inject> injectsToUpdate = resolveTargets(input);
+  public List<Inject> bulkUpdateWithMonitoring(TxCtx ctx, InjectBulkUpdateInputs input) {
+    List<Inject> injectsToUpdate = resolveTargets(ctx, input);
     String operationId = bulkOperationMonitor.start("update", "injects", injectsToUpdate.size());
     try {
       List<Inject> updated =
           BulkOperationContext.runSuppressed(
-              () -> injectService.bulkUpdateInject(injectsToUpdate, input.getUpdateOperations()));
+              () ->
+                  injectService.bulkUpdateInject(
+                      ctx, injectsToUpdate, input.getUpdateOperations()));
       bulkOperationMonitor.complete(operationId);
       return updated;
     } catch (RuntimeException e) {
@@ -42,14 +45,14 @@ public class BulkInjectService {
     }
   }
 
-  public List<Inject> bulkDeleteWithMonitoring(InjectBulkProcessingInput input) {
-    List<Inject> injectsToDelete = resolveTargets(input);
+  public List<Inject> bulkDeleteWithMonitoring(TxCtx ctx, InjectBulkProcessingInput input) {
+    List<Inject> injectsToDelete = resolveTargets(ctx, input);
     String operationId = bulkOperationMonitor.start("delete", "injects", injectsToDelete.size());
     try {
       List<String> injectIds = injectsToDelete.stream().map(Inject::getId).toList();
       BulkOperationContext.runSuppressed(
           () -> {
-            injectService.deleteAllByIds(injectIds);
+            injectService.deleteAllByIds(ctx, injectIds);
             return null;
           });
       bulkOperationMonitor.complete(operationId);
@@ -66,9 +69,9 @@ public class BulkInjectService {
    * operation is aborted with a not-found error before any entity is touched, so a mixed
    * valid/invalid request can never be partially applied.
    */
-  private List<Inject> resolveTargets(InjectBulkProcessingInput input) {
+  private List<Inject> resolveTargets(TxCtx ctx, InjectBulkProcessingInput input) {
     List<Inject> injects =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(ctx, input, Grant.GRANT_TYPE.PLANNER);
     if (!CollectionUtils.isEmpty(input.getInjectIDsToProcess())) {
       Set<String> resolvedIds = injects.stream().map(Inject::getId).collect(Collectors.toSet());
       List<String> missingIds =

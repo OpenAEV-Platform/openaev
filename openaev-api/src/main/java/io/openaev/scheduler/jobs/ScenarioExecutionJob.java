@@ -10,7 +10,9 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.ScenarioToExerciseService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
 import jakarta.persistence.EntityManager;
@@ -38,6 +40,7 @@ public class ScenarioExecutionJob implements Job {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
   private final ExerciseRepository exerciseRepository;
   private final ScenarioToExerciseService scenarioToExerciseService;
+  private final WorkflowService workflowService;
   private final EntityManager entityManager;
   private final TenantScopedTransaction tenantTx;
   private final TenantRepository tenantRepository;
@@ -98,15 +101,30 @@ public class ScenarioExecutionJob implements Job {
           // Filter scenarios with this results
           validScenarios.stream()
               .filter(scenario -> !alreadyExistIds.contains(scenario.getId()))
-              // Create simulation with start date provided by cron
-              .forEach(
-                  scenario -> {
-                    this.scenarioToExerciseService.toExercise(
-                        scenario,
-                        scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
-                        false);
-                  });
+              // Time-based scenarios stay scheduled and are auto-started later.
+              // Chained scenarios only provision their simulation template here; the workflow run
+              // is created when the scheduled simulation is auto-started.
+              .forEach(scenario -> createScheduledExercise(scenario, now));
         });
+  }
+
+  private void createScheduledExercise(Scenario scenario, Instant now) {
+    Instant start = scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now);
+    Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, start, false);
+    // Chained scenarios need the workflow template now; the workflow run is created later when
+    // the scheduled exercise is auto-started.
+    provisionChainedWorkflowTemplateIfNeeded(scenario.getId(), exercise);
+  }
+
+  private void provisionChainedWorkflowTemplateIfNeeded(String scenarioId, Exercise exercise) {
+    if (!this.workflowService.isScenarioChaining(scenarioId)) {
+      return;
+    }
+    try {
+      this.workflowService.provisionSimulationTemplateWorkflow(scenarioId, exercise);
+    } catch (ChainingException e) {
+      throw new IllegalStateException("Could not provision chained scenario " + scenarioId, e);
+    }
   }
 
   private void executeInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {

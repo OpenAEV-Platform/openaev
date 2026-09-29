@@ -4,6 +4,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -33,7 +34,8 @@ public class ScenarioStatisticApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Retrieve scenario statistics")
-  public ScenarioStatistic getScenarioStatistics(@PathVariable @NotBlank final String scenarioId) {
+  public ScenarioStatistic getScenarioStatistics(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return scenarioStatisticService.getStatistics(scenarioId);
   }
 }

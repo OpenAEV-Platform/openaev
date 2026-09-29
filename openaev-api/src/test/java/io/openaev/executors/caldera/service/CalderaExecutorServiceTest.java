@@ -172,7 +172,12 @@ public class CalderaExecutorServiceTest {
     randomEndpoint.setIps(EndpointMapper.setIps(new String[] {CALDERA_AGENT_IP}));
     calderaExecutorService.run();
     ArgumentCaptor<Endpoint> endpointCaptor = ArgumentCaptor.forClass(Endpoint.class);
-    verify(endpointService).createEndpoint(endpointCaptor.capture());
+    ArgumentCaptor<String> tenantCaptor = ArgumentCaptor.forClass(String.class);
+    verify(endpointService).createEndpoint(endpointCaptor.capture(), tenantCaptor.capture());
+    assertEquals(
+        calderaExecutor.getTenantId(),
+        tenantCaptor.getValue(),
+        "the endpoint must be attributed to the executor's own tenant");
 
     Endpoint capturedEndpoint = endpointCaptor.getValue();
     assertEquals(CALDERA_AGENT_HOSTNAME, capturedEndpoint.getHostname());

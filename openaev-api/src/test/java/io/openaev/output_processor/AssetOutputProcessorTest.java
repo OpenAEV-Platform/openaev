@@ -1,8 +1,10 @@
 package io.openaev.output_processor;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -42,7 +44,7 @@ class AssetOutputProcessorTest {
     when(inject.getTenant()).thenReturn(tenant);
     when(tenant.getId()).thenReturn("tenant-id");
     when(executionContext.inject()).thenReturn(inject);
-    when(tagService.findOrCreateTagsFromNames(any())).thenReturn(Set.of());
+    when(tagService.findOrCreateTagsFromNames(any(), any())).thenReturn(Set.of());
   }
 
   @Test
@@ -153,11 +155,11 @@ class AssetOutputProcessorTest {
     Endpoint created = mock(Endpoint.class);
     when(created.getId()).thenReturn("endpoint-id");
     when(endpointService.findExistingEndpoint(any(), any())).thenReturn(Optional.empty());
-    when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
+    when(endpointService.createEndpoint(any(EndpointInput.class), anyString())).thenReturn(created);
 
     processor.process(executionContext, contractOutputContext, node);
 
-    verify(endpointService).createEndpoint(any(EndpointInput.class));
+    verify(endpointService).createEndpoint(any(EndpointInput.class), anyString());
   }
 
   @Test
@@ -175,7 +177,7 @@ class AssetOutputProcessorTest {
 
     processor.process(executionContext, contractOutputContext, node);
 
-    verify(endpointService, never()).createEndpoint(any(EndpointInput.class));
+    verify(endpointService, never()).createEndpoint(any(EndpointInput.class), anyString());
   }
 
   @Test
@@ -190,13 +192,13 @@ class AssetOutputProcessorTest {
     Endpoint created = mock(Endpoint.class);
     when(created.getId()).thenReturn("endpoint-id");
     when(endpointService.findExistingEndpoint(any(), any())).thenReturn(Optional.empty());
-    when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
-    when(tagService.findOrCreateTagsFromNames(any())).thenReturn(Set.of());
+    when(endpointService.createEndpoint(any(EndpointInput.class), anyString())).thenReturn(created);
+    when(tagService.findOrCreateTagsFromNames(any(), any())).thenReturn(Set.of());
 
     processor.process(executionContext, contractOutputContext, node);
 
-    verify(tagService).findOrCreateTagsFromNames(any());
-    verify(endpointService).createEndpoint(any(EndpointInput.class));
+    verify(tagService).findOrCreateTagsFromNames(any(), any());
+    verify(endpointService).createEndpoint(any(EndpointInput.class), anyString());
   }
 
   @Test
@@ -211,12 +213,20 @@ class AssetOutputProcessorTest {
     Endpoint created = mock(Endpoint.class);
     when(created.getId()).thenReturn("endpoint-id");
     when(endpointService.findExistingEndpoint(any(), any())).thenReturn(Optional.empty());
-    when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
+    when(endpointService.createEndpoint(any(EndpointInput.class), anyString())).thenReturn(created);
 
     processor.process(executionContext, contractOutputContext, node);
 
     ArgumentCaptor<EndpointInput> captor = ArgumentCaptor.forClass(EndpointInput.class);
-    verify(endpointService).createEndpoint(captor.capture());
+    ArgumentCaptor<String> tenantCaptor = ArgumentCaptor.forClass(String.class);
+    verify(endpointService).createEndpoint(captor.capture(), tenantCaptor.capture());
+    // The mocked inject carries "tenant-id"; asserting that exact value is what proves the
+    // endpoint takes its tenant from the inject being processed rather than from an ambient
+    // default.
+    assertEquals(
+        "tenant-id",
+        tenantCaptor.getValue(),
+        "the endpoint must be attributed to the inject's tenant");
     EndpointInput endpointInput = captor.getValue();
     assertTrue("hostC".equals(endpointInput.getHostname()));
     assertTrue(endpointInput.getIps() != null && endpointInput.getIps().length == 1);

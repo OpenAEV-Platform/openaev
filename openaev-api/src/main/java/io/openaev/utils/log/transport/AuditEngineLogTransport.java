@@ -3,7 +3,7 @@ package io.openaev.utils.log.transport;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.LogTransport;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.log.LogEvent;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

@@ -73,13 +73,6 @@ export const arrayOfGrants = new schema.Array(grant);
 export const user = new schema.Entity('users', {}, { idAttribute: 'user_id' });
 export const arrayOfUsers = new schema.Array(user);
 
-export const role = new schema.Entity(
-  'roles',
-  {},
-  { idAttribute: 'role_id' },
-);
-export const arrayOfRoles = new schema.Array(role);
-
 export const exercise = new schema.Entity(
   'exercises',
   {},
@@ -276,6 +269,13 @@ export const notification = new schema.Entity(
 );
 export const arrayOfNotifications = new schema.Array(notification);
 
+export const markingDefinition = new schema.Entity(
+  'marking_definitions',
+  {},
+  { idAttribute: 'marking_definition_id' },
+);
+export const arrayOfMarkingDefinitions = new schema.Array(markingDefinition);
+
 token.define({ token_user: user });
 user.define({ user_organization: organization });
 
@@ -286,6 +286,7 @@ const me = state => state.referential.getIn(['entities', 'users', state.app.getI
 
 export const storeHelper = state => ({
   logged: () => state.app.get('logged'),
+  isTenantAccessDenied: () => state.app.get('tenantAccessDenied') ?? false,
   getMe: () => me(state),
   getMeAdmin: () => me(state)?.get('user_admin') ?? false,
   getMeTokens: () => entities('tokens', state).filter(
@@ -355,6 +356,10 @@ export const storeHelper = state => ({
   getTag: id => entity(id, 'tags', state),
   getTags: () => entities('tags', state),
   getTagsMap: () => maps('tags', state),
+  // marking definitions
+  getMarkingDefinition: id => entity(id, 'marking_definitions', state),
+  getMarkingDefinitions: () => entities('marking_definitions', state),
+  getMarkingDefinitionsMap: () => maps('marking_definitions', state),
 
   // injects
   getInject: id => entity(id, 'injects', state),

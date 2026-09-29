@@ -28,8 +28,24 @@ import org.hibernate.annotations.*;
 @Entity
 @Table(name = "findings")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Finding implements TenantBase {
+
+  // findings is on multi-tenancy v2 (#6420 / #6421 / #6442).
+  //
+  // The v1 @Filter is GONE and must not come back: reads are scoped by TenantStatementInspector
+  // from app.current_tenants, and re-adding the filter would AND a thread-local predicate onto the
+  // rewritten one, silently emptying every result reached without TenantContext.
+  //
+  // TenantBaseListener is KEPT for now, the same deliberate departure from the runbook that assets
+  // took (#7844 removes it for both). It only stamps tenant_id on write and never filters a read,
+  // so keeping it costs no isolation.
+  //
+  // It is redundant rather than load-bearing: both production create paths resolve the tenant
+  // explicitly from the inject that produced the finding (FindingService.createFinding and
+  // createFindings), and FindingWriter receives it as a required argument and now refuses a blank
+  // one. What #7844 still has to prepare is the test ground: twenty-two test sites persist a
+  // Finding straight through a repository, and neither FindingFixture nor FindingComposer stamps a
+  // tenant, so they all lean on this listener today.
 
   @Id
   @Column(name = "finding_id", updatable = false, nullable = false)

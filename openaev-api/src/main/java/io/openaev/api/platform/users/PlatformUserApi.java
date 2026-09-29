@@ -6,6 +6,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.UserCreationScope;
@@ -38,7 +39,7 @@ public class PlatformUserApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public UserOutput create(@Valid @RequestBody UserInput input) {
+  public UserOutput create(TxCtx ctx, @Valid @RequestBody UserInput input) {
     return toPlatformOutput(userService.createUser(input, UserCreationScope.PLATFORM));
   }
 
@@ -52,7 +53,7 @@ public class PlatformUserApi {
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
   @GetMapping("/{userId}")
-  public UserOutput findById(@PathVariable String userId) {
+  public UserOutput findById(TxCtx ctx, @PathVariable String userId) {
     return toPlatformOutput(userService.user(userId));
   }
 
@@ -66,7 +67,7 @@ public class PlatformUserApi {
   @PostMapping("/search")
   @Transactional
   public Page<UserOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return userService.search(searchPaginationInput);
   }
 
@@ -77,7 +78,7 @@ public class PlatformUserApi {
       isEnterpriseEdition = true)
   @PostMapping("/find")
   @Transactional
-  public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
+  public List<UserOutput> find(TxCtx ctx, @RequestBody @Valid @NotNull final List<String> userIds) {
     return userService.find(userIds).stream().map(UserMapper::toPlatformOutput).toList();
   }
 
@@ -91,7 +92,8 @@ public class PlatformUserApi {
       isEnterpriseEdition = true)
   @PutMapping("/{userId}")
   @Transactional
-  public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
+  public UserOutput update(
+      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody UserInput input) {
     return toPlatformOutput(userService.updateUser(userId, input));
   }
 
@@ -106,7 +108,7 @@ public class PlatformUserApi {
   @DeleteMapping("/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String userId) {
+  public void delete(TxCtx ctx, @PathVariable String userId) {
     userService.delete(userId);
   }
 }

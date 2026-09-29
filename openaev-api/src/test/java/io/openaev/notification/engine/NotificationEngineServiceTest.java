@@ -6,12 +6,15 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerType;
@@ -23,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 
 @DisplayName("Notification engine live stage")
 class NotificationEngineServiceTest {
@@ -31,6 +35,7 @@ class NotificationEngineServiceTest {
   private NotificationMatchingService matchingService;
   private NotificationDispatchService dispatchService;
   private NotificationEventRecordRepository eventRecordRepository;
+  private TenantScopedTransaction tenantTx;
   private NotificationEngineService engineService;
 
   private static final String TENANT_A = "tenant-a";
@@ -42,9 +47,17 @@ class NotificationEngineServiceTest {
     matchingService = mock(NotificationMatchingService.class);
     dispatchService = mock(NotificationDispatchService.class);
     eventRecordRepository = mock(NotificationEventRecordRepository.class);
+    tenantTx = mock(TenantScopedTransaction.class);
+    doAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), ArgumentMatchers.<Runnable>any());
     engineService =
         new NotificationEngineService(
-            cacheService, matchingService, dispatchService, eventRecordRepository);
+            cacheService, matchingService, dispatchService, eventRecordRepository, tenantTx);
   }
 
   private ResolvedNotificationTrigger liveTrigger(
@@ -89,6 +102,7 @@ class NotificationEngineServiceTest {
     ArgumentCaptor<List<NotificationEventRecord>> recordsCaptor = ArgumentCaptor.captor();
     verify(eventRecordRepository, times(1)).saveAll(recordsCaptor.capture());
     assertEquals(2, recordsCaptor.getValue().size());
+    verify(tenantTx).execute(any(TxCtx.class), ArgumentMatchers.<Runnable>any());
     verify(dispatchService)
         .dispatch(
             eq(trigger),

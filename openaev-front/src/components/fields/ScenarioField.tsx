@@ -1,24 +1,10 @@
-import { Kayaking } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, Chip, TextField } from '@mui/material';
+import { Autocomplete as MuiAutocomplete, Chip, TextField } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type { AxiosResponse } from 'axios';
-import {
-  type CSSProperties,
-  type FunctionComponent,
-  type HTMLAttributes,
-  type KeyboardEventHandler,
-  useEffect, useState,
-} from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { type FunctionComponent, useEffect, useState } from 'react';
 
-import { fetchScenarios, searchScenarioAsOption } from '../../actions/scenarios/scenario-actions';
-import type { ScenariosHelper } from '../../actions/scenarios/scenario-helper';
-import { useHelper } from '../../store';
-import type { Scenario } from '../../utils/api-types';
-import { useAppDispatch } from '../../utils/hooks';
-import useDataLoader from '../../utils/hooks/useDataLoader';
+import { searchScenarioAsOption } from '../../actions/scenarios/scenario-actions';
 import type { GroupOption, Option } from '../../utils/Option';
-import Autocomplete from '../Autocomplete';
 import { SCENARIOS } from '../common/queryable/filter/constants';
 import useSearchOptions from '../common/queryable/filter/useSearchOptions';
 import AutocompleteField from './AutocompleteField';
@@ -32,28 +18,14 @@ interface Props {
   error?: boolean;
   defaultOptions?: GroupOption[];
   multiple?: boolean;
-  useForm?: boolean;
-  placeholder?: string;
-  name?: string;
-  style?: CSSProperties;
-  onKeyDown?: KeyboardEventHandler;
   values?: Option[];
   onValuesChange?: (value: Option[]) => void;
 }
 
-const useStyles = makeStyles()(() => ({
-  icon: {
-    paddingTop: 4,
-    display: 'inline-block',
-  },
-  text: {
-    display: 'inline-block',
-    flexGrow: 1,
-    marginLeft: 10,
-  },
-  autoCompleteIndicator: { display: 'none' },
-}));
-
+/**
+ * Standalone scenario selector, driven by its own `value` / `onChange` props.
+ * To bind a scenario selection to a react-hook-form, use ScenarioFieldController.
+ */
 const ScenarioField: FunctionComponent<Props> = ({
   label,
   value,
@@ -63,76 +35,31 @@ const ScenarioField: FunctionComponent<Props> = ({
   error = false,
   defaultOptions = [],
   multiple = false,
-  useForm = false,
-  placeholder = '',
-  name,
-  style,
-  onKeyDown,
   onValuesChange,
   values = [],
 }) => {
   const { options, searchOptions } = useSearchOptions();
-  const { classes } = useStyles();
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [multipleOptions, setMultipleOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
-  const dispatch = useAppDispatch();
   const searchOptionsConfig = {
     filterKey: SCENARIOS,
     defaultValues: defaultOptions,
   };
 
   useEffect(() => {
-    if (multiple && !useForm) {
+    if (multiple) {
       setLoading(true);
       searchScenarioAsOption()
         .then((response: AxiosResponse<Option[]>) => setMultipleOptions(response.data))
         .finally(() => setLoading(false));
-    } else if (!multiple && !useForm) {
+    } else {
       searchOptions(searchOptionsConfig, '');
     }
   }, []);
 
-  const scenarios = useHelper((helper: ScenariosHelper) => helper.getScenarios());
-  useDataLoader(() => {
-    if (multiple && useForm) {
-      dispatch(fetchScenarios());
-    }
-  });
-
-  const scenarioOptions: Option[] = (scenarios ?? []).map((scenario: Scenario) => ({
-    id: scenario.scenario_id,
-    label: scenario.scenario_name,
-  }));
-
-  if (multiple && useForm) {
-    return (
-      <Autocomplete
-        variant="standard"
-        size="small"
-        name={name}
-        fullWidth
-        multiple
-        label={label}
-        placeholder={placeholder}
-        options={scenarioOptions}
-        style={style}
-        onKeyDown={onKeyDown}
-        renderOption={(renderProps: HTMLAttributes<HTMLLIElement>, option: Option) => (
-          <Box component="li" {...renderProps} key={option.id}>
-            <div className={classes.icon}>
-              <Kayaking />
-            </div>
-            <div className={classes.text}>{option.label}</div>
-          </Box>
-        )}
-        classes={{ clearIndicator: classes.autoCompleteIndicator }}
-      />
-    );
-  }
-
-  if (multiple && !useForm) {
+  if (multiple) {
     return (
       <MuiAutocomplete
         multiple

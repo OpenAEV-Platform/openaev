@@ -1,5 +1,6 @@
 package io.openaev.executors.mde.client;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -74,5 +75,51 @@ class MdeExecutorClientTest {
 
     // Act & Assert
     assertFalse(isStalePendingAction(action, staleBefore));
+  }
+
+  @Test
+  @DisplayName("without a device group, filter restricts to onboarded devices seen recently")
+  void given_noDeviceGroup_should_filterOnLastSeenAndOnboarded() {
+    // Act
+    String filter = MdeExecutorClient.buildDevicesFilter(null, "2026-09-08T00:00:00Z");
+
+    // Assert
+    assertThat(filter)
+        .isEqualTo("lastSeen gt 2026-09-08T00:00:00Z and onboardingStatus eq 'Onboarded'")
+        .doesNotContain("rbacGroupId");
+  }
+
+  @Test
+  @DisplayName("with a device group, filter scopes by rbacGroupId and stays onboarded-only")
+  void given_deviceGroup_should_scopeByRbacGroupAndOnboarded() {
+    // Act
+    String filter = MdeExecutorClient.buildDevicesFilter("367", "2026-09-08T00:00:00Z");
+
+    // Assert
+    assertThat(filter)
+        .isEqualTo(
+            "rbacGroupId eq 367 and lastSeen gt 2026-09-08T00:00:00Z"
+                + " and onboardingStatus eq 'Onboarded'");
+  }
+
+  @Test
+  @DisplayName("a blank device group is treated as no group scoping")
+  void given_blankDeviceGroup_should_notScopeByRbacGroup() {
+    // Act
+    String filter = MdeExecutorClient.buildDevicesFilter("   ", "2026-09-08T00:00:00Z");
+
+    // Assert
+    assertThat(filter)
+        .isEqualTo("lastSeen gt 2026-09-08T00:00:00Z and onboardingStatus eq 'Onboarded'");
+  }
+
+  @Test
+  @DisplayName("a device group id is trimmed before being placed in the filter")
+  void given_paddedDeviceGroup_should_trimBeforeFiltering() {
+    // Act
+    String filter = MdeExecutorClient.buildDevicesFilter(" 367 ", "2026-09-08T00:00:00Z");
+
+    // Assert
+    assertThat(filter).startsWith("rbacGroupId eq 367 and ");
   }
 }

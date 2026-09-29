@@ -1,4 +1,4 @@
-FROM node:24.20.0-alpine3.24 AS front-builder
+FROM node:24.21.0-alpine3.24 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
@@ -12,12 +12,16 @@ RUN yarn build
 FROM maven:3.9.16-eclipse-temurin-21-noble AS api-builder
 
 WORKDIR /opt/openaev-build/openaev
-COPY openaev-annotation-processor ./openaev-annotation-processor
+COPY openaev-build-services ./openaev-build-services
 COPY openaev-maven-plugin ./openaev-maven-plugin
 COPY openaev-model ./openaev-model
+COPY openaev-es8-client ./openaev-es8-client
+COPY openaev-es9-client ./openaev-es9-client
+COPY openaev-opensearch-client ./openaev-opensearch-client
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api
 COPY openaev-maven-plugin ./openaev-maven-plugin
+COPY openaev-ocsf ./openaev-ocsf
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev

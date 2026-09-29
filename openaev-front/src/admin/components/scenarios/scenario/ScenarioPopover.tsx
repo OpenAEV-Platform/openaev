@@ -1,7 +1,7 @@
 import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { deleteScenario, duplicateScenario, exportScenarioUri } from '../../../../actions/scenarios/scenario-actions';
+import { deleteScenario, duplicateScenario, exportScenario } from '../../../../actions/scenarios/scenario-actions';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import DialogDuplicate from '../../../../components/common/DialogDuplicate';
@@ -12,6 +12,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
+import { download } from '../../../../utils/utils';
 import ScenarioUpdate from './ScenarioUpdate';
 
 type ScenarioActionType = 'Duplicate' | 'Update' | 'Delete' | 'Export';
@@ -81,9 +82,11 @@ const ScenarioPopover: FunctionComponent<Props> = ({
   const handleOpenExport = () => setExportation(true);
   const handleCloseExport = () => setExportation(false);
   const submitExport = (exportPlayers: boolean, exportTeams: boolean, exportVariableValues: boolean, exportScopeDefinition: boolean) => {
-    const link = document.createElement('a');
-    link.href = exportScenarioUri(scenario.scenario_id, exportTeams, exportPlayers, exportVariableValues, exportScopeDefinition);
-    link.click();
+    exportScenario(scenario.scenario_id, exportTeams, exportPlayers, exportVariableValues, exportScopeDefinition).then((result) => {
+      const contentDisposition = result.headers['content-disposition']?.toString() ?? '';
+      const filename = contentDisposition.match(/filename\s*=\s*"?([^"]+)"?/i)?.[1] ?? `${scenario.scenario_name}.zip`;
+      download(result.data, filename, result.headers['content-type']?.toString());
+    });
     handleCloseExport();
   };
 

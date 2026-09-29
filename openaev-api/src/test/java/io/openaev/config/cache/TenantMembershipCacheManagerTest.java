@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Tests for {@link TenantMembershipCacheManager} verifying that caching and eviction work correctly
@@ -230,6 +231,97 @@ class TenantMembershipCacheManagerTest {
       verify(tenantRepository, times(2)).existsByUserIdAndTenantId(USER_ID, TENANT_ID);
       verify(jdbcTemplate, times(2))
           .queryForList(TenantMembershipCacheManager.USER_TENANT_IDS_SQL, String.class, USER_ID);
+    }
+  }
+
+  @Nested
+  @DisplayName("immediate-plus-after-commit double eviction (via CommitAwareCacheManager)")
+  class DoubleEviction {
+
+    @AfterEach
+    void tearDown() {
+      // Never leave synchronization active for the next test in the same thread.
+      if (TransactionSynchronizationManager.isSynchronizationActive()) {
+        TransactionSynchronizationManager.clearSynchronization();
+      }
+    }
+
+    @Test
+    @DisplayName("given_activeTransaction_evict_should_evictImmediately_and_evictAgainAfterCommit")
+    void given_activeTransaction_evict_should_evictImmediately_and_evictAgainAfterCommit() {
+      // Arrange
+      when(tenantRepository.existsByUserIdAndTenantId(USER_ID, TENANT_ID))
+          .thenReturn(true) // initial population, before the mutation
+          .thenReturn(true) // a concurrent transaction repopulating from pre-commit data
+          .thenReturn(false); // final state, once the row is visible everywhere
+      tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+      TransactionSynchronizationManager.initSynchronization();
+
+      // Act — evict must fire immediately: a read in the same transaction (or a wholly
+      // non-transactional caller) must never see the stale entry.
+      tenantMembershipCacheManager.evict(USER_ID, TENANT_ID);
+
+      // Assert — immediate eviction already busted the entry, so this read goes back to the
+      // repository. It simulates a concurrent transaction repopulating the cache from data that
+      // predates our still-uncommitted change.
+      assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID))
+          .isTrue();
+      verify(tenantRepository, times(2)).existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+
+      // Simulate our transaction committing: the post-commit eviction busts that stale
+      // repopulation, forcing the next read to see the now-visible committed state.
+      TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
+
+      assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID))
+          .isFalse();
+      verify(tenantRepository, times(3)).existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+    }
+
+    @Test
+    @DisplayName(
+        "given_activeTransaction_evictForUser_should_evictImmediately_and_evictAgainAfterCommit")
+    void given_activeTransaction_evictForUser_should_evictImmediately_and_evictAgainAfterCommit() {
+      // Arrange
+      when(tenantRepository.existsByUserIdAndTenantId(USER_ID, TENANT_ID))
+          .thenReturn(true)
+          .thenReturn(true)
+          .thenReturn(false);
+      tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+      TransactionSynchronizationManager.initSynchronization();
+
+      // Act
+      tenantMembershipCacheManager.evictForUser(USER_ID, List.of(TENANT_ID));
+
+      // Assert — same immediate-plus-after-commit contract as evict()
+      assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID))
+          .isTrue();
+      verify(tenantRepository, times(2)).existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+
+      TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
+
+      assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID))
+          .isFalse();
+      verify(tenantRepository, times(3)).existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+    }
+
+    @Test
+    @DisplayName("given_noActiveTransaction_evict_should_evictOnceImmediately")
+    void given_noActiveTransaction_evict_should_evictOnceImmediately() {
+      // Arrange
+      when(tenantRepository.existsByUserIdAndTenantId(USER_ID, TENANT_ID))
+          .thenReturn(true)
+          .thenReturn(false);
+      tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID);
+      // No TransactionSynchronizationManager.initSynchronization(): nothing to schedule, the
+      // immediate eviction is the only one that happens.
+
+      // Act
+      tenantMembershipCacheManager.evict(USER_ID, TENANT_ID);
+
+      // Assert
+      assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(USER_ID, TENANT_ID))
+          .isFalse();
+      verify(tenantRepository, times(2)).existsByUserIdAndTenantId(USER_ID, TENANT_ID);
     }
   }
 }

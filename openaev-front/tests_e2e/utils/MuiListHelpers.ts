@@ -13,10 +13,11 @@ class MuiListHelpers {
     itemText: string,
     actionLabel: string,
   ) {
-    await this.filterItemsInList(listLocator, itemText)
-      .locator('button')
-      .click();
-    return await page.getByRole('menuitem', { name: actionLabel }).click();
+    const row = this.filterItemsInList(listLocator, itemText).first();
+    await expect(row).toBeVisible();
+    // Each row has two buttons (row click + kebab); target the kebab explicitly.
+    await row.getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('menuitem', { name: actionLabel }).click();
   }
 
   static async searchAndSelectItemInList(locatorOrPage: Locator | Page, searchText: string) {
@@ -26,7 +27,7 @@ class MuiListHelpers {
       .filter({ hasText: searchText })
       .first();
     await expect(itemRow).toBeVisible();
-    await itemRow.dispatchEvent('click');
+    await itemRow.click();
   }
 }
 

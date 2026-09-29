@@ -29,3 +29,13 @@ mvn openaev:migration -Dreason="add more columns to table"
 ```shell
 V6_20260619103476928__add_more_columns_to_table.java
 ```
+
+### Generate an OCSF parser
+**Note: run this from the repository root.**
+
+This will download the OCSF schema specification from schema.ocsf.io and generate Java source code implementing
+a parser for the requested schema version.
+```shell
+mvn openaev:generate-ocsf-parser -Dversion={version}
+```
+All source code is created in the `openaev-ocsf` module.

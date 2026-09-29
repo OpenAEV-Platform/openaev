@@ -6,7 +6,11 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.api.groups.dto.TenantGroupMarkingsOutput;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
@@ -32,6 +36,7 @@ public class TenantGroupApi extends RestBehavior {
   public static final String TENANT_GROUP_URI = TENANT_PREFIX + "/groups";
 
   private final TenantGroupService tenantGroupService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CREATE --
 
@@ -39,7 +44,7 @@ public class TenantGroupApi extends RestBehavior {
   @PostMapping
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
-  public Group createGroup(@Valid @RequestBody TenantGroupCreateInput input) {
+  public Group createGroup(TxCtx ctx, @Valid @RequestBody TenantGroupCreateInput input) {
     return tenantGroupService.createGroup(input);
   }
 
@@ -49,7 +54,8 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group groupGrant(@PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
+  public Group groupGrant(
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
     return tenantGroupService.addGrant(groupId, input);
   }
 
@@ -61,7 +67,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER_GROUP)
-  public Group group(@PathVariable String groupId) {
+  public Group group(TxCtx ctx, @PathVariable String groupId) {
     return tenantGroupService.findByIdInTenant(groupId);
   }
 
@@ -69,7 +75,8 @@ public class TenantGroupApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
-  public Page<Group> groups(@RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+  public Page<Group> groups(
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantGroupService.search(searchPaginationInput);
   }
 
@@ -83,7 +90,7 @@ public class TenantGroupApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
   public Group updateGroupUsers(
-      @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
     return tenantGroupService.updateGroupUsers(groupId, input);
   }
 
@@ -103,8 +110,40 @@ public class TenantGroupApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role or Group not found")
       })
   public Group updateGroupRoles(
-      @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
     return tenantGroupService.updateGroupRoles(groupId, input);
+  }
+
+  @LogExecutionTime
+  @PutMapping("/{groupId}/markings")
+  @Transactional
+  @AccessControl(
+      resourceId = "#groupId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.USER_GROUP)
+  @Operation(
+      summary = "Replace the markings a group grants its members",
+      description =
+          "Replaces the whole set: an empty list revokes every grant. A caller may only assign"
+              + " markings they hold themselves, and only markings defined in their own tenant."
+              + " Every member's cached clearance is evicted, so the change takes effect on their"
+              + " next request.")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Group updated"),
+        @ApiResponse(responseCode = "403", description = "Assigning a marking the caller lacks"),
+        @ApiResponse(responseCode = "404", description = "Group or marking not found")
+      })
+  // TODO: replace with the "Assign marking" capability chain (design Q8) once Task 1 lands. The
+  // group's own WRITE control is the honest interim: it is what already governs who may change what
+  // a group grants, and the marking PoC is deliberately capability-free (design Q12).
+  public TenantGroupMarkingsOutput updateGroupMarkings(
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateMarkingsInput input) {
+    // Tenant resolved here and passed down, per the multi-tenancy convention: the service never
+    // touches TenantContext. It is the tenant whose clearance the caller is checked against.
+    return TenantGroupMarkingsOutput.from(
+        tenantGroupService.updateGroupMarkings(
+            writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
   }
 
   @LogExecutionTime
@@ -115,7 +154,7 @@ public class TenantGroupApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
   public Group updateGroupInformation(
-      @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
     return tenantGroupService.updateGroup(groupId, input);
   }
 
@@ -128,7 +167,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group deleteGrant(@PathVariable String groupId, @PathVariable String grantId) {
+  public Group deleteGrant(TxCtx ctx, @PathVariable String groupId, @PathVariable String grantId) {
     return tenantGroupService.removeGrant(groupId, grantId);
   }
 
@@ -138,7 +177,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.USER_GROUP)
-  public void delete(@PathVariable String groupId) {
+  public void delete(TxCtx ctx, @PathVariable String groupId) {
     tenantGroupService.delete(groupId);
   }
 }

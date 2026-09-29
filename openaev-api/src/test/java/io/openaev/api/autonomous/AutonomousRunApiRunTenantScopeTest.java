@@ -72,7 +72,13 @@ class AutonomousRunApiRunTenantScopeTest {
           "directives",
           "addDirective",
           "updateConfiguration",
-          "resolveCapabilities");
+          "resolveCapabilities",
+          "objectiveTemplates",
+          "availableAgents",
+          "defaultAgents",
+          "setDefaultAgents",
+          "getScenarioConfig",
+          "saveScenarioConfig");
 
   @Test
   @DisplayName("handler names stay unique, so the name-keyed classification cannot collapse")

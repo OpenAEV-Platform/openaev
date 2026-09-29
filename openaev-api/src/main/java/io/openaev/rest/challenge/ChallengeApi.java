@@ -1,12 +1,12 @@
 package io.openaev.rest.challenge;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.ChallengeSpecification.fromIds;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.*;
 public class ChallengeApi extends RestBehavior {
 
   public static final String CHALLENGE_URI = "/api/challenges";
-  private static final String TENANT_CHALLENGE_URI = TENANT_PREFIX + "/challenges";
+  public static final String TENANT_CHALLENGE_URI = TENANT_PREFIX + "/challenges";
 
   private final ChallengeRepository challengeRepository;
   private final ChallengeFlagRepository challengeFlagRepository;
@@ -45,12 +45,14 @@ public class ChallengeApi extends RestBehavior {
   private final DocumentRepository documentRepository;
   private final ChallengeService challengeService;
   private final DocumentService documentService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
-  public Iterable<Challenge> challenges() {
-    return fromIterable(challengeRepository.findAll()).stream()
+  public Iterable<Challenge> challenges(TxCtx ctx) {
+    // The documents are fetch-joined here, so the enrichment does not load them per challenge.
+    return challengeRepository.findAllFetchingDocuments().stream()
         .map(challengeService::enrichChallengeWithExercisesOrScenarios)
         .toList();
   }
@@ -60,8 +62,15 @@ public class ChallengeApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHALLENGE)
   @Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
-      @RequestBody @Valid @NotNull final List<String> challengeIds) {
-    return this.challengeRepository.findAll(fromIds(challengeIds));
+      TxCtx ctx, @RequestBody @Valid @NotNull final List<String> challengeIds) {
+    if (challengeIds.isEmpty()) {
+      return List.of();
+    }
+    // Return raw Challenge entities, whose lazy challenge_documents @ManyToMany would otherwise
+    // serialize open-in-view AFTER the scoped transaction commits and fail closed to an empty array
+    // once documents is v2-active. A single scoped query fetch-joins the documents inside the
+    // scope, instead of one lazy-initialization SELECT per challenge.
+    return this.challengeRepository.findAllByIdInFetchingDocuments(challengeIds);
   }
 
   @PutMapping({CHALLENGE_URI + "/{challengeId}", TENANT_CHALLENGE_URI + "/{challengeId}"})
@@ -71,7 +80,7 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public Challenge updateChallenge(
-      @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input)
+      TxCtx ctx, @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input)
       throws InputValidationException {
     challengeService.validateFlags(input.flags());
     Challenge challenge =
@@ -102,10 +111,12 @@ public class ChallengeApi extends RestBehavior {
   @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input)
+  public Challenge createChallenge(TxCtx ctx, @Valid @RequestBody ChallengeInput input)
       throws InputValidationException {
     challengeService.validateFlags(input.flags());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Challenge challenge = new Challenge();
+    challenge.setTenant(new Tenant(tenantId));
     challenge.setUpdateAttributes(input);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
@@ -131,7 +142,7 @@ public class ChallengeApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteChallenge(@PathVariable String challengeId) {
+  public void deleteChallenge(TxCtx ctx, @PathVariable String challengeId) {
     Challenge challenge =
         challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
     challengeRepository.delete(challenge);
@@ -168,7 +179,7 @@ public class ChallengeApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Documents used in the Challenge")
       })
-  public List<RawDocument> documentsFromChallenge(@PathVariable String challengeId) {
-    return documentService.documentsForChallenge(challengeId);
+  public List<RawDocument> documentsFromChallenge(TxCtx ctx, @PathVariable String challengeId) {
+    return documentService.documentsForChallenge(ctx, challengeId);
   }
 }

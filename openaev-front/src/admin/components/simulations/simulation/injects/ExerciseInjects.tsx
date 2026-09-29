@@ -34,6 +34,7 @@ import InjectDistributionByTeam from '../../../common/injects/InjectDistribution
 import InjectDistributionByType from '../../../common/injects/InjectDistributionByType';
 import Injects from '../../../common/injects/Injects';
 import InjectsListButtons from '../../../common/injects/InjectsListButtons';
+import { buildSimulationVariablesConfigurationUrl } from '../../SimulationConfigurationTab';
 import articleContextForExercise from '../articles/articleContextForExercise';
 import ExerciseDistributionScoreByTeamInPercentage from '../overview/ExerciseDistributionScoreByTeamInPercentage';
 import ExerciseDistributionScoreOverTimeByInjectorContract from '../overview/ExerciseDistributionScoreOverTimeByInjectorContract';
@@ -103,6 +104,7 @@ const ExerciseInjects: FunctionComponent = () => {
                     articles={articles}
                     variables={variables}
                     uriVariable={`/admin/simulations/${exerciseId}/injects`}
+                    variablesConfigurationUri={buildSimulationVariablesConfigurationUrl(exerciseId)}
                   />
                 </InjectTestContext.Provider>
               </ChallengeContext.Provider>
