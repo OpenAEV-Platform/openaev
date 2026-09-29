@@ -196,7 +196,12 @@ public class XtmOneIdentity {
         String authority = uri.getRawAuthority();
         int colon = authority.lastIndexOf(':');
         host = colon >= 0 ? authority.substring(0, colon) : authority;
-        port = colon >= 0 ? Integer.parseInt(authority.substring(colon + 1)) : -1;
+        String digits = colon >= 0 ? authority.substring(colon + 1) : null;
+        if (digits != null && !digits.matches("\\d{1,5}")) {
+          // Integer.parseInt would read a sign: -2 or +80 is no port.
+          return Optional.empty();
+        }
+        port = digits != null ? Integer.parseInt(digits) : -1;
       }
       if (host.isEmpty() || port == 0 || port > 65535) {
         return Optional.empty();

@@ -262,6 +262,11 @@ class XtmOneIdentityTest {
     "http://xtm_one:notaport",
     "http://xtm_one:0",
     "http://xtm_one:99999",
+    "http://xtm_one:-1",
+    "http://xtm_one:-2",
+    "http://xtm_one:+80",
+    "http://xtm_one:",
+    "http://xtm-one:-2",
   })
   @DisplayName("anything but an http(s) URL has no canonical form")
   void refusesNonHttpUrls(String url) {
