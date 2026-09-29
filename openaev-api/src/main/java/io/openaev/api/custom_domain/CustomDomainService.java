@@ -4,11 +4,15 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.api.custom_domain.response.CustomDomainInstructions;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.CustomDomain.CustomDomainStatus;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CustomDomainRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -49,6 +53,8 @@ public class CustomDomainService {
   private final CustomDomainRepository customDomainRepository;
   private final CustomDomainDnsVerifier dnsVerifier;
   private final OpenAEVConfig openAEVConfig;
+  private final TenantWriteScopeResolver writeScopeResolver;
+  private final CustomDomainPublicLookupService publicLookupService;
 
   public Page<CustomDomain> search(@NotNull final SearchPaginationInput input) {
     return buildPaginationJPA(
@@ -62,7 +68,7 @@ public class CustomDomainService {
     return customDomainRepository.findById(id).orElseThrow(ElementNotFoundException::new);
   }
 
-  public CustomDomain create(@NotBlank final String rawHostname) {
+  public CustomDomain create(final TxCtx ctx, @NotBlank final String rawHostname) {
     String hostname = normalizeHostname(rawHostname);
     customDomainRepository
         .findByHostnameIgnoreCase(hostname)
@@ -70,7 +76,9 @@ public class CustomDomainService {
             existing -> {
               throw new BadRequestException("This domain is already registered");
             });
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     CustomDomain domain = new CustomDomain();
+    domain.setTenant(new Tenant(tenantId));
     domain.setHostname(hostname);
     domain.setStatus(CustomDomainStatus.PENDING);
     domain.setVerificationToken(generateToken());
@@ -121,8 +129,11 @@ public class CustomDomainService {
   }
 
   /**
-   * Whether a hostname resolves to a VERIFIED custom domain. Tenant-context-free (native query),
-   * used by the public {@code domain-check} endpoint that fronts on-demand TLS at the edge.
+   * Whether a hostname resolves to a VERIFIED custom domain, used by the public {@code
+   * domain-check} endpoint that fronts on-demand TLS at the edge. The lookup itself runs under an
+   * explicit {@code TxCtx.allTenants()} scope in {@link CustomDomainPublicLookupService}: an
+   * unauthenticated request carries no tenant of its own, and the v2 statement inspector would
+   * otherwise fail-closed on this table.
    */
   public boolean isHostnameVerified(final String hostname) {
     if (hostname == null || hostname.isBlank()) {
@@ -136,8 +147,8 @@ public class CustomDomainService {
     } catch (BadRequestException e) {
       return false;
     }
-    return customDomainRepository
-        .findStatusByHostname(normalized)
+    return publicLookupService
+        .statusByHostname(normalized)
         .map(CustomDomainStatus.VERIFIED.name()::equals)
         .orElse(false);
   }
