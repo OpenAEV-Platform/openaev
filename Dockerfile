@@ -1,4 +1,4 @@
-FROM node:24.20.0-alpine3.24 AS front-builder
+FROM node:24.21.0-alpine3.24 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
@@ -21,6 +21,7 @@ COPY openaev-opensearch-client ./openaev-opensearch-client
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api
 COPY openaev-maven-plugin ./openaev-maven-plugin
+COPY openaev-ocsf ./openaev-ocsf
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev

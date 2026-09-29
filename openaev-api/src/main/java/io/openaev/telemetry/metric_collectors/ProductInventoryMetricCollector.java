@@ -114,7 +114,7 @@ public class ProductInventoryMetricCollector {
     metricRegistry.registerGauge(
         "challenges_total", "Number of challenges", () -> safeCount(this::countChallenges));
     metricRegistry.registerGauge(
-        "documents_total", "Number of documents", () -> safeCount(documentRepository::count));
+        "documents_total", "Number of documents", () -> safeCount(this::countDocuments));
     metricRegistry.registerGauge(
         "channels_total", "Number of media channels", () -> safeCount(this::countChannels));
     metricRegistry.registerGauge(
@@ -286,6 +286,11 @@ public class ProductInventoryMetricCollector {
   /** Counts channels across the whole platform (channels is v2-active). */
   long countChannels() {
     return countAcrossAllTenants(channelRepository::count);
+  }
+
+  /** Counts documents across the whole platform (documents is v2-active). */
+  long countDocuments() {
+    return countAcrossAllTenants(documentRepository::count);
   }
 
   /** Counts challenges across the whole platform (challenges is v2-active, #6416). */

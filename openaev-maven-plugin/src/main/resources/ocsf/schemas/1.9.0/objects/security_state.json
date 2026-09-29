@@ -1,0 +1,126 @@
+{
+  "attributes" : {
+    "state" : {
+      "type" : "string_t",
+      "description" : "The security state, normalized to the caption of the state_id value. In the case of 'Other', it is defined by the source.",
+      "requirement" : "optional",
+      "caption" : "Security State",
+      "type_name" : "String"
+    },
+    "state_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Isolated from the network.",
+          "caption" : "In network quarantine"
+        },
+        "6" : {
+          "description" : "The security solution does not have a valid license.",
+          "caption" : "Protection not licensed"
+        },
+        "0" : {
+          "description" : "The security state is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The content is missing or outdated.",
+          "caption" : "Missing or outdated content"
+        },
+        "2" : {
+          "description" : "Not in compliance with the expected security policy.",
+          "caption" : "Policy mismatch"
+        },
+        "99" : {
+          "description" : "The security state is not mapped. See the <code>state</code> attribute, which contains data source specific values.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Not protected by a security solution.",
+          "caption" : "Protection off"
+        },
+        "5" : {
+          "description" : "The security solution is not functioning properly.",
+          "caption" : "Protection malfunction"
+        },
+        "7" : {
+          "description" : "A detected threat has not been remediated.",
+          "caption" : "Unremediated threat"
+        },
+        "8" : {
+          "description" : "Reputation of the entity is suspicious.",
+          "caption" : "Suspicious reputation"
+        },
+        "9" : {
+          "description" : "A reboot is required for one or more pending actions.",
+          "caption" : "Reboot pending"
+        },
+        "10" : {
+          "description" : "The content is locked to a specific version.",
+          "caption" : "Content is locked"
+        },
+        "11" : {
+          "description" : "The entity is not installed.",
+          "caption" : "Not installed"
+        },
+        "12" : {
+          "description" : "The system partition is writeable.",
+          "caption" : "Writable system partition"
+        },
+        "14" : {
+          "description" : "The device has failed the boot verification process.",
+          "caption" : "Failed boot verify"
+        },
+        "15" : {
+          "description" : "The execution environment has been modified.",
+          "caption" : "Modified execution environment"
+        },
+        "16" : {
+          "description" : "The SELinux security feature has been disabled.",
+          "caption" : "SELinux disabled"
+        },
+        "17" : {
+          "description" : "An elevated privilege shell has been detected.",
+          "caption" : "Elevated privilege shell"
+        },
+        "18" : {
+          "description" : "The file system has been altered on an iOS device.",
+          "caption" : "iOS file system altered"
+        },
+        "20" : {
+          "description" : "Mobile OTA (Over The Air) updates have been disabled.",
+          "caption" : "OTA updates disabled"
+        },
+        "21" : {
+          "description" : "The device has been modified to allow root access.",
+          "caption" : "Rooted"
+        },
+        "22" : {
+          "description" : "The Android partition has been modified.",
+          "caption" : "Android partition modified"
+        },
+        "23" : {
+          "description" : "The entity is not compliant with the associated security policy.",
+          "caption" : "Compliance failure"
+        },
+        "13" : {
+          "description" : "The device has failed the SafetyNet check.",
+          "caption" : "SafetyNet failure"
+        },
+        "19" : {
+          "description" : "Remote access is enabled.",
+          "caption" : "Open remote access"
+        }
+      },
+      "description" : "The security state of the managed entity.",
+      "requirement" : "recommended",
+      "caption" : "Security State ID",
+      "sibling" : "state",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "security_state",
+  "description" : "The Security State object describes the security related state of a managed entity.",
+  "extends" : "object",
+  "caption" : "Security State",
+  "_links" : [ ]
+}

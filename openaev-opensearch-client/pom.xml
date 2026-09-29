@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.260921.0</version>
+        <version>3.260923.0</version>
     </parent>
 
     <artifactId>openaev-opensearch-client</artifactId>
@@ -14,7 +14,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <opensearch.version>3.9.0</opensearch.version>
+        <opensearch.version>3.10.0</opensearch.version>
     </properties>
 
     <dependencies>

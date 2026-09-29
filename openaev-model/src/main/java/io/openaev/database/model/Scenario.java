@@ -410,6 +410,10 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
     this.tags = tags;
   }
 
+  // Excluded from @Data's generated toString() so logging/debugging a Scenario can never load
+  // the documents outside a scoped transaction (ArchUnit:
+  // TenantActiveTableAccessArchTest#documents_scenario_association_access_is_reviewed).
+  @ToString.Exclude
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(

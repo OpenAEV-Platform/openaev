@@ -1,0 +1,137 @@
+{
+  "attributes" : {
+    "device" : {
+      "type" : "object_t",
+      "description" : "Device used to complete an authentication request.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Device",
+      "object_type" : "device",
+      "object_name" : "Device"
+    },
+    "email_addr" : {
+      "type" : "email_t",
+      "description" : "The email address used in an email-based authentication factor.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Email Address",
+      "type_name" : "Email Address"
+    },
+    "factor_type" : {
+      "type" : "string_t",
+      "description" : "The type of authentication factor used in an authentication attempt.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Factor Type",
+      "type_name" : "String"
+    },
+    "factor_type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "System calls the user's registered phone number and requires the user to answer and provide a response.",
+          "caption" : "Phone Call"
+        },
+        "6" : {
+          "description" : "Physical device that generates a code to be used for authentication.",
+          "caption" : "Hardware Token"
+        },
+        "0" : {
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "User receives and inputs a code sent to their mobile device via SMS text message.",
+          "caption" : "SMS"
+        },
+        "2" : {
+          "description" : "The user responds to a security question as part of a question-based authentication factor",
+          "caption" : "Security Question"
+        },
+        "99" : {
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Devices that verify identity-based on user's physical identifiers, such as fingerprint scanners or retina scanners.",
+          "caption" : "Biometric"
+        },
+        "5" : {
+          "description" : "Push notification is sent to user's registered device and requires the user to acknowledge.",
+          "caption" : "Push Notification"
+        },
+        "7" : {
+          "description" : "Application generates a one-time password (OTP) for use in authentication.",
+          "caption" : "OTP"
+        },
+        "8" : {
+          "description" : "A code or link is sent to a user's registered email address.",
+          "caption" : "Email"
+        },
+        "9" : {
+          "description" : "Typically involves a hardware token, which the user physically interacts with to authenticate.",
+          "caption" : "U2F"
+        },
+        "10" : {
+          "description" : "Web-based API that enables users to register devices as authentication factors.",
+          "caption" : "WebAuthn"
+        },
+        "11" : {
+          "description" : "The user enters a password that they have previously established.",
+          "caption" : "Password"
+        }
+      },
+      "description" : "The normalized identifier for the authentication factor.",
+      "group" : "primary",
+      "requirement" : "required",
+      "caption" : "Factor Type ID",
+      "sibling" : "factor_type",
+      "type_name" : "Integer"
+    },
+    "is_hotp" : {
+      "type" : "boolean_t",
+      "description" : "Whether the authentication factor is an HMAC-based One-time Password (HOTP).",
+      "group" : "context",
+      "requirement" : "recommended",
+      "caption" : "HMAC-based One-time Password (HOTP)",
+      "type_name" : "Boolean"
+    },
+    "is_totp" : {
+      "type" : "boolean_t",
+      "description" : "Whether the authentication factor is a Time-based One-time Password (TOTP).",
+      "group" : "context",
+      "requirement" : "recommended",
+      "caption" : "Time-based One-time Password (TOTP)",
+      "type_name" : "Boolean"
+    },
+    "phone_number" : {
+      "type" : "string_t",
+      "description" : "The phone number used for a telephony-based authentication request.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Phone Number",
+      "type_name" : "String"
+    },
+    "provider" : {
+      "type" : "string_t",
+      "description" : "The name of provider for an authentication factor.",
+      "group" : "context",
+      "requirement" : "recommended",
+      "caption" : "Provider",
+      "type_name" : "String"
+    },
+    "security_questions" : {
+      "type" : "string_t",
+      "description" : "The question(s) provided to user for a question-based authentication factor.",
+      "group" : "context",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Security Questions",
+      "type_name" : "String"
+    }
+  },
+  "name" : "auth_factor",
+  "description" : "An Authentication Factor object describes a category of methods used for identity verification in an authentication attempt.",
+  "extends" : "object",
+  "caption" : "Authentication Factor",
+  "profiles" : [ "container" ],
+  "_links" : [ ]
+}

@@ -6,6 +6,8 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.AmbientTenantBridge;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -14,6 +16,7 @@ import io.openaev.rest.document.form.DocumentCreateInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
+import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import java.io.ByteArrayInputStream;
@@ -29,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -45,6 +49,7 @@ public class DocumentService {
   private final TagRepository tagRepository;
   private final ReportingGenerationRepository reportingGenerationRepository;
   private final FileService fileService;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   // -- CRUD --
 
@@ -62,6 +67,7 @@ public class DocumentService {
    * @param fileSize Size of the document to upsert
    * @param fileContentType Content Type of the document to upsert
    * @param input documents informations for his creation
+   * @param tenantId tenant the new document is attributed to when the upsert creates one
    * @return the upserted Document
    * @throws Exception when an upload issue occur
    */
@@ -70,13 +76,33 @@ public class DocumentService {
       InputStream fileIS,
       long fileSize,
       String fileContentType,
-      DocumentCreateInput input)
+      DocumentCreateInput input,
+      String tenantId)
+      throws Exception {
+    // Simulations and scenarios are still scoped by the ambient tenant, which may differ from the
+    // write tenant: resolve the ids the caller supplies in the write tenant, so the document is
+    // only bound to parents of its own tenant.
+    return ambientTenantBridge.callInTenantChecked(
+        tenantId,
+        () -> upsertInTenant(fileName, fileIS, fileSize, fileContentType, input, tenantId));
+  }
+
+  private Document upsertInTenant(
+      String fileName,
+      InputStream fileIS,
+      long fileSize,
+      String fileContentType,
+      DocumentCreateInput input,
+      String tenantId)
       throws Exception {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
+    // Scope both duplicate lookups to the resolved write tenant: an unscoped lookup runs under the
+    // ambient tenant filter, so on the header route an upsert scoped to B would find and mutate the
+    // default tenant's document with the same bytes or name.
     Optional<Document> targetDocument =
-        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
+        documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(fileTarget, tenantId);
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
@@ -104,12 +130,17 @@ public class DocumentService {
       return save(document);
     } else {
       Optional<Document> existingDocument =
-          documentRepository.findFirstByNameOrderByIdAsc(fileName);
+          documentRepository.findFirstByNameAndTenantIdOrderByIdAsc(fileName, tenantId);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
-        // Update doc
+        // Update doc: store the new bytes under the existing row's tenant so the object stays
+        // co-located with the row that points at it, regardless of the ambient scope.
         fileService.uploadFile(
-            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
+            document.getTenant().getId(),
+            fileTarget,
+            new ByteArrayInputStream(content),
+            fileSize,
+            fileContentType);
         document.setDescription(input.getDescription());
 
         // Compute exercises
@@ -136,8 +167,9 @@ public class DocumentService {
         return save(document);
       } else {
         fileService.uploadFile(
-            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
+            tenantId, fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         Document document = new Document();
+        document.setTenant(new Tenant(tenantId));
         document.setTarget(fileTarget);
         document.setName(fileName);
         document.setDescription(input.getDescription());
@@ -184,10 +216,11 @@ public class DocumentService {
     Stream<Document> challengesDocs =
         fromIterable(challengeRepository.findAllById(challenges)).stream()
             .flatMap(challenge -> challenge.getDocuments().stream());
-    return Stream.of(channelsDocs, articlesDocs, challengesDocs)
-        .flatMap(documentStream -> documentStream)
-        .distinct()
-        .toList();
+    return withSerializedLinks(
+        Stream.of(channelsDocs, articlesDocs, challengesDocs)
+            .flatMap(documentStream -> documentStream)
+            .distinct()
+            .toList());
   }
 
   /**
@@ -205,7 +238,7 @@ public class DocumentService {
    * @throws BadRequestException when the document is a report generation output
    */
   public void assertNotReportingGenerationOutput(@NotBlank final String documentId) {
-    if (reportingGenerationRepository.existsByDocumentId(documentId)) {
+    if (reportingGenerationRepository.countByDocumentId(documentId) > 0) {
       throw new BadRequestException(
           "Document is a generated report managed by the Reporting module and cannot be modified"
               + " or deleted from here.");
@@ -266,11 +299,16 @@ public class DocumentService {
   private void removeDocumentAndFile(final String documentId) {
     List<Document> documents = documentRepository.removeById(documentId);
 
-    // Remove document from minio (best-effort: a missing file must not fail the row deletion)
+    // Remove document from minio (best-effort: a missing file must not fail the row deletion).
+    // Delete the object under the tenant that owns the removed row, not the ambient path: on the
+    // header route the ambient tenant may differ from the row's, and deleting through the ambient
+    // path would leave the real object behind while removing a same-hash object of another tenant.
     documents.forEach(
         documentToRemove -> {
           try {
-            fileService.deleteFile(documentToRemove.getTarget());
+            Tenant tenant = documentToRemove.getTenant();
+            String tenantId = tenant == null ? null : tenant.getId();
+            fileService.deleteFile(tenantId, documentToRemove.getTarget());
           } catch (Exception e) {
             log.warn(
                 "File already removed or not found in minio: {}", documentToRemove.getTarget(), e);
@@ -283,27 +321,67 @@ public class DocumentService {
   }
 
   public List<Document> documentsForScenario(String scenarioId) {
-    return this.documentRepository.findAllDistinctByScenarioId(scenarioId);
+    return withSerializedLinks(this.documentRepository.findAllDistinctByScenarioId(scenarioId));
   }
 
   public List<Document> documentsForSimulation(String simulationId) {
-    return this.documentRepository.findAllDistinctBySimulationId(simulationId);
+    return withSerializedLinks(this.documentRepository.findAllDistinctBySimulationId(simulationId));
   }
 
-  public List<RawDocument> documentsForChannel(@NotBlank String channelId) {
-    return this.documentRepository.rawAllDocumentsByChannelId(channelId);
+  /**
+   * Initializes the lazy associations a raw {@link Document} response serializes as id arrays
+   * (tags, simulations, scenarios). Serialization runs open-in-view after the controller
+   * transaction has committed, where the tenant scope no longer exists: a lazy load at that point
+   * fails closed and the arrays come back empty. Call it on every document returned as an entity.
+   */
+  public Document withSerializedLinks(Document document) {
+    Hibernate.initialize(document.getTags());
+    Hibernate.initialize(document.getExercises());
+    Hibernate.initialize(document.getScenarios());
+    return document;
   }
 
-  public List<RawDocument> documentsForSecurityPlatform(@NotBlank String securityPlatformId) {
-    return this.documentRepository.rawAllDocumentsBySecurityPlatformId(securityPlatformId);
+  public List<Document> withSerializedLinks(List<Document> documents) {
+    documents.forEach(this::withSerializedLinks);
+    return documents;
   }
 
-  public List<RawDocument> documentsForChallenge(@NotBlank String challengeId) {
-    return this.documentRepository.rawAllDocumentsByChallengeId(challengeId);
+  public List<RawDocument> documentsForChannel(TxCtx ctx, @NotBlank String channelId) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      // Fail-closed: an empty scope (e.g. TxCtx.Missing) grants no tenant access.
+      return List.of();
+    }
+    return this.documentRepository.rawAllDocumentsByChannelIdAndTenantIds(channelId, scope);
   }
 
-  public List<RawDocument> documentsForPayload(@NotBlank String payloadId) {
-    return this.documentRepository.rawAllDocumentsByPayloadId(payloadId);
+  public List<RawDocument> documentsForSecurityPlatform(
+      TxCtx ctx, @NotBlank String securityPlatformId) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      // Fail-closed: an empty scope (e.g. TxCtx.Missing) grants no tenant access.
+      return List.of();
+    }
+    return this.documentRepository.rawAllDocumentsBySecurityPlatformIdAndTenantIds(
+        securityPlatformId, scope);
+  }
+
+  public List<RawDocument> documentsForChallenge(TxCtx ctx, @NotBlank String challengeId) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      // Fail-closed: an empty scope (e.g. TxCtx.Missing) grants no tenant access.
+      return List.of();
+    }
+    return this.documentRepository.rawAllDocumentsByChallengeIdAndTenantIds(challengeId, scope);
+  }
+
+  public List<RawDocument> documentsForPayload(TxCtx ctx, @NotBlank String payloadId) {
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      // Fail-closed: an empty scope (e.g. TxCtx.Missing) grants no tenant access.
+      return List.of();
+    }
+    return this.documentRepository.rawAllDocumentsByPayloadIdAndTenantIds(payloadId, scope);
   }
 
   public List<Document> findAllDistinctOnInjectsByScenarioId(@NotBlank String scenarioId) {

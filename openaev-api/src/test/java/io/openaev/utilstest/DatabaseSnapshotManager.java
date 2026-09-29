@@ -4,6 +4,8 @@ import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -11,9 +13,22 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.stereotype.Component;
 
+/**
+ * Snapshots every table once, at the first application start of the fork, and puts the database
+ * back to that state after each test class.
+ *
+ * <p>The restore is one transaction on one connection. Scheduled threads of cached Spring contexts
+ * keep running while it works (a health probe that finds its setting missing re-creates it), so
+ * emptying the tables and refilling them must not be observable in between: another connection sees
+ * the state before the restore or the state after it, never an empty table. A restore that fails
+ * rolls back, names the table and the row it could not insert, and leaves the foreign key guard on,
+ * because {@code SET LOCAL} ends with the transaction.
+ */
 @Component
 @Slf4j
 @RequiredArgsConstructor
@@ -25,6 +40,7 @@ public class DatabaseSnapshotManager {
 
   private static final Map<String, List<Map<String, Object>>> startupData = new HashMap<>();
   private static final List<String> TABLE_WITHOUT_RESTORATION = List.of("indexing_status");
+  private static final int ROW_DESCRIPTION_MAX_LENGTH = 1000;
   private static List<String> tablesInOrder;
 
   private static boolean snapshotCreated = false;
@@ -61,7 +77,13 @@ public class DatabaseSnapshotManager {
     }
   }
 
-  /** Restore database to the snapshot */
+  /**
+   * Restore database to the snapshot. Atomic: either the database holds exactly the snapshot
+   * afterwards, or nothing changed and the exception names the table and the row that could not be
+   * restored. This closes the empty-table window, not concurrent writes: a writer that commits a
+   * brand-new row between the DELETE and the COMMIT is not undone, since the restore never deletes
+   * a second time.
+   */
   public void restoreToSnapshotState() {
     if (!snapshotCreated) {
       log.error("Snapshot not created yet, cannot restore!");
@@ -76,30 +98,55 @@ public class DatabaseSnapshotManager {
 
       cleanElasticsearchIndices(engineContext.getModels());
 
-      // Deactivate FK for now
-      jdbcTemplate.execute("SET session_replication_role = 'replica';");
+      jdbcTemplate.execute(
+          (Connection connection) -> {
+            restoreInOneTransaction(connection);
+            return null;
+          });
+
+      log.info("Database restored to startup state via JDBC");
+
+    } catch (Exception e) {
+      throw new IllegalStateException("Error restoring startup state: " + e.getMessage(), e);
+    }
+  }
+
+  private void restoreInOneTransaction(Connection connection) throws SQLException {
+    boolean autoCommit = connection.getAutoCommit();
+    connection.setAutoCommit(false);
+    JdbcTemplate transaction = new JdbcTemplate(new SingleConnectionDataSource(connection, true));
+    boolean committed = false;
+    try {
+      // Deactivate FK for this transaction only: SET LOCAL is undone by commit and rollback alike
+      transaction.execute("SET LOCAL session_replication_role = 'replica'");
 
       // Empty tables
       List<String> reverseOrder = new ArrayList<>(tablesInOrder);
       Collections.reverse(reverseOrder);
       for (String table : reverseOrder) {
-        jdbcTemplate.execute("DELETE FROM " + table);
+        transaction.execute("DELETE FROM " + table);
       }
 
       // Restore tables in the correct order
       for (String table : tablesInOrder) {
         if (!TABLE_WITHOUT_RESTORATION.contains(table)) {
-          restoreTableData(table);
+          restoreTableData(transaction, table);
         }
       }
 
-      // Activate FK back
-      jdbcTemplate.execute("SET session_replication_role = 'origin';");
-
-      log.info("Database restored to startup state via JDBC");
-
+      connection.commit();
+      committed = true;
     } catch (Exception e) {
-      throw new RuntimeException("Error restoring startup state", e);
+      if (!committed) {
+        try {
+          connection.rollback();
+        } catch (SQLException rollbackFailure) {
+          e.addSuppressed(rollbackFailure);
+        }
+      }
+      throw e;
+    } finally {
+      connection.setAutoCommit(autoCommit);
     }
   }
 
@@ -183,13 +230,14 @@ public class DatabaseSnapshotManager {
   /**
    * Restore the data of a specific table
    *
+   * @param transaction the template bound to the restore transaction
    * @param table the table to restore
    */
-  private void restoreTableData(String table) {
+  private void restoreTableData(JdbcTemplate transaction, String table) {
     List<Map<String, Object>> data = startupData.get(table);
     if (data == null || data.isEmpty()) return;
 
-    Map<String, String> userDefinedColumns = getUserDefinedColumns(table);
+    Map<String, String> userDefinedColumns = getUserDefinedColumns(transaction, table);
 
     for (Map<String, Object> row : data) {
       List<String> columnsList = new ArrayList<>(row.keySet());
@@ -205,13 +253,25 @@ public class DatabaseSnapshotManager {
 
       String sql = "INSERT INTO " + table + " (" + columns + ") VALUES (" + placeholders + ")";
       Object[] values = columnsList.stream().map(row::get).toArray();
-      jdbcTemplate.update(sql, values);
+      try {
+        transaction.update(sql, values);
+      } catch (DataAccessException e) {
+        throw new IllegalStateException(
+            "Cannot restore snapshot row of table " + table + ": " + describe(row), e);
+      }
     }
   }
 
-  private Map<String, String> getUserDefinedColumns(String table) {
+  private static String describe(Map<String, Object> row) {
+    String description = row.toString();
+    return description.length() <= ROW_DESCRIPTION_MAX_LENGTH
+        ? description
+        : description.substring(0, ROW_DESCRIPTION_MAX_LENGTH) + "...";
+  }
+
+  private Map<String, String> getUserDefinedColumns(JdbcTemplate transaction, String table) {
     List<Map<String, Object>> rows =
-        jdbcTemplate.queryForList(
+        transaction.queryForList(
             """
             SELECT column_name, udt_name
               FROM information_schema.columns

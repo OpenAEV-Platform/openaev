@@ -8,6 +8,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import io.openaev.api.asset.AssetMarkingsService;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.custom_dashboard.CustomDashboardApiExporter;
 import io.openaev.api.custom_dashboard.CustomDashboardApiImporter;
@@ -16,6 +17,7 @@ import io.openaev.api.notification.NotificationApi;
 import io.openaev.api.notification_trigger.NotificationTriggerMapper;
 import io.openaev.api.notifier.NotifierApi;
 import io.openaev.api.xtmhub.XtmHubApi;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CatalogConnector;
@@ -167,6 +169,7 @@ import io.openaev.service.MailingService;
 import io.openaev.service.MapperService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.SecurityCoverageSendJobService;
+import io.openaev.service.TenantGroupService;
 import io.openaev.service.attackpath.AttackPathCausalSeedService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
@@ -239,6 +242,7 @@ class TenantActiveTableAccessArchTest {
           "import_mappers",
           "lessons_templates",
           "custom_dashboards",
+          "documents",
           "cwes",
           "mitigations",
           "collectors",
@@ -464,13 +468,206 @@ class TenantActiveTableAccessArchTest {
               // tenant-scoped transaction primitive as the datapack above (MigrationProcessor ->
               // tenantTx.execute/setScopeOnCurrentTransaction with TxCtx.forTenant(...)), so it
               // needs no waiver.
-              V20260914_Default_tenant_markings.class)
+              V20260914_Default_tenant_markings.class,
+              // Background primitive: reads the tenant's markings to assign the system clearance a
+              // background transaction runs at (all markings of the tenants in scope — a scheduler
+              // is not a user). Scoped, and in the strongest sense the rule asks for: the read
+              // happens INSIDE the transaction and AFTER setScope() has written
+              // app.current_tenants, so the inspector rewrites it with can_access_tenant, and the
+              // query additionally binds the same tenant ids explicitly. Cannot deadlock against
+              // its own dimension either: marking_definitions is deliberately NOT on
+              // openaev.marking.active-tables (design Q13 — the clearance source must not itself
+              // require a clearance), so no marking predicate applies to this read while the
+              // marking scope is still being computed. Pinned by
+              // TenantScopedTransactionMarkingScopeTest:
+              TenantScopedTransaction.class,
+              // Resolves the markings a group is being told to grant. Runs on the HTTP path inside
+              // a @Transactional method that takes a TxCtx, so app.current_tenants is already set
+              // and the inspector rewrites the read with can_access_tenant: a marking id belonging
+              // to another tenant does not come back, and the size mismatch becomes a 404 rather
+              // than a silent partial assignment.
+              //
+              // 🔴 The inspector is NOT relied on alone here, and the reason is worth knowing: it
+              // can only rewrite a query that is actually issued, so an entity already in the
+              // persistence context is served from Hibernate's first-level cache and never
+              // filtered (TenantGroupMarkingsApiTest demonstrates exactly this). The independent
+              // guarantee is MarkingEscalationValidator — a clearance is per tenant, so nobody
+              // holds another tenant's marking and the assignment is refused regardless. Pinned by
+              // TenantGroupMarkingsApiTest:
+              TenantGroupService.class,
+              // Resolves the markings an asset is being labelled with. Same shape as
+              // TenantGroupService above: HTTP path, inside a @Transactional method taking a TxCtx,
+              // so app.current_tenants is set and the read is rewritten with can_access_tenant —
+              // another tenant's marking id does not come back and the size mismatch becomes a 404.
+              // The escalation guard is again the independent check, for the L1-cache reason
+              // spelled out above. Pinned by AssetMarkingsApiTest:
+              AssetMarkingsService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(MarkingDefinitionRepository.class)
           .because(
               "marking_definitions is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule documents_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying document endpoints and the service behind them (pinned by
+              // TenantScopedEntrypointsTxCtxArchTest and DocumentHttpIsolationTest):
+              io.openaev.rest.document.DocumentApi.class,
+              io.openaev.rest.document.DocumentService.class,
+              // Other TxCtx-carrying endpoints that resolve documents through their own aggregate
+              // (challenge documents, article/channel documents, exercise attachments, security
+              // platform logos), each scoped by the request transaction:
+              io.openaev.rest.challenge.ChallengeApi.class,
+              io.openaev.rest.channel.ChannelApi.class,
+              io.openaev.rest.exercise.ExerciseApi.class,
+              io.openaev.rest.asset.security_platforms.SecurityPlatformApi.class,
+              // Services and exporters behind those endpoints, scoped by the request transaction:
+              io.openaev.rest.exercise.service.ExportService.class,
+              io.openaev.rest.inject.service.InjectService.class,
+              io.openaev.rest.inject.service.InjectExportService.class,
+              io.openaev.rest.inject.service.InjectDuplicateService.class,
+              io.openaev.rest.payload.exports.PayloadFileExport.class,
+              io.openaev.service.AtomicTestingService.class,
+              io.openaev.service.scenario.ScenarioService.class,
+              io.openaev.service.ScenarioToExerciseService.class,
+              io.openaev.service.ZipJsonService.class,
+              // Execution-engine attachment resolution, scoped by TenantScopedJobRunner which opens
+              // the tenant transaction each inject execution runs under:
+              io.openaev.executors.Injector.class,
+              io.openaev.executors.InjectorContext.class,
+              // Import path: resolves the write tenant explicitly and stamps rows before save:
+              io.openaev.importer.V1_DataImporter.class,
+              // Background telemetry: counts across all tenants explicitly (countAcrossAllTenants):
+              io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.DocumentRepository.class)
+          .because(
+              "documents is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule documents_challenge_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Force-initializes the challenge documents inside the read transaction
+              // (ChallengeService.enrichChallengeWithExercisesOrScenarios) so open-in-view cannot
+              // return an empty list:
+              io.openaev.service.ChallengeService.class,
+              // DTO mappers and exporters that map the documents to ids inside the request
+              // transaction:
+              io.openaev.rest.challenge.output.ChallengeOutput.class,
+              io.openaev.rest.challenge.response.PublicChallenge.class,
+              io.openaev.rest.document.DocumentService.class,
+              io.openaev.service.scenario.ScenarioService.class,
+              io.openaev.rest.exercise.exports.ExerciseFileExport.class,
+              io.openaev.rest.inject.exports.InjectsFileExport.class)
+          .should()
+          .callMethod(io.openaev.database.model.Challenge.class, "getDocuments")
+          .because(
+              "documents is reached through Challenge's LAZY documents association without touching"
+                  + " DocumentRepository. A getDocuments() outside a scoped transaction silently"
+                  + " loads zero rows (open-in-view). New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule documents_article_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Force-initializes the article documents inside the scoped read transaction
+              // (ChannelService.withDocumentLinksInitialized) so the open-in-view serialization of
+              // the channel reader cannot return an empty list:
+              io.openaev.service.ChannelService.class,
+              // Article write paths on TxCtx-carrying endpoints, resolving and rebinding the
+              // documents inside the request transaction:
+              io.openaev.rest.channel.ChannelApi.class,
+              // Player document lists, walked inside the TxCtx-carrying player endpoints:
+              io.openaev.rest.document.DocumentService.class,
+              // DTO mapper materializing the ids inside the request transaction:
+              io.openaev.rest.channel.output.ArticleOutput.class,
+              // Duplication and scenario-to-simulation copies, inside their scoped transactions:
+              io.openaev.rest.exercise.service.ExerciseService.class,
+              io.openaev.service.scenario.ScenarioService.class,
+              io.openaev.service.ScenarioToExerciseService.class,
+              // Exporter mapping the article documents inside the export endpoint's transaction:
+              io.openaev.rest.inject.exports.InjectsFileExport.class)
+          .should()
+          .callMethod(io.openaev.database.model.Article.class, "getDocuments")
+          .because(
+              "documents is reached through Article's LAZY documents association without touching"
+                  + " DocumentRepository. A getDocuments() outside a scoped transaction silently"
+                  + " loads zero rows (open-in-view). New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule documents_exercise_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The document removal and logo update handlers (TxCtx) keep the collection loaded
+              // and consistent inside the request transaction, so the raw entity they return
+              // serializes it; ExerciseService holds the initializer and the duplication copy:
+              ExerciseApi.class,
+              ExerciseService.class,
+              // Force-initializes the parent documents of the channel reader inside the scoped
+              // read transaction (ChannelService.withDocumentLinksInitialized):
+              ChannelService.class,
+              // Article write paths on TxCtx-carrying endpoints, linking the article documents to
+              // the exercise inside the request transaction:
+              ChannelApi.class,
+              // Inject create and update paths, reached from the TxCtx-carrying inject handlers,
+              // linking the inject documents to the exercise inside the request transaction:
+              InjectService.class,
+              InjectApi.class,
+              // Chaining engine step data, built under the per-tenant transaction the queue and
+              // step handlers open:
+              InjectExecutionStep.class,
+              // Exporter mapping the exercise documents inside the export endpoint's transaction:
+              ExerciseFileExport.class)
+          .should()
+          .callMethod(Exercise.class, "getDocuments")
+          .because(
+              "documents is reached through Exercise's LAZY documents association without touching"
+                  + " DocumentRepository. A getDocuments() outside a scoped transaction silently"
+                  + " loads zero rows (open-in-view). New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule documents_scenario_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Export, duplication and article copy, inside their scoped transactions:
+              ScenarioService.class,
+              // Scenario-to-simulation copy, reached from the TxCtx-carrying launch handlers, the
+              // autonomous run's tenant transaction and the per-tenant scheduled scenario job:
+              ScenarioToExerciseService.class,
+              // Force-initializes the parent documents of the channel reader inside the scoped
+              // read transaction (ChannelService.withDocumentLinksInitialized):
+              ChannelService.class,
+              // Article write paths on TxCtx-carrying endpoints, linking the article documents to
+              // the scenario inside the request transaction:
+              ChannelApi.class,
+              // Inject create and update paths, reached from the TxCtx-carrying inject handlers,
+              // linking the inject documents to the scenario inside the request transaction:
+              InjectService.class,
+              ScenarioInjectService.class,
+              // Chaining engine step data, built under the per-tenant transaction the queue and
+              // step handlers open:
+              InjectExecutionStep.class)
+          .should()
+          .callMethod(Scenario.class, "getDocuments")
+          .because(
+              "documents is reached through Scenario's LAZY documents association without touching"
+                  + " DocumentRepository. A getDocuments() outside a scoped transaction silently"
+                  + " loads zero rows (open-in-view). New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
 
   @ArchTest
   static final ArchRule tenant_xtmhub_registrations_repository_access_is_reviewed =
