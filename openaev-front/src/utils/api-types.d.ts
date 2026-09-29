@@ -7830,6 +7830,7 @@ export interface License {
   license_is_valid_product?: boolean;
   license_is_validated?: boolean;
   license_platform?: string;
+  license_source?: "openaev" | "xtm_one";
   /** @format date-time */
   license_start_date?: string;
   license_type?: "trial" | "nfr" | "standard" | "lts";

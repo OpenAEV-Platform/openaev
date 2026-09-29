@@ -1,11 +1,12 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { IntlProvider } from 'react-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AskArianeButton from '../../../../admin/components/ariane/AskArianeButton';
 import { ChatbotContext, type ChatbotContextType } from '../../../../admin/components/ariane/chatbotContext';
+import EnterpriseEditionContext from '../../../../components/EnterpriseEditionContext';
 import { type PlatformSettings, type User } from '../../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../../utils/hooks/useAuth';
 import { type AppAbility } from '../../../../utils/permissions/ability';
@@ -16,6 +17,10 @@ const theme = createTheme({
     ai: {
       main: '#9575ff',
       light: '#c4b5fd',
+    },
+    ee: {
+      main: '#00f1bd',
+      background: '#00f1bd33',
     },
   },
 });
@@ -42,6 +47,14 @@ const chatbotContext: ChatbotContextType = {
   setIsResizing: vi.fn(),
 };
 
+const enterpriseEditionContext = {
+  open: false,
+  openDialog: vi.fn(),
+  closeDialog: vi.fn(),
+  EEFeatureDetectedInfo: '',
+  setEEFeatureDetectedInfo: vi.fn(),
+};
+
 const ability = { can: () => true } as unknown as AppAbility;
 
 const renderButton = (settingsOverrides: Partial<PlatformSettings> = {}) => {
@@ -62,11 +75,13 @@ const renderButton = (settingsOverrides: Partial<PlatformSettings> = {}) => {
     <ThemeProvider theme={theme}>
       <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
         <UserContext.Provider value={userContext}>
-          <AbilityContext.Provider value={ability}>
-            <ChatbotContext.Provider value={chatbotContext}>
-              {children}
-            </ChatbotContext.Provider>
-          </AbilityContext.Provider>
+          <EnterpriseEditionContext.Provider value={enterpriseEditionContext}>
+            <AbilityContext.Provider value={ability}>
+              <ChatbotContext.Provider value={chatbotContext}>
+                {children}
+              </ChatbotContext.Provider>
+            </AbilityContext.Provider>
+          </EnterpriseEditionContext.Provider>
         </UserContext.Provider>
       </IntlProvider>
     </ThemeProvider>
@@ -110,6 +125,36 @@ describe('AskArianeButton', () => {
     it('renders nothing when the XTM One URL is not an http(s) URL', () => {
       const { container } = renderButton({ platform_xtm_one_url: 'javascript:alert(1)' });
       expect(container.firstChild).toBeNull();
+    });
+  });
+
+  describe('Enterprise Edition gating', () => {
+    it('opens the chat with an OpenAEV Enterprise Edition license', () => {
+      renderButton();
+      fireEvent.click(screen.getByText(LABEL));
+      expect(chatbotContext.toggleChat).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('EE')).toBeNull();
+    });
+
+    it('opens the chat when Enterprise Edition comes from the verified XTM One license', () => {
+      renderButton({
+        platform_license: {
+          license_is_validated: true,
+          license_source: 'xtm_one',
+        },
+      });
+      fireEvent.click(screen.getByText(LABEL));
+      expect(chatbotContext.toggleChat).toHaveBeenCalledTimes(1);
+      expect(enterpriseEditionContext.openDialog).not.toHaveBeenCalled();
+      expect(screen.queryByText('EE')).toBeNull();
+    });
+
+    it('asks for Enterprise Edition in Community Edition', () => {
+      renderButton({ platform_license: { license_is_validated: false } });
+      fireEvent.click(screen.getByText(LABEL));
+      expect(enterpriseEditionContext.openDialog).toHaveBeenCalledTimes(1);
+      expect(chatbotContext.toggleChat).not.toHaveBeenCalled();
+      expect(screen.getByText('EE')).toBeDefined();
     });
   });
 });
