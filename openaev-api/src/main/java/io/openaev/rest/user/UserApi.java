@@ -80,6 +80,11 @@ public class UserApi extends RestBehavior {
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
+        // Rotate the pre-login session id so a fixated id never inherits this login (CWE-384).
+        // Needed because this endpoint bypasses Spring Security's session-fixation strategy.
+        if (httpRequest.getSession(false) != null) {
+          httpRequest.changeSessionId();
+        }
         userService.createUserSession(user);
         // Capture auth context in session for reliable expiry audit metadata.
         SessionManager.markAuthenticatedSession(httpRequest, user.getId());

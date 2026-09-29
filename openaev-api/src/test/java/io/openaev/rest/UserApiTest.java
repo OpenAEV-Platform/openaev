@@ -3,6 +3,8 @@ package io.openaev.rest;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.UserFixture.EMAIL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -22,6 +24,7 @@ import io.openaev.service.MailingService;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
+import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.awaitility.Awaitility;
@@ -30,9 +33,11 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -133,6 +138,52 @@ class UserApiTest extends IntegrationTest {
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("user_email").value(EMAIL));
+      }
+    }
+
+    @Nested
+    @DisplayName("Session fixation")
+    class SessionFixation {
+      @DisplayName("Successful login rotates the pre-login session id")
+      @Test
+      @WithMockUser
+      void given_pre_login_session_when_login_succeeds_should_rotate_session_id() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        String fixatedId = session.getId();
+
+        MvcResult result =
+            mvc.perform(
+                    post("/api/login")
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(UserFixture.getLoginUserInput()))
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn();
+
+        HttpSession loggedInSession = result.getRequest().getSession(false);
+        assertNotNull(loggedInSession);
+        assertNotEquals(fixatedId, loggedInSession.getId());
+      }
+
+      @DisplayName("Failed login keeps the pre-login session id")
+      @Test
+      @WithMockUser
+      void given_pre_login_session_when_login_fails_should_keep_session_id() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        String initialId = session.getId();
+        LoginUserInput loginUserInput =
+            UserFixture.getDefault().login(EMAIL).password("wrong-password").build();
+
+        mvc.perform(
+                post("/api/login")
+                    .session(session)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(loginUserInput))
+                    .with(csrf()))
+            .andExpect(status().is4xxClientError());
+
+        assertEquals(initialId, session.getId());
       }
     }
   }
