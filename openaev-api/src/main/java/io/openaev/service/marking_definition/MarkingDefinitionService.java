@@ -231,8 +231,7 @@ public class MarkingDefinitionService {
   /**
    * Canonicalizes to upper-case so {@code type} is never compared case-sensitively downstream:
    * {@link io.openaev.config.MarkingScopeResolver} groups a caller's clearance by {@code type} in a
-   * plain {@code HashMap}, so "TOTO" and "toto" would otherwise resolve as two unrelated scales
-   * instead of the same one - see issue #7635.
+   * plain {@code HashMap}.
    */
   private static String normalize(String value) {
     return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
