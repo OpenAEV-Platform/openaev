@@ -154,12 +154,15 @@ public class EndpointApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void cleanupAssetAgentJob(
       TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
+    // Explicit tenant from ctx, not the bare (unscoped-shape) findById/deleteById: asset_agent_jobs
+    // is v2-active - see AssetAgentJobRepository#findByIdAndTenantId.
+    String tenantId = this.writeScopeResolver.tenantForWrite(ctx, null);
     this.assetAgentJobRepository
-        .findById(assetAgentJobId)
+        .findByIdAndTenantId(assetAgentJobId, tenantId)
         .ifPresent(
             assetAgentJob -> {
               this.injectStatusService.addJobRetrievalTraces(assetAgentJob);
-              this.assetAgentJobRepository.deleteById(assetAgentJobId);
+              this.assetAgentJobRepository.deleteByIdAndTenantId(assetAgentJobId, tenantId);
             });
   }
 
@@ -172,7 +175,8 @@ public class EndpointApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void cleanupAssetAgentJobDepreacted(
       TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
-    this.assetAgentJobRepository.deleteById(assetAgentJobId);
+    this.assetAgentJobRepository.deleteByIdAndTenantId(
+        assetAgentJobId, this.writeScopeResolver.tenantForWrite(ctx, null));
   }
 
   @LogExecutionTime

@@ -50,10 +50,12 @@ import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
+import javax.sql.DataSource;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -63,6 +65,7 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.transaction.TestTransaction;
@@ -77,7 +80,7 @@ import org.springframework.transaction.annotation.Transactional;
 // executors to this list was tried and turns four of this class's tests red on their executor
 // fixtures, which is a separate piece of work; executors has its own activation and its own
 // coverage. Widen this list when that fixture work is done, not inside this activation.
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
+@TestPropertySource(properties = "openaev.tenant.active-tables=assets,asset_agent_jobs")
 class EndpointApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -97,6 +100,7 @@ class EndpointApiTest extends IntegrationTest {
   @MockitoSpyBean private InjectStatusService injectStatusService;
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private TenantRepository tenantRepository;
+  @Autowired private DataSource dataSource;
   @Autowired private io.openaev.utils.mockUser.TestUserHolder testUserHolder;
 
   @BeforeEach
@@ -964,6 +968,184 @@ class EndpointApiTest extends IntegrationTest {
       }
     }
 
+    /**
+     * asset_agent_jobs is v2-active: isolation for its DELETE endpoint now comes from {@code
+     * TenantStatementInspector} (via the tenant selected by the request), not the removed v1
+     * filter. Covers both routes per D29/I4 - the prefixed {@code /api/tenants/{id}/...} route and
+     * the legacy {@code X-Tenant-Ids} header route - since {@code cleanupAssetAgentJob} carries a
+     * bare {@code TxCtx}, resolved identically on either one.
+     */
+    @Nested
+    @DisplayName("Asset agent job isolation")
+    @WithMockUser
+    class AssetAgentJobIsolation {
+
+      private final List<String> committedTenantIds = new ArrayList<>();
+      private JdbcTemplate jdbc;
+
+      @BeforeEach
+      void setUpJdbc() {
+        jdbc = new JdbcTemplate(dataSource);
+      }
+
+      @AfterEach
+      void cleanupCommittedTenants() {
+        if (!committedTenantIds.isEmpty()) {
+          tenantHelper.deleteCommittedTenants(committedTenantIds.toArray(new String[0]));
+          committedTenantIds.clear();
+        }
+      }
+
+      /**
+       * Persists an endpoint, an agent and one asset agent job under {@code tenantId}, committed.
+       */
+      private AssetAgentJob createTenantAssetAgentJob(String tenantId) {
+        tenantHelper.switchToTenant(tenantId, entityManager);
+        Endpoint endpoint = EndpointFixture.createEndpoint("Job Isolation Endpoint " + tenantId);
+        AgentComposer.Composer agentComposerX = agentComposer.forAgent(createDefaultAgentService());
+        endpointComposer.forEndpoint(endpoint).withAgent(agentComposerX).persist();
+
+        AssetAgentJob job = new AssetAgentJob();
+        job.setCommand("whoami");
+        job.setAgent(agentComposerX.get());
+        job.setTenant(new Tenant(tenantId));
+        job.setCreatedAt(Instant.now());
+        AssetAgentJob saved = assetAgentJobRepository.save(job);
+
+        // Commits everything created so far and opens a fresh transaction for the cross-tenant
+        // Act call (see EndpointCrudIsolation#commitArrangeAndStartFreshTransaction for why: two
+        // different tenant scopes cannot coexist in one physical transaction).
+        entityManager.flush();
+        entityManager.clear();
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        TestTransaction.start();
+        return saved;
+      }
+
+      /**
+       * Ground truth via a raw {@link JdbcTemplate} on the {@link DataSource}, deliberately NOT
+       * {@code entityManager.createNativeQuery}: with the table v2-active, a native query issued
+       * through Hibernate's own session still goes through {@code TenantStatementInspector} (it
+       * inspects every SQL statement Hibernate sends to the driver, regardless of JPQL, Criteria or
+       * native origin), so it fails closed the same as any other unscoped access to the table in
+       * the test's own transaction, which carries no {@code TxCtx} of its own - proving nothing
+       * either way (see the activate-tenant-table skill's {@code FindingApiTest} {@code [] == []}
+       * trap, and {@code AssetGroupBackgroundIsolationTest}, whose seeding/ground-truth idiom this
+       * follows). A connection obtained straight from the {@link DataSource} bypasses Hibernate's
+       * {@code SessionFactory} entirely, so the inspector never sees it.
+       */
+      private boolean assetAgentJobRowStillExists(String assetAgentJobId) {
+        Integer count =
+            jdbc.queryForObject(
+                "SELECT count(*) FROM asset_agent_jobs WHERE asset_agent_id = ?",
+                Integer.class,
+                assetAgentJobId);
+        return count != null && count > 0;
+      }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should NOT be deletable from tenant Y (prefixed"
+              + " route)")
+      void given_jobInTenantX_should_notBeDeletableFromTenantY_prefixedRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        Tenant tenantY =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant Y", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenantX.getId());
+
+        // -------- Act --------
+        mvc.perform(
+                delete("/api/tenants/" + tenantY.getId() + "/endpoints/jobs/" + jobX.getId())
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId()))
+            .as("a DELETE scoped to tenant Y must not remove tenant X's job")
+            .isTrue();
+      }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should be deletable from tenant X (prefixed route)")
+      void given_jobInTenantX_should_beDeletableFromTenantX_prefixedRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        committedTenantIds.add(tenantX.getId());
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenantX.getId());
+
+        // -------- Act --------
+        mvc.perform(
+                delete("/api/tenants/" + tenantX.getId() + "/endpoints/jobs/" + jobX.getId())
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId())).isFalse();
+      }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should NOT be deletable from tenant Y (X-Tenant-Ids"
+              + " header route)")
+      void given_jobInTenantX_should_notBeDeletableFromTenantY_headerRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        Tenant tenantY =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant Y", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenantX.getId());
+
+        // -------- Act --------
+        mvc.perform(
+                delete(ENDPOINT_URI + "/jobs/" + jobX.getId())
+                    .header("X-Tenant-Ids", tenantY.getId())
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId()))
+            .as("a DELETE scoped to tenant Y via X-Tenant-Ids must not remove tenant X's job")
+            .isTrue();
+      }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should be deletable from tenant X (X-Tenant-Ids"
+              + " header route)")
+      void given_jobInTenantX_should_beDeletableFromTenantX_headerRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        committedTenantIds.add(tenantX.getId());
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenantX.getId());
+
+        // -------- Act --------
+        mvc.perform(
+                delete(ENDPOINT_URI + "/jobs/" + jobX.getId())
+                    .header("X-Tenant-Ids", tenantX.getId())
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId())).isFalse();
+      }
+    }
+
     @Nested
     class AgentExecutorJoin {
 
@@ -1081,16 +1263,18 @@ class EndpointApiTest extends IntegrationTest {
 
       Mockito.doReturn(java.util.Optional.of(assetAgentJob))
           .when(assetAgentJobRepository)
-          .findById(assetAgentJobId);
+          .findByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
 
       // -- EXECUTE --
       mvc.perform(delete(ENDPOINT_URI + "/jobs/" + assetAgentJobId).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      Mockito.verify(assetAgentJobRepository).findById(assetAgentJobId);
+      Mockito.verify(assetAgentJobRepository)
+          .findByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
       Mockito.verify(injectStatusService).addJobRetrievalTraces(assetAgentJob);
-      Mockito.verify(assetAgentJobRepository).deleteById(assetAgentJobId);
+      Mockito.verify(assetAgentJobRepository)
+          .deleteByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
     }
 
     @Test
@@ -1102,17 +1286,19 @@ class EndpointApiTest extends IntegrationTest {
       String assetAgentJobId = "job-missing";
       Mockito.doReturn(java.util.Optional.empty())
           .when(assetAgentJobRepository)
-          .findById(assetAgentJobId);
+          .findByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
 
       // -- EXECUTE --
       mvc.perform(delete(ENDPOINT_URI + "/jobs/" + assetAgentJobId).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      Mockito.verify(assetAgentJobRepository).findById(assetAgentJobId);
+      Mockito.verify(assetAgentJobRepository)
+          .findByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
       Mockito.verify(injectStatusService, Mockito.never())
           .addJobRetrievalTraces(Mockito.any(AssetAgentJob.class));
-      Mockito.verify(assetAgentJobRepository, Mockito.never()).deleteById(assetAgentJobId);
+      Mockito.verify(assetAgentJobRepository, Mockito.never())
+          .deleteByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
     }
   }
 

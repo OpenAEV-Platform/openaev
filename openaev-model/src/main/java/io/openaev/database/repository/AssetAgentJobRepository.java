@@ -26,6 +26,32 @@ public interface AssetAgentJobRepository
       nativeQuery = true)
   void deleteById(@Param("assetAgentJobId") @NotBlank String assetAgentJobId);
 
+  /**
+   * Explicit-tenant read for the HTTP by-id endpoints ({@code EndpointApi#cleanupAssetAgentJob} and
+   * its deprecated sibling): the request's resolved single write tenant ({@code
+   * TenantWriteScopeResolver#tenantForWrite}), not the ambient GUC scope alone. {@code
+   * asset_agent_id} is a UUID primary key, and every eager association ({@code inject}, {@code
+   * agent}) already resolves inside the caller's own scope.
+   */
+  @Query("SELECT j FROM AssetAgentJob j WHERE j.id = :id AND j.tenant.id = :tenantId")
+  Optional<AssetAgentJob> findByIdAndTenantId(
+      @Param("id") String id, @Param("tenantId") String tenantId);
+
+  /**
+   * Explicit-tenant delete for {@code EndpointApi#cleanupAssetAgentJob}: paired with {@link
+   * #findByIdAndTenantId}, an explicit predicate rather than relying on the GUC-based rewrite alone
+   * for a native, aliased, no-tenant-predicate DELETE.
+   */
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM asset_agent_jobs j WHERE j.asset_agent_id = :assetAgentJobId AND"
+              + " j.tenant_id = :tenantId",
+      nativeQuery = true)
+  void deleteByIdAndTenantId(
+      @Param("assetAgentJobId") @NotBlank String assetAgentJobId,
+      @Param("tenantId") String tenantId);
+
   @Query(
       value =
           """
