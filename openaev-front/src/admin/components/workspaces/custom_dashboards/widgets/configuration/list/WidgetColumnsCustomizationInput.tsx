@@ -90,13 +90,18 @@ const WidgetColumnsCustomizationInput: FunctionComponent<WidgetConfigColumnsCust
             <List sx={{
               border: `1px solid ${theme.palette.common.white}`,
               borderRadius: `${theme.borderRadius}px`,
+              paddingBlock: theme.spacing(1),
             }}
             >
               {availableColumns.map(column => (
                 <ListItem
                   disablePadding
                   key={column.attribute}
-                  sx={{ height: 42 }}
+                  sx={{
+                    height: 42,
+                    paddingInline: 2,
+                    gap: 1.5,
+                  }}
                 >
                   <Checkbox
                     aria-label={formatColumnName(column)}
