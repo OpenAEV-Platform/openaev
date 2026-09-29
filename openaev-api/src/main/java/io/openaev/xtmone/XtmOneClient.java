@@ -71,6 +71,7 @@ public class XtmOneClient {
   private final OpenAEVConfig openAEVConfig;
   private final HttpClientFactory httpClientFactory;
   private final UserService userService;
+  private final XtmOneIdentity xtmOneIdentity;
 
   public String issueAuthenticationJwt(String userId, String userName, String userEmail) {
     Instant now = Instant.now();
@@ -83,7 +84,7 @@ public class XtmOneClient {
         .claim("name", userName)
         .claim("email", userEmail)
         .audience()
-        .add(config.getUrl())
+        .add(xtmOneIdentity.audience())
         .and()
         .issuedAt(Date.from(now))
         .expiration(Date.from(now.plus(Duration.ofMinutes(10))))

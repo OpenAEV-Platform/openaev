@@ -149,6 +149,15 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.hub.collector.id                          | OPENAEV_XTM_HUB_COLLECTOR_ID                          | b402f1f5-29ba-4ee3-b366-f0467754cf4e | Identifier of the XTM Hub connectivity collector                    |
 | openaev.xtm.hub.collector.connectivity-check-interval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 1 hour in milliseconds               | Interval at which the connectivity with XTM Hub is checked          |
 
+#### XTM Suite: XTM One
+
+| Parameter            | Environment variable  | Default value | Description                                                                                                       |
+|:---------------------|:----------------------|:--------------|:------------------------------------------------------------------------------------------------------------------|
+| openaev.xtm.one.url   | OPENAEV_XTM_ONE_URL   |               | XTM One URL, as reachable from OpenAEV (an internal address such as `http://xtm-one:4000` in Docker works)         |
+| openaev.xtm.one.token | OPENAEV_XTM_ONE_TOKEN |               | XTM One registration token. With the URL, OpenAEV registers with XTM One every 5 minutes                          |
+
+OpenAEV signs the requests of its users to XTM One, and verifies the requests XTM One sends back, with short-lived tokens. When `OPENAEV_XTM_ONE_URL` is an internal address, OpenAEV reads XTM One's public identity (its `BASE_URL`) from `/xtm/auth/metadata` on that address and fetches XTM One's signing keys there too, so the two URLs may differ. On the XTM One side, set `OPENAEV_API_URL` to the address XTM One reaches OpenAEV on. `openaev.base-url` stays the public URL of OpenAEV: it is the identity XTM One trusts, and the audience OpenAEV expects on XTM One's tokens.
+
 #### PostgreSQL
 
 | Parameter                  | Environment variable       | Default value         | Description                                                                                |
