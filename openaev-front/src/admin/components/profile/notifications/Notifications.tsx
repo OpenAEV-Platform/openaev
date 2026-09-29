@@ -313,7 +313,6 @@ const Notifications = () => {
                               : <CheckCircleOutlined fontSize="small" />}
                             aria-label={notification.notification_is_read ? t('Mark as unread') : t('Mark as read')}
                             onClick={() => onToggleRead(notification)}
-                            active={!(notification.notification_is_read)}
                             priority="tertiary"
                             size="sm"
                           />
