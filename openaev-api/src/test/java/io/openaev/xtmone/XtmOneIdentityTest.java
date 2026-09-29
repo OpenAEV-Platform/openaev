@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -63,7 +64,7 @@ class XtmOneIdentityTest {
 
   @SuppressWarnings("unchecked")
   private void metadataAnswers(String... bodies) throws IOException {
-    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
+    when(httpClientFactory.httpClientNoRetry(any())).thenReturn(httpClient);
     when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
         .thenReturn(bodies[0], Arrays.copyOfRange(bodies, 1, bodies.length));
   }
@@ -108,7 +109,7 @@ class XtmOneIdentityTest {
   void notPublishedDropsThePublishedIdentity() throws Exception {
     Instant start = Instant.parse("2026-09-29T12:00:00Z");
     identity.clock = Clock.fixed(start, ZoneOffset.UTC);
-    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
+    when(httpClientFactory.httpClientNoRetry(any())).thenReturn(httpClient);
     when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
         .thenReturn("{\"issuer\":\"" + PUBLIC_ISSUER + "\"}")
         .thenThrow(new XtmOneIdentity.IdentityNotPublished());
@@ -134,6 +135,48 @@ class XtmOneIdentityTest {
     assertThat(identity.audience()).isEqualTo(PUBLIC_ISSUER);
     verify(httpClient, times(2))
         .execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{}",
+        "{\"issuer\":null}",
+        "{\"issuer\":42}",
+        "{\"issuer\":\"ftp://xtm.example\"}",
+        "{\"issuer\":\"https://user@xtm.example\"}",
+        "null"
+      })
+  @DisplayName("a 200 naming no usable issuer is a failed read: the last identity is kept")
+  void metadataWithoutAUsableIssuerKeepsThePublishedIdentity(String body) throws Exception {
+    Instant start = Instant.parse("2026-09-29T12:00:00Z");
+    identity.clock = Clock.fixed(start, ZoneOffset.UTC);
+    metadataAnswers("{\"issuer\":\"" + PUBLIC_ISSUER + "\"}", body, body);
+    assertThat(identity.audience()).isEqualTo(PUBLIC_ISSUER);
+
+    identity.clock = Clock.fixed(start.plus(Duration.ofHours(2)), ZoneOffset.UTC);
+
+    assertThat(identity.audience()).isEqualTo(PUBLIC_ISSUER);
+    assertThat(identity.isXtmOneIssuer(PUBLIC_ISSUER)).isTrue();
+
+    identity.clock =
+        Clock.fixed(
+            start.plus(Duration.ofHours(2)).plus(XtmOneIdentity.RETRY_AFTER).plusSeconds(1),
+            ZoneOffset.UTC);
+    identity.audience();
+    verify(httpClient, times(3))
+        .execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any());
+  }
+
+  @Test
+  @DisplayName("the metadata is read on a client whose connection is bounded, not only the answer")
+  void readsTheMetadataOnABoundedClient() throws Exception {
+    metadataAnswers("{\"issuer\":\"" + PUBLIC_ISSUER + "\"}");
+
+    identity.audience();
+
+    verify(httpClientFactory).httpClientNoRetry(XtmOneIdentity.METADATA_TIMEOUT);
+    assertThat(XtmOneIdentity.METADATA_TIMEOUT.toSeconds()).isLessThanOrEqualTo(10);
   }
 
   @ParameterizedTest
@@ -169,7 +212,7 @@ class XtmOneIdentityTest {
   void callersDoNotWaitOnARefresh() throws Exception {
     CountDownLatch reading = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
-    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
+    when(httpClientFactory.httpClientNoRetry(any())).thenReturn(httpClient);
     when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
         .thenAnswer(
             invocation -> {

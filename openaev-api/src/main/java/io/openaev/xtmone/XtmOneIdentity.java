@@ -40,6 +40,7 @@ public class XtmOneIdentity {
 
   static final Duration IDENTITY_TTL = Duration.ofHours(1);
   static final Duration RETRY_AFTER = Duration.ofMinutes(1);
+  static final Timeout METADATA_TIMEOUT = Timeout.ofSeconds(10);
 
   private final XtmOneConfig config;
   private final HttpClientFactory httpClientFactory;
@@ -113,7 +114,8 @@ public class XtmOneIdentity {
 
   /**
    * What XTM One answered: definitive with its identity, definitive with none (a 404: it publishes
-   * no identity, so its tokens carry the configured URL), or not definitive (it could not be read).
+   * no identity, so its tokens carry the configured URL), or not definitive (it could not be read,
+   * or its document names no usable issuer).
    */
   record Answer(boolean definitive, String issuer) {}
 
@@ -128,17 +130,22 @@ public class XtmOneIdentity {
     if (config.getUrl() == null || config.getUrl().isBlank()) {
       return new Answer(false, null);
     }
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry(METADATA_TIMEOUT)) {
       HttpGet httpGet = new HttpGet(config.getUrl() + "/xtm/auth/metadata");
-      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(METADATA_TIMEOUT).build());
       String body = httpClient.execute(httpGet, XtmOneIdentity::readMetadata);
       if (body == null) {
         return new Answer(false, null);
       }
       JsonNode issuer = objectMapper.readTree(body).get("issuer");
-      return new Answer(
-          true,
-          issuer != null && issuer.isTextual() ? canonical(issuer.asText()).orElse(null) : null);
+      Optional<String> published =
+          issuer != null && issuer.isTextual() ? canonical(issuer.asText()) : Optional.empty();
+      if (published.isEmpty()) {
+        // Only a 404 says XTM One publishes no identity: a document without one is a failed read.
+        log.debug("XTM One metadata at {} carries no usable issuer", config.getUrl());
+        return new Answer(false, null);
+      }
+      return new Answer(true, published.get());
     } catch (IdentityNotPublished e) {
       return new Answer(true, null);
     } catch (Exception e) {
