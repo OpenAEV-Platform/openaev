@@ -86,6 +86,7 @@ class InjectServiceTest {
   @Mock private InjectAgentResolverService injectAgentResolverService;
   @Mock private TeamRepository teamRepository;
   @Mock private AgentRepository agentRepository;
+  @Mock private SecretReferenceRepository secretReferenceRepository;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
