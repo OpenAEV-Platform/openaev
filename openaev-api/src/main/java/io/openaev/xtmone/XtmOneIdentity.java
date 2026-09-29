@@ -69,6 +69,15 @@ public class XtmOneIdentity {
     return publishedIssuer().orElse(config.getUrl());
   }
 
+  /**
+   * Where a browser opens XTM One: the identity it last published, else its configured URL. Never
+   * reads XTM One, so no page waits on it; {@link XtmOneConnectivityService} keeps it fresh.
+   */
+  public String browserUrl() {
+    Cached current = cached;
+    return current != null && current.issuer() != null ? current.issuer() : config.getUrl();
+  }
+
   /** The issuer XTM One publishes, empty when it publishes none or has never answered. */
   public Optional<String> publishedIssuer() {
     Cached current = cached;

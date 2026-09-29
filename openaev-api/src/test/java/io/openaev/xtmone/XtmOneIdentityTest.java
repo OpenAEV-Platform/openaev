@@ -91,6 +91,41 @@ class XtmOneIdentityTest {
   }
 
   @Test
+  @DisplayName("the browser opens XTM One on its configured URL until its identity is read")
+  void browserUrlNeverReadsXtmOne() {
+    assertThat(identity.browserUrl()).isEqualTo(INTERNAL_URL);
+    verifyNoInteractions(httpClientFactory);
+  }
+
+  @Test
+  @DisplayName("the browser opens XTM One on the identity it published, even past its expiry")
+  @SuppressWarnings("unchecked")
+  void browserUrlIsTheLastPublishedIdentity() throws Exception {
+    Instant start = Instant.parse("2026-09-29T12:00:00Z");
+    identity.clock = Clock.fixed(start, ZoneOffset.UTC);
+    metadataAnswers("{\"issuer\":\"" + PUBLIC_ISSUER + "/\"}");
+    identity.publishedIssuer();
+
+    identity.clock = Clock.fixed(start.plus(Duration.ofHours(2)), ZoneOffset.UTC);
+
+    assertThat(identity.browserUrl()).isEqualTo(PUBLIC_ISSUER);
+    verify(httpClient, times(1))
+        .execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any());
+  }
+
+  @Test
+  @DisplayName("the browser opens XTM One on its configured URL when it publishes no identity")
+  @SuppressWarnings("unchecked")
+  void browserUrlFallsBackToTheConfiguredUrl() throws Exception {
+    when(httpClientFactory.httpClientNoRetry(any())).thenReturn(httpClient);
+    when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
+        .thenThrow(new XtmOneIdentity.IdentityNotPublished());
+    identity.publishedIssuer();
+
+    assertThat(identity.browserUrl()).isEqualTo(INTERNAL_URL);
+  }
+
+  @Test
   @DisplayName("the published identity is fetched once, not on every token")
   void cachesThePublishedIdentity() throws Exception {
     metadataAnswers("{\"issuer\":\"" + PUBLIC_ISSUER + "\"}");
