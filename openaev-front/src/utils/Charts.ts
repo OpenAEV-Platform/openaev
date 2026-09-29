@@ -144,6 +144,12 @@ export const lineChartOptions = ({
         ? 'rgba(255, 255, 255, .1)'
         : 'rgba(0, 0, 0, .1)',
     strokeDashArray: 3,
+    ...(isTimeSeries && {
+      padding: {
+        left: 24,
+        right: 24,
+      },
+    }),
   },
   legend: {
     show: true,
@@ -170,6 +176,12 @@ export const lineChartOptions = ({
     tickPlacement: 'on',
     labels: {
       formatter: (value: string) => (xFormatter ? xFormatter(value) : value),
+      // Kept horizontal: a tilted first date reaches even further left than a
+      // centered one and gets clipped again. Crowded dates are hidden instead.
+      ...(isTimeSeries && {
+        rotate: 0,
+        hideOverlappingLabels: true,
+      }),
       style: {
         fontSize: '12px',
         fontFamily: '"IBM Plex Sans", sans-serif',
