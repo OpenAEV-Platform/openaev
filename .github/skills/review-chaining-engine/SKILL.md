@@ -1,3 +1,11 @@
+---
+name: review-chaining-engine
+description: >-
+  Reviews or modifies the OpenAEV Chaining Engine: step lifecycle, condition evaluation,
+  queue processing, WorkflowState, timeout handling, scope resolution and the inject lifecycle AOP bridge.
+  Use when touching **/chaining/**, QueueChainingJob or WorkflowTimeoutJob.
+---
+
 # Skill: Review Chaining Engine
 
 ## Purpose
