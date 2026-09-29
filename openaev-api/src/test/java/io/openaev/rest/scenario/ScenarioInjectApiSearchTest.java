@@ -15,6 +15,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.utils.fixtures.InjectorContractFixture;
@@ -47,7 +48,10 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
     InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     EMAIL_INJECTOR_CONTRACT_ID = injectorContract.getFirstInjector().getId();
 
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
+    // class-wide fixture names the default tenant explicitly rather than relying on it.
     Scenario scenario = createDefaultCrisisScenario();
+    scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Scenario scenarioSaved = this.scenarioRepository.save(scenario);
     SCENARIO_ID = scenarioSaved.getId();
 
@@ -55,12 +59,14 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
     injectDefaultEmail.setScenario(scenarioSaved);
     injectDefaultEmail.setTitle("Inject default email");
     injectDefaultEmail.setDependsDuration(1L);
+    injectDefaultEmail.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Inject injectDefaultEmailSaved = this.injectRepository.save(injectDefaultEmail);
     INJECT_IDS.add(injectDefaultEmailSaved.getId());
 
     Inject injectDefaultGlobal = getInjectForEmailContract(injectorContract);
     injectDefaultGlobal.setScenario(scenarioSaved);
     injectDefaultGlobal.setTitle("Inject global email");
+    injectDefaultGlobal.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Inject injectDefaultGlobalSaved = this.injectRepository.save(injectDefaultGlobal);
     INJECT_IDS.add(injectDefaultGlobalSaved.getId());
   }

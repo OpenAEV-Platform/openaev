@@ -85,9 +85,14 @@ class ScenarioInjectApiTest extends IntegrationTest {
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");
     scenario.setReplyTos(List.of("test@test.com"));
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
+    // class-wide fixture names the default tenant explicitly rather than relying on it.
+    scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     SCENARIO = scenarioService.createScenario(scenario);
 
-    ATTACKPATTERN = attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+    AttackPattern attackPattern = AttackPatternFixture.createDefaultAttackPattern();
+    attackPattern.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    ATTACKPATTERN = attackPatternRepository.save(attackPattern);
     LINUX_X86_64 =
         endpointService.createEndpoint(
             EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64),
