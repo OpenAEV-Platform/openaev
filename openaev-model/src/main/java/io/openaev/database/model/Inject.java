@@ -1,10 +1,5 @@
 package io.openaev.database.model;
 
-import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
-import static io.openaev.database.specification.InjectSpecification.VALID_TESTABLE_TYPES;
-import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -15,11 +10,6 @@ import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.*;
-import io.openaev.helper.InjectModelHelper;
-import io.openaev.helper.MonoIdSerializer;
-import io.openaev.helper.MultiIdListSerializer;
-import io.openaev.helper.MultiIdSetSerializer;
-import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
@@ -27,13 +17,19 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.*;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
+import static io.openaev.database.specification.InjectSpecification.VALID_TESTABLE_TYPES;
+import static java.time.Instant.now;
+import static java.util.Optional.ofNullable;
 
 @Setter
 @Entity
@@ -343,7 +339,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Schema(implementation = String[].class)
   @Getter
-  @ManyToMany(fetch = FetchType.LAZY)
+  @ManyToMany(fetch = FetchType.EAGER)
   @Fetch(FetchMode.SUBSELECT)
   @JoinTable(
       name = "injects_secret_references",
