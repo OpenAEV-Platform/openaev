@@ -39,8 +39,8 @@ itself, so their colour and dash pattern cannot drift from what they describe.
 
 ## The one thing to understand
 
-Almost nothing in this pipeline waits. Of the 16 job definitions in `_ci-pipeline.yml`,
-**12 launch at t = 0 with no `needs:` at all**; only 4 declare a dependency.
+Almost nothing in this pipeline waits. Of the 20 job definitions in `_ci-pipeline.yml`,
+**14 launch at t = 0 with no `needs:` at all**; only 6 declare a dependency.
 
 `needs:` waits for the *entire* upstream job to finish — including the artifact
 gzip / validate / upload tail, roughly 2.5 min the consumer never actually reads. So
@@ -52,13 +52,15 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The four real `needs:` edges
+### The six real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
 | **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
 | **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
-| **Coverage Merge & Upload** | API Tests, Frontend Quality, E2E Tests, API Types Check | Must see every shard's result; runs `if: !cancelled()` |
+| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure |
+| **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
+| **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
 | **Pipeline Gate** | 14 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
@@ -120,7 +122,9 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 |-----|-------------------|---------|
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
-| 📊 **Coverage Merge & Upload** | 15 min | Merges JaCoCo shards + Vitest + Playwright → Codecov |
+| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → Codecov flag `backend` |
+| 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
+| 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
 | ✅ **Pipeline Gate** | 10 min | Branch-protection status check |
 
 ---
