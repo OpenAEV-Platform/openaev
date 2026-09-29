@@ -170,7 +170,15 @@ const Endpoints = () => {
         }}
         >
           <AssetCategoryIcon category={endpoint.asset_category} fontSize="small" />
-          {endpoint.asset_category ? t(humanizeEnum(endpoint.asset_category)) : '-'}
+          <span style={{
+            width: 'fit-content',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          >
+            {endpoint.asset_category ? t(humanizeEnum(endpoint.asset_category)) : '-'}
+          </span>
         </span>
       ),
     },
