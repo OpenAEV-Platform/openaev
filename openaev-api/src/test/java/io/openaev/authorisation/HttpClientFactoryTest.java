@@ -39,7 +39,10 @@ class HttpClientFactoryTest {
     HttpClientFactory factory = new HttpClientFactory(jdkTrustManager());
     List<Socket> accepted = new CopyOnWriteArrayList<>();
     ExecutorService acceptor = Executors.newSingleThreadExecutor();
-    try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+    // The address the request targets: a server on another loopback family would refuse the
+    // connection at once and never reach a handshake.
+    InetAddress loopback = InetAddress.getByName("127.0.0.1");
+    try (ServerSocket server = new ServerSocket(0, 1, loopback)) {
       // Accepts the connection and never answers the ClientHello.
       acceptor.submit(
           () -> {
@@ -51,11 +54,17 @@ class HttpClientFactoryTest {
           });
       Instant start = Instant.now();
       try (CloseableHttpClient client = factory.httpClientNoRetry(Timeout.ofMilliseconds(500))) {
-        HttpGet get = new HttpGet("https://127.0.0.1:" + server.getLocalPort() + "/");
+        HttpGet get =
+            new HttpGet("https://" + loopback.getHostAddress() + ":" + server.getLocalPort() + "/");
         assertThatThrownBy(() -> client.execute(get, response -> response.getCode()))
             .isInstanceOf(IOException.class);
       }
-      assertThat(Duration.between(start, Instant.now())).isLessThan(Duration.ofSeconds(10));
+      Duration elapsed = Duration.between(start, Instant.now());
+      // Connected, then waited out the bound on the handshake: not a refused connection.
+      assertThat(accepted).hasSize(1);
+      assertThat(elapsed)
+          .isGreaterThanOrEqualTo(Duration.ofMillis(400))
+          .isLessThan(Duration.ofSeconds(10));
     } finally {
       for (Socket socket : accepted) {
         socket.close();

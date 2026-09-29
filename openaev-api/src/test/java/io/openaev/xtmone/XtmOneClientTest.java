@@ -7,15 +7,22 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Jwts;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.service.xtm_auth.XtmAuthKeyService;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
@@ -504,6 +511,72 @@ class XtmOneClientTest {
               ResponseStatusException.class,
               () -> xtmOneClient.steerChatMessage("hello", "conv-1"));
       assertEquals(500, ex.getStatusCode().value());
+    }
+  }
+
+  @Nested
+  @DisplayName("issueAuthenticationJwt")
+  class IssueAuthenticationJwt {
+
+    private static final String INTERNAL_URL = "http://xtm-one:4000";
+    private static final String PUBLIC_ISSUER = "http://localhost:8090";
+
+    /** The audience of a token OpenAEV sends to XTM One reached on its internal URL. */
+    @SuppressWarnings("unchecked")
+    private Set<String> audienceWhenTheMetadataAnswers(Object answer) throws Exception {
+      XtmOneConfig xtmOneConfig = new XtmOneConfig();
+      xtmOneConfig.setUrl(INTERNAL_URL);
+      OpenAEVConfig openAEVConfig = new OpenAEVConfig();
+      openAEVConfig.setBaseUrl("http://localhost:8080");
+      KeyPair keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+      XtmAuthKeyService keyService = mock(XtmAuthKeyService.class);
+      when(keyService.getKid()).thenReturn("openaev");
+      when(keyService.getKeyPair()).thenReturn(keyPair);
+      when(httpClientFactory.httpClientNoRetry(any())).thenReturn(httpClient);
+      var metadata =
+          when(
+              httpClient.execute(
+                  (ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()));
+      if (answer instanceof Exception failure) {
+        metadata.thenThrow(failure);
+      } else {
+        metadata.thenReturn((String) answer);
+      }
+      ObjectMapper mapper = new ObjectMapper();
+      XtmOneClient client =
+          new XtmOneClient(
+              xtmOneConfig,
+              mapper,
+              keyService,
+              openAEVConfig,
+              httpClientFactory,
+              null,
+              new XtmOneIdentity(xtmOneConfig, httpClientFactory, mapper));
+
+      String jwt = client.issueAuthenticationJwt("user-1", "Analyst", "analyst@example.com");
+
+      return Jwts.parser()
+          .verifyWith(keyPair.getPublic())
+          .build()
+          .parseSignedClaims(jwt)
+          .getPayload()
+          .getAudience();
+    }
+
+    @Test
+    @DisplayName("Given XTM One publishes its identity should address the token to it")
+    void given_publishedIdentity_should_addressTheTokenToIt() throws Exception {
+      assertEquals(
+          Set.of(PUBLIC_ISSUER),
+          audienceWhenTheMetadataAnswers("{\"issuer\":\"" + PUBLIC_ISSUER + "/\"}"));
+    }
+
+    @Test
+    @DisplayName("Given XTM One publishes no identity should address the token to its URL")
+    void given_noPublishedIdentity_should_addressTheTokenToTheConfiguredUrl() throws Exception {
+      assertEquals(
+          Set.of(INTERNAL_URL),
+          audienceWhenTheMetadataAnswers(new XtmOneIdentity.IdentityNotPublished()));
     }
   }
 }
