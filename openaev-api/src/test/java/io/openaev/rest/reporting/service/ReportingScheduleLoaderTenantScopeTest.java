@@ -2,11 +2,11 @@ package io.openaev.rest.reporting.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openaev.IntegrationTest;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.IntegrationTest;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
