@@ -53,6 +53,7 @@ const Catalog = ({ catalogConnectors, isXtmComposerUp }: Props) => {
             onDeployBtnClick={e => onDeployBtnClick(e, item)}
             deploymentCount={item.deployedCount}
             size={view === 'card' ? 'sm' : 'md'}
+            buttonStyle={view === 'line' ? { height: 26 } : undefined}
           />
         )}
       />
