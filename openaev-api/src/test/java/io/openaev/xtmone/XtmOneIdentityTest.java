@@ -1,7 +1,9 @@
 package io.openaev.xtmone;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -10,6 +12,10 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import java.io.IOException;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -19,7 +25,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -95,6 +103,58 @@ class XtmOneIdentityTest {
   }
 
   @Test
+  @DisplayName("a 404 drops the published identity: XTM One is known by its configured URL again")
+  @SuppressWarnings("unchecked")
+  void notPublishedDropsThePublishedIdentity() throws Exception {
+    Instant start = Instant.parse("2026-09-29T12:00:00Z");
+    identity.clock = Clock.fixed(start, ZoneOffset.UTC);
+    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
+    when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
+        .thenReturn("{\"issuer\":\"" + PUBLIC_ISSUER + "\"}")
+        .thenThrow(new XtmOneIdentity.IdentityNotPublished());
+    assertThat(identity.audience()).isEqualTo(PUBLIC_ISSUER);
+
+    identity.clock = Clock.fixed(start.plus(Duration.ofHours(2)), ZoneOffset.UTC);
+
+    assertThat(identity.publishedIssuer()).isEmpty();
+    assertThat(identity.isXtmOneIssuer(PUBLIC_ISSUER)).isFalse();
+    assertThat(identity.audience()).isEqualTo(INTERNAL_URL);
+  }
+
+  @Test
+  @DisplayName("a transient failure keeps the identity XTM One published last")
+  void transientFailureKeepsThePublishedIdentity() throws Exception {
+    Instant start = Instant.parse("2026-09-29T12:00:00Z");
+    identity.clock = Clock.fixed(start, ZoneOffset.UTC);
+    metadataAnswers("{\"issuer\":\"" + PUBLIC_ISSUER + "\"}", null);
+    assertThat(identity.audience()).isEqualTo(PUBLIC_ISSUER);
+
+    identity.clock = Clock.fixed(start.plus(Duration.ofHours(2)), ZoneOffset.UTC);
+
+    assertThat(identity.audience()).isEqualTo(PUBLIC_ISSUER);
+    verify(httpClient, times(2))
+        .execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any());
+  }
+
+  @ParameterizedTest
+  @CsvSource({"200, body", "404, not published", "503, unavailable", "302, unavailable"})
+  @DisplayName("the metadata response is read by its status code")
+  void readsTheMetadataStatus(int code, String expected) throws Exception {
+    ClassicHttpResponse response = mock(ClassicHttpResponse.class);
+    when(response.getCode()).thenReturn(code);
+    if (code == 200) {
+      when(response.getEntity()).thenReturn(new StringEntity("{}"));
+    }
+    switch (expected) {
+      case "body" -> assertThat(XtmOneIdentity.readMetadata(response)).isEqualTo("{}");
+      case "not published" ->
+          assertThatThrownBy(() -> XtmOneIdentity.readMetadata(response))
+              .isInstanceOf(XtmOneIdentity.IdentityNotPublished.class);
+      default -> assertThat(XtmOneIdentity.readMetadata(response)).isNull();
+    }
+  }
+
+  @Test
   @DisplayName("XTM One on its public URL (SaaS): its own tokens are trusted without any call")
   void configuredIssuerNeedsNoCall() {
     config.setUrl("https://acme.one.filigran.io");
@@ -135,6 +195,8 @@ class XtmOneIdentityTest {
 
   @ParameterizedTest
   @CsvSource({
+    "http://xtm_one:80, http://xtm_one",
+    "https://XTM_ONE:443/, https://xtm_one",
     "HTTP://LocalHost:8090/, http://localhost:8090",
     "https://xtm.example.com:443/base/, https://xtm.example.com/base",
     "http://xtm_one:4000, http://xtm_one:4000",
@@ -146,7 +208,18 @@ class XtmOneIdentityTest {
   }
 
   @ParameterizedTest
-  @CsvSource({"ftp://xtm-one", "not a url", "''"})
+  @CsvSource({
+    "ftp://xtm-one",
+    "not a url",
+    "''",
+    "https://xtm-one.example/?target=other",
+    "https://xtm-one.example/#fragment",
+    "https://user@xtm-one.example",
+    "http://user@xtm_one:4000",
+    "http://xtm_one:notaport",
+    "http://xtm_one:0",
+    "http://xtm_one:99999",
+  })
   @DisplayName("anything but an http(s) URL has no canonical form")
   void refusesNonHttpUrls(String url) {
     assertThat(XtmOneIdentity.canonical(url)).isEqualTo(Optional.empty());

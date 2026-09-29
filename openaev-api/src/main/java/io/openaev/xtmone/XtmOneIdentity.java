@@ -3,9 +3,11 @@ package io.openaev.xtmone;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
@@ -17,6 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
@@ -43,6 +47,9 @@ public class XtmOneIdentity {
 
   private record Cached(String issuer, Instant expiresAt) {}
 
+  /** Replaced by tests to expire the cached identity. */
+  Clock clock = Clock.systemUTC();
+
   private final ReentrantLock refreshLock = new ReentrantLock();
   private volatile Cached cached;
 
@@ -64,7 +71,7 @@ public class XtmOneIdentity {
   /** The issuer XTM One publishes, empty when it publishes none or has never answered. */
   public Optional<String> publishedIssuer() {
     Cached current = cached;
-    if (current != null && !current.expiresAt().isBefore(Instant.now())) {
+    if (current != null && !current.expiresAt().isBefore(clock.instant())) {
       return Optional.ofNullable(current.issuer());
     }
     // One thread reads XTM One; the others keep the last answer instead of waiting on it.
@@ -80,51 +87,80 @@ public class XtmOneIdentity {
 
   private Cached refresh() {
     Cached current = cached;
-    if (current != null && !current.expiresAt().isBefore(Instant.now())) {
+    if (current != null && !current.expiresAt().isBefore(clock.instant())) {
       return current;
     }
     String previous = current != null ? current.issuer() : null;
-    Optional<String> fetched = fetchIssuer();
-    Cached next =
-        fetched
-            .map(issuer -> new Cached(issuer, Instant.now().plus(IDENTITY_TTL)))
-            // Keep the last identity XTM One published while it cannot be reached.
-            .orElseGet(() -> new Cached(previous, Instant.now().plus(RETRY_AFTER)));
-    if (fetched.isPresent() && !Objects.equals(fetched.get(), previous)) {
-      log.info("XTM One reached on {} signs as {}", config.getUrl(), fetched.get());
+    Answer answer = fetchIssuer();
+    Cached next;
+    if (answer.definitive()) {
+      // No identity published: asked again soon, so an XTM One that starts publishing is seen.
+      Duration ttl = answer.issuer() != null ? IDENTITY_TTL : RETRY_AFTER;
+      next = new Cached(answer.issuer(), clock.instant().plus(ttl));
+      if (!Objects.equals(answer.issuer(), previous)) {
+        log.info(
+            "XTM One reached on {} signs as {}",
+            config.getUrl(),
+            answer.issuer() != null ? answer.issuer() : config.getUrl());
+      }
+    } else {
+      // Keep the last identity XTM One published while it cannot be reached.
+      next = new Cached(previous, clock.instant().plus(RETRY_AFTER));
     }
     cached = next;
     return next;
   }
 
-  private Optional<String> fetchIssuer() {
+  /**
+   * What XTM One answered: definitive with its identity, definitive with none (a 404: it publishes
+   * no identity, so its tokens carry the configured URL), or not definitive (it could not be read).
+   */
+  record Answer(boolean definitive, String issuer) {}
+
+  /** A 404 from the metadata document: XTM One publishes no identity. */
+  static final class IdentityNotPublished extends IOException {
+    IdentityNotPublished() {
+      super("XTM One publishes no identity");
+    }
+  }
+
+  private Answer fetchIssuer() {
     if (config.getUrl() == null || config.getUrl().isBlank()) {
-      return Optional.empty();
+      return new Answer(false, null);
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       HttpGet httpGet = new HttpGet(config.getUrl() + "/xtm/auth/metadata");
       httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
-      String body =
-          httpClient.execute(
-              httpGet,
-              response ->
-                  response.getCode() == 200
-                      ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8)
-                      : null);
+      String body = httpClient.execute(httpGet, XtmOneIdentity::readMetadata);
       if (body == null) {
-        return Optional.empty();
+        return new Answer(false, null);
       }
       JsonNode issuer = objectMapper.readTree(body).get("issuer");
-      return issuer != null && issuer.isTextual() ? canonical(issuer.asText()) : Optional.empty();
+      return new Answer(
+          true,
+          issuer != null && issuer.isTextual() ? canonical(issuer.asText()).orElse(null) : null);
+    } catch (IdentityNotPublished e) {
+      return new Answer(true, null);
     } catch (Exception e) {
       log.debug("XTM One identity unavailable at {}", config.getUrl(), e);
-      return Optional.empty();
+      return new Answer(false, null);
     }
+  }
+
+  /** The metadata body of a 200, {@link IdentityNotPublished} on a 404, null otherwise. */
+  static String readMetadata(ClassicHttpResponse response) throws IOException, ParseException {
+    if (response.getCode() == 404) {
+      throw new IdentityNotPublished();
+    }
+    return response.getCode() == 200
+        ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8)
+        : null;
   }
 
   /**
    * {@code url} as one spelling: lower-case scheme and host, no default port, no trailing slash.
-   * Empty for anything but an http(s) URL.
+   * Empty for anything but an http(s) URL made of a host, an optional port and a path: user info, a
+   * query or a fragment would make two different identities compare equal.
    */
   public static Optional<String> canonical(String url) {
     if (url == null || url.isBlank()) {
@@ -136,23 +172,36 @@ public class XtmOneIdentity {
       if (!scheme.equals("http") && !scheme.equals("https")) {
         return Optional.empty();
       }
-      String authority;
-      if (uri.getHost() != null) {
-        int port = uri.getPort();
-        boolean defaultPort =
-            port == -1
-                || (scheme.equals("http") && port == 80)
-                || (scheme.equals("https") && port == 443);
-        authority = uri.getHost().toLowerCase(Locale.ROOT) + (defaultPort ? "" : ":" + port);
-      } else if (uri.getRawAuthority() != null) {
-        // A host java.net.URI does not read as a server name: an underscore, as in xtm_one.
-        authority = uri.getRawAuthority().toLowerCase(Locale.ROOT);
-      } else {
+      if (uri.getRawUserInfo() != null
+          || uri.getRawQuery() != null
+          || uri.getRawFragment() != null
+          || uri.getRawAuthority() == null
+          || uri.getRawAuthority().contains("@")) {
         return Optional.empty();
       }
+      String host;
+      int port;
+      if (uri.getHost() != null) {
+        host = uri.getHost();
+        port = uri.getPort();
+      } else {
+        // A host java.net.URI does not read as a server name: an underscore, as in xtm_one.
+        String authority = uri.getRawAuthority();
+        int colon = authority.lastIndexOf(':');
+        host = colon >= 0 ? authority.substring(0, colon) : authority;
+        port = colon >= 0 ? Integer.parseInt(authority.substring(colon + 1)) : -1;
+      }
+      if (host.isEmpty() || port == 0 || port > 65535) {
+        return Optional.empty();
+      }
+      boolean defaultPort =
+          port == -1
+              || (scheme.equals("http") && port == 80)
+              || (scheme.equals("https") && port == 443);
+      String authority = host.toLowerCase(Locale.ROOT) + (defaultPort ? "" : ":" + port);
       String path = uri.getRawPath() == null ? "" : uri.getRawPath().replaceAll("/+$", "");
       return Optional.of(scheme + "://" + authority + path);
-    } catch (URISyntaxException e) {
+    } catch (URISyntaxException | NumberFormatException e) {
       return Optional.empty();
     }
   }
