@@ -12,6 +12,7 @@ import type { Article, Variable } from '../../../../../utils/api-types';
 import { type ContractElement, type EnhancedContractElement } from '../../../../../utils/api-types-custom';
 import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
 import InjectAddAssetGroups from '../../../simulations/simulation/injects/asset_groups/InjectAddAssetGroups';
@@ -55,6 +56,7 @@ const InjectContentForm = ({
   const theme = useTheme();
   const { control, setValue, getValues, formState: { errors } } = useFormContext();
   const ability = useAbility();
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
   // -- TEAMS --
   const renderTeams = (err?: string | null) => (
@@ -209,6 +211,9 @@ const InjectContentForm = ({
             const key = enhancedFieldsMapByType.get('asset-group')?.key;
             return renderSourceAssetGroups(key ? errors[key]?.message as string : null, enhancedFieldsMapByType.get('asset-group')?.isInMandatoryGroup, enhancedFieldsMapByType.get('asset-group')?.mandatoryGroupContractElementLabels);
           } else if (field.type === 'credential-reference') {
+            if (!isCredentialAssetEnabled) {
+              return null;
+            }
             const key = enhancedFieldsMapByType.get('credential-reference')?.key;
             return renderCredentialReferences(key ? errors[key]?.message as string : null);
           }
