@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
@@ -42,6 +43,7 @@ public class XtmOneIdentity {
 
   private record Cached(String issuer, Instant expiresAt) {}
 
+  private final ReentrantLock refreshLock = new ReentrantLock();
   private volatile Cached cached;
 
   /** Whether {@code issuer} names XTM One: its configured URL or the issuer it publishes. */
@@ -62,13 +64,21 @@ public class XtmOneIdentity {
   /** The issuer XTM One publishes, empty when it publishes none or has never answered. */
   public Optional<String> publishedIssuer() {
     Cached current = cached;
-    if (current == null || current.expiresAt().isBefore(Instant.now())) {
-      current = refresh();
+    if (current != null && !current.expiresAt().isBefore(Instant.now())) {
+      return Optional.ofNullable(current.issuer());
     }
-    return Optional.ofNullable(current.issuer());
+    // One thread reads XTM One; the others keep the last answer instead of waiting on it.
+    if (!refreshLock.tryLock()) {
+      return Optional.ofNullable(current != null ? current.issuer() : null);
+    }
+    try {
+      return Optional.ofNullable(refresh().issuer());
+    } finally {
+      refreshLock.unlock();
+    }
   }
 
-  private synchronized Cached refresh() {
+  private Cached refresh() {
     Cached current = cached;
     if (current != null && !current.expiresAt().isBefore(Instant.now())) {
       return current;
@@ -91,7 +101,7 @@ public class XtmOneIdentity {
     if (config.getUrl() == null || config.getUrl().isBlank()) {
       return Optional.empty();
     }
-    try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       HttpGet httpGet = new HttpGet(config.getUrl() + "/xtm/auth/metadata");
       httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
       String body =

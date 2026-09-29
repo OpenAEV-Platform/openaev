@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,11 @@ import io.openaev.authorisation.HttpClientFactory;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
@@ -49,7 +55,7 @@ class XtmOneIdentityTest {
 
   @SuppressWarnings("unchecked")
   private void metadataAnswers(String... bodies) throws IOException {
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
     when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
         .thenReturn(bodies[0], Arrays.copyOfRange(bodies, 1, bodies.length));
   }
@@ -86,6 +92,45 @@ class XtmOneIdentityTest {
 
     verify(httpClient, times(1))
         .execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any());
+  }
+
+  @Test
+  @DisplayName("XTM One on its public URL (SaaS): its own tokens are trusted without any call")
+  void configuredIssuerNeedsNoCall() {
+    config.setUrl("https://acme.one.filigran.io");
+
+    assertThat(identity.isXtmOneIssuer("https://acme.one.filigran.io")).isTrue();
+    verifyNoInteractions(httpClientFactory);
+  }
+
+  @Test
+  @DisplayName("a caller never waits on another thread's read of XTM One")
+  @SuppressWarnings("unchecked")
+  void callersDoNotWaitOnARefresh() throws Exception {
+    CountDownLatch reading = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
+    when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
+        .thenAnswer(
+            invocation -> {
+              reading.countDown();
+              release.await(5, TimeUnit.SECONDS);
+              return "{\"issuer\":\"" + PUBLIC_ISSUER + "\"}";
+            });
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      Future<String> slow = executor.submit(identity::audience);
+      assertThat(reading.await(5, TimeUnit.SECONDS)).isTrue();
+
+      assertThat(identity.audience()).isEqualTo(INTERNAL_URL);
+
+      release.countDown();
+      assertThat(slow.get(5, TimeUnit.SECONDS)).isEqualTo(PUBLIC_ISSUER);
+      assertThat(identity.audience()).isEqualTo(PUBLIC_ISSUER);
+    } finally {
+      release.countDown();
+      executor.shutdownNow();
+    }
   }
 
   @ParameterizedTest

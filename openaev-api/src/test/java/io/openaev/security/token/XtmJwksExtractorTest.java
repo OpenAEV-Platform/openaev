@@ -173,6 +173,7 @@ class XtmJwksExtractorTest {
     when(xtmOneConfig.getUrl()).thenReturn(internalUrl);
     JwtFixture.Bundle bundle =
         JwtFixture.generateXtmJwksJwtBundle(publicIssuer, EMAIL, AUDIENCE + "/", false);
+    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
     when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
         .thenReturn("{\"issuer\":\"" + publicIssuer + "/\"}", bundle.jwks());
@@ -198,7 +199,7 @@ class XtmJwksExtractorTest {
   @SuppressWarnings("unchecked")
   void unpublishedIssuerIsRefused() throws Exception {
     when(xtmOneConfig.getUrl()).thenReturn("http://xtm-one:4000");
-    when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
     when(httpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()))
         .thenReturn(null);
     JwtFixture.Bundle bundle =
