@@ -14,6 +14,10 @@ public class TenantBaseListener<T extends TenantBase> {
   @PrePersist
   private void manageTenant(T entity) {
     if (entity.getTenant() == null) {
+      if (!TenantContext.hasCurrentTenant()) {
+        throw new IllegalStateException(
+            "unattributed tenant write: " + entity.getClass().getSimpleName());
+      }
       entity.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     }
   }
