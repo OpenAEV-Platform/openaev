@@ -11,6 +11,12 @@ inputs:
     description: Upload the prepared assets as the shared `release-assets` artifact.
     required: false
     default: "true"
+  agent-implant-signature-private-key:
+    description: >
+      RSA private key (PEM) used to sign each agent/implant binary. Signing is
+      skipped when empty. Never pass it to jobs that run untrusted code.
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -30,6 +36,8 @@ runs:
 
     - name: Download agent & implant binaries
       shell: bash
+      env:
+        AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY: ${{ inputs.agent-implant-signature-private-key }}
       run: |
         BINARY_VERSION="${{ steps.versions.outputs.binary_version }}"
 

@@ -88,6 +88,9 @@ jobs:
           fetch-depth: 0
           filter: blob:none
       - uses: ./.github/actions/prepare-bundled-assets
+        with:
+          # PR code must never see the signing key
+          agent-implant-signature-private-key: ${{ github.event_name != 'pull_request' && secrets.AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY || '' }}
 
   # ════════════════════════════════════════════════════════════════════
   # Static quality checks
@@ -448,6 +451,8 @@ jobs:
           cache-scope: ${{ matrix.cache-scope }}
           tags: ${{ matrix.tags }}
           no-cache: ${{ inputs.no-cache }}
+          # PR code must never see the signing key
+          agent-implant-signature-private-key: ${{ github.event_name != 'pull_request' && secrets.AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY || '' }}
 
   # Consumers wait for registry markers or artifacts, not the complete build job.
   docker-merge:
