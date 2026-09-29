@@ -1038,9 +1038,11 @@ class StixApiTest extends IntegrationTest {
                       && "artifact-file-test.txt"
                           .equals(
                               ((FileDrop) inject.getPayload().get()).getFileDropFile().getName()));
-      assertThat(documentRepository.findAllDistinctByScenarioId(createdScenario.getId()))
-          .extracting(Document::getName)
-          .contains("artifact-file-test.txt");
+      Document fileDropDocument =
+          ((FileDrop) injects.iterator().next().getPayload().orElseThrow()).getFileDropFile();
+      assertThat(documentRepository.findById(fileDropDocument.getId()).orElseThrow().getScenarios())
+          .extracting(Scenario::getId)
+          .contains(createdScenario.getId());
     }
 
     @Test
