@@ -4260,6 +4260,8 @@
   "Update an asset": "Modifier un actif",
   "Update an endpoint": "Modifier un endpoint",
   "Update connector instance": "Modifier l'instance du connecteur",
+  "Update credential": "Modifier l'identifiant",
+  "Update credentials": "Modifier les identifiants",
   "Update date": "Date de mise à jour",
   "Update event": "Modifier l'événement",
   "Update Event": "Modifier l’événement",
