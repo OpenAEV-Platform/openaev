@@ -362,7 +362,10 @@ public class PayloadService {
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
-    Payload origin = this.payloadRepository.findById(payloadId).orElseThrow();
+    Payload origin =
+        this.payloadRepository
+            .findById(payloadId)
+            .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
     // Telemetry: one payload duplicated (community payload customization signal),
     // counted only once the origin payload is known to exist.
     resultsMetricCollector.recordPayloadDuplicated();

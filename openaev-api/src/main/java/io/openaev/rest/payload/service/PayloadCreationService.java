@@ -7,7 +7,9 @@ import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.SessionHelper;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.PayloadRepository;
@@ -42,26 +44,28 @@ public class PayloadCreationService {
   private final DocumentService documentService;
   private final ResultsMetricCollector resultsMetricCollector;
   private final UserService userService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   public record PayloadInjectorContractCreationResult(
       Payload payload, InjectorContract injectorContract) {}
 
   @Transactional(rollbackFor = Exception.class)
-  public PayloadInjectorContractCreationResult createPayload(PayloadCreateInput input) {
+  public PayloadInjectorContractCreationResult createPayload(TxCtx ctx, PayloadCreateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
     }
 
-    return create(input);
+    return create(ctx, input);
   }
 
-  private PayloadInjectorContractCreationResult create(PayloadCreateInput input) {
+  private PayloadInjectorContractCreationResult create(TxCtx ctx, PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload);
+    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
 
     // Manually created payloads are authored by the current user. System-driven
     // creations (startup datapacks, schedulers) have no authenticated user and

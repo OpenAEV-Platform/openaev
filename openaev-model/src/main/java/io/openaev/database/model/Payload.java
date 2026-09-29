@@ -41,7 +41,9 @@ import org.hibernate.annotations.*;
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+// payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter (#6437,
+// #6430). TenantBaseListener stays as a defensive @PrePersist fallback: every create path sets
+// the tenant explicitly, so it never fires in practice.
 @Schema(
     discriminatorProperty = "payload_type",
     oneOf = {

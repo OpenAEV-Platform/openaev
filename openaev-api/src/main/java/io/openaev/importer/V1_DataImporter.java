@@ -1933,7 +1933,7 @@ public class V1_DataImporter implements Importer {
         buildPayloadCreateInput(ctx, baseIds, payloadNode, null);
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(payloadCreateInput);
+        this.payloadCreationService.createPayload(ctx, payloadCreateInput);
     if (result.injectorContract() != null) {
       return result.injectorContract().getId();
     } else {
@@ -2062,7 +2062,7 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput =
         buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(payloadCreateInput);
+        this.payloadCreationService.createPayload(ctx, payloadCreateInput);
 
     if (result.injectorContract() != null) {
       return result.injectorContract();
