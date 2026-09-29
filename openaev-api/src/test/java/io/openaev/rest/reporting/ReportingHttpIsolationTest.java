@@ -145,6 +145,22 @@ class ReportingHttpIsolationTest extends IntegrationTest {
     assertEquals(tenantA, rawColumn("reportings", "reporting_id", id, "tenant_id"));
   }
 
+  @Test
+  @DisplayName("a create with no tenant selector is refused and leaves no row behind")
+  void given_createWithNoTenantSelector_should_returnBadRequestAndCreateNoRow() throws Exception {
+    mvc.perform(
+            post(REPORTINGS)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"reporting_name\":\"ambiguous-scope\",\"reporting_context_type\":\"PLATFORM\"}")
+                .with(csrf()))
+        .andExpect(status().isBadRequest());
+    assertEquals(
+        0L,
+        rawCountByName("reportings", "reporting_name", "ambiguous-scope"),
+        "no reporting named 'ambiguous-scope' must have been created");
+  }
+
   // -- REPORTINGS: UPDATE / DELETE cross-tenant, both routes, with ground-truth checks --
 
   @Test
@@ -372,6 +388,24 @@ class ReportingHttpIsolationTest extends IntegrationTest {
                 statement.setString(1, id);
                 try (ResultSet resultSet = statement.executeQuery()) {
                   return resultSet.next() ? resultSet.getString(1) : null;
+                }
+              }
+            });
+  }
+
+  private long rawCountByName(String table, String nameColumn, String name) {
+    entityManager.flush();
+    return entityManager
+        .unwrap(Session.class)
+        .doReturningWork(
+            connection -> {
+              try (PreparedStatement statement =
+                  connection.prepareStatement(
+                      "SELECT count(*) FROM " + table + " WHERE " + nameColumn + " = ?")) {
+                statement.setString(1, name);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                  resultSet.next();
+                  return resultSet.getLong(1);
                 }
               }
             });
