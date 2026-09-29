@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
 # Download openaev-agent and openaev-implant binaries from JFrog Artifactory.
-# Each downloaded artifact also gets a matching `.sha256` sidecar file in the
-# same directory so the checksum can be reused later as the source of truth.
 #
 # Usage:
 #   ./scripts/download-binaries.sh <BINARY_VERSION> <LOCAL_VERSION>
@@ -49,7 +47,7 @@ if [[ -n "${AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY:-}" ]]; then
     exit 1
   fi
 else
-  echo "⚠️ AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY not set, checksums will not be signed"
+  echo "⚠️ AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY not set, binaries will not be signed"
 fi
 export SIGNING_KEY_FILE
 
@@ -64,19 +62,12 @@ fetch_one() {
   # Declared here, not at top level: bash cannot export arrays, and this runs in
   # the child bash that xargs spawns.
   local curl_opts=(-L --fail --retry 3 --retry-delay 5 --silent --show-error)
-  local checksum_file
   mkdir -p "$(dirname "$2")"
   if ! curl "${curl_opts[@]}" -o "$2" "$1"; then
     echo "  ✗ FAILED  $1" >&2
     return 1
   fi
-  checksum_file="${2}.sha256"
-  if ! sha256sum "$2" > "$checksum_file"; then
-    echo "  ✗ CHECKSUM FAILED  $2" >&2
-    return 1
-  fi
   echo "  ↓ $2"
-  echo "  # $checksum_file"
   if [[ -n "$SIGNING_KEY_FILE" ]]; then
     # Sign the binary itself, so it can be verified on any machine with:
     #   openssl dgst -sha256 -verify pub.pem -signature <(base64 -d file.sig) file
