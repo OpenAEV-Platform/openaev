@@ -24,21 +24,21 @@ import java.util.stream.Collectors;
  *   <li>scope unset ({@code current_setting} returns NULL: startup and background code with no v2
  *       scope at all) -> silent. A background path without a scope is a separate concern; this
  *       detector is the write-attribution twin of the read filter.
- *   <li>scope empty -> silent, a documented limit. An empty {@code app.current_tenants} is the
- *       deny-all scope of {@code TxCtx.missing()}, where {@code can_access_tenant} refuses every
- *       row, so by the read filter's own definition every write made there is outside the scope. It
- *       is also the state the test utilities put a transaction in on purpose after tenant
- *       onboarding, so raising it flags the fixture writes of nearly every isolation test. Folding
- *       the two fixture frames that carried the bulk of that flood into the test-frame heuristic
- *       ({@link WriteAttrStack#entryFrame}: {@code .mockUser.} and {@code *TestHelper}) is not
- *       enough to widen this signal safely: measured on a full sharded collection with that fold in
- *       place, the guard raised still surfaces 393 distinct signatures, not the handful an earlier
- *       three-class benchmark had predicted, spanning attack-path seeding, connector/manager
- *       bootstrap, exercises, chaining, datapacks and more. That is a systemic pattern of tests
- *       driving production services directly (the same shape already documented for the V1 importer
- *       group above), not a small set of named fixture classes, so it needs its own dedicated sweep
- *       rather than a same-change baseline addition. The near-miss test pins the limit; lifting it
- *       needs that sweep first.
+ *   <li>scope empty -> raised, with {@code scope=} empty in the message: a structured field the
+ *       Java side reads directly ({@code violation.scope().isEmpty()}), never a case it tells apart
+ *       by parsing prose. An empty {@code app.current_tenants} is the deny-all scope of {@code
+ *       TxCtx.missing()}, where {@code can_access_tenant} refuses every row, so by the read
+ *       filter's own definition every write made there is outside the scope: exactly the class this
+ *       detector exists to catch, a background job or a request that lands with no v2 scope at all.
+ *       It is also the state the test utilities put a transaction in on purpose after tenant
+ *       onboarding, and even with the two named fixture frames folded into the test-frame heuristic
+ *       ({@link WriteAttrStack#entryFrame}), a full sharded collection with the guard raised still
+ *       surfaces 393 distinct signatures, a systemic pattern of tests driving production services
+ *       directly rather than a small set of nameable fixture classes. So the Java side ({@link
+ *       WriteAttrGateExtension}) records and reports every empty-scope violation next to the
+ *       surefire output but never gates a test or a baseline comparison on one: gating on an
+ *       unswept 393-signature flood would trade a documented, visible gap for hundreds of waivers
+ *       nobody individually checked. Sweeping and re-attempting a gate is a follow-up of its own.
  *   <li>{@code NEW.tenant_id} in the scope list -> silent. A correctly attributed write, including
  *       the {@code fallbackSelector} default-tenant write, whose scope IS the default tenant.
  *   <li>{@code NEW.tenant_id} NULL -> raised as {@code tenant=NULL}; Java flags it only on a strict
@@ -68,7 +68,7 @@ final class WriteAttrDetectorTrigger {
    * Bumped whenever the function body changes. Stored as the function comment so a leftover trigger
    * of an older shape is detected on install rather than silently reused.
    */
-  static final String VERSION = "4";
+  static final String VERSION = "5";
 
   private static final String FUNCTION = "_writeattr_detect";
   private static final String TRIGGER = "_writeattr_trg";
@@ -93,7 +93,7 @@ final class WriteAttrDetectorTrigger {
         pkcol text := CASE WHEN TG_NARGS >= 1 THEN TG_ARGV[0] ELSE '' END;
         rowid text := '?';
       BEGIN
-        IF scope IS NOT NULL AND scope <> '' THEN
+        IF scope IS NOT NULL THEN
           IF NEW.tenant_id IS NULL OR NOT (NEW.tenant_id = ANY(string_to_array(scope, ','))) THEN
             IF pkcol <> '' THEN
               EXECUTE format('SELECT ($1).%I::text', pkcol) INTO rowid USING NEW;

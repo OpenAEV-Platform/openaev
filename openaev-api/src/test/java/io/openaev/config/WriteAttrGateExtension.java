@@ -75,6 +75,25 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
   private static volatile List<String> lastKeyed = List.of();
   private static final AtomicBoolean STALE_HOOK_REGISTERED = new AtomicBoolean(false);
 
+  /** Per-JVM empty-scope report, read by the CI shadow summary next to the surefire reports. */
+  static final String EMPTY_SCOPE_REPORT_FILE = "writeattr-emptyscope.txt";
+
+  /**
+   * Header line of {@value #EMPTY_SCOPE_REPORT_FILE}. The shadow summary reads it back verbatim (it
+   * does not hardcode this text, only the file name), so a wording change here needs no matching
+   * change there; only the file name itself ({@link #EMPTY_SCOPE_REPORT_FILE}) is pinned, by {@link
+   * WriteAttrSummaryMarkerTest}.
+   */
+  static final String EMPTY_SCOPE_HEADER = "write-attribution empty-scope violations";
+
+  /**
+   * Distinct signatures of writes made under a deny-all scope ({@code TxCtx.missing()}), across
+   * every test this JVM ran. Kept fully separate from {@link #WAIVED}/{@link #PRODUCED}: an
+   * empty-scope violation is never compared against {@code writeattr-baseline.txt} and never fails
+   * a test, only counted and reported ({@link #writeEmptyScopeReport()}).
+   */
+  private static final Set<String> EMPTY_SCOPE = ConcurrentHashMap.newKeySet();
+
   public WriteAttrGateExtension() {
     if (ENABLED) {
       registerStaleReport();
@@ -97,6 +116,7 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
     List<Violation> violations = WriteAttrDetectorRecorder.violations();
     lastKeyed = keyed(violations);
     lastKeyed.forEach(PRODUCED::add);
+    recordEmptyScope(violations);
     List<String> offending = offendingSignatures(violations);
     if (!offending.isEmpty()) {
       fail(
@@ -129,13 +149,41 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
     return keyed(violations).stream().filter(sig -> !waived.contains(sig)).distinct().toList();
   }
 
-  /** The signatures of the violations that carry a production entry frame. */
+  /**
+   * The signatures of the violations that carry a production entry frame and a non-empty scope. An
+   * empty scope ({@code TxCtx.missing()}, the deny-all case) is excluded here, at the single choke
+   * point both {@link #offendingSignatures(Collection)} and the baseline-usage tracking read from,
+   * so it can never fail a test or consume a {@code writeattr-baseline.txt} line however this
+   * method is called. See {@link #emptyScopeSignatures} for its own, separate channel.
+   */
   private static List<String> keyed(Collection<Violation> violations) {
     return violations.stream()
         .filter(v -> v.entryFrame() != null)
+        .filter(v -> !v.scope().isEmpty())
         .map(v -> WriteAttrSignature.of(v.table(), v.relation(), v.entryFrame()))
         .distinct()
         .toList();
+  }
+
+  /**
+   * The signatures of empty-scope (deny-all) violations that carry a production entry frame. Same
+   * signature grammar as {@link #keyed}, but this is the reporting channel: it is never checked
+   * against {@link #WAIVED} and its result never reaches {@link #offendingSignatures(Collection)}.
+   * A violation with no production entry frame is test-driven and is not keyed at all, same rule as
+   * the gated path.
+   */
+  static List<String> emptyScopeSignatures(Collection<Violation> violations) {
+    return violations.stream()
+        .filter(v -> v.entryFrame() != null)
+        .filter(v -> v.scope().isEmpty())
+        .map(v -> WriteAttrSignature.of(v.table(), v.relation(), v.entryFrame()))
+        .distinct()
+        .toList();
+  }
+
+  /** Accumulates this test's empty-scope signatures into the per-JVM set reported at shutdown. */
+  private static void recordEmptyScope(Collection<Violation> violations) {
+    emptyScopeSignatures(violations).forEach(EMPTY_SCOPE::add);
   }
 
   /** Whether the gate is armed in this JVM ({@code -Dopenaev.writeattr.detector=on}). */
@@ -168,6 +216,7 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
                 () -> {
                   staleWaivers().forEach(sig -> System.out.println("[WRITEATTR-STALE] " + sig));
                   writeWaiverReport();
+                  writeEmptyScopeReport();
                 },
                 "writeattr-stale-report"));
   }
@@ -195,6 +244,42 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
       stale.stream().sorted().forEach(sig -> out.append("not-produced ").append(sig).append('\n'));
       Files.writeString(
           reports.resolve(WAIVER_REPORT_FILE), out.toString(), StandardCharsets.UTF_8);
+    } catch (IOException | RuntimeException e) {
+      // nothing readable can act on a shutdown-time failure
+    }
+  }
+
+  /**
+   * The content {@link #writeEmptyScopeReport()} writes, factored out so the format is unit-tested
+   * without the shutdown hook or the filesystem: a header naming the distinct-signature count, then
+   * one sorted line per signature.
+   */
+  static String emptyScopeReportContent(Set<String> signatures) {
+    StringBuilder out = new StringBuilder();
+    out.append("# ")
+        .append(EMPTY_SCOPE_HEADER)
+        .append(": ")
+        .append(signatures.size())
+        .append(" distinct signatures\n");
+    signatures.stream().sorted().forEach(sig -> out.append(sig).append('\n'));
+    return out.toString();
+  }
+
+  /**
+   * Writes the distinct empty-scope signatures this JVM recorded next to the surefire reports, for
+   * the CI shadow summary. Never a pass/fail signal: a shard sees only its own classes, so the
+   * count is per shard, same limit as {@link #writeWaiverReport()}. Best effort, never throws.
+   */
+  static void writeEmptyScopeReport() {
+    try {
+      Path reports = Path.of(System.getProperty("basedir", ""), "target", "surefire-reports");
+      if (!Files.isDirectory(reports)) {
+        return;
+      }
+      Files.writeString(
+          reports.resolve(EMPTY_SCOPE_REPORT_FILE),
+          emptyScopeReportContent(new HashSet<>(EMPTY_SCOPE)),
+          StandardCharsets.UTF_8);
     } catch (IOException | RuntimeException e) {
       // nothing readable can act on a shutdown-time failure
     }
