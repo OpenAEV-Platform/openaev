@@ -90,7 +90,6 @@ import io.openaev.importer.V1_DataImporter;
 import io.openaev.injectors.challenge.ChallengeExecutor;
 import io.openaev.injectors.channel.ChannelExecutor;
 import io.openaev.injectors.phishing.PhishingExecutor;
-import io.openaev.injectors.phishing.api.HostedPublicApi;
 import io.openaev.injectors.phishing.service.PhishingEmailTemplateService;
 import io.openaev.injectors.phishing.service.PhishingLandingPageService;
 import io.openaev.integration.ManagerFactory;
@@ -209,6 +208,7 @@ import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
+import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
@@ -1808,15 +1808,19 @@ class TenantActiveTableAccessArchTest {
       noClasses()
           .that()
           .doNotBelongToAnyOf(
-              // Same shape as phishing_email_templates above, plus the unauthenticated
-              // HostedPublicApi routes: the victim's tenant is resolved from the per-recipient
-              // token and bound onto TenantContext/TxCtx before any of these run, never from the
-              // hostname itself:
+              // Same shape as phishing_email_templates above. The unauthenticated HostedPublicApi
+              // routes carry no {tenantId} path segment, so TxCtxArgumentResolver resolves their
+              // ctx to TxCtx.missing() regardless of the recipient's tenant bound onto the legacy
+              // TenantContext - a direct repository read from HostedPublicApi would fail-closed.
+              // It never touches this repository itself: it resolves the landing page through
+              // PhishingLandingPagePublicLookupService instead, scoped to the one tenant recovered
+              // from the per-recipient token (same shape as CustomDomainPublicLookupService, kept
+              // off the HTTP path per NO_PRIMITIVE_ON_HTTP_PATH):
               PhishingLandingPageService.class,
               PhishingExecutor.class,
               PhishingInjectorIntegration.class,
               PhishingInjectorIntegrationFactory.class,
-              HostedPublicApi.class)
+              PhishingLandingPagePublicLookupService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(PhishingLandingPageRepository.class)
