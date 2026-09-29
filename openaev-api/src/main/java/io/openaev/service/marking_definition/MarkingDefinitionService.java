@@ -18,6 +18,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -112,8 +113,12 @@ public class MarkingDefinitionService {
    */
   public MarkingDefinition create(
       @NotNull MarkingDefinitionInput input, @NotBlank String tenantId) {
-    validateUniqueOrThrow(input.type(), input.definition(), tenantId, null);
+    String type = normalize(input.type());
+    String definition = normalize(input.definition());
+    validateUniqueOrThrow(type, definition, tenantId, null);
     MarkingDefinition entity = MarkingDefinitionMapper.fromInput(input);
+    entity.setType(type);
+    entity.setDefinition(definition);
     entity.setProtectedDefinition(false);
     entity.setTenant(new Tenant(tenantId));
     MarkingDefinition saved = repository.save(entity);
@@ -139,13 +144,14 @@ public class MarkingDefinitionService {
     if (Boolean.TRUE.equals(existing.getProtectedDefinition())) {
       throw new BadRequestException("Protected marking definitions cannot be updated");
     }
-    if (!Objects.equals(existing.getType(), input.type())) {
+    String type = normalize(input.type());
+    String definition = normalize(input.definition());
+    if (!Objects.equals(existing.getType(), type)) {
       throw new BadRequestException("Marking definition type is immutable");
     }
-    validateUniqueOrThrow(
-        input.type(), input.definition(), existing.getTenant().getId(), existing.getId());
+    validateUniqueOrThrow(type, definition, existing.getTenant().getId(), existing.getId());
     boolean orderChanged = !Objects.equals(existing.getOrder(), input.order());
-    existing.setDefinition(input.definition());
+    existing.setDefinition(definition);
     existing.setColor(input.color());
     existing.setOrder(input.order());
     MarkingDefinition saved = repository.save(existing);
@@ -220,6 +226,16 @@ public class MarkingDefinitionService {
       throw new BadRequestException(
           "A marking definition with the same type and definition already exists");
     }
+  }
+
+  /**
+   * Canonicalizes to upper-case so {@code type} is never compared case-sensitively downstream:
+   * {@link io.openaev.config.MarkingScopeResolver} groups a caller's clearance by {@code type} in a
+   * plain {@code HashMap}, so "TOTO" and "toto" would otherwise resolve as two unrelated scales
+   * instead of the same one - see issue #7635.
+   */
+  private static String normalize(String value) {
+    return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
   }
 
   private Page<MarkingDefinition> findAllByTenantIds(

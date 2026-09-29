@@ -88,7 +88,7 @@ const MarkingDefinitions = () => {
               gap: 1,
             }}
           >
-            <span>{item.marking_definition_type}</span>
+            <span>{item.marking_definition_type.toUpperCase()}</span>
             {item.marking_definition_protected ? (
               <DangerZone
                 tooltip={t('This marking definition is protected. It cannot be updated or deleted.')}
@@ -101,7 +101,7 @@ const MarkingDefinitions = () => {
         field: 'marking_definition_definition',
         label: 'Definition',
         isSortable: true,
-        value: (item: MarkingDefinitionOutput) => item.marking_definition_definition,
+        value: (item: MarkingDefinitionOutput) => item.marking_definition_definition.toUpperCase(),
       },
       {
         field: 'marking_definition_color',
