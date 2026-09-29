@@ -19,9 +19,11 @@ import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Pins the cache-eviction and delete-time scrub contracts of {@link MarkingDefinitionService} —
@@ -43,13 +47,28 @@ class MarkingDefinitionServiceTest {
   private static final String TENANT_ID = "tenant-1";
 
   @Mock private MarkingDefinitionRepository repository;
+  @Mock private ActionMetricCollector actionMetricCollector;
   @Mock private AllTablesWithMarkingIds allTablesWithMarkingIds;
   @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
   @Mock private JdbcTemplate jdbcTemplate;
 
   private MarkingDefinitionService service() {
     return new MarkingDefinitionService(
-        repository, allTablesWithMarkingIds, markingClearanceCacheManager, jdbcTemplate);
+        repository,
+        actionMetricCollector,
+        allTablesWithMarkingIds,
+        markingClearanceCacheManager,
+        jdbcTemplate);
+  }
+
+  @AfterEach
+  void clearTransactionSynchronization() {
+    // Safety net: a test that asserts the deferred-until-commit behaviour opens a
+    // TransactionSynchronizationManager scope manually (it's thread-bound state, not a mock), so a
+    // failure mid-test must not leak it into the next test's thread.
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
   }
 
   private MarkingDefinition existingIn(String tenantId) {
@@ -80,6 +99,68 @@ class MarkingDefinitionServiceTest {
 
       // Assert
       verify(markingClearanceCacheManager, times(1)).evictAll();
+    }
+
+    @Test
+    @DisplayName("given_noActiveTransaction_should_incrementCreatedCountImmediately")
+    void given_noActiveTransaction_should_incrementCreatedCountImmediately() {
+      // Arrange - no Spring transaction bound to this thread; the deferred hook must fall back to
+      // running synchronously rather than silently dropping the metric.
+      MarkingDefinitionInput input = new MarkingDefinitionInput("TLP", "TLP:GREEN", "#4CAF50", 20);
+      when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
+              input.type(), input.definition(), TENANT_ID, null))
+          .thenReturn(false);
+      when(repository.save(any(MarkingDefinition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      // Act
+      service().create(input, TENANT_ID);
+
+      // Assert
+      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount();
+    }
+
+    @Test
+    @DisplayName("given_activeTransactionCommits_should_incrementCreatedCountOnlyAfterCommit")
+    void given_activeTransactionCommits_should_incrementCreatedCountOnlyAfterCommit() {
+      // Arrange - repository.save may not flush until commit, so the counter must stay unset while
+      // the transaction is still open, then apply once commit is signalled.
+      TransactionSynchronizationManager.initSynchronization();
+      MarkingDefinitionInput input = new MarkingDefinitionInput("TLP", "TLP:GREEN", "#4CAF50", 20);
+      when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
+              input.type(), input.definition(), TENANT_ID, null))
+          .thenReturn(false);
+      when(repository.save(any(MarkingDefinition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      // Act
+      service().create(input, TENANT_ID);
+      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount();
+      TransactionSynchronizationManager.getSynchronizations()
+          .forEach(TransactionSynchronization::afterCommit);
+
+      // Assert
+      verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount();
+    }
+
+    @Test
+    @DisplayName("given_activeTransactionRollsBack_should_neverIncrementCreatedCount")
+    void given_activeTransactionRollsBack_should_neverIncrementCreatedCount() {
+      // Arrange
+      TransactionSynchronizationManager.initSynchronization();
+      MarkingDefinitionInput input = new MarkingDefinitionInput("TLP", "TLP:GREEN", "#4CAF50", 20);
+      when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
+              input.type(), input.definition(), TENANT_ID, null))
+          .thenReturn(false);
+      when(repository.save(any(MarkingDefinition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      // Act - simulate rollback: the transaction ends without afterCommit ever firing.
+      service().create(input, TENANT_ID);
+      TransactionSynchronizationManager.clearSynchronization();
+
+      // Assert
+      verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount();
     }
   }
 

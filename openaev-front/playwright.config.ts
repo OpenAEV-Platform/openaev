@@ -7,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
 import coverageOptions from './tests_e2e/conf/mcr.config';
 
 const isArm = process.env.CI === 'true' && process.arch === 'arm64';
-const armUnsupportedTests = /.*external-injector.*|.*external-executor.*|.*external-collector.*/;
+const armUnsupportedTests = /.*external-injector.*|.*external-executor.*|.*external-collector.*|.*infra-chaining\.spec\.ts$/;
 const globalTestIgnore = isArm ? [armUnsupportedTests] : [];
 const nonInfraTestIgnore = isArm ? [/infra\/.*/, armUnsupportedTests] : [/infra\/.*/];
 
