@@ -13,6 +13,9 @@ import {type AssetOutput, CredentialOutput} from '../../../../utils/api-types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import {CredentialPopoverProps} from "./CredentialPopover";
+import {useFormatter} from "../../../../components/i18n";
+import CredentialStatusChip from "./CredentialStatusChip";
+import {humanizeEnum} from "../asset-categories";
 
 // Header labels are still rendered without sort handles when no sortHelpers
 // are provided (client-side lists).
@@ -67,9 +70,9 @@ const CredentialsList = <T extends CredentialOutput>({
 
   const inlineStyles: Record<string, CSSProperties> = {
     credential_name: { width: '30%' },
-    credential_type: { width: '20%' },
+    credential_type: { width: '15%' },
     credential_auth_method: { width: '20%' },
-    credential_status: { width: '10%' },
+    credential_status: { width: '15%' },
     credential_tags_ids: { width: '20%' },
   };
 
@@ -84,25 +87,25 @@ const CredentialsList = <T extends CredentialOutput>({
       field: 'credential_type',
       label: 'Type',
       isSortable: true,
-      value: (credential: T) => credential.credential_type,
+      value: (credential: T) => credential.credential_type ? humanizeEnum(credential.credential_type) : '-',
     },
     {
       field: 'credential_auth_method',
       label: 'Auth Method',
       isSortable: true,
-      value: (credential: T) => credential.credential_auth_method,
+      value: (credential: T) => credential.credential_auth_method ? humanizeEnum(credential.credential_auth_method) : '-',
     },
     {
       field: 'credential_status',
       label: 'Status',
       isSortable: true,
-      value: (credential: T) => credential.credential_status,
+      value: (credential: T) => <CredentialStatusChip status={credential.credential_status} variant="list" />,
     },
     {
       field: 'credential_tags_ids',
       label: 'Tags',
       isSortable: false,
-      value: (credential: T) => <ItemTags variant="list" tags={credential.credential_tags_ids ?? []} />,
+      value: (credential: T) => <ItemTags variant="list" limit={1} tags={credential.credential_tags_ids ?? []} />,
     },
   ];
 
