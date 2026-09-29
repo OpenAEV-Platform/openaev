@@ -3,19 +3,15 @@ import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
-import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import {type AssetOutput, CredentialOutput} from '../../../../utils/api-types';
-import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
+import { type CredentialOutput } from '../../../../utils/api-types';
+import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
-import {CredentialPopoverProps} from "./CredentialPopover";
-import {useFormatter} from "../../../../components/i18n";
-import CredentialStatusChip from "./CredentialStatusChip";
-import {humanizeEnum} from "../asset-categories";
+import { type CredentialPopoverProps } from './CredentialPopover';
+import CredentialStatusChip from './CredentialStatusChip';
 
 // Header labels are still rendered without sort handles when no sortHelpers
 // are provided (client-side lists).
@@ -155,9 +151,11 @@ const CredentialsList = <T extends CredentialOutput>({
             secondaryAction={component(credential)}
           >
             <ListItemIcon>
-              <AssetCategoryIcon scope="credential"
-                                 category={credential.credential_type ?? null}
-                                 color="primary" />
+              <AssetCategoryIcon
+                scope="credential"
+                category={credential.credential_type ?? null}
+                color="primary"
+              />
             </ListItemIcon>
             <ListItemText
               primary={(
