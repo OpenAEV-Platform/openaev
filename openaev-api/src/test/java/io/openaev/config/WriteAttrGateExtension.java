@@ -58,6 +58,18 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
   /** Per-JVM waiver report, read by the CI shadow summary next to the surefire reports. */
   static final String WAIVER_REPORT_FILE = "writeattr-waivers.txt";
 
+  /**
+   * Opening line of the gate's failure message. The CI shadow summary ({@code
+   * .github/actions/api-tests/action.yml}) locates the block of offending signatures in the
+   * surefire report by grepping for this exact text; a wording change here without updating that
+   * script makes the summary print "No wrong-tenant production write" while the gate is failing.
+   * {@link WriteAttrSummaryMarkerTest} pins that the two stay in sync.
+   */
+  static final String FAILURE_MARKER = "Write-attribution: production code wrote";
+
+  /** Closing line of the failure message; the same script uses it as the block's end marker. */
+  static final String ATTRIBUTE_MARKER = "Attribute the write";
+
   private static final Set<String> WAIVED = loadBaseline();
   private static final Set<String> PRODUCED = ConcurrentHashMap.newKeySet();
   private static volatile List<String> lastKeyed = List.of();
@@ -88,10 +100,13 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
     List<String> offending = offendingSignatures(violations);
     if (!offending.isEmpty()) {
       fail(
-          "Write-attribution: production code wrote a tenant_id outside the request or job scope "
+          FAILURE_MARKER
+              + " a tenant_id outside the request or job scope "
               + "(a wrong-tenant write, or a null tenant on a strict table):\n  "
               + String.join("\n  ", offending)
-              + "\nAttribute the write from the request's write scope (an HTTP TxCtx selector, or the "
+              + "\n"
+              + ATTRIBUTE_MARKER
+              + " from the request's write scope (an HTTP TxCtx selector, or the "
               + "tenant-scoped primitive in background code). If it is intentional and safe, add the "
               + "signature to writeattr-baseline.txt with a reason.");
     }
