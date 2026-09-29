@@ -280,8 +280,7 @@ const TriggerForm: FunctionComponent<Props> = ({
           {period !== 'HOUR' && (
             <TimeField
               label={t('Time (UTC)')}
-              // The trigger stores a wall clock in UTC, not an instant: the
-              // field reads and writes the same HH:mm the backend keeps.
+              // A wall clock in UTC, not an instant: the same HH:mm the backend keeps.
               timezone="UTC"
               format="HH:mm"
               value={timeAsDate(time)}

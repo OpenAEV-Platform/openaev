@@ -1,13 +1,7 @@
 /**
- * SPACING BETWEEN NEIGHBOURING CONTROLS. Two quiet controls — an icon button or
- * a tertiary button, the ones the library draws with no fill and no border —
- * sit 4px apart; any pair involving a primary or a secondary keeps 8px. The rows
- * themselves declare the 8px gap, so the quiet pair pulls back the difference
- * rather than every row having to know the rule.
- *
- * `border-0` plus either no fill or one of the library's own 10% washes (what an
- * `active` icon button wears at rest) is what both quiet kinds emit and neither of
- * the two loud ones does: a secondary carries a border, a primary a solid fill.
+ * Two quiet controls — no fill, no border — sit 4px apart; any pair involving a
+ * primary or secondary keeps the row's 8px, so the quiet pair pulls back the
+ * difference. `border-0` plus no fill (or a 10% wash) is what only quiet ones emit.
  */
 const ACTIVE_FILLS = ['bg-filigran-brand-primary-transparency-10', 'bg-filigran-ia-secondary-transparency-10']
   .map(fill => `[class~="${fill}"]`)

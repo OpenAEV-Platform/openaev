@@ -31,10 +31,8 @@ interface Props {
   disabled?: boolean;
 }
 
-// The library input is 36px tall. The help icon sits in a cell of exactly that
-// height, pinned to the bottom of the row: the label above the input varies in
-// height, so aligning on the row start or end always missed the field itself -
-// the icon used to sit 12px above the input's centre.
+// A 36px cell pinned to the row's bottom: the label height varies, so aligning on
+// the row start or end missed the field itself.
 const INPUT_HEIGHT = 36;
 
 const fieldWithHelpSx = {
@@ -147,9 +145,7 @@ const ConnectorInstanceForm = ({
   };
 
   const formatKeyToLabel = (key: string): string => {
-    // Keys are SCREAMING_SNAKE_CASE (e.g. EXECUTOR_TANIUM_API_URL); lowercase first
-    // so an already-uppercase key becomes proper Title Case ("Executor Tanium Api Url")
-    // instead of staying all-caps.
+    // Keys are SCREAMING_SNAKE_CASE: lowercase first, or Title Case stays all-caps.
     return key
       .toLowerCase()
       .replace(/_/g, ' ')

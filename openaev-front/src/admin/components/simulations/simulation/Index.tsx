@@ -58,10 +58,8 @@ const IndexComponent: FunctionComponent<{
   const location = useLocation();
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
   const isAutonomous = !!autonomousRun;
-  // The AI cockpit polls the run's decision timeline in the always-open reasoning panel. Lift that
-  // stream here and share it with the overview outcome layer so the overview does NOT start a
-  // SECOND full-from-cursor-0 poll of the same endpoint while the run is active (the simulation-side
-  // double-poll fix, #7472 - mirrors the scenario cockpit).
+  // Lifted so the overview shares the cockpit's stream instead of starting a second
+  // full-from-cursor-0 poll of the same endpoint (#7472).
   const cockpitActive = isAutonomousRunActive(autonomousRun);
   const [cockpitTimeline, setCockpitTimeline] = useState<AutonomousEvent[]>([]);
   // Same identity-change rule as AutonomousReasoningPanel / the scenario cockpit: clear only on a

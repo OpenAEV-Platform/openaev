@@ -16,8 +16,7 @@ describe('quiet control spacing', () => {
   });
 
   it('cancels the pull inside a stacked column', () => {
-    // A number field draws its two stepper arrows as quiet buttons one above the
-    // other; an inline pull-back moves the lower one out of its own column.
+    // A number field stacks two quiet steppers: an inline pull-back breaks the column.
     const stacked = exceptions.filter(([selector]) => selector.startsWith('.flex-col > '));
     expect(stacked).toHaveLength(pullBacks.length);
   });

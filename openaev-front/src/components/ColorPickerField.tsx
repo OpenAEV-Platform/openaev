@@ -13,10 +13,8 @@ interface Props<TFieldValues extends FieldValues = FieldValues> {
 }
 
 /**
- * The product's colour field, over the library ColorPicker: the component is
- * controlled and form-library-agnostic, so the react-hook-form binding lives
- * here and nowhere else. The value stays the `#RRGGBB` string every caller
- * persists - alpha is off, which is what keeps that contract.
+ * The product's colour field. The value stays the `#RRGGBB` string every caller
+ * persists — alpha is off, which is what keeps that contract.
  */
 const ColorPickerField = <TFieldValues extends FieldValues = FieldValues>(
   { control, name, label, required, disabled, placeholder, helperText, className }: Props<TFieldValues>,

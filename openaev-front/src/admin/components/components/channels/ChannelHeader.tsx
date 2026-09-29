@@ -12,8 +12,6 @@ import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelIcon from './ChannelIcon';
 import ChannelPopover from './ChannelPopover';
 
-// Channel detail header, aligned on the shared DetailHero used by every other
-// entity detail page (same icon box, title style and kebab sizing).
 const ChannelHeader = () => {
   const { channelId } = useParams() as { channelId: Channel['channel_id'] };
   const { t } = useFormatter();
@@ -22,15 +20,12 @@ const ChannelHeader = () => {
 
   const mode = theme.palette.mode;
   const hasLogo = mode === 'dark' ? channel.channel_logo_dark : channel.channel_logo_light;
-  // Brand accent per channel type, from the shared ChannelColor palette (single
-  // source of truth also backing the public channel pages); a channel without a
-  // type falls back to the theme accent.
+  // Brand accent per channel type; an untyped channel falls back to the theme accent.
   const typeColor = channel.channel_type ? ChannelColor(channel.channel_type) : theme.palette.primary.main;
 
   return (
     <DetailHero
-      // A channel with its own logo fills the square; the fallback is a glyph,
-      // so it keeps the framed thumbnail.
+      // A logo fills the square; the glyph fallback keeps the framed thumbnail.
       iconFills={!!hasLogo}
       iconNode={hasLogo
         ? (
@@ -42,8 +37,7 @@ const ChannelHeader = () => {
         : <ChannelIcon type={channel.channel_type} />}
       overline={t('Channel')}
       title={channel.channel_name ?? '-'}
-      // The type qualifies the name, so it sits on its line; the subtitle is a
-      // sentence and takes the line under it.
+      // The type qualifies the name and shares its line; the subtitle takes the next.
       chipsInline
       chips={<Chip label={t(channel.channel_type ?? 'Unknown')} color={typeColor} />}
       subtitle={channel.channel_description || undefined}

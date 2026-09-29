@@ -8,8 +8,7 @@ import { useFormatter } from '../../../components/i18n';
 import { tint } from '../../../utils/tint';
 import { type PostureBreakdownEntry } from './useExpectationPosture';
 
-// Human label per expectation-type pillar (same taxonomy as the home
-// command-center exposure breakdown).
+// Human label per expectation-type pillar.
 const PILLAR_LABELS: Record<string, string> = {
   PREVENTION: 'Prevention',
   DETECTION: 'Detection',
@@ -32,12 +31,8 @@ interface Props {
 }
 
 /**
- * The posture score hero element: a mini ring gauge + score, rendered in the
- * hero stats row but visually distinct from the plain HeroStat counters.
- * Like the home exposure orb, clicking it opens a dialog explaining the
- * rationale behind the number (formula, per-pillar breakdown, severity bands).
- * Posture = share of validated expectations the defenses met - HIGHER is
- * BETTER (the inverse reading of the home exposure score).
+ * Share of validated expectations the defenses met — HIGHER is better, the inverse
+ * reading of the home exposure score. Clicking it explains the number.
  */
 const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, loading = false, scope = 'asset' }) => {
   const theme = useTheme();

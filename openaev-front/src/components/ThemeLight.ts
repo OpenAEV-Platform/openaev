@@ -1,6 +1,5 @@
 import { alpha, buttonClasses, darken, lighten, type ThemeOptions } from '@mui/material';
 
-// Type-only: declares the MUI X picker keys used in `components` below.
 import LogoCollapsed from '../static/images/logo_light.png';
 import LogoText from '../static/images/logo_text_light.png';
 import { hexToRGB } from '../utils/Colors';
@@ -10,10 +9,7 @@ import { FDS } from './fds-tokens.generated';
 import quietControlSpacing from './quietControlSpacing';
 import { FONT_FAMILY_CODE, INLINE_CONTROL_HEIGHT, type LabelColor, LabelColorDict } from './Theme';
 
-// Aligned with OpenCTI's light theme (opencti-front/src/components/ThemeLight.ts):
-// same default palette, typography, and component overrides, so both platforms
-// share a single visual language. OpenAEV-specific tokens (labelChipMap,
-// xtmhub, widgets, background.code / paperInCard) are kept on top.
+// Aligned with OpenCTI's light theme; OpenAEV-specific tokens are kept on top.
 const EE_COLOR = FDS.colors.light['--color-filigran-tonic-primary'];
 
 export const THEME_LIGHT_DEFAULT_BACKGROUND = FDS.colors.light['--bg-elevation-default-layer-0'];

@@ -65,8 +65,7 @@ describe('DateField', () => {
     typeDate('When', '2026-12-24');
     fireEvent.click(screen.getByText(saveLabel));
     await screen.findByText(saveLabel);
-    // Local time, as it was under the MUI adapter: the ISO form of local
-    // midnight on the typed day, which is the day before in UTC east of it.
+    // Local midnight on the typed day, which is the day before in UTC east of it.
     expect(submitted?.when).toBe(new Date(2026, 11, 24).toISOString());
   });
 
