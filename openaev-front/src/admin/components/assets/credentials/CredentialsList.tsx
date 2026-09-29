@@ -45,7 +45,6 @@ interface Props<T extends CredentialOutput> {
   credentials: T[];
   renderActions: ((credential: T) => ReactElement<CredentialPopoverProps>);
   loading?: boolean;
-  compact?: boolean;
   /** Render a column headers row above the list. */
   withHeaders?: boolean;
   /** Enables clickable column sorting (pass `queryableHelpers.sortHelpers`). */
@@ -56,7 +55,6 @@ const CredentialsList = <T extends CredentialOutput>({
   credentials,
   renderActions,
   loading = false,
-  compact = false,
   withHeaders = false,
   sortHelpers,
 }: Props<T>) => {
@@ -68,14 +66,11 @@ const CredentialsList = <T extends CredentialOutput>({
   };
 
   const inlineStyles: Record<string, CSSProperties> = {
-    credential_name: { width: compact ? '20%' : '30%' },
-    credential_type: { width: '10%' },
-    credential_auth_method: { width: '10%' },
+    credential_name: { width: '30%' },
+    credential_type: { width: '20%' },
+    credential_auth_method: { width: '20%' },
     credential_status: { width: '10%' },
-    credential_created_by: { width: '10%' },
-    credential_created_at: { width: '10%' },
-    credential_last_verified_at: { width: '10%' },
-    credential_tags_ids: { width: '10%' },
+    credential_tags_ids: { width: '20%' },
   };
 
   const headers = [
@@ -102,24 +97,6 @@ const CredentialsList = <T extends CredentialOutput>({
       label: 'Status',
       isSortable: true,
       value: (credential: T) => credential.credential_status,
-    },
-    {
-      field: 'credential_created_by',
-      label: 'Created by',
-      isSortable: true,
-      value: (credential: T) => credential.credential_created_by?.user_name,
-    },
-    {
-      field: 'credential_created_at',
-      label: 'Created',
-      isSortable: true,
-      value: (credential: T) => credential.credential_created_at,
-    },
-    {
-      field: 'credential_last_verified_at',
-      label: 'Last verified',
-      isSortable: false,
-      value: (credential: T) => credential.credential_last_verified_at,
     },
     {
       field: 'credential_tags_ids',
