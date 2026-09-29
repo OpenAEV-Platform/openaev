@@ -159,11 +159,22 @@ This starts:
 
     The Elasticsearch and OpenSearch services in `openaev-dev/docker-compose.yml` already set `-XX:UseSVE=0` for M-series compatibility. You do not need to change that flag.
 
+!!! note "`host.docker.internal` for RabbitMQ"
+
+    The sample `application-dev.properties` sets `openaev.rabbitmq.hostname=host.docker.internal` so Dockerized injectors can reach RabbitMQ on the host. On macOS, add this entry to `/etc/hosts` if it is missing:
+
+    ```text
+    127.0.0.1 host.docker.internal
+    ```
+
+    Use `localhost` instead if you do not run injectors in Docker.
+
 Then copy the Spring Boot development profile and start the backend and frontend as described in [Build from source](build-from-source.md).
 
 !!! tip
 
-    The sample `application-dev.properties.example` enables optional integrations (SAML, Caldera, Tanium, CrowdStrike, IMAP, OVH SMS) that need external credentials. If you do not have those accounts, set the corresponding `*.enable` flags to `false` and set `openaev.listener.smtp.enabled=false` so the backend starts without connection warnings every 10 seconds.
+    For optional integrations that need external credentials, see the tip under
+    [Build from source — Configuring](build-from-source.md#configuring).
 
 ## What's next?
 

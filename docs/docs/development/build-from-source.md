@@ -104,8 +104,8 @@ corepack enable
 yarn install
 ```
 
-If `yarn install` fails during the link step with `ENOENT` on a cloned `node_modules` path, run
-it again. The frontend CI job already retries this install once for the same reason.
+If `yarn install` fails during the link step with `ENOENT` while cloning a `node_modules`
+path, see [yarnpkg/berry#3214](https://github.com/yarnpkg/berry/issues/3214).
 
 ### Running
 Execute `yarn start` to start a frontend locally:
