@@ -25,9 +25,9 @@ import org.springframework.test.context.TestPropertySource;
  * {@code reporting_schedules}/{@code reportings} tables. An omitted {@code allTenants()} scope here
  * would silently load zero schedules with no exception and no log.
  *
- * <p>Not {@code @Transactional}: {@link io.openaev.context.TenantScopedTransaction#execute} opens
- * its own transaction and refuses to run inside one already active. Seeds and cleans up through
- * plain JDBC.
+ * <p>Not {@code @Transactional}: {@link io.openaev.context.TenantScopedTransaction#execute}, behind
+ * {@link io.openaev.scheduler.TenantScopedJobRunner#supplyAcrossTenants}, opens its own transaction
+ * and refuses to run inside one already active. Seeds and cleans up through plain JDBC.
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=reporting_schedules,reportings")
 @WithMockUser(isAdmin = true)
@@ -64,7 +64,8 @@ class ReportingScheduleLoaderTenantScopeTest extends IntegrationTest {
         "DELETE FROM reporting_schedules WHERE reporting_schedule_id IN (?, ?)",
         scheduleA,
         scheduleB);
-    jdbcTemplate.update("DELETE FROM reportings WHERE reporting_id IN (?, ?)", reportingA, reportingB);
+    jdbcTemplate.update(
+        "DELETE FROM reportings WHERE reporting_id IN (?, ?)", reportingA, reportingB);
     tenantHelper.deleteCommittedTenants(tenantA, tenantB);
   }
 

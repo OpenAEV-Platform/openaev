@@ -69,4 +69,26 @@ public class TenantScopedJobRunner {
       }
     }
   }
+
+  /**
+   * Cross-tenant read for the engine loaders (schedule, notification): opens the primitive under
+   * {@link TxCtx#allTenants()}. No v1 {@link TenantContext} bridge here, unlike {@link
+   * #supplyInTenant}: {@code allTenants()} has no single tenant to bridge to, and callers that join
+   * still-v1 tables disable the v1 filter themselves.
+   */
+  public <T> T supplyAcrossTenants(@NotNull final Supplier<T> work) {
+    return tenantTx.execute(TxCtx.allTenants(), work);
+  }
+
+  /**
+   * REQUIRES_NEW variant of {@link #runInTenant}, for a background write that must survive a
+   * rollback of the caller's own transaction (a synchronous fail-fast path that runs while still
+   * inside an HTTP request's or the schedule engine's transaction). No v1 {@link TenantContext}
+   * bridge: the caller thread's ambient tenant is already whatever it should be, and swapping it
+   * here would leak into the caller's remaining work once this nested transaction returns.
+   */
+  public void runInNewTenantTransaction(
+      @NotNull final String tenantId, @NotNull final Runnable work) {
+    tenantTx.executeNew(TxCtx.forTenant(tenantId), work);
+  }
 }

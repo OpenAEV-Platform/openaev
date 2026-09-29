@@ -103,6 +103,7 @@ io.openaev.service.chaining.WorkflowScopeRuleCascadeListener  # touches-no-tenan
 # --- Async / reporting: derive and apply the tenant explicitly ------------------------------------
 io.openaev.aop.audit_log.AuditLogger  # touches-no-tenant-table: emits LogEvent audit documents to the engine transport (not a JPA entity); the tenant id is copied from the request thread context, no tenant-scoped row is written
 io.openaev.service.user_events.UserEventService  # touches-no-tenant-table: writes and reads UserEvent, which implements Base only (no tenant column)
+io.openaev.rest.reporting.service.PlaywrightReportingRenderer  # delegates-to-TenantScopedJobRunner#runInTenant: the renderExecutor hand-off carries the job's own tenant id (captured on the caller thread before dispatch, never the ambient one) and every reporting_generations/documents read or write on the render thread (markRunning, storeDocument, completeWithSuccess, completeWithError) runs under TxCtx.forTenant through TenantScopedJobRunner; the render() entry method itself must not depend on TenantScopedTransaction directly (it lives in io.openaev.rest and can be reached from the HTTP path)
 
 # --- Quartz jobs: delegate to a scoped runner/service, or touch no tenant table --------------------
 io.openaev.scheduler.jobs.AutonomousTimeoutJob  # delegates-to-AutonomousTimeoutService#sweep: per-tenant scope via TenantScopedTransaction.forEachTenant + executeNew(forTenant)

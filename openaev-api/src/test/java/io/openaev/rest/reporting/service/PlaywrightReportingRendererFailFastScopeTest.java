@@ -8,6 +8,7 @@ import io.openaev.database.model.ReportingFormat;
 import io.openaev.database.model.ReportingGeneration;
 import io.openaev.database.model.ReportingGenerationStatus;
 import io.openaev.database.model.Tenant;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
@@ -23,12 +24,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * {@link PlaywrightReportingRenderer#render} writes its early-return failure row (no acting user,
- * or the acting user carries no API token) still inside the caller's own transaction, before the
- * v2 primitive is used at all. {@code reporting_generations} being tenant-active means that plain
- * save needs its own v2 scope on the current transaction, or the inspector fail-closes the UPDATE
- * (0 rows, no exception, no log): the caller's own scope is not always present on this path (a
- * plain {@code @Transactional} caller carries none by itself), so the write is nested through
- * {@code executeNew} with an explicit {@code TxCtx.forTenant}, never assumed from the ambient one.
+ * or the acting user carries no API token) still inside the caller's own transaction, before the v2
+ * primitive is used at all. {@code reporting_generations} being tenant-active means that plain save
+ * needs its own v2 scope on the current transaction, or the inspector fail-closes the UPDATE (0
+ * rows, no exception, no log): the caller's own scope is not always present on this path (a plain
+ * {@code @Transactional} caller carries none by itself), so the write is nested through {@link
+ * io.openaev.scheduler.TenantScopedJobRunner#runInNewTenantTransaction} (REQUIRES_NEW) with an
+ * explicit tenant, never assumed from the ambient one.
  *
  * <p>The test opens the caller-side transaction through a bare {@link TransactionTemplate} with NO
  * scope set at all, the worst case a caller can hand this method, to prove the write survives on
@@ -47,6 +49,7 @@ class PlaywrightReportingRendererFailFastScopeTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private JdbcTemplate jdbcTemplate;
   @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
 
   private String tenantId;
   private String reportingId;
@@ -104,6 +107,33 @@ class PlaywrightReportingRendererFailFastScopeTest extends IntegrationTest {
         rawStatus(),
         "the fail-fast save must not fail closed once reporting_generations is tenant-active, even"
             + " when the caller transaction carries no scope of its own");
+  }
+
+  @Test
+  @DisplayName(
+      "render with no acting user, called from inside the schedule engine's own primitive"
+          + " transaction, still persists ERROR")
+  void given_noActingUserAndCallerAlreadyInsidePrimitiveScope_should_persistErrorStatus() {
+    // Mirrors ReportingScheduleService.executeSchedule: the schedule engine calls
+    // reportingService.requestGeneration (and therefore render) from inside its own
+    // TenantScopedJobRunner-opened transaction, never a bare TransactionTemplate. executeNew's
+    // REQUIRES_NEW must still open cleanly nested inside that primitive transaction, not only
+    // inside a plain Spring one.
+    ReportingGeneration generation = new ReportingGeneration();
+    generation.setId(generationId);
+    Reporting reporting = new Reporting();
+    reporting.setId(reportingId);
+    generation.setReporting(reporting);
+    generation.setTenant(new Tenant(tenantId));
+    generation.setFormat(ReportingFormat.PDF);
+
+    tenantScopedJobRunner.runInTenant(tenantId, () -> renderer.render(generation, null));
+
+    assertEquals(
+        ReportingGenerationStatus.ERROR.name(),
+        rawStatus(),
+        "the fail-fast save must not fail closed when the caller is already inside the schedule"
+            + " engine's own primitive-scoped transaction");
   }
 
   private String rawStatus() {

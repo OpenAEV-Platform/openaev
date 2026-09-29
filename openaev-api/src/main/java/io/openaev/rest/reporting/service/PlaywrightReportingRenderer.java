@@ -8,8 +8,6 @@ import com.microsoft.playwright.options.Margin;
 import com.microsoft.playwright.options.Media;
 import com.microsoft.playwright.options.WaitUntilState;
 import io.openaev.context.TenantContext;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Reporting;
 import io.openaev.database.model.ReportingFormat;
@@ -136,7 +134,6 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
   private final FileService fileService;
   private final BrowserPoolService browserPoolService;
   private final TenantScopedJobRunner tenantScopedJobRunner;
-  private final TenantScopedTransaction tenantScopedTransaction;
 
   private final long renderTimeoutMs;
   private final String renderBaseUrl;
@@ -153,7 +150,6 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
       final FileService fileService,
       final BrowserPoolService browserPoolService,
       final TenantScopedJobRunner tenantScopedJobRunner,
-      final TenantScopedTransaction tenantScopedTransaction,
       @Value("${openaev.reporting.render-timeout-seconds:90}") final long renderTimeoutSeconds,
       @Value("${openaev.reporting.max-concurrent-renders:2}") final int maxConcurrentRenders,
       @Value("${openaev.reporting.render-base-url:}") final String renderBaseUrl,
@@ -166,7 +162,6 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     this.fileService = fileService;
     this.browserPoolService = browserPoolService;
     this.tenantScopedJobRunner = tenantScopedJobRunner;
-    this.tenantScopedTransaction = tenantScopedTransaction;
     this.renderTimeoutMs = Math.max(1, renderTimeoutSeconds) * 1000;
     this.renderBaseUrl = renderBaseUrl;
     this.serverPort = serverPort;
@@ -211,10 +206,10 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
                 .orElse(null);
     if (tokenValue == null) {
       // Fail synchronously, still inside the caller transaction. reporting_generations is
-      // tenant-active: nest a v2-scoped transaction through executeNew (the primitive's execute
-      // refuses to open inside one already active) rather than rely on the caller's own scope,
-      // which a background caller (the schedule engine, already inside its own primitive
-      // transaction) does not carry as an HTTP request scope.
+      // tenant-active: nest a v2-scoped transaction through the primitive's REQUIRES_NEW wrapper
+      // (the plain wrapper refuses to open inside one already active) rather than rely on the
+      // caller's own scope, which a background caller (the schedule engine, already inside its own
+      // primitive transaction) does not carry as an HTTP request scope.
       String tenantId = generation.getTenant().getId();
       generation.setStatus(ReportingGenerationStatus.ERROR);
       generation.setErrorMessage(
@@ -222,8 +217,8 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
               ? "No acting user available for the render"
               : "Acting user has no API token to authenticate the render");
       generation.setCompletedAt(Instant.now());
-      this.tenantScopedTransaction.executeNew(
-          TxCtx.forTenant(tenantId), () -> this.reportingGenerationRepository.save(generation));
+      this.tenantScopedJobRunner.runInNewTenantTransaction(
+          tenantId, () -> this.reportingGenerationRepository.save(generation));
       return;
     }
     RenderJob job = toRenderJob(generation, tokenValue);
