@@ -3,6 +3,8 @@ package io.openaev.injectors.phishing.api;
 import static io.openaev.injectors.phishing.api.HostedPublicApi.HOSTED_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -73,6 +76,7 @@ class HostedPublicApiIsolationTest extends IntegrationTest {
   @AfterEach
   void cleanup() {
     jdbc.update("DELETE FROM phishing_results WHERE tenant_id IN (?, ?)", tenantA, tenantB);
+    jdbc.update("DELETE FROM phishing_landing_pages WHERE tenant_id IN (?, ?)", tenantA, tenantB);
     injectRepository.deleteAllById(List.of(injectA.getId(), injectB.getId()));
     jdbc.update("DELETE FROM tenants WHERE tenant_id IN (?, ?)", tenantA, tenantB);
   }
@@ -88,6 +92,58 @@ class HostedPublicApiIsolationTest extends IntegrationTest {
       } else {
         TenantContext.setCurrentTenant(previous);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("GET /api/hosted/page/{token}")
+  class Page {
+
+    @Test
+    @DisplayName(
+        "given a valid token with a landing page, should serve it without a lazy-initialization"
+            + " failure")
+    void given_validTokenWithALandingPage_should_serveTheLandingPage() throws Exception {
+      String landingPageId = seedLandingPage(tenantB, "wattr landing page");
+      String token = "tok-page-" + UUID.randomUUID();
+      seedPhishingResultWithLandingPage(tenantB, token, injectB.getId(), landingPageId);
+
+      // The scoped resolveAndBackfillByToken runs in its own REQUIRES_NEW transaction and commits
+      // before returning; PhishingResult#landingPage is LAZY, so unless it is materialized inside
+      // that transaction, this dereferences a detached proxy with no session and throws
+      // LazyInitializationException instead of a 200 with the page content.
+      mvc.perform(get(HOSTED_URI + "/page/{token}", token))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.phishing_landing_page_name").value("wattr landing page"));
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/hosted/s/{token}")
+  class Submit {
+
+    @Test
+    @DisplayName(
+        "given a valid token with a landing page, should record the submission and return its"
+            + " redirect url")
+    void given_validTokenWithALandingPage_should_recordSubmissionAndReturnRedirectUrl()
+        throws Exception {
+      String landingPageId = seedLandingPage(tenantB, "wattr submit landing page");
+      String token = "tok-submit-" + UUID.randomUUID();
+      seedPhishingResultWithLandingPage(tenantB, token, injectB.getId(), landingPageId);
+
+      // markSubmitted's scoped overload runs in its own REQUIRES_NEW transaction too; the returned
+      // result's lazy landingPage is dereferenced here (getRedirectUrl()) after that transaction
+      // has committed, the same detached-proxy shape as GET /page/{token}.
+      mvc.perform(
+              post(HOSTED_URI + "/s/{token}", token)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"username\":\"bob\",\"password\":\"secret\"}"))
+          .andExpect(status().isOk());
+
+      assertThat(submittedAt(token))
+          .as("the submission must be recorded on the token's row")
+          .isNotNull();
     }
   }
 
@@ -143,9 +199,44 @@ class HostedPublicApiIsolationTest extends IntegrationTest {
         Timestamp.from(Instant.now()));
   }
 
+  private String seedLandingPage(String tenantId, String name) {
+    String id = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO phishing_landing_pages (phishing_landing_page_id, tenant_id,"
+            + " phishing_landing_page_name, phishing_landing_page_created_at,"
+            + " phishing_landing_page_updated_at) VALUES (?, ?, ?, now(), now())",
+        id,
+        tenantId,
+        name);
+    return id;
+  }
+
+  private void seedPhishingResultWithLandingPage(
+      String tenantId, String token, String injectId, String landingPageId) {
+    jdbc.update(
+        "INSERT INTO phishing_results (phishing_result_id, tenant_id, phishing_result_token,"
+            + " phishing_result_inject, phishing_result_landing_page,"
+            + " phishing_result_created_at, phishing_result_updated_at)"
+            + " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        UUID.randomUUID().toString(),
+        tenantId,
+        token,
+        injectId,
+        landingPageId,
+        Timestamp.from(Instant.now()),
+        Timestamp.from(Instant.now()));
+  }
+
   private Timestamp openedAt(String token) {
     return jdbc.queryForObject(
         "SELECT phishing_result_opened_at FROM phishing_results WHERE phishing_result_token = ?",
+        Timestamp.class,
+        token);
+  }
+
+  private Timestamp submittedAt(String token) {
+    return jdbc.queryForObject(
+        "SELECT phishing_result_submitted_at FROM phishing_results WHERE phishing_result_token = ?",
         Timestamp.class,
         token);
   }

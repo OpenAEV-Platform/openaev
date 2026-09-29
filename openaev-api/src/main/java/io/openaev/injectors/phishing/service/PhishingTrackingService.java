@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -407,7 +408,9 @@ public class PhishingTrackingService {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Optional<PhishingResult> resolveAndBackfillByToken(
       final TxCtx ctx, @NotBlank final String token) {
-    return resolveAndBackfillByToken(token);
+    Optional<PhishingResult> result = resolveAndBackfillByToken(token);
+    result.ifPresent(this::initializeLandingPage);
+    return result;
   }
 
   /**
@@ -444,7 +447,22 @@ public class PhishingTrackingService {
       final String ip,
       final String userAgent,
       final PhishingLandingPage resolvedLandingPage) {
-    return markSubmitted(token, fields, ip, userAgent, resolvedLandingPage);
+    Optional<PhishingResult> result =
+        markSubmitted(token, fields, ip, userAgent, resolvedLandingPage);
+    result.ifPresent(this::initializeLandingPage);
+    return result;
+  }
+
+  /**
+   * Initializes the lazy {@code landingPage} proxy before a {@code REQUIRES_NEW} scoped method
+   * returns it: that method's own transaction commits at return, closing the session the proxy is
+   * bound to, so the caller (a different bean, on the outer HTTP transaction) would otherwise hold
+   * a detached proxy with no session. {@code HostedPublicApi} only reads the identifier off it,
+   * which a proxy answers without a session, but the returned entity is a public contract and the
+   * next caller to read a column would get a lazy-initialization failure instead.
+   */
+  private void initializeLandingPage(final PhishingResult result) {
+    Hibernate.initialize(result.getLandingPage());
   }
 
   /**
