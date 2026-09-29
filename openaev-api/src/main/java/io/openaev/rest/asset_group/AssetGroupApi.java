@@ -63,15 +63,17 @@ public class AssetGroupApi extends RestBehavior {
   private final TenantWriteScopeResolver writeScopeResolver;
 
   /**
-   * Resolves the lazy {@code assets} collection inside the scoped transaction, for every handler
-   * that returns an {@code AssetGroup} entity.
+   * Resolves the lazy {@code assets} and {@code tags} collections inside the scoped transaction,
+   * for every handler that returns an {@code AssetGroup} entity.
    *
-   * <p>{@code AssetGroup.assets} is a lazy {@code @ManyToMany} on the v2-active {@code assets}
-   * table, serialized by {@code MultiIdListSerializer} AFTER the handler returns, through
-   * open-in-view. The session is still open, so nothing throws, but the transaction and its {@code
-   * app.current_tenants} scope are gone and the statement inspector fail-closes the query: the
-   * endpoint returns 200 with {@code asset_group_assets: []} for every group, whatever the data.
-   * Carrying a {@code TxCtx} is necessary and not sufficient.
+   * <p>Both {@code AssetGroup.assets} and {@code AssetGroup.tags} are lazy {@code @ManyToMany}
+   * associations, serialized (by {@code MultiIdListSerializer} / {@code MultiIdSetSerializer})
+   * AFTER the handler returns, through open-in-view. The session is still open, so nothing throws,
+   * but the transaction and its {@code app.current_tenants} scope are gone and the statement
+   * inspector fail-closes the query: the endpoint returns 200 with {@code asset_group_assets: []}
+   * and {@code asset_group_tags: []} for every group, whatever the data. Carrying a {@code TxCtx}
+   * is necessary and not sufficient. This is why the asset group detail screen showed no tags while
+   * the list (served by the criteria-builder search endpoint) did.
    *
    * <p>Same shape and same fix as {@code SecurityPlatformApi.withManagerLinksInitialized} (#7026).
    * Pinned by {@code AssetAssociationSinkTest}, which is deliberately NOT {@code @Transactional}: a
@@ -80,6 +82,7 @@ public class AssetGroupApi extends RestBehavior {
    */
   private static AssetGroup withAssetsInitialized(AssetGroup assetGroup) {
     Hibernate.initialize(assetGroup.getAssets());
+    Hibernate.initialize(assetGroup.getTags());
     return assetGroup;
   }
 
