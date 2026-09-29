@@ -141,7 +141,13 @@ public class XtmOneIdentity {
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry(METADATA_TIMEOUT)) {
       HttpGet httpGet = new HttpGet(config.getUrl() + "/xtm/auth/metadata");
-      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(METADATA_TIMEOUT).build());
+      // Only the configured URL may answer: a redirect is a failed read, never another origin
+      // supplying XTM One's identity.
+      httpGet.setConfig(
+          RequestConfig.custom()
+              .setResponseTimeout(METADATA_TIMEOUT)
+              .setRedirectsEnabled(false)
+              .build());
       String body = httpClient.execute(httpGet, XtmOneIdentity::readMetadata);
       if (body == null) {
         return new Answer(false, null);

@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -201,6 +203,19 @@ class XtmOneIdentityTest {
     identity.audience();
     verify(httpClient, times(3))
         .execute((ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any());
+  }
+
+  @Test
+  @DisplayName("the metadata read never follows a redirect: another origin cannot supply it")
+  @SuppressWarnings("unchecked")
+  void metadataReadNeverFollowsARedirect() throws Exception {
+    metadataAnswers("{\"issuer\":\"" + PUBLIC_ISSUER + "\"}");
+
+    identity.audience();
+
+    ArgumentCaptor<ClassicHttpRequest> request = ArgumentCaptor.forClass(ClassicHttpRequest.class);
+    verify(httpClient).execute(request.capture(), (HttpClientResponseHandler<String>) any());
+    assertThat(((HttpGet) request.getValue()).getConfig().isRedirectsEnabled()).isFalse();
   }
 
   @Test
