@@ -94,6 +94,14 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
    */
   private static final Set<String> EMPTY_SCOPE = ConcurrentHashMap.newKeySet();
 
+  /**
+   * Per-JVM instrumentation-failure report, read by the CI shadow summary next to the surefire
+   * reports. A statement whose warning chain could not be read is a gap the detector cannot see
+   * through, not a passing signal.
+   */
+  static final String INSTRUMENTATION_FAILURE_REPORT_FILE =
+      "writeattr-instrumentation-failures.txt";
+
   public WriteAttrGateExtension() {
     if (ENABLED) {
       registerStaleReport();
@@ -215,8 +223,13 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
             new Thread(
                 () -> {
                   staleWaivers().forEach(sig -> System.out.println("[WRITEATTR-STALE] " + sig));
+                  WriteAttrDetectorRecorder.instrumentationFailures()
+                      .forEach(
+                          detail ->
+                              System.out.println("[WRITEATTR-INSTRUMENTATION-FAILURE] " + detail));
                   writeWaiverReport();
                   writeEmptyScopeReport();
+                  writeInstrumentationFailureReport();
                 },
                 "writeattr-stale-report"));
   }
@@ -279,6 +292,41 @@ public class WriteAttrGateExtension implements BeforeEachCallback, AfterEachCall
       Files.writeString(
           reports.resolve(EMPTY_SCOPE_REPORT_FILE),
           emptyScopeReportContent(new HashSet<>(EMPTY_SCOPE)),
+          StandardCharsets.UTF_8);
+    } catch (IOException | RuntimeException e) {
+      // nothing readable can act on a shutdown-time failure
+    }
+  }
+
+  /**
+   * The content {@link #writeInstrumentationFailureReport()} writes, factored out so the format is
+   * unit-tested without the shutdown hook or the filesystem: a header naming the failure count,
+   * then one line per failure.
+   */
+  static String instrumentationFailureReportContent(List<String> failures) {
+    StringBuilder out = new StringBuilder();
+    out.append("# write-attribution instrumentation failures: ")
+        .append(failures.size())
+        .append('\n');
+    failures.forEach(detail -> out.append(detail).append('\n'));
+    return out.toString();
+  }
+
+  /**
+   * Writes the statements whose warning chain could not be read next to the surefire reports, for
+   * the CI shadow summary. Never a pass/fail signal on its own, same rule as {@link
+   * #writeEmptyScopeReport()}: a broken instrument must stay visible without turning the job red.
+   * Best effort, never throws.
+   */
+  static void writeInstrumentationFailureReport() {
+    try {
+      Path reports = Path.of(System.getProperty("basedir", ""), "target", "surefire-reports");
+      if (!Files.isDirectory(reports)) {
+        return;
+      }
+      Files.writeString(
+          reports.resolve(INSTRUMENTATION_FAILURE_REPORT_FILE),
+          instrumentationFailureReportContent(WriteAttrDetectorRecorder.instrumentationFailures()),
           StandardCharsets.UTF_8);
     } catch (IOException | RuntimeException e) {
       // nothing readable can act on a shutdown-time failure

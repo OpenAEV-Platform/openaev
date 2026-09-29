@@ -41,6 +41,15 @@ public final class WriteAttrDetectorRecorder {
   private static final List<Violation> VIOLATIONS = new CopyOnWriteArrayList<>();
   private static volatile boolean recording = false;
 
+  /**
+   * Statements whose JDBC warning chain could not be read ({@link
+   * WriteAttrDetectorListener#afterQuery} caught a {@code SQLException} on {@code getWarnings()}).
+   * Every one of these is an undetectable gap: the trigger may have raised a {@code [WRITEATTR]}
+   * warning on that very statement and it was never seen. Kept for the whole JVM, not per test,
+   * since {@code afterQuery} runs on every query regardless of whether a test is recording.
+   */
+  private static final List<String> INSTRUMENTATION_FAILURES = new CopyOnWriteArrayList<>();
+
   private WriteAttrDetectorRecorder() {}
 
   public static void start() {
@@ -72,5 +81,17 @@ public final class WriteAttrDetectorRecorder {
 
   public static List<Violation> violations() {
     return Collections.unmodifiableList(VIOLATIONS);
+  }
+
+  /**
+   * Records that a statement's warning chain could not be read, so the shutdown report can make the
+   * gap visible instead of the detector silently missing whatever the trigger raised on it.
+   */
+  static void recordInstrumentationFailure(String detail) {
+    INSTRUMENTATION_FAILURES.add(detail);
+  }
+
+  public static List<String> instrumentationFailures() {
+    return Collections.unmodifiableList(INSTRUMENTATION_FAILURES);
   }
 }

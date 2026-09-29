@@ -450,6 +450,25 @@ runs:
           } >> "$S"
         fi
 
+        # Statements whose JDBC warning chain could not be read: the trigger may have raised a
+        # [WRITEATTR] warning on any of them and the listener never saw it. This file's name is
+        # WriteAttrGateExtension.INSTRUMENTATION_FAILURE_REPORT_FILE verbatim; the header text is
+        # read back from the file, not hardcoded here.
+        INSTRFAIL="$REPORTS/writeattr-instrumentation-failures.txt"
+        if [ -f "$INSTRFAIL" ] && [ "$(grep -c '^' "$INSTRFAIL")" -gt 1 ]; then
+          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::$(head -n1 "$INSTRFAIL" | sed 's/^# //'). The detector may have missed a wrong-tenant write on each of those statements."
+          {
+            echo "### $(head -n1 "$INSTRFAIL" | sed 's/^# //')"
+            echo
+            echo "A broken bridge from the trigger to the listener, not a pass."
+            echo
+            echo '```'
+            tail -n +2 "$INSTRFAIL"
+            echo '```'
+            echo
+          } >> "$S"
+        fi
+
         # A shard whose trigger could not be installed ran with no write-attribution signal at all:
         # its Spring contexts failed to refresh on the install and every later context retried.
         # Loud, never a job failure (same rule as the context-load warning above).

@@ -106,7 +106,12 @@ public class WriteAttrDetectorListener implements QueryExecutionListener {
       // in-scope write.
       statement.clearWarnings();
     } catch (SQLException e) {
-      // Fail safe: never turn an observation error into a test failure.
+      // Fail safe: never turn an observation error into a test failure. But never swallow it
+      // either: getWarnings() is the only bridge from the trigger to this listener, so a driver
+      // problem here is an undetectable gap, not a harmless one. Recorded loudly for the shutdown
+      // report rather than dropped.
+      WriteAttrDetectorRecorder.recordInstrumentationFailure(
+          "getWarnings() failed: " + e.getMessage());
     }
   }
 
@@ -123,7 +128,7 @@ public class WriteAttrDetectorListener implements QueryExecutionListener {
     if (relation == Relation.NULL && !classifier().flagsNullTenant(table)) {
       return;
     }
-    String entryFrame = resolveEntryFrame(table, id, stack);
+    String entryFrame = resolveEntryFrame(table, id, writtenTenant, stack);
     WriteAttrDetectorRecorder.record(
         new WriteAttrDetectorRecorder.Violation(
             table, writtenTenant, scope, relation, entryFrame, innermostCaller));
@@ -161,9 +166,15 @@ public class WriteAttrDetectorListener implements QueryExecutionListener {
    *   <li>else null: a synchronous write issued by test code itself, waived.
    * </ol>
    */
-  private static String resolveEntryFrame(String table, String id, StackTraceElement[] stack) {
-    if (WriteAttrEntryFrames.isCaptured(table, id)) {
-      return WriteAttrEntryFrames.capturedFrame(table, id);
+  private static String resolveEntryFrame(
+      String table, String id, String writtenTenant, StackTraceElement[] stack) {
+    // "NULL" is the trigger's literal for a null tenant_id; normalize it so the lookup key matches
+    // what a null tenantKeyOf(...) produces on the promote side (see WriteAttrHibernateListeners).
+    String tenant = "NULL".equals(writtenTenant) ? null : writtenTenant;
+    WriteAttrEntryFrames.FrameHolder captured =
+        WriteAttrEntryFrames.consumeCapturedFrame(table, id, tenant);
+    if (captured != null) {
+      return captured.frame();
     }
     String live = WriteAttrStack.entryFrame(stack);
     if (live != null) {

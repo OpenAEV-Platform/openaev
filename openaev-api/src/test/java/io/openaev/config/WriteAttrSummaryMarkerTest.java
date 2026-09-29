@@ -86,4 +86,17 @@ class WriteAttrSummaryMarkerTest {
                 + " check just finds nothing and prints no section, no error)")
         .contains(WriteAttrGateExtension.EMPTY_SCOPE_REPORT_FILE);
   }
+
+  @Test
+  @DisplayName("the summary reads the gate's instrumentation-failure report by its exact file name")
+  void given_actionYml_should_containTheInstrumentationFailureReportFileName() {
+    assertThat(actionYmlText())
+        .as(
+            "the shadow summary locates the instrumentation-failure report by this exact file"
+                + " name; it must match WriteAttrGateExtension.INSTRUMENTATION_FAILURE_REPORT_FILE"
+                + " verbatim, or a rename on either side silently stops the section from ever"
+                + " appearing (the script's `-f` check just finds nothing and prints no section, no"
+                + " error)")
+        .contains(WriteAttrGateExtension.INSTRUMENTATION_FAILURE_REPORT_FILE);
+  }
 }
