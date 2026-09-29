@@ -1,5 +1,6 @@
 package io.openaev.rest.payload.service;
 
+import static io.openaev.service.stix.SecurityCoverageInjectService.ALL_PLATFORMS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
@@ -9,8 +10,10 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.DnsResolution;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.FileDrop;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DocumentRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -35,10 +38,14 @@ import org.springframework.test.context.TestPropertySource;
 @DisplayName("payloads v2 attribution of the lazily-created built-in payloads")
 class PayloadServiceTenantAttributionTest extends IntegrationTest {
 
+  private static final String DYNAMIC_DNS_RESOLUTION_LEGACY_UUID =
+      "ff16dc60-ea6f-4925-8509-20557e09c676";
+
   @Autowired private PayloadService payloadService;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private DocumentRepository documentRepository;
+  @Autowired private PayloadRepository payloadRepository;
   @Autowired private JdbcTemplate jdbcTemplate;
 
   private String tenantA;
@@ -81,8 +88,11 @@ class PayloadServiceTenantAttributionTest extends IntegrationTest {
               tenantB,
               () -> payloadService.getDynamicDnsResolutionPayload(TxCtx.forTenant(tenantB)));
 
-      // Assert
+      // Assert: two non-default tenants get their own derived ids, distinct from each other and
+      // from the legacy id that only the default tenant keeps.
       assertThat(createdForA.getId()).isNotEqualTo(createdForB.getId());
+      assertThat(createdForA.getId()).isNotEqualTo(DYNAMIC_DNS_RESOLUTION_LEGACY_UUID);
+      assertThat(createdForB.getId()).isNotEqualTo(DYNAMIC_DNS_RESOLUTION_LEGACY_UUID);
       assertThat(rawPayloadTenant(createdForA.getId())).isEqualTo(tenantA);
       assertThat(rawPayloadTenant(createdForB.getId())).isEqualTo(tenantB);
     }
@@ -130,6 +140,35 @@ class PayloadServiceTenantAttributionTest extends IntegrationTest {
       // Assert
       assertThat(rawPayloadTenant(created.getId())).isEqualTo(tenantB);
     }
+
+    @Test
+    @DisplayName(
+        "given the default tenant already owns the row at the legacy shared id should reuse it"
+            + " instead of creating a duplicate at the newly-derived id")
+    void given_defaultTenantHasLegacyRow_should_reuseItInsteadOfDuplicating() throws Exception {
+      // Arrange: any platform that ingested DNS-resolution STIX data before this fix already
+      // holds a row at the legacy hardcoded primary key, owned by the default tenant (the only
+      // tenant that existed before v2 attribution). Clean up whatever another test in this run
+      // may have already lazily created for the default tenant, so this test is deterministic.
+      deleteDefaultTenantDnsResolutionRows();
+      seedLegacyDnsResolutionRow();
+
+      try {
+        // Act
+        DnsResolution resolved =
+            inTenantWithAmbient(
+                Tenant.DEFAULT_TENANT_UUID,
+                () ->
+                    payloadService.getDynamicDnsResolutionPayload(
+                        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID)));
+
+        // Assert: the pre-existing legacy row is found and reused, not duplicated.
+        assertThat(resolved.getId()).isEqualTo(DYNAMIC_DNS_RESOLUTION_LEGACY_UUID);
+        assertThat(countDefaultTenantDnsResolutionRows()).isEqualTo(1);
+      } finally {
+        deleteDefaultTenantDnsResolutionRows();
+      }
+    }
   }
 
   @Nested
@@ -168,6 +207,32 @@ class PayloadServiceTenantAttributionTest extends IntegrationTest {
       // Assert
       assertThat(rawPayloadTenant(created.getId())).isEqualTo(tenantB);
     }
+  }
+
+  private void seedLegacyDnsResolutionRow() {
+    DnsResolution legacy = new DnsResolution();
+    legacy.setId(DYNAMIC_DNS_RESOLUTION_LEGACY_UUID);
+    legacy.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    legacy.setName("Dynamic DNS Resolution");
+    legacy.setHostname("filigran.io");
+    legacy.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+    legacy.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    legacy.setPlatforms(ALL_PLATFORMS);
+    payloadRepository.save(legacy);
+  }
+
+  private void deleteDefaultTenantDnsResolutionRows() {
+    jdbcTemplate.update(
+        "DELETE FROM payloads WHERE payload_name = 'Dynamic DNS Resolution' AND tenant_id = ?",
+        Tenant.DEFAULT_TENANT_UUID);
+  }
+
+  private int countDefaultTenantDnsResolutionRows() {
+    return jdbcTemplate.queryForObject(
+        "SELECT count(*) FROM payloads WHERE payload_name = 'Dynamic DNS Resolution' AND"
+            + " tenant_id = ?",
+        Integer.class,
+        Tenant.DEFAULT_TENANT_UUID);
   }
 
   private String rawPayloadTenant(String payloadId) {

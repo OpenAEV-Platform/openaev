@@ -576,8 +576,16 @@ public class PayloadService {
    * UUID shared by every tenant, which made a second tenant's creation collide on the row the first
    * tenant already owns (the v2 scope hides that row from the second tenant's read). Deriving the
    * id from the tenant keeps creation idempotent per tenant while giving each tenant its own row.
+   *
+   * <p>The default tenant keeps the legacy hardcoded id: any platform that ingested DNS-resolution
+   * STIX data before this fix already holds a row there, with an injector contract and injects
+   * pointing at it, and deriving a different id for the default tenant would make that existing row
+   * invisible and grow a duplicate on every upgraded platform.
    */
   private String dynamicDnsResolutionIdFor(String tenantId) {
+    if (Tenant.DEFAULT_TENANT_UUID.equals(tenantId)) {
+      return DYNAMIC_DNS_RESOLUTION_UUID;
+    }
     return UUID.nameUUIDFromBytes(
             (DYNAMIC_DNS_RESOLUTION_UUID + ":" + tenantId)
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8))
