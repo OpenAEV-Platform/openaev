@@ -500,8 +500,6 @@ public class PayloadService {
         payloadRepository
             .findByDocumentId(documentId)
             .orElseGet(() -> this.createFileDropPayload(ctx, documentId));
-    // createFileDropPayload clears the persistence context (addContractToPayloadsInjectors), so the
-    // document it holds is detached: re-read it before touching its lazy scenarios.
     Document document = this.documentService.document(documentId);
     document.getScenarios().add(scenario);
     this.documentService.save(document);
