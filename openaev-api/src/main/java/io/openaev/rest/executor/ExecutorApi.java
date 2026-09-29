@@ -285,12 +285,14 @@ public class ExecutorApi extends RestBehavior {
     String resolvedArch = AgentUtils.normaliseSupportedAgentArch(architecture).name().toLowerCase();
 
     InputStream in = null;
+    HttpHeaders headers = new HttpHeaders();
     String resourcePath = "/openaev-agent/" + resolvedPlatform + "/" + resolvedArch + "/";
     String filename = "";
 
     if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = "openaev-agent-" + version + (resolvedPlatform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
+      addLocalSignatureHeader(headers, "/agents" + resourcePath + filename);
     } else if (agentBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
       filename =
@@ -300,7 +302,6 @@ public class ExecutorApi extends RestBehavior {
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in != null) {
-      HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
       // Stream the binary instead of buffering it fully in heap: thousands of concurrent agent
       // downloads with byte[] buffering caused GC churn / OOM risk
@@ -362,6 +363,7 @@ public class ExecutorApi extends RestBehavior {
 
     if (resolvedPlatform.equals("windows")) {
       InputStream in = null;
+      HttpHeaders headers = new HttpHeaders();
       String resourcePath = "/openaev-agent/windows/" + resolvedArch + "/";
 
       String filename = "openaev-agent-installer-";
@@ -375,6 +377,7 @@ public class ExecutorApi extends RestBehavior {
       if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
         filename = filename.concat(version).concat(".exe");
         in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
+        addLocalSignatureHeader(headers, "/agents" + resourcePath + filename);
       } else if (agentBinaryOrigin.equals(
           "repository")) { // if we want a specific version from artifactory
         filename = filename.concat(agentBinaryVersion).concat(".exe");
@@ -384,7 +387,6 @@ public class ExecutorApi extends RestBehavior {
         throw new UnsupportedOperationException(
             "Agent version " + agentBinaryVersion + " not found");
       }
-      HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
       // Stream the package instead of buffering it fully in heap
       return ResponseEntity.ok()
