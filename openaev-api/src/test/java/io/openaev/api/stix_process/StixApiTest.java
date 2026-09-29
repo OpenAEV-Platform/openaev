@@ -1038,7 +1038,6 @@ class StixApiTest extends IntegrationTest {
                       && "artifact-file-test.txt"
                           .equals(
                               ((FileDrop) inject.getPayload().get()).getFileDropFile().getName()));
-      // The document is linked to the scenario even when its file drop payload was just created
       assertThat(documentRepository.findAllDistinctByScenarioId(createdScenario.getId()))
           .extracting(Document::getName)
           .contains("artifact-file-test.txt");
