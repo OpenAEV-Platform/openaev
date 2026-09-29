@@ -7,13 +7,14 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.cert.X509Certificate;
+import java.security.KeyStore;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -24,25 +25,18 @@ import org.junit.jupiter.api.Test;
 @DisplayName("HttpClientFactory")
 class HttpClientFactoryTest {
 
-  private static final X509TrustManager ANY_CERTIFICATE =
-      new X509TrustManager() {
-        @Override
-        public void checkClientTrusted(X509Certificate[] chain, String authType) {}
-
-        @Override
-        public void checkServerTrusted(X509Certificate[] chain, String authType) {}
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-          return new X509Certificate[0];
-        }
-      };
+  private static X509TrustManager jdkTrustManager() throws Exception {
+    TrustManagerFactory trustManagers =
+        TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+    trustManagers.init((KeyStore) null);
+    return (X509TrustManager) trustManagers.getTrustManagers()[0];
+  }
 
   @Test
   @org.junit.jupiter.api.Timeout(30)
   @DisplayName("a bounded client gives up on a host that never completes the TLS handshake")
   void boundedClientGivesUpOnAStalledHandshake() throws Exception {
-    HttpClientFactory factory = new HttpClientFactory(ANY_CERTIFICATE);
+    HttpClientFactory factory = new HttpClientFactory(jdkTrustManager());
     List<Socket> accepted = new CopyOnWriteArrayList<>();
     ExecutorService acceptor = Executors.newSingleThreadExecutor();
     try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
