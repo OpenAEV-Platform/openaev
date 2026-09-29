@@ -258,5 +258,6 @@
         <module>openaev-es8-client</module>
         <module>openaev-es9-client</module>
         <module>openaev-opensearch-client</module>
+        <module>openaev-ocsf</module>
     </modules>
 </project>
