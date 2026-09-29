@@ -134,10 +134,16 @@ public class DatabaseSnapshotManager {
 
       connection.commit();
       committed = true;
-    } finally {
+    } catch (Exception e) {
       if (!committed) {
-        connection.rollback();
+        try {
+          connection.rollback();
+        } catch (SQLException rollbackFailure) {
+          e.addSuppressed(rollbackFailure);
+        }
       }
+      throw e;
+    } finally {
       connection.setAutoCommit(autoCommit);
     }
   }

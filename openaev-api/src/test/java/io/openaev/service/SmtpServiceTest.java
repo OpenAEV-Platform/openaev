@@ -43,6 +43,7 @@ public class SmtpServiceTest {
 
   private Object originalMailSender;
   private Object originalEnabled;
+  private Object originalServiceAvailable;
 
   /**
    * The service is a singleton of a context that outlives this class, and its scheduled connection
@@ -53,12 +54,14 @@ public class SmtpServiceTest {
   void rememberServiceState() {
     originalMailSender = ReflectionTestUtils.getField(smtpService, "mailSender");
     originalEnabled = ReflectionTestUtils.getField(smtpService, "enabled");
+    originalServiceAvailable = ReflectionTestUtils.getField(smtpService, "serviceAvailable");
   }
 
   @AfterAll
   void restoreServiceState() {
     ReflectionTestUtils.setField(smtpService, "mailSender", originalMailSender);
     ReflectionTestUtils.setField(smtpService, "enabled", originalEnabled);
+    ReflectionTestUtils.setField(smtpService, "serviceAvailable", originalServiceAvailable);
   }
 
   @BeforeEach

@@ -7,6 +7,7 @@ import io.openaev.IntegrationTest;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -96,6 +97,7 @@ class DatabaseSnapshotManagerTest extends IntegrationTest {
       Map<String, Object> target = snapshot.get(0);
       AtomicBoolean stop = new AtomicBoolean(false);
       AtomicBoolean sawEmptyTable = new AtomicBoolean(false);
+      CountDownLatch polling = new CountDownLatch(1);
       ExecutorService writer = Executors.newSingleThreadExecutor();
       Future<?> racing =
           writer.submit(
@@ -103,6 +105,7 @@ class DatabaseSnapshotManagerTest extends IntegrationTest {
                 while (!stop.get()) {
                   Integer count =
                       jdbcTemplate.queryForObject("SELECT count(*) FROM parameters", Integer.class);
+                  polling.countDown();
                   if (count != null && count == 0) {
                     sawEmptyTable.set(true);
                     jdbcTemplate.update(
@@ -115,6 +118,8 @@ class DatabaseSnapshotManagerTest extends IntegrationTest {
                   }
                 }
               });
+      // The writer must be polling before the restore starts, or it can miss the whole window.
+      assertThat(polling.await(10, TimeUnit.SECONDS)).as("the writer started polling").isTrue();
 
       // Act
       try {
