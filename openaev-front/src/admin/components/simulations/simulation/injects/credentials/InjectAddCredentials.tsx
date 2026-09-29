@@ -26,14 +26,16 @@ interface Props {
   onSubmit: (credentialIds: string[]) => void;
   errorLabel?: string | null;
   label?: string | boolean;
+  multiple?: boolean;
 }
 
-const InjectAddEndpoints: FunctionComponent<Props> = ({
+const InjectAddCredentials: FunctionComponent<Props> = ({
   disabled = false,
   credentialIds,
   onSubmit,
   errorLabel = null,
   label,
+  multiple = true,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -55,7 +57,7 @@ const InjectAddEndpoints: FunctionComponent<Props> = ({
           <ControlPointOutlined color={errorLabel ? 'error' : 'primary'} fontSize="small" />
         </ListItemIcon>
         <ListItemText
-          primary={t('Modify credentials')}
+          primary={multiple ? t('Update credentials') : t('Update credential')}
           classes={{ primary: errorLabel ? classes.textError : classes.text }}
         />
       </ListItemButton>
@@ -80,4 +82,4 @@ const InjectAddEndpoints: FunctionComponent<Props> = ({
   );
 };
 
-export default InjectAddEndpoints;
+export default InjectAddCredentials;

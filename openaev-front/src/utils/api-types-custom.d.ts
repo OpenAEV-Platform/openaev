@@ -97,6 +97,7 @@ export interface ContractElement {
     type: string;
   }[];
   cardinality: '1' | 'n';
+  multiple?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultValue: any;
   richText?: boolean;

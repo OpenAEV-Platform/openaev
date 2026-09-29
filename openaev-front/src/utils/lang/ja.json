@@ -3964,6 +3964,8 @@
   "Update an asset": "Update an asset",
   "Update an endpoint": "エンドポイントの更新",
   "Update connector instance": "コネクタインスタンスを更新する",
+  "Update credential": "認証情報を更新する",
+  "Update credentials": "認証情報を更新する",
   "Update date": "更新日",
   "Update event": "更新イベント",
   "Update Event": "イベントを更新",

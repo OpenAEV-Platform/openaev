@@ -3964,6 +3964,8 @@
   "Update an asset": "Update an asset",
   "Update an endpoint": "Обновить конечную точку",
   "Update connector instance": "Обновить экземпляр коннектора",
+  "Update credential": "Обновить учетные данные",
+  "Update credentials": "Обновить учетные данные",
   "Update date": "Дата обновления",
   "Update event": "Событие обновления",
   "Update Event": "Обновить событие",
