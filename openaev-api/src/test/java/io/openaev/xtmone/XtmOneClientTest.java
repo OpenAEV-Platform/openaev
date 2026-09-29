@@ -124,8 +124,8 @@ class XtmOneClientTest {
 
     static Stream<Arguments> errorStatusCodes() {
       return Stream.of(
-          Arguments.of(401, 401, "UNAUTHORIZED"),
-          Arguments.of(403, 403, "FORBIDDEN"),
+          Arguments.of(401, 502, "BAD_GATEWAY"),
+          Arguments.of(403, 502, "BAD_GATEWAY"),
           Arguments.of(503, 503, "SERVICE_UNAVAILABLE"),
           Arguments.of(502, 500, "INTERNAL_SERVER_ERROR (default)"));
     }

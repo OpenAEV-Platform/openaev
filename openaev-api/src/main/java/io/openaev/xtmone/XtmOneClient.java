@@ -254,12 +254,13 @@ public class XtmOneClient {
         }
         yield agents;
       }
+      // XTM One rejecting our JWT is an upstream failure: a 401 would log the caller out
       case 401 ->
           throw new ResponseStatusException(
-              HttpStatus.UNAUTHORIZED, "[XTM One] Unauthorized access to chat agents");
+              HttpStatus.BAD_GATEWAY, "[XTM One] Unauthorized access to chat agents");
       case 403 ->
           throw new ResponseStatusException(
-              HttpStatus.FORBIDDEN, "[XTM One] Forbidden access to chat agents");
+              HttpStatus.BAD_GATEWAY, "[XTM One] Forbidden access to chat agents");
       case 404 ->
           throw new ResponseStatusException(
               HttpStatus.NOT_FOUND, "[XTM One] Chat agents endpoint not found");
