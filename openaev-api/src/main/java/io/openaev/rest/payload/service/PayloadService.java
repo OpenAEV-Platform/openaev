@@ -27,6 +27,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPayloadRelatedIds;
 import io.openaev.database.repository.*;
+import io.openaev.database.specification.PayloadSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.helper.SupportedLanguage;
@@ -56,11 +57,14 @@ import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -476,13 +480,19 @@ public class PayloadService {
    */
   public Page<Payload> searchPayloads(@NotNull final SearchPaginationInput searchPaginationInput) {
     User currentUser = userService.currentUser();
-    return buildPaginationJPA(
+    BiFunction<Specification<Payload>, Pageable, Page<Payload>> grantFilteredFindAll =
         SpecificationUtils.withGrantFilter(
             this.payloadRepository,
             Grant.GRANT_TYPE.OBSERVER,
             currentUser.getId(),
             currentUser.isAdminOrBypass(),
-            currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)),
+            currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS));
+    return buildPaginationJPA(
+        (spec, pageable) ->
+            grantFilteredFindAll.apply(
+                (spec == null ? Specification.<Payload>unrestricted() : spec)
+                    .and(PayloadSpecification.withCollectorType()),
+                pageable),
         handleArchitectureFilter(searchPaginationInput),
         Payload.class);
   }
