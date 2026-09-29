@@ -49,6 +49,7 @@ public class HealthCheck {
     OPTIONAL_ARGS("optional_args"),
     MESSAGE("message"),
     SCOPE_DEFINITION("scope_definition"),
+    CREDENTIAL_REFERENCE("credential_reference"),
     UNKNOWN("unknown");
 
     private final String value;
