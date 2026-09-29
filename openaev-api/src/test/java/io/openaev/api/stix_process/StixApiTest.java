@@ -29,6 +29,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
+import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -78,6 +79,7 @@ class StixApiTest extends IntegrationTest {
 
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private DocumentRepository documentRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private SecurityCoverageRepository securityCoverageRepository;
   @Autowired private AssetGroupService assetGroupService;
@@ -1036,6 +1038,10 @@ class StixApiTest extends IntegrationTest {
                       && "artifact-file-test.txt"
                           .equals(
                               ((FileDrop) inject.getPayload().get()).getFileDropFile().getName()));
+      // The document is linked to the scenario even when its file drop payload was just created
+      assertThat(documentRepository.findAllDistinctByScenarioId(createdScenario.getId()))
+          .extracting(Document::getName)
+          .contains("artifact-file-test.txt");
     }
 
     @Test
