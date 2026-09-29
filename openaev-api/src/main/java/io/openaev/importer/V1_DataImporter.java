@@ -313,7 +313,7 @@ public class V1_DataImporter implements Importer {
 
     importOrganizations(importNode, prefix, baseIds);
     importUsers(importNode, prefix, baseIds);
-    importTeams(importNode, prefix, savedExercise, savedScenario, baseIds);
+    importTeams(importNode, prefix, savedExercise, savedScenario, baseIds, writeTenant);
     importChallenges(ctx, importNode, prefix, baseIds);
     importChannels(ctx, importNode, prefix, baseIds);
     importArticles(importNode, prefix, savedExercise, savedScenario, baseIds);
@@ -1084,9 +1084,10 @@ public class V1_DataImporter implements Importer {
       String prefix,
       Exercise savedExercise,
       Scenario savedScenario,
-      Map<String, Base> baseIds) {
+      Map<String, Base> baseIds,
+      String writeTenant) {
     Map<String, Team> baseTeams =
-        handlingTeams(importNode, prefix, baseIds, savedExercise, savedScenario);
+        handlingTeams(importNode, prefix, baseIds, savedExercise, savedScenario, writeTenant);
     baseTeams
         .values()
         .forEach(
@@ -1109,7 +1110,8 @@ public class V1_DataImporter implements Importer {
       String prefix,
       Map<String, Base> baseIds,
       Exercise savedExercise,
-      Scenario savedScenario) {
+      Scenario savedScenario,
+      String writeTenant) {
     Map<String, Team> baseTeams = new HashMap<>();
 
     resolveJsonElements(importNode, prefix + "teams")
@@ -1138,6 +1140,7 @@ public class V1_DataImporter implements Importer {
                 }
 
                 Team team = createTeam(nodeTeam, baseIds);
+                team.setTenant(new Tenant(writeTenant));
                 // Tags
                 List<String> teamTagIds = resolveJsonIds(nodeTeam, "team_tags");
                 Set<Tag> tagsForTeam =
