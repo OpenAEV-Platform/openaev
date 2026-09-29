@@ -186,9 +186,8 @@ const InjectContentForm = ({
     <div key="credential-reference">
       <InputLabel required={enhancedFieldsMapByType.get('credential-reference')?.settings?.required} error={!!err}>{t(enhancedFieldsMapByType.get('credential-reference')?.label || 'Credential reference')}</InputLabel>
       <InjectCredentialReferencesList
-        name="inject_secret_references"
-        disabled={enhancedFieldsMapByType.get('credential-reference')?.readOnly || readOnly}
         errorLabel={err}
+        disabled={enhancedFieldsMapByType.get('credential-reference')?.readOnly || readOnly}
         multiple={enhancedFieldsMapByType.get('credential-reference')?.multiple}
       />
     </div>
