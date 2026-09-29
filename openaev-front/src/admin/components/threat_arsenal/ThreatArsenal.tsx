@@ -547,8 +547,8 @@ const ThreatArsenal = () => {
                   <Box sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 0.5,
-                    marginRight: 1,
+                    gap: 2.5,
+                    marginRight: 1.5,
                     flexShrink: 0,
                   }}
                   >
@@ -561,7 +561,7 @@ const ThreatArsenal = () => {
                         the list view (the toolbar is shared by the two). */}
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span>
+                        <span className="inline-flex">
                           {/* The library box is 16x16 with no padding, so it no
                             longer sets the row's height — the 36px is the row's
                             own now. The mixed state travels as the `checked`
