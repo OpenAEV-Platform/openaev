@@ -42,8 +42,11 @@ import org.hibernate.annotations.*;
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 // payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter (#6437,
-// #6430). TenantBaseListener stays as a defensive @PrePersist fallback: every create path sets
-// the tenant explicitly, so it never fires in practice.
+// #6430). TenantBaseListener stays as a defensive @PrePersist fallback for a row saved with no
+// tenant set (some test fixtures do this; a stray application create path would too). It
+// currently stamps the ambient default tenant; once a table in this position is added to a
+// fail-fast policy (unattributed writes refused instead of defaulted), it becomes a guard rather
+// than a fallback.
 @Schema(
     discriminatorProperty = "payload_type",
     oneOf = {
