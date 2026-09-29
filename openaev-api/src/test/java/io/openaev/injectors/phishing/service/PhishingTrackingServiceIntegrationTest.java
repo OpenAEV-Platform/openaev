@@ -9,6 +9,7 @@ import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepActionClass;
 import io.openaev.database.model.StepStatus;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -84,6 +85,9 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
   private PhishingLandingPage persistLandingPage() {
     PhishingLandingPage landingPage = new PhishingLandingPage();
     landingPage.setName("Test landing page");
+    // Explicit, not left to PhishingLandingPage's own v1 TenantBaseListener (removed on the
+    // phishing_landing_pages activation): this test runs with no tenant context of its own.
+    landingPage.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     return phishingLandingPageRepository.save(landingPage);
   }
 
