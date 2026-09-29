@@ -284,6 +284,138 @@ class CredentialApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Find by ids")
+  class FindCredentials {
+
+    @Test
+    @DisplayName("given_ownTenantCredentialIds_should_returnOnlyRequestedCredentials")
+    void given_ownTenantCredentialIds_should_returnOnlyRequestedCredentials() throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-find");
+      CredentialSecretReference requested1 =
+          credentialSecretReferenceRepository.save(
+              CredentialFixture.createDefaultUsernameCredentialReference(tenant));
+      String requestedId2 =
+          credentialSecretReferenceRepository
+              .save(CredentialFixture.createDefaultHashCredential(tenant))
+              .getId();
+      String notRequestedId =
+          credentialSecretReferenceRepository
+              .save(CredentialFixture.createDefaultUsernameCredentialReference(tenant))
+              .getId();
+
+      // Act
+      String response = findCredentials(tenant.getId(), List.of(requested1.getId(), requestedId2));
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$[*].credential_id");
+      assertThat(ids)
+          .containsExactlyInAnyOrder(requested1.getId(), requestedId2)
+          .doesNotContain(notRequestedId);
+      String requested1Path = "$[?(@.credential_id == '" + requested1.getId() + "')]";
+      List<String> names = JsonPath.read(response, requested1Path + ".credential_name");
+      assertThat(names).containsExactly(requested1.getName());
+      List<String> types = JsonPath.read(response, requested1Path + ".credential_type");
+      assertThat(types).containsExactly(CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY.name());
+      List<String> authMethods =
+          JsonPath.read(response, requested1Path + ".credential_auth_method");
+      assertThat(authMethods)
+          .containsExactly(
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD.name());
+      List<String> statuses = JsonPath.read(response, requested1Path + ".credential_status");
+      assertThat(statuses).containsExactly(UNSET.name());
+    }
+
+    @Test
+    @DisplayName("given_otherTenantCredentialId_should_notResolveIt")
+    void given_otherTenantCredentialId_should_notResolveIt() throws Exception {
+      // Arrange
+      Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-find-a");
+      Tenant tenantB = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-find-b");
+      String tenantACredentialId =
+          credentialSecretReferenceRepository
+              .save(CredentialFixture.createDefaultUsernameCredentialReference(tenantA))
+              .getId();
+      String tenantBCredentialId =
+          credentialSecretReferenceRepository
+              .save(CredentialFixture.createDefaultUsernameCredentialReference(tenantB))
+              .getId();
+
+      // Act
+      String response =
+          findCredentials(tenantA.getId(), List.of(tenantACredentialId, tenantBCredentialId));
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$[*].credential_id");
+      assertThat(ids).containsExactly(tenantACredentialId).doesNotContain(tenantBCredentialId);
+    }
+
+    @Test
+    @DisplayName("given_unknownCredentialId_should_returnEmptyList")
+    void given_unknownCredentialId_should_returnEmptyList() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-find-unknown");
+
+      // Act
+      String response = findCredentials(tenant.getId(), List.of(UUID.randomUUID().toString()));
+
+      // Assert
+      assertThatJson(response).isArray().isEmpty();
+    }
+
+    @Test
+    @DisplayName("given_emptyIdList_should_returnEmptyList")
+    void given_emptyIdList_should_returnEmptyList() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-find-empty");
+      credentialSecretReferenceRepository.save(
+          CredentialFixture.createDefaultUsernameCredentialReference(tenant));
+
+      // Act
+      String response = findCredentials(tenant.getId(), List.of());
+
+      // Assert
+      assertThatJson(response).isArray().isEmpty();
+    }
+
+    @Test
+    @DisplayName("given_credentialWithSecret_should_notExposeSecretMaterial")
+    void given_credentialWithSecret_should_notExposeSecretMaterial() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-find-secret");
+      String name = "find-secret-" + UUID.randomUUID();
+      Persisted persisted = persistFullCredential(tenant, name);
+
+      // Act
+      String response = findCredentials(tenant.getId(), List.of(persisted.credentialId()));
+
+      // Assert: the reference is resolved, but neither the secret values nor its location leak.
+      List<String> ids = JsonPath.read(response, "$[*].credential_id");
+      assertThat(ids).containsExactly(persisted.credentialId());
+      assertThat(response)
+          .doesNotContain("user-" + name)
+          .doesNotContain("pass-" + name)
+          .doesNotContain(persisted.secretId());
+    }
+
+    private String findCredentials(String tenantId, List<String> credentialIds) throws Exception {
+      return mvc.perform(
+              post(tenantCredentialsUri(tenantId) + "/find")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(credentialIds))
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+  }
+
+  @Nested
   @DisplayName("Create")
   class CreateCredential {
 
@@ -1288,6 +1420,50 @@ class CredentialApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_accessCredentials_should_allowFind")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_CREDENTIALS})
+    void given_accessCredentials_should_allowFind() throws Exception {
+      // Arrange
+      Tenant tenant =
+          createCommittedTenantWithCapabilities(
+              "credential-cap-find", Set.of(Capability.ACCESS_CREDENTIALS));
+
+      // Act
+      int responseStatus =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()) + "/find")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(List.of(UNKNOWN_CREDENTIAL_ID)))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(responseStatus).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("given_unrelatedCapability_should_forbidFind")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_unrelatedCapability_should_forbidFind() throws Exception {
+      // Arrange
+      Tenant tenant =
+          createCommittedTenantWithCapabilities(
+              "credential-cap-forbid-find", Set.of(Capability.MANAGE_ASSETS));
+
+      // Act & Assert
+      mvc.perform(
+              post(tenantCredentialsUri(tenant.getId()) + "/find")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(List.of(UNKNOWN_CREDENTIAL_ID)))
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("given_manageCredentials_should_allowCreate")
     @WithMockUser(withCapabilities = {Capability.MANAGE_CREDENTIALS})
     void given_manageCredentials_should_allowCreate() throws Exception {
@@ -1577,21 +1753,6 @@ class CredentialApiTest extends IntegrationTest {
           .isPresent();
       assertThat(secretRepository.findById(credentialB.secretId())).isPresent();
     }
-
-    private Persisted persistFullCredential(Tenant tenant, String name) {
-      UsernamePasswordSecret secret = new UsernamePasswordSecret();
-      secret.setTenant(tenant);
-      secret.setUsername("user-" + name);
-      secret.setPassword("pass-" + name);
-      Secret savedSecret = secretRepository.save(secret);
-
-      CredentialSecretReference reference =
-          CredentialFixture.createDefaultUsernameCredentialReference(name, tenant);
-      reference.setLocation(savedSecret.getId());
-      reference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
-      CredentialSecretReference saved = credentialSecretReferenceRepository.save(reference);
-      return new Persisted(saved.getId(), savedSecret.getId());
-    }
   }
 
   @AfterEach
@@ -1627,6 +1788,21 @@ class CredentialApiTest extends IntegrationTest {
   }
 
   private record Persisted(String credentialId, String secretId) {}
+
+  private Persisted persistFullCredential(Tenant tenant, String name) {
+    UsernamePasswordSecret secret = new UsernamePasswordSecret();
+    secret.setTenant(tenant);
+    secret.setUsername("user-" + name);
+    secret.setPassword("pass-" + name);
+    Secret savedSecret = secretRepository.save(secret);
+
+    CredentialSecretReference reference =
+        CredentialFixture.createDefaultUsernameCredentialReference(name, tenant);
+    reference.setLocation(savedSecret.getId());
+    reference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
+    CredentialSecretReference saved = credentialSecretReferenceRepository.save(reference);
+    return new Persisted(saved.getId(), savedSecret.getId());
+  }
 
   private CredentialInput validUsernamePasswordInput(String name) {
     return new CredentialInput(

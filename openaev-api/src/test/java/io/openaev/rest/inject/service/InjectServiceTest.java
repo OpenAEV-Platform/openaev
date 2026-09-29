@@ -85,6 +85,7 @@ class InjectServiceTest {
   @Mock private AssetGroupService assetGroupService;
 
   @Mock private TeamRepository teamRepository;
+  @Mock private SecretReferenceRepository secretReferenceRepository;
 
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
