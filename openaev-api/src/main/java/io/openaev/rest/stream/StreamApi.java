@@ -264,6 +264,14 @@ public class StreamApi extends RestBehavior {
           try {
             FluxSink<Object> fluxSink = consumer.fluxSink();
             if (!hasReadPermission(consumer, user, event)) {
+              // A consumer that cannot read the entity gets nothing for creations and updates:
+              // even an id-only tombstone would disclose the id, schema and timing of every
+              // unreadable mutation, and would wipe rows the client loaded through
+              // parent-scoped reads (e.g. simulation expectations). Only actual deletions are
+              // relayed, as an id-only tombstone, so such rows still leave the client store.
+              if (!DATA_DELETE.equals(event.getType())) {
+                return;
+              }
               try {
                 String propertyId = event.getAttributeId();
                 if (propertyId == null || propertyId.isBlank()) {
@@ -275,9 +283,7 @@ public class StreamApi extends RestBehavior {
                 ObjectNode deleteNode = mapper.createObjectNode();
                 deleteNode.set(
                     propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-                BaseEvent userEvent = event.clone();
-                userEvent.setType(DATA_DELETE);
-                sendStreamEvent(fluxSink, userEvent, deleteNode);
+                sendStreamEvent(fluxSink, event.clone(), deleteNode);
               } catch (Exception e) {
                 String simpleName = event.getInstance().getClass().getSimpleName();
                 log.warn(String.format("Class %s can't be streamed", simpleName), e);

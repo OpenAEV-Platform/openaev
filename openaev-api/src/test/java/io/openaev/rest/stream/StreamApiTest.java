@@ -132,13 +132,17 @@ public class StreamApiTest {
     return jsonMapper.valueToTree(captor.getValue().data());
   }
 
-  private void assertDeniedEventIsMasked(Base resource, String idProperty, String eventType) {
-    ObjectMapper jsonMapper = useRealMapper();
+  private void denyRead(Base resource) {
     when(permissionService.hasPermission(
             mockUser, Optional.empty(), RESOURCE_ID, resource.getResourceType(), Action.READ))
         .thenReturn(false);
+  }
 
-    BaseEvent event = new BaseEvent(eventType, resource, jsonMapper);
+  private void assertDeniedDeletionIsMasked(Base resource, String idProperty) {
+    ObjectMapper jsonMapper = useRealMapper();
+    denyRead(resource);
+
+    BaseEvent event = new BaseEvent(DATA_DELETE, resource, jsonMapper);
     JsonNode originalData = event.getInstanceData().deepCopy();
     streamApi.listenDatabaseUpdate(event);
 
@@ -147,6 +151,18 @@ public class StreamApiTest {
     assertEquals(DATA_DELETE, wire.path("event_type").asText());
     assertEquals(idProperty, wire.path("attribute_id").asText());
     assertEquals(expectedInstance, wire.path("instance"));
+    assertEquals(originalData, event.getInstanceData());
+  }
+
+  private void assertDeniedMutationIsDropped(Base resource, String eventType) {
+    ObjectMapper jsonMapper = useRealMapper();
+    denyRead(resource);
+
+    BaseEvent event = new BaseEvent(eventType, resource, jsonMapper);
+    JsonNode originalData = event.getInstanceData().deepCopy();
+    streamApi.listenDatabaseUpdate(event);
+
+    verify(mockSink, never()).next(any());
     assertEquals(eventType, event.getType());
     assertEquals(originalData, event.getInstanceData());
   }
@@ -177,29 +193,64 @@ public class StreamApiTest {
     assertEquals(scenario.getId(), ((Scenario) baseEventCaptured.getInstance()).getId());
   }
 
-  @Test
-  public void given_agentEvent_when_userCannotRead_should_maskThePayload() {
+  private static Agent restrictedAgent() {
     Agent agent = new Agent();
     agent.setId(RESOURCE_ID);
     agent.setVersion("restricted-agent-version");
-    assertDeniedEventIsMasked(agent, "agent_id", DATA_UPDATE);
+    return agent;
   }
 
-  @Test
-  public void given_assetEvent_when_userCannotRead_should_maskThePayload() {
-    Asset asset = new Asset();
-    asset.setId(RESOURCE_ID);
-    assertDeniedEventIsMasked(asset, "asset_id", DATA_UPDATE);
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
-  public void given_endpointEvent_when_userCannotRead_should_maskTheInheritedId(String eventType) {
+  private static Endpoint restrictedEndpoint() {
     Endpoint endpoint = new Endpoint();
     endpoint.setId(RESOURCE_ID);
     endpoint.setName("restricted-endpoint");
+    return endpoint;
+  }
 
-    assertDeniedEventIsMasked(endpoint, "asset_id", eventType);
+  private static PreventionInjectExpectation restrictedExpectation() {
+    PreventionInjectExpectation expectation = new PreventionInjectExpectation();
+    expectation.setId(RESOURCE_ID);
+    return expectation;
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE})
+  public void given_agentMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
+    assertDeniedMutationIsDropped(restrictedAgent(), eventType);
+  }
+
+  @Test
+  public void given_agentDeletion_when_userCannotRead_should_receiveAnIdOnlyTombstone() {
+    assertDeniedDeletionIsMasked(restrictedAgent(), "agent_id");
+  }
+
+  @Test
+  public void given_assetDeletion_when_userCannotRead_should_receiveAnIdOnlyTombstone() {
+    Asset asset = new Asset();
+    asset.setId(RESOURCE_ID);
+    assertDeniedDeletionIsMasked(asset, "asset_id");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE})
+  public void given_endpointMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
+    assertDeniedMutationIsDropped(restrictedEndpoint(), eventType);
+  }
+
+  @Test
+  public void given_endpointDeletion_when_userCannotRead_should_maskTheInheritedId() {
+    assertDeniedDeletionIsMasked(restrictedEndpoint(), "asset_id");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE})
+  public void given_expectationMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
+    assertDeniedMutationIsDropped(restrictedExpectation(), eventType);
+  }
+
+  @Test
+  public void given_expectationDeletion_when_userCannotRead_should_maskTheInheritedId() {
+    assertDeniedDeletionIsMasked(restrictedExpectation(), "inject_expectation_id");
   }
 
   @ParameterizedTest
