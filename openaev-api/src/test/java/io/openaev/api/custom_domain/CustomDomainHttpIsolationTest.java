@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -196,6 +197,40 @@ class CustomDomainHttpIsolationTest extends IntegrationTest {
     entityManager.clear();
     assertEquals(
         1L, rawCount(domainA), "tenant A's domain must not have been deleted cross-tenant");
+  }
+
+  @Test
+  @DisplayName(
+      "a hostname already claimed by another tenant is refused with the business 400, not a raw"
+          + " integrity conflict")
+  void duplicateHostnameAcrossTenantsIsRefusedWithBusiness400() throws Exception {
+    String hostname = "dup-" + System.currentTimeMillis() + ".example.test";
+    CustomDomainInput input = new CustomDomainInput();
+    input.setHostname(hostname);
+
+    mvc.perform(
+            post(TENANT_CUSTOM_DOMAINS, tenantA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .with(csrf()))
+        .andExpect(status().isOk());
+
+    // Commit tenant A's row for real and leave the test transaction ended, so the second request
+    // opens its own genuine transaction and commits at its own boundary, exactly like production,
+    // instead of joining this test's single open transaction where nothing really flushes.
+    TestTransaction.flagForCommit();
+    TestTransaction.end();
+
+    try {
+      mvc.perform(
+              post(TENANT_CUSTOM_DOMAINS, tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    } finally {
+      TestTransaction.start();
+    }
   }
 
   private String rawTenantId(String domainId) {

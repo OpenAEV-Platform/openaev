@@ -84,7 +84,10 @@ public class CustomDomainService {
     domain.setVerificationToken(generateToken());
     domain.setUpdatedAt(Instant.now());
     try {
-      return customDomainRepository.save(domain);
+      // saveAndFlush, not save: an assigned-id entity defers its INSERT to flush, which without
+      // this call would happen at transaction commit, after this try/catch has already returned -
+      // the constraint violation would then surface as a raw 409 instead of this business 400.
+      return customDomainRepository.saveAndFlush(domain);
     } catch (org.springframework.dao.DataIntegrityViolationException e) {
       // Global unique index: the hostname is already claimed by another tenant.
       throw new BadRequestException("This domain is already registered");
