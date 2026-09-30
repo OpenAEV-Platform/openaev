@@ -36,17 +36,20 @@ const userContext: UserContextType = {
   reloadUserTenants: vi.fn(),
 };
 
-const ignoreIntlErrors = () => {};
+interface IntlSetup {
+  locale?: string;
+  messages?: Record<string, string>;
+  onError?: (error: { code: string }) => void;
+}
 
-const Providers = ({ children }: { children: ReactNode }) => (
-  <IntlProvider locale="en" defaultLocale="en" messages={{}} onError={ignoreIntlErrors}>
-    <UserContext.Provider value={userContext}>
-      <MemoryRouter initialEntries={['/admin']}>{children}</MemoryRouter>
-    </UserContext.Provider>
-  </IntlProvider>
-);
-
-const renderPanel = async () => {
+const renderPanel = async ({ locale = 'en', messages = {}, onError = () => {} }: IntlSetup = {}) => {
+  const Providers = ({ children }: { children: ReactNode }) => (
+    <IntlProvider locale={locale} defaultLocale="en" messages={messages} onError={onError}>
+      <UserContext.Provider value={userContext}>
+        <MemoryRouter initialEntries={['/admin']}>{children}</MemoryRouter>
+      </UserContext.Provider>
+    </IntlProvider>
+  );
   render(
     <AskArianePanel mode="sidebar" onClose={() => {}} onModeChange={() => {}} />,
     { wrapper: Providers },
@@ -87,5 +90,48 @@ describe('AskArianePanel', () => {
     const paths = Object.values(props.apiEndpoints ?? {}).filter(value => typeof value === 'string');
     expect(paths.length).toBeGreaterThan(0);
     expect(paths.filter(path => path.startsWith('/chat/'))).toEqual([]);
+  });
+
+  it('given_theChatPanel_should_nameTheFeedbackRouteOfTheProxy', async () => {
+    // Act
+    const props = await renderPanel();
+
+    // Assert: the chatbot appends '/{conversationId}/messages/{messageId}/feedback',
+    // which is the proxy's POST / DELETE route under /api/xtmone/chat.
+    expect(props.apiEndpoints?.feedback).toBe('/conversations');
+  });
+
+  it('given_aFrenchUser_should_passTheLocaleToTheChatPanel', async () => {
+    // Act
+    const props = await renderPanel({ locale: 'fr' });
+
+    // Assert
+    expect(props.locale).toBe('fr');
+  });
+
+  it('given_aPlaceholderKey_should_handTheRawCatalogStringToTheChatbot', async () => {
+    // Arrange
+    const onError = vi.fn();
+    const messages = { '{quota} (shared across all users)': '{quota} (partagé entre tous les utilisateurs)' };
+
+    // Act
+    const props = await renderPanel({
+      locale: 'fr',
+      messages,
+      onError,
+    });
+
+    // Assert: the chatbot fills '{quota}' itself, so it must stay literal and
+    // never go through an ICU pass that has no value for it.
+    expect(props.t?.('{quota} (shared across all users)')).toBe('{quota} (partagé entre tous les utilisateurs)');
+    expect(onError).not.toHaveBeenCalledWith(expect.objectContaining({ code: 'FORMAT_ERROR' }));
+  });
+
+  it('given_aKeyMissingFromTheCatalog_should_fallBackToTheEnglishKey', async () => {
+    // Act
+    const props = await renderPanel({ locale: 'fr' });
+
+    // Assert
+    expect(props.t?.('Read aloud')).toBe('Read aloud');
   });
 });

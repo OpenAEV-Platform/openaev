@@ -6,6 +6,7 @@ import { LogoXtmOneIcon } from 'filigran-icon';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useIntl } from 'react-intl';
 import { useLocation } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
@@ -46,6 +47,9 @@ const CHAT_API_ENDPOINTS = {
   // whenever its route fails or has nothing to show.
   prompts: '/prompts',
   quota: '/quota',
+  // Base of the per-message rating route: the chatbot appends
+  // '/{conversationId}/messages/{messageId}/feedback' (POST rates, DELETE retracts).
+  feedback: '/conversations',
 } satisfies ApiEndpoints;
 
 const AskArianePanel: React.FC<AskArianePanelProps> = ({
@@ -57,7 +61,15 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   onResizeEnd,
 }) => {
   const theme = useTheme<Theme>();
-  const { t } = useFormatter();
+  const { t, locale } = useFormatter();
+  const { messages } = useIntl();
+  // The chatbot calls t(key) with no values and fills '{quota}', '{count}'...
+  // itself, so it gets the raw catalog string: through formatMessage those
+  // placeholders are ICU arguments with no value and log a FORMAT_ERROR.
+  const chatbotT = (key: string) => {
+    const message = messages[key];
+    return typeof message === 'string' ? message : key;
+  };
   const location = useLocation();
   const { me, settings } = useAuth();
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -191,7 +203,8 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     apiEndpoints: CHAT_API_ENDPOINTS,
     user: { firstName },
     disableFileManagement: false,
-    t,
+    t: chatbotT,
+    locale,
     accentColor,
     logoIcon,
     agentDashboardUrl: xtmOneUrl || undefined,
