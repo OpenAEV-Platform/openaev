@@ -161,4 +161,4 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 ## Useful Links
 
 - [Chaining PRs](https://github.com/OpenAEV-Platform/openaev/pulls?q=is%3Apr+chaining+draft%3Afalse)
-- Instructions: [chaining-engine.instructions.md](../../instructions/chaining-engine.instructions.md)
+- Instructions: [chaining-engine.instructions.md](../../../.github/instructions/chaining-engine.instructions.md)

@@ -142,7 +142,7 @@ Location: `openaev-api/src/test/java/io/openaev/api/{feature}/`
 
 ### Step 10 — Create Frontend Actions + Page
 
-> Follow templates and conventions from [frontend.instructions.md](../../instructions/frontend.instructions.md).
+> Follow templates and conventions from [frontend.instructions.md](../../../.github/instructions/frontend.instructions.md).
 
 Location: `openaev-front/src/actions/{feature}/` and `src/admin/components/`
 

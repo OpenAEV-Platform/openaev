@@ -398,7 +398,7 @@ hardening).**
 Step 3 is the only time anyone will have the whole activation procedure in their head. Capture it
 immediately, the way `activate-tenant-table` captured the tenant equivalent.
 
-**4.1 — Write `.github/skills/activate-marking-table/SKILL.md`**, mirroring the phase structure of
+**4.1 — Write `.claude/skills/activate-marking-table/SKILL.md`**, mirroring the phase structure of
 `activate-tenant-table`:
 
 | Phase | Content |

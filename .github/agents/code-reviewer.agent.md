@@ -25,7 +25,7 @@ Load conditionally based on the diff:
 - **Migration files** → read `.github/instructions/migration.instructions.md`
 
 Then:
-- **Follow `.github/skills/review-code/SKILL.md`** step-by-step — run every command
+- **Follow `.claude/skills/review-code/SKILL.md`** step-by-step — run every command
 
 ## Review Phases
 
