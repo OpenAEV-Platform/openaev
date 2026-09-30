@@ -186,16 +186,24 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
 
   const inlineStyles: Record<string, CSSProperties> = showModes
     ? {
-        agent_name: { width: '30%' },
-        agent_description: { width: '34%' },
-        agent_built_in: { width: '14%' },
-        agent_mode: { width: '22%' },
+        // Built-in holds the "Orchestrator" chip and Discovery mode a Select plus its info icon:
+        // both need more than their former 14% / 22% at laptop widths (1512px) - the description
+        // is the one column that truncates gracefully (ellipsis + title).
+        agent_name: { width: '26%' },
+        agent_description: { width: '28%' },
+        agent_built_in: { width: '18%' },
+        agent_mode: { width: '28%' },
       }
     : {
         agent_name: { width: '32%' },
         agent_description: { width: '48%' },
         agent_built_in: { width: '20%' },
       };
+
+  // MUI reserves 48px on the right of a row with a secondary action, but the library Switch is 36px
+  // wide at 16px from the edge (52px): the last column ran under it. 72px keeps a 20px gap. Applied
+  // to the header and skeleton rows too so every row keeps the same column grid.
+  const secondaryActionRowSx = { paddingRight: 9 };
 
   // Column definitions drive ONLY the wide-screen sortable header row and column widths; the row body
   // (both layouts) is rendered by renderRow so there is a single source of truth for cell content.
@@ -353,6 +361,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
         divider
         alignItems={isSmall ? 'flex-start' : 'center'}
         secondaryAction={row.trailing}
+        sx={secondaryActionRowSx}
       >
         <ListItemIcon sx={isSmall ? { marginTop: 0.5 } : undefined}>
           <SmartToyOutlined fontSize="small" sx={{ color: row.iconColor }} />
@@ -373,6 +382,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
         textTransform: 'uppercase',
       }}
       secondaryAction={<>&nbsp;</>}
+      sx={secondaryActionRowSx}
     >
       <ListItemIcon />
       <ListItemText
@@ -427,6 +437,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                   key={key}
                   divider
                   secondaryAction={<Skeleton variant="rounded" width={34} height={18} />}
+                  sx={secondaryActionRowSx}
                 >
                   <ListItemIcon>
                     <Skeleton variant="circular" width={20} height={20} />
@@ -465,7 +476,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                 description: orchestrator.description,
                 iconColor: theme.palette.ai.main,
                 chip: (
-                  <Chip label={t('Orchestrator')} />
+                  <Chip label={t('Orchestrator')} style={{ maxWidth: '100%' }} />
                 ),
                 modeNode: showModes ? renderModeSelect(orchestrator.id) : null,
                 trailing: (
@@ -499,7 +510,7 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                   iconColor: enabled ? theme.palette.ai.main : theme.palette.text.disabled,
                   chip: agent.slug === builtinSlug
                     ? (
-                        <Chip label={t('Built-in')} />
+                        <Chip label={t('Built-in')} style={{ maxWidth: '100%' }} />
                       )
                     : null,
                   modeNode,
