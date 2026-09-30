@@ -1,4 +1,4 @@
-import { type FunctionComponent, useRef, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import type { EndpointHelper } from '../../../../actions/assets/asset-helper';
 import { fetchEndpoint, updateAssetMarkings, updateEndpoint } from '../../../../actions/assets/endpoint-actions';
@@ -39,14 +39,6 @@ const EndpointUpdate: FunctionComponent<Props> = ({
     dispatch(fetchEndpoint(endpointId)).finally(() => setLoading(false));
   });
 
-  // EndpointOverviewOutput - the shape PUT /api/endpoints/{id} actually responds with - has no
-  // asset_markings field at all (it's a different DTO than the one the assets search list reads).
-  // So the fresh entity `onSubmit` gets back can never carry markings, and passing it straight to
-  // `onUpdate` would make the list row's markings go stale (or blank) until the next full reload.
-  // Tracked here and patched in below, since we already know exactly what we just persisted -
-  // onMarkingsChange always resolves before onSubmit runs (see AssetForm).
-  const lastMarkingIdsRef = useRef<string[] | null>(null);
-
   const onSubmit = (data: EndpointInput) => {
     dispatch(updateEndpoint(endpointId, data)).then(
       (result: {
@@ -56,14 +48,7 @@ const EndpointUpdate: FunctionComponent<Props> = ({
         if (result.entities) {
           if (onUpdate) {
             const endpointUpdated = result.entities.endpoints[result.result];
-            onUpdate(
-              lastMarkingIdsRef.current === null
-                ? endpointUpdated
-                : {
-                    ...endpointUpdated,
-                    asset_markings: lastMarkingIdsRef.current,
-                  },
-            );
+            onUpdate(endpointUpdated);
           }
           handleClose();
         }
@@ -73,12 +58,17 @@ const EndpointUpdate: FunctionComponent<Props> = ({
   };
 
   // Runs (and is awaited by AssetForm) before the main endpoint update - see AssetForm's
-  // `onMarkingsChange` doc for why the two can't fire concurrently. The returned promise is what
-  // AssetForm awaits, so this must return the dispatch, not just fire it. Suppressed success toast
-  // (false) since the endpoint update below already confirms the save to the user.
-  const onMarkingsChange = (markingIds: string[]) => {
-    lastMarkingIdsRef.current = markingIds;
-    return dispatch(updateAssetMarkings(endpointId, { asset_markings: markingIds }, false));
+  // `onMarkingsChange` doc for why the two can't fire concurrently, and for why returning `false`
+  // here cancels the endpoint update too. Suppressed success toast (false) since the endpoint
+  // update below already confirms the save to the user; a failure still notifies (putReferential
+  // always does), so the user sees why nothing happened.
+  const onMarkingsChange = async (markingIds: string[]): Promise<boolean> => {
+    const result = await dispatch(updateAssetMarkings(endpointId, { asset_markings: markingIds }, false));
+    // Same "does it have entities" success check used for the endpoint update's own response
+    // below: putReferential resolves either the normalized {entities, result} on success, or a
+    // buildError(...) object on failure - it never rejects, so this is the only way to tell them
+    // apart.
+    return !!(result as { entities?: unknown } | undefined)?.entities;
   };
 
   const category = (endpoint?.asset_category as AssetCategory) ?? 'HOST';

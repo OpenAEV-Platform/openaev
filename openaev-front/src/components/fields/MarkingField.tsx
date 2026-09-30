@@ -1,11 +1,13 @@
 import { Lens } from '@mui/icons-material';
 import { Autocomplete as MuiAutocomplete, Box, Chip, TextField } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, useMemo } from 'react';
+import { type CSSProperties, type FunctionComponent, useContext, useMemo } from 'react';
 import { type GlobalError } from 'react-hook-form';
 
 import { type MarkingDefinitionOutput } from '../../utils/api-types';
 import { hexToRGB } from '../../utils/Colors';
 import useMarkingDefinitions from '../../utils/hooks/useMarkingDefinitions';
+import { AbilityContext } from '../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { markingLabel } from '../ItemMarkings';
 
 interface Props {
@@ -41,7 +43,23 @@ const MarkingField: FunctionComponent<Props> = ({
   disabled = false,
   required = false,
 }) => {
-  const definitions = useMarkingDefinitions();
+  // The backend's GET /api/marking_definitions/assignable requires ACCESS_MARKING_DEFINITION
+  // (Action.SEARCH/READ + ResourceType.MARKING_DEFINITION - see Capability.java); a caller without
+  // it would just get a 403. Checked here too, client-side, so the picker never fires that request
+  // in the first place - per the platform's own convention (see PERMISSION_REQUIRED's doc),
+  // reading rights hide the affordance entirely rather than showing it disabled.
+  const ability = useContext(AbilityContext);
+  const canAccessMarkingDefinitions = ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
+
+  // Only the markings the current user is cleared to assign - offering one they don't hold would
+  // just fail server-side at submit time (see MarkingEscalationValidator). Whatever is already
+  // assigned is guaranteed to already be within their clearance too: a row is only visible at all
+  // when its markings are a subset of the viewer's own, so there is no case here where the current
+  // value would fall outside this same filtered set.
+  const definitions = useMarkingDefinitions({
+    assignableOnly: true,
+    skip: !canAccessMarkingDefinitions,
+  });
 
   const options = useMemo(() => sortMarkings(Object.values(definitions)), [definitions]);
 
@@ -53,6 +71,10 @@ const MarkingField: FunctionComponent<Props> = ({
       .filter((marking): marking is MarkingDefinitionOutput => !!marking),
     [fieldValue, definitions],
   );
+
+  if (!canAccessMarkingDefinitions) {
+    return null;
+  }
 
   return (
     <div style={{

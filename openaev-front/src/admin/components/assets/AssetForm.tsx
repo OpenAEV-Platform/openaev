@@ -23,6 +23,7 @@ import TagFieldController from '../../../components/fields/TagFieldController';
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
 import { type EndpointInput } from '../../../utils/api-types';
+import markingIdSetsEqual from '../../../utils/markings';
 import { formatMacAddress } from '../../../utils/String';
 import { isFeatureEnabled } from '../../../utils/utils';
 import {
@@ -54,9 +55,12 @@ interface Props {
   /**
    * Called on submit with the full replacement marking id list, and awaited before `onSubmit`
    * runs (see the race explained where it's awaited). Only invoked while editing - assigning
-   * markings requires an asset id, so there is nothing to call during creation.
+   * markings requires an asset id, so there is nothing to call during creation. Resolves to
+   * `false` on failure (the caller has already shown its own error notification for it) - a
+   * `false` here cancels `onSubmit` too, so the form stays open on a half-applied save instead of
+   * reporting success for the endpoint fields while the markings silently didn't take.
    */
-  onMarkingsChange?: (markingIds: string[]) => unknown;
+  onMarkingsChange?: (markingIds: string[]) => boolean | Promise<boolean>;
 }
 
 const regexMacAddress = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
@@ -197,11 +201,17 @@ const AssetForm: FunctionComponent<Props> = ({
 
   const watchedHostname = methods.watch('asset_hostname');
 
+  // Assigning markings requires an asset id, so the picker only makes sense once the asset exists
+  // - gated on `editing` the same way the field itself is only reported through `onMarkingsChange`,
+  // and on the flag the rest of the marking UI (Endpoints list, GroupManageMarkings) is gated on.
+  const showMarkings = editing && isFeatureEnabled('MARKING');
+
   // Markings are split out of the submitted payload and reported through `onMarkingsChange`
   // instead: they don't belong to EndpointInput and are persisted through their own endpoint (see
-  // the `AssetFormValues` comment above). Sent unconditionally while editing - the target endpoint
-  // replaces the whole set, so re-sending an unchanged list is a harmless no-op, and that keeps
-  // this simpler than diffing against the initial value.
+  // the `AssetFormValues` comment above). Only sent when the picker was even available and its
+  // selection actually moved from what the form opened with - there's nothing to replace
+  // otherwise, and skipping avoids a pointless PUT (plus its own success/failure notification) on
+  // every save of an asset whose markings were never touched.
   //
   // Awaited *before* onSubmit, not fired alongside it: both PUTs normalize into the same store
   // entity (see updateAssetMarkings's doc), and firing them concurrently is a race - whichever
@@ -216,17 +226,23 @@ const AssetForm: FunctionComponent<Props> = ({
     e.preventDefault();
     e.stopPropagation();
     handleSubmit(async ({ asset_markings, ...endpointData }) => {
-      if (editing) {
-        await onMarkingsChange?.(asset_markings ?? []);
+      if (showMarkings) {
+        const currentIds = asset_markings ?? [];
+        const initialIds = defaultValues.asset_markings ?? [];
+        if (!markingIdSetsEqual(currentIds, initialIds)) {
+          const markingsSaved = await onMarkingsChange?.(currentIds);
+          // `false` means the markings PUT failed - its own error notification already fired (see
+          // onMarkingsChange's doc), so don't also run the endpoint update: better to leave the
+          // form open on a save the user can see failed than to report success for the fields that
+          // did go through while the markings silently didn't.
+          if (markingsSaved === false) {
+            return;
+          }
+        }
       }
       onSubmit(endpointData);
     })(e);
   };
-
-  // Assigning markings requires an asset id, so the field only makes sense once the asset exists -
-  // gated on `editing` the same way the field itself is only reported through `onMarkingsChange`,
-  // and on the flag the rest of the marking UI (Endpoints list, GroupManageMarkings) is gated on.
-  const showMarkings = editing && isFeatureEnabled('MARKING');
 
   // HOST platform/arch/hostname are managed by the agent: only editable for agentless hosts.
   const hostAgentManaged = def.value === 'HOST' && !agentless;

@@ -1,7 +1,7 @@
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { updateAssetsOnAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
-import { fetchAiTargetById, updateAiTarget } from '../../../../actions/assets/aiTarget-actions';
+import { fetchAiTargetById, updateAiTarget, updateAiTargetMarkings } from '../../../../actions/assets/aiTarget-actions';
 import { deleteAsset } from '../../../../actions/assets/endpoint-actions';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
@@ -34,7 +34,9 @@ export interface AssetPopoverProps {
 
 // Fields prefilled into the AI target edit form; the inventory row only carries the shared asset
 // fields, so the full connection config is fetched from /api/ai_targets/{id} on edit.
-const AI_TARGET_INPUT_KEYS: (keyof AiTargetInput)[] = [
+// asset_markings isn't part of AiTargetInput (it's written through its own endpoint, not this
+// form's submit - see AiTargetForm), but it still needs to flow into the picker's initial value.
+const AI_TARGET_INPUT_KEYS: (keyof AiTargetInput | 'asset_markings')[] = [
   'asset_name',
   'ai_target_provider',
   'ai_target_modality',
@@ -46,6 +48,7 @@ const AI_TARGET_INPUT_KEYS: (keyof AiTargetInput)[] = [
   'asset_criticality',
   'asset_description',
   'asset_tags',
+  'asset_markings',
 ];
 
 const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
@@ -73,14 +76,14 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
   const handleCloseEdit = () => setEdition(false);
 
   // AI target edit: fetch the full connection config lazily when the drawer opens.
-  const [aiTargetValues, setAiTargetValues] = useState<AiTargetInput | null>(null);
+  const [aiTargetValues, setAiTargetValues] = useState<(AiTargetInput & { asset_markings?: string[] | null }) | null>(null);
   useEffect(() => {
     if (edition && isAiTarget && !aiTargetValues) {
       fetchAiTargetById(endpoint.asset_id).then((response: { data: Record<string, unknown> }) => {
         const asset = response.data;
         const values = Object.fromEntries(
           AI_TARGET_INPUT_KEYS.map(key => [key, asset[key]]),
-        ) as unknown as AiTargetInput;
+        ) as unknown as AiTargetInput & { asset_markings?: string[] | null };
         setAiTargetValues(values);
       });
     }
@@ -102,6 +105,19 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
         return result;
       },
     );
+  };
+
+  // Awaited by AiTargetForm before submitEditAiTarget runs - see AssetForm's `onMarkingsChange`
+  // doc for why the two can't fire concurrently. Suppressed success toast (false) since the
+  // asset update above already confirms the save; updateAiTarget's own response already carries
+  // asset_markings fresh from the DB (Asset is returned as-is, unlike EndpointOverviewOutput), so
+  // there's nothing to patch in afterwards the way EndpointUpdate has to.
+  const onMarkingsChangeAiTarget = async (markingIds: string[]): Promise<boolean> => {
+    const result = await dispatch(updateAiTargetMarkings(endpoint.asset_id, { asset_markings: markingIds }, false));
+    // Same "does it have entities" success check used above: putReferential resolves either the
+    // normalized {entities, result} on success, or a buildError(...) object on failure - it never
+    // rejects, so this is the only way to tell them apart.
+    return !!(result as { entities?: unknown } | undefined)?.entities;
   };
 
   // Removal from an asset group (contextual, not a deletion)
@@ -166,6 +182,7 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
                   initialValues={aiTargetValues}
                   editing
                   onSubmit={submitEditAiTarget}
+                  onMarkingsChange={onMarkingsChangeAiTarget}
                   handleClose={handleCloseEdit}
                 />
               )
