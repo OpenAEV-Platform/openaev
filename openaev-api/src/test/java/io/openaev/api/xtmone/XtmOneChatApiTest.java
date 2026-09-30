@@ -2,6 +2,7 @@ package io.openaev.api.xtmone;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -33,16 +34,21 @@ import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.server.ResponseStatusException;
 
 @TestInstance(PER_CLASS)
@@ -1607,6 +1613,49 @@ class XtmOneChatApiTest extends IntegrationTest {
       // -- ACT & ASSERT --
       mvc.perform(delete(feedbackUrl(CONVERSATION_ID, MESSAGE_ID)).with(csrf()))
           .andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
+  @DisplayName("Enterprise Edition gating of the conversation and workspace routes")
+  class EnterpriseEditionGating {
+
+    private static Stream<Arguments> gatedRoutes() {
+      String conversationUrl = CHAT_SESSIONS_URL + "/" + CONVERSATION_ID;
+      String workspaceUrl = CHAT_WORKSPACES_URL + "/" + WORKSPACE_ID;
+      return Stream.of(
+          Arguments.of(
+              "POST sessions", withJson(post(CHAT_SESSIONS_URL), "{\"agent_slug\":\"a\"}")),
+          Arguments.of(
+              "PATCH session", withJson(patch(conversationUrl), "{\"title\":\"Renamed\"}")),
+          Arguments.of("GET workspaces", get(CHAT_WORKSPACES_URL)),
+          Arguments.of(
+              "POST workspaces", withJson(post(CHAT_WORKSPACES_URL), "{\"name\":\"Red team\"}")),
+          Arguments.of("PATCH workspace", withJson(patch(workspaceUrl), "{\"name\":\"Blue\"}")),
+          Arguments.of("DELETE workspace", delete(workspaceUrl).with(csrf())));
+    }
+
+    private static MockHttpServletRequestBuilder withJson(
+        MockHttpServletRequestBuilder request, String json) {
+      return request.with(csrf()).contentType(MediaType.APPLICATION_JSON).content(json);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("gatedRoutes")
+    @WithMockUser
+    @DisplayName(
+        "Given an inactive Enterprise Edition license should refuse without calling XTM One")
+    void given_inactiveLicense_should_refuse(String route, MockHttpServletRequestBuilder request)
+        throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(request)
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
+      verifyNoInteractions(xtmOneClient);
     }
   }
 

@@ -192,6 +192,21 @@ Global inventory endpoints such as `/api/endpoints`, `/api/asset_groups` or `/ap
 
 These endpoints check the caller's grant on the workflow's parent Simulation or Scenario instead of the global capabilities, so the chaining scope and logic screens work for grant-only users. IDs that are not referenced by the workflow are silently ignored, which prevents using these endpoints to read arbitrary platform data.
 
+## XTM One chat endpoints
+
+When OpenAEV is connected to XTM One, the embedded chat panel reaches XTM One through proxy endpoints under `/api/xtmone/chat`. They require an Enterprise Edition license and call XTM One's embedded-chat API as the calling OpenAEV user, so XTM One applies that user's own permissions. The endpoints below manage the conversations of the chat history and the XTM One workspaces that group them:
+
+| Endpoint | Description |
+|---|---|
+| `POST /api/xtmone/chat/sessions` | Creates or restores a conversation. The body is forwarded to XTM One as sent, including `workspace_id` to file a new conversation into a workspace |
+| `PATCH /api/xtmone/chat/sessions/{id}` | Renames a conversation (`title`) or files it into a workspace (`workspace_id`); an explicit `null` `workspace_id` takes it out of its workspace |
+| `GET /api/xtmone/chat/workspaces` | Lists the user's XTM One workspaces |
+| `POST /api/xtmone/chat/workspaces` | Creates a workspace (`name`, optional `description`) |
+| `PATCH /api/xtmone/chat/workspaces/{id}` | Renames a workspace or changes its description |
+| `DELETE /api/xtmone/chat/workspaces/{id}` | Deletes a workspace |
+
+Path `{id}` values must be UUIDs, otherwise the request is refused with a `400`. Except for `POST /api/xtmone/chat/sessions`, these endpoints answer with XTM One's own status, and when XTM One refuses a change (for example the user's default workspace, or a workspace that still holds work items, cannot be deleted), with a body holding only XTM One's `detail` message. An XTM One `401` is answered as a `422`, so XTM One rejecting OpenAEV's credentials never signs the user out of OpenAEV.
+
 ## Multi-tenant context
 
 When multi-tenancy is enabled, the API exposes two sets of endpoints:

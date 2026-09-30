@@ -1,7 +1,9 @@
 package io.openaev.api.xtmone;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -12,11 +14,14 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
+import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -462,6 +468,33 @@ class XtmOneChatApiUnitTest {
 
       assertEquals(Map.of("workspaces", List.of()), response.getBody());
       verifyNoInteractions(client);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = {
+          "createSession",
+          "listSessions",
+          "updateSession",
+          "deleteSession",
+          "listWorkspaces",
+          "createWorkspace",
+          "updateWorkspace",
+          "deleteWorkspace"
+        })
+    @DisplayName("Given a conversation or workspace route should require Enterprise Edition")
+    void given_conversationOrWorkspaceRoute_should_requireEnterpriseEdition(String name) {
+      // The EE license is only checked by AccessControlAspect on an @AccessControl endpoint.
+      Method endpoint =
+          Arrays.stream(XtmOneChatApi.class.getDeclaredMethods())
+              .filter(method -> method.getName().equals(name))
+              .findFirst()
+              .orElseThrow();
+
+      AccessControl accessControl = endpoint.getAnnotation(AccessControl.class);
+
+      assertNotNull(accessControl, name + " must carry @AccessControl");
+      assertTrue(accessControl.isEnterpriseEdition(), name + " must be Enterprise Edition gated");
     }
   }
 }

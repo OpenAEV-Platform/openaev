@@ -81,6 +81,8 @@ public class XtmOneChatApi extends RestBehavior {
    */
   @PostMapping(XTM_ONE_URI + "/chat/sessions")
   @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> createSession(
       TxCtx ctx, @RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
