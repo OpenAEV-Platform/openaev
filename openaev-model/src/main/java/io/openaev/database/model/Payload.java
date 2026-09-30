@@ -13,7 +13,6 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.helper.CollectorTypeNameSerializer;
@@ -40,13 +39,10 @@ import org.hibernate.annotations.*;
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-// payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter (#6437,
-// #6430). TenantBaseListener stays as a defensive @PrePersist fallback for a row saved with no
-// tenant set (some test fixtures do this; a stray application create path would too). It
-// currently stamps the ambient default tenant; once a table in this position is added to a
-// fail-fast policy (unattributed writes refused instead of defaulted), it becomes a guard rather
-// than a fallback.
+@EntityListeners(ModelBaseListener.class)
+// payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
+// TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
+// on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
 @Schema(
     discriminatorProperty = "payload_type",
     oneOf = {
