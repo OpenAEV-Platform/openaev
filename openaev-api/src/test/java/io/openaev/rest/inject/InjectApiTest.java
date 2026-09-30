@@ -41,6 +41,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.*;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.jobs.InjectsExecutionJob;
 import io.openaev.secrets.provider.SecretResolvedValue;
@@ -106,7 +107,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ExerciseService exerciseService;
   @MockitoSpyBean private InjectStatusService injectStatusService;
 
-  @Autowired private InjectApi injectApi;
+  @Autowired private InjectService injectService;
   @Autowired private InjectsExecutionJob injectsExecutionJob;
 
   @Autowired private AgentComposer agentComposer;
@@ -1685,13 +1686,13 @@ class InjectApiTest extends IntegrationTest {
 
     @BeforeEach
     void setUpSyncPath() {
-      savedQueueService = injectApi.getInjectTraceQueueService();
-      injectApi.setInjectTraceQueueService(null);
+      savedQueueService = injectService.getInjectTraceQueueService();
+      injectService.setInjectTraceQueueService(null);
     }
 
     @AfterEach
     void restoreSyncPath() {
-      injectApi.setInjectTraceQueueService(savedQueueService);
+      injectService.setInjectTraceQueueService(savedQueueService);
     }
 
     private Inject getPendingInjectWithAssets() {
