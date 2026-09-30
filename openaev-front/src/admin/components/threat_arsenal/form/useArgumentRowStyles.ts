@@ -47,4 +47,3 @@ const useArgumentRowStyles = makeStyles()(theme => ({
 }));
 
 export default useArgumentRowStyles;
-

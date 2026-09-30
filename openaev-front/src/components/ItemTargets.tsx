@@ -18,6 +18,10 @@ const useStyles = makeStyles()(() => ({
     display: 'flex',
     alignItems: 'center',
     gap: 4,
+    // Respect the enclosing cell width so the first (shrinkable) chip and the
+    // "+N" chip both stay inside it instead of the "+N" being clipped.
+    minWidth: 0,
+    maxWidth: '100%',
   },
   tooltipTable: {
     'borderCollapse': 'collapse',
@@ -142,16 +146,16 @@ const ItemTargets: FunctionComponent<Props> = ({
         // and the row centres the WRAPPER, which leaves the chip half a pixel off its
         // neighbours.
         return (
-          <span key={index} className="inline-flex">
+          <span key={index} className="inline-flex" style={{ minWidth: 0 }}>
             <Tooltip>
               <TooltipTrigger asChild>
                 {link ? (
-                  <Link to={link} className={chipLinkClassName}>
-                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} />
+                  <Link to={link} className={chipLinkClassName} style={{ minWidth: 0 }}>
+                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} style={{ minWidth: 0, maxWidth: '100%' }} />
                   </Link>
                 ) : (
-                  <span className="inline-flex">
-                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} />
+                  <span className="inline-flex" style={{ minWidth: 0 }}>
+                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} style={{ minWidth: 0, maxWidth: '100%' }} />
                   </span>
                 )}
               </TooltipTrigger>
@@ -163,7 +167,7 @@ const ItemTargets: FunctionComponent<Props> = ({
       {remainingTargetsCount && remainingTargetsCount > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Chip label={`+${remainingTargetsCount}`} />
+            <Chip label={`+${remainingTargetsCount}`} style={{ flexShrink: 0 }} />
           </TooltipTrigger>
           <TooltipContent>
             <>
