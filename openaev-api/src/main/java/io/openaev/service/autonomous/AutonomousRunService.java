@@ -1933,6 +1933,7 @@ public class AutonomousRunService {
   public AutonomousEvent recordEvent(
       String runId, AutonomousEventType type, String title, String content, String data) {
     AutonomousRun run = require(runId);
+    accessControl.assertCallbackCanManage(run);
     // A proof of exploitation is only valid when it is backed by at least one finding: the
     // orchestrator must pass the substantiating finding(s) in the event's structured data as a
     // non-empty "findings" array. This is the platform-side guarantee behind "no proof without a
@@ -2017,6 +2018,7 @@ public class AutonomousRunService {
     // conditional UPDATEs). Without the lock, a callback that read a pre-pause state could pass
     // validation and overwrite a concurrently committed PAUSED or terminal transition.
     AutonomousRun run = requireForUpdate(runId);
+    accessControl.assertCallbackCanManage(run);
     // A terminal status is final: CANCELED (operator Stop / OpenAEV timeout hard-stop) and
     // COMPLETED / FAILED (settled orchestration) all tear the run down. A late status callback from
     // the orchestrator - a COMPLETED it emits after we already hard-stopped, the gap-1 completion
@@ -2095,7 +2097,7 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public List<AutonomousDirective> consumePendingDirectives(String runId) {
-    require(runId);
+    accessControl.assertCallbackCanManage(require(runId));
     List<AutonomousDirective> pending =
         directiveRepository.findByRunIdAndStatusOrderByCreatedAtAsc(
             runId, AutonomousDirectiveStatus.PENDING);
@@ -2247,6 +2249,7 @@ public class AutonomousRunService {
     // terminal settle committing between this read and the save would be silently resurrected.
     // Mirrors updateStatus / restart.
     AutonomousRun run = requireForUpdate(runId);
+    accessControl.assertCallbackCanManage(run);
     assertRunAcceptsAuthoring(run);
     List<AutonomousScopeTarget> scope = targets != null ? new ArrayList<>(targets) : List.of();
     // Record the resolved scope on the run AUTHORITATIVELY first. This is the callback's primary
@@ -2344,6 +2347,7 @@ public class AutonomousRunService {
   @Transactional(readOnly = true)
   public AutonomousScopeView getRunScopeView(String runId) {
     AutonomousRun run = require(runId);
+    accessControl.assertCallbackCanRead(run);
     List<WorkflowScopeRule> rules = readScopeRules(run);
     Map<String, String> names = resolveScopeNames(rules);
     List<AutonomousScopeEntry> allow = new ArrayList<>();
@@ -2508,6 +2512,7 @@ public class AutonomousRunService {
     // terminal settle committing between this read and the save would be resurrected. Mirrors
     // updateStatus / restart.
     AutonomousRun run = requireForUpdate(runId);
+    accessControl.assertCallbackCanManage(run);
     assertRunAcceptsAuthoring(run);
     // A trigger MAY reuse an existing event by id instead of minting a new one. When it does, the
     // trigger contributes MAPPERS ONLY (the event's filter tree already exists on the workflow and
@@ -2858,6 +2863,7 @@ public class AutonomousRunService {
     // (eventMirror) with a full-entity write on a version-less row, so it must serialise with every
     // other run writer exactly like doAppendAttackPathStep / deleteAttackPathStep.
     AutonomousRun run = requireForUpdate(runId);
+    accessControl.assertCallbackCanManage(run);
     assertRunAcceptsAuthoring(run);
     // A supplied trigger is translated to the engine's condition vocabulary once and used to
     // rebuild
@@ -2994,6 +3000,7 @@ public class AutonomousRunService {
     // run writer exactly like setRunScope / doAppendAttackPathStep, or a racing terminal settle
     // committing between this read and the save would be resurrected. Mirrors updateStatus.
     AutonomousRun run = requireForUpdate(runId);
+    accessControl.assertCallbackCanManage(run);
     assertRunAcceptsAuthoring(run);
     // Bridge the run's own tenant as the v1 TenantContext around the whole delete body, for the
     // same reason as updateAttackPathStep: the legacy non-prefixed callback route leaves the v1
@@ -3286,6 +3293,7 @@ public class AutonomousRunService {
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun evaluateAttackPath(String runId) {
     AutonomousRun run = require(runId);
+    accessControl.assertCallbackCanManage(run);
     // Belt-and-suspenders for dry-run: a plan run never starts a RUN workflow, so there is nothing
     // to ready here anyway, but guard explicitly so a stray evaluate call can never dispatch an
     // inject while planning. An author-scenario run has no simulation, so nothing to evaluate
@@ -3318,6 +3326,7 @@ public class AutonomousRunService {
   @Transactional(readOnly = true)
   public List<AutonomousAttackPathStepState> attackPathState(String runId) {
     AutonomousRun run = require(runId);
+    accessControl.assertCallbackCanRead(run);
     List<WorkflowService.AuthoredAttackStep> authoredSteps;
     // Author-scenario mode: read the steps authored onto the scenario workflow (no simulation).
     if (!hasText(run.getSimulationId())) {
@@ -3525,6 +3534,7 @@ public class AutonomousRunService {
   public AutonomousPromotedAssetResult promoteFindingToAsset(
       String runId, String findingId, String actingAgentId) {
     AutonomousRun run = require(runId);
+    accessControl.assertCallbackCanManage(run);
     Finding finding =
         findingRepository
             .findById(findingId)
@@ -3599,6 +3609,7 @@ public class AutonomousRunService {
   public AutonomousTargetTeamResult ensureTargetTeam(
       String runId, List<String> playerIds, String name, String teamId, String actingAgentId) {
     AutonomousRun run = require(runId);
+    accessControl.assertCallbackCanManage(run);
     String simulationId = run.getSimulationId();
     if (!hasText(simulationId)) {
       throw new ResponseStatusException(

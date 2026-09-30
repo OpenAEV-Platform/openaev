@@ -4,6 +4,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.model.autonomous.AutonomousRun;
+import io.openaev.security.token.XtmJwksExtractor;
 import io.openaev.service.GrantService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
@@ -13,6 +14,8 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -41,22 +44,16 @@ import org.springframework.web.server.ResponseStatusException;
  * short-circuit inside {@link PermissionService#hasPermission}.
  *
  * <p>The orchestrator CALLBACK endpoints (events / status / directive consumption / attack-path
- * authoring, evaluation and state / scope get-set / target-teams / promote-finding-to-asset) are
- * deliberately NOT gated here. XTM One authenticates them with a per-user cross-platform JWT that
- * carries no tenant claim and sends no {@code X-Tenant-Ids}; a resource check would break live
- * orchestration for any run whose operator differs from the JWT owner, so they stay behind the
- * Enterprise-Edition license. The {@code autonomous_runs}, {@code autonomous_events} and {@code
- * autonomous_directives} tables are tenant-active (multi-tenancy v2); because the callback JWT pins
- * no tenant, these handlers are authorized as the XTM One cross-platform SERVICE identity and
- * scoped to the parent run's tenant: only a request whose bearer {@link
- * io.openaev.security.token.XtmJwksExtractor} fully validated as a cross-platform JWT derives its
- * scope from the run (the {@link io.openaev.config.RunTenantScope} argument on {@link
- * io.openaev.api.autonomous.AutonomousRunApi}), so a callback always writes the run's own tenant
- * and never depends on whether the caller's scope happens to pin it. A NON-service caller on the
- * same handlers remains caller-isolated (standard caller-authorized resolution), so knowing a run
- * id gives an ordinary EE user no cross-tenant reach. The derivation also exists only on the legacy
- * non-prefixed route the orchestrator calls; the same handlers on the tenant-prefixed route stay
- * caller-authorized like every other prefixed endpoint.
+ * authoring, evaluation and state / scope get-set / target-teams / promote-finding-to-asset) go
+ * through {@link #assertCallbackCanRead} / {@link #assertCallbackCanManage}. XTM One calls them
+ * with a per-user cross-platform JWT whose owner can differ from the run operator, so the VERIFIED
+ * service identity (the server-side marker {@link XtmJwksExtractor#CROSS_PLATFORM_ATTRIBUTE}) is
+ * authorized by the run itself; any other caller needs the same READ / LAUNCH as on the operator
+ * surface, otherwise an observer could author and execute steps it cannot start (#326). The same
+ * marker also derives the callback's tenant scope from the run on the legacy non-prefixed route
+ * (the {@link io.openaev.config.RunTenantScope} argument on {@link
+ * io.openaev.api.autonomous.AutonomousRunApi}); a non-service caller stays caller-isolated there,
+ * so knowing a run id gives an ordinary EE user no cross-tenant reach.
  */
 @org.springframework.stereotype.Component
 @RequiredArgsConstructor
@@ -81,6 +78,26 @@ public class AutonomousRunAccessControl {
   public void assertCanManage(AutonomousRun run) {
     if (!granted(userService.currentUser(), run, Action.LAUNCH)) {
       throw denied(run);
+    }
+  }
+
+  /**
+   * Gates an orchestrator callback read: the verified XTM One service identity passes, any other
+   * caller needs READ like {@link #assertCanRead}.
+   */
+  public void assertCallbackCanRead(AutonomousRun run) {
+    if (!isOrchestratorServiceCaller()) {
+      assertCanRead(run);
+    }
+  }
+
+  /**
+   * Gates an orchestrator callback mutation: the verified XTM One service identity passes, any
+   * other caller needs LAUNCH like {@link #assertCanManage}.
+   */
+  public void assertCallbackCanManage(AutonomousRun run) {
+    if (!isOrchestratorServiceCaller()) {
+      assertCanManage(run);
     }
   }
 
@@ -210,6 +227,16 @@ public class AutonomousRunAccessControl {
           user, Optional.empty(), scenarioId, ResourceType.SCENARIO, action);
     }
     return permissionService.hasCapabilityPermission(user, ResourceType.SIMULATION, action);
+  }
+
+  // Set by XtmJwksExtractor only after full JWT validation; a client cannot supply a request
+  // attribute.
+  private static boolean isOrchestratorServiceCaller() {
+    RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+    return attributes != null
+        && Boolean.TRUE.equals(
+            attributes.getAttribute(
+                XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST));
   }
 
   private static ResponseStatusException denied(AutonomousRun run) {

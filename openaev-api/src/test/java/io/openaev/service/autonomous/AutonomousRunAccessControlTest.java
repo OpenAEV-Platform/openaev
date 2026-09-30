@@ -15,10 +15,12 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.model.autonomous.AutonomousRun;
+import io.openaev.security.token.XtmJwksExtractor;
 import io.openaev.service.GrantService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,6 +30,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -131,6 +136,74 @@ class AutonomousRunAccessControlTest {
       // Never a silent open door: it consulted the capability, not returned true by default.
       verify(permissionService)
           .hasCapabilityPermission(any(), eq(ResourceType.SIMULATION), eq(Action.LAUNCH));
+    }
+  }
+
+  @Nested
+  @DisplayName("Orchestrator callback gate")
+  class OrchestratorCallbackGate {
+
+    @AfterEach
+    void clearRequest() {
+      RequestContextHolder.resetRequestAttributes();
+    }
+
+    private void onRequest(boolean verifiedServiceIdentity) {
+      MockHttpServletRequest request = new MockHttpServletRequest();
+      if (verifiedServiceIdentity) {
+        request.setAttribute(XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE, Boolean.TRUE);
+      }
+      RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+    }
+
+    @Test
+    @DisplayName("The verified XTM One service identity passes without any permission lookup")
+    void given_verifiedServiceIdentity_when_callbackGates_then_allowedWithoutPermissionLookup() {
+      onRequest(true);
+
+      assertThatCode(() -> accessControl.assertCallbackCanManage(run("sim-1", null)))
+          .doesNotThrowAnyException();
+      assertThatCode(() -> accessControl.assertCallbackCanRead(run("sim-1", null)))
+          .doesNotThrowAnyException();
+
+      verifyNoInteractions(permissionService);
+    }
+
+    @Test
+    @DisplayName("Any other caller needs LAUNCH on the bound simulation to mutate (#326)")
+    void given_observerWithoutServiceIdentity_when_callbackManage_then_denied() {
+      onRequest(false);
+      when(permissionService.hasPermission(
+              any(), any(), eq("sim-1"), eq(ResourceType.SIMULATION), eq(Action.LAUNCH)))
+          .thenReturn(false);
+
+      assertThatThrownBy(() -> accessControl.assertCallbackCanManage(run("sim-1", null)))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+    }
+
+    @Test
+    @DisplayName("Any other caller reads with READ alone on the bound simulation")
+    void given_readerWithoutServiceIdentity_when_callbackRead_then_checksRead() {
+      onRequest(false);
+      when(permissionService.hasPermission(
+              any(), any(), eq("sim-1"), eq(ResourceType.SIMULATION), eq(Action.READ)))
+          .thenReturn(true);
+
+      assertThatCode(() -> accessControl.assertCallbackCanRead(run("sim-1", null)))
+          .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("Outside a request the gate falls back to the caller's permission (fail closed)")
+    void given_noRequestContext_when_callbackManage_then_checksLaunch() {
+      when(permissionService.hasPermission(
+              any(), any(), eq("sim-1"), eq(ResourceType.SIMULATION), eq(Action.LAUNCH)))
+          .thenReturn(false);
+
+      assertThatThrownBy(() -> accessControl.assertCallbackCanManage(run("sim-1", null)))
+          .isInstanceOf(ResponseStatusException.class);
     }
   }
 
