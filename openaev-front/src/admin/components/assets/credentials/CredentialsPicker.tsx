@@ -22,6 +22,7 @@ interface Props {
   onClose: () => void;
   onSubmit: (endpointIds: string[]) => void;
   title: string;
+  multiple?: boolean;
 }
 
 // Always rendered as an inline dialog: every context that picks endpoints
@@ -33,6 +34,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
   onClose,
   onSubmit,
   title,
+  multiple = true,
 }) => {
   // Standard hooks
   const { t, fldt } = useFormatter();
@@ -42,17 +44,20 @@ const CredentialsPicker: FunctionComponent<Props> = ({
 
   useEffect(() => {
     if (open) {
-      findCredentialsByIds(initialState).then(result => setCredentialValues(result.data));
+      findCredentialsByIds(initialState).then(result => setCredentialValues(multiple ? result.data : result.data.slice(0, 1)));
     }
-  }, [open, initialState]);
+  }, [open, initialState, multiple]);
 
   const selectedIds = useMemo(() => credentialValues.map(v => v.credential_id!), [credentialValues]);
 
   const toggleEndpoint = (credentialId: string, credential: CredentialOutput) => {
     if (selectedIds.includes(credentialId)) {
       setCredentialValues(credentialValues.filter(v => v.credential_id !== credentialId));
-    } else {
+    } else if (multiple) {
       setCredentialValues([...credentialValues, credential]);
+    } else {
+      // Single selection: the new credential replaces the previous one.
+      setCredentialValues([credential]);
     }
   };
 
@@ -190,6 +195,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
       onToggle={toggleEndpoint}
       getId={element => element.credential_id!}
       isLoading={isLoading}
+      showSelectedCount={multiple}
     />
   );
 };
