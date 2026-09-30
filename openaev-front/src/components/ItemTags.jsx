@@ -50,7 +50,6 @@ const ItemTags = (props) => {
   );
 
   const capped = useMemo(() => orderedTags.slice(0, limit), [orderedTags, limit]);
-  const allNames = useMemo(() => orderedTags.map(tag => tag.tag_name).join(', '), [orderedTags]);
   const key = useMemo(() => capped.map(tag => tag.tag_id).join('|'), [capped]);
 
   const container = useRef(null);
@@ -105,6 +104,8 @@ const ItemTags = (props) => {
   const measuring = widths.current.key !== key;
   const shown = measuring ? capped : capped.slice(0, visibleCount);
   const hiddenCount = orderedTags.length - shown.length;
+  // Only what the "+N" stands for: the tags already shown are not repeated.
+  const hiddenNames = orderedTags.slice(shown.length).map(tag => tag.tag_name).join(', ');
 
   return (
     <div className={classes.inline} ref={container} data-measuring={measuring ? '' : undefined}>
@@ -133,9 +134,7 @@ const ItemTags = (props) => {
               } : undefined}
             />
           </TooltipTrigger>
-          {/* The whole list, not just what is hidden: the point of the chip is
-              to answer "which tags does this row carry". */}
-          <TooltipContent>{allNames}</TooltipContent>
+          {hiddenNames && <TooltipContent>{hiddenNames}</TooltipContent>}
         </Tooltip>
       )}
     </div>

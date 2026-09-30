@@ -65,7 +65,7 @@ const AssetGroupRulesCell = ({ items, labels }: Props) => {
               <FdsChip label={`+${hidden}`} severity="neutral" />
             </span>
           </TooltipTrigger>
-          <TooltipContent>{labels.join(' · ')}</TooltipContent>
+          <TooltipContent>{labels.slice(visibleCount).join(' · ')}</TooltipContent>
         </Tooltip>
       )}
     </Box>

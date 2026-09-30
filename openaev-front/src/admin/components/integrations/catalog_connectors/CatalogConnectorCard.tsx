@@ -22,7 +22,8 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
   const { containerRef, chipRefs, overflowRef, visibleCount } = useChipOverflow(useCases);
 
   const hiddenCount = useCases.length - visibleCount;
-  const allUseCases = useCases.map(prettifyUseCase).join(', ');
+  // Only what the "+N" stands for: the chips already shown are not repeated.
+  const hiddenUseCases = useCases.slice(visibleCount).map(prettifyUseCase).join(', ');
 
   return (
     <Stack
@@ -80,11 +81,40 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
           <TooltipTrigger asChild>
             <Chip label={`+${Math.max(hiddenCount, 1)}`} severity="info" />
           </TooltipTrigger>
-          {/* The whole list, as everywhere else: the chip answers "which use
-              cases does this connector cover". */}
-          {allUseCases && <TooltipContent>{allUseCases}</TooltipContent>}
+          {hiddenUseCases && <TooltipContent>{hiddenUseCases}</TooltipContent>}
         </Tooltip>
       </Box>
+    </Stack>
+  );
+};
+
+const CollapsedUseCaseChips = ({ useCases }: { useCases: string[] }) => {
+  if (useCases.length === 0) return null;
+  const [first, ...others] = useCases.map(prettifyUseCase);
+  return (
+    <Stack direction="row" spacing={1} sx={{ minWidth: 0 }}>
+      <Box sx={{
+        minWidth: 0,
+        display: 'flex',
+      }}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip label={first} severity="info" style={{ maxWidth: '100%' }} />
+          </TooltipTrigger>
+          {first && <TooltipContent>{first}</TooltipContent>}
+        </Tooltip>
+      </Box>
+      {others.length > 0 && (
+        <Box sx={{ flexShrink: 0 }}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Chip label={`+${others.length}`} severity="info" />
+            </TooltipTrigger>
+            <TooltipContent>{others.join(', ')}</TooltipContent>
+          </Tooltip>
+        </Box>
+      )}
     </Stack>
   );
 };
@@ -292,7 +322,7 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
               width: '100%',
             }}
             >
-              <UseCaseChips useCases={connector.useCases} />
+              <CollapsedUseCaseChips useCases={connector.useCases} />
               {footerAction && (
                 <div style={{ flexShrink: 0 }}>
                   {footerAction}
