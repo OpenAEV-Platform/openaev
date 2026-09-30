@@ -174,8 +174,8 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
                     src={connector.logoSrc}
                     alt={connector.title}
                     style={{
-                      width: 44,
-                      height: 44,
+                      width: 56,
+                      height: 56,
                       objectFit: 'contain',
                       borderRadius: 4,
                     }}
