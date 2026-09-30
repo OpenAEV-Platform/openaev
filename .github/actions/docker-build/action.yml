@@ -45,10 +45,6 @@ inputs:
       Requires the calling job to check out with fetch-depth: 0.
     required: false
     default: "true"
-  agent-implant-signature-private-key:
-    description: RSA private key (PEM) forwarded to prepare-bundled-assets to sign the agent/implant binaries. Signing is skipped when empty.
-    required: false
-    default: ""
   allow-registry:
     description: >
       Set to "false" when the calling workflow has no packages:write; the image
@@ -101,7 +97,6 @@ runs:
       uses: ./.github/actions/prepare-bundled-assets
       with:
         upload-artifact: "false"
-        agent-implant-signature-private-key: ${{ inputs.agent-implant-signature-private-key }}
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
