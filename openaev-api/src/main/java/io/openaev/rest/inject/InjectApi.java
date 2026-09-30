@@ -32,6 +32,7 @@ import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
+import io.openaev.rest.inject.service.InjectAgentTargetValidator;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.inject.service.InjectService;
@@ -97,6 +98,7 @@ public class InjectApi extends RestBehavior {
   private final InjectService injectService;
   private final CredentialService credentialService;
   private final InjectExecutionService injectExecutionService;
+  private final InjectAgentTargetValidator injectAgentTargetValidator;
   private final InjectExportService injectExportService;
   private final TargetService targetService;
   private final UserRepository userRepository;
@@ -440,6 +442,9 @@ public class InjectApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Execution callback was successful"),
         @ApiResponse(
+            responseCode = "403",
+            description = "The agent is not a target of the inject."),
+        @ApiResponse(
             responseCode = "409",
             description =
                 "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
@@ -454,6 +459,8 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
+    // Checked synchronously, before the callback is queued, so the implant gets the 403
+    injectAgentTargetValidator.resolveInjectTargetingAgent(injectId, agentId);
     doInjectExecutionCallback(ctx, agentId, injectId, input);
   }
 

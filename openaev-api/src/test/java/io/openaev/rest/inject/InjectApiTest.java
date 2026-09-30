@@ -84,6 +84,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ResourceUtils;
@@ -121,6 +122,7 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private DomainComposer domainComposer;
+  @Autowired private AssetGroupComposer assetGroupComposer;
 
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private AgentRepository agentRepository;
@@ -1765,6 +1767,159 @@ class InjectApiTest extends IntegrationTest {
       input.setAction(InjectExecutionAction.command_execution);
       input.setStatus("SUCCESS");
       return input;
+    }
+
+    @Nested
+    @DisplayName("Agent target check:")
+    @KeepRabbit
+    class AgentTargetCheckTest {
+
+      private InjectExecutionInput buildTraceInput() {
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("trace");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+        return input;
+      }
+
+      private InjectComposer.Composer pendingInjectWrapper() {
+        return injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withInjectorContract(
+                injectorContractComposer
+                    .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withInjector(InjectorFixture.createDefaultPayloadInjector()))
+            .withInjectStatus(
+                injectStatusComposer.forInjectStatus(
+                    InjectStatusFixture.createPendingInjectStatus()));
+      }
+
+      private ResultActions performRawCallbackRequest(String agentId, String injectId)
+          throws Exception {
+        return mvc.perform(
+            post(INJECT_URI + "/execution/" + agentId + "/callback/" + injectId)
+                .content(asJsonString(buildTraceInput()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()));
+      }
+
+      @DisplayName("Should reject the callback of an agent that is not a target of the inject")
+      @Test
+      void given_agentNotTargetedByInject_should_forbidCallback() throws Exception {
+        // -- PREPARE --
+        AgentComposer.Composer strangerAgentWrapper =
+            agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+        endpointComposer
+            .forEndpoint(EndpointFixture.createEndpoint())
+            .withAgent(strangerAgentWrapper)
+            .persist();
+        Inject inject = getPendingInjectWithAssets();
+        entityManager.flush();
+
+        // -- EXECUTE & ASSERT --
+        performRawCallbackRequest(strangerAgentWrapper.get().getId(), inject.getId())
+            .andExpect(status().isForbidden())
+            .andExpect(
+                result ->
+                    assertThat(result.getResolvedException())
+                        .isInstanceOf(ForbiddenException.class));
+
+        entityManager.flush();
+        entityManager.clear();
+        Inject injectSaved = injectRepository.findById(inject.getId()).orElseThrow();
+        assertThat(injectSaved.getStatus().orElseThrow().getTraces()).isEmpty();
+      }
+
+      @DisplayName("Should reject the callback when the inject does not exist")
+      @Test
+      void given_unknownInject_should_forbidCallback() throws Exception {
+        // -- PREPARE --
+        Inject inject = getPendingInjectWithAssets();
+        String agentId = ((Endpoint) inject.getAssets().getFirst()).getAgents().getFirst().getId();
+        entityManager.flush();
+
+        // -- EXECUTE & ASSERT --
+        performRawCallbackRequest(agentId, UUID.randomUUID().toString())
+            .andExpect(status().isForbidden());
+      }
+
+      @DisplayName("Should reject the callback of a child agent, even on a targeted endpoint")
+      @Test
+      void given_childAgentOnTargetedEndpoint_should_forbidCallback() throws Exception {
+        // -- PREPARE --
+        Inject inject = getPendingInjectWithAssets();
+        Endpoint endpoint = (Endpoint) inject.getAssets().getFirst();
+        Agent childAgent = AgentFixture.createDefaultAgentSession();
+        childAgent.setAsset(endpoint);
+        childAgent.setParent(endpoint.getAgents().getFirst());
+        Agent childAgentSaved = agentRepository.save(childAgent);
+        entityManager.flush();
+
+        // -- EXECUTE & ASSERT --
+        performRawCallbackRequest(childAgentSaved.getId(), inject.getId())
+            .andExpect(status().isForbidden());
+      }
+
+      @DisplayName("Should accept the callback of an agent targeted through a static asset group")
+      @Test
+      void given_agentTargetedThroughStaticAssetGroup_should_acceptCallback() throws Exception {
+        // -- PREPARE --
+        AgentComposer.Composer agentWrapper =
+            agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+        Inject inject =
+            pendingInjectWrapper()
+                .withAssetGroup(
+                    assetGroupComposer
+                        .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("static group"))
+                        .withAsset(
+                            endpointComposer
+                                .forEndpoint(EndpointFixture.createEndpoint())
+                                .withAgent(agentWrapper)))
+                .persist()
+                .get();
+        entityManager.flush();
+
+        // -- EXECUTE & ASSERT --
+        performRawCallbackRequest(agentWrapper.get().getId(), inject.getId())
+            .andExpect(status().is2xxSuccessful());
+      }
+
+      @DisplayName("Should accept the callback of an agent targeted through a dynamic asset group")
+      @Test
+      void given_agentTargetedThroughDynamicAssetGroup_should_acceptCallback() throws Exception {
+        // -- PREPARE --
+        AgentComposer.Composer agentWrapper =
+            agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+        EndpointComposer.Composer endpointWrapper =
+            endpointComposer
+                .forEndpoint(EndpointFixture.createEndpoint())
+                .withAgent(agentWrapper)
+                .persist();
+
+        Filters.Filter filter = new Filters.Filter();
+        filter.setKey("endpoint_platform");
+        filter.setMode(Filters.FilterMode.and);
+        filter.setOperator(Filters.FilterOperator.eq);
+        filter.setValues(List.of(endpointWrapper.get().getPlatform().name()));
+        Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+        filterGroup.setMode(Filters.FilterMode.and);
+        filterGroup.setFilters(List.of(filter));
+
+        Inject inject =
+            pendingInjectWrapper()
+                .withAssetGroup(
+                    assetGroupComposer.forAssetGroup(
+                        AssetGroupFixture.createAssetGroupWithDynamicFilter(
+                            "dynamic group", filterGroup)))
+                .persist()
+                .get();
+        entityManager.flush();
+
+        // -- EXECUTE & ASSERT --
+        performRawCallbackRequest(agentWrapper.get().getId(), inject.getId())
+            .andExpect(status().is2xxSuccessful());
+      }
     }
 
     @Nested
