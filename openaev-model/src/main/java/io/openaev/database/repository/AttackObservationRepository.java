@@ -69,6 +69,10 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         -- tenant linking it to its own attack_patterns rows, so the contract id alone fans out.
         JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract AND icap.tenant_id = i.tenant_id
         JOIN attack_patterns ap ON ap.attack_pattern_id = icap.attack_pattern_id
+        -- Joined here, before LIMIT, and again for its labels below: an asset the final join
+        -- would drop must not be selected either, or a batch made only of such rows would emit
+        -- nothing and the cursor would never move past it.
+        JOIN assets ta ON ta.asset_id = ie.asset_id
         WHERE ie.agent_id IS NULL
           AND ie.asset_id IS NOT NULL
           AND ie.inject_expectation_type IN ('PREVENTION', 'DETECTION')
@@ -294,6 +298,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
       ) sa ON sa.scenario_id IS NOT NULL
       JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract AND icap.tenant_id = i.tenant_id
       JOIN attack_patterns ap ON ap.attack_pattern_id = icap.attack_pattern_id
+      JOIN assets ta ON ta.asset_id = ie.asset_id
       WHERE ie.agent_id IS NULL
         AND ie.asset_id IS NOT NULL
         AND ie.inject_expectation_type IN ('PREVENTION', 'DETECTION')
