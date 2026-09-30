@@ -45,7 +45,6 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
-  private final InjectAgentTargetValidator injectAgentTargetValidator;
 
   @Resource protected ObjectMapper mapper;
 
@@ -306,7 +305,7 @@ public class ExecutableInjectService {
   }
 
   private Payload getExecutablePayloadInject(String injectId, String agentId) throws Exception {
-    Inject inject = injectAgentTargetValidator.resolveInjectTargetingAgent(injectId, agentId);
+    Inject inject = injectService.resolveInjectTargetingAgent(injectId, agentId);
     InjectorContract contract =
         inject
             .getInjectorContract()
