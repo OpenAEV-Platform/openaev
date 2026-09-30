@@ -87,7 +87,7 @@ See the domain-specific instruction files in `.github/instructions/` for detaile
 Before creating a pull request, validate locally:
 
 1. **Formatting**: `mvn spotless:check` (or via Docker: `docker run --rm -v $(pwd):/app -w /app maven:3.9-eclipse-temurin-21-noble mvn spotless:check`)
-2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix. The `openaev-pr-checks` GitHub App validates this pattern; titles with extra prefixes (e.g. `[backend]`) will be rejected.
+2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix. Omit `(#issue)` when the related issue is in a private repository. The `openaev-pr-checks` GitHub App validates this pattern; titles with extra prefixes (e.g. `[backend]`) will be rejected.
 3. **Compile**: `mvn compile -DskipTests` (or via Docker)
 4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint`
 5. **PR description**: Must follow [`.github/PULL_REQUEST_TEMPLATE.md`](/.github/PULL_REQUEST_TEMPLATE.md) — see [PR description format](#pr-description-format).
@@ -136,7 +136,7 @@ Required sections, in this order:
 |---|---|
 | `### Proposed changes` | Bullet list of what changed, one bullet per file or logical group, with the *why* — not a diff paraphrase |
 | `### Testing Instructions` | Numbered, reproducible steps + environment/config notes (services to start, commands run) |
-| `### Related issues` | `* Related #ISSUE-NUMBER` — mandatory, every PR must be linked to an issue |
+| `### Related issues` | `* Related #ISSUE-NUMBER` — mandatory for public issues; use `N/A` when the related issue is in a private repository |
 | `### Checklist` | Reproduce every line unchecked (`[ ]`); never delete a line and never tick a box — the human author does that |
 | `### Further comments` | Design rationale, alternatives considered, explicit out-of-scope items. Omit only for trivial PRs |
 
@@ -146,6 +146,7 @@ Rules:
 - Drop the HTML comments from the template in the final description; keep the checklist items themselves.
 - **Never tick a checklist item.** Leave every box as `[ ]` — ticking them is the human author's responsibility, after their own review.
 - The PR title still follows Conventional Commits and ends with the issue reference: `type(scope?): description (#issue)`.
+- When the related issue is in a private repository, omit its reference from the PR title and description, use `N/A` under `### Related issues`, and link the public PR from the private issue instead.
 
 ### Conventional Comments (for code reviews)
 
@@ -180,7 +181,8 @@ Examples:
 
 All commits, pull requests and issues in this repository follow the
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-specification with a GitHub issue reference:
+specification. Pull request titles include a GitHub issue reference unless the
+related issue is in a private repository:
 
 ```
 type(scope?)!?: description (#issue)
@@ -193,7 +195,10 @@ type(scope?)!?: description (#issue)
 - The old `[backend]` / `[frontend]` bracket prefixes are discontinued — use a
   Conventional Commits scope instead.
 - Pull request titles **must** end with the related issue reference, e.g.
-  `(#1234)`, and every pull request must be linked to an issue.
+  `(#1234)`, and every pull request must be linked to an issue. Pull requests
+  tracked by an issue in a private repository are exempt: do not expose the
+  private issue reference in the public pull request, and link the public pull
+  request from the private issue instead.
 - Sign your commits.
 
 When generating commit messages, PR titles or issue titles, always follow this
