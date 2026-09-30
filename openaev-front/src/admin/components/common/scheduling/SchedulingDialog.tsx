@@ -21,7 +21,6 @@ import {
 import handle from '../../../../utils/period/Period';
 import { minutesInFuture } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
-import { StepperColumn } from './TimeStepperField';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -296,122 +295,48 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                   </ToggleButtonGroup>
                 )}
               />
-              {/* Time of day (or interval + minute for hourly). */}
               <Box sx={{
-                display: 'flex',
-                // The switch sits level with the inputs, not with their labels.
-                alignItems: 'flex-end',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                // The weekday switch has no label above it.
+                alignItems: 'end',
                 gap: 2,
-                flexWrap: 'wrap',
               }}
               >
-                {frequency === 'hourly'
-                  ? (
-                      <>
-                        <Box>
-                          <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
-                            {t('Interval (hours)')}
-                          </Typography>
-                          <Box sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            border: theme => `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            paddingInline: 1.5,
-                            paddingBlock: 0.25,
-                            marginTop: 0.5,
-                          }}
-                          >
-                            <StepperColumn
-                              value={values.interval}
-                              onChange={next => setValue('interval', Math.max(1, next), { shouldValidate: true })}
-                              min={1}
-                              max={23}
-                              ariaLabel={t('Interval (hours)')}
-                            />
-                          </Box>
-                        </Box>
-                        <Box>
-                          <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
-                            {t('At minute')}
-                          </Typography>
-                          <Box sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            border: theme => `1px solid ${theme.palette.divider}`,
-                            borderRadius: 1,
-                            paddingInline: 1.5,
-                            paddingBlock: 0.25,
-                            marginTop: 0.5,
-                          }}
-                          >
-                            <StepperColumn
-                              value={values.minute}
-                              onChange={next => setValue('minute', next, { shouldValidate: true })}
-                              max={59}
-                              step={5}
-                              ariaLabel={t('At minute')}
-                            />
-                          </Box>
-                        </Box>
-                      </>
-                    )
-                  : (
-                      <Box sx={{
-                        flex: 1,
-                        minWidth: 200,
-                      }}
-                      >
-                        <TimeField
-                          label={t('Scheduling_time')}
-                          format="HH:mm"
-                          error={timeError}
-                          // The form keeps the clock as two numbers, not a date.
-                          value={new Date(1970, 0, 1, values.hour, values.minute)}
-                          onChange={(next) => {
-                            if (!next) return;
-                            setValue('hour', next.getHours(), { shouldValidate: true });
-                            setValue('minute', next.getMinutes(), { shouldValidate: true });
-                          }}
-                        />
-                      </Box>
+                {frequency === 'monthly' && (
+                  <Controller
+                    control={control}
+                    name="weekOfMonth"
+                    render={({ field }) => (
+                      // The lib renders the label and the trigger as siblings,
+                      // so the pair needs a wrapper to hold one grid cell.
+                      <div>
+                        <Select
+                          value={String(field.value ?? '')}
+                          onValueChange={next => (field.onChange)(Number(next))}
+                        >
+                          <SelectLabel>{t('Week of month')}</SelectLabel>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={t('Week of month')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">{t('First')}</SelectItem>
+                            <SelectItem value="2">{t('Second')}</SelectItem>
+                            <SelectItem value="3">{t('Third')}</SelectItem>
+                            <SelectItem value="4">{t('Fourth')}</SelectItem>
+                            <SelectItem value="5">{t('recurrence_Last')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     )}
+                  />
+                )}
                 {['weekly', 'monthly'].includes(frequency) && (
-                  <Stack
-                    spacing={2}
-                    sx={{
-                      flex: 1,
-                      minWidth: 200,
-                    }}
-                  >
-                    {frequency === 'monthly' && (
-                      <Controller
-                        control={control}
-                        name="weekOfMonth"
-                        render={({ field }) => (
-                          <Select
-                            value={String(field.value ?? '')}
-                            onValueChange={next => (field.onChange)(Number(next))}
-                          >
-                            <SelectLabel>{t('Week of month')}</SelectLabel>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder={t('Week of month')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">{t('First')}</SelectItem>
-                              <SelectItem value="2">{t('Second')}</SelectItem>
-                              <SelectItem value="3">{t('Third')}</SelectItem>
-                              <SelectItem value="4">{t('Fourth')}</SelectItem>
-                              <SelectItem value="5">{t('recurrence_Last')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    )}
-                    <Controller
-                      control={control}
-                      name="dayOfWeek"
-                      render={({ field }) => (
+                  <Controller
+                    control={control}
+                    name="dayOfWeek"
+                    render={({ field }) => (
+                      <div>
                         <Select
                           value={String(field.value ?? '')}
                           onValueChange={next => (field.onChange)(Number(next))}
@@ -430,10 +355,61 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                             <SelectItem value="7">{t('Sunday')}</SelectItem>
                           </SelectContent>
                         </Select>
-                      )}
-                    />
-                  </Stack>
+                      </div>
+                    )}
+                  />
                 )}
+                {frequency === 'hourly'
+                  ? (
+                      <>
+                        <div>
+                          <Select
+                            value={String(values.interval)}
+                            onValueChange={next => setValue('interval', Number(next), { shouldValidate: true })}
+                          >
+                            <SelectLabel>{t('Interval (hours)')}</SelectLabel>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={t('Interval (hours)')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 23 }, (_, i) => i + 1).map(i => (
+                                <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Select
+                            value={String(values.minute)}
+                            onValueChange={next => setValue('minute', Number(next), { shouldValidate: true })}
+                          >
+                            <SelectLabel>{t('At minute')}</SelectLabel>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={t('At minute')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 60 }, (_, i) => i).map(i => (
+                                <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )
+                  : (
+                      <TimeField
+                        label={t('Scheduling_time')}
+                        format="HH:mm"
+                        error={timeError}
+                        // The form keeps the clock as two numbers, not a date.
+                        value={new Date(1970, 0, 1, values.hour, values.minute)}
+                        onChange={(next) => {
+                          if (!next) return;
+                          setValue('hour', next.getHours(), { shouldValidate: true });
+                          setValue('minute', next.getMinutes(), { shouldValidate: true });
+                        }}
+                      />
+                    )}
                 {['hourly', 'daily'].includes(frequency) && (
                   <Controller
                     control={control}
@@ -441,13 +417,9 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                     render={({ field }) => (
                       <FormControlLabel
                         sx={{
-                          flex: 1,
-                          minWidth: 200,
-                          // The default label margins would shrink its share of the row.
+                          // The default label margins would shrink its column.
                           marginInline: 0,
                           height: 36,
-                          // The hourly steppers are taller than an input, so centre on them.
-                          alignSelf: frequency === 'hourly' ? 'center' : 'flex-end',
                         }}
                         control={(
                           <Switch
@@ -461,9 +433,9 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                   />
                 )}
               </Box>
-              {/* Start / end window. */}
               <Box sx={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
                 gap: 2,
               }}
               >

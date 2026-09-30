@@ -410,7 +410,6 @@
         "openaev-front/src/admin/components/common/injects/create/InjectSelectionBar.tsx",
         "openaev-front/src/admin/components/common/injects/expectations/ExpectationsDriftIndicator.tsx",
         "openaev-front/src/admin/components/common/injects/form/InjectContentForm.tsx",
-        "openaev-front/src/admin/components/common/scheduling/TimeStepperField.tsx",
         "openaev-front/src/admin/components/components/challenges/ChallengeForm.tsx",
         "openaev-front/src/admin/components/components/challenges/ChallengePopover.tsx",
         "openaev-front/src/admin/components/components/phishing/PhishingHtmlPreview.tsx",
