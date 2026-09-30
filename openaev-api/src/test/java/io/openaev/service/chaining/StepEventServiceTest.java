@@ -262,6 +262,27 @@ class StepEventServiceTest {
       verify(stepRepository).findById(stepId);
       verify(stepService, never()).saveStep(any());
     }
+
+    @Test
+    void given_stepExecutionFailed_should_endStepWithoutRequeue() throws Exception {
+      // Arrange: the action step reports a final failure (e.g. no agent could run the inject)
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      Step step = new Step();
+      step.setStepAction(StepActionClass.INJECT_EXECUTION);
+      when(stepRepository.findById(event.getStepId())).thenReturn(Optional.of(step));
+      when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), any()))
+          .thenReturn(actionStep);
+      when(actionStep.run(step)).thenReturn(Optional.empty());
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert: the step ends and the same event is never re-published
+      assertEquals(StepStatus.END, step.getStatus());
+      verify(stepService).saveStep(step);
+      verify(queueChainingService, never()).republishReadyEvent(any());
+      assertEquals(0, event.getRetryCount());
+    }
   }
 
   // -- RETRY ON TRANSACTIONAL FAILURE --
