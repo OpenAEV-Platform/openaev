@@ -29,6 +29,7 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EsIndexingUtils;
 import io.openaev.utils.mapper.RawUserAuthMapper;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -102,6 +103,12 @@ class SnapshotObservationServiceTest {
     return service.searchAttackObservations(TENANT_ID, input);
   }
 
+  private CursorPageQuery capturedQuery() {
+    ArgumentCaptor<CursorPageQuery> captor = ArgumentCaptor.forClass(CursorPageQuery.class);
+    verify(engineService).searchCursorPaged(any(), eq(EsAttackObservation.class), captor.capture());
+    return captor.getValue();
+  }
+
   @Nested
   @DisplayName("Validation")
   class Validation {
@@ -117,13 +124,6 @@ class SnapshotObservationServiceTest {
   @Nested
   @DisplayName("Clamping")
   class Clamping {
-
-    private CursorPageQuery capturedQuery() {
-      ArgumentCaptor<CursorPageQuery> captor = ArgumentCaptor.forClass(CursorPageQuery.class);
-      verify(engineService)
-          .searchCursorPaged(any(), eq(EsAttackObservation.class), captor.capture());
-      return captor.getValue();
-    }
 
     @Test
     @DisplayName("page_size below 1 is clamped up to 1")
@@ -175,7 +175,8 @@ class SnapshotObservationServiceTest {
       SnapshotSearchOutput<?> output = search(input(null, null, null, 10));
 
       // -- ASSERT --
-      assertThat(output.snapshotWindowEnd()).isEqualTo(output.serverTime().minusSeconds(90));
+      assertThat(output.snapshotWindowEnd())
+          .isEqualTo(lastCompleteMillisecond(output.serverTime().minusSeconds(90)));
     }
 
     @Test
@@ -189,7 +190,8 @@ class SnapshotObservationServiceTest {
       SnapshotSearchOutput<?> output = search(input(null, null, null, 999_999));
 
       // -- ASSERT --
-      assertThat(output.snapshotWindowEnd()).isEqualTo(output.serverTime().minusSeconds(3600));
+      assertThat(output.snapshotWindowEnd())
+          .isEqualTo(output.serverTime().minusSeconds(3600).truncatedTo(ChronoUnit.MILLIS));
     }
   }
 
@@ -205,7 +207,7 @@ class SnapshotObservationServiceTest {
       Instant cursor = Instant.now().minusSeconds(300);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(cursor)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any())).thenReturn(true);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
       givenDocuments(List.of());
 
       // -- ACT --
@@ -223,7 +225,8 @@ class SnapshotObservationServiceTest {
       Instant cursor = Instant.now().minusSeconds(300);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(cursor)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any())).thenReturn(false);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any()))
+          .thenReturn(false);
       givenDocuments(List.of());
 
       // -- ACT --
@@ -239,7 +242,7 @@ class SnapshotObservationServiceTest {
       // -- ARRANGE: no row ever indexed, so the probe finds pending data from EPOCH --
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
       when(indexingStatusRepository.findByType(any())).thenReturn(Optional.empty());
-      when(attackObservationRepository.existsPendingIndexing(any(), any())).thenReturn(true);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
       givenDocuments(List.of());
 
       // -- ACT --
@@ -257,7 +260,7 @@ class SnapshotObservationServiceTest {
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(EsIndexingUtils.REINDEX_REQUESTED_CURSOR)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any())).thenReturn(true);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
       givenDocuments(List.of());
 
       // -- ACT --
@@ -282,7 +285,7 @@ class SnapshotObservationServiceTest {
       SnapshotSearchOutput<?> output = search(input(null, null, null, 60));
 
       // -- ASSERT --
-      verify(attackObservationRepository, never()).existsPendingIndexing(any(), any());
+      verify(attackObservationRepository, never()).existsPendingIndexing(any(), any(), any());
       assertThat(output.indexedThrough()).isEqualTo(output.serverTime().minusSeconds(60));
     }
 
@@ -294,14 +297,15 @@ class SnapshotObservationServiceTest {
       Instant cursor = Instant.now().minusSeconds(90);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(cursor)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any())).thenReturn(false);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any()))
+          .thenReturn(false);
       givenDocuments(List.of());
 
       // -- ACT --
       search(input(null, null, null, 60));
 
       // -- ASSERT --
-      verify(attackObservationRepository).existsPendingIndexing(any(), any());
+      verify(attackObservationRepository).existsPendingIndexing(any(), any(), any());
     }
   }
 
@@ -317,15 +321,55 @@ class SnapshotObservationServiceTest {
       Instant farBehind = Instant.now().minusSeconds(600);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(farBehind)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any())).thenReturn(true);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
       givenDocuments(List.of());
 
       // -- ACT --
       SnapshotSearchOutput<?> output = search(input(null, null, null, 60));
 
       // -- ASSERT --
-      assertThat(output.snapshotWindowEnd()).isEqualTo(farBehind);
+      assertThat(output.snapshotWindowEnd()).isEqualTo(lastCompleteMillisecond(farBehind));
       assertThat(output.snapshotReady()).isFalse();
+    }
+
+    @Test
+    @DisplayName("the window never ends inside the millisecond the indexing cursor sits in")
+    void given_cursor_inside_a_millisecond_should_end_window_on_the_previous_one() {
+      // -- ARRANGE: the cursor sits 100us into a millisecond; the rest of it may be pending --
+      when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
+      Instant millisecond = Instant.now().minusSeconds(600).truncatedTo(ChronoUnit.MILLIS);
+      Instant cursor = millisecond.plus(100, ChronoUnit.MICROS);
+      when(indexingStatusRepository.findByType(any()))
+          .thenReturn(Optional.of(indexingStatus(cursor)));
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
+      givenDocuments(List.of());
+
+      // -- ACT --
+      SnapshotSearchOutput<?> output = search(input(null, null, null, 60));
+
+      // -- ASSERT: engine dates are milliseconds, so that whole millisecond stays out --
+      assertThat(output.indexedThrough()).isEqualTo(cursor);
+      assertThat(output.snapshotWindowEnd()).isEqualTo(millisecond.minusMillis(1));
+      assertThat(capturedQuery().windowEnd()).isEqualTo(millisecond.minusMillis(1));
+    }
+
+    @Test
+    @DisplayName("the probe resumes from the full keyset cursor, id included")
+    void given_keyset_cursor_should_probe_from_its_id() {
+      // -- ARRANGE --
+      when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
+      Instant cursor = Instant.now().minusSeconds(600);
+      IndexingStatus status = indexingStatus(cursor);
+      status.setLastId("abc");
+      when(indexingStatusRepository.findByType(any())).thenReturn(Optional.of(status));
+      givenDocuments(List.of());
+
+      // -- ACT --
+      SnapshotSearchOutput<?> output = search(input(null, null, null, 60));
+
+      // -- ASSERT: rows tied on the cursor with a greater id are still pending --
+      verify(attackObservationRepository)
+          .existsPendingIndexing(cursor, "abc", output.serverTime().minusSeconds(60));
     }
 
     @Test
@@ -343,7 +387,8 @@ class SnapshotObservationServiceTest {
 
       // -- ASSERT --
       assertThat(output.snapshotReady()).isTrue();
-      assertThat(output.snapshotWindowEnd()).isEqualTo(output.indexedThrough());
+      assertThat(output.snapshotWindowEnd())
+          .isEqualTo(lastCompleteMillisecond(output.indexedThrough()));
     }
   }
 
@@ -419,5 +464,10 @@ class SnapshotObservationServiceTest {
       es.setBase_updated_at(updatedAt);
       return es;
     }
+  }
+
+  /** The window bound for a horizon: the last millisecond entirely behind it. */
+  private static Instant lastCompleteMillisecond(Instant horizon) {
+    return horizon.minusMillis(1).truncatedTo(ChronoUnit.MILLIS);
   }
 }

@@ -252,19 +252,39 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
   List<RawAttackObservationIndexing> findForIndexing(
       @Param("fromTs") Instant fromTs, @Param("fromId") String fromId, @Param("limit") int limit);
 
-  // Mirrors the selection predicate of the touched CTE of findForIndexing above (Story 1.7/1.8
-  // existence probe): keep both in sync by hand, see the story plan section 3.7/8. fromId is
-  // deliberately not reused here: a strict > cursorTs may re-examine the boundary group, which
-  // only makes the horizon more conservative, never less.
-  // No WHERE tenant_id: the indexing_status cursor this probe is compared against is itself global
-  // across tenants (indexingStatusRepository.findByType is keyed by model, not by tenant), so a
-  // tenant-scoped probe against a global cursor would be the unsound combination (story §14.3).
+  // Mirrors the selection and resume predicates of the touched CTE of findForIndexing above (Story
+  // 1.7/1.8 existence probe): keep both in sync by hand, see the story plan section 3.7/8. The
+  // resume predicate must be the keyset one, fromId included: a strict > cursorTs would miss the
+  // rest of a tie group sitting exactly on the cursor and report it indexed.
+  // The candidate set goes through the same per-table sargable prefilter as changed_expectations:
+  // an OR across three joined tables cannot use their indexes, and this probe runs on most API
+  // calls of a quiet platform, where it finds nothing and would otherwise scan everything.
+  // No WHERE tenant_id: none of these tables is tenant-active, so the probe is global across
+  // tenants, like the indexing_status cursor it is compared against. That is merely conservative:
+  // another tenant pending rows can hold this tenant horizon back, never push it forward.
   @Query(
       value =
           """
+    WITH changed_expectations AS (
+        SELECT ie.inject_expectation_id
+        FROM injects_expectations ie
+        WHERE ie.agent_id IS NULL AND ie.inject_expectation_updated_at >= :cursorTs
+      UNION
+        SELECT ie.inject_expectation_id
+        FROM injects_expectations ie
+        JOIN injects i ON i.inject_id = ie.inject_id
+        WHERE ie.agent_id IS NULL AND i.inject_updated_at >= :cursorTs
+      UNION
+        SELECT ie.inject_expectation_id
+        FROM injects_expectations ie
+        JOIN injects i ON i.inject_id = ie.inject_id
+        JOIN exercises e ON e.exercise_id = i.inject_exercise
+        WHERE ie.agent_id IS NULL AND e.exercise_updated_at >= :cursorTs
+    )
     SELECT EXISTS (
       SELECT 1
       FROM injects_expectations ie
+      JOIN changed_expectations ce ON ce.inject_expectation_id = ie.inject_expectation_id
       JOIN injects i ON i.inject_id = ie.inject_id
       JOIN exercises e ON e.exercise_id = i.inject_exercise
       JOIN LATERAL (
@@ -279,18 +299,23 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         AND ie.inject_expectation_type IN ('PREVENTION', 'DETECTION')
         AND i.inject_exercise IS NOT NULL
         AND ie.inject_expectation_score IS NOT NULL
-        -- Sargable prefilter redundant with the GREATEST bound below, so idx_injects_expectations_indexing_cursor,
-        -- idx_injects_updated_at and idx_exercises_updated_at stay usable instead of forcing a full scan.
-        AND (
-          ie.inject_expectation_updated_at > :cursorTs
-          OR i.inject_updated_at > :cursorTs
-          OR e.exercise_updated_at > :cursorTs
-        )
-        AND GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, e.exercise_updated_at) > :cursorTs
         AND GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, e.exercise_updated_at) <= :upperTs
+        AND (
+          GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, e.exercise_updated_at) > :cursorTs
+          OR (
+            GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, e.exercise_updated_at) = :cursorTs
+            AND (
+              CAST(:cursorId AS text) IS NULL
+              OR md5(i.tenant_id || '|' || ie.asset_id || '|' || ap.attack_pattern_external_id
+                      || '|' || ie.inject_expectation_type || '|' || sa.scenario_id) > CAST(:cursorId AS text)
+            )
+          )
+        )
     )
     """,
       nativeQuery = true)
   boolean existsPendingIndexing(
-      @Param("cursorTs") Instant cursorTs, @Param("upperTs") Instant upperTs);
+      @Param("cursorTs") Instant cursorTs,
+      @Param("cursorId") String cursorId,
+      @Param("upperTs") Instant upperTs);
 }
