@@ -69,6 +69,7 @@ interface Props<T> {
   /** Drawer width when not `inline`. */
   variant?: 'half' | 'full';
   containerTestId?: string;
+  showSelectedCount?: boolean;
 }
 
 /**
@@ -101,6 +102,7 @@ const SelectListPicker = <T extends object>({
   submitDisabled = false,
   variant = 'half',
   containerTestId,
+  showSelectedCount = true,
 }: Props<T>) => {
   const { t } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
@@ -112,7 +114,7 @@ const SelectListPicker = <T extends object>({
 
   // Header slot: selected count + secondary actions (e.g. "Select all") + the
   // creation button, rendered top-right next to the title in both modes.
-  const headerRightSlot = (
+  const headerRightSlot = showSelectedCount ? (
     <Box
       sx={{
         display: 'flex',
@@ -128,7 +130,7 @@ const SelectListPicker = <T extends object>({
       {headerActions}
       {buttonComponent}
     </Box>
-  );
+  ) : null;
 
   // Client-side sorting fallback for pickers without queryable pagination:
   // sortable columns sort locally on the raw field value.
