@@ -152,17 +152,16 @@ public class EndpointApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
+  // ctx is unused directly: the aspect reads it to scope this transaction against asset_agent_jobs,
+  // which is v2-active; the inspector validates that the row this DELETE touches is in scope.
   public void cleanupAssetAgentJob(
       TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
-    // Explicit tenant from ctx, not the bare (unscoped-shape) findById/deleteById: asset_agent_jobs
-    // is v2-active - see AssetAgentJobRepository#findByIdAndTenantId.
-    String tenantId = this.writeScopeResolver.tenantForWrite(ctx, null);
     this.assetAgentJobRepository
-        .findByIdAndTenantId(assetAgentJobId, tenantId)
+        .findById(assetAgentJobId)
         .ifPresent(
             assetAgentJob -> {
               this.injectStatusService.addJobRetrievalTraces(assetAgentJob);
-              this.assetAgentJobRepository.deleteByIdAndTenantId(assetAgentJobId, tenantId);
+              this.assetAgentJobRepository.deleteById(assetAgentJobId);
             });
   }
 
@@ -173,10 +172,11 @@ public class EndpointApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
+  // ctx is unused directly: the aspect reads it to scope this transaction against asset_agent_jobs,
+  // which is v2-active; the inspector validates that the row this DELETE touches is in scope.
   public void cleanupAssetAgentJobDepreacted(
       TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
-    this.assetAgentJobRepository.deleteByIdAndTenantId(
-        assetAgentJobId, this.writeScopeResolver.tenantForWrite(ctx, null));
+    this.assetAgentJobRepository.deleteById(assetAgentJobId);
   }
 
   @LogExecutionTime

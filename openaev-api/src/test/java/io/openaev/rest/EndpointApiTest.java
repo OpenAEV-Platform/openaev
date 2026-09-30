@@ -1394,6 +1394,27 @@ class EndpointApiTest extends IntegrationTest {
         // -------- Assert --------
         assertThat(assetAgentJobRowStillExists(jobX.getId())).isFalse();
       }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should be deletable by a caller who also belongs to"
+              + " tenant Y (no selector, plain TxCtx)")
+      void given_callerInTenantXAndY_should_beAbleToDeleteJobInTenantX_noSelector()
+          throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenants[0].getId());
+
+        // -------- Act --------
+        // No path tenant, no X-Tenant-Ids header: the caller's scope is its whole membership set
+        // (tenant X and tenant Y), so this must succeed rather than 400 (a plain TxCtx has no
+        // @RequireTenantSelector to demand a single tenant on a multi-tenant caller).
+        mvc.perform(delete(ENDPOINT_URI + "/jobs/" + jobX.getId()).with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId())).isFalse();
+      }
     }
 
     @Nested
@@ -1513,18 +1534,16 @@ class EndpointApiTest extends IntegrationTest {
 
       Mockito.doReturn(java.util.Optional.of(assetAgentJob))
           .when(assetAgentJobRepository)
-          .findByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
+          .findById(assetAgentJobId);
 
       // -- EXECUTE --
       mvc.perform(delete(ENDPOINT_URI + "/jobs/" + assetAgentJobId).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      Mockito.verify(assetAgentJobRepository)
-          .findByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
+      Mockito.verify(assetAgentJobRepository).findById(assetAgentJobId);
       Mockito.verify(injectStatusService).addJobRetrievalTraces(assetAgentJob);
-      Mockito.verify(assetAgentJobRepository)
-          .deleteByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
+      Mockito.verify(assetAgentJobRepository).deleteById(assetAgentJobId);
     }
 
     @Test
@@ -1536,19 +1555,17 @@ class EndpointApiTest extends IntegrationTest {
       String assetAgentJobId = "job-missing";
       Mockito.doReturn(java.util.Optional.empty())
           .when(assetAgentJobRepository)
-          .findByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
+          .findById(assetAgentJobId);
 
       // -- EXECUTE --
       mvc.perform(delete(ENDPOINT_URI + "/jobs/" + assetAgentJobId).with(csrf()))
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      Mockito.verify(assetAgentJobRepository)
-          .findByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
+      Mockito.verify(assetAgentJobRepository).findById(assetAgentJobId);
       Mockito.verify(injectStatusService, Mockito.never())
           .addJobRetrievalTraces(Mockito.any(AssetAgentJob.class));
-      Mockito.verify(assetAgentJobRepository, Mockito.never())
-          .deleteByIdAndTenantId(assetAgentJobId, Tenant.DEFAULT_TENANT_UUID);
+      Mockito.verify(assetAgentJobRepository, Mockito.never()).deleteById(assetAgentJobId);
     }
   }
 
