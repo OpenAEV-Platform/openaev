@@ -258,7 +258,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   }, [onWidthChange, width]);
 
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  const topOffset = 64 + bannerHeightNumber;
+  const topOffset = `calc(var(--fds-header-height, 68px) + ${bannerHeightNumber}px)`;
   const accent = theme.palette.ai?.main ?? theme.palette.primary.main;
 
   const applyRun = useCallback((next: AutonomousRun) => {
