@@ -54,7 +54,8 @@ class AgentInactivityMonitorJobTest {
               })
           .when(tenantTx)
           .forEachTenant(any());
-      when(agentRepository.findStaleAgentsByStatus(any(Instant.class), eq(AgentStatus.ACTIVE)))
+      when(agentRepository.findStaleAgentsByTenantIdAndStatus(
+              eq("tenant-a"), any(Instant.class), eq(AgentStatus.ACTIVE)))
           .thenReturn(List.of());
 
       // Act
@@ -82,7 +83,8 @@ class AgentInactivityMonitorJobTest {
       staleAgent.setId("agent-1");
       staleAgent.setLastSeen(Instant.now().minusSeconds(7_200));
 
-      when(agentRepository.findStaleAgentsByStatus(any(Instant.class), eq(AgentStatus.ACTIVE)))
+      when(agentRepository.findStaleAgentsByTenantIdAndStatus(
+              eq("tenant-a"), any(Instant.class), eq(AgentStatus.ACTIVE)))
           .thenReturn(List.of(staleAgent));
 
       // Act
@@ -105,6 +107,38 @@ class AgentInactivityMonitorJobTest {
     }
 
     @Test
+    void given_severalTenants_should_queryEachTenantWithItsOwnId() {
+      // Arrange
+      AgentInactivityMonitorJob job = createJob();
+      doAnswer(
+              invocation -> {
+                Consumer<String> consumer = invocation.getArgument(0);
+                consumer.accept("tenant-a");
+                consumer.accept("tenant-b");
+                return null;
+              })
+          .when(tenantTx)
+          .forEachTenant(any());
+
+      Agent staleAgentOfB = new Agent();
+      staleAgentOfB.setId("agent-b");
+      when(agentRepository.findStaleAgentsByTenantIdAndStatus(
+              eq("tenant-a"), any(Instant.class), eq(AgentStatus.ACTIVE)))
+          .thenReturn(List.of());
+      when(agentRepository.findStaleAgentsByTenantIdAndStatus(
+              eq("tenant-b"), any(Instant.class), eq(AgentStatus.ACTIVE)))
+          .thenReturn(List.of(staleAgentOfB));
+
+      // Act
+      job.execute(null);
+
+      // Assert
+      assertThat(staleAgentOfB.getStatus()).isEqualTo(AgentStatus.INACTIVE);
+      verify(agentRepository).saveAll(List.of(staleAgentOfB));
+      verify(auditLogger, times(1)).logEvent(any(AuditEvent.class));
+    }
+
+    @Test
     void given_alreadyInactivePopulation_should_notEmitDuplicateCoverageGap() {
       // Arrange
       AgentInactivityMonitorJob job = createJob();
@@ -116,7 +150,8 @@ class AgentInactivityMonitorJobTest {
               })
           .when(tenantTx)
           .forEachTenant(any());
-      when(agentRepository.findStaleAgentsByStatus(any(Instant.class), eq(AgentStatus.ACTIVE)))
+      when(agentRepository.findStaleAgentsByTenantIdAndStatus(
+              eq("tenant-a"), any(Instant.class), eq(AgentStatus.ACTIVE)))
           .thenReturn(List.of());
 
       // Act
@@ -125,7 +160,8 @@ class AgentInactivityMonitorJobTest {
 
       // Assert
       verify(agentRepository, times(2))
-          .findStaleAgentsByStatus(any(Instant.class), eq(AgentStatus.ACTIVE));
+          .findStaleAgentsByTenantIdAndStatus(
+              eq("tenant-a"), any(Instant.class), eq(AgentStatus.ACTIVE));
       verify(agentRepository, never()).saveAll(any());
       verifyNoInteractions(auditLogger);
     }
