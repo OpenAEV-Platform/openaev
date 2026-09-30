@@ -1,0 +1,318 @@
+{
+  "attributes" : {
+    "value" : {
+      "type" : "file_hash_t",
+      "description" : "The fingerprint value.<p><b>Note:</b> This uses type <code>file_hash_t</code> (&quot;Hash&quot;), which has been generalized for all fingerprints but retains the same name and caption for backwards compatibility.</p>",
+      "requirement" : "required",
+      "caption" : "Value",
+      "type_name" : "Hash"
+    },
+    "encoding" : {
+      "type" : "string_t",
+      "description" : "The encoding of the <code>value</code> attribute, normalized to the caption of <code>encoding_id</code>. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Encoding",
+      "type_name" : "String"
+    },
+    "algorithm" : {
+      "type" : "string_t",
+      "description" : "The algorithm or scheme used to create the fingerprint, normalized to the caption of <code>algorithm_id</code>. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Algorithm",
+      "type_name" : "String"
+    },
+    "algorithm_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Secure Hash Algorithm 2 producing a 256-bit (32-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 180",
+            "url" : "https://csrc.nist.gov/pubs/fips/180-4/upd1/final"
+          } ],
+          "caption" : "SHA-256"
+        },
+        "6" : {
+          "description" : "The TLSH fuzzy hashing algorithm.",
+          "caption" : "TLSH"
+        },
+        "0" : {
+          "description" : "The algorithm is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "MD5 message-digest algorithm producing a 128-bit (16-byte) hash value.",
+          "references" : [ {
+            "description" : "RFC 1321",
+            "url" : "https://www.rfc-editor.org/rfc/rfc1321"
+          } ],
+          "caption" : "MD5"
+        },
+        "2" : {
+          "description" : "Secure Hash Algorithm 1 producing a 160-bit (20-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 180",
+            "url" : "https://csrc.nist.gov/pubs/fips/180-4/upd1/final"
+          } ],
+          "caption" : "SHA-1"
+        },
+        "99" : {
+          "description" : "The algorithm is not mapped. See the <code>algorithm</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Secure Hash Algorithm 2 producing a 512-bit (64-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 180",
+            "url" : "https://csrc.nist.gov/pubs/fips/180-4/upd1/final"
+          } ],
+          "caption" : "SHA-512"
+        },
+        "5" : {
+          "description" : "The ssdeep generated fuzzy checksum. Also known as Context Triggered Piecewise Hash (CTPH).",
+          "caption" : "CTPH"
+        },
+        "7" : {
+          "description" : "Microsoft simple non-cryptographic hash algorithm that works by XORing the bytes in a circular-shifting fashion.",
+          "caption" : "quickXorHash"
+        },
+        "8" : {
+          "description" : "Secure Hash Algorithm 2 producing a 224-bit (28-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 180",
+            "url" : "https://csrc.nist.gov/pubs/fips/180-4/upd1/final"
+          } ],
+          "caption" : "SHA-224"
+        },
+        "9" : {
+          "description" : "Secure Hash Algorithm 2 producing a 384-bit (48-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 180",
+            "url" : "https://csrc.nist.gov/pubs/fips/180-4/upd1/final"
+          } ],
+          "caption" : "SHA-384"
+        },
+        "10" : {
+          "description" : "Secure Hash Algorithm 2 producing a 512-bit (64-byte) hash value truncated to a 224-bit (28-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 180",
+            "url" : "https://csrc.nist.gov/pubs/fips/180-4/upd1/final"
+          } ],
+          "caption" : "SHA-512/224"
+        },
+        "11" : {
+          "description" : "Secure Hash Algorithm 2 producing a 512-bit (64-byte) hash value truncated to a 256-bit (32-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 180",
+            "url" : "https://csrc.nist.gov/pubs/fips/180-4/upd1/final"
+          } ],
+          "caption" : "SHA-512/256"
+        },
+        "12" : {
+          "description" : "Secure Hash Algorithm 3 producing a 224-bit (28-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 202",
+            "url" : "https://csrc.nist.gov/pubs/fips/202/final"
+          } ],
+          "caption" : "SHA3-224"
+        },
+        "14" : {
+          "description" : "Secure Hash Algorithm 3 producing a 384-bit (48-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 202",
+            "url" : "https://csrc.nist.gov/pubs/fips/202/final"
+          } ],
+          "caption" : "SHA3-384"
+        },
+        "15" : {
+          "description" : "Secure Hash Algorithm 3 producing a 512-bit (64-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 202",
+            "url" : "https://csrc.nist.gov/pubs/fips/202/final"
+          } ],
+          "caption" : "SHA3-512"
+        },
+        "16" : {
+          "description" : "xxHash H3 producing a 64-bit hash value.",
+          "references" : [ {
+            "description" : "xxHASH H3",
+            "url" : "https://xxhash.com/doc/v0.8.3/group___x_x_h3__family.html"
+          } ],
+          "caption" : "xxHash H3 64-bit"
+        },
+        "17" : {
+          "description" : "xxHash H3 producing a 128-bit hash value.",
+          "references" : [ {
+            "description" : "xxHASH H3",
+            "url" : "https://xxhash.com/doc/v0.8.3/group___x_x_h3__family.html"
+          } ],
+          "caption" : "xxHash H3 128-bit"
+        },
+        "18" : {
+          "description" : "Import hash (imphash) based on the import table of a Portable Executable (PE) file producing a 128-bit (16-byte) hash value.",
+          "references" : [ {
+            "description" : "Tracking Malware with Import Hashing",
+            "url" : "https://cloud.google.com/blog/topics/threat-intelligence/tracking-malware-import-hashing/"
+          } ],
+          "caption" : "Imphash"
+        },
+        "20" : {
+          "description" : "HASSH is a network fingerprinting standard which can be used to identify specific SSH client and server implementations.",
+          "caption" : "HASSH"
+        },
+        "13" : {
+          "description" : "Secure Hash Algorithm 3 producing a 256-bit (32-byte) hash value.",
+          "references" : [ {
+            "description" : "FIPS 202",
+            "url" : "https://csrc.nist.gov/pubs/fips/202/final"
+          } ],
+          "caption" : "SHA3-256"
+        },
+        "19" : {
+          "description" : "Network Protocol Fingerprint (NPF) used to identify network protocols and applications.",
+          "references" : [ {
+            "description" : "Mercury Network Protocol Fingerprint Documentation",
+            "url" : "https://github.com/cisco/mercury/blob/main/doc/npf.md"
+          } ],
+          "caption" : "NPF"
+        }
+      },
+      "description" : "The identifier of the normalized algorithm or scheme, which was used to create the fingerprint.",
+      "requirement" : "required",
+      "caption" : "Algorithm ID",
+      "sibling" : "algorithm",
+      "type_name" : "Integer"
+    },
+    "encoding_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The fingerprint value is encoded using URL- and filename-safe Base64.",
+          "references" : [ {
+            "description" : "RFC 4648, Section 5",
+            "url" : "https://www.rfc-editor.org/rfc/rfc4648#section-5"
+          } ],
+          "caption" : "Base64URL"
+        },
+        "0" : {
+          "description" : "The encoding of the fingerprint value is not known.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The fingerprint value is encoded as a lowercase or uppercase hexadecimal string.",
+          "caption" : "Hex"
+        },
+        "2" : {
+          "description" : "The fingerprint value is encoded using standard Base64.",
+          "references" : [ {
+            "description" : "RFC 4648, Section 4",
+            "url" : "https://www.rfc-editor.org/rfc/rfc4648#section-4"
+          } ],
+          "caption" : "Base64"
+        },
+        "99" : {
+          "description" : "The encoding of the fingerprint value is not mapped. See the <code>encoding</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized identifier of the encoding used to represent the fingerprint bytes as the string in <code>value</code>. A verifier must decode <code>value</code> using this encoding to recover the raw hash bytes.",
+      "requirement" : "recommended",
+      "caption" : "Encoding ID",
+      "sibling" : "encoding",
+      "type_name" : "Integer"
+    },
+    "serialization" : {
+      "type" : "string_t",
+      "description" : "The canonical serialization scheme used to produce the deterministic byte sequence that was fingerprinted, normalized to the caption of <code>serialization_id</code>. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Serialization",
+      "type_name" : "String"
+    },
+    "serialization_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "JSON Web Signature - the JWS Signing Input, i.e. BASE64URL(protected header) '.' BASE64URL(payload).",
+          "references" : [ {
+            "description" : "RFC 7515",
+            "url" : "https://www.rfc-editor.org/rfc/rfc7515"
+          } ],
+          "caption" : "JWS"
+        },
+        "6" : {
+          "description" : "The Portable Executable (PE) Image Hash procedure that canonicalizes the PE structure into the byte sequence fed to the digest, excluding specified header fields and digesting sections in a defined order.",
+          "references" : [ {
+            "description" : "Windows Authenticode Portable Executable Signature Format (Microsoft, 2008)",
+            "url" : "https://download.microsoft.com/download/9/c/5/9c5b2167-8017-4bae-9fde-d599bac8184a/Authenticode_PE.docx"
+          } ],
+          "caption" : "Authenticode"
+        },
+        "0" : {
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "No canonical serialization was applied; the fingerprint is computed over the data's raw byte sequence, such as the content of a disk file or any other opaque byte stream.",
+          "caption" : "Flat"
+        },
+        "2" : {
+          "description" : "JSON Canonicalization Scheme - deterministic JSON serialization of the structured data prior to hashing.",
+          "references" : [ {
+            "description" : "RFC 8785",
+            "url" : "https://www.rfc-editor.org/rfc/rfc8785"
+          } ],
+          "caption" : "JCS"
+        },
+        "99" : {
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "CBOR Object Signing and Encryption - the CBOR Sig_structure used as the binary input.",
+          "references" : [ {
+            "description" : "RFC 9052",
+            "url" : "https://www.rfc-editor.org/rfc/rfc9052"
+          } ],
+          "caption" : "COSE"
+        },
+        "5" : {
+          "description" : "Dead Simple Signing Envelope - the PAE (Pre-Authentication Encoding) canonical input. Note: DSSE is a signing-envelope scheme, not a hash algorithm; the hash algorithm is carried in <code>algorithm_id</code>.",
+          "references" : [ {
+            "description" : "DSSE specification (secure-systems-lab)",
+            "url" : "https://github.com/secure-systems-lab/dsse"
+          } ],
+          "caption" : "DSSE"
+        },
+        "7" : {
+          "description" : "The procedure that describes how hashes of code and other structures form the Code Directory message that is digested.",
+          "references" : [ {
+            "description" : "TN3126: Inside Code Signing: Hashes",
+            "url" : "https://developer.apple.com/documentation/technotes/tn3126-inside-code-signing-hashes"
+          } ],
+          "caption" : "Code Signing"
+        },
+        "8" : {
+          "description" : "The Windows Application Package signing procedure that describes how file hashes are stored in the manifest, and how that manifest is signed.",
+          "references" : [ {
+            "description" : "Sign an MSIX package",
+            "url" : "https://learn.microsoft.com/en-us/windows/msix/package/signing-package-overview"
+          } ],
+          "caption" : "App Package"
+        }
+      },
+      "description" : "The identifier of the normalized canonical serialization scheme used to produce the deterministic byte sequence that was fingerprinted. A verifier must apply the same scheme to reproduce the fingerprinted input. Use <code>Flat</code> where the fingerprinted data is an opaque byte sequence, such as file content, to which no canonical serialization was applied. Distinct from <code>algorithm_id</code>, which identifies how the resulting bytes were hashed.",
+      "requirement" : "optional",
+      "caption" : "Serialization ID",
+      "sibling" : "serialization",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "fingerprint",
+  "description" : "The Fingerprint object provides detailed information about a fingerprint, which is a compact representation of data used to identify a longer piece of information, such as a public key, file content, or application implementation. It contains the algorithm or scheme and value of the fingerprint, enabling efficient and reliable identification of the associated data.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:DigitalFingerprint.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:DigitalFingerprint/"
+  } ],
+  "caption" : "Fingerprint",
+  "_links" : [ ],
+  "observable" : 30
+}

@@ -1,0 +1,39 @@
+{
+  "attributes" : {
+    "observation_parameter" : {
+      "type" : "string_t",
+      "description" : "The specific parameter, metric or property where the anomaly was observed. Examples include: CPU usage percentage, API response time in milliseconds, HTTP error rate, memory utilization, network latency, transaction volume, etc. This helps identify the exact aspect of the system exhibiting anomalous behavior.",
+      "requirement" : "required",
+      "caption" : "Observation Parameter",
+      "type_name" : "String"
+    },
+    "observation_type" : {
+      "type" : "string_t",
+      "description" : "The type of analysis methodology used to detect the anomaly. This indicates how the anomaly was identified through different analytical approaches. Common types include: Frequency Analysis, Time Pattern Analysis, Volume Analysis, Sequence Analysis, Distribution Analysis, etc.",
+      "requirement" : "recommended",
+      "caption" : "Observation Type",
+      "type_name" : "String"
+    },
+    "observations" : {
+      "type" : "object_t",
+      "description" : "Details about the observed anomaly or observations that were flagged as anomalous compared to expected baseline behavior.",
+      "is_array" : true,
+      "requirement" : "required",
+      "caption" : "Observations",
+      "object_type" : "observation",
+      "object_name" : "Observation"
+    },
+    "observed_pattern" : {
+      "type" : "string_t",
+      "description" : "The specific pattern identified within the observation type. For Frequency Analysis, this could be 'FREQUENT', 'INFREQUENT', 'RARE', or 'UNSEEN'. For Time Pattern Analysis, this could be 'BUSINESS_HOURS', 'OFF_HOURS', or 'UNUSUAL_TIME'. For Volume Analysis, this could be 'NORMAL_VOLUME', 'HIGH_VOLUME', or 'SURGE'. The pattern values are specific to each observation type and indicate how the observed behavior relates to the baseline.",
+      "requirement" : "recommended",
+      "caption" : "Observed Pattern",
+      "type_name" : "String"
+    }
+  },
+  "name" : "anomaly",
+  "description" : "Describes an anomaly or deviation detected in a system. Anomalies are unexpected activity patterns that could indicate potential issues needing attention.",
+  "extends" : "object",
+  "caption" : "Anomaly",
+  "_links" : [ ]
+}

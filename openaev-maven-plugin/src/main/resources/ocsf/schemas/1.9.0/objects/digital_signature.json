@@ -1,0 +1,257 @@
+{
+  "attributes" : {
+    "state" : {
+      "type" : "string_t",
+      "description" : "The digital signature state defines the signature state, normalized to the caption of 'state_id'. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "State",
+      "type_name" : "String"
+    },
+    "digest" : {
+      "type" : "object_t",
+      "description" : "The message digest attribute contains the fixed length message hash representation and the corresponding hashing algorithm information.",
+      "requirement" : "optional",
+      "caption" : "Message Digest",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "certificate" : {
+      "type" : "object_t",
+      "description" : "The certificate object containing information about the digital certificate.",
+      "requirement" : "recommended",
+      "caption" : "Certificate",
+      "object_type" : "certificate",
+      "object_name" : "Digital Certificate"
+    },
+    "algorithm" : {
+      "type" : "string_t",
+      "description" : "The digital signature algorithm used to create the signature, normalized to the caption of 'algorithm_id'. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Algorithm",
+      "type_name" : "String"
+    },
+    "algorithm_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Elliptic Curve Digital Signature Algorithm.",
+          "caption" : "ECDSA"
+        },
+        "6" : {
+          "description" : "Application Package Signing Algorithm.",
+          "references" : [ {
+            "description" : "Sign an MSIX package",
+            "url" : "https://learn.microsoft.com/en-us/windows/msix/package/signing-package-overview"
+          } ],
+          "caption" : "App Package"
+        },
+        "0" : {
+          "description" : "The algorithm is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Digital Signature Algorithm (DSA).",
+          "caption" : "DSA"
+        },
+        "2" : {
+          "description" : "Rivest-Shamir-Adleman (RSA) Algorithm.",
+          "caption" : "RSA"
+        },
+        "99" : {
+          "description" : "The algorithm is not mapped. See the <code>algorithm</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Authenticode Digital Signature Algorithm.",
+          "references" : [ {
+            "description" : "Windows Authenticode Portable Executable Signature Format (Microsoft, 2008)",
+            "url" : "https://download.microsoft.com/download/9/c/5/9c5b2167-8017-4bae-9fde-d599bac8184a/Authenticode_PE.docx"
+          } ],
+          "caption" : "Authenticode"
+        },
+        "5" : {
+          "description" : "Code Signing Algorithm.",
+          "references" : [ {
+            "description" : "TN3126: Inside Code Signing: Hashes",
+            "url" : "https://developer.apple.com/documentation/technotes/tn3126-inside-code-signing-hashes"
+          } ],
+          "caption" : "Code Signing"
+        }
+      },
+      "description" : "The identifier of the normalized digital signature algorithm.",
+      "requirement" : "required",
+      "caption" : "Algorithm ID",
+      "sibling" : "algorithm",
+      "type_name" : "Integer"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the digital signature was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "developer_uid" : {
+      "type" : "string_t",
+      "description" : "The developer ID on the certificate that signed the file.",
+      "requirement" : "optional",
+      "caption" : "Developer UID",
+      "type_name" : "String"
+    },
+    "serialization" : {
+      "type" : "string_t",
+      "description" : "The canonical serialization or signing-envelope scheme used to produce the deterministic byte sequence that was signed, normalized to the caption of <code>serialization_id</code>. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Serialization",
+      "type_name" : "String"
+    },
+    "serialization_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "JSON Web Signature - the JWS Signing Input, i.e. BASE64URL(protected header) '.' BASE64URL(payload).",
+          "references" : [ {
+            "description" : "RFC 7515",
+            "url" : "https://www.rfc-editor.org/rfc/rfc7515"
+          } ],
+          "caption" : "JWS"
+        },
+        "6" : {
+          "description" : "The Portable Executable (PE) Image Hash procedure that canonicalizes the PE structure into the byte sequence fed to the digest, excluding specified header fields and digesting sections in a defined order. Authenticode bundles canonicalization and signing format: when used, <code>algorithm_id</code> is also set to the <code>Authenticode</code> enum value.",
+          "references" : [ {
+            "description" : "Windows Authenticode Portable Executable Signature Format (Microsoft, 2008)",
+            "url" : "https://download.microsoft.com/download/9/c/5/9c5b2167-8017-4bae-9fde-d599bac8184a/Authenticode_PE.docx"
+          } ],
+          "caption" : "Authenticode"
+        },
+        "0" : {
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "No canonical serialization or signing envelope was applied; the signature is computed over the data's raw byte sequence, such as the content of a disk file or any other opaque byte stream.",
+          "caption" : "Flat"
+        },
+        "2" : {
+          "description" : "JSON Canonicalization Scheme - deterministic JSON serialization of the structured data prior to signing.",
+          "references" : [ {
+            "description" : "RFC 8785",
+            "url" : "https://www.rfc-editor.org/rfc/rfc8785"
+          } ],
+          "caption" : "JCS"
+        },
+        "99" : {
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "CBOR Object Signing and Encryption - the CBOR Sig_structure used as the binary signing input.",
+          "references" : [ {
+            "description" : "RFC 9052",
+            "url" : "https://www.rfc-editor.org/rfc/rfc9052"
+          } ],
+          "caption" : "COSE"
+        },
+        "5" : {
+          "description" : "Dead Simple Signing Envelope - the PAE (Pre-Authentication Encoding) canonical signing input. Note: DSSE is a signing-envelope scheme, not a hash algorithm; any payload hash is carried separately in the fingerprint object.",
+          "references" : [ {
+            "description" : "DSSE specification (secure-systems-lab)",
+            "url" : "https://github.com/secure-systems-lab/dsse"
+          } ],
+          "caption" : "DSSE"
+        },
+        "7" : {
+          "description" : "The procedure that describes how hashes of code and other structures form the Code Directory message that is signed. When used, <code>algorithm_id</code> is also set to the <code>Code Signing</code> enum value.",
+          "references" : [ {
+            "description" : "TN3126: Inside Code Signing: Hashes",
+            "url" : "https://developer.apple.com/documentation/technotes/tn3126-inside-code-signing-hashes"
+          } ],
+          "caption" : "Code Signing"
+        },
+        "8" : {
+          "description" : "The Windows Application Package signing procedure that describes how file hashes are stored in the manifest, and how that manifest is signed.",
+          "references" : [ {
+            "description" : "Sign an MSIX package",
+            "url" : "https://learn.microsoft.com/en-us/windows/msix/package/signing-package-overview"
+          } ],
+          "caption" : "App Package"
+        }
+      },
+      "description" : "The identifier of the normalized canonical serialization or signing-envelope scheme used to produce the deterministic byte sequence that was signed. A verifier must apply the same scheme to reproduce the signing input. Use <code>Flat</code> where the signed data is an opaque byte sequence, such as file content, to which no canonical serialization was applied. Distinct from <code>algorithm_id</code>, which identifies how the resulting bytes were signed; some signing formats (e.g. <code>Authenticode</code>) define their own canonicalization and populate both fields.",
+      "requirement" : "recommended",
+      "caption" : "Serialization ID",
+      "sibling" : "serialization",
+      "type_name" : "Integer"
+    },
+    "state_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The digital signature is invalid due to certificate revocation.",
+          "caption" : "Revoked"
+        },
+        "6" : {
+          "description" : "The digital signature is invalid because the certificate is rooted in an untrusted CA or is an untrusted self-signed certificate.",
+          "caption" : "Untrusted"
+        },
+        "0" : {
+          "description" : "The state is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The digital signature is valid.",
+          "caption" : "Valid"
+        },
+        "2" : {
+          "description" : "The digital signature is invalid because its timestamp does not fall within the certificate's validity period.",
+          "caption" : "Expired"
+        },
+        "99" : {
+          "description" : "The state is not mapped. See the <code>state</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "The digital signature is invalid due to certificate suspension.",
+          "caption" : "Suspended"
+        },
+        "5" : {
+          "description" : "The digital signature state is pending.",
+          "caption" : "Pending"
+        },
+        "7" : {
+          "description" : "The digital signature is invalid because the certificate is explicitly distrusted. Note that whereas revocation is global, distrust reflects local IT/security policy.",
+          "caption" : "Distrusted"
+        },
+        "8" : {
+          "description" : "The digital signature is invalid because the certificate is not intended for code signing purposes.",
+          "caption" : "WrongUsage"
+        },
+        "9" : {
+          "description" : "The digital signature is cryptographically invalid, e.g. a mismatched digest. This indicates possible tampering.",
+          "caption" : "Bad"
+        },
+        "10" : {
+          "description" : "The digital signature is malformed and could not be processed.",
+          "caption" : "Broken"
+        }
+      },
+      "description" : "The normalized identifier of the signature state.",
+      "requirement" : "optional",
+      "caption" : "State ID",
+      "sibling" : "state",
+      "type_name" : "Integer"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the digital signature was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "digital_signature",
+  "description" : "The Digital Signature object contains information about the cryptographic mechanism used to verify the authenticity, integrity, and origin of the file or application.",
+  "extends" : "object",
+  "caption" : "Digital Signature",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

@@ -15,6 +15,7 @@ public class XtmOneConnectivityService {
 
   private final XtmOneConfig config;
   private final XtmOneService xtmOneService;
+  private final XtmOneIdentity xtmOneIdentity;
   private final TaskScheduler taskScheduler;
 
   @PostConstruct
@@ -29,11 +30,13 @@ public class XtmOneConnectivityService {
     taskScheduler.scheduleAtFixedRate(this::tick, Duration.ofMinutes(5));
   }
 
-  private void tick() {
+  void tick() {
     try {
       xtmOneService.autoRegister();
     } catch (Exception e) {
       log.warn("[XTM One] Connectivity tick error.", e);
     }
+    // Refreshes the identity the platform settings hand the browser, off any request thread.
+    xtmOneIdentity.publishedIssuer();
   }
 }

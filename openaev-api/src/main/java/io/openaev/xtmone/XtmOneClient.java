@@ -71,6 +71,7 @@ public class XtmOneClient {
   private final OpenAEVConfig openAEVConfig;
   private final HttpClientFactory httpClientFactory;
   private final UserService userService;
+  private final XtmOneIdentity xtmOneIdentity;
 
   public String issueAuthenticationJwt(String userId, String userName, String userEmail) {
     Instant now = Instant.now();
@@ -83,7 +84,7 @@ public class XtmOneClient {
         .claim("name", userName)
         .claim("email", userEmail)
         .audience()
-        .add(config.getUrl())
+        .add(xtmOneIdentity.audience())
         .and()
         .issuedAt(Date.from(now))
         .expiration(Date.from(now.plus(Duration.ofMinutes(10))))
@@ -254,12 +255,13 @@ public class XtmOneClient {
         }
         yield agents;
       }
+      // XTM One rejecting our JWT is a config issue, not the caller's: a 401 would log them out
       case 401 ->
           throw new ResponseStatusException(
-              HttpStatus.UNAUTHORIZED, "[XTM One] Unauthorized access to chat agents");
+              HttpStatus.UNPROCESSABLE_ENTITY, "[XTM One] Unauthorized access to chat agents");
       case 403 ->
           throw new ResponseStatusException(
-              HttpStatus.FORBIDDEN, "[XTM One] Forbidden access to chat agents");
+              HttpStatus.UNPROCESSABLE_ENTITY, "[XTM One] Forbidden access to chat agents");
       case 404 ->
           throw new ResponseStatusException(
               HttpStatus.NOT_FOUND, "[XTM One] Chat agents endpoint not found");
