@@ -296,6 +296,9 @@ public class HealthCheckUtils {
             .orElse(new ArrayList<>()),
         ofNullable(inject.getAssetGroups())
             .map(assetGroups -> assetGroups.stream().map(AssetGroup::getId).toList())
+            .orElse(new ArrayList<>()),
+        ofNullable(inject.getSecretReferences())
+            .map(assetGroups -> assetGroups.stream().map(SecretReference::getId).toList())
             .orElse(new ArrayList<>()));
   }
 
@@ -316,7 +319,8 @@ public class HealthCheckUtils {
       boolean allTeams,
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
-      @NotNull final List<String> assetGroups) {
+      @NotNull final List<String> assetGroups,
+      @NotNull final List<String> secretReferences) {
     List<HealthCheck> result = new ArrayList<>();
 
     if (injectorContract == null) {
@@ -359,7 +363,14 @@ public class HealthCheckUtils {
       // If field is mandatory
       if (jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
           && !InjectModelHelper.isFieldSet(
-              allTeams, teams, assets, assetGroups, jsonField, content, injectContractFields)) {
+              allTeams,
+              teams,
+              assets,
+              assetGroups,
+              secretReferences,
+              jsonField,
+              content,
+              injectContractFields)) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.fromValue(jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
@@ -389,6 +400,7 @@ public class HealthCheckUtils {
                     teams,
                     assets,
                     assetGroups,
+                    secretReferences,
                     groupField.get(),
                     content,
                     injectContractFields)) {
@@ -471,6 +483,7 @@ public class HealthCheckUtils {
                   teams,
                   assets,
                   assetGroups,
+                  secretReferences,
                   fieldOpt.get(),
                   content,
                   injectContractFields)) {

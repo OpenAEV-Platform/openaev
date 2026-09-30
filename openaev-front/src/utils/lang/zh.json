@@ -1810,6 +1810,7 @@
   "healthcheck.description.ASSET_GROUPS.MANDATORY_CONTENT": "资产组",
   "healthcheck.description.ASSETS.MANDATORY_CONTENT": "资产",
   "healthcheck.description.BODY.MANDATORY_CONTENT": "机构",
+  "healthcheck.description.CREDENTIAL_REFERENCE.MANDATORY_CONTENT": "凭证",
   "healthcheck.description.IMAP.SERVICE_UNAVAILABLE": "缺少 IMAP 服务，请检查您的配置或凭据",
   "healthcheck.description.INJECT.NOT_READY": "注入内容缺失，请更新",
   "healthcheck.description.INJECTOR_CONTRACT.MANDATORY_CONTENT": "动作",

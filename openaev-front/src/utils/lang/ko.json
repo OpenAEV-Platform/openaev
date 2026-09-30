@@ -1810,6 +1810,7 @@
   "healthcheck.description.ASSET_GROUPS.MANDATORY_CONTENT": "자산 그룹",
   "healthcheck.description.ASSETS.MANDATORY_CONTENT": "자산",
   "healthcheck.description.BODY.MANDATORY_CONTENT": "Body",
+  "healthcheck.description.CREDENTIAL_REFERENCE.MANDATORY_CONTENT": "자격 증명",
   "healthcheck.description.IMAP.SERVICE_UNAVAILABLE": "iMAP 서비스가 누락되었습니다. 구성 또는 자격 증명을 확인하세요",
   "healthcheck.description.INJECT.NOT_READY": "인젝트가 누락된 콘텐츠 상태입니다. 업데이트하세요",
   "healthcheck.description.INJECTOR_CONTRACT.MANDATORY_CONTENT": "액션",
