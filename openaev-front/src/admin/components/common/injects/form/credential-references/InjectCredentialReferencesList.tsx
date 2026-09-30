@@ -78,7 +78,7 @@ const InjectCredentialReferencesList = ({ disabled = false, errorLabel, label, m
       />
       <Can I={ACTIONS.ACCESS} a={SUBJECTS.CREDENTIALS}>
         <InjectAddCredentials
-          credentialIds={credentialIds}
+          selectedCredentialIds={credentialIds}
           onSubmit={onCredentialChange}
           disabled={disabled}
           errorLabel={errorLabel}

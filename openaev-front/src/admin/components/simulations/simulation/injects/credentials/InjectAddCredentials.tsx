@@ -22,7 +22,7 @@ const useStyles = makeStyles()(theme => ({
 
 interface Props {
   disabled?: boolean;
-  credentialIds: string[];
+  selectedCredentialIds: string[];
   onSubmit: (credentialIds: string[]) => void;
   errorLabel?: string | null;
   label?: string | boolean;
@@ -31,7 +31,7 @@ interface Props {
 
 const InjectAddCredentials: FunctionComponent<Props> = ({
   disabled = false,
-  credentialIds,
+  selectedCredentialIds,
   onSubmit,
   errorLabel = null,
   label,
@@ -72,11 +72,12 @@ const InjectAddCredentials: FunctionComponent<Props> = ({
         </FormHelperText>
       )}
       <CredentialsPicker
-        initialState={credentialIds}
+        initialState={selectedCredentialIds}
         open={openDialog}
         onClose={handleClose}
         onSubmit={onSubmit}
         title={t('Update credentials in this inject')}
+        multiple={multiple}
       />
     </>
   );
