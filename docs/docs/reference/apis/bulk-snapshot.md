@@ -20,11 +20,21 @@ differentially, one page at a time.
   [Users and RBAC](../../administration/users-and-rbac.md) for how to create users, roles and
   capabilities. The connector authenticates with that user's API token.
 
-!!! warning "The account must not be an administrator"
+!!! warning "Decide what the account sees: all assessments, or only granted ones"
 
-    Administrators bypass the platform's row-level restriction filtering entirely, so an
-    administrative service account would return documents the connector is not meant to see, and
-    would mask any misconfiguration of its grants.
+    Observations are restricted to the Scenario and Simulation they come from, and filtered like
+    Scenarios and Simulations everywhere else in the platform:
+
+    - an account that is an administrator, or holds `Bypass` or `Access assessment`, sees the
+      observations of **every** Scenario and Simulation of the Tenant;
+    - any other account only sees the observations of the Scenarios and Simulations it holds a grant
+      on. Without any grant, the attack stream is **empty** (every attack observation belongs to a
+      Scenario), with no error to explain why.
+
+    For a full inventory, give the account `Access assessment` rather than per-Scenario grants.
+    Grants added later only apply to documents updated afterwards: the documents of a newly granted
+    Scenario that the connector's cursor has already passed only come back with the next full
+    reconciliation.
 
 !!! note "Unrestricted documents are tenant-wide"
 
