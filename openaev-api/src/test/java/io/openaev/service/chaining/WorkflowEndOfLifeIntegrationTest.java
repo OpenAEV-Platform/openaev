@@ -7,13 +7,18 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
+import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectStatusFixture;
@@ -63,6 +68,8 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private StepComposer stepComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private AssetAgentJobRepository assetAgentJobRepository;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private InjectStatusComposer injectStatusComposer;
 
   private ListAppender<ILoggingEvent> appender;
@@ -240,6 +247,59 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
           anyLogContains("finished due to workflow CANCELED"),
           "CANCELED must never log a simulation-finished line: the user already stopped it");
       assertTrue(errorMessages().isEmpty(), "No error expected for a clean CANCELED end");
+    }
+
+    @Test
+    @DisplayName(
+        "given a non-default-tenant simulation with a wrong ambient TenantContext, the asset"
+            + " agent job is still deleted (regression: the X-Tenant-Ids header route never sets"
+            + " TenantContext, so this used to silently delete zero rows for any non-default"
+            + " tenant - see WorkflowEndService#manageWorkflowEnd)")
+    void given_nonDefaultTenantSimulationAndWrongTenantContext_should_stillDeleteAssetAgentJob()
+        throws Exception {
+      // -------- Arrange --------
+      Tenant otherTenant = tenantHelper.createTenantWithCurrentUser("WorkflowEndOfLife-Other");
+      TenantContext.setCurrentTenant(otherTenant.getId());
+      Workflow workflowRun;
+      String assetAgentJobId;
+      try {
+        workflowRun = createPersistedRunWorkflow();
+        workflowRun.getSimulation().setStatus(ExerciseStatus.CANCELED);
+        exerciseRepository.save(workflowRun.getSimulation());
+        Inject inject = createPersistedActiveInject(workflowRun.getSimulation());
+
+        Endpoint endpoint = EndpointFixture.createEndpoint("WorkflowEndOfLife-Other-Endpoint");
+        endpoint.setTenant(otherTenant);
+        endpoint = entityManager.merge(endpoint);
+        Agent agent = AgentFixture.createAgent(endpoint, "workflow-end-of-life-other");
+        agent.setTenant(otherTenant);
+        agent = entityManager.merge(agent);
+
+        AssetAgentJob job = new AssetAgentJob();
+        job.setCommand("whoami");
+        job.setAgent(agent);
+        job.setInject(inject);
+        job.setTenant(otherTenant);
+        job.setCreatedAt(Instant.now());
+        assetAgentJobId = assetAgentJobRepository.save(job).getId();
+      } finally {
+        // The regression this pins: the header route never sets TenantContext at all, so the
+        // ambient value here is wrong (or absent) by the time manageWorkflowEnd runs, on purpose.
+        TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      }
+
+      // -------- Act --------
+      workflowService.cancelSimulationEndWorkflowRun(List.of(workflowRun));
+
+      // -------- Assert --------
+      // The native DELETE behind deleteAllAssetAgentJobsBySimulationIds does not sync Hibernate's
+      // persistence context, so findById would return the still-managed (now stale) instance
+      // without this.
+      entityManager.clear();
+      assertTrue(
+          assetAgentJobRepository.findById(assetAgentJobId).isEmpty(),
+          "the asset agent job must be deleted from the simulation's own tenant, regardless of"
+              + " what the ambient TenantContext happens to be");
     }
   }
 

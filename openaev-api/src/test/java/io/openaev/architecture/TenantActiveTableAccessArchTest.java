@@ -33,6 +33,7 @@ import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CollectorRepository;
@@ -74,6 +75,7 @@ import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorContextService;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService;
 import io.openaev.executors.tanium.service.TaniumExecutorContextService;
+import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
@@ -82,6 +84,8 @@ import io.openaev.injectors.challenge.ChallengeExecutor;
 import io.openaev.injectors.channel.ChannelExecutor;
 import io.openaev.injectors.phishing.service.PhishingLandingPageService;
 import io.openaev.integration.ManagerFactory;
+import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration;
+import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegrationFactory;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegration;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.migration.ConfigurationMigration;
@@ -96,6 +100,7 @@ import io.openaev.processor.datapack.V20260101_Starter_pack;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.processor.datapack.V20260708_Dynamic_injectors_base_url;
 import io.openaev.processor.datapack.V20260914_Default_tenant_markings;
+import io.openaev.rest.asset.endpoint.EndpointApi;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.attack_pattern.AttackPatternApi;
@@ -133,6 +138,7 @@ import io.openaev.rest.inject.ScenarioInjectApi;
 import io.openaev.rest.inject.SimulationInjectApi;
 import io.openaev.rest.inject.exports.InjectsFileExport;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi;
 import io.openaev.rest.injector.InjectorApi;
@@ -181,6 +187,7 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.chaining.ScopeSnapshotService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.expectation.ChallengeBehavior;
@@ -272,7 +279,8 @@ class TenantActiveTableAccessArchTest {
           "assets",
           "notifiers",
           "notification_triggers",
-          "notification_events");
+          "notification_events",
+          "asset_agent_jobs");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -1676,4 +1684,41 @@ class TenantActiveTableAccessArchTest {
           .because(
               "autonomous_directives is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule asset_agent_jobs_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              // getEndpointJobs (both), cleanupAssetAgentJob (both), upsertEndpoint/register.
+              EndpointApi.class,
+              // Register/getEndpointJobs write and read path behind EndpointApi; every write sets
+              // tenant explicitly from the owning agent, so it does not depend on the ambient v1
+              // listener either.
+              EndpointService.class,
+              // Reads a job's inject/agent to log a retrieval trace, inside the caller's scope
+              // (EndpointApi#cleanupAssetAgentJob or the scheduled-execution job runner).
+              InjectStatusService.class,
+              // Deletes jobs on workflow end; reached only from already-scoped callers (see
+              // AssetAgentJobDeletionScopeTest and the activation report for the three causes).
+              WorkflowEndService.class,
+              // OpenAEV executor: creates an upgrade-command job for a resolved agent, INSERT-only
+              // and tenant-attributed explicitly from the agent (VALUES inserts are not blocked by
+              // the inspector) - reached from the scoped scheduled-execution job runner.
+              OpenAEVExecutorContextService.class,
+              // Background reader behind the inject-execution job's overloaded-agent check,
+              // reached inside TenantScopedJobRunner#runInTenant.
+              ExecutorUtils.class,
+              // Constructor plumbing only: hands the repository to OpenAEVExecutorContextService /
+              // OpenAEVExecutorIntegration without calling it directly.
+              OpenAEVExecutorIntegrationFactory.class,
+              OpenAEVExecutorIntegration.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AssetAgentJobRepository.class)
+          .because(
+              "asset_agent_jobs is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows, and an unscoped DELETE purges nothing while reporting success. New"
+                  + " accessors must carry a scope and be allowlisted here");
 }

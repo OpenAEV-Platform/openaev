@@ -1,6 +1,5 @@
 package io.openaev.service.chaining;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -245,8 +244,17 @@ public class WorkflowEndService {
     // END ACTIVE INJECT
     stopActiveInjects(workflowRun.getSimulation().getId(), cause);
     // DELETE ASSET AGENT JOBS
+    // The simulation's own tenant, not the ambient v1 TenantContext: TenantInterceptor only
+    // sets TenantContext on the prefixed /api/tenants/{id}/... route (see TenantInterceptor),
+    // so an end reached through the legacy X-Tenant-Ids header route (ExerciseApi) used to pass
+    // TenantContext's DEFAULT_TENANT_UUID fallback here, silently deleting zero rows for any
+    // non-default tenant. The already-loaded simulation is correct on both routes, and for every
+    // cause that reaches this method (TIMEOUT, CANCELED, NO_MORE_PROGRESS,
+    // CANCELED_BY_SIMULATION_DELETION).
     deleteAllAssetAgentJobsBySimulationIds(
-        workflowRun.getSimulation().getId(), TenantContext.getCurrentTenant(), cause);
+        workflowRun.getSimulation().getId(),
+        workflowRun.getSimulation().getTenant().getId(),
+        cause);
     // DELETE WORKFLOW STATE
     deleteWorkflowStatesBySimulationId(workflowRun.getSimulation().getId(), cause);
   }
