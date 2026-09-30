@@ -20,7 +20,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const front = join(root, 'openaev-front');
 const themeCss = join(
   front,
-  'node_modules/@filigran/design-system/packages/filigran-design-system/dist/tokens/theme.css',
+  'node_modules/@filigran/design-system/dist/tokens/theme.css',
 );
 const metaFile = join(front, 'src/components/fds-tokens.generated.meta.json');
 const tokensFile = join(front, 'src/components/fds-tokens.generated.ts');

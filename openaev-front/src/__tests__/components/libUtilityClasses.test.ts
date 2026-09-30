@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
  */
 const CSS = path.join(
   process.cwd(),
-  'node_modules/@filigran/design-system/packages/filigran-design-system/dist/index.css',
+  'node_modules/@filigran/design-system/dist/index.css',
 );
 const SRC = path.join(process.cwd(), 'src');
 
