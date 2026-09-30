@@ -8,8 +8,9 @@ interface Props {
   title: string;
   // Optional item count rendered as a subtle badge next to the title.
   count?: number;
-  // Right-aligned action slot (add / preview button). It sits in a 24px row, so
-  // it must be 24px tall: a header action passes the library button's `sm`.
+  // Right-aligned action slot (add / preview button). The scenario / simulation configuration
+  // actions (Teams, Variables, Media pressure) use the library button's default 36px size,
+  // validated with product: the header row grows to fit it.
   action?: ReactNode;
   /**
    * Whether this section OWNS the surface.

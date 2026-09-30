@@ -15,6 +15,7 @@ interface CreateArticleProps {
   handleOpenCreate: () => void;
   handleCloseCreate: () => void;
   onCreate?: (articleId: string) => void;
+  size?: 'sm';
 }
 
 const CreateArticle: FunctionComponent<CreateArticleProps> = ({
@@ -22,6 +23,7 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
   openCreate,
   handleOpenCreate,
   handleCloseCreate,
+  size,
 }) => {
   const { t } = useFormatter();
 
@@ -58,8 +60,7 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
 
   return (
     <>
-      {/* Same compact creation button whether standalone or in a picker header. */}
-      <ButtonCreate size="sm" onClick={handleOpenCreate} label={t('Create an article')} />
+      <ButtonCreate size={size} onClick={handleOpenCreate} label={t('Create an article')} />
       <Dialog
         open={openCreate}
         slots={{ transition: Transition }}
