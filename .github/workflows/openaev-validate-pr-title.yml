@@ -19,6 +19,18 @@ jobs:
           app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
       - name: "Validate PR title and create check"
+        if: ${{ !contains(github.event.pull_request.body, '### Related issues') || !contains(github.event.pull_request.body, '* N/A') }}
         uses: FiligranHQ/filigran-ci-tools/actions/pr-title-check@main
         with:
           token: ${{ steps.generate-token.outputs.token }}
+      - name: "Validate PR title for a private issue"
+        if: ${{ contains(github.event.pull_request.body, '### Related issues') && contains(github.event.pull_request.body, '* N/A') }}
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_.-]+\))?!?: .+'
+          if [[ ! "$TITLE" =~ $pattern ]]; then
+            echo "Invalid PR title. Required format: type(scope?)!?: description"
+            exit 1
+          fi
