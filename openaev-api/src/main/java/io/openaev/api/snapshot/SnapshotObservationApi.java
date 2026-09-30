@@ -15,6 +15,8 @@ import io.openaev.engine.BulkSnapshotExportCondition;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.PreviewFeature;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +60,19 @@ public class SnapshotObservationApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SNAPSHOT_OBSERVATION)
   @Operation(summary = "Page attack observations for a bulk differential export")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "A page of attack observations"),
+        @ApiResponse(
+            responseCode = "400",
+            description =
+                "Invalid request: since and cursor both set, or a malformed cursor or one issued"
+                    + " for another tenant"),
+        @ApiResponse(
+            responseCode = "403",
+            description =
+                "Missing the ACCESS_SNAPSHOT_OBSERVATION capability, or not a member of the tenant")
+      })
   public SnapshotSearchOutput<AttackObservationOutput> searchAttackObservations(
       TxCtx ctx, @PathVariable String tenantId, @RequestBody @Valid SnapshotSearchInput input) {
     return snapshotObservationService.searchAttackObservations(tenantId, input);
@@ -68,6 +83,19 @@ public class SnapshotObservationApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SNAPSHOT_OBSERVATION)
   @Operation(summary = "Page vulnerability observations for a bulk differential export")
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "A page of vulnerability observations"),
+        @ApiResponse(
+            responseCode = "400",
+            description =
+                "Invalid request: since and cursor both set, or a malformed cursor or one issued"
+                    + " for another tenant"),
+        @ApiResponse(
+            responseCode = "403",
+            description =
+                "Missing the ACCESS_SNAPSHOT_OBSERVATION capability, or not a member of the tenant")
+      })
   public SnapshotSearchOutput<VulnerabilityObservationOutput> searchVulnerabilityObservations(
       TxCtx ctx, @PathVariable String tenantId, @RequestBody @Valid SnapshotSearchInput input) {
     return snapshotObservationService.searchVulnerabilityObservations(tenantId, input);
