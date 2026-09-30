@@ -42,9 +42,7 @@ vi.mock('../../../../../actions/Inject', () => ({
 
 import { Buttons } from '../../../../../admin/components/simulations/simulation/ExerciseHeader';
 
-const renderButtons = (props: {
-  exerciseStatus: 'RUNNING' | 'PAUSED';
-}) => {
+const renderButtons = (props: { exerciseStatus: 'RUNNING' | 'PAUSED' }) => {
   render(
     <ThemeProvider theme={createTheme()}>
       <Buttons
@@ -71,20 +69,7 @@ describe('ExerciseHeader lifecycle buttons', () => {
 
   it('shows Pause and Stop for a running simulation', () => {
     // Act
-    renderButtons({
-      exerciseStatus: 'RUNNING',
-    });
-
-    // Assert
-    expect(screen.getByRole('button', { name: 'Pause' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Stop' })).toBeDefined();
-  });
-
-  it('shows Pause and Stop for a running simulation (regardless of chaining context)', () => {
-    // Act
-    renderButtons({
-      exerciseStatus: 'RUNNING',
-    });
+    renderButtons({ exerciseStatus: 'RUNNING' });
 
     // Assert
     expect(screen.getByRole('button', { name: 'Pause' })).toBeDefined();
@@ -93,9 +78,7 @@ describe('ExerciseHeader lifecycle buttons', () => {
 
   it('keeps Resume available for a paused simulation', () => {
     // Act
-    renderButtons({
-      exerciseStatus: 'PAUSED',
-    });
+    renderButtons({ exerciseStatus: 'PAUSED' });
 
     // Assert
     expect(screen.getByRole('button', { name: 'Resume' })).toBeDefined();
