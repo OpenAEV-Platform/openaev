@@ -273,6 +273,35 @@ public class V1_DataImporter implements Importer {
     return null;
   }
 
+  /**
+   * Reads back the tenant scope already active on this transaction (set by {@code
+   * TenantScopeTransactionAspect} from the request's own {@link TxCtx} at the top of the call
+   * chain), rather than the narrower {@code TxCtx.forTenant(writeTenant)} this importer builds
+   * locally to confine its own lookups to the write tenant. A call into another
+   * {@code @Transactional} bean (e.g. {@link PayloadCreationService#createPayload}) must carry a
+   * {@link TxCtx} matching what is already set: the aspect refuses to narrow an active
+   * transaction's scope. The write tenant itself is passed alongside as an explicit argument,
+   * validated against this wider scope the same way any other explicit tenant is.
+   *
+   * <p>{@code fallback} covers the case where nothing has claimed the scope yet (empty GUC): the
+   * aspect itself accepts any desired scope from an unset one, so narrowing is safe there too, and
+   * a caller that reaches this method with no ambient scope set (e.g. a test driving {@code
+   * resolveStepData} directly, bypassing every {@code @Transactional} entry point above it) still
+   * gets a valid, single-tenant ctx instead of {@link TxCtx#missing()}.
+   */
+  private TxCtx currentAmbientTxCtx(TxCtx fallback) {
+    String guc =
+        (String)
+            entityManager
+                .createNativeQuery(
+                    "SELECT coalesce(current_setting('app.current_tenants', true), '')")
+                .getSingleResult();
+    if (guc.isBlank()) {
+      return fallback;
+    }
+    return TxCtx.forTenants(Arrays.asList(guc.split(",")));
+  }
+
   private ImportResult importBundle(
       TxCtx ctx,
       JsonNode importNode,
@@ -1933,7 +1962,10 @@ public class V1_DataImporter implements Importer {
         buildPayloadCreateInput(ctx, baseIds, payloadNode, null);
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(ctx, payloadCreateInput);
+        this.payloadCreationService.createPayload(
+            currentAmbientTxCtx(ctx),
+            tenantWriteScopeResolver.tenantForWrite(ctx, null),
+            payloadCreateInput);
     if (result.injectorContract() != null) {
       return result.injectorContract().getId();
     } else {
@@ -2062,7 +2094,10 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput =
         buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(ctx, payloadCreateInput);
+        this.payloadCreationService.createPayload(
+            currentAmbientTxCtx(ctx),
+            tenantWriteScopeResolver.tenantForWrite(ctx, null),
+            payloadCreateInput);
 
     if (result.injectorContract() != null) {
       return result.injectorContract();

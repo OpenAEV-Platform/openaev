@@ -51,21 +51,50 @@ public class PayloadCreationService {
 
   @Transactional(rollbackFor = Exception.class)
   public PayloadInjectorContractCreationResult createPayload(TxCtx ctx, PayloadCreateInput input) {
+    return createInternal(ctx, null, input);
+  }
+
+  /**
+   * Same as {@link #createPayload(TxCtx, PayloadCreateInput)}, with the write tenant supplied
+   * explicitly rather than derived from {@code ctx} alone. For a caller already inside a
+   * transaction whose scope spans more than one tenant (e.g. an importer that resolved its single
+   * write tenant from the parent it writes into, while the transaction's ambient scope is still the
+   * caller's whole membership): {@code ctx} must stay the scope already active on the transaction -
+   * the {@code TenantScopeTransactionAspect} refuses a nested {@code @Transactional} method that
+   * narrows it - and {@code explicitTenant} carries the actual write tenant, validated against
+   * {@code ctx} the same way {@link TenantWriteScopeResolver#tenantForWrite} validates any other
+   * explicit tenant.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public PayloadInjectorContractCreationResult createPayload(
+      TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
+    return createInternal(ctx, explicitTenant, input);
+  }
+
+  /**
+   * Shared body of both {@code createPayload} overloads, called directly rather than through {@code
+   * this.createPayload(...)}: an intra-class call to a @Transactional method bypasses the Spring
+   * proxy (no transaction, no tenant scope, silently), which is exactly the shape {@code
+   * TenantBackgroundTransactionArchTest.no_transactional_self_invocation} forbids.
+   */
+  private PayloadInjectorContractCreationResult createInternal(
+      TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
     }
 
-    return create(ctx, input);
+    return create(ctx, explicitTenant, input);
   }
 
-  private PayloadInjectorContractCreationResult create(TxCtx ctx, PayloadCreateInput input) {
+  private PayloadInjectorContractCreationResult create(
+      TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload);
-    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
+    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
 
     // Manually created payloads are authored by the current user. System-driven
     // creations (startup datapacks, schedulers) have no authenticated user and
