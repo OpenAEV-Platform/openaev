@@ -6,6 +6,7 @@ import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-mate
 // for that, and no way to take the helper out of the flow (LIBRARY-FEEDBACK.md 65).
 import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
 import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
@@ -47,6 +48,18 @@ const floatingHelperTextSx = {
   },
 } as const;
 
+const useStyles = makeStyles()(() => ({
+  fieldOption: {
+    '& > span': {
+      flex: 1,
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    },
+  },
+}));
+
 const EventConditionRow: FunctionComponent<Props> = ({
   condition,
   dragHandleProps,
@@ -56,6 +69,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
   readOnly = false,
 }) => {
   const { t } = useFormatter();
+  const { classes } = useStyles();
   const { providers } = useOutputProviders();
   // One source for the whole row: the selectable fields, the operators they support, their
   // case-sensitivity and the format their value must satisfy all come from the same descriptors.
@@ -203,6 +217,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
                 <SelectItem
                   key={key}
                   value={key}
+                  className={classes.fieldOption}
                 >
                   <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
                   {keyProviders.length > 0 && (
