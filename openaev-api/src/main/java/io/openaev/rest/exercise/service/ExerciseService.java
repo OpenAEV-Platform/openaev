@@ -841,39 +841,6 @@ public class ExerciseService {
     return exerciseRepository.save(exercise);
   }
 
-  private void resetExercise(Exercise exercise) {
-    // 1. DELETE PAUSES
-    pauseExerciseService.deleteAllPauseByExerciseId(exercise.getId());
-
-    // 2. RESET INJECTS (status, communications, findings, expectations, collect status)
-    // Fetched separately from exercise.getInjects() for performance (avoids Eager loading overhead)
-    injectService.resetInjectByExerciseId(exercise.getId());
-
-    // 3. RESET LESSONS ANSWERS
-    lessonsService.resetLessonsAnswer(exercise.getId());
-
-    // 4. CLEAR WORKFLOW EXECUTION
-    workflowService.resetSimulationDeleteWorkflowExecution(exercise.getId());
-
-    // 5. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            try {
-              fileService.deleteDirectory(exercise.getId());
-            } catch (Exception e) {
-              log.error("Failed to delete directory for exercise {}", exercise.getId(), e);
-            }
-          }
-        });
-
-    // 6. RESET EXERCISE DATES
-    exercise.setStart(null);
-    exercise.setEnd(null);
-    exercise.setCurrentPause(null);
-  }
-
   public void throwIfExerciseNotLaunchable(Exercise exercise) {
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
