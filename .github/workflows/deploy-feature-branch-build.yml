@@ -56,7 +56,7 @@ jobs:
         id: image-tag
         env:
           HEAD_SHA: ${{ inputs.head_sha }}
-        run: echo "value=openaev:feat-${HEAD_SHA:0:12}" >> "$GITHUB_OUTPUT"
+        run: echo "value=openaev:${HEAD_SHA:0:12}" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/prepare-bundled-assets
 
   docker-build:
