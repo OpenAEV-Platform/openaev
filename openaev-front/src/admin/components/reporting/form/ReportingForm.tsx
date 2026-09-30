@@ -1,9 +1,9 @@
-import { Button, Checkbox, IconButton, Paper as FdsPaper, Radio, RadioGroup, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, IconButton, Paper as FdsPaper, Radio, RadioGroup, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CodeOutlined, DeleteOutlined, DragIndicatorOutlined, PictureAsPdfOutlined, RestartAltOutlined } from '@mui/icons-material';
 // fds:keep-mui the text-labelled ToggleButtonGroup stays on MUI: the library ButtonGroup items are icon-only (LIBRARY-FEEDBACK #57)
-import { Box, FormHelperText, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Box, ButtonBase, FormHelperText, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm, useFormContext } from 'react-hook-form';
@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { type LoggedHelper } from '../../../../actions/helper';
 import { fetchKillChainPhases } from '../../../../actions/KillChainPhase';
 import ColorPickerField from '../../../../components/ColorPickerField';
+import CheckboxIndicator from '../../../../components/common/CheckboxIndicator';
 import DocumentField from '../../../../components/fields/DocumentField';
 import MarkDownFieldController from '../../../../components/fields/MarkDownFieldController';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
@@ -584,28 +585,34 @@ const ReportingForm: FunctionComponent<Props> = ({
         {REPORTING_MODULE_TYPES.map((type) => {
           const selected = selectedTypes.includes(type);
           return (
-            // The card is the checkbox's own <label>, so the box is the real
-            // control and the whole card stays clickable — through the native
-            // label association rather than a handler on a div, which is what
-            // made this unreachable by keyboard.
-            <Paper
+            <ButtonBase
               key={type}
-              component="label"
-              variant="outlined"
+              role="checkbox"
+              aria-checked={selected}
+              onClick={() => toggleModule(type)}
               sx={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 1,
-                padding: 1,
-                borderRadius: 1,
-                cursor: 'pointer',
-                borderColor: selected ? 'primary.main' : undefined,
+                'display': 'flex',
+                // A <button> does not stretch like the former <label>: fill the grid cell.
+                'width': '100%',
+                'alignItems': 'flex-start',
+                'justifyContent': 'flex-start',
+                'gap': 1,
+                'padding': 1,
+                'borderRadius': 1,
+                'textAlign': 'left',
+                'border': `1px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
+                'backgroundColor': 'background.paper',
+                'transition': 'background-color 0.15s ease',
+                '&:hover': { backgroundColor: theme.palette.action.hover },
+                // ButtonBase draws no focus ring: keep the keyboard focus the checkbox used to show.
+                '&.Mui-focusVisible': {
+                  outline: `2px solid ${theme.palette.primary.main}`,
+                  outlineOffset: 2,
+                },
               }}
             >
-              <Checkbox
-                checked={selected}
-                onCheckedChange={() => toggleModule(type)}
-              />
+              {/* 2px down: centred on the 20px line of the module title. */}
+              <CheckboxIndicator checked={selected} style={{ marginTop: 2 }} />
               <div>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   {t(MODULE_TYPE_LABELS[type])}
@@ -614,7 +621,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                   {t(MODULE_TYPE_DESCRIPTIONS[type])}
                 </Typography>
               </div>
-            </Paper>
+            </ButtonBase>
           );
         })}
       </Box>
