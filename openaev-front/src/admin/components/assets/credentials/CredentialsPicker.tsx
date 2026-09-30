@@ -35,7 +35,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
   title,
 }) => {
   // Standard hooks
-  const { cnsdt } = useFormatter();
+  const { t, fldt } = useFormatter();
   const dispatch = useAppDispatch();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [credentialValues, setCredentialValues] = useState<CredentialOutput[]>([]);
@@ -92,27 +92,27 @@ const CredentialsPicker: FunctionComponent<Props> = ({
       // Labels are i18n keys: SortHeadersComponentV2 translates them.
       {
         field: 'credential_name',
-        label: 'Name',
+				label: t('Name'),
         isSortable: true,
         value: (credential: CredentialOutput) => credential.credential_name ?? '',
         width: 16,
       },
       {
         field: 'credential_type',
-        label: 'Type',
+				label: t('Type'),
         isSortable: true,
         value: (credential: CredentialOutput) => (credential.credential_type ? humanizeEnum(credential.credential_type) : '-'),
         width: 9,
       },
       {
         field: 'credential_auth_method',
-        label: 'Auth Method',
+        label: t('Auth Method'),
         value: (credential: CredentialOutput) => (credential.credential_auth_method ? humanizeEnum(credential.credential_auth_method) : '-'),
         width: 14,
       },
       {
         field: 'credential_status',
-        label: 'Status',
+				label: t('Status'),
         value: (credential: CredentialOutput) => (
           <CredentialStatusChip status={credential.credential_status} variant="list" />
         ),
@@ -120,31 +120,31 @@ const CredentialsPicker: FunctionComponent<Props> = ({
       },
       {
         field: 'credential_last_verified_at',
-        label: 'Last verified',
-        value: (credential: CredentialOutput) => (credential.credential_last_verified_at ? cnsdt(credential.credential_last_verified_at) : '-'),
-        width: 12,
+        label: t('Last verified'),
+        value: (credential: CredentialOutput) => (credential.credential_last_verified_at ? fldt(credential.credential_last_verified_at) : '-'),
+        width: 13,
       },
       {
         field: 'credential_tags_ids',
-        label: 'Tags',
+        label: t('Tags'),
         // Single chip + "+N" counter so the fixed-height cell never wraps.
         value: (credential: CredentialOutput) => <ItemTags variant="list" limit={1} tags={credential.credential_tags_ids ?? []} />,
-        width: 14,
-      },
-      {
-        field: 'credential_created_at',
-        label: 'Created',
-        value: (credential: CredentialOutput) => (credential.credential_created_at ? cnsdt(credential.credential_created_at) : '-'),
         width: 12,
       },
       {
+        field: 'credential_created_at',
+        label: t('Created'),
+        value: (credential: CredentialOutput) => (credential.credential_created_at ? fldt(credential.credential_created_at) : '-'),
+        width: 13,
+      },
+      {
         field: 'credential_created_by',
-        label: 'Created by',
+        label: t('Created by'),
         value: (credential: CredentialOutput) => credential.credential_created_by?.user_name || '-',
         width: 11,
       },
     ],
-  }), [cnsdt]);
+  }), [fldt]);
 
   // Pagination
   const [credentials, setCredentials] = useState<CredentialOutput[]>([]);
