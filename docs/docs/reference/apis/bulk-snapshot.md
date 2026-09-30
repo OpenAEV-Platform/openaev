@@ -301,8 +301,8 @@ A client integrating against this export must honor the following:
 |---|---|
 | **400** | `since` and `cursor` sent together, or a malformed, unparseable, wrong-version, or foreign-tenant `cursor`. |
 | **401** | No authentication. |
-| **403** | Authenticated without the `Access observation snapshots` capability. |
-| **404** | The `BULK_SNAPSHOT_EXPORT` preview feature is off. |
+| **403** | Authenticated without the `Access observation snapshots` capability, or not a member of the Tenant in the path. |
+| **404** | The `BULK_SNAPSHOT_EXPORT` preview feature is off: the endpoints do not exist, whatever the caller's capabilities. |
 
 ## What's next?
 
