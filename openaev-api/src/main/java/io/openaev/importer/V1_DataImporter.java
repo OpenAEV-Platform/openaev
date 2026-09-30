@@ -311,7 +311,7 @@ public class V1_DataImporter implements Importer {
       importPayloadAsMain(ctx, importNode, baseIds);
     }
 
-    importOrganizations(importNode, prefix, baseIds);
+    importOrganizations(ctx, importNode, prefix, baseIds);
     importUsers(importNode, prefix, baseIds);
     importTeams(importNode, prefix, savedExercise, savedScenario, baseIds, writeTenant);
     importChallenges(ctx, importNode, prefix, baseIds);
@@ -996,7 +996,9 @@ public class V1_DataImporter implements Importer {
 
   // -- ORGANIZATION --
 
-  private void importOrganizations(JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+  private void importOrganizations(
+      TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     resolveJsonElements(importNode, prefix + "organizations")
         .forEach(
             nodeOrganization -> {
@@ -1008,7 +1010,7 @@ public class V1_DataImporter implements Importer {
               String name = nodeOrganization.get("organization_name").textValue();
 
               List<Organization> existingOrganizations =
-                  this.organizationRepository.findByNameIgnoreCase(name);
+                  this.organizationRepository.findByNameIgnoreCaseAndTenantId(name, tenantId);
 
               if (!existingOrganizations.isEmpty()) {
                 baseIds.put(id, existingOrganizations.getFirst());
@@ -1016,13 +1018,15 @@ public class V1_DataImporter implements Importer {
                 baseIds.put(
                     id,
                     this.organizationRepository.save(
-                        createOrganization(nodeOrganization, baseIds)));
+                        createOrganization(nodeOrganization, baseIds, tenantId)));
               }
             });
   }
 
-  private Organization createOrganization(JsonNode importNode, Map<String, Base> baseIds) {
+  private Organization createOrganization(
+      JsonNode importNode, Map<String, Base> baseIds, String tenantId) {
     Organization organization = new Organization();
+    organization.setTenant(new Tenant(tenantId));
     organization.setName(importNode.get("organization_name").textValue());
     organization.setDescription(getNodeValue(importNode.get("organization_description")));
     organization.setTags(

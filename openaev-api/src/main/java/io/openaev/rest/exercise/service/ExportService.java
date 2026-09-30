@@ -17,6 +17,7 @@ import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.organization.OrganizationService;
 import jakarta.annotation.Resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -38,6 +39,7 @@ public class ExportService {
   @Resource private FileService fileService;
   @Resource private WorkflowService workflowService;
   @Resource private WorkflowExportInitializer workflowExportInitializer;
+  @Resource private OrganizationService organizationService;
 
   public String getZipFileName(
       Exercise exercise, int exportOptionsMask, boolean isChaining, boolean isWithScopeDefinition) {
@@ -76,7 +78,11 @@ public class ExportService {
 
     ExerciseFileExport importExport =
         ExerciseFileExport.fromExercise(
-                exercise, objectMapper, this.challengeService, this.articleService)
+                exercise,
+                objectMapper,
+                this.challengeService,
+                this.articleService,
+                this.organizationService)
             .withOptions(exportOptionsMask);
     boolean isChaining = workflowService.isSimulationChaining(exercise.getId());
     if (isChaining) {

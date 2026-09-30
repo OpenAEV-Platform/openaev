@@ -16,6 +16,7 @@ import io.openaev.rest.inject.exports.InjectsFileExport;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
+import io.openaev.service.organization.OrganizationService;
 import jakarta.annotation.Resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,6 +38,7 @@ public class InjectExportService {
   @Resource private ChallengeService challengeService;
   @Resource private ArticleService articleService;
   @Resource private FileService fileService;
+  @Resource private OrganizationService organizationService;
 
   public String getZipFileName(int exportOptionsMask) {
     String infos =
@@ -61,7 +63,11 @@ public class InjectExportService {
 
     InjectsFileExport importExport =
         InjectsFileExport.fromInjects(
-                injects, objectMapper, this.challengeService, this.articleService)
+                injects,
+                objectMapper,
+                this.challengeService,
+                this.articleService,
+                this.organizationService)
             .withOptions(exportOptionsMask);
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

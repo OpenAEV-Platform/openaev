@@ -108,7 +108,7 @@ public class ProductInventoryMetricCollector {
     metricRegistry.registerGauge(
         "organizations_total",
         "Number of organizations",
-        () -> safeCount(organizationRepository::count));
+        () -> safeCount(this::countOrganizations));
     metricRegistry.registerGauge(
         "injects_total", "Number of injects", () -> safeCount(injectRepository::count));
     metricRegistry.registerGauge(
@@ -281,6 +281,11 @@ public class ProductInventoryMetricCollector {
 
   long countAssetGroups() {
     return countAcrossAllTenants(assetGroupRepository::count);
+  }
+
+  /** Counts organizations across the whole platform (organizations is v2-active). */
+  long countOrganizations() {
+    return countAcrossAllTenants(organizationRepository::count);
   }
 
   /** Counts channels across the whole platform (channels is v2-active). */
