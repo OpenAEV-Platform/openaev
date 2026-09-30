@@ -127,7 +127,12 @@ class ThreatArsenalFormComponent {
     const outputPrefix = 'action_output_parsers.0.output_parser_contract_output_elements.0';
     await this.page.locator(`[name="${outputPrefix}.contract_output_element_name"]`).fill(name);
     await this.page.locator(`[name="${outputPrefix}.contract_output_element_key"]`).fill(key);
-    const typeSelect = this.page.getByRole('combobox', { name: 'Type *' }).last();
+    const typeSelect = this.page
+      .getByRole('combobox', {
+        name: 'Type',
+        exact: true,
+      })
+      .last();
     await expect(typeSelect).toBeVisible();
     await MuiFormHelpers.selectSingleOption(
       this.page,
