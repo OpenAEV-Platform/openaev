@@ -357,7 +357,8 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     @DisplayName("should not be forbidden with AGENT_RUNTIME_ACCESS capability")
     @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
     void given_agentRuntimeAccess_should_allowGetPayload() throws Exception {
-      // Act & Assert — the unknown inject is rejected by the object-level gate (ForbiddenException),
+      // Act & Assert — the unknown inject is rejected by the object-level gate
+      // (ForbiddenException),
       // not by the RBAC aspect (ResponseStatusException), which proves RBAC passed
       mvc.perform(
               get(INJECT_URI + "/" + FAKE_INJECT_ID + "/" + FAKE_AGENT_ID + "/executable-payload")
@@ -365,8 +366,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
           .andExpect(status().isForbidden())
           .andExpect(
               result ->
-                  assertThat(result.getResolvedException())
-                      .isInstanceOf(ForbiddenException.class));
+                  assertThat(result.getResolvedException()).isInstanceOf(ForbiddenException.class));
     }
   }
 

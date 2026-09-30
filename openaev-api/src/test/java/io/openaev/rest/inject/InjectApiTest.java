@@ -1038,8 +1038,7 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(
-                      INJECT_URI
+                  get(INJECT_URI
                           + "/"
                           + injectSaved.getId()
                           + "/"
@@ -1113,8 +1112,7 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(
-                      INJECT_URI
+                  get(INJECT_URI
                           + "/"
                           + injectSaved.getId()
                           + "/"
@@ -1209,8 +1207,7 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(
-                      INJECT_URI
+                  get(INJECT_URI
                           + "/"
                           + injectSaved.getId()
                           + "/"
@@ -1393,8 +1390,7 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(status().isForbidden())
           .andExpect(
               result ->
-                  assertThat(result.getResolvedException())
-                      .isInstanceOf(ForbiddenException.class));
+                  assertThat(result.getResolvedException()).isInstanceOf(ForbiddenException.class));
     }
 
     @DisplayName("Should return 403 when the agent does not exist (F408690-41)")
@@ -1428,8 +1424,7 @@ class InjectApiTest extends IntegrationTest {
           .andExpect(status().isForbidden())
           .andExpect(
               result ->
-                  assertThat(result.getResolvedException())
-                      .isInstanceOf(ForbiddenException.class));
+                  assertThat(result.getResolvedException()).isInstanceOf(ForbiddenException.class));
     }
 
     @DisplayName("Get obfuscate command")
@@ -1468,8 +1463,7 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(
-                      INJECT_URI
+                  get(INJECT_URI
                           + "/"
                           + injectSaved.getId()
                           + "/"
@@ -1530,8 +1524,7 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(
-                      INJECT_URI
+                  get(INJECT_URI
                           + "/"
                           + injectSaved.getId()
                           + "/"
@@ -1591,8 +1584,7 @@ class InjectApiTest extends IntegrationTest {
 
       // -- EXECUTE & ASSERT --
       mvc.perform(
-              get(
-                  INJECT_URI
+              get(INJECT_URI
                       + "/"
                       + injectSaved.getId()
                       + "/"
@@ -1650,8 +1642,7 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(
-                      INJECT_URI
+                  get(INJECT_URI
                           + "/"
                           + injectSaved.getId()
                           + "/"
