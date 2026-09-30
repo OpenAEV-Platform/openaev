@@ -14,6 +14,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -36,19 +37,14 @@ class SnapshotObservationFeatureFlagApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
 
-  @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
-  @DisplayName("given_featureFlagOff_should_return404EvenWithCapability")
-  void given_featureFlagOff_should_return404EvenWithCapability() throws Exception {
-    // -- ARRANGE --
+  private void assertNotFound(Set<Capability> capabilities, String stream) throws Exception {
     Tenant tenant =
         tenantIsolationTestHelper.createTenantWithCapabilities(
-            "snapshot-flag-off", Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION));
+            "snapshot-flag-off-" + UUID.randomUUID(), capabilities);
     String uri =
-        TENANT_SNAPSHOT_URI.replace("{tenantId}", tenant.getId()) + "/attack-observations/search";
+        TENANT_SNAPSHOT_URI.replace("{tenantId}", tenant.getId()) + "/" + stream + "/search";
     SnapshotSearchInput input = new SnapshotSearchInput(null, null, null, null);
 
-    // -- ACT & ASSERT --
     mvc.perform(
             post(uri)
                 .with(csrf())
@@ -56,5 +52,23 @@ class SnapshotObservationFeatureFlagApiTest extends IntegrationTest {
                 .content(asJsonString(input))
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
+  @DisplayName("given_featureFlagOff_should_return404EvenWithCapability")
+  void given_featureFlagOff_should_return404EvenWithCapability() throws Exception {
+    Set<Capability> capabilities = Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION);
+    assertNotFound(capabilities, "attack-observations");
+    assertNotFound(capabilities, "vulnerability-observations");
+  }
+
+  @Test
+  @WithMockUser
+  @DisplayName("given_featureFlagOff_should_return404WithoutCapability")
+  void given_featureFlagOff_should_return404WithoutCapability() throws Exception {
+    // A 403 here would reveal the endpoint to a caller who holds nothing.
+    assertNotFound(Set.of(), "attack-observations");
+    assertNotFound(Set.of(), "vulnerability-observations");
   }
 }
