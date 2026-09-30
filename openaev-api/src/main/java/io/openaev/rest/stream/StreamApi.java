@@ -268,7 +268,7 @@ public class StreamApi extends RestBehavior {
               // even an id-only tombstone would disclose the id, schema and timing of every
               // unreadable mutation, and would wipe rows the client loaded through
               // parent-scoped reads (e.g. simulation expectations). Only actual deletions are
-              // relayed, as an id-only tombstone, so such rows still leave the client store.
+              // relayed, as an id-only tombstone, so such rows still leave the client store
               if (!DATA_DELETE.equals(event.getType())) {
                 return;
               }
