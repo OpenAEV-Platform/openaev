@@ -1,5 +1,6 @@
 package io.openaev.service.chaining;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
@@ -12,6 +13,7 @@ import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -78,6 +80,7 @@ class AssetAgentJobDeletionScopeTest extends IntegrationTest {
   private String otherTenantId;
   private String simulationId;
   private String assetAgentJobId;
+  private String agentExternalReference;
 
   @BeforeEach
   void seedOneTenantWithOneAssetAgentJob() {
@@ -105,9 +108,10 @@ class AssetAgentJobDeletionScopeTest extends IntegrationTest {
               .get();
       Endpoint endpoint =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+      agentExternalReference = "scope-test-" + UUID.randomUUID();
       Agent agent =
           agentComposer
-              .forAgent(AgentFixture.createAgent(endpoint, "scope-test-" + UUID.randomUUID()))
+              .forAgent(AgentFixture.createAgent(endpoint, agentExternalReference))
               .persist()
               .get();
 
@@ -152,7 +156,7 @@ class AssetAgentJobDeletionScopeTest extends IntegrationTest {
   @Test
   @DisplayName(
       "given the simulation's own tenant - what manageWorkflowEnd now passes - the delete removes the row")
-  void givenTheSimulationsOwnTenant_deleteRemovesTheRow() {
+  void given_theSimulationsOwnTenant_should_removeTheRow() {
     tenantTx.execute(
         TxCtx.forTenant(tenantId),
         () ->
@@ -168,7 +172,7 @@ class AssetAgentJobDeletionScopeTest extends IntegrationTest {
   @DisplayName(
       "given any OTHER tenant id - what the pre-fix TenantContext fallback produced on the header"
           + " route - the delete removes NOTHING, silently")
-  void givenAnyOtherTenantId_deleteRemovesNothing() {
+  void given_anyOtherTenantId_should_removeNothing() {
     tenantTx.execute(
         TxCtx.forTenant(otherTenantId),
         () ->
@@ -181,5 +185,44 @@ class AssetAgentJobDeletionScopeTest extends IntegrationTest {
             + " exactly the shape TenantContext.getCurrentTenant()'s default-tenant fallback"
             + " produced on the X-Tenant-Ids header route before manageWorkflowEnd read the"
             + " simulation's own tenant instead");
+  }
+
+  /**
+   * Both read endpoints ({@code POST /endpoints/jobs} and the deprecated {@code GET
+   * /endpoints/jobs/{externalReference}}) resolve jobs with a Criteria specification that carries
+   * no tenant predicate of its own, so their isolation rests entirely on {@code
+   * TenantStatementInspector}. This class is where that can be proven: {@code asset_agent_jobs} is
+   * the only active table here, so a cross-tenant read returning nothing cannot be explained by the
+   * join through {@code assets} (v2-active in production) or by any other table's scope. Removing
+   * the table from {@code openaev.tenant.active-tables} makes the second test below fail.
+   */
+  private long jobsVisibleToTenant(String readerTenantId) {
+    return tenantTx.execute(
+        TxCtx.forTenant(readerTenantId),
+        () ->
+            (long)
+                assetAgentJobRepository
+                    .findAll(AssetAgentJobSpecification.forEndpoint(agentExternalReference))
+                    .size());
+  }
+
+  @Test
+  @DisplayName("the job's own tenant reads it back through the endpoints' own specification")
+  void given_theJobsOwnTenant_should_readTheJobBack() {
+    assertEquals(
+        1L,
+        jobsVisibleToTenant(tenantId),
+        "the owning tenant must see its own job, otherwise the cross-tenant assertion below proves"
+            + " nothing");
+  }
+
+  @Test
+  @DisplayName("any other tenant reads nothing back through the endpoints' own specification")
+  void given_anyOtherTenant_should_readNothing() {
+    assertEquals(
+        0L,
+        jobsVisibleToTenant(otherTenantId),
+        "the read specification carries no tenant predicate, so the statement inspector is the only"
+            + " thing standing between another tenant and this row");
   }
 }
