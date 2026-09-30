@@ -54,8 +54,11 @@ public class AttackObservationHandler implements Handler<EsAttackObservation> {
     es.setBase_restrictions(
         buildRestrictions(raw.getBase_scenario_side(), raw.getBase_simulation_side()));
     // The simulation is deliberately not a dependency: deleting one replay must not destroy an
-    // observation whose key still holds through the earlier ones.
-    es.setBase_dependencies(List.of(raw.getBase_asset_side(), raw.getBase_scenario_side()));
+    // observation whose key still holds through the earlier ones. The attack pattern is one: the
+    // grain is keyed on it, so once it is deleted the grain no longer exists in the database and
+    // the document would otherwise survive as a ghost.
+    es.setBase_dependencies(
+        List.of(raw.getBase_asset_side(), raw.getBase_scenario_side(), raw.getAttack_pattern_id()));
 
     // Side
     es.setBase_asset_side(raw.getBase_asset_side());

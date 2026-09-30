@@ -1153,8 +1153,10 @@ class AttackObservationIndexingTest extends IntegrationTest {
   class Dependencies {
 
     @Test
-    @DisplayName("base_dependencies contains exactly the asset and the scenario, not the exercise")
-    void given_document_should_dependOnAssetAndScenarioOnly() {
+    @DisplayName(
+        "base_dependencies contains exactly the asset, the scenario and the attack pattern, not the"
+            + " exercise")
+    void given_document_should_dependOnAssetScenarioAndAttackPatternOnly() {
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       AttackPatternComposer.Composer attackPatternWrapper =
@@ -1172,7 +1174,8 @@ class AttackObservationIndexingTest extends IntegrationTest {
               .orElseThrow();
 
       assertThat(doc.getBase_dependencies())
-          .containsExactlyInAnyOrder(endpointWrapper.get().getId(), scenario.getId())
+          .containsExactlyInAnyOrder(
+              endpointWrapper.get().getId(), scenario.getId(), attackPatternWrapper.get().getId())
           .doesNotContain(exercise.getId());
     }
   }
