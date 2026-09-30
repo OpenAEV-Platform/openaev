@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -20,6 +21,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
@@ -461,6 +463,8 @@ public class ExecutorApiTest extends IntegrationTest {
                       .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
                       .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
               .andExpect(status().is2xxSuccessful())
+              // The test build is versioned "Testing", which the installer scripts cannot compare
+              .andExpect(header().doesNotExist(RestBehavior.VERSION_HEADER))
               .andReturn()
               .getResponse()
               .getContentAsByteArray();
@@ -537,6 +541,8 @@ public class ExecutorApiTest extends IntegrationTest {
                       .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
                       .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
               .andExpect(status().is2xxSuccessful())
+              // The test build is versioned "Testing", which the installer scripts cannot compare
+              .andExpect(header().doesNotExist(RestBehavior.VERSION_HEADER))
               .andReturn()
               .getResponse()
               .getContentAsByteArray();

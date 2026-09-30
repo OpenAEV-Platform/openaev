@@ -293,6 +293,7 @@ public class ExecutorApi extends RestBehavior {
       filename = "openaev-agent-" + version + (resolvedPlatform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
       addLocalSignatureHeader(headers, "/agents" + resourcePath + filename);
+      addReleaseVersionHeader(headers, version);
     } else if (agentBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
       filename =
@@ -300,6 +301,7 @@ public class ExecutorApi extends RestBehavior {
               + agentBinaryVersion
               + (resolvedPlatform.equals("windows") ? ".exe" : "");
       addRepositorySignatureHeader(headers, resourcePath, filename);
+      addReleaseVersionHeader(headers, agentBinaryVersion);
       in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
     }
     if (in != null) {
@@ -379,10 +381,12 @@ public class ExecutorApi extends RestBehavior {
         filename = filename.concat(version).concat(".exe");
         in = getClass().getResourceAsStream("/agents" + resourcePath + filename);
         addLocalSignatureHeader(headers, "/agents" + resourcePath + filename);
+        addReleaseVersionHeader(headers, version);
       } else if (agentBinaryOrigin.equals(
           "repository")) { // if we want a specific version from artifactory
         filename = filename.concat(agentBinaryVersion).concat(".exe");
         addRepositorySignatureHeader(headers, resourcePath, filename);
+        addReleaseVersionHeader(headers, agentBinaryVersion);
         in = new BufferedInputStream(validateJFrogUri(resourcePath, filename).toURL().openStream());
       }
       if (in == null) {

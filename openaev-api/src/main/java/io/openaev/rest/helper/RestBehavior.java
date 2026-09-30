@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
@@ -69,6 +70,14 @@ public class RestBehavior {
 
   /** Response header carrying the base64 RSA/SHA-256 signature of a served binary. */
   public static final String SIGNATURE_HEADER = "X-Signature-Sha256-Rsa";
+
+  /** Response header carrying the release version of a served binary. */
+  public static final String VERSION_HEADER = "X-Release-Version";
+
+  // A version the installer scripts can compare: two to four dot-separated numbers of at most nine
+  // digits, which is what Windows PowerShell's [version] parses.
+  private static final Pattern COMPARABLE_RELEASE_VERSION =
+      Pattern.compile("\\d{1,9}(\\.\\d{1,9}){1,3}");
 
   @Resource protected ObjectMapper mapper;
 
@@ -801,6 +810,18 @@ public class RestBehavior {
     String signature = new String(in.readAllBytes(), StandardCharsets.US_ASCII).trim();
     if (!signature.isEmpty()) {
       headers.add(SIGNATURE_HEADER, signature);
+    }
+  }
+
+  /**
+   * Adds the release version of a served binary to the response headers: the installer scripts
+   * record it and refuse to upgrade to an older one. Left out unless it is a plain numeric release,
+   * because the scripts skip the check when the header is missing, while a value they cannot
+   * compare, such as {@code latest} or a build label, would make them refuse every later upgrade.
+   */
+  protected void addReleaseVersionHeader(HttpHeaders headers, String version) {
+    if (version != null && COMPARABLE_RELEASE_VERSION.matcher(version).matches()) {
+      headers.add(VERSION_HEADER, version);
     }
   }
 
