@@ -1245,6 +1245,9 @@ class AttackObservationIndexingTest extends IntegrationTest {
               .forTenant(TenantFixture.getTenant("other-tenant-" + UUID.randomUUID()))
               .persist()
               .get();
+      // Injector.tenant_id is a plain column, not a relation: without this flush the insert
+      // batching may write the injector before the tenant row its foreign key points to.
+      entityManager.flush();
       AttackPattern otherAttackPattern = newAttackPattern();
       otherAttackPattern.setTenant(otherTenant);
       InjectorContract twinContract = InjectorContractFixture.createDefaultInjectorContract();
