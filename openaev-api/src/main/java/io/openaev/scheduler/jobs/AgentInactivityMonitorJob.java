@@ -48,8 +48,6 @@ public class AgentInactivityMonitorJob implements Job {
     TenantContext.setCurrentTenant(tenantId);
     try {
       Instant threshold = Instant.now().minus(ACTIVE_THRESHOLD_MILLIS, ChronoUnit.MILLIS);
-      // Scoped explicitly: no @Transactional method is entered on this path, so the v1
-      // tenantFilter is never enabled and an unscoped read returns every tenant's agents.
       List<Agent> newlyInactiveAgents =
           agentRepository.findStaleAgentsByTenantIdAndStatus(
               tenantId, threshold, AgentStatus.ACTIVE);
