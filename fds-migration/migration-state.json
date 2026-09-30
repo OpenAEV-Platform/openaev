@@ -143,7 +143,6 @@
         "openaev-front/src/admin/components/components/teams/Teams.tsx",
         "openaev-front/src/admin/components/profile/notifications/Notifications.tsx",
         "openaev-front/src/admin/components/profile/triggers/TriggerForm.tsx",
-        "openaev-front/src/admin/components/reporting/form/ReportingForm.tsx",
         "openaev-front/src/admin/components/scenarios/ScenarioForm.tsx",
         "openaev-front/src/admin/components/scenarios/Scenarios.tsx",
         "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/atomic_testings/useAtomicTestingGrant.tsx",
