@@ -22,9 +22,11 @@ import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.snapshotobservation.EsAttackObservation;
 import io.openaev.engine.model.snapshotobservation.EsVulnerabilityObservation;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.EsIndexingUtils;
 import io.openaev.utils.mapper.RawUserAuthMapper;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -169,11 +171,15 @@ public class SnapshotObservationService {
   private Instant horizon(
       Instant now, long grace, long lag, String indexingType, BiPredicate<Instant, Instant> probe) {
     Instant fallback = now.minusSeconds(grace);
+    Optional<IndexingStatus> status = indexingStatusRepository.findByType(indexingType);
+    // A pending reset (no row, or the REINDEX_REQUESTED_CURSOR sentinel a migration wrote) means
+    // the
+    // index is about to be wiped and re-fed from epoch: the far-future sentinel must not read as a
+    // cursor past the window, which would skip the probe and report a ready snapshot.
     Instant cursor =
-        indexingStatusRepository
-            .findByType(indexingType)
-            .map(IndexingStatus::getLastIndexing)
-            .orElse(Instant.EPOCH);
+        EsIndexingUtils.isReindexRequested(indexingType, status)
+            ? Instant.EPOCH
+            : status.get().getLastIndexing();
     if (!cursor.isBefore(now.minusSeconds(lag))) {
       return fallback;
     }

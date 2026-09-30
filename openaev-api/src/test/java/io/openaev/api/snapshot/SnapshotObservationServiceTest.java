@@ -26,6 +26,7 @@ import io.openaev.engine.api.CursorPageQuery;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.snapshotobservation.EsAttackObservation;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.service.EsIndexingUtils;
 import io.openaev.utils.mapper.RawUserAuthMapper;
 import java.time.Instant;
 import java.util.List;
@@ -238,6 +239,24 @@ class SnapshotObservationServiceTest {
       // -- ARRANGE: no row ever indexed, so the probe finds pending data from EPOCH --
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
       when(indexingStatusRepository.findByType(any())).thenReturn(Optional.empty());
+      when(attackObservationRepository.existsPendingIndexing(any(), any())).thenReturn(true);
+      givenDocuments(List.of());
+
+      // -- ACT --
+      SnapshotSearchOutput<?> output = search(input(null, null, null, null));
+
+      // -- ASSERT --
+      assertThat(output.indexedThrough()).isEqualTo(Instant.EPOCH);
+      assertThat(output.snapshotReady()).isFalse();
+    }
+
+    @Test
+    @DisplayName("A pending reset (sentinel cursor) reads as EPOCH, snapshot is not ready")
+    void given_reindex_requested_sentinel_should_use_epoch() {
+      // -- ARRANGE: a migration requested a reset; the far-future sentinel is not a real cursor --
+      when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
+      when(indexingStatusRepository.findByType(any()))
+          .thenReturn(Optional.of(indexingStatus(EsIndexingUtils.REINDEX_REQUESTED_CURSOR)));
       when(attackObservationRepository.existsPendingIndexing(any(), any())).thenReturn(true);
       givenDocuments(List.of());
 
