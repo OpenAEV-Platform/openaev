@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -16,7 +17,9 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.openaev.api.snapshot.form.SnapshotSearchInput;
 import io.openaev.api.snapshot.form.SnapshotSearchOutput;
 import io.openaev.config.EngineConfig;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.IndexingStatus;
+import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackObservationRepository;
 import io.openaev.database.repository.IndexingStatusRepository;
@@ -27,11 +30,13 @@ import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.snapshotobservation.EsAttackObservation;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EsIndexingUtils;
+import io.openaev.service.UserService;
 import io.openaev.utils.mapper.RawUserAuthMapper;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -58,6 +63,8 @@ class SnapshotObservationServiceTest {
   @Mock private AttackObservationRepository attackObservationRepository;
   @Mock private VulnerabilityObservationRepository vulnerabilityObservationRepository;
   @Mock private UserRepository userRepository;
+  @Mock private UserService userService;
+  @Mock private User currentUser;
   @Mock private RawUserAuthMapper rawUserAuthMapper;
 
   private SnapshotObservationService service;
@@ -75,11 +82,13 @@ class SnapshotObservationServiceTest {
             attackObservationRepository,
             vulnerabilityObservationRepository,
             userRepository,
+            userService,
             rawUserAuthMapper,
             cursorCodec,
             new SnapshotObservationMapper());
     // Lenient: the validation test throws before this is ever reached.
     lenient().when(rawUserAuthMapper.toRawUserAuth(any())).thenReturn(mock(RawUserAuth.class));
+    lenient().when(userService.currentUser()).thenReturn(currentUser);
   }
 
   private SnapshotSearchInput input(
@@ -389,6 +398,45 @@ class SnapshotObservationServiceTest {
       assertThat(output.snapshotReady()).isTrue();
       assertThat(output.snapshotWindowEnd())
           .isEqualTo(lastCompleteMillisecond(output.indexedThrough()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Grant filter")
+  class GrantFilter {
+
+    @Test
+    @DisplayName("an admin or BYPASS user sees every observation: no grant filter")
+    void given_adminOrBypass_should_notFilterOnGrants() {
+      when(currentUser.isAdminOrBypass()).thenReturn(true);
+      givenDocuments(List.of());
+
+      search(input(null, null, null, null));
+
+      verify(engineService).searchCursorPaged(eq(null), eq(EsAttackObservation.class), any());
+    }
+
+    @Test
+    @DisplayName("ACCESS_ASSESSMENT sees every scenario and simulation: no grant filter")
+    void given_accessAssessment_should_notFilterOnGrants() {
+      when(currentUser.getCapabilities()).thenReturn(Set.of(Capability.ACCESS_ASSESSMENT));
+      givenDocuments(List.of());
+
+      search(input(null, null, null, null));
+
+      verify(engineService).searchCursorPaged(eq(null), eq(EsAttackObservation.class), any());
+    }
+
+    @Test
+    @DisplayName("any other user is filtered on its own grants")
+    void given_userWithoutAssessmentCapability_should_filterOnItsGrants() {
+      when(currentUser.getCapabilities())
+          .thenReturn(Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION));
+      givenDocuments(List.of());
+
+      search(input(null, null, null, null));
+
+      verify(engineService).searchCursorPaged(notNull(), eq(EsAttackObservation.class), any());
     }
   }
 

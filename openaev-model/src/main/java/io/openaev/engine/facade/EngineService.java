@@ -179,13 +179,15 @@ public interface EngineService {
    * carried by {@code query} is truncated to milliseconds by the implementation before the engine
    * query is built, so callers do not need to truncate themselves.
    *
-   * <p>Results are restricted to the current tenant and to the grants of {@code user}; an admin
-   * {@code user} bypasses the grant filter entirely.
+   * <p>Results are restricted to the current tenant and, when {@code user} is not null, to the
+   * grants of {@code user}; an admin {@code user} bypasses the grant filter entirely. Passing null
+   * skips the grant filter: the caller has already established that the user sees every grantable
+   * resource (admin, BYPASS, or the capability covering the resource type).
    *
    * <p>There is no total: the page is exactly {@code query.size()} documents when more remain, by
    * design (see the story plan) — {@code has_more} is for the caller to derive.
    *
-   * @param user the user to use; a non-admin user only sees documents its grants allow
+   * @param user the user whose grants filter the page, or null for no grant filter
    * @param model the model class to search; its handler bean must be registered
    * @param query the page bounds
    * @return the page of documents, in {@code (base_updated_at, base_id)} ascending order

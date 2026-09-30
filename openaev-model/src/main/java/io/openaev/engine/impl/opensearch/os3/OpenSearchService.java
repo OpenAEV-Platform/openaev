@@ -1348,8 +1348,8 @@ public class OpenSearchService implements EngineService {
     }
     // issue/3768: buildQueryRestrictions is otherwise dead code (its call site in buildQuery is
     // commented out); it is re-enabled here only, because an unfiltered export would leak across
-    // grants. Returns null for an admin user, which therefore bypasses this filter entirely.
-    Query restrictionQuery = buildQueryRestrictions(user);
+    // grants. A null user (the caller resolved a grant bypass) and an admin user both skip it.
+    Query restrictionQuery = user == null ? null : buildQueryRestrictions(user);
     if (restrictionQuery != null) {
       filters.add(restrictionQuery);
     }
