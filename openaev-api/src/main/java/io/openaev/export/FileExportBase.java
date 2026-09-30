@@ -11,6 +11,7 @@ import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.inject.exports.InjectsFileExport;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
+import io.openaev.service.organization.OrganizationService;
 import lombok.Getter;
 
 @Getter
@@ -23,12 +24,17 @@ public class FileExportBase {
   @JsonIgnore public final ObjectMapper objectMapper;
   @JsonIgnore protected final ChallengeService challengeService;
   @JsonIgnore protected final ArticleService articleService;
+  @JsonIgnore protected final OrganizationService organizationService;
 
   protected FileExportBase(
-      ObjectMapper objectMapper, ChallengeService challengeService, ArticleService articleService) {
+      ObjectMapper objectMapper,
+      ChallengeService challengeService,
+      ArticleService articleService,
+      OrganizationService organizationService) {
     this.objectMapper = objectMapper;
     this.challengeService = challengeService;
     this.articleService = articleService;
+    this.organizationService = organizationService;
 
     this.objectMapper.addMixIn(Base.class, Mixins.Base.class);
     this.objectMapper.addMixIn(Exercise.class, Mixins.Exercise.class);

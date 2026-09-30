@@ -8,7 +8,9 @@ import static java.time.Instant.now;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.raw.RawOrganization;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.specification.SpecificationUtils;
@@ -24,9 +26,15 @@ import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -195,6 +203,72 @@ public class OrganizationService {
         chunk ->
             organizationRepository.deleteAll(
                 organizationRepository.findAll(scope.and(SpecificationUtils.hasIdIn(chunk)))));
+  }
+
+  /**
+   * Resolves the organizations of the given users and teams that belong to {@code tenantId}, for
+   * content exported in the context of that tenant.
+   *
+   * <p>A user is platform-level and may belong to an organization owned by another tenant: that
+   * organization is left out rather than exported. The ids are read from the lazy references
+   * without initializing them, since initializing an organization outside the transaction's scope
+   * throws instead of returning nothing.
+   *
+   * @param users the exported users
+   * @param teams the exported teams
+   * @param tenantId the tenant owning the exported content
+   * @return the distinct organizations of {@code tenantId} referenced by the users and teams
+   */
+  public List<Organization> organizationsInTenant(
+      Collection<User> users, Collection<Team> teams, @NotBlank String tenantId) {
+    Set<String> organizationIds =
+        Stream.concat(
+                users.stream().map(User::getOrganization),
+                teams.stream().map(Team::getOrganization))
+            .filter(Objects::nonNull)
+            .map(Organization::getId)
+            .collect(Collectors.toSet());
+    if (organizationIds.isEmpty()) {
+      return List.of();
+    }
+    return organizationRepository.findAllByIdInAndTenantId(organizationIds, tenantId);
+  }
+
+  /**
+   * Resolves, by id, the organizations of the given users that belong to {@code tenantId}, for a
+   * user output produced in the context of that tenant: another tenant's organization is left out.
+   *
+   * @param users the users to map
+   * @param tenantId the tenant the output is produced for
+   * @return the organizations of {@code tenantId} referenced by the users, keyed by id
+   */
+  public Map<String, Organization> usersOrganizationsInTenant(
+      Collection<User> users, @NotBlank String tenantId) {
+    return organizationsInTenant(users, List.of(), tenantId).stream()
+        .collect(Collectors.toMap(Organization::getId, Function.identity()));
+  }
+
+  /**
+   * Resolves, by id, the organizations of the given users visible in the transaction's scope, for
+   * platform-level outputs. Ids are read from the lazy references, which does not initialize them.
+   *
+   * @param users the users to map
+   * @return the organizations visible in the current scope referenced by the users, keyed by id
+   */
+  public Map<String, Organization> usersOrganizationsInScope(Collection<User> users) {
+    Set<String> organizationIds =
+        users.stream()
+            .map(User::getOrganization)
+            .filter(Objects::nonNull)
+            .map(Organization::getId)
+            .collect(Collectors.toSet());
+    if (organizationIds.isEmpty()) {
+      return Map.of();
+    }
+    return organizationRepository
+        .findAll(SpecificationUtils.hasIdIn(List.copyOf(organizationIds)))
+        .stream()
+        .collect(Collectors.toMap(Organization::getId, Function.identity()));
   }
 
   /**

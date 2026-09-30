@@ -68,6 +68,7 @@ import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -126,6 +127,7 @@ public class ScenarioService {
   private String imapUsername;
 
   @Resource private OpenAEVConfig openAEVConfig;
+  @Resource private OrganizationService organizationService;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -831,15 +833,10 @@ public class ScenarioService {
       scenarioFileExport.setUsers(players);
       objectMapper.addMixIn(User.class, Mixins.User.class);
       scenarioTags.addAll(players.stream().flatMap(user -> user.getTags().stream()).toList());
-      // organizations
+      // organizations: only the scenario's tenant ones, a player may belong to another tenant's
       List<Organization> organizations =
-          new ArrayList<>(
-              players.stream().map(User::getOrganization).filter(Objects::nonNull).toList());
-      organizations.addAll(
-          scenario.getTeams().stream()
-              .map(Team::getOrganization)
-              .filter(Objects::nonNull)
-              .toList());
+          organizationService.organizationsInTenant(
+              players, scenario.getTeams(), scenario.getTenant().getId());
       scenarioFileExport.setOrganizations(organizations);
       objectMapper.addMixIn(Organization.class, Mixins.Organization.class);
       scenarioTags.addAll(organizations.stream().flatMap(org -> org.getTags().stream()).toList());
