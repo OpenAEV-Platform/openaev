@@ -4,9 +4,10 @@ import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-mate
 // fds:keep-mui survives the AI/EE screens wave: the field carries slotProps to float its
 // helper text, so an error does not shift the condition row. The library field has no slot
 // for that, and no way to take the helper out of the flow (LIBRARY-FEEDBACK.md 65).
-import { Box, TextField, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
 
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import ActionTypeIcon from '../ActionTypeIcon';
 import { useOutputProviders } from '../useOutputProviders';
@@ -36,13 +37,14 @@ interface Props {
 }
 
 // Helper texts are floated below their control so they never grow the row: otherwise the
-// centred flex layout would drift the input upwards, out of line with the other fields.
 const floatingHelperTextSx = {
-  position: 'absolute',
-  top: '100%',
-  left: 0,
-  right: 0,
-  marginTop: '2px',
+  '& > div > div > div[id]:last-child': {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: '2px',
+  },
 } as const;
 
 const EventConditionRow: FunctionComponent<Props> = ({
@@ -151,9 +153,13 @@ const EventConditionRow: FunctionComponent<Props> = ({
   return (
     <Box sx={{
       display: 'flex',
-      alignItems: 'center',
+      // The fields carry their label above a 36px control: centring the row put the drag handle,
+      // the case toggle and the trash on the label + control block. Aligned on the bottom, and
+      // each given a 36px box, they sit on the controls' middle.
+      alignItems: 'flex-end',
       gap: '8px',
       padding: '8px 12px',
+      paddingBottom: '26px',
       borderRadius: 1,
       backgroundColor: 'background.paper',
       width: '100%',
@@ -165,6 +171,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
+          height: 36,
           cursor: readOnly ? 'default' : 'grab',
         }}
       >
@@ -244,29 +251,29 @@ const EventConditionRow: FunctionComponent<Props> = ({
           </SelectContent>
         </Select>
       </div>
-
-      {/* Expected value */}
       {showValue && (
-        <TextField
-          label={t('Expected Value')}
-          size="small"
-          value={condition.value}
-          onChange={e => handleValueChange(e.target.value)}
-          disabled={readOnly}
-          error={!!valueError}
-          helperText={valueError ? t(valueError) : undefined}
-          slotProps={{ formHelperText: { sx: floatingHelperTextSx } }}
-          sx={{
-            flex: 1,
-            position: 'relative',
-          }}
-        />
+        <Box sx={{
+          flex: 1,
+          minWidth: 0,
+          position: 'relative',
+          ...floatingHelperTextSx,
+        }}
+        >
+          <TextFieldFds
+            label={t('Expected Value')}
+            value={condition.value}
+            onChange={e => handleValueChange(e.target.value)}
+            disabled={readOnly}
+            error={valueError ? t(valueError) : undefined}
+          />
+        </Box>
       )}
       {!showValue && <Box sx={{ flex: 1 }} />}
 
       <Box sx={{
         display: 'flex',
         alignItems: 'center',
+        height: 36,
         gap: 1,
         flexShrink: 0,
       }}
@@ -277,7 +284,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 2,
+                gap: 8,
               }}
               >
                 {/* The visible "Aa" is a caption beside the control, and the
