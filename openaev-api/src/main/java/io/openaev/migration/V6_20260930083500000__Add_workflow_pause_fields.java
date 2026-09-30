@@ -14,7 +14,7 @@ public class V6_20260930083500000__Add_workflow_pause_fields extends BaseJavaMig
       statement.execute(
           """
           ALTER TABLE workflows
-          ADD COLUMN IF NOT EXISTS workflow_pause_at timestamp;
+          ADD COLUMN IF NOT EXISTS workflow_pause_at TIMESTAMP WITH TIME ZONE;
           """);
 
       statement.execute(
