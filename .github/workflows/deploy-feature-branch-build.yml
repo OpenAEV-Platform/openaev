@@ -86,6 +86,8 @@ jobs:
           platform: ${{ matrix.platform }}
           download-release-assets: "true"
           allow-registry: "false"
+          # Dispatched on main, so github.ref alone would let PR code export into main's cache scope
+          cache-write: "false"
 
   docker-merge:
     name: "🐳 Merge Platforms"

@@ -55,6 +55,13 @@ inputs:
     description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
     required: false
     default: "false"
+  cache-write:
+    description: >
+      Set to "false" to read the layer cache without exporting it. Workflows
+      dispatched on main that build PR code (feature deploys) must not write
+      main's cache scope, and the export takes several minutes.
+    required: false
+    default: "true"
 
 outputs:
   digest:
@@ -144,7 +151,7 @@ runs:
           type=oci,dest=${{ steps.names.outputs.artifact_name }}.tar,name=${{ inputs.tags }}
         labels: ${{ inputs.labels }}
         cache-from: ${{ inputs.no-cache != 'true' && inputs.cache-scope != '' && format('type=gha,scope={0}', steps.names.outputs.cache_scope) || '' }}
-        cache-to: ${{ inputs.no-cache != 'true' && inputs.cache-scope != '' && github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
+        cache-to: ${{ inputs.no-cache != 'true' && inputs.cache-write == 'true' && inputs.cache-scope != '' && github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
 
     - name: Push image to CI registry
       id: registry-push
