@@ -57,11 +57,10 @@ public class WorkflowPauseService {
       List<Step> readySteps =
           stepService.findAllStepsByWorkflowRunIdAndStatus(pausedRun.getId(), StepStatus.READY);
       stepService.enqueueReadySteps(readySteps, pausedRun);
-      if (readySteps.isEmpty()) {
-        pausedRun = workflowService.evaluateWorkflowProgress(pausedRun);
-        if (pausedRun.getStatus() == WorkflowStatus.END) {
-          return true;
-        }
+      pausedRun = workflowService.evaluateWorkflowProgress(pausedRun);
+      if (pausedRun.getStatus() == WorkflowStatus.END) {
+        // A simulation has a single workflow run in practice (#8020), so no other run to resume.
+        return true;
       }
     }
     return false;
