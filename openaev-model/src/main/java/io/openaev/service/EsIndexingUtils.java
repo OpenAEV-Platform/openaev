@@ -327,7 +327,7 @@ public final class EsIndexingUtils {
    * Applies {@link #capCursorToGraceWindow} to a keyset cursor.
    *
    * <p>When the cap moves the timestamp, the last id belongs to a later row and must be dropped:
-   * with a null id the fetch degrades to {@code updated_at > cappedTs} and idempotently re-upserts
+   * with a null id the fetch degrades to {@code updated_at >= cappedTs} and idempotently re-upserts
    * the whole boundary group, which is the safe behaviour. Keeping the id would resume after a row
    * that sits beyond the capped instant and skip everything in between.
    *

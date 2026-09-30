@@ -25,9 +25,9 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EsIndexingUtils;
 import io.openaev.utils.mapper.RawUserAuthMapper;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -92,7 +92,7 @@ public class SnapshotObservationService {
       SnapshotSearchInput input,
       Class<T> modelClass,
       String indexingType,
-      BiPredicate<Instant, Instant> probe,
+      PendingProbe probe,
       Function<T, O> toOutput) {
 
     if (input.since() != null && input.cursor() != null) {
@@ -120,7 +120,14 @@ public class SnapshotObservationService {
         input.cursor() == null ? null : cursorCodec.decode(input.cursor(), tenantId);
 
     Instant indexedThrough = horizon(now, grace, lag, indexingType, probe);
-    Instant snapshotWindowEnd = min(now.minusSeconds(lag), indexedThrough);
+    // Engine documents carry base_updated_at at millisecond resolution while the database and the
+    // indexing cursor carry microseconds, so the window may only end on a millisecond the indexer
+    // has entirely passed. Serving a millisecond it is still inside would let a row of that same
+    // millisecond, indexed later with a smaller id, land behind a cursor already handed out.
+    Instant snapshotWindowEnd =
+        min(
+            now.minusSeconds(lag).truncatedTo(ChronoUnit.MILLIS),
+            lastCompleteMillisecond(indexedThrough));
     boolean snapshotReady = !indexedThrough.isBefore(now.minusSeconds(lag));
 
     CursorPageQuery.Keyset keyset =
@@ -157,8 +164,8 @@ public class SnapshotObservationService {
    * Computes {@code indexed_through}: how far this model's indexing has actually progressed,
    * read-side, from {@code indexing_status} plus an existence probe (FR30).
    *
-   * <p>The probe is skipped once {@code cursor >= now - lag}: the indexer has then already passed
-   * the end of the window this request will serve ({@code min(now - lag, cursor)} and {@code
+   * <p>The probe is skipped once {@code cursor >= now - lag + 1ms}: the indexer has then already
+   * passed the end of the window this request will serve ({@code min(now - lag, cursor)} and {@code
    * min(now - lag, now - grace)} are both {@code now - lag}, since {@code lag >= grace}), so no
    * pending row below that bound can exist and the probe result could not change what is served.
    * The skip returns {@code fallback} (never the raw cursor): skipping means "the probe would have
@@ -169,21 +176,41 @@ public class SnapshotObservationService {
    * what is served stays capped at {@code now - lag} regardless.
    */
   private Instant horizon(
-      Instant now, long grace, long lag, String indexingType, BiPredicate<Instant, Instant> probe) {
+      Instant now, long grace, long lag, String indexingType, PendingProbe probe) {
     Instant fallback = now.minusSeconds(grace);
     Optional<IndexingStatus> status = indexingStatusRepository.findByType(indexingType);
     // A pending reset (no row, or the REINDEX_REQUESTED_CURSOR sentinel a migration wrote) means
     // the
     // index is about to be wiped and re-fed from epoch: the far-future sentinel must not read as a
     // cursor past the window, which would skip the probe and report a ready snapshot.
-    Instant cursor =
-        EsIndexingUtils.isReindexRequested(indexingType, status)
-            ? Instant.EPOCH
-            : status.get().getLastIndexing();
-    if (!cursor.isBefore(now.minusSeconds(lag))) {
+    boolean resetPending = EsIndexingUtils.isReindexRequested(indexingType, status);
+    Instant cursor = resetPending ? Instant.EPOCH : status.get().getLastIndexing();
+    String cursorId = resetPending ? null : status.get().getLastId();
+    // One millisecond of margin: the window ends on the millisecond of now - lag, and that whole
+    // millisecond is only behind the indexer once the cursor has passed its end.
+    if (!cursor.isBefore(now.minusSeconds(lag).plusMillis(1))) {
       return fallback;
     }
-    return probe.test(cursor, fallback) ? cursor : fallback;
+    return probe.test(cursor, cursorId, fallback) ? cursor : fallback;
+  }
+
+  /**
+   * The last millisecond every row of which is indexed, given a horizon below which every row is.
+   * Rows exactly at the horizon may still be pending (the rest of a keyset tie group), so the
+   * millisecond containing it only counts once the horizon has moved past its end.
+   */
+  private static Instant lastCompleteMillisecond(Instant horizon) {
+    return horizon.minusMillis(1).truncatedTo(ChronoUnit.MILLIS);
+  }
+
+  /**
+   * Whether a row that the indexer has not reached yet exists after the keyset cursor {@code
+   * (cursorTs, cursorId)} and at or before {@code upperTs}: the resume predicate of the model's
+   * {@code findForIndexing}, bounded above.
+   */
+  @FunctionalInterface
+  private interface PendingProbe {
+    boolean test(Instant cursorTs, String cursorId, Instant upperTs);
   }
 
   private RawUserAuth currentUserAuth() {

@@ -84,7 +84,7 @@ rejected. A client that sends `page_size: 5000` receives 1000 items, not an erro
 | `observations` | The page, at most `page_size` items. |
 | `next_cursor` | Opaque resume token for the next page. An empty page echoes back the `cursor` it was given, so this is safe to store unconditionally. `null` only when the walk has no cursor yet (a `since` walk that matched nothing). |
 | `has_more` | `true` when the page came back exactly full, meaning another page is expected to follow. |
-| `snapshot_window_end` | Inclusive upper bound of the window this page covers: `min(now - safety_lag, indexed_through)`. |
+| `snapshot_window_end` | Inclusive upper bound of the window this page covers: `min(now - safety_lag, indexed_through)`, rounded down to the last millisecond indexing has entirely passed (observation timestamps have millisecond resolution). |
 | `indexed_through` | Approximate indexing horizon of this stream. A readiness signal, not the exact indexing cursor — see [Consistency and the safety lag](#consistency-and-the-safety-lag). |
 | `server_time` | The single instant the whole response was computed from. |
 | `consistency_mode` | Always `"eventual"`. |
