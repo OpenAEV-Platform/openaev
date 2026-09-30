@@ -25,6 +25,7 @@ const useStyles = makeStyles()(theme => ({
     textOverflow: 'ellipsis',
     fontWeight: 400,
     fontSize: FDS.scalars['--text-2'],
+    textTransform: 'capitalize' as const,
   },
 }));
 

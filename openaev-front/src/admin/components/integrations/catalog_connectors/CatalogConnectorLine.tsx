@@ -70,7 +70,7 @@ export const CatalogConnectorLinesHeader = () => {
   const headerCellSx = {
     fontSize: FDS.scalars['--text-2'],
     fontWeight: 600,
-    textTransform: 'uppercase',
+    textTransform: 'capitalize',
     letterSpacing: 0.5,
     color: theme.palette.text.secondary,
     lineHeight: 1,
