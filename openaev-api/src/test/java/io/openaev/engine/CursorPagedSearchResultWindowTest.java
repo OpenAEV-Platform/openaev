@@ -3,6 +3,7 @@ package io.openaev.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.api.CursorPageQuery;
@@ -34,10 +35,10 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Proves AC3 ("never emits a {@code from}, walks past the engine's result-window cap") by lowering
- * {@code engine.max-result-window} to 10 instead of indexing past 100,000 documents: a {@code
- * from}-based implementation fails once it would need to skip past position 10, while the keyset
- * implementation walks the whole set regardless of {@code max_result_window}.
+ * Proves the paging never emits a {@code from} and walks past the engine's result-window cap, by
+ * lowering {@code engine.max-result-window} to 10 instead of indexing past 100,000 documents: a
+ * {@code from}-based implementation fails once it would need to skip past position 10, while the
+ * keyset implementation walks the whole set regardless of {@code max_result_window}.
  *
  * <p>A separate class because the lowered property requires its own Spring context (the component
  * template embedding {@code max_result_window} is written once, at driver construction).
@@ -54,7 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-@DisplayName("EngineService.searchCursorPaged - result window (AC3)")
+@DisplayName("EngineService.searchCursorPaged - result window")
 class CursorPagedSearchResultWindowTest extends IntegrationTest {
 
   @Autowired private EngineService engineService;
@@ -64,6 +65,8 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
 
   private static final Instant WINDOW_END = Instant.now().plus(1, ChronoUnit.DAYS);
+
+  private static final String TENANT_ID = Tenant.DEFAULT_TENANT_UUID;
 
   private static final RawUserAuth ADMIN_USER =
       new RawUserAuth() {
@@ -106,31 +109,29 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
         .persist();
   }
 
-  private void indexAndWait() throws InterruptedException {
+  private void indexAll() {
     entityManager.flush();
     entityManager.clear();
     engineService.bulkProcessing(engineContext.getModels().stream());
-    Thread.sleep(1_000);
   }
 
   @Test
   @DisplayName(
       "paging past max_result_window=10 with size 5 walks the whole set (a `from`-based "
           + "implementation would fail with \"Result window is too large\")")
-  void given_datasetLargerThanMaxResultWindow_should_pageThroughAllDocuments()
-      throws InterruptedException {
+  void given_datasetLargerThanMaxResultWindow_should_pageThroughAllDocuments() {
     int total = 25;
     for (int i = 0; i < total; i++) {
       newGrain();
     }
-    indexAndWait();
+    indexAll();
 
     Set<String> seen = new LinkedHashSet<>();
     CursorPageQuery.Keyset cursor = null;
     List<EsVulnerabilityObservation> lastPage;
     int guard = 0;
     do {
-      CursorPageQuery query = new CursorPageQuery(null, cursor, WINDOW_END, 5);
+      CursorPageQuery query = new CursorPageQuery(TENANT_ID, null, cursor, WINDOW_END, 5);
       lastPage =
           engineService.searchCursorPaged(ADMIN_USER, EsVulnerabilityObservation.class, query);
       for (EsVulnerabilityObservation doc : lastPage) {

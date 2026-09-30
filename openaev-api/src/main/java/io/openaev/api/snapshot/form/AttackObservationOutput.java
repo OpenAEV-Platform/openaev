@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.Set;
 
-/** One attack observation document of the bulk snapshot export (FR4, signed off with OpenGRC). */
+/** One attack observation document of the bulk snapshot export, signed off with OpenGRC. */
 public record AttackObservationOutput(
     @Schema(description = "Observation id") @JsonProperty("id") String id,
     @Schema(description = "Last update timestamp") @JsonProperty("updated_at") Instant updatedAt,
@@ -14,13 +14,27 @@ public record AttackObservationOutput(
     @Schema(description = "Id of the last simulation that produced this observation")
         @JsonProperty("last_simulation_id")
         String lastSimulationId,
-    @Schema(description = "Security platforms that reported on this technique")
+    @Schema(description = "Start date of the last simulation that produced this observation")
+        @JsonProperty("last_simulation_start_date")
+        Instant lastSimulationStartDate,
+    @Schema(description = "Status of the last simulation that produced this observation")
+        @JsonProperty("last_simulation_status")
+        String lastSimulationStatus,
+    @Schema(description = "Id of the inject of the latest verified attempt")
+        @JsonProperty("last_inject_id")
+        String lastInjectId,
+    @Schema(description = "Ids of the security platforms that reported on this technique")
         @JsonProperty("platforms_reporting")
         Set<String> platformsReporting,
+    @Schema(description = "Types of the security platforms that reported on this technique")
+        @JsonProperty("platform_types_reporting")
+        Set<String> platformTypesReporting,
     @Schema(description = "Asset name") @JsonProperty("asset_name") String assetName,
-    @Schema(description = "Endpoint hostname") @JsonProperty("endpoint_hostname")
+    @Schema(description = "Endpoint hostname, null for an asset that is not an endpoint")
+        @JsonProperty("endpoint_hostname")
         String endpointHostname,
-    @Schema(description = "Endpoint platform") @JsonProperty("endpoint_platform")
+    @Schema(description = "Endpoint platform, null for an asset that is not an endpoint")
+        @JsonProperty("endpoint_platform")
         String endpointPlatform,
     @Schema(description = "Tenant name") @JsonProperty("tenant_name") String tenantName,
     @Schema(description = "Attack pattern external id") @JsonProperty("attack_pattern_external_id")
@@ -39,7 +53,11 @@ public record AttackObservationOutput(
     @Schema(description = "Successful attempts") @JsonProperty("attempts_success")
         Long attemptsSuccess,
     @Schema(description = "Coverage ratio") @JsonProperty("coverage_ratio") Double coverageRatio,
-    @Schema(description = "Security platforms that succeeded") @JsonProperty("platforms_succeeded")
+    @Schema(description = "Ids of the security platforms that succeeded")
+        @JsonProperty("platforms_succeeded")
         Set<String> platformsSucceeded,
+    @Schema(description = "Types of the security platforms that succeeded")
+        @JsonProperty("platform_types_succeeded")
+        Set<String> platformTypesSucceeded,
     @Schema(description = "Last verification timestamp") @JsonProperty("last_verified_at")
         Instant lastVerifiedAt) {}

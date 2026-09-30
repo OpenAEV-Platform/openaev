@@ -6,6 +6,7 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_STATUS;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.ExerciseStatus;
 import io.openaev.engine.model.tenant.EsTenantBase;
 import java.time.Instant;
 import java.util.Set;
@@ -57,6 +58,13 @@ public class EsAttackObservation extends EsTenantBase {
   @EsQueryable(keyword = true)
   private String attack_observation_simulation_name;
 
+  @Queryable(label = "simulation start date", filterable = true, sortable = true)
+  private Instant attack_observation_simulation_start_date;
+
+  @Queryable(label = "simulation status", filterable = true, refEnumClazz = ExerciseStatus.class)
+  @EsQueryable(keyword = true)
+  private String attack_observation_simulation_status;
+
   @Queryable(
       label = "attack observation expectation type",
       filterable = true,
@@ -84,6 +92,14 @@ public class EsAttackObservation extends EsTenantBase {
   @EsQueryable(keyword = true)
   private Set<String> attack_observation_platforms_succeeded;
 
+  @Queryable(label = "attack observation platform types reporting", filterable = true)
+  @EsQueryable(keyword = true)
+  private Set<String> attack_observation_platform_types_reporting;
+
+  @Queryable(label = "attack observation platform types succeeded", filterable = true)
+  @EsQueryable(keyword = true)
+  private Set<String> attack_observation_platform_types_succeeded;
+
   @Queryable(label = "attack observation last verified at", filterable = true, sortable = true)
   private Instant attack_observation_last_verified_at;
 
@@ -100,6 +116,10 @@ public class EsAttackObservation extends EsTenantBase {
   @Queryable(label = "simulation", filterable = true, dynamicValues = true)
   @EsQueryable(keyword = true)
   private String base_simulation_side; // Must finish by _side
+
+  @Queryable(label = "inject", filterable = true)
+  @EsQueryable(keyword = true)
+  private String base_inject_side; // Must finish by _side
 
   @Queryable(
       label = "attack patterns",

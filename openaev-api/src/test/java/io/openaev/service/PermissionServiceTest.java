@@ -187,9 +187,9 @@ public class PermissionServiceTest extends IntegrationTest {
             user, Optional.empty(), "", ResourceType.SNAPSHOT_OBSERVATION, Action.SEARCH));
   }
 
-  // Regression test for §3.2 of the story plan: SNAPSHOT_OBSERVATION must never be added to
-  // RESOURCES_MANAGED_BY_GRANTS or RESOURCES_USING_PARENT_PERMISSION, both of which unconditionally
-  // allow Action.SEARCH — that would make the capability check below unreachable.
+  // Regression test: SNAPSHOT_OBSERVATION must never be added to RESOURCES_MANAGED_BY_GRANTS or
+  // RESOURCES_USING_PARENT_PERMISSION, both of which unconditionally allow Action.SEARCH — that
+  // would make the capability check below unreachable.
   @Test
   public void test_hasPermission_snapshotObservation_WHEN_no_capa() {
     User user = getUser(USER_ID, false);

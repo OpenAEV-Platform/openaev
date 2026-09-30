@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * FR39: with the {@code BULK_SNAPSHOT_EXPORT} preview feature left at its default (off), the bulk
+ * With the {@code BULK_SNAPSHOT_EXPORT} preview feature left at its default (off), the bulk
  * snapshot endpoints must be indistinguishable from an unimplemented route (404), even for a user
  * holding the capability. Kept in its own class because the flag is read once per Spring context
  * via {@code @TestPropertySource} on {@link SnapshotObservationApiTest}.
@@ -54,13 +54,21 @@ class SnapshotObservationFeatureFlagApiTest extends IntegrationTest {
         .andExpect(status().isNotFound());
   }
 
+  // One request per test method: the mock user security context does not survive a MockMvc
+  // request, so anything after a first request would run anonymous.
+
   @Test
   @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
   @DisplayName("given_featureFlagOff_should_return404EvenWithCapability")
   void given_featureFlagOff_should_return404EvenWithCapability() throws Exception {
-    Set<Capability> capabilities = Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION);
-    assertNotFound(capabilities, "attack-observations");
-    assertNotFound(capabilities, "vulnerability-observations");
+    assertNotFound(Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION), "attack-observations");
+  }
+
+  @Test
+  @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
+  @DisplayName("given_featureFlagOff_should_return404EvenWithCapabilityOnVulnerabilities")
+  void given_featureFlagOff_should_return404EvenWithCapabilityOnVulnerabilities() throws Exception {
+    assertNotFound(Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION), "vulnerability-observations");
   }
 
   @Test
@@ -69,6 +77,12 @@ class SnapshotObservationFeatureFlagApiTest extends IntegrationTest {
   void given_featureFlagOff_should_return404WithoutCapability() throws Exception {
     // A 403 here would reveal the endpoint to a caller who holds nothing.
     assertNotFound(Set.of(), "attack-observations");
+  }
+
+  @Test
+  @WithMockUser
+  @DisplayName("given_featureFlagOff_should_return404WithoutCapabilityOnVulnerabilities")
+  void given_featureFlagOff_should_return404WithoutCapabilityOnVulnerabilities() throws Exception {
     assertNotFound(Set.of(), "vulnerability-observations");
   }
 }

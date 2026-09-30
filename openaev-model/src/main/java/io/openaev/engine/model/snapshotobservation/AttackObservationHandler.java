@@ -64,6 +64,7 @@ public class AttackObservationHandler implements Handler<EsAttackObservation> {
     es.setBase_asset_side(raw.getBase_asset_side());
     es.setBase_scenario_side(raw.getBase_scenario_side());
     es.setBase_simulation_side(raw.getBase_simulation_side());
+    es.setBase_inject_side(raw.getBase_inject_side());
     es.setBase_attack_patterns_side(Set.of(raw.getAttack_pattern_id()));
     es.setBase_security_platforms_side(
         isEmpty(raw.getSecurity_platform_ids())
@@ -79,6 +80,8 @@ public class AttackObservationHandler implements Handler<EsAttackObservation> {
     es.setAttack_observation_attack_pattern_name(raw.getAttack_pattern_name());
     es.setAttack_observation_scenario_name(raw.getScenario_name());
     es.setAttack_observation_simulation_name(raw.getSimulation_name());
+    es.setAttack_observation_simulation_start_date(raw.getSimulation_start_date());
+    es.setAttack_observation_simulation_status(raw.getSimulation_status());
     es.setAttack_observation_expectation_type(raw.getInject_expectation_type());
     es.setAttack_observation_status(raw.getStatus());
     es.setAttack_observation_attempts_total(raw.getAttempts_total());
@@ -88,6 +91,14 @@ public class AttackObservationHandler implements Handler<EsAttackObservation> {
         isEmpty(raw.getPlatforms_succeeded_ids())
             ? Set.of()
             : Set.copyOf(raw.getPlatforms_succeeded_ids()));
+    es.setAttack_observation_platform_types_reporting(
+        isEmpty(raw.getSecurity_platform_types())
+            ? Set.of()
+            : Set.copyOf(raw.getSecurity_platform_types()));
+    es.setAttack_observation_platform_types_succeeded(
+        isEmpty(raw.getPlatforms_succeeded_types())
+            ? Set.of()
+            : Set.copyOf(raw.getPlatforms_succeeded_types()));
     es.setAttack_observation_last_verified_at(raw.getLast_verified_at());
 
     return es;

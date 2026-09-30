@@ -522,6 +522,13 @@ public class OpenSearchService implements EngineService {
                                   idx ->
                                       idx.index(index).id(result.getBase_id()).document(result)));
                     }
+                    // The snapshot export reads its window off the cursor persisted below, so these
+                    // documents must be searchable before it moves: one still waiting for a
+                    // refresh, on another shard say, would sit behind a later one already served
+                    // and the client's cursor would pass it for good.
+                    if (handler.isKeysetPaged()) {
+                      br.refresh(Refresh.WaitFor);
+                    }
                     // Execute the bulk
                     try {
                       log.info("Indexing ({}) in progress for {}", results.size(), model.getName());
@@ -1333,8 +1340,7 @@ public class OpenSearchService implements EngineService {
     filters.add(
         TermQuery.of(
                 t ->
-                    t.field("base_tenant_side.keyword")
-                        .value(v -> v.stringValue(TenantContext.getCurrentTenant())))
+                    t.field("base_tenant_side.keyword").value(v -> v.stringValue(query.tenantId())))
             .toQuery());
     filters.add(
         RangeQuery.of(d -> d.field("base_updated_at").lte(JsonData.of(windowEnd))).toQuery());

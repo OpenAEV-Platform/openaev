@@ -27,6 +27,12 @@ public interface RawAttackObservationIndexing extends RawTenant {
 
   Set<String> getPlatforms_succeeded_ids();
 
+  Set<String> getSecurity_platform_types();
+
+  Set<String> getPlatforms_succeeded_types();
+
+  String getBase_inject_side();
+
   String getAsset_name();
 
   String getAsset_hostname();
@@ -42,6 +48,10 @@ public interface RawAttackObservationIndexing extends RawTenant {
   String getScenario_name();
 
   String getSimulation_name();
+
+  Instant getSimulation_start_date();
+
+  String getSimulation_status();
 
   String getInject_expectation_type();
 

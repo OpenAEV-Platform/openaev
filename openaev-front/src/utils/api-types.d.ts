@@ -1027,9 +1027,9 @@ export interface AttackObservationOutput {
    * @format double
    */
   coverage_ratio?: number;
-  /** Endpoint hostname */
+  /** Endpoint hostname, null for an asset that is not an endpoint */
   endpoint_hostname?: string;
-  /** Endpoint platform */
+  /** Endpoint platform, null for an asset that is not an endpoint */
   endpoint_platform?: string;
   /** Expectation status */
   expectation_status?: string;
@@ -1037,22 +1037,41 @@ export interface AttackObservationOutput {
   expectation_type?: string;
   /** Observation id */
   id?: string;
+  /** Id of the inject of the latest verified attempt */
+  last_inject_id?: string;
   /** Id of the last simulation that produced this observation */
   last_simulation_id?: string;
   /** Name of the last simulation that produced this observation */
   last_simulation_name?: string;
+  /**
+   * Start date of the last simulation that produced this observation
+   * @format date-time
+   */
+  last_simulation_start_date?: string;
+  /** Status of the last simulation that produced this observation */
+  last_simulation_status?: string;
   /**
    * Last verification timestamp
    * @format date-time
    */
   last_verified_at?: string;
   /**
-   * Security platforms that reported on this technique
+   * Types of the security platforms that reported on this technique
+   * @uniqueItems true
+   */
+  platform_types_reporting?: string[];
+  /**
+   * Types of the security platforms that succeeded
+   * @uniqueItems true
+   */
+  platform_types_succeeded?: string[];
+  /**
+   * Ids of the security platforms that reported on this technique
    * @uniqueItems true
    */
   platforms_reporting?: string[];
   /**
-   * Security platforms that succeeded
+   * Ids of the security platforms that succeeded
    * @uniqueItems true
    */
   platforms_succeeded?: string[];
@@ -4996,9 +5015,16 @@ export interface EsAttackObservation {
   /** @format date-time */
   attack_observation_last_verified_at?: string;
   /** @uniqueItems true */
+  attack_observation_platform_types_reporting?: string[];
+  /** @uniqueItems true */
+  attack_observation_platform_types_succeeded?: string[];
+  /** @uniqueItems true */
   attack_observation_platforms_succeeded?: string[];
   attack_observation_scenario_name?: string;
   attack_observation_simulation_name?: string;
+  /** @format date-time */
+  attack_observation_simulation_start_date?: string;
+  attack_observation_simulation_status?: string;
   attack_observation_status?: string;
   attack_observation_tenant_name?: string;
   base_asset_side?: string;
@@ -5009,6 +5035,7 @@ export interface EsAttackObservation {
   base_dependencies?: string[];
   base_entity?: string;
   base_id?: string;
+  base_inject_side?: string;
   base_representative?: string;
   base_restrictions?: string[];
   base_scenario_side?: string;
@@ -13547,9 +13574,9 @@ export interface VulnerabilityObservationOutput {
   asset_id?: string;
   /** Asset name */
   asset_name?: string;
-  /** Endpoint hostname */
+  /** Endpoint hostname, null for an asset that is not an endpoint */
   endpoint_hostname?: string;
-  /** Endpoint platform */
+  /** Endpoint platform, null for an asset that is not an endpoint */
   endpoint_platform?: string;
   /** Finding type */
   finding_type?: string;

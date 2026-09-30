@@ -29,7 +29,7 @@ public interface EngineService {
    */
   int BULK_DELETE_BATCH_SIZE = 1000;
 
-  /** Upper bound on the page size of {@link #searchCursorPaged}, per FR28. */
+  /** Upper bound on the page size of {@link #searchCursorPaged}. */
   int CURSOR_PAGE_MAX_SIZE = 1000;
 
   /**
@@ -179,13 +179,13 @@ public interface EngineService {
    * carried by {@code query} is truncated to milliseconds by the implementation before the engine
    * query is built, so callers do not need to truncate themselves.
    *
-   * <p>Results are restricted to the current tenant and, when {@code user} is not null, to the
-   * grants of {@code user}; an admin {@code user} bypasses the grant filter entirely. Passing null
-   * skips the grant filter: the caller has already established that the user sees every grantable
-   * resource (admin, BYPASS, or the capability covering the resource type).
+   * <p>Results are restricted to {@code query.tenantId()} and, when {@code user} is not null, to
+   * the grants of {@code user}; an admin {@code user} bypasses the grant filter entirely. Passing
+   * null skips the grant filter: the caller has already established that the user sees every
+   * grantable resource (admin, BYPASS, or the capability covering the resource type).
    *
-   * <p>There is no total: the page is exactly {@code query.size()} documents when more remain, by
-   * design (see the story plan) — {@code has_more} is for the caller to derive.
+   * <p>There is no total: the page is exactly {@code query.size()} documents when more remain, so
+   * {@code has_more} is for the caller to derive.
    *
    * @param user the user whose grants filter the page, or null for no grant filter
    * @param model the model class to search; its handler bean must be registered

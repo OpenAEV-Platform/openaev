@@ -434,6 +434,13 @@ public class ElasticService implements EngineService {
                                   idx ->
                                       idx.index(index).id(result.getBase_id()).document(result)));
                     }
+                    // The snapshot export reads its window off the cursor persisted below, so these
+                    // documents must be searchable before it moves: one still waiting for a
+                    // refresh, on another shard say, would sit behind a later one already served
+                    // and the client's cursor would pass it for good.
+                    if (handler.isKeysetPaged()) {
+                      br.refresh(Refresh.WaitFor);
+                    }
                     // Execute the bulk
                     try {
                       log.info("Indexing ({}) in progress for {}", results.size(), model.getName());
@@ -1251,9 +1258,7 @@ public class ElasticService implements EngineService {
     // Strict tenant match: snapshot streams always extend EsTenantBase, so unlike buildQuery there
     // is no "no tenant field" escape branch here.
     filters.add(
-        TermQuery.of(
-                t -> t.field("base_tenant_side.keyword").value(TenantContext.getCurrentTenant()))
-            ._toQuery());
+        TermQuery.of(t -> t.field("base_tenant_side.keyword").value(query.tenantId()))._toQuery());
     filters.add(
         DateRangeQuery.of(d -> d.field("base_updated_at").lte(String.valueOf(windowEnd)))
             ._toRangeQuery()
