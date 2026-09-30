@@ -189,8 +189,8 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
       >
         <Box
           sx={{
-            height: 32,
-            width: 32,
+            height: 24,
+            width: 24,
             flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
