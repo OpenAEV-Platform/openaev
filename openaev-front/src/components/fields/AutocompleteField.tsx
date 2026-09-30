@@ -187,7 +187,9 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
         onOpenChange={props.onOpenChange}
         openOnFocus={openOnFocus}
         selectOnFocus={selectOnFocus}
-        closeOnSelect={props.disableCloseOnSelect !== true}
+        // A multi-selection list stays open: MUI's `disableCloseOnSelect` defaulted
+        // to closing, which costs a reopen for every value after the first.
+        closeOnSelect={multiple ? false : props.disableCloseOnSelect !== true}
         options={visibleOptions}
         value={selectedOption}
         // Only when the list ACTUALLY groups. Supplying `groupBy` unconditionally

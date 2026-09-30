@@ -158,5 +158,38 @@ describe('AutocompleteField', () => {
       expect(onChange).toHaveBeenCalledWith([OPTIONS[0].id]);
       await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeNull());
     });
+
+    it('keeps the listbox open across selections without being asked', async () => {
+      // Arrange
+      const onChange = vi.fn();
+      renderField({ onChange });
+      const input = screen.getByRole('combobox');
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      await screen.findByRole('listbox');
+
+      // Act
+      fireEvent.click(screen.getAllByRole('option')[0]);
+
+      // Assert
+      expect(onChange).toHaveBeenCalledWith([OPTIONS[0].id]);
+      await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeNull());
+    });
+
+    it('closes on select when the field holds a single value', async () => {
+      // Arrange
+      renderField({
+        multiple: false,
+        value: '',
+      });
+      const input = screen.getByRole('combobox');
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      await screen.findByRole('listbox');
+
+      // Act
+      fireEvent.click(screen.getAllByRole('option')[0]);
+
+      // Assert
+      await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+    });
   });
 });
