@@ -159,10 +159,16 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
             // Equal-width slots can be narrower than a long caption on a small screen: clip it rather
             // than letting it bleed past the card edge.
             overflow: 'hidden',
-            textOverflow: 'ellipsis',
           }}
         >
-          {label}
+          <span style={{
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+          >
+            {label}
+          </span>
           {labelAdornment}
         </Typography>
       </Box>
@@ -283,7 +289,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
       variant="outlined"
       sx={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-end',
         flexWrap: 'wrap',
         columnGap: 1.5,
         rowGap: 0.75,
@@ -412,10 +418,10 @@ const AttackPathHeader: FunctionComponent<Props> = ({
         // never loses meaning) — the band stays exactly one line whatever a run discovers.
         'display': 'grid',
         'gridAutoFlow': 'column',
-        'gridAutoColumns': 'minmax(0, 1fr)',
+        'gridAutoColumns': 'minmax(76px, 1fr)',
         'alignItems': 'center',
         'flex': 1,
-        'minWidth': 0,
+        'minWidth': 'min-content',
         'columnGap': 0.75,
         // Hairline separators between stats: a short, vertically centered rule rather than a
         // full-height border. Suppressed after the last stat, where it would hang in the gutter.
