@@ -26,7 +26,10 @@ public class RabbitMQTestListener implements TestExecutionListener {
       context.getBean(QueueChainingService.class).init();
       // Purge stale messages that were requeued by RabbitMQ after the previous connection close
       // Safe because the scheduler's initial delay (workerFrequency) hasn't elapsed yet
-      context.getBean(InjectService.class).getInjectTraceQueueService().purge();
+      BatchQueueService<?> queueService = injectTraceQueue(context);
+      if (queueService != null) {
+        queueService.purge();
+      }
       consumersStopped = false;
       log.info("RabbitMQ consumers reinitialized for class: {}", testClass.getSimpleName());
     }
@@ -37,8 +40,7 @@ public class RabbitMQTestListener implements TestExecutionListener {
     Class<?> testClass = testContext.getTestClass();
     if (testClass.isAnnotationPresent(KeepRabbit.class)) {
       ApplicationContext context = testContext.getApplicationContext();
-      BatchQueueService<?> queueService =
-          context.getBean(InjectService.class).getInjectTraceQueueService();
+      BatchQueueService<?> queueService = injectTraceQueue(context);
       if (queueService != null) {
         queueService.purge();
       }
@@ -57,10 +59,21 @@ public class RabbitMQTestListener implements TestExecutionListener {
 
     // Closing RabbitMQ consumers
     ApplicationContext context = testContext.getApplicationContext();
-    context.getBean(InjectService.class).getInjectTraceQueueService().stop();
+    BatchQueueService<?> queueService = injectTraceQueue(context);
+    if (queueService != null) {
+      queueService.stop();
+    }
     context.getBean(QueueChainingService.class).destroy();
     consumersStopped = true;
 
     log.info("RabbitMQ consumers closed for class: {}", testClass.getSimpleName());
+  }
+
+  /**
+   * The inject trace queue lives on InjectService, which some test classes replace with a mock
+   * ({@code @MockitoBean}): their context has no queue, so there is nothing to purge or stop.
+   */
+  private static BatchQueueService<?> injectTraceQueue(ApplicationContext context) {
+    return context.getBean(InjectService.class).getInjectTraceQueueService();
   }
 }
