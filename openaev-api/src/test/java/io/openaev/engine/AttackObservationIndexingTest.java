@@ -14,6 +14,7 @@ import io.openaev.database.model.DetectionInjectExpectation;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
@@ -1251,9 +1252,14 @@ class AttackObservationIndexingTest extends IntegrationTest {
       AttackPattern otherAttackPattern = newAttackPattern();
       otherAttackPattern.setTenant(otherTenant);
       InjectorContract twinContract = InjectorContractFixture.createDefaultInjectorContract();
+      // The injector link captures the contract composite key when it is made: unlink, re-key the
+      // contract into tenant B, then link again.
+      Injector twinInjector = twinContract.getFirstInjector();
+      twinContract.removeInjector(twinInjector);
       twinContract.setId(sharedContractId);
       twinContract.setTenant(otherTenant);
-      twinContract.getInjectors().forEach(injector -> injector.setTenantId(otherTenant.getId()));
+      twinInjector.setTenantId(otherTenant.getId());
+      twinContract.addInjector(twinInjector);
       injectorContractComposer
           .forInjectorContract(twinContract)
           .withAttackPattern(attackPatternComposer.forAttackPattern(otherAttackPattern))
