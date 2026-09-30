@@ -4,8 +4,9 @@ import static io.openaev.config.SpringSessionConfig.SESSION_COOKIE_NAME;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.UserFixture.EMAIL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -25,9 +26,8 @@ import io.openaev.service.MailingService;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
+import io.openaev.utils.helpers.SessionTestHelper;
 import jakarta.servlet.http.Cookie;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.awaitility.Awaitility;
@@ -37,9 +37,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.session.FindByIndexNameSessionRepository;
-import org.springframework.session.Session;
-import org.springframework.session.SessionRepository;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Propagation;
@@ -58,7 +55,7 @@ class UserApiTest extends IntegrationTest {
 
   @Autowired private UserComposer userComposer;
 
-  @Autowired private FindByIndexNameSessionRepository<? extends Session> sessionRepository;
+  @Autowired private SessionTestHelper sessionTestHelper;
 
   @Nested
   @DisplayName("Logging in")
@@ -152,38 +149,40 @@ class UserApiTest extends IntegrationTest {
     class SessionFixation {
       @DisplayName("Successful login rotates the pre-login session id")
       @Test
-      @WithMockUser
-      void given_pre_login_session_when_login_succeeds_should_rotate_session_id() throws Exception {
-        String fixatedId = createPreLoginSession();
+      void given_preLoginSession_should_rotateSessionIdOnSuccessfulLogin() throws Exception {
+        // Arrange
+        String preLoginSessionId = sessionTestHelper.createSession();
 
+        // Act
         mvc.perform(
                 post("/api/login")
-                    .cookie(sessionCookie(fixatedId))
+                    .cookie(sessionTestHelper.cookieFor(preLoginSessionId))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(UserFixture.getLoginUserInput()))
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful());
 
-        assertNull(sessions().findById(fixatedId));
+        // Assert
+        assertFalse(sessionTestHelper.exists(preLoginSessionId));
       }
 
       @DisplayName("Failed login keeps the pre-login session id")
       @Test
-      @WithMockUser
-      void given_pre_login_session_when_login_fails_should_keep_session_id() throws Exception {
-        String initialId = createPreLoginSession();
-        LoginUserInput loginUserInput =
-            UserFixture.getDefault().login(EMAIL).password("wrong-password").build();
+      void given_preLoginSession_should_keepSessionIdOnFailedLogin() throws Exception {
+        // Arrange
+        String preLoginSessionId = sessionTestHelper.createSession();
 
+        // Act
         mvc.perform(
                 post("/api/login")
-                    .cookie(sessionCookie(initialId))
+                    .cookie(sessionTestHelper.cookieFor(preLoginSessionId))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(loginUserInput))
+                    .content(asJsonString(UserFixture.getLoginUserInputWithWrongPassword()))
                     .with(csrf()))
             .andExpect(status().is4xxClientError());
 
-        assertNotNull(sessions().findById(initialId));
+        // Assert
+        assertTrue(sessionTestHelper.exists(preLoginSessionId));
       }
     }
 
@@ -192,8 +191,8 @@ class UserApiTest extends IntegrationTest {
     class SessionRevocation {
       @DisplayName("Logout deletes the logged-in session and clears its cookie")
       @Test
-      @WithMockUser
-      void given_logged_in_session_when_logout_should_revoke_it() throws Exception {
+      void given_loggedInSession_should_revokeSessionOnLogout() throws Exception {
+        // Arrange
         Cookie loggedInCookie =
             mvc.perform(
                     post("/api/login")
@@ -205,9 +204,10 @@ class UserApiTest extends IntegrationTest {
                 .getResponse()
                 .getCookie(SESSION_COOKIE_NAME);
         assertNotNull(loggedInCookie);
-        String sessionId = sessionId(loggedInCookie);
-        assertNotNull(sessions().findById(sessionId));
+        String loggedInSessionId = sessionTestHelper.sessionIdOf(loggedInCookie);
+        assertTrue(sessionTestHelper.exists(loggedInSessionId));
 
+        // Act
         Cookie clearedCookie =
             mvc.perform(post("/logout").cookie(loggedInCookie).with(csrf()))
                 .andExpect(status().is3xxRedirection())
@@ -215,35 +215,11 @@ class UserApiTest extends IntegrationTest {
                 .getResponse()
                 .getCookie(SESSION_COOKIE_NAME);
 
-        assertNull(sessions().findById(sessionId));
+        // Assert
+        assertFalse(sessionTestHelper.exists(loggedInSessionId));
         assertNotNull(clearedCookie);
         assertEquals(0, clearedCookie.getMaxAge());
       }
-    }
-
-    // Spring Session resolves the session from its store through the cookie and ignores a
-    // MockHttpSession, so the pre-login session must be persisted and sent as a cookie.
-    private String createPreLoginSession() {
-      Session session = sessions().createSession();
-      sessions().save(session);
-      return session.getId();
-    }
-
-    // DefaultCookieSerializer base64-encodes the session id in the cookie value.
-    private Cookie sessionCookie(String sessionId) {
-      return new Cookie(
-          SESSION_COOKIE_NAME,
-          Base64.getEncoder().encodeToString(sessionId.getBytes(StandardCharsets.UTF_8)));
-    }
-
-    private String sessionId(Cookie sessionCookie) {
-      return new String(
-          Base64.getDecoder().decode(sessionCookie.getValue()), StandardCharsets.UTF_8);
-    }
-
-    @SuppressWarnings("unchecked")
-    private SessionRepository<Session> sessions() {
-      return (SessionRepository<Session>) sessionRepository;
     }
   }
 
