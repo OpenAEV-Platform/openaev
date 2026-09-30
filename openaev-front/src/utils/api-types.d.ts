@@ -11989,22 +11989,22 @@ export interface SimulationsResultsLatest {
 
 export interface SnapshotSearchInput {
   /** Opaque resume cursor from a previous page */
-  cursor?: string;
+  cursor?: string | null;
   /**
    * Page size, default 500, capped at 1000
    * @format int32
    */
-  page_size?: number;
+  page_size?: number | null;
   /**
    * Safety lag in seconds, default 120, clamped to [max(60, grace), 3600]
    * @format int32
    */
-  safety_lag_seconds?: number;
+  safety_lag_seconds?: number | null;
   /**
    * Full reconciliation lower bound; mutually exclusive with cursor
    * @format date-time
    */
-  since?: string;
+  since?: string | null;
 }
 
 export interface SnapshotSearchOutputAttackObservationOutput {
@@ -12018,7 +12018,7 @@ export interface SnapshotSearchOutputAttackObservationOutput {
    */
   indexed_through?: string;
   /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
-  next_cursor?: string;
+  next_cursor?: string | null;
   /** Page of observations */
   observations?: AttackObservationOutput[];
   /**
@@ -12046,7 +12046,7 @@ export interface SnapshotSearchOutputVulnerabilityObservationOutput {
    */
   indexed_through?: string;
   /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
-  next_cursor?: string;
+  next_cursor?: string | null;
   /** Page of observations */
   observations?: VulnerabilityObservationOutput[];
   /**
