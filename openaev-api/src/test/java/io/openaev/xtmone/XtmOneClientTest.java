@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.jsonwebtoken.Jwts;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.authorisation.HttpClientFactory;
@@ -20,6 +21,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -438,6 +440,245 @@ class XtmOneClientTest {
           (org.apache.hc.core5.http.ClassicHttpRequest) requestCaptor.getValue();
       assertTrue(
           request.getUri().toString().endsWith("/api/v1/platform/chat/sessions/abc%2F..%20def"));
+    }
+  }
+
+  @Nested
+  @DisplayName("createChatSession")
+  class CreateChatSession {
+
+    @Test
+    @DisplayName("Given not configured should return null")
+    void given_notConfigured_should_returnNull() {
+      when(config.isConfigured()).thenReturn(false);
+
+      assertNull(xtmOneClient.createChatSession(Map.of("agent_slug", "ariane")));
+    }
+
+    @Test
+    @DisplayName("Given a panel body should post it as-is, workspace and unknown fields included")
+    @SuppressWarnings("unchecked")
+    void given_panelBody_should_postItAsIs() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
+      Map<String, Object> payload = Map.of("conversation_id", "conv-1", "workspace_id", "ws-1");
+      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(payload);
+      Map<String, Object> body =
+          Map.of("agent_slug", "ariane", "workspace_id", "ws-1", "future_field", true);
+
+      // -- ACT --
+      Map<String, Object> result = xtmOneClient.createChatSession(body);
+
+      // -- ASSERT --
+      assertEquals(payload, result);
+      assertEquals(body, bodyCaptor.getValue());
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("POST", request.getMethod());
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/sessions"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Workspaces and conversation filing")
+  class WorkspacesAndFiling {
+
+    @Test
+    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
+    void given_notConfigured_should_throwServiceUnavailable() {
+      when(config.isConfigured()).thenReturn(false);
+
+      ResponseStatusException ex =
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatWorkspaces());
+      assertEquals(503, ex.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("Given XTM One lists workspaces should relay the payload read as the current user")
+    void given_workspaces_should_relayPayload() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      ObjectNode workspaces = JsonNodeFactory.instance.objectNode();
+      workspaces.set("workspaces", workspaceList());
+      when(objectMapper.readTree(anyString())).thenReturn(workspaces);
+
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.listChatWorkspaces();
+
+      // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(200, workspaces), result);
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("GET", request.getMethod());
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/workspaces"));
+      assertEquals("Bearer fake-jwt", request.getFirstHeader("Authorization").getValue());
+    }
+
+    @Test
+    @DisplayName("Given a new workspace should post its fields and relay the 201")
+    @SuppressWarnings("unchecked")
+    void given_newWorkspace_should_postFieldsAndRelayCreated() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(201);
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
+      JsonNode created = JsonNodeFactory.instance.objectNode().put("id", "ws-1");
+      when(objectMapper.readTree(anyString())).thenReturn(created);
+
+      // -- ACT --
+      XtmOneClient.RelayedResponse result =
+          xtmOneClient.createChatWorkspace(Map.of("name", "Red team"));
+
+      // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(201, created), result);
+      assertEquals(Map.of("name", "Red team"), bodyCaptor.getValue());
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("POST", request.getMethod());
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/workspaces"));
+    }
+
+    @Test
+    @DisplayName("Given a workspace id with path characters should PATCH the encoded segment")
+    void given_pathCharacters_should_patchEncodedSegment() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.objectNode());
+
+      // -- ACT --
+      xtmOneClient.updateChatWorkspace("ws/.. 1", Map.of("name", "Blue team"));
+
+      // -- ASSERT --
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("PATCH", request.getMethod());
+      assertTrue(
+          request.getUri().toString().endsWith("/api/v1/platform/chat/workspaces/ws%2F..%201"));
+    }
+
+    @Test
+    @DisplayName("Given XTM One deletes the workspace should relay a 204 without a body")
+    void given_deletedWorkspace_should_relayNoContent() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(204);
+
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.deleteChatWorkspace("ws-1");
+
+      // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(204, null), result);
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("DELETE", request.getMethod());
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/workspaces/ws-1"));
+    }
+
+    @Test
+    @DisplayName("Given XTM One refuses with a detail should relay the status and only the detail")
+    void given_refusalWithDetail_should_relayStatusAndDetail() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(409);
+      ObjectNode refusal = JsonNodeFactory.instance.objectNode();
+      refusal.put("detail", "Default workspace");
+      refusal.put("trace", "internal");
+      when(objectMapper.readTree(anyString())).thenReturn(refusal);
+
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.deleteChatWorkspace("ws-1");
+
+      // -- ASSERT --
+      assertEquals(409, result.status());
+      assertEquals("Default workspace", result.body().get("detail").asText());
+      assertFalse(result.body().has("trace"));
+    }
+
+    @ParameterizedTest(name = "Given XTM One answers {0} without a detail should relay {1}")
+    @MethodSource("statusesWithoutDetail")
+    void given_statusWithoutDetail_should_relayTheStatusCode(int remoteStatus, int expectedStatus)
+        throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(remoteStatus);
+
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.listChatWorkspaces();
+
+      // -- ASSERT --
+      assertEquals(expectedStatus, result.status());
+      assertEquals("[XTM One] HTTP " + remoteStatus, result.body().get("detail").asText());
+    }
+
+    static Stream<Arguments> statusesWithoutDetail() {
+      return Stream.of(
+          Arguments.of(401, 422),
+          Arguments.of(403, 403),
+          Arguments.of(500, 500),
+          Arguments.of(302, 502));
+    }
+
+    @Test
+    @DisplayName("Given XTM One answers 200 with no JSON body should relay a 502")
+    void given_unreadableSuccess_should_relayBadGateway() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(200);
+
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.listChatWorkspaces();
+
+      // -- ASSERT --
+      assertEquals(502, result.status());
+    }
+
+    @Test
+    @DisplayName("Given a conversation unfiled should PATCH an explicit null workspace id")
+    @SuppressWarnings("unchecked")
+    void given_unfiledConversation_should_patchExplicitNull() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
+      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.objectNode());
+      Map<String, Object> changes = new HashMap<>();
+      changes.put("workspace_id", null);
+
+      // -- ACT --
+      xtmOneClient.updateChatSession("conv-1", changes);
+
+      // -- ASSERT --
+      assertTrue(bodyCaptor.getValue().containsKey("workspace_id"));
+      assertNull(bodyCaptor.getValue().get("workspace_id"));
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("PATCH", request.getMethod());
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/sessions/conv-1"));
+    }
+
+    @Test
+    @DisplayName("Given the connection fails should throw INTERNAL_SERVER_ERROR")
+    void given_connectionFails_should_throwInternalServerError() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
+          .thenThrow(new IOException("Connection refused"));
+
+      // -- ACT & ASSERT --
+      ResponseStatusException ex =
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatWorkspaces());
+      assertEquals(500, ex.getStatusCode().value());
+    }
+
+    private JsonNode workspaceList() {
+      ObjectNode workspace = JsonNodeFactory.instance.objectNode();
+      workspace.put("id", "ws-1");
+      workspace.put("is_default", true);
+      workspace.put("is_own", true);
+      workspace.put("can_manage", true);
+      return JsonNodeFactory.instance.arrayNode().add(workspace);
     }
   }
 

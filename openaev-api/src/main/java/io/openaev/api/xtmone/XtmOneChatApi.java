@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -45,6 +46,11 @@ public class XtmOneChatApi extends RestBehavior {
           "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
   private static final Pattern CONVERSATION_ID_PATTERN = FILE_ID_PATTERN;
   private static final Pattern MESSAGE_ID_PATTERN = FILE_ID_PATTERN;
+  private static final Pattern WORKSPACE_ID_PATTERN = FILE_ID_PATTERN;
+
+  private static final String TITLE_FIELD = "title";
+  private static final String WORKSPACE_ID_FIELD = "workspace_id";
+  private static final List<String> WORKSPACE_FIELDS = List.of("name", "description");
 
   private static final String REJECT_VERDICT = "reject";
   private static final Set<String> ALLOWED_VERDICTS =
@@ -68,6 +74,11 @@ public class XtmOneChatApi extends RestBehavior {
     return ResponseEntity.ok(client.listChatAgents("global.assistant"));
   }
 
+  /**
+   * Creates (or restores) a chat conversation. The body is forwarded as the chat panel sent it
+   * ({@code agent_slug}, {@code conversation_id}, {@code workspace_id}, ...), so a field XTM One
+   * accepts is never dropped by the proxy.
+   */
   @PostMapping(XTM_ONE_URI + "/chat/sessions")
   @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<Map<String, Object>> createSession(
@@ -75,10 +86,7 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
-    String agentSlug = body.get("agent_slug") != null ? body.get("agent_slug").toString() : null;
-    String conversationId =
-        body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
-    Map<String, Object> result = client.createChatSession(agentSlug, conversationId);
+    Map<String, Object> result = client.createChatSession(body);
     if (result == null) {
       return ResponseEntity.internalServerError().build();
     }
@@ -120,6 +128,154 @@ public class XtmOneChatApi extends RestBehavior {
       return ResponseEntity.internalServerError().build();
     }
     return ResponseEntity.noContent().build();
+  }
+
+  /**
+   * Renames a conversation of the chatbot history menu, or files it into a workspace ({@code
+   * workspace_id}; {@code null} takes it out of its workspace). XTM One's status and {@code detail}
+   * are relayed, e.g. a 404 for a conversation that is not one of the user's.
+   */
+  @PatchMapping(XTM_ONE_URI + "/chat/sessions/{conversationId}")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Object> updateSession(
+      TxCtx ctx, @PathVariable String conversationId, @RequestBody Map<String, Object> body) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (conversationId == null || !CONVERSATION_ID_PATTERN.matcher(conversationId).matches()) {
+      return ResponseEntity.badRequest().build();
+    }
+    Map<String, Object> changes = conversationChanges(body);
+    if (changes == null) {
+      return ResponseEntity.badRequest().build();
+    }
+    return relay(client.updateChatSession(conversationId, changes));
+  }
+
+  /**
+   * Lists the user's XTM One workspaces, which the chatbot history menu groups conversations by.
+   * XTM One's answer is relayed as it came, every workspace field included (a 403 while XTM One is
+   * not licensed); an XTM One that is not configured has no workspace to list.
+   */
+  @GetMapping(XTM_ONE_URI + "/chat/workspaces")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Object> listWorkspaces(TxCtx ctx) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.ok(Map.of("workspaces", List.of()));
+    }
+    return relay(client.listChatWorkspaces());
+  }
+
+  /** Creates a personal XTM One workspace ({@code name}, optional {@code description}). */
+  @PostMapping(XTM_ONE_URI + "/chat/workspaces")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Object> createWorkspace(TxCtx ctx, @RequestBody Map<String, Object> body) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    Map<String, Object> fields = workspaceFields(body);
+    if (fields == null || !fields.containsKey("name")) {
+      return ResponseEntity.badRequest().build();
+    }
+    return relay(client.createChatWorkspace(fields));
+  }
+
+  /** Renames an XTM One workspace, or changes its description. */
+  @PatchMapping(XTM_ONE_URI + "/chat/workspaces/{workspaceId}")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Object> updateWorkspace(
+      TxCtx ctx, @PathVariable String workspaceId, @RequestBody Map<String, Object> body) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (workspaceId == null || !WORKSPACE_ID_PATTERN.matcher(workspaceId).matches()) {
+      return ResponseEntity.badRequest().build();
+    }
+    Map<String, Object> fields = workspaceFields(body);
+    if (fields == null) {
+      return ResponseEntity.badRequest().build();
+    }
+    return relay(client.updateChatWorkspace(workspaceId, fields));
+  }
+
+  /**
+   * Deletes an XTM One workspace. XTM One refuses the user's default workspace and one that still
+   * holds work items: its status and {@code detail} are relayed.
+   */
+  @DeleteMapping(XTM_ONE_URI + "/chat/workspaces/{workspaceId}")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Object> deleteWorkspace(TxCtx ctx, @PathVariable String workspaceId) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (workspaceId == null || !WORKSPACE_ID_PATTERN.matcher(workspaceId).matches()) {
+      return ResponseEntity.badRequest().build();
+    }
+    return relay(client.deleteChatWorkspace(workspaceId));
+  }
+
+  /**
+   * Answers with XTM One's own status and JSON body, so the chat panel shows XTM One's {@code
+   * detail} when it refuses a change.
+   */
+  private static ResponseEntity<Object> relay(XtmOneClient.RelayedResponse response) {
+    ResponseEntity.BodyBuilder answer = ResponseEntity.status(response.status());
+    if (response.body() == null) {
+      return answer.build();
+    }
+    return answer.contentType(MediaType.APPLICATION_JSON).body(response.body());
+  }
+
+  /**
+   * The workspace fields the chat panel may send, each a string when present; {@code null} when one
+   * is not. Whether a name is blank or too long is XTM One's rule: its refusal reaches the panel in
+   * its own words.
+   */
+  private static Map<String, Object> workspaceFields(Map<String, Object> body) {
+    Map<String, Object> fields = new HashMap<>();
+    for (String field : WORKSPACE_FIELDS) {
+      if (body.containsKey(field)) {
+        if (!(body.get(field) instanceof String value)) {
+          return null;
+        }
+        fields.put(field, value);
+      }
+    }
+    return fields;
+  }
+
+  /**
+   * The conversation changes the chat panel may send: a string {@code title}, and a {@code
+   * workspace_id} that is a workspace id or an explicit {@code null} (kept, as it takes the
+   * conversation out of its workspace); {@code null} when a field is malformed.
+   */
+  private static Map<String, Object> conversationChanges(Map<String, Object> body) {
+    Map<String, Object> changes = new HashMap<>();
+    if (body.containsKey(TITLE_FIELD)) {
+      if (!(body.get(TITLE_FIELD) instanceof String title)) {
+        return null;
+      }
+      changes.put(TITLE_FIELD, title);
+    }
+    if (body.containsKey(WORKSPACE_ID_FIELD)) {
+      Object workspaceId = body.get(WORKSPACE_ID_FIELD);
+      if (workspaceId != null
+          && !(workspaceId instanceof String id && WORKSPACE_ID_PATTERN.matcher(id).matches())) {
+        return null;
+      }
+      changes.put(WORKSPACE_ID_FIELD, workspaceId);
+    }
+    return changes;
   }
 
   /**

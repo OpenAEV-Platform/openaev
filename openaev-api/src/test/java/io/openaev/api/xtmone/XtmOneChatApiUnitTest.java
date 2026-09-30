@@ -1,6 +1,7 @@
 package io.openaev.api.xtmone;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -36,9 +37,10 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 /**
  * Unit test for the {@code /api/xtmone/chat} proxy forwarding contract. For {@code /messages} it
  * executes the returned {@link StreamingResponseBody} so the controller body actually runs and we
- * can verify the arguments handed to {@link XtmOneClient#streamChatMessage}; the prompts, quota and
- * message feedback routes are checked for their validation and what they hand to the client. Pure
- * POJO (no Spring / async dispatch) to keep the contract check fast and deterministic.
+ * can verify the arguments handed to {@link XtmOneClient#streamChatMessage}; the prompts, quota,
+ * message feedback, workspace and conversation filing routes are checked for their validation and
+ * what they hand to the client. Pure POJO (no Spring / async dispatch) to keep the contract check
+ * fast and deterministic.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("XTM One Chat API forwarding tests")
@@ -328,6 +330,138 @@ class XtmOneChatApiUnitTest {
 
       assertEquals(204, response.getStatusCode().value());
       verify(client).retractMessageFeedback(CONVERSATION_ID, MESSAGE_ID);
+    }
+  }
+
+  @Nested
+  @DisplayName("Workspaces and conversation filing")
+  class WorkspacesAndFiling {
+
+    private static final String CONVERSATION_ID = "11111111-1111-1111-1111-111111111111";
+    private static final String WORKSPACE_ID = "33333333-3333-3333-3333-333333333333";
+
+    private static Stream<Arguments> invalidConversationChanges() {
+      return Stream.of(
+          Arguments.of(Map.of("title", 42)),
+          Arguments.of(Map.of("workspace_id", "not-a-uuid")),
+          Arguments.of(Map.of("workspace_id", "../" + WORKSPACE_ID)),
+          Arguments.of(Map.of("workspace_id", 7)));
+    }
+
+    private static Stream<Arguments> invalidWorkspaceBodies() {
+      return Stream.of(
+          Arguments.of(Map.of()),
+          Arguments.of(Map.of("description", "Q3")),
+          Arguments.of(Map.of("name", 1)),
+          Arguments.of(Map.of("name", "Red team", "description", 2)));
+    }
+
+    @Test
+    @DisplayName("Given a session body should forward it to XTM One as the panel sent it")
+    void given_sessionBody_should_forwardItAsIs() {
+      when(config.isConfigured()).thenReturn(true);
+      Map<String, Object> body =
+          Map.of("agent_slug", "ariane", "workspace_id", WORKSPACE_ID, "future_field", true);
+      Map<String, Object> created = Map.of("conversation_id", CONVERSATION_ID);
+      when(client.createChatSession(body)).thenReturn(created);
+
+      ResponseEntity<Map<String, Object>> response = api.createSession(TxCtx.missing(), body);
+
+      assertEquals(created, response.getBody());
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidConversationChanges")
+    @DisplayName("Given a malformed title or workspace id should refuse without forwarding")
+    void given_malformedConversationChanges_should_refuse(Map<String, Object> body) {
+      when(config.isConfigured()).thenReturn(true);
+
+      ResponseEntity<Object> response = api.updateSession(TxCtx.missing(), CONVERSATION_ID, body);
+
+      assertEquals(400, response.getStatusCode().value());
+      verifyNoInteractions(client);
+    }
+
+    @Test
+    @DisplayName("Given a null workspace id should forward the explicit null that unfiles it")
+    void given_nullWorkspaceId_should_forwardExplicitNull() {
+      when(config.isConfigured()).thenReturn(true);
+      Map<String, Object> body = new HashMap<>();
+      body.put("workspace_id", null);
+      JsonNode updated = JsonNodeFactory.instance.objectNode().putNull("workspace_id");
+      Map<String, Object> expected = new HashMap<>();
+      expected.put("workspace_id", null);
+      when(client.updateChatSession(CONVERSATION_ID, expected))
+          .thenReturn(new XtmOneClient.RelayedResponse(200, updated));
+
+      ResponseEntity<Object> response = api.updateSession(TxCtx.missing(), CONVERSATION_ID, body);
+
+      assertEquals(200, response.getStatusCode().value());
+      assertEquals(updated, response.getBody());
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidWorkspaceBodies")
+    @DisplayName("Given a workspace without a string name should refuse without forwarding")
+    void given_invalidWorkspaceBody_should_refuse(Map<String, Object> body) {
+      when(config.isConfigured()).thenReturn(true);
+
+      ResponseEntity<Object> response = api.createWorkspace(TxCtx.missing(), body);
+
+      assertEquals(400, response.getStatusCode().value());
+      verifyNoInteractions(client);
+    }
+
+    @Test
+    @DisplayName("Given a malformed workspace id should refuse an update and a deletion")
+    void given_malformedWorkspaceId_should_refuse() {
+      when(config.isConfigured()).thenReturn(true);
+
+      ResponseEntity<Object> update =
+          api.updateWorkspace(TxCtx.missing(), "not-a-uuid", Map.of("name", "Blue team"));
+      ResponseEntity<Object> delete = api.deleteWorkspace(TxCtx.missing(), "../" + WORKSPACE_ID);
+
+      assertEquals(400, update.getStatusCode().value());
+      assertEquals(400, delete.getStatusCode().value());
+      verifyNoInteractions(client);
+    }
+
+    @Test
+    @DisplayName("Given XTM One refuses a deletion should relay its status and detail")
+    void given_refusedDeletion_should_relayStatusAndDetail() {
+      when(config.isConfigured()).thenReturn(true);
+      JsonNode refusal = JsonNodeFactory.instance.objectNode().put("detail", "Default workspace");
+      when(client.deleteChatWorkspace(WORKSPACE_ID))
+          .thenReturn(new XtmOneClient.RelayedResponse(409, refusal));
+
+      ResponseEntity<Object> response = api.deleteWorkspace(TxCtx.missing(), WORKSPACE_ID);
+
+      assertEquals(409, response.getStatusCode().value());
+      assertEquals(refusal, response.getBody());
+    }
+
+    @Test
+    @DisplayName("Given XTM One deletes the workspace should answer 204 without a body")
+    void given_deletedWorkspace_should_answerNoContent() {
+      when(config.isConfigured()).thenReturn(true);
+      when(client.deleteChatWorkspace(WORKSPACE_ID))
+          .thenReturn(new XtmOneClient.RelayedResponse(204, null));
+
+      ResponseEntity<Object> response = api.deleteWorkspace(TxCtx.missing(), WORKSPACE_ID);
+
+      assertEquals(204, response.getStatusCode().value());
+      assertNull(response.getBody());
+    }
+
+    @Test
+    @DisplayName("Given XTM One not configured should answer an empty workspace list")
+    void given_notConfigured_should_answerNoWorkspace() {
+      when(config.isConfigured()).thenReturn(false);
+
+      ResponseEntity<Object> response = api.listWorkspaces(TxCtx.missing());
+
+      assertEquals(Map.of("workspaces", List.of()), response.getBody());
+      verifyNoInteractions(client);
     }
   }
 }

@@ -3,7 +3,9 @@ package io.openaev.xtmone;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.jsonwebtoken.Jwts;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.authorisation.HttpClientFactory;
@@ -23,11 +25,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpDelete;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPatch;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -49,6 +54,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class XtmOneClient {
 
   private static final String INTENTS_CATALOG_AGENTS_PATH = "/api/v1/intents/catalog";
+  private static final String CHAT_SESSIONS_PATH = "/api/v1/platform/chat/sessions";
+  private static final String CHAT_WORKSPACES_PATH = "/api/v1/platform/chat/workspaces";
   private static final int AGENT_LIST_TIMEOUT_SECONDS = 10;
 
   /**
@@ -282,19 +289,23 @@ public class XtmOneClient {
     };
   }
 
+  /**
+   * Creates the current user's platform-chat conversation, or restores the one {@code
+   * conversation_id} names. The chat panel's request body is forwarded as it came ({@code
+   * agent_slug}, {@code conversation_id}, {@code workspace_id} to file a new conversation into a
+   * workspace), so a field a newer panel sends is not dropped on the way. Returns the upstream
+   * payload, or null on failure.
+   */
   @SuppressWarnings("unchecked")
-  public Map<String, Object> createChatSession(String agentSlug, String conversationId) {
+  public Map<String, Object> createChatSession(Map<String, Object> body) {
     if (!config.isConfigured()) {
       return null;
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
-      Map<String, Object> body = new HashMap<>();
-      if (agentSlug != null) body.put("agent_slug", agentSlug);
-      if (conversationId != null) body.put("conversation_id", conversationId);
-      String json = objectMapper.writeValueAsString(body);
+      String json = objectMapper.writeValueAsString(body != null ? body : Map.of());
 
-      HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/sessions", jwt, json);
+      HttpPost httpPost = chatPostBuilder(CHAT_SESSIONS_PATH, jwt, json);
       httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
 
       return httpClient.execute(
@@ -324,7 +335,7 @@ public class XtmOneClient {
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
-      HttpGet httpGet = chatGetBuilder("/api/v1/platform/chat/sessions", jwt);
+      HttpGet httpGet = chatGetBuilder(CHAT_SESSIONS_PATH, jwt);
       httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
 
       return httpClient.execute(
@@ -354,9 +365,7 @@ public class XtmOneClient {
       String jwt = issueJwtForCurrentUser();
       HttpDelete httpDelete =
           new HttpDelete(
-              config.getUrl()
-                  + "/api/v1/platform/chat/sessions/"
-                  + encodePathSegment(conversationId));
+              config.getUrl() + CHAT_SESSIONS_PATH + "/" + encodePathSegment(conversationId));
       addChatHeaders(httpDelete, jwt);
       httpDelete.setConfig(
           RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
@@ -374,6 +383,153 @@ public class XtmOneClient {
       log.warn("[XTM One] Delete session error: ", e);
     }
     return false;
+  }
+
+  /**
+   * An XTM One answer relayed to the chat panel as it came: its status, and its JSON body, which
+   * carries XTM One's {@code detail} when it refuses a change. The body is {@code null} when there
+   * is none (a 204).
+   */
+  public record RelayedResponse(int status, JsonNode body) {}
+
+  /**
+   * Renames one of the current user's platform-chat conversations, or files it into a workspace
+   * ({@code workspace_id}; an explicit {@code null} takes it out of its workspace). XTM One answers
+   * 404 for a conversation that is not one of the user's platform-chat conversations.
+   *
+   * @param changes {@code title} and / or {@code workspace_id}, forwarded as given
+   */
+  public RelayedResponse updateChatSession(String conversationId, Map<String, Object> changes) {
+    return relayChatRequest(
+        HttpPatch::new,
+        CHAT_SESSIONS_PATH + "/" + encodePathSegment(conversationId),
+        changes,
+        "updating the conversation");
+  }
+
+  /**
+   * Lists the current user's XTM One workspaces, which the chat panel groups conversations by
+   * ({@code {"workspaces": [...]}}). XTM One answers 403 while it is not licensed.
+   */
+  public RelayedResponse listChatWorkspaces() {
+    return relayChatRequest(HttpGet::new, CHAT_WORKSPACES_PATH, null, "listing the workspaces");
+  }
+
+  /**
+   * Creates a personal workspace for the current user.
+   *
+   * @param fields {@code name} and, optionally, {@code description}
+   */
+  public RelayedResponse createChatWorkspace(Map<String, Object> fields) {
+    return relayChatRequest(HttpPost::new, CHAT_WORKSPACES_PATH, fields, "creating a workspace");
+  }
+
+  /**
+   * Renames a workspace, or changes its description, for a user who may manage it.
+   *
+   * @param fields {@code name} and / or {@code description}
+   */
+  public RelayedResponse updateChatWorkspace(String workspaceId, Map<String, Object> fields) {
+    return relayChatRequest(
+        HttpPatch::new,
+        CHAT_WORKSPACES_PATH + "/" + encodePathSegment(workspaceId),
+        fields,
+        "updating the workspace");
+  }
+
+  /**
+   * Deletes a workspace; XTM One moves its conversations to their owner's default workspace, and
+   * refuses the default workspace itself or one that still holds work items.
+   */
+  public RelayedResponse deleteChatWorkspace(String workspaceId) {
+    return relayChatRequest(
+        HttpDelete::new,
+        CHAT_WORKSPACES_PATH + "/" + encodePathSegment(workspaceId),
+        null,
+        "deleting the workspace");
+  }
+
+  /**
+   * Sends one chat-panel request to XTM One as the current user and returns its answer, whatever
+   * its status (see {@link #toRelayedResponse}). Only an unconfigured XTM One ({@code 503}) or one
+   * that cannot be reached ({@code 500}) is an exception.
+   *
+   * @param method the request type ({@code HttpGet::new}, ...), given the full URL
+   * @param body the JSON body, {@code null} for none
+   * @param action what the request does, for the log and the error message
+   */
+  private RelayedResponse relayChatRequest(
+      Function<String, HttpUriRequestBase> method, String path, Object body, String action) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpUriRequestBase request = method.apply(config.getUrl() + path);
+      addChatHeaders(request, jwt);
+      if (body != null) {
+        request.setEntity(
+            new StringEntity(objectMapper.writeValueAsString(body), ContentType.APPLICATION_JSON));
+      }
+      request.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+      return httpClient.execute(request, this::toRelayedResponse);
+    } catch (Exception e) {
+      log.warn("[XTM One] Error while {}: ", action, e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "[XTM One] Unexpected error while " + action, e);
+    }
+  }
+
+  /**
+   * A success keeps its status and its JSON body. A refusal keeps its status (a code that is not an
+   * error becomes {@code 502}, a {@code 401} becomes {@code 422}) with a body holding only XTM
+   * One's {@code detail}, or the upstream status when XTM One sent none, so nothing else of an
+   * upstream error page reaches the browser.
+   */
+  private RelayedResponse toRelayedResponse(ClassicHttpResponse response) {
+    int code = response.getCode();
+    JsonNode body = readJsonBody(response);
+    if (code == HttpStatus.NO_CONTENT.value()) {
+      return new RelayedResponse(code, null);
+    }
+    if (code >= 200 && code < 300) {
+      if (body == null) {
+        String unreadable = "[XTM One] Unreadable response (HTTP " + code + ")";
+        return new RelayedResponse(HttpStatus.BAD_GATEWAY.value(), detailBody(unreadable));
+      }
+      return new RelayedResponse(code, body);
+    }
+    HttpStatus status = HttpStatus.resolve(code);
+    int relayedStatus = status != null && status.isError() ? code : HttpStatus.BAD_GATEWAY.value();
+    if (code == HttpStatus.UNAUTHORIZED.value()) {
+      // XTM One rejecting our JWT is a config issue, not the caller's: a 401 would log them out
+      relayedStatus = HttpStatus.UNPROCESSABLE_ENTITY.value();
+    }
+    JsonNode detail = body != null ? body.get("detail") : null;
+    if (detail == null || detail.isNull()) {
+      return new RelayedResponse(relayedStatus, detailBody("[XTM One] HTTP " + code));
+    }
+    ObjectNode error = JsonNodeFactory.instance.objectNode();
+    error.set("detail", detail);
+    return new RelayedResponse(relayedStatus, error);
+  }
+
+  private static ObjectNode detailBody(String detail) {
+    return JsonNodeFactory.instance.objectNode().put("detail", detail);
+  }
+
+  /** The response's JSON body, or {@code null} when it has none or it is not JSON. */
+  private JsonNode readJsonBody(ClassicHttpResponse response) {
+    try {
+      if (response.getEntity() == null) {
+        return null;
+      }
+      String text = EntityUtils.toString(response.getEntity());
+      return text == null || text.isBlank() ? null : objectMapper.readTree(text);
+    } catch (Exception ignored) {
+      return null;
+    }
   }
 
   /**
