@@ -8,6 +8,7 @@ import { type CollectorHelper } from '../../../../actions/collectors/collector-h
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import { type SecretsProviderHelper } from '../../../../actions/secrets_providers/secrets-provider-helper';
+import { FDS } from '../../../../components/fds-tokens.generated';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import type {
@@ -230,7 +231,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
                 <Typography
                   variant="body2"
                   sx={{
-                    fontSize: 11,
+                    fontSize: FDS.scalars['--text-3'],
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',

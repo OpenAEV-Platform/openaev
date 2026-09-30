@@ -6,6 +6,7 @@ import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 
+import { FDS } from '../../../../components/fds-tokens.generated';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorItem, type ConnectorItemType } from './catalog-facets';
 import { UseCaseChips } from './CatalogConnectorCard';
@@ -67,7 +68,7 @@ export const CatalogConnectorLinesHeader = () => {
   const theme = useTheme();
   const { t } = useFormatter();
   const headerCellSx = {
-    fontSize: 10,
+    fontSize: FDS.scalars['--text-2'],
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -222,7 +223,7 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
           <TooltipTrigger asChild>
             <Typography
               sx={{
-                fontSize: 13,
+                fontSize: FDS.scalars['--text-3'],
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -238,7 +239,7 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
       <Box sx={cellSx('type')}>
         <Typography
           sx={{
-            fontSize: 12,
+            fontSize: FDS.scalars['--text-3'],
             color: 'primary.main',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -252,7 +253,7 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
       <Box sx={cellSx('description')}>
         <Typography
           sx={{
-            fontSize: 12,
+            fontSize: FDS.scalars['--text-3'],
             color: 'text.secondary',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
