@@ -15,6 +15,7 @@ import { z } from 'zod';
 
 import { resolveHostnameToIps } from '../../../actions/assets/endpoint-actions';
 import AddressesFieldComponent from '../../../components/fields/AddressesFieldComponent';
+import MarkingFieldController from '../../../components/fields/MarkingFieldController';
 import PersonFieldController from '../../../components/fields/PersonFieldController';
 import SelectFieldController from '../../../components/fields/SelectFieldController';
 import SwitchFieldController from '../../../components/fields/SwitchFieldController';
@@ -23,6 +24,7 @@ import TextFieldController from '../../../components/fields/TextFieldController'
 import { useFormatter } from '../../../components/i18n';
 import { type EndpointInput } from '../../../utils/api-types';
 import { formatMacAddress } from '../../../utils/String';
+import { isFeatureEnabled } from '../../../utils/utils';
 import {
   ARCH_OPTIONS,
   type AssetCategory,
@@ -34,14 +36,27 @@ import {
   humanizeEnum,
 } from './asset-categories';
 
+// Markings are not part of EndpointInput: they live on a dedicated, more heavily-guarded endpoint
+// (PUT /api/assets/{id}/markings, see AssetMarkingsApi) rather than the generic asset/endpoint
+// update, so they cannot ride along in the same payload. This form still hosts the field (an
+// asset already being edited has an id to assign markings against) but reports changes to it
+// separately, through `onMarkingsChange`, instead of folding them into `onSubmit`'s EndpointInput.
+type AssetFormValues = EndpointInput & { asset_markings?: string[] | null };
+
 interface Props {
   category: AssetCategory;
   onSubmit: SubmitHandler<EndpointInput>;
   handleClose: () => void;
   editing?: boolean;
-  initialValues?: Partial<EndpointInput>;
+  initialValues?: Partial<EndpointInput> & { asset_markings?: string[] | null };
   /** For HOST endpoints, agent-managed fields (platform/arch/hostname) are only editable when agentless. */
   agentless?: boolean;
+  /**
+   * Called on submit with the full replacement marking id list, and awaited before `onSubmit`
+   * runs (see the race explained where it's awaited). Only invoked while editing - assigning
+   * markings requires an asset id, so there is nothing to call during creation.
+   */
+  onMarkingsChange?: (markingIds: string[]) => unknown;
 }
 
 const regexMacAddress = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
@@ -85,6 +100,10 @@ const buildSchema = (def: AssetCategoryDef, t: (s: string) => string) => {
     asset_cloud_region: z.string().optional().nullable(),
     asset_linked_person: z.string().optional().nullable(),
     asset_metadata: z.record(z.string(), z.any()).optional(),
+    // .nullable() matters here, unlike asset_tags: the backend's markingIds field (Asset.java) has
+    // no default initializer, so an endpoint with no markings assigned comes back as literal
+    // `null` rather than `[]` - .optional() alone rejects that and silently blocked every submit.
+    asset_markings: z.string().array().optional().nullable(),
   });
 };
 
@@ -128,6 +147,7 @@ const AssetForm: FunctionComponent<Props> = ({
   editing,
   agentless,
   initialValues = {},
+  onMarkingsChange,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -142,7 +162,7 @@ const AssetForm: FunctionComponent<Props> = ({
     defaultPlatform = 'iOS';
   }
 
-  const defaultValues: EndpointInput = {
+  const defaultValues: AssetFormValues = {
     asset_name: '',
     asset_description: '',
     asset_tags: [],
@@ -158,14 +178,15 @@ const AssetForm: FunctionComponent<Props> = ({
     asset_cloud_region: def.fields.cloud ? '' : undefined,
     asset_linked_person: null,
     asset_metadata: undefined,
+    asset_markings: [],
     ...initialValues,
     asset_mac_addresses: def.fields.macAddresses !== 'hidden' ? (normalizedMacs ?? []) : undefined,
     asset_category: def.value,
   };
 
-  const methods = useForm<EndpointInput>({
+  const methods = useForm<AssetFormValues>({
     mode: 'onTouched',
-    resolver: zodResolver(buildSchema(def, t)) as Resolver<EndpointInput>,
+    resolver: zodResolver(buildSchema(def, t)) as Resolver<AssetFormValues>,
     defaultValues,
   });
 
@@ -176,11 +197,36 @@ const AssetForm: FunctionComponent<Props> = ({
 
   const watchedHostname = methods.watch('asset_hostname');
 
+  // Markings are split out of the submitted payload and reported through `onMarkingsChange`
+  // instead: they don't belong to EndpointInput and are persisted through their own endpoint (see
+  // the `AssetFormValues` comment above). Sent unconditionally while editing - the target endpoint
+  // replaces the whole set, so re-sending an unchanged list is a harmless no-op, and that keeps
+  // this simpler than diffing against the initial value.
+  //
+  // Awaited *before* onSubmit, not fired alongside it: both PUTs normalize into the same store
+  // entity (see updateAssetMarkings's doc), and firing them concurrently is a race - whichever
+  // response lands last wins the merge. The endpoint PUT's response carries a full snapshot of the
+  // asset, markings included, read from the DB at the time it runs; if it lands after the markings
+  // PUT it's fine (it already reflects the write), but if it lands first - or the two just
+  // interleave - its (pre-write) asset_markings silently reverts what the markings PUT just saved.
+  // Awaiting removes the race entirely: by the time the endpoint PUT is even sent, the marking
+  // write has already committed, so its response is guaranteed consistent whichever order the
+  // network delivers things in.
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    handleSubmit(onSubmit)(e);
+    handleSubmit(async ({ asset_markings, ...endpointData }) => {
+      if (editing) {
+        await onMarkingsChange?.(asset_markings ?? []);
+      }
+      onSubmit(endpointData);
+    })(e);
   };
+
+  // Assigning markings requires an asset id, so the field only makes sense once the asset exists -
+  // gated on `editing` the same way the field itself is only reported through `onMarkingsChange`,
+  // and on the flag the rest of the marking UI (Endpoints list, GroupManageMarkings) is gated on.
+  const showMarkings = editing && isFeatureEnabled('MARKING');
 
   // HOST platform/arch/hostname are managed by the agent: only editable for agentless hosts.
   const hostAgentManaged = def.value === 'HOST' && !agentless;
@@ -311,6 +357,9 @@ const AssetForm: FunctionComponent<Props> = ({
 
         <SelectFieldController name="asset_criticality" label={t('Criticality')} items={criticalityItems} />
         <TagFieldController name="asset_tags" label={t('Tags')} />
+        {showMarkings && (
+          <MarkingFieldController name="asset_markings" label={t('Markings')} />
+        )}
 
         {def.fields.internetFacing && (
           <SwitchFieldController name="asset_internet_facing" label={t('Internet-facing')} />

@@ -23,7 +23,10 @@ interface Props {
 // unconditionally would render `TLP:TLP:RED`, so the type is only prepended when the definition
 // does not already carry it. Always rendered uppercase (e.g. `TLP:GREEN`), regardless of how the
 // type/definition were cased when the marking was created.
-const markingLabel = (marking: MarkingDefinitionOutput) => {
+// Exported so other marking displays (e.g. MarkingField's picker) render the exact same label
+// instead of re-deriving their own "type:definition" formatting.
+// eslint-disable-next-line react-refresh/only-export-components
+export const markingLabel = (marking: MarkingDefinitionOutput) => {
   const type = marking.marking_definition_type.toUpperCase();
   const definition = marking.marking_definition_definition.toUpperCase();
   return definition.startsWith(`${type}:`) ? definition : `${type}:${definition}`;

@@ -4508,6 +4508,11 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_mac_addresses?: string[];
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /** Free-form category-specific attributes */
   asset_metadata?: Record<string, any>;
   /**
