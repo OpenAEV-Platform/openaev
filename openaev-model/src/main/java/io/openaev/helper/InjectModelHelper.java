@@ -176,6 +176,7 @@ public class InjectModelHelper {
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
       @NotNull final List<String> assetGroups,
+      @NotNull final List<String> secretReferences,
       @NotNull final JsonNode jsonField,
       @NotNull final ObjectNode content,
       @NotNull final ArrayNode injectContractFields) {
@@ -195,6 +196,11 @@ public class InjectModelHelper {
       }
       case CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP -> {
         if (assetGroups.isEmpty()) {
+          isSet = false;
+        }
+      }
+      case CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE -> {
+        if (secretReferences.isEmpty()) {
           isSet = false;
         }
       }
