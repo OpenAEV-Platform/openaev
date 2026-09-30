@@ -92,14 +92,14 @@ const CredentialsPicker: FunctionComponent<Props> = ({
       // Labels are i18n keys: SortHeadersComponentV2 translates them.
       {
         field: 'credential_name',
-				label: t('Name'),
+        label: t('Name'),
         isSortable: true,
         value: (credential: CredentialOutput) => credential.credential_name ?? '',
         width: 16,
       },
       {
         field: 'credential_type',
-				label: t('Type'),
+        label: t('Type'),
         isSortable: true,
         value: (credential: CredentialOutput) => (credential.credential_type ? humanizeEnum(credential.credential_type) : '-'),
         width: 9,
@@ -112,7 +112,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
       },
       {
         field: 'credential_status',
-				label: t('Status'),
+        label: t('Status'),
         value: (credential: CredentialOutput) => (
           <CredentialStatusChip status={credential.credential_status} variant="list" />
         ),
