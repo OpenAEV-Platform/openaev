@@ -8,6 +8,7 @@ import { withStyles } from 'tss-react/mui';
 import { storeHelper } from '../actions/Schema';
 import { addTag } from '../actions/tags/tag-action';
 import TagForm from '../admin/components/settings/tags/TagForm';
+import { validHexColor } from '../utils/Colors';
 import { Can } from '../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import Autocomplete from './Autocomplete';
@@ -51,7 +52,7 @@ class TagFieldComponent extends Component {
           {
             id: newTag.tag_id,
             label: newTag.tag_name,
-            color: newTag.tag_color,
+            color: validHexColor(newTag.tag_color),
           },
           values[name],
         );
@@ -78,7 +79,7 @@ class TagFieldComponent extends Component {
       n => ({
         id: n.tag_id,
         label: n.tag_name,
-        color: n.tag_color,
+        color: validHexColor(n.tag_color),
       }),
       tags,
     );

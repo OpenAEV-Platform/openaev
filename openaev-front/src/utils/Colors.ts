@@ -92,5 +92,13 @@ export const getSeverityAndColor = (score: number | string | null | undefined): 
 
 const HEX_COLOR = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
+/**
+ * The color when it is a valid hex value, else undefined. Inline styles must never get an invalid
+ * value: the browser rejects it and keeps the element's previous color, which a reused DOM node
+ * (e.g. a filtered option list) then shows for the wrong item.
+ */
+export const validHexColor = (color: string | null | undefined): string | undefined =>
+  color?.trim().match(HEX_COLOR)?.[0];
+
 export const colorOrFallback = (color: string | null | undefined, fallback: string): string =>
-  color?.trim().match(HEX_COLOR)?.[0] ?? fallback;
+  validHexColor(color) ?? fallback;

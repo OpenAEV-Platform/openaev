@@ -7,6 +7,7 @@ import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Tag } from '../../../../utils/api-types';
+import { validHexColor } from '../../../../utils/Colors';
 import { type Option } from '../../../../utils/Option';
 
 interface Props {
@@ -37,7 +38,7 @@ const TagsFilter: FunctionComponent<Props> = ({
   const tagTransform = (tag: Tag): Option => ({
     id: tag.tag_id,
     label: tag.tag_name,
-    color: tag.tag_color,
+    color: validHexColor(tag.tag_color),
   });
   const tagsOptions = tags
     .map(tagTransform)

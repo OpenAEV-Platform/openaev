@@ -6,6 +6,7 @@ import { Form } from 'react-final-form';
 import DeprecatedColorPickerField from '../../../../components/DeprecatedColorPickerField';
 import OldTextField from '../../../../components/fields/OldTextField';
 import inject18n from '../../../../components/i18n';
+import { validHexColor } from '../../../../utils/Colors';
 
 class TagFormComponent extends Component {
   validate(values) {
@@ -17,6 +18,10 @@ class TagFormComponent extends Component {
         errors[field] = t('This field is required.');
       }
     });
+    // The picker also accepts typed text: an invalid color would be stored and then rendered wrong.
+    if (values.tag_color && !validHexColor(values.tag_color)) {
+      errors.tag_color = t('Color must be a valid hex value, e.g. #4CAF50');
+    }
     return errors;
   }
 

@@ -27,6 +27,7 @@ import { type TagHelper } from '../../actions/tags/tag-helper';
 import TagForm from '../../admin/components/settings/tags/TagForm';
 import { useHelper } from '../../store';
 import { type Tag, type TagCreateInput } from '../../utils/api-types';
+import { validHexColor } from '../../utils/Colors';
 import { useAppDispatch } from '../../utils/hooks';
 import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
@@ -88,7 +89,7 @@ const TagField: FunctionComponent<Props> = ({
     n => ({
       id: n.tag_id,
       label: n.tag_name,
-      color: n.tag_color,
+      color: validHexColor(n.tag_color),
     }),
   );
   const values = () => {
