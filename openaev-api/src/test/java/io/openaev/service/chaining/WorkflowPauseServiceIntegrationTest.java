@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.StepDelayQueueRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -13,17 +15,21 @@ import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Deliberately NOT {@code @Transactional}: resume commits RUN in its own transaction ({@code
+ * REQUIRES_NEW}, see {@link WorkflowResumeService#resumeWorkflowRunIsolated}), which cannot see
+ * rows a test transaction never commits. Every call commits on its own, so each test sweeps its own
+ * rows in {@link #cleanup()}.
+ */
 @SpringBootTest
-@Transactional
 @DisplayName("Workflow pause/resume integration tests")
 class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
 
@@ -34,7 +40,24 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private StepComposer stepComposer;
-  @Autowired private EntityManager entityManager;
+  @Autowired private StepRepository stepRepository;
+  @Autowired private ExerciseRepository exerciseRepository;
+
+  @AfterEach
+  void cleanup() {
+    stepDelayQueueRepository.deleteAll(stepDelayQueueRepository.findAll());
+    workflowRepository.deleteAll(
+        workflowRepository.findAllById(
+            workflowComposer.generatedItems.stream().map(Workflow::getId).toList()));
+    stepRepository.deleteAll(
+        stepRepository.findAllById(stepComposer.generatedItems.stream().map(Step::getId).toList()));
+    exerciseRepository.deleteAll(
+        exerciseRepository.findAllById(
+            exerciseComposer.generatedItems.stream().map(Exercise::getId).toList()));
+    workflowComposer.reset();
+    stepComposer.reset();
+    exerciseComposer.reset();
+  }
 
   @Nested
   @DisplayName("US.1 Pause Scenario Chaining without timeout and rate limit")
@@ -51,8 +74,6 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
 
       // Act - pause
       workflowPauseService.pauseSimulationWorkflowRuns(run.getSimulation().getId());
-      entityManager.flush();
-      entityManager.clear();
       Workflow pausedRun = workflowRepository.findById(run.getId()).orElseThrow();
 
       // Assert pause
@@ -83,8 +104,6 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
       pausedRun.setPauseAt(Instant.now().minusSeconds(90));
       workflowRepository.save(pausedRun);
       workflowPauseService.resumeSimulationWorkflowRuns(run.getSimulation().getId());
-      entityManager.flush();
-      entityManager.clear();
 
       // Assert resume
       Workflow resumedRun = workflowRepository.findById(run.getId()).orElseThrow();
@@ -116,8 +135,6 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
       pausedRun.setPauseAt(Instant.now().minusSeconds(60));
       workflowRepository.save(pausedRun);
       workflowPauseService.resumeSimulationWorkflowRuns(run.getSimulation().getId());
-      entityManager.flush();
-      entityManager.clear();
 
       // Assert
       Workflow resumedRun = workflowRepository.findById(run.getId()).orElseThrow();
@@ -150,8 +167,6 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
       firstPaused.setPauseAt(Instant.now().minusSeconds(40));
       workflowRepository.save(firstPaused);
       workflowPauseService.resumeSimulationWorkflowRuns(simulationId);
-      entityManager.flush();
-      entityManager.clear();
       long afterFirstResume =
           workflowRepository.findById(run.getId()).orElseThrow().getPauseSecond();
 
@@ -161,8 +176,6 @@ class WorkflowPauseServiceIntegrationTest extends IntegrationTest {
       secondPaused.setPauseAt(Instant.now().minusSeconds(55));
       workflowRepository.save(secondPaused);
       workflowPauseService.resumeSimulationWorkflowRuns(simulationId);
-      entityManager.flush();
-      entityManager.clear();
 
       // Assert
       Workflow resumed = workflowRepository.findById(run.getId()).orElseThrow();

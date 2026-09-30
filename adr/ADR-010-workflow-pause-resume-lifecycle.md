@@ -73,6 +73,21 @@ We chose **Option B**.
 8. After restoring RUN status and recalculating delay goals, workflow re-evaluation is the
    mechanism that creates new READY steps from outputs accumulated during STOP.
 
+### Resume transaction boundaries
+
+Steps 1–4 are committed on their own (`WorkflowResumeService.resumeWorkflowRunIsolated`,
+`REQUIRES_NEW`, tenant scope carried by a `TxCtx`) **before** step 5 publishes anything.
+READY events go to RabbitMQ immediately, not on commit: published inside the resume transaction,
+an event consumed before RUN commits reads STOP and is dropped by the ready guard. The step then
+stays READY forever, because its batch hash was committed with it and re-evaluation skips
+already-committed hashes. Once the isolated commit is done, the caller reloads its copy of the run
+and runs steps 5–6 in the enclosing transaction (`ExerciseService.changeExerciseStatus`), so the
+"workflow ended at resume" result stays synchronous.
+
+Pause and resume only act on the **current execution** of the simulation (its latest run, by
+`workflow_created_at`) and only when it is in the expected status (RUN to pause, STOP to resume).
+Reset deletes executions (ADR-009), but a database reset before that may still hold older runs.
+
 ### Time impact rule
 
 Paused time contributes to workflow effective timing through `workflow_pause_second`, so timeout/delay calculations use active runtime + accumulated pause duration.
@@ -91,6 +106,11 @@ Paused time contributes to workflow effective timing through `workflow_pause_sec
 - STOP does not mean full immobility: in-flight RUN updates still happen, but they do not create new READY work until resume.
 - Resume needs recalculation logic for existing delay goals.
 - Defensive updates may be needed for existing delay rows.
+- Resume is split across two commits: if the enclosing transaction fails after the isolated one,
+  the run is RUN while the simulation is still PAUSED.
+- READY steps created by the resume re-evaluation are still published before the enclosing
+  commit, like on the regular update path (update → re-evaluation). This publish-before-commit
+  pattern is engine-wide and is not addressed here.
 
 ### Neutral
 

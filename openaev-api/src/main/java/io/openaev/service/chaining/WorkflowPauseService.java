@@ -1,11 +1,12 @@
 package io.openaev.service.chaining;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
 import io.openaev.rest.exception.ChainingException;
-import java.time.Duration;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -18,8 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class WorkflowPauseService {
 
   private final WorkflowService workflowService;
+  private final WorkflowResumeService workflowResumeService;
   private final StepDelayQueueService stepDelayQueueService;
   private final StepService stepService;
+  private final EntityManager entityManager;
 
   @Transactional(rollbackFor = Exception.class)
   public void pauseSimulationWorkflowRuns(String simulationId) {
@@ -48,16 +51,18 @@ public class WorkflowPauseService {
       return false;
     }
     Workflow pausedRun = currentRun.get();
-    Instant resumeAt = Instant.now();
-    Instant pausedAt = pausedRun.getPauseAt();
-    if (pausedAt != null) {
-      long pauseDeltaSeconds = Math.max(0L, Duration.between(pausedAt, resumeAt).getSeconds());
-      pausedRun.setPauseSecond(pausedRun.getPauseSecond() + pauseDeltaSeconds);
+    // RUN is committed on its own before any READY event is published (see
+    // WorkflowResumeService): published first, an event read against the still-STOP status would
+    // be dropped for good.
+    if (!workflowResumeService.resumeWorkflowRunIsolated(
+        TxCtx.forTenant(pausedRun.getSimulation().getTenant().getId()),
+        pausedRun.getId(),
+        Instant.now())) {
+      return false;
     }
-    pausedRun.setPauseAt(null);
-    pausedRun.setStatus(WorkflowStatus.RUN);
-    stepDelayQueueService.recalculateGoalsOnResume(pausedRun, resumeAt, pausedAt);
-    pausedRun = workflowService.saveWorkflowRun(pausedRun);
+    // This transaction loaded the run before that commit: reload it, or evaluation below would
+    // still see it STOP and a later flush could write the stale state back.
+    entityManager.refresh(pausedRun);
     List<Step> readySteps =
         stepService.findAllStepsByWorkflowRunIdAndStatus(pausedRun.getId(), StepStatus.READY);
     stepService.enqueueReadySteps(readySteps, pausedRun);
