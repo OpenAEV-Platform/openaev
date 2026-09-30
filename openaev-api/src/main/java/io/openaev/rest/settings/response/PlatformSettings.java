@@ -82,7 +82,9 @@ public class PlatformSettings extends PublicPlatformSettings {
   private Boolean xtmOneConfigured;
 
   @JsonProperty("platform_xtm_one_url")
-  @Schema(description = "XTM One platform URL")
+  @Schema(
+      description =
+          "URL a browser opens XTM One on: the identity it publishes, else its configured URL")
   private String xtmOneUrl;
 
   @JsonProperty("filigran_chatbot_ai_cgu_status")
@@ -198,13 +200,15 @@ public class PlatformSettings extends PublicPlatformSettings {
   @JsonProperty("platform_session_timeout")
   @Schema(
       description =
-          "Rolling session timeout in milliseconds (every request extends the session by this duration). Read-only, driven by server configuration")
+          "Rolling session timeout in milliseconds (every request extends the session by this"
+              + " duration). Read-only, driven by server configuration")
   private Long platformSessionTimeout;
 
   @JsonProperty("platform_session_idle_timeout")
   @Schema(
       description =
-          "Idle timeout in milliseconds before the UI locks the screen (0 = disabled). Read-only, driven by server configuration")
+          "Idle timeout in milliseconds before the UI locks the screen (0 = disabled). Read-only,"
+              + " driven by server configuration")
   private Long platformSessionIdleTimeout;
 
   @JsonProperty("platform_session_max_concurrent")

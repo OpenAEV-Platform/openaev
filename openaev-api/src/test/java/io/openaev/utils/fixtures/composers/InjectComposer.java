@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectDocumentRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -151,6 +152,11 @@ public class InjectComposer extends ComposerBase<Inject> {
       teamComposers.forEach(TeamComposer.Composer::persist);
       exerciseComposers.forEach(ExerciseComposer.Composer::persist);
       documentComposers.forEach(DocumentComposer.Composer::persist);
+      // The listener now fails fast on an unattributed write; stamp the ambient tenant here when
+      // the caller left it unset, mirroring EndpointComposer and SecurityPlatformComposer.
+      if (inject.getTenant() == null) {
+        inject.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      }
       injectRepository.save(inject);
       injectStatusComposers.ifPresent(InjectStatusComposer.Composer::persist);
       expectationComposers.forEach(InjectExpectationComposer.Composer::persist);

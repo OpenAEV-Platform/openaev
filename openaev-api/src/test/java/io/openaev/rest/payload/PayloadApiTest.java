@@ -1187,28 +1187,39 @@ class PayloadApiTest extends IntegrationTest {
     payloadUpsertInput2.setCollector(collectorId);
     payloadUpsertInput2.setExternalId("7a1ecc3c-3201-45cb-9a93-58405c0a680d");
 
-    String upsertedPayload1 =
-        mvc.perform(
-                post(PAYLOAD_URI + "/upsert")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(payloadUpsertInput1))
-                    .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    String payloadId1 = JsonPath.read(upsertedPayload1, "$.payload_id");
+    // The upsert endpoint is not tenant-prefixed, so it carries no ambient tenant for the write
+    // (the known header-route gap for a table not yet activated, D29). Name it explicitly rather
+    // than let the write fail closed.
+    io.openaev.context.TenantContext.setCurrentTenant(
+        io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID);
+    String upsertedPayload1;
+    String upsertedPayload2;
+    try {
+      upsertedPayload1 =
+          mvc.perform(
+                  post(PAYLOAD_URI + "/upsert")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(payloadUpsertInput1))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
-    String upsertedPayload2 =
-        mvc.perform(
-                post(PAYLOAD_URI + "/upsert")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(payloadUpsertInput2))
-                    .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+      upsertedPayload2 =
+          mvc.perform(
+                  post(PAYLOAD_URI + "/upsert")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(payloadUpsertInput2))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+    } finally {
+      io.openaev.context.TenantContext.clearCurrentTenant();
+    }
+    String payloadId1 = JsonPath.read(upsertedPayload1, "$.payload_id");
     String payloadId2 = JsonPath.read(upsertedPayload2, "$.payload_id");
 
     PayloadsDeprecateInput payloadsDeprecateInput =

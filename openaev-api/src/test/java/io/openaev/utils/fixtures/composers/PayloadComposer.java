@@ -1,6 +1,7 @@
 package io.openaev.utils.fixtures.composers;
 
 import io.openaev.api.detection_remediation.dto.PayloadInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.utils.fixtures.composers.payload_composers.OutputParserComposer;
@@ -58,6 +59,11 @@ public class PayloadComposer extends ComposerBase<Payload> {
       detectionRemediationComposers.forEach(
           DetectionRemediationComposer.Composer::persistSecurityPlatformDependency);
       payload.setId(null);
+      // The listener now fails fast on an unattributed write; stamp the ambient tenant here when
+      // the caller left it unset, mirroring EndpointComposer and SecurityPlatformComposer.
+      if (payload.getTenant() == null) {
+        payload.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      }
       payloadRepository.save(payload);
       return this;
     }

@@ -282,6 +282,7 @@ class ChallengeDocumentsBulkLoadTest extends IntegrationTest {
             objectMapper,
             List.of(challenge.getId()));
     inject.setScenario(scenario);
+    inject.setTenant(tenant);
     injectRepository.save(inject);
   }
 

@@ -1,126 +1,140 @@
 name: "[Core] Deploy Feature Branch"
 
-# Handles the /deploy command on PRs. Posts an in-progress comment, then
-# dispatches the unprivileged build workflow (deploy-feature-branch-build.yml).
-# Once that build succeeds, downstream automation promotes and deploys the image.
+# Entry point for feature branch deployments. Progress is reported through the
+# GitHub Deployments API (environment `feature-pr-<number>`), which renders on
+# the PR timeline and in the branch deployment panel — no PR comments.
+#
+# Triggers:
+#   - `/deploy` comment by a maintainer: opts the PR in and deploys its head.
+#   - New commits (synchronize) on an opted-in, same-repo PR: redeploys.
+#     A PR is opted in once a deployment exists for its environment.
+#     Fork PRs are never auto-redeployed; a maintainer must `/deploy` again.
+#   - PR closed: marks the environment's deployments inactive.
+#
+# A newer request for the same PR cancels the older dispatch here, and the
+# build workflow's own concurrency group cancels the older build.
 #
 # SECURITY: This workflow NEVER checks out PR code. It only does API calls.
+# pull_request_target is used so same-repo and fork PRs get a write token;
+# it runs the workflow from the base branch.
 
 on:
   issue_comment:
     types: [created]
-
-concurrency:
-  group: feature-deploy-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  pull_request_target:
+    types: [synchronize, closed]
 
 permissions:
   contents: read
   actions: write # needed to dispatch the build workflow
-  pull-requests: write # needed to create and minimize PR comments
+  deployments: write # needed to create deployments and statuses
 
 jobs:
   dispatch-build:
     name: "🚀 Dispatch feature build"
     if: >-
-      github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '/deploy') &&
       (
-        github.event.comment.author_association == 'OWNER' ||
-        github.event.comment.author_association == 'MEMBER' ||
-        github.event.comment.author_association == 'COLLABORATOR'
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        (github.event.comment.body == '/deploy' || startsWith(github.event.comment.body, '/deploy ')) &&
+        (
+          github.event.comment.author_association == 'OWNER' ||
+          github.event.comment.author_association == 'MEMBER' ||
+          github.event.comment.author_association == 'COLLABORATOR'
+        )
+      ) || (
+        github.event_name == 'pull_request_target' &&
+        github.event.action == 'synchronize' &&
+        github.event.pull_request.head.repo.full_name == github.repository
       )
+    concurrency:
+      group: feature-deploy-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
-      - name: Minimize previous deploy comments
+      - name: Create deployment and dispatch build
         uses: actions/github-script@v9
         with:
           script: |
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              per_page: 100
-            });
-            const markers = [
-              '🚀 Feature branch deploy',
-              '✅ Feature branch build',
-              '❌ Feature branch build',
-              '⏳ Feature branch deployment',
-              '### ✅ Feature branch deployed',
-              '### ❌ Feature branch deploy',
-              '### 🧪 Feature branch deploy'
-            ];
-            const deployComments = comments.filter(c =>
-              markers.some(m => c.body.startsWith(m))
-            );
-            for (const c of deployComments) {
-              try {
-                await github.graphql(`
-                  mutation($id: ID!) {
-                    minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
-                      minimizedComment { isMinimized }
-                    }
-                  }
-                `, { id: c.node_id });
-              } catch (e) {
-                core.warning(`Could not minimize comment ${c.id}: ${e.message}`);
+            const { owner, repo } = context.repo;
+            const prNumber = context.issue.number;
+            const environment = `feature-pr-${prNumber}`;
+
+            if (context.eventName === 'pull_request_target') {
+              // Auto-redeploy only PRs that were opted in with /deploy
+              const { data: existing } = await github.rest.repos.listDeployments({
+                owner, repo, environment, per_page: 1
+              });
+              if (existing.length === 0) {
+                core.info(`${environment} was never deployed, skipping auto-redeploy.`);
+                return;
               }
             }
 
-      - name: Post in-progress comment
-        id: comment
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const { data } = await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: '🚀 Feature branch deploy is in progress — build will start shortly.'
+            const { data: pr } = await github.rest.pulls.get({
+              owner, repo, pull_number: prNumber
             });
-            core.setOutput('comment_id', data.id);
 
-      - name: Get PR details
-        id: pr
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              owner, repo,
+              ref: pr.head.sha,
+              environment,
+              description: `Feature branch ${pr.head.ref}`,
+              transient_environment: true,
+              production_environment: false,
+              auto_merge: false,
+              required_contexts: [],
+              payload: { pr_number: prNumber, head_ref: pr.head.ref }
             });
-            core.setOutput('head_ref', pr.data.head.ref);
-            core.setOutput('head_sha', pr.data.head.sha);
 
-      - name: Dispatch unprivileged build
-        uses: actions/github-script@v9
-        env:
-          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
-          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
-          COMMENT_ID: ${{ steps.comment.outputs.comment_id }}
-        with:
-          script: |
             const { data: run } = await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner, repo,
               workflow_id: 'deploy-feature-branch-build.yml',
               ref: 'main',
               headers: {
                 'X-GitHub-Api-Version': '2026-03-10'
               },
               inputs: {
-                pr_number: String(context.issue.number),
-                head_ref: process.env.HEAD_REF,
-                head_sha: process.env.HEAD_SHA,
-                comment_id: process.env.COMMENT_ID
+                pr_number: String(prNumber),
+                head_ref: pr.head.ref,
+                head_sha: pr.head.sha,
+                deployment_id: String(deployment.id)
               }
             });
 
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: parseInt(process.env.COMMENT_ID, 10),
-              body: `🚀 Feature branch deploy is in progress — [view build workflow](${run.html_url}).`
+            // The done workflow matches the build run against this log_url
+            await github.rest.repos.createDeploymentStatus({
+              owner, repo,
+              deployment_id: deployment.id,
+              state: 'in_progress',
+              log_url: run.html_url,
+              description: 'Building image',
+              auto_inactive: false
             });
+
+  deactivate:
+    name: "🧹 Deactivate feature deployments"
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
+    concurrency:
+      group: feature-deploy-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark deployments inactive
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner, repo,
+              environment: `feature-pr-${context.issue.number}`,
+              per_page: 100
+            });
+            for (const d of deployments) {
+              await github.rest.repos.createDeploymentStatus({
+                owner, repo,
+                deployment_id: d.id,
+                state: 'inactive',
+                description: 'PR closed'
+              });
+            }
