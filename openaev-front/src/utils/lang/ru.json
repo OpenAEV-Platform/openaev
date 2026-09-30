@@ -1942,6 +1942,7 @@
   "healthcheck.description.ASSET_GROUPS.MANDATORY_CONTENT": "Группа активов",
   "healthcheck.description.ASSETS.MANDATORY_CONTENT": "Актив",
   "healthcheck.description.BODY.MANDATORY_CONTENT": "Тело",
+  "healthcheck.description.CREDENTIAL_REFERENCE.MANDATORY_CONTENT": "Удостоверение",
   "healthcheck.description.IMAP.SERVICE_UNAVAILABLE": "отсутствуют службы IMAP, проверьте конфигурацию или учетные данные",
   "healthcheck.description.INJECT.NOT_READY": "Инжекты находятся в статусе отсутствующего содержимого, пожалуйста, обновите их",
   "healthcheck.description.INJECTOR_CONTRACT.MANDATORY_CONTENT": "Действие",

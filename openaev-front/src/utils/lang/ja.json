@@ -1942,6 +1942,7 @@
   "healthcheck.description.ASSET_GROUPS.MANDATORY_CONTENT": "アセットグループ",
   "healthcheck.description.ASSETS.MANDATORY_CONTENT": "アセット",
   "healthcheck.description.BODY.MANDATORY_CONTENT": "本文",
+  "healthcheck.description.CREDENTIAL_REFERENCE.MANDATORY_CONTENT": "資格",
   "healthcheck.description.IMAP.SERVICE_UNAVAILABLE": "IMAP サービスが不足しています。",
   "healthcheck.description.INJECT.NOT_READY": "インジェクトのコンテンツがありません。",
   "healthcheck.description.INJECTOR_CONTRACT.MANDATORY_CONTENT": "アクション",

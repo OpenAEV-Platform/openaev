@@ -1942,6 +1942,7 @@
   "healthcheck.description.ASSET_GROUPS.MANDATORY_CONTENT": "Gruppo di attività",
   "healthcheck.description.ASSETS.MANDATORY_CONTENT": "Risorsa",
   "healthcheck.description.BODY.MANDATORY_CONTENT": "Corpo",
+  "healthcheck.description.CREDENTIAL_REFERENCE.MANDATORY_CONTENT": "Credenziale",
   "healthcheck.description.IMAP.SERVICE_UNAVAILABLE": "servizi IMAP mancanti, controllare la configurazione o le credenziali",
   "healthcheck.description.INJECT.NOT_READY": "Gli oggetti sono in stato di contenuto mancante, si prega di aggiornarli",
   "healthcheck.description.INJECTOR_CONTRACT.MANDATORY_CONTENT": "Azione",
