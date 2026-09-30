@@ -1003,6 +1003,72 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackObservationOutput {
+  /** Asset id */
+  asset_id?: string;
+  /** Asset name */
+  asset_name?: string;
+  /** Attack pattern external id */
+  attack_pattern_external_id?: string;
+  /** Attack pattern name */
+  attack_pattern_name?: string;
+  /**
+   * Successful attempts
+   * @format int64
+   */
+  attempts_success?: number;
+  /**
+   * Total attempts
+   * @format int64
+   */
+  attempts_total?: number;
+  /**
+   * Coverage ratio
+   * @format double
+   */
+  coverage_ratio?: number;
+  /** Endpoint hostname */
+  endpoint_hostname?: string;
+  /** Endpoint platform */
+  endpoint_platform?: string;
+  /** Expectation status */
+  expectation_status?: string;
+  /** Expectation type */
+  expectation_type?: string;
+  /** Observation id */
+  id?: string;
+  /** Id of the last simulation that produced this observation */
+  last_simulation_id?: string;
+  /** Name of the last simulation that produced this observation */
+  last_simulation_name?: string;
+  /**
+   * Last verification timestamp
+   * @format date-time
+   */
+  last_verified_at?: string;
+  /**
+   * Security platforms that reported on this technique
+   * @uniqueItems true
+   */
+  platforms_reporting?: string[];
+  /**
+   * Security platforms that succeeded
+   * @uniqueItems true
+   */
+  platforms_succeeded?: string[];
+  /** Scenario id */
+  scenario_id?: string;
+  /** Scenario name */
+  scenario_name?: string;
+  /** Tenant name */
+  tenant_name?: string;
+  /**
+   * Last update timestamp
+   * @format date-time
+   */
+  updated_at?: string;
+}
+
 export interface AttackPathAlertDTO {
   date?: string;
   id?: string;
@@ -11913,6 +11979,82 @@ export interface SimulationsResultsLatest {
   >;
 }
 
+export interface SnapshotSearchInput {
+  /** Opaque resume cursor from a previous page */
+  cursor?: string | null;
+  /**
+   * Page size, default 500, capped at 1000
+   * @format int32
+   */
+  page_size?: number | null;
+  /**
+   * Safety lag in seconds, default 120, clamped to [max(60, grace), 3600]
+   * @format int32
+   */
+  safety_lag_seconds?: number | null;
+  /**
+   * Full reconciliation lower bound; mutually exclusive with cursor
+   * @format date-time
+   */
+  since?: string | null;
+}
+
+export interface SnapshotSearchOutputAttackObservationOutput {
+  /** Always "eventual" */
+  consistency_mode?: string;
+  /** Whether another page is expected to follow */
+  has_more?: boolean;
+  /**
+   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
+   * @format date-time
+   */
+  indexed_through?: string;
+  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
+  next_cursor?: string | null;
+  /** Page of observations */
+  observations?: AttackObservationOutput[];
+  /**
+   * Server time at which this response was computed
+   * @format date-time
+   */
+  server_time?: string;
+  /** Whether the window is current with the indexing horizon */
+  snapshot_ready?: boolean;
+  /**
+   * Inclusive upper bound of this page's window
+   * @format date-time
+   */
+  snapshot_window_end?: string;
+}
+
+export interface SnapshotSearchOutputVulnerabilityObservationOutput {
+  /** Always "eventual" */
+  consistency_mode?: string;
+  /** Whether another page is expected to follow */
+  has_more?: boolean;
+  /**
+   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
+   * @format date-time
+   */
+  indexed_through?: string;
+  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
+  next_cursor?: string | null;
+  /** Page of observations */
+  observations?: VulnerabilityObservationOutput[];
+  /**
+   * Server time at which this response was computed
+   * @format date-time
+   */
+  server_time?: string;
+  /** Whether the window is current with the indexing horizon */
+  snapshot_ready?: boolean;
+  /**
+   * Inclusive upper bound of this page's window
+   * @format date-time
+   */
+  snapshot_window_end?: string;
+}
+
 export interface SortField {
   direction?: string | null;
   nullHandling?: "NATIVE" | "NULLS_FIRST" | "NULLS_LAST";
@@ -13388,6 +13530,47 @@ export interface VulnerabilityCreateInput {
    * @example "ANALYZED"
    */
   vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+}
+
+export interface VulnerabilityObservationOutput {
+  /** Asset id */
+  asset_id?: string;
+  /** Asset name */
+  asset_name?: string;
+  /** Endpoint hostname */
+  endpoint_hostname?: string;
+  /** Endpoint platform */
+  endpoint_platform?: string;
+  /** Finding type */
+  finding_type?: string;
+  /** Finding value */
+  finding_value?: string;
+  /** Observation id */
+  id?: string;
+  /** Id of the finding that defines the current state of this grain */
+  last_finding_id?: string;
+  /** Id of the last scenario that produced this observation */
+  last_scenario_id?: string;
+  /** Name of the last scenario that produced this observation */
+  last_scenario_name?: string;
+  /** Id of the last simulation that produced this observation */
+  last_simulation_id?: string;
+  /** Name of the last simulation that produced this observation */
+  last_simulation_name?: string;
+  /**
+   * Last verification timestamp
+   * @format date-time
+   */
+  last_verified_at?: string;
+  /** Tenant name */
+  tenant_name?: string;
+  /**
+   * Last update timestamp
+   * @format date-time
+   */
+  updated_at?: string;
+  /** Vulnerability external id */
+  vulnerability_external_id?: string;
 }
 
 /** Full vulnerability output including references and CWEs */
