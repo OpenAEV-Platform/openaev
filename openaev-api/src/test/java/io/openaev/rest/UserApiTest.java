@@ -185,26 +185,65 @@ class UserApiTest extends IntegrationTest {
 
         assertNotNull(sessions().findById(initialId));
       }
+    }
 
-      // Spring Session resolves the session from its store through the cookie and ignores a
-      // MockHttpSession, so the pre-login session must be persisted and sent as a cookie.
-      private String createPreLoginSession() {
-        Session session = sessions().createSession();
-        sessions().save(session);
-        return session.getId();
-      }
+    @Nested
+    @DisplayName("Session revocation")
+    class SessionRevocation {
+      @DisplayName("Logout deletes the logged-in session and clears its cookie")
+      @Test
+      @WithMockUser
+      void given_logged_in_session_when_logout_should_revoke_it() throws Exception {
+        Cookie loggedInCookie =
+            mvc.perform(
+                    post("/api/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(UserFixture.getLoginUserInput()))
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getCookie(SESSION_COOKIE_NAME);
+        assertNotNull(loggedInCookie);
+        String sessionId = sessionId(loggedInCookie);
+        assertNotNull(sessions().findById(sessionId));
 
-      private Cookie sessionCookie(String sessionId) {
-        // DefaultCookieSerializer base64-encodes the session id in the cookie value.
-        return new Cookie(
-            SESSION_COOKIE_NAME,
-            Base64.getEncoder().encodeToString(sessionId.getBytes(StandardCharsets.UTF_8)));
-      }
+        Cookie clearedCookie =
+            mvc.perform(post("/logout").cookie(loggedInCookie).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andReturn()
+                .getResponse()
+                .getCookie(SESSION_COOKIE_NAME);
 
-      @SuppressWarnings("unchecked")
-      private SessionRepository<Session> sessions() {
-        return (SessionRepository<Session>) sessionRepository;
+        assertNull(sessions().findById(sessionId));
+        assertNotNull(clearedCookie);
+        assertEquals(0, clearedCookie.getMaxAge());
       }
+    }
+
+    // Spring Session resolves the session from its store through the cookie and ignores a
+    // MockHttpSession, so the pre-login session must be persisted and sent as a cookie.
+    private String createPreLoginSession() {
+      Session session = sessions().createSession();
+      sessions().save(session);
+      return session.getId();
+    }
+
+    // DefaultCookieSerializer base64-encodes the session id in the cookie value.
+    private Cookie sessionCookie(String sessionId) {
+      return new Cookie(
+          SESSION_COOKIE_NAME,
+          Base64.getEncoder().encodeToString(sessionId.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private String sessionId(Cookie sessionCookie) {
+      return new String(
+          Base64.getDecoder().decode(sessionCookie.getValue()), StandardCharsets.UTF_8);
+    }
+
+    @SuppressWarnings("unchecked")
+    private SessionRepository<Session> sessions() {
+      return (SessionRepository<Session>) sessionRepository;
     }
   }
 
