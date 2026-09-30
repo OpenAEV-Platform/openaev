@@ -522,7 +522,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
             <Chip label={String(capabilityGaps.length)} severity="medium" />
           )}
     >
-      <SamplePreview active={gapsAreSample} variant="subtle">
+      <SamplePreview active={gapsAreSample} variant="subtle" atPanelEdge>
         <Stack sx={{ gap: 1 }}>
           {gapItems.map(gap => (
             <OutcomeCard
@@ -567,7 +567,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
             </Stack>
           )}
     >
-      <SamplePreview active={proofsAreSample} variant="subtle">
+      <SamplePreview active={proofsAreSample} variant="subtle" atPanelEdge>
         <Stack sx={{ gap: 1 }}>
           {proofItems.map((proof, index) => (
             <OutcomeCard
@@ -668,7 +668,7 @@ const AutonomousOutcome: FunctionComponent<AutonomousOutcomeProps> = ({ run, liv
               <Chip label={String(decisionEvents.length)} color={accent} />
             )}
       >
-        <SamplePreview active={timelineIsSample} variant="subtle">
+        <SamplePreview active={timelineIsSample} variant="subtle" atPanelEdge>
           <Box
             ref={timelineScrollRef}
             onScroll={handleTimelineScroll}
