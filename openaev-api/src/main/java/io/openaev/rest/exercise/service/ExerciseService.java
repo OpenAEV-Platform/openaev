@@ -783,10 +783,9 @@ public class ExerciseService {
     // we log the pause date to be able to recompute inject dates.
     if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
-      // Resume is deliberately NOT blocked for a chained simulation (issue #307): only pausing is
-      // unsupported by the queue-based chaining engine. A chained simulation already sitting in
-      // PAUSED (created before that block, or from a historical state) must remain resumable -
-      // the UI keeps offering its Resume button - otherwise it would be stuck forever.
+      // A chained simulation also resumes its workflow run (ADR-010): the paused duration is added
+      // to the delay goals, READY steps are re-enqueued and progress is re-evaluated so outputs
+      // recorded while paused produce their READY steps. The run may end right there.
       Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
       exercise.setCurrentPause(null);
       Pause pause = new Pause();
