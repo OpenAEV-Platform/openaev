@@ -1,10 +1,11 @@
 package io.openaev.rest;
 
+import static io.openaev.config.SpringSessionConfig.SESSION_COOKIE_NAME;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.UserFixture.EMAIL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -24,7 +25,9 @@ import io.openaev.service.MailingService;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Cookie;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.awaitility.Awaitility;
@@ -33,11 +36,12 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.session.FindByIndexNameSessionRepository;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +57,8 @@ class UserApiTest extends IntegrationTest {
   @MockitoBean private RandomUtils randomUtils;
 
   @Autowired private UserComposer userComposer;
+
+  @Autowired private FindByIndexNameSessionRepository<? extends Session> sessionRepository;
 
   @Nested
   @DisplayName("Logging in")
@@ -148,42 +154,56 @@ class UserApiTest extends IntegrationTest {
       @Test
       @WithMockUser
       void given_pre_login_session_when_login_succeeds_should_rotate_session_id() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        String fixatedId = session.getId();
+        String fixatedId = createPreLoginSession();
 
-        MvcResult result =
-            mvc.perform(
-                    post("/api/login")
-                        .session(session)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(UserFixture.getLoginUserInput()))
-                        .with(csrf()))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn();
+        mvc.perform(
+                post("/api/login")
+                    .cookie(sessionCookie(fixatedId))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(UserFixture.getLoginUserInput()))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
 
-        HttpSession loggedInSession = result.getRequest().getSession(false);
-        assertNotNull(loggedInSession);
-        assertNotEquals(fixatedId, loggedInSession.getId());
+        assertNull(sessions().findById(fixatedId));
       }
 
       @DisplayName("Failed login keeps the pre-login session id")
       @Test
       @WithMockUser
       void given_pre_login_session_when_login_fails_should_keep_session_id() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        String initialId = session.getId();
+        String initialId = createPreLoginSession();
         LoginUserInput loginUserInput =
             UserFixture.getDefault().login(EMAIL).password("wrong-password").build();
 
         mvc.perform(
                 post("/api/login")
-                    .session(session)
+                    .cookie(sessionCookie(initialId))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(asJsonString(loginUserInput))
                     .with(csrf()))
             .andExpect(status().is4xxClientError());
 
-        assertEquals(initialId, session.getId());
+        assertNotNull(sessions().findById(initialId));
+      }
+
+      // Spring Session resolves the session from its store through the cookie and ignores a
+      // MockHttpSession, so the pre-login session must be persisted and sent as a cookie.
+      private String createPreLoginSession() {
+        Session session = sessions().createSession();
+        sessions().save(session);
+        return session.getId();
+      }
+
+      private Cookie sessionCookie(String sessionId) {
+        // DefaultCookieSerializer base64-encodes the session id in the cookie value.
+        return new Cookie(
+            SESSION_COOKIE_NAME,
+            Base64.getEncoder().encodeToString(sessionId.getBytes(StandardCharsets.UTF_8)));
+      }
+
+      @SuppressWarnings("unchecked")
+      private SessionRepository<Session> sessions() {
+        return (SessionRepository<Session>) sessionRepository;
       }
     }
   }
