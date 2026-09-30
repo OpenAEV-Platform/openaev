@@ -15,8 +15,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.utils.fixtures.DocumentFixture;
@@ -43,20 +45,27 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
-    Payload command = createDefaultCommand();
-    Payload commandSaved = this.payloadRepository.save(command);
-    PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
+    // class-wide fixture names the default tenant explicitly rather than relying on it.
+    TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+    try {
+      Payload command = createDefaultCommand();
+      Payload commandSaved = this.payloadRepository.save(command);
+      PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
 
-    Payload dnsResolution = createDefaultDnsResolution();
-    Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
-    PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
+      Payload dnsResolution = createDefaultDnsResolution();
+      Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
+      PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
-    Document document = DocumentFixture.getDocumentJpeg();
-    Document documentSaved = this.documentRepository.save(document);
+      Document document = DocumentFixture.getDocumentJpeg();
+      Document documentSaved = this.documentRepository.save(document);
 
-    Payload executable = createDefaultExecutable(documentSaved);
-    Payload executableSaved = this.payloadRepository.save(executable);
-    PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
+      Payload executable = createDefaultExecutable(documentSaved);
+      Payload executableSaved = this.payloadRepository.save(executable);
+      PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   @AfterAll

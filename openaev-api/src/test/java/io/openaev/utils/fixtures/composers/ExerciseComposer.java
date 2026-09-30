@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -158,10 +159,17 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
 
     @Override
     public Composer persist() {
+      // The listener now fails fast on an unattributed write; stamp the ambient tenant here when
+      // the caller left it unset, mirroring EndpointComposer and SecurityPlatformComposer.
+      if (exercise.getTenant() == null) {
+        exercise.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      }
+      // Teams must be persisted (and so tenant-stamped) before the exercise: exercise.teams
+      // cascades on save, so saving the exercise first would try to insert an unattributed team.
+      this.teamComposers.forEach(TeamComposer.Composer::persist);
       exerciseRepository.save(exercise);
       this.articleComposers.forEach(ArticleComposer.Composer::persist);
       this.categoryComposers.forEach(LessonsCategoryComposer.Composer::persist);
-      this.teamComposers.forEach(TeamComposer.Composer::persist);
       this.injectComposers.forEach(InjectComposer.Composer::persist);
       this.objectiveComposers.forEach(ObjectiveComposer.Composer::persist);
       this.tagComposers.forEach(TagComposer.Composer::persist);
