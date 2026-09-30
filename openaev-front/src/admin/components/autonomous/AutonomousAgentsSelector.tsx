@@ -200,9 +200,6 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
         agent_built_in: { width: '20%' },
       };
 
-  // MUI reserves 48px on the right of a row with a secondary action, but the library Switch is 36px
-  // wide at 16px from the edge (52px): the last column ran under it. 72px keeps a 20px gap. Applied
-  // to the header and skeleton rows too so every row keeps the same column grid.
   const secondaryActionRowSx = { paddingRight: 9 };
 
   // Column definitions drive ONLY the wide-screen sortable header row and column widths; the row body
