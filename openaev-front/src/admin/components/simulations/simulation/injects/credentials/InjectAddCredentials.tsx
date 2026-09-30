@@ -76,7 +76,7 @@ const InjectAddCredentials: FunctionComponent<Props> = ({
         open={openDialog}
         onClose={handleClose}
         onSubmit={onSubmit}
-        title={t('Modify credentials in this inject')}
+        title={t('Update credentials in this inject')}
       />
     </>
   );

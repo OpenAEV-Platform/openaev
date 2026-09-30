@@ -7,11 +7,14 @@ import PaginationComponentV2 from '../../../../components/common/queryable/pagin
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
+import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import * as Constants from '../../../../constants/ActionTypes';
 import { type CredentialOutput, type FilterGroup } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
+import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
+import CredentialStatusChip from './CredentialStatusChip';
 
 interface Props {
   initialState: string[];
@@ -32,6 +35,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
   title,
 }) => {
   // Standard hooks
+  const { cnsdt } = useFormatter();
   const dispatch = useAppDispatch();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [credentialValues, setCredentialValues] = useState<CredentialOutput[]>([]);
@@ -82,23 +86,65 @@ const CredentialsPicker: FunctionComponent<Props> = ({
     },
     headers: [
       // Widths must total 100: each cell renders as `width: N%` in a flex row,
-      // so any excess pushes the last column (tags) out of the row.
+      // so any excess pushes the last column out of the row. Sized for the `lg`
+      // dialog (~1060px of cells, 1% ~ 10px): Status fits its fixed 120px chip,
+      // Tags one chip + "+N" counter, dates the compact format.
+      // Labels are i18n keys: SortHeadersComponentV2 translates them.
       {
-        field: 'asset_name',
+        field: 'credential_name',
         label: 'Name',
         isSortable: true,
         value: (credential: CredentialOutput) => credential.credential_name ?? '',
-        width: 30,
+        width: 16,
       },
       {
-        field: 'asset_tags',
+        field: 'credential_type',
+        label: 'Type',
+        isSortable: true,
+        value: (credential: CredentialOutput) => (credential.credential_type ? humanizeEnum(credential.credential_type) : '-'),
+        width: 9,
+      },
+      {
+        field: 'credential_auth_method',
+        label: 'Auth Method',
+        value: (credential: CredentialOutput) => (credential.credential_auth_method ? humanizeEnum(credential.credential_auth_method) : '-'),
+        width: 14,
+      },
+      {
+        field: 'credential_status',
+        label: 'Status',
+        value: (credential: CredentialOutput) => (
+          <CredentialStatusChip status={credential.credential_status} variant="list" />
+        ),
+        width: 12,
+      },
+      {
+        field: 'credential_last_verified_at',
+        label: 'Last verified',
+        value: (credential: CredentialOutput) => (credential.credential_last_verified_at ? cnsdt(credential.credential_last_verified_at) : '-'),
+        width: 12,
+      },
+      {
+        field: 'credential_tags_ids',
         label: 'Tags',
         // Single chip + "+N" counter so the fixed-height cell never wraps.
-        value: (credential: CredentialOutput) => <ItemTags variant="list" limit={1} tags={credential.credential_tags_ids} />,
-        width: 20,
+        value: (credential: CredentialOutput) => <ItemTags variant="list" limit={1} tags={credential.credential_tags_ids ?? []} />,
+        width: 14,
+      },
+      {
+        field: 'credential_created_at',
+        label: 'Created',
+        value: (credential: CredentialOutput) => (credential.credential_created_at ? cnsdt(credential.credential_created_at) : '-'),
+        width: 12,
+      },
+      {
+        field: 'credential_created_by',
+        label: 'Created by',
+        value: (credential: CredentialOutput) => credential.credential_created_by?.user_name || '-',
+        width: 11,
       },
     ],
-  }), []);
+  }), [cnsdt]);
 
   // Pagination
   const [credentials, setCredentials] = useState<CredentialOutput[]>([]);
