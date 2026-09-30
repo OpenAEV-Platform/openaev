@@ -34,6 +34,9 @@ interface LimitSectionProps {
   children: ReactNode;
 }
 
+// One width for both sections, so a wider label cannot shift the field under it.
+const FIELD_WIDTH = 96;
+
 const LimitSection = ({ icon, title, tooltip, enabled, onToggle, disabled = false, children }: LimitSectionProps) => {
   const theme = useTheme();
   return (
@@ -84,10 +87,8 @@ const LimitSection = ({ icon, title, tooltip, enabled, onToggle, disabled = fals
         />
       </Box>
       <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: theme.spacing(2),
-        maxWidth: 260,
+        display: 'flex',
+        gap: theme.spacing(1),
       }}
       >
         {children}
@@ -185,10 +186,10 @@ const ScopeExecutionLimits = ({
         onToggle={handleToggleTimeout}
         disabled={readOnly || autonomous}
       >
-        <div>
+        <div style={{ width: FIELD_WIDTH }}>
           <Select value={String(hours)} onValueChange={handleHoursChange} disabled={!timeoutEnabled}>
             <SelectLabel>{t('Hours')}</SelectLabel>
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder={t('Hours')} />
             </SelectTrigger>
             <SelectContent>
@@ -198,10 +199,10 @@ const ScopeExecutionLimits = ({
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div style={{ width: FIELD_WIDTH }}>
           <Select value={String(minutes)} onValueChange={handleTimeoutMinutesChange} disabled={!timeoutEnabled}>
             <SelectLabel>{t('Minutes')}</SelectLabel>
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder={t('Minutes')} />
             </SelectTrigger>
             <SelectContent>
@@ -227,10 +228,10 @@ const ScopeExecutionLimits = ({
             onToggle={handleToggleRateLimit}
             disabled={readOnly}
           >
-            <div>
+            <div style={{ width: FIELD_WIDTH }}>
               <Select value={String(maxAttempts)} onValueChange={handleMaxAttemptsChange} disabled={!rateLimitEnabled}>
                 <SelectLabel>{t('Max Attempts')}</SelectLabel>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={t('Max Attempts')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -240,10 +241,10 @@ const ScopeExecutionLimits = ({
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div style={{ width: FIELD_WIDTH }}>
               <Select value={String(rateMinutes)} onValueChange={handleRateMinutesChange} disabled={!rateLimitEnabled}>
                 <SelectLabel>{t('Minutes')}</SelectLabel>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={t('Minutes')} />
                 </SelectTrigger>
                 <SelectContent>
