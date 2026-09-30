@@ -47,10 +47,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Unit tests for the horizon/window arithmetic of {@link SnapshotObservationService} (story 7505,
- * §3.1, §9.3, §10.4). Assertions never assume a fixed wall-clock value: relationships are checked
- * against the {@code server_time} the service itself returns in the response, so the test never
- * races {@link Instant#now()}.
+ * Unit tests for the horizon/window arithmetic of {@link SnapshotObservationService}. Assertions
+ * never assume a fixed wall-clock value: relationships are checked against the {@code server_time}
+ * the service itself returns in the response, so the test never races {@link Instant#now()}.
  */
 @ExtendWith(MockitoExtension.class)
 class SnapshotObservationServiceTest {
@@ -123,10 +122,28 @@ class SnapshotObservationServiceTest {
   class Validation {
 
     @Test
-    @DisplayName("since and cursor together is rejected (FR26)")
+    @DisplayName("since and cursor together is rejected")
     void given_since_and_cursor_should_reject() {
       assertThatThrownBy(() -> search(input("some-cursor", Instant.now(), null, null)))
           .isInstanceOf(BadRequestException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant")
+  class TenantScope {
+
+    @Test
+    @DisplayName("the engine query is restricted to the tenant of the path")
+    void given_tenantId_should_restrictTheEngineQueryToIt() {
+      // -- ARRANGE --
+      givenDocuments(List.of());
+
+      // -- ACT --
+      search(input(null, null, null, null));
+
+      // -- ASSERT --
+      assertThat(capturedQuery().tenantId()).isEqualTo(TENANT_ID);
     }
   }
 
@@ -209,14 +226,15 @@ class SnapshotObservationServiceTest {
   class HorizonComputation {
 
     @Test
-    @DisplayName("AC6 warming index: probe finds pending rows, horizon stays at the cursor")
+    @DisplayName("warming index: probe finds pending rows, horizon stays at the cursor")
     void given_probe_true_should_use_cursor_as_horizon() {
       // -- ARRANGE --
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
       Instant cursor = Instant.now().minusSeconds(300);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(cursor)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any(), any()))
+          .thenReturn(true);
       givenDocuments(List.of());
 
       // -- ACT --
@@ -227,14 +245,14 @@ class SnapshotObservationServiceTest {
     }
 
     @Test
-    @DisplayName("AC6 steady state: probe finds nothing pending, horizon falls back to now - grace")
+    @DisplayName("steady state: probe finds nothing pending, horizon falls back to now - grace")
     void given_probe_false_should_use_fallback_as_horizon() {
       // -- ARRANGE --
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
       Instant cursor = Instant.now().minusSeconds(300);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(cursor)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any(), any()))
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any(), any()))
           .thenReturn(false);
       givenDocuments(List.of());
 
@@ -246,12 +264,13 @@ class SnapshotObservationServiceTest {
     }
 
     @Test
-    @DisplayName("AC9: no indexing_status row falls back to EPOCH, snapshot is not ready")
+    @DisplayName("no indexing_status row falls back to EPOCH, snapshot is not ready")
     void given_no_indexing_status_row_should_use_epoch() {
       // -- ARRANGE: no row ever indexed, so the probe finds pending data from EPOCH --
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
       when(indexingStatusRepository.findByType(any())).thenReturn(Optional.empty());
-      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any(), any()))
+          .thenReturn(true);
       givenDocuments(List.of());
 
       // -- ACT --
@@ -269,7 +288,8 @@ class SnapshotObservationServiceTest {
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(EsIndexingUtils.REINDEX_REQUESTED_CURSOR)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any(), any()))
+          .thenReturn(true);
       givenDocuments(List.of());
 
       // -- ACT --
@@ -281,7 +301,7 @@ class SnapshotObservationServiceTest {
     }
 
     @Test
-    @DisplayName("§3.1 skip: cursor within safety_lag of now skips the probe entirely")
+    @DisplayName("a cursor within safety_lag of now skips the probe entirely")
     void given_cursor_within_safety_lag_should_skip_probe() {
       // -- ARRANGE --
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
@@ -294,19 +314,20 @@ class SnapshotObservationServiceTest {
       SnapshotSearchOutput<?> output = search(input(null, null, null, 60));
 
       // -- ASSERT --
-      verify(attackObservationRepository, never()).existsPendingIndexing(any(), any(), any());
+      verify(attackObservationRepository, never())
+          .existsPendingIndexing(any(), any(), any(), any());
       assertThat(output.indexedThrough()).isEqualTo(output.serverTime().minusSeconds(60));
     }
 
     @Test
-    @DisplayName("§3.1 boundary: the old 2xgrace rule would have skipped, ours must not")
+    @DisplayName("a cursor past safety_lag is probed, even within 2 x grace of now")
     void given_cursor_outside_safety_lag_but_inside_2x_grace_should_probe() {
       // -- ARRANGE: lag = 60, grace = 60, cursor = now - 90 (90 < 2*60, but 90 >= 60) --
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
       Instant cursor = Instant.now().minusSeconds(90);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(cursor)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any(), any()))
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any(), any()))
           .thenReturn(false);
       givenDocuments(List.of());
 
@@ -314,7 +335,7 @@ class SnapshotObservationServiceTest {
       search(input(null, null, null, 60));
 
       // -- ASSERT --
-      verify(attackObservationRepository).existsPendingIndexing(any(), any(), any());
+      verify(attackObservationRepository).existsPendingIndexing(any(), any(), any(), any());
     }
   }
 
@@ -330,7 +351,8 @@ class SnapshotObservationServiceTest {
       Instant farBehind = Instant.now().minusSeconds(600);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(farBehind)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any(), any()))
+          .thenReturn(true);
       givenDocuments(List.of());
 
       // -- ACT --
@@ -350,7 +372,8 @@ class SnapshotObservationServiceTest {
       Instant cursor = millisecond.plus(100, ChronoUnit.MICROS);
       when(indexingStatusRepository.findByType(any()))
           .thenReturn(Optional.of(indexingStatus(cursor)));
-      when(attackObservationRepository.existsPendingIndexing(any(), any(), any())).thenReturn(true);
+      when(attackObservationRepository.existsPendingIndexing(any(), any(), any(), any()))
+          .thenReturn(true);
       givenDocuments(List.of());
 
       // -- ACT --
@@ -378,11 +401,11 @@ class SnapshotObservationServiceTest {
 
       // -- ASSERT: rows tied on the cursor with a greater id are still pending --
       verify(attackObservationRepository)
-          .existsPendingIndexing(cursor, "abc", output.serverTime().minusSeconds(60));
+          .existsPendingIndexing(TENANT_ID, cursor, "abc", output.serverTime().minusSeconds(60));
     }
 
     @Test
-    @DisplayName("safety_lag == grace makes readiness a stable comparison (§3.8)")
+    @DisplayName("safety_lag == grace makes readiness a stable comparison")
     void given_safetyLag_equals_grace_should_be_ready() {
       // -- ARRANGE --
       when(engineConfig.getIndexingGraceWindowSeconds()).thenReturn(60L);
@@ -467,7 +490,11 @@ class SnapshotObservationServiceTest {
       String incoming =
           cursorCodec.encode(
               new SnapshotCursorCodec.SnapshotCursor(
-                  1, TENANT_ID, Instant.now().minusSeconds(600), "a"));
+                  1,
+                  TENANT_ID,
+                  "snapshot-attack-observation",
+                  Instant.now().minusSeconds(600),
+                  "a"));
       givenDocuments(List.of());
 
       // -- ACT --

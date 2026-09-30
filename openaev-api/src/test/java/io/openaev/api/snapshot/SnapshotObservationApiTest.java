@@ -66,9 +66,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Integration tests for {@link SnapshotObservationApi} (story 7505, §10.5): capability-based
- * authorization (no {@code resourceId}, no {@code skipRBAC}), cursor validation, and the FR29
- * response contract. The {@code BULK_SNAPSHOT_EXPORT} flag is on for the whole class; see {@link
+ * Integration tests for {@link SnapshotObservationApi}: capability-based authorization (no {@code
+ * resourceId}, no {@code skipRBAC}), cursor validation, and the response contract. The {@code
+ * BULK_SNAPSHOT_EXPORT} flag is on for the whole class; see {@link
  * SnapshotObservationFeatureFlagApiTest} for the flag-off case.
  */
 @TestInstance(PER_CLASS)
@@ -120,15 +120,12 @@ class SnapshotObservationApiTest extends IntegrationTest {
         .encodeToString(json.getBytes(StandardCharsets.UTF_8));
   }
 
-  /**
-   * Runs a full indexing round and waits for the engine's async refresh, as in Story 1.6's tests.
-   */
-  private void indexAndWait() throws InterruptedException {
+  /** Runs a full indexing round: the snapshot bulks wait for their refresh before returning. */
+  private void indexAll() {
     entityManager.flush();
     entityManager.clear();
     indexingStatusRepository.deleteAll();
     engineService.bulkProcessing(engineContext.getModels().stream());
-    Thread.sleep(1_000);
   }
 
   private AttackPattern newAttackPattern() {
@@ -145,6 +142,11 @@ class SnapshotObservationApiTest extends IntegrationTest {
    * pushed outside the default safety lag so the grain is inside every served window.
    */
   private EndpointComposer.Composer persistAttackGrainOutsideSafetyLag() {
+    return persistAttackGrainUpdatedAt(Instant.now().minus(2, ChronoUnit.HOURS));
+  }
+
+  /** One verified attack grain of the default tenant, every watermark column set to {@code ts}. */
+  private EndpointComposer.Composer persistAttackGrainUpdatedAt(Instant ts) {
     EndpointComposer.Composer endpointWrapper =
         endpointComposer.forEndpoint(EndpointFixture.createEndpoint("ep-" + UUID.randomUUID()));
     endpointWrapper.persist();
@@ -173,15 +175,14 @@ class SnapshotObservationApiTest extends IntegrationTest {
     exerciseComposer.forExercise(exercise).withInject(injectWrapper).persist();
     entityManager.flush();
 
-    Instant past = Instant.now().minus(2, ChronoUnit.HOURS);
     setTimestamp(
         "injects_expectations",
         "inject_expectation_updated_at",
         "inject_expectation_id",
         expectationWrapper.get().getId(),
-        past);
-    setTimestamp("injects", "inject_updated_at", "inject_id", injectWrapper.get().getId(), past);
-    setTimestamp("exercises", "exercise_updated_at", "exercise_id", exercise.getId(), past);
+        ts);
+    setTimestamp("injects", "inject_updated_at", "inject_id", injectWrapper.get().getId(), ts);
+    setTimestamp("exercises", "exercise_updated_at", "exercise_id", exercise.getId(), ts);
     return endpointWrapper;
   }
 
@@ -236,7 +237,7 @@ class SnapshotObservationApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      // -- ASSERT: FR29 contract fields --
+      // -- ASSERT: response contract fields --
       assertThat((List<?>) JsonPath.read(response, "$.observations")).isEmpty();
       assertThat((Boolean) JsonPath.read(response, "$.has_more")).isFalse();
       assertThat((String) JsonPath.read(response, "$.consistency_mode")).isEqualTo("eventual");
@@ -266,26 +267,36 @@ class SnapshotObservationApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
-    @DisplayName("given_tenantTheCallerIsNotAMemberOf_should_return403")
-    void given_tenantTheCallerIsNotAMemberOf_should_return403() throws Exception {
+    @DisplayName("given_tenantTheCallerIsNotAMemberOf_should_return403OnAttacks")
+    void given_tenantTheCallerIsNotAMemberOf_should_return403OnAttacks() throws Exception {
+      assertForbiddenForNonMember(true);
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
+    @DisplayName("given_tenantTheCallerIsNotAMemberOf_should_return403OnVulnerabilities")
+    void given_tenantTheCallerIsNotAMemberOf_should_return403OnVulnerabilities() throws Exception {
+      assertForbiddenForNonMember(false);
+    }
+
+    /** One request per test: the mock user security context does not survive a request. */
+    private void assertForbiddenForNonMember(boolean attackStream) throws Exception {
       // -- ARRANGE: a tenant the mock user does not belong to --
       Tenant foreignTenant =
           tenantIsolationTestHelper.createTenant("snapshot-non-member-" + UUID.randomUUID());
-      SnapshotSearchInput input = new SnapshotSearchInput(null, null, null, null);
+      String uri =
+          attackStream
+              ? attackSearchUri(foreignTenant.getId())
+              : vulnerabilitySearchUri(foreignTenant.getId());
 
-      // -- ACT & ASSERT: refused on both streams, whatever the capability held elsewhere --
-      for (String uri :
-          List.of(
-              attackSearchUri(foreignTenant.getId()),
-              vulnerabilitySearchUri(foreignTenant.getId()))) {
-        mvc.perform(
-                post(uri)
-                    .with(csrf())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(input))
-                    .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isForbidden());
-      }
+      // -- ACT & ASSERT: refused, whatever the capability held elsewhere --
+      mvc.perform(
+              post(uri)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(new SnapshotSearchInput(null, null, null, null)))
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
     }
 
     @Test
@@ -338,7 +349,8 @@ class SnapshotObservationApiTest extends IntegrationTest {
           base64Of(
               "{\"v\":2,\"tenant\":\""
                   + tenant.getId()
-                  + "\",\"ts\":\"2024-01-01T00:00:00Z\",\"id\":\"doc-id\"}");
+                  + "\",\"stream\":\"snapshot-attack-observation\""
+                  + ",\"ts\":\"2024-01-01T00:00:00Z\",\"id\":\"doc-id\"}");
       SnapshotSearchInput input = new SnapshotSearchInput(cursor, null, null, null);
 
       // -- ACT & ASSERT --
@@ -361,12 +373,40 @@ class SnapshotObservationApiTest extends IntegrationTest {
               "snapshot-cursor-foreign-tenant", Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION));
       String cursor =
           base64Of(
-              "{\"v\":1,\"tenant\":\"some-other-tenant\",\"ts\":\"2024-01-01T00:00:00Z\",\"id\":\"doc-id\"}");
+              "{\"v\":1,\"tenant\":\"some-other-tenant\""
+                  + ",\"stream\":\"snapshot-attack-observation\""
+                  + ",\"ts\":\"2024-01-01T00:00:00Z\",\"id\":\"doc-id\"}");
       SnapshotSearchInput input = new SnapshotSearchInput(cursor, null, null, null);
 
       // -- ACT & ASSERT --
       mvc.perform(
               post(attackSearchUri(tenant.getId()))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
+    @DisplayName("given_attackCursorOnTheVulnerabilityStream_should_return400")
+    void given_attackCursorOnTheVulnerabilityStream_should_return400() throws Exception {
+      // -- ARRANGE --
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "snapshot-cursor-foreign-stream", Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION));
+      String cursor =
+          base64Of(
+              "{\"v\":1,\"tenant\":\""
+                  + tenant.getId()
+                  + "\",\"stream\":\"snapshot-attack-observation\""
+                  + ",\"ts\":\"2024-01-01T00:00:00Z\",\"id\":\"doc-id\"}");
+      SnapshotSearchInput input = new SnapshotSearchInput(cursor, null, null, null);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(vulnerabilitySearchUri(tenant.getId()))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input))
@@ -401,7 +441,7 @@ class SnapshotObservationApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Tenancy (AC11)")
+  @DisplayName("Tenancy")
   class Tenancy {
 
     @Test
@@ -449,7 +489,7 @@ class SnapshotObservationApiTest extends IntegrationTest {
       bumpFindingTimestamp(findingA.getId(), outsideSafetyLag);
       bumpFindingTimestamp(findingB.getId(), outsideSafetyLag);
 
-      indexAndWait();
+      indexAll();
 
       SnapshotSearchInput input = new SnapshotSearchInput(null, null, 100, null);
 
@@ -497,7 +537,7 @@ class SnapshotObservationApiTest extends IntegrationTest {
           Tenant.DEFAULT_TENANT_UUID,
           Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION, Capability.ACCESS_ASSESSMENT));
       EndpointComposer.Composer endpointWrapper = persistAttackGrainOutsideSafetyLag();
-      indexAndWait();
+      indexAll();
 
       // -- ACT & ASSERT --
       assertThat(searchAttackAssetIds(Tenant.DEFAULT_TENANT_UUID))
@@ -515,7 +555,7 @@ class SnapshotObservationApiTest extends IntegrationTest {
               "snapshot-attack-tenancy-" + UUID.randomUUID(),
               Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION, Capability.ACCESS_ASSESSMENT));
       EndpointComposer.Composer endpointWrapper = persistAttackGrainOutsideSafetyLag();
-      indexAndWait();
+      indexAll();
 
       // -- ACT & ASSERT: seeing every assessment of its own tenant never reaches another --
       assertThat(searchAttackAssetIds(requestedTenant.getId()))
@@ -524,7 +564,7 @@ class SnapshotObservationApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Existence probe (AC7)")
+  @DisplayName("Existence probe")
   class ExistenceProbe {
 
     @Test
@@ -532,15 +572,14 @@ class SnapshotObservationApiTest extends IntegrationTest {
     @DisplayName("given_onlyAgentLevelRowPending_should_stillAdvanceIndexedThrough")
     void given_onlyAgentLevelRowPending_should_stillAdvanceIndexedThrough() throws Exception {
       // -- ARRANGE: an agentless parent (indexable) plus an agent-level child on the same inject
-      // (excluded by `agent_id IS NULL`, per the AttackObservationRepository selection predicate)
-      // --
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
-              "snapshot-ac7", Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION));
+      // (excluded by `agent_id IS NULL`, per the AttackObservationRepository selection predicate),
+      // both in the default tenant, the one requested: the probe is scoped to it --
+      tenantIsolationTestHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION));
 
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(
-              EndpointFixture.createEndpoint("ep-ac7-" + UUID.randomUUID()));
+              EndpointFixture.createEndpoint("ep-agent-level-" + UUID.randomUUID()));
       endpointWrapper.persist();
       AttackPatternComposer.Composer attackPatternWrapper =
           attackPatternComposer.forAttackPattern(newAttackPattern());
@@ -585,10 +624,6 @@ class SnapshotObservationApiTest extends IntegrationTest {
       exercise.setScenario(scenario);
       exerciseComposer.forExercise(exercise).withInject(injectWrapper).persist();
 
-      // No tenant re-attribution: none of the attack probe tables is tenant-active, so the probe
-      // is global, and moving only the endpoint and the inject to another tenant would detach
-      // them from their contract attack patterns (joined on the inject tenant) and exclude the
-      // parent for the wrong reason.
       entityManager.flush();
 
       Instant now = Instant.now();
@@ -599,33 +634,82 @@ class SnapshotObservationApiTest extends IntegrationTest {
       // Inside (cursor, now - grace]: the only window a pending row could be found in.
       bumpTimestamp(childWrapper.get().getId(), now.minusSeconds(90));
 
-      IndexingStatus indexingStatus = new IndexingStatus();
-      indexingStatus.setType("snapshot-attack-observation");
-      indexingStatus.setLastIndexing(cursor);
-      indexingStatusRepository.save(indexingStatus);
-
-      entityManager.flush();
-      entityManager.clear();
-
-      SnapshotSearchInput input = new SnapshotSearchInput(null, null, null, null);
+      setAttackCursor(cursor);
 
       // -- ACT --
-      String response =
-          mvc.perform(
-                  post(attackSearchUri(tenant.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+      String response = searchAttack(Tenant.DEFAULT_TENANT_UUID);
 
       // -- ASSERT: the agent-level row must not be mistaken for genuine pending work --
       Instant indexedThrough = Instant.parse((String) JsonPath.read(response, "$.indexed_through"));
       Instant serverTime = Instant.parse((String) JsonPath.read(response, "$.server_time"));
       assertThat(indexedThrough).isEqualTo(serverTime.minusSeconds(60));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
+    @DisplayName("given_attackRowPendingInAnotherTenantOnly_should_notHoldTheHorizonBack")
+    void given_attackRowPendingInAnotherTenantOnly_should_notHoldTheHorizonBack() throws Exception {
+      // -- ARRANGE: the pending row lives in the default tenant, another one is requested --
+      Tenant requested =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "snapshot-probe-scope-" + UUID.randomUUID(),
+              Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION));
+      Instant now = Instant.now();
+      // Inside (cursor, now - grace]: the only window a pending row could be found in.
+      persistAttackGrainUpdatedAt(now.minusSeconds(90));
+      setAttackCursor(now.minus(2, ChronoUnit.HOURS));
+
+      // -- ACT --
+      String response = searchAttack(requested.getId());
+
+      // -- ASSERT: nothing of the requested tenant is pending, the horizon is the fallback --
+      Instant indexedThrough = Instant.parse((String) JsonPath.read(response, "$.indexed_through"));
+      Instant serverTime = Instant.parse((String) JsonPath.read(response, "$.server_time"));
+      assertThat(indexedThrough).isEqualTo(serverTime.minusSeconds(60));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
+    @DisplayName("given_attackRowPendingInTheRequestedTenant_should_holdTheHorizonAtTheCursor")
+    void given_attackRowPendingInTheRequestedTenant_should_holdTheHorizonAtTheCursor()
+        throws Exception {
+      // -- ARRANGE: the pending row lives in the default tenant, the one requested --
+      tenantIsolationTestHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION));
+      Instant now = Instant.now();
+      Instant cursor = now.minus(2, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
+      persistAttackGrainUpdatedAt(now.minusSeconds(90));
+      setAttackCursor(cursor);
+
+      // -- ACT --
+      String response = searchAttack(Tenant.DEFAULT_TENANT_UUID);
+
+      // -- ASSERT: the scoped probe still sees the tenant's own pending row --
+      assertThat(Instant.parse((String) JsonPath.read(response, "$.indexed_through")))
+          .isEqualTo(cursor);
+      assertThat((Boolean) JsonPath.read(response, "$.snapshot_ready")).isFalse();
+    }
+
+    private void setAttackCursor(Instant cursor) {
+      IndexingStatus indexingStatus = new IndexingStatus();
+      indexingStatus.setType("snapshot-attack-observation");
+      indexingStatus.setLastIndexing(cursor);
+      indexingStatusRepository.save(indexingStatus);
+      entityManager.flush();
+      entityManager.clear();
+    }
+
+    private String searchAttack(String tenantId) throws Exception {
+      return mvc.perform(
+              post(attackSearchUri(tenantId))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(new SnapshotSearchInput(null, null, null, null)))
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
     }
 
     private void bumpTimestamp(String expectationId, Instant ts) {

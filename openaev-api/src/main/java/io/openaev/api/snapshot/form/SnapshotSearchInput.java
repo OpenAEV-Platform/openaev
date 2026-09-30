@@ -7,7 +7,7 @@ import java.time.Instant;
 
 /**
  * Request body of both bulk snapshot search endpoints. {@code since} and {@code cursor} are
- * mutually exclusive (validated in the service, see FR26).
+ * mutually exclusive, validated in the service.
  *
  * <p>{@code pageSize} and {@code safetyLagSeconds} deliberately carry no Bean Validation bound: the
  * service clamps them instead, so a mis-tuned unattended poller degrades to a valid page rather

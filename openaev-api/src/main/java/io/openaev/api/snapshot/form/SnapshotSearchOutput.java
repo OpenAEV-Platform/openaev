@@ -6,7 +6,7 @@ import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.util.List;
 
-/** Response envelope of both bulk snapshot search endpoints, per FR29. */
+/** Response envelope of both bulk snapshot search endpoints. */
 public record SnapshotSearchOutput<T>(
     @Schema(description = "Page of observations") @JsonProperty("observations")
         List<T> observations,

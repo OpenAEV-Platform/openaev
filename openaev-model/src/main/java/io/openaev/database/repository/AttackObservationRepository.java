@@ -12,9 +12,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AttackObservationRepository extends JpaRepository<BaseInjectExpectation, String> {
 
-  // Mirrored by existsPendingIndexing below (Story 1.7/1.8 existence probe): keep the selection
-  // predicate (agent_id IS NULL, expectation type, scenario presence, timestamp expression)
-  // identical in both queries.
+  // Mirrored by existsPendingIndexing below: keep the selection predicate (agent_id IS NULL,
+  // expectation type, scenario presence, timestamp expression) identical in both queries.
   @Query(
       value =
           """
@@ -41,10 +40,9 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
     ),
     touched AS (
         -- Keys whose verdict-bearing evidence moved past the cursor. LIMIT sits here, after both
-        -- scope filters (FR12/FR14/FR15), so a batch cut short by LIMIT still makes forward
-        -- progress (AC6). The tiebreak (grain md5) is constant within a group: a group with any
-        -- surviving row past :fromTs already sorts after it on watermark alone - the id only
-        -- decides ties exactly on :fromTs (see story §3.2).
+        -- scope filters, so a batch cut short by LIMIT still makes forward progress. The tiebreak
+        -- (grain md5) is constant within a group: a group with any surviving row past :fromTs
+        -- already sorts after it on watermark alone - the id only decides ties exactly on :fromTs.
         SELECT
           i.tenant_id AS tenant_id,
           ie.asset_id AS asset_id,
@@ -56,10 +54,10 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         JOIN changed_expectations ce ON ce.inject_expectation_id = ie.inject_expectation_id
         JOIN injects i ON i.inject_id = ie.inject_id
         JOIN exercises e ON e.exercise_id = i.inject_exercise
-        -- One scenario per exercise: dedups the scenarios_exercises fan-out (AC7). Same max()
-        -- as InjectExpectationRepository.scen_agg, but correlated so it stays an index lookup
+        -- One scenario per exercise: dedups the scenarios_exercises fan-out. Same max() as
+        -- InjectExpectationRepository.scen_agg, but correlated so it stays an index lookup
         -- instead of aggregating the whole table on every batch. The aggregate always returns a
-        -- row, so IS NOT NULL is what makes the join behave as INNER (FR12: no scenario, no doc).
+        -- row, so IS NOT NULL is what makes the join behave as INNER: no scenario, no document.
         JOIN LATERAL (
             SELECT max(se.scenario_id) AS scenario_id
             FROM scenarios_exercises se
@@ -96,17 +94,21 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         LIMIT :limit
     ),
     latest AS (
-        -- The latest replay of the scenario still carrying a verified verdict for this key
-        -- (FR18/AC8): a running (PENDING) replay must not blank the previously verified state.
-        -- exercise_id is a required tiebreak for determinism (AC11): exercise_start_date alone is
-        -- not unique.
+        -- The latest replay of the scenario still carrying a verified verdict for this key: a
+        -- running (PENDING) replay must not blank the previously verified state. exercise_id is
+        -- a required tiebreak for determinism: exercise_start_date alone is not unique.
         SELECT
           t.tenant_id, t.asset_id, t.attack_pattern_external_id, t.inject_expectation_type, t.scenario_id,
           t.watermark,
-          lr.exercise_id, lr.exercise_name, lr.attack_pattern_id, lr.attack_pattern_name
+          lr.exercise_id, lr.exercise_name, lr.exercise_start_date, lr.exercise_status,
+          lr.attack_pattern_id, lr.attack_pattern_name
         FROM touched t
         JOIN LATERAL (
+            -- Start date and status let a client tell when a later finished replay no longer
+            -- plays this key, which keeps this older replay here. The status stays fresh:
+            -- exercise_updated_at is part of the watermark.
             SELECT i.inject_exercise AS exercise_id, e.exercise_name AS exercise_name,
+                   e.exercise_start_date AS exercise_start_date, e.exercise_status AS exercise_status,
                    ap2.attack_pattern_id AS attack_pattern_id, ap2.attack_pattern_name AS attack_pattern_name
             FROM injects_expectations ie
             JOIN injects i ON i.inject_id = ie.inject_id
@@ -126,7 +128,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
     ),
     matched AS (
         -- The parent (asset-level) expectation rows of the latest replay for the key: the
-        -- population counted for FR16/FR17 and mined for security-platform attribution.
+        -- population counted for the attempts and mined for security-platform attribution.
         SELECT
           l.tenant_id, l.asset_id, l.attack_pattern_external_id, l.inject_expectation_type, l.scenario_id,
           ie.inject_expectation_id, ie.inject_id, ie.inject_expectation_results,
@@ -142,7 +144,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
                                  AND ap3.attack_pattern_external_id = l.attack_pattern_external_id
     ),
     counters AS (
-        -- FR16/FR17: status/ratio computed with the exact score >= expectedScore predicate of
+        -- Status and ratio computed with the exact score >= expectedScore predicate of
         -- InjectExpectationHelper.computeStatus. attempts_total is never zero: `latest` already
         -- required at least one verified row to resolve the replay.
         SELECT
@@ -165,6 +167,8 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         -- for SpEL and reads a lone quote as an unterminated string literal.
         -- succeeded_ids aggregates across every attempt of the replay, so it reads as "platforms
         -- that met the expected score at least once", not "on every attempt".
+        -- The types are read from the sourcePlatform of each result (EDR, SIEM...), not from the
+        -- joins above: it is the value clients key a verdict on, and it needs no lookup.
         SELECT
           m.tenant_id, m.asset_id, m.attack_pattern_external_id, m.inject_expectation_type, m.scenario_id,
           COALESCE(array_agg(DISTINCT c.collector_security_platform::text) FILTER (WHERE c.collector_security_platform IS NOT NULL), ARRAY[]::text[])
@@ -174,7 +178,12 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
                 AND (r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[])
             || COALESCE(array_agg(DISTINCT a.asset_id::text) FILTER (
               WHERE a.asset_id IS NOT NULL
-                AND (r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_ids
+                AND (r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_ids,
+          COALESCE(array_agg(DISTINCT btrim(r.elem->>'sourcePlatform')) FILTER (
+              WHERE length(btrim(r.elem->>'sourcePlatform')) > 0), ARRAY[]::text[]) AS types,
+          COALESCE(array_agg(DISTINCT btrim(r.elem->>'sourcePlatform')) FILTER (
+              WHERE length(btrim(r.elem->>'sourcePlatform')) > 0
+                AND (r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_types
         FROM matched m
         LEFT JOIN LATERAL jsonb_array_elements(m.inject_expectation_results::jsonb) AS r(elem) ON true
         LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text AND c.tenant_id = m.tenant_id
@@ -182,8 +191,8 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         GROUP BY m.tenant_id, m.asset_id, m.attack_pattern_external_id, m.inject_expectation_type, m.scenario_id
     ),
     agent_security_platforms AS (
-        -- Security platforms contributed by agent-level children of the SAME inject/asset
-        -- (FR19), same tenant-correlated collectors join as sp_self.
+        -- Security platforms contributed by agent-level children of the SAME inject/asset, same
+        -- tenant-correlated collectors join as sp_self.
         SELECT
           m.tenant_id, m.asset_id, m.attack_pattern_external_id, m.inject_expectation_type, m.scenario_id,
           COALESCE(array_agg(DISTINCT child_c.collector_security_platform::text) FILTER (WHERE child_c.collector_security_platform IS NOT NULL), ARRAY[]::text[])
@@ -193,7 +202,12 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
                 AND (child_r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[])
             || COALESCE(array_agg(DISTINCT child_a.asset_id::text) FILTER (
               WHERE child_a.asset_id IS NOT NULL
-                AND (child_r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_ids
+                AND (child_r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_ids,
+          COALESCE(array_agg(DISTINCT btrim(child_r.elem->>'sourcePlatform')) FILTER (
+              WHERE length(btrim(child_r.elem->>'sourcePlatform')) > 0), ARRAY[]::text[]) AS types,
+          COALESCE(array_agg(DISTINCT btrim(child_r.elem->>'sourcePlatform')) FILTER (
+              WHERE length(btrim(child_r.elem->>'sourcePlatform')) > 0
+                AND (child_r.elem->>'score')::double precision >= m.inject_expectation_expected_score), ARRAY[]::text[]) AS succeeded_types
         FROM matched m
         JOIN injects_expectations child_ie
           ON child_ie.inject_id = m.inject_id
@@ -216,6 +230,9 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
       l.attack_pattern_id AS attack_pattern_id,
       COALESCE(spself.ids, ARRAY[]::text[]) || COALESCE(asp.ids, ARRAY[]::text[]) AS security_platform_ids,
       COALESCE(spself.succeeded_ids, ARRAY[]::text[]) || COALESCE(asp.succeeded_ids, ARRAY[]::text[]) AS platforms_succeeded_ids,
+      COALESCE(spself.types, ARRAY[]::text[]) || COALESCE(asp.types, ARRAY[]::text[]) AS security_platform_types,
+      COALESCE(spself.succeeded_types, ARRAY[]::text[]) || COALESCE(asp.succeeded_types, ARRAY[]::text[]) AS platforms_succeeded_types,
+      li.inject_id AS base_inject_side,
       a.asset_name AS asset_name,
       a.asset_hostname AS asset_hostname,
       a.endpoint_platform AS endpoint_platform,
@@ -224,9 +241,11 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
       l.attack_pattern_name AS attack_pattern_name,
       s.scenario_name AS scenario_name,
       l.exercise_name AS simulation_name,
+      l.exercise_start_date AS simulation_start_date,
+      l.exercise_status AS simulation_status,
       l.inject_expectation_type AS inject_expectation_type,
-      -- FR14 restricts this stream to verdicts, so PENDING and UNKNOWN are unreachable here: an
-      -- attempt whose expected score is null counts as not succeeded rather than as UNKNOWN.
+      -- This stream only holds verdicts, so PENDING and UNKNOWN are unreachable here: an attempt
+      -- whose expected score is null counts as not succeeded rather than as UNKNOWN.
       CASE WHEN c.attempts_success = c.attempts_total THEN 'SUCCESS'
            WHEN c.attempts_success = 0 THEN 'FAILED'
            ELSE 'PARTIAL' END AS status,
@@ -250,40 +269,56 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
       ON asp.tenant_id = l.tenant_id AND asp.asset_id = l.asset_id
      AND asp.attack_pattern_external_id = l.attack_pattern_external_id
      AND asp.inject_expectation_type = l.inject_expectation_type AND asp.scenario_id = l.scenario_id
+    -- The inject behind last_verified_at, with inject_id as tiebreak: a representative to link
+    -- to, since the grain can span several injects of the replay. A LATERAL rather than an
+    -- ordered array_agg, which the tenant inspector parser cannot walk.
+    LEFT JOIN LATERAL (
+        SELECT m.inject_id
+        FROM matched m
+        WHERE m.tenant_id = l.tenant_id AND m.asset_id = l.asset_id
+          AND m.attack_pattern_external_id = l.attack_pattern_external_id
+          AND m.inject_expectation_type = l.inject_expectation_type AND m.scenario_id = l.scenario_id
+          AND m.inject_expectation_score IS NOT NULL
+        ORDER BY m.inject_expectation_updated_at DESC, m.inject_id DESC
+        LIMIT 1
+    ) li ON true
     ORDER BY base_updated_at, base_id
     """,
       nativeQuery = true)
   List<RawAttackObservationIndexing> findForIndexing(
       @Param("fromTs") Instant fromTs, @Param("fromId") String fromId, @Param("limit") int limit);
 
-  // Mirrors the selection and resume predicates of the touched CTE of findForIndexing above (Story
-  // 1.7/1.8 existence probe): keep both in sync by hand, see the story plan section 3.7/8. The
-  // resume predicate must be the keyset one, fromId included: a strict > cursorTs would miss the
-  // rest of a tie group sitting exactly on the cursor and report it indexed.
-  // The candidate set goes through the same per-table sargable prefilter as changed_expectations:
-  // an OR across three joined tables cannot use their indexes, and this probe runs on most API
-  // calls of a quiet platform, where it finds nothing and would otherwise scan everything.
-  // No WHERE tenant_id: none of these tables is tenant-active, so the probe is global across
-  // tenants, like the indexing_status cursor it is compared against. That is merely conservative:
-  // another tenant pending rows can hold this tenant horizon back, never push it forward.
+  // Mirrors the selection and resume predicates of the touched CTE of findForIndexing above: keep
+  // both in sync by hand. The resume predicate must be the keyset one, fromId included: a strict
+  // > cursorTs would miss the rest of a tie group sitting exactly on the cursor and report it
+  // indexed.
+  // The candidate set goes through the same per-table sargable prefilter as changed_expectations,
+  // since an OR across three joined tables cannot use their indexes. Each branch is bounded on
+  // both sides, the GREATEST() <= :upperTs below being served by no index, and UNION ALL is
+  // enough: duplicates do not change an EXISTS, while a UNION builds the whole set first.
+  // Scoped to the request tenant, which is sound against the global cursor: every row of that
+  // tenant before the cursor is indexed, so nothing of this tenant pending in (cursor, upper]
+  // does mean this tenant is indexed through upper.
   @Query(
       value =
           """
     WITH changed_expectations AS (
         SELECT ie.inject_expectation_id
         FROM injects_expectations ie
-        WHERE ie.agent_id IS NULL AND ie.inject_expectation_updated_at >= :cursorTs
-      UNION
+        WHERE ie.agent_id IS NULL
+          AND ie.inject_expectation_updated_at >= :cursorTs
+          AND ie.inject_expectation_updated_at <= :upperTs
+      UNION ALL
         SELECT ie.inject_expectation_id
         FROM injects_expectations ie
         JOIN injects i ON i.inject_id = ie.inject_id
-        WHERE ie.agent_id IS NULL AND i.inject_updated_at >= :cursorTs
-      UNION
+        WHERE ie.agent_id IS NULL AND i.inject_updated_at >= :cursorTs AND i.inject_updated_at <= :upperTs
+      UNION ALL
         SELECT ie.inject_expectation_id
         FROM injects_expectations ie
         JOIN injects i ON i.inject_id = ie.inject_id
         JOIN exercises e ON e.exercise_id = i.inject_exercise
-        WHERE ie.agent_id IS NULL AND e.exercise_updated_at >= :cursorTs
+        WHERE ie.agent_id IS NULL AND e.exercise_updated_at >= :cursorTs AND e.exercise_updated_at <= :upperTs
     )
     SELECT EXISTS (
       SELECT 1
@@ -299,7 +334,8 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
       JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract AND icap.tenant_id = i.tenant_id
       JOIN attack_patterns ap ON ap.attack_pattern_id = icap.attack_pattern_id
       JOIN assets ta ON ta.asset_id = ie.asset_id
-      WHERE ie.agent_id IS NULL
+      WHERE i.tenant_id = :tenantId
+        AND ie.agent_id IS NULL
         AND ie.asset_id IS NOT NULL
         AND ie.inject_expectation_type IN ('PREVENTION', 'DETECTION')
         AND i.inject_exercise IS NOT NULL
@@ -320,6 +356,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
     """,
       nativeQuery = true)
   boolean existsPendingIndexing(
+      @Param("tenantId") String tenantId,
       @Param("cursorTs") Instant cursorTs,
       @Param("cursorId") String cursorId,
       @Param("upperTs") Instant upperTs);

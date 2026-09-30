@@ -37,14 +37,14 @@ import org.springframework.stereotype.Service;
 
 /**
  * Readiness, cursor and window computation, and paging delegation for the bulk snapshot export
- * endpoints (Story 1.7/1.8). One generic algorithm shared by both observation streams; only the
- * model class, indexing-status type, existence probe and output mapping differ.
+ * endpoints. One generic algorithm shared by both observation streams; only the model class,
+ * indexing-status type, existence probe and output mapping differ.
  */
 @Service
 @RequiredArgsConstructor
 public class SnapshotObservationService {
 
-  /** Default {@code safety_lag_seconds} when the client does not supply one (FR27). */
+  /** Default {@code safety_lag_seconds} when the client does not supply one. */
   private static final long DEFAULT_SAFETY_LAG_SECONDS = 120;
 
   /** Default {@code page_size} when the client does not supply one. */
@@ -103,7 +103,8 @@ public class SnapshotObservationService {
       throw new BadRequestException("since and cursor are mutually exclusive");
     }
 
-    // FR27: captured once, threaded through every helper below. No helper may call Instant.now().
+    // Captured once and threaded through every helper below, so the window, the horizon and
+    // server_time agree: no helper may call Instant.now().
     Instant now = Instant.now();
 
     long grace = engineConfig.getIndexingGraceWindowSeconds();
@@ -121,9 +122,9 @@ public class SnapshotObservationService {
             MAX_SAFETY_LAG_SECONDS);
 
     SnapshotCursor after =
-        input.cursor() == null ? null : cursorCodec.decode(input.cursor(), tenantId);
+        input.cursor() == null ? null : cursorCodec.decode(input.cursor(), tenantId, indexingType);
 
-    Instant indexedThrough = horizon(now, grace, lag, indexingType, probe);
+    Instant indexedThrough = horizon(tenantId, now, grace, lag, indexingType, probe);
     // Engine documents carry base_updated_at at millisecond resolution while the database and the
     // indexing cursor carry microseconds, so the window may only end on a millisecond the indexer
     // has entirely passed. Serving a millisecond it is still inside would let a row of that same
@@ -136,7 +137,8 @@ public class SnapshotObservationService {
 
     CursorPageQuery.Keyset keyset =
         after == null ? null : new CursorPageQuery.Keyset(after.ts(), after.id());
-    CursorPageQuery query = new CursorPageQuery(input.since(), keyset, snapshotWindowEnd, size);
+    CursorPageQuery query =
+        new CursorPageQuery(tenantId, input.since(), keyset, snapshotWindowEnd, size);
 
     List<T> docs = engineService.searchCursorPaged(grantFilter(), modelClass, query);
 
@@ -148,7 +150,11 @@ public class SnapshotObservationService {
             ? input.cursor()
             : cursorCodec.encode(
                 new SnapshotCursor(
-                    1, tenantId, docs.getLast().getBase_updated_at(), docs.getLast().getBase_id()));
+                    1,
+                    tenantId,
+                    indexingType,
+                    docs.getLast().getBase_updated_at(),
+                    docs.getLast().getBase_id()));
 
     List<O> observations = docs.stream().map(toOutput).toList();
 
@@ -165,21 +171,21 @@ public class SnapshotObservationService {
 
   /**
    * Computes {@code indexed_through}: how far this model's indexing has actually progressed,
-   * read-side, from {@code indexing_status} plus an existence probe (FR30).
+   * read-side, from {@code indexing_status} plus an existence probe.
    *
    * <p>The probe is skipped once {@code cursor >= now - lag + 1ms}: the indexer has then already
    * passed the end of the window this request will serve ({@code min(now - lag, cursor)} and {@code
    * min(now - lag, now - grace)} are both {@code now - lag}, since {@code lag >= grace}), so no
    * pending row below that bound can exist and the probe result could not change what is served.
    * The skip returns {@code fallback} (never the raw cursor): skipping means "the probe would have
-   * found nothing pending", the {@code otherwise} branch of FR30.
+   * found nothing pending".
    *
    * <p>In that branch the returned value is therefore an approximation of the real cursor, off by
    * at most {@code lag - grace} in either direction. It is a readiness signal, not a measurement:
    * what is served stays capped at {@code now - lag} regardless.
    */
   private Instant horizon(
-      Instant now, long grace, long lag, String indexingType, PendingProbe probe) {
+      String tenantId, Instant now, long grace, long lag, String indexingType, PendingProbe probe) {
     Instant fallback = now.minusSeconds(grace);
     Optional<IndexingStatus> status = indexingStatusRepository.findByType(indexingType);
     // A pending reset (no row, or the REINDEX_REQUESTED_CURSOR sentinel a migration wrote) means
@@ -194,7 +200,7 @@ public class SnapshotObservationService {
     if (!cursor.isBefore(now.minusSeconds(lag).plusMillis(1))) {
       return fallback;
     }
-    return probe.test(cursor, cursorId, fallback) ? cursor : fallback;
+    return probe.test(tenantId, cursor, cursorId, fallback) ? cursor : fallback;
   }
 
   /**
@@ -207,13 +213,13 @@ public class SnapshotObservationService {
   }
 
   /**
-   * Whether a row that the indexer has not reached yet exists after the keyset cursor {@code
-   * (cursorTs, cursorId)} and at or before {@code upperTs}: the resume predicate of the model's
-   * {@code findForIndexing}, bounded above.
+   * Whether a row of {@code tenantId} that the indexer has not reached yet exists after the keyset
+   * cursor {@code (cursorTs, cursorId)} and at or before {@code upperTs}: the resume predicate of
+   * the model's {@code findForIndexing}, bounded above.
    */
   @FunctionalInterface
   private interface PendingProbe {
-    boolean test(Instant cursorTs, String cursorId, Instant upperTs);
+    boolean test(String tenantId, Instant cursorTs, String cursorId, Instant upperTs);
   }
 
   /**

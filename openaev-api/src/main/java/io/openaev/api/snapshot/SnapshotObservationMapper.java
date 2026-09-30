@@ -18,7 +18,11 @@ public class SnapshotObservationMapper {
         es.getBase_asset_side(),
         es.getBase_scenario_side(),
         es.getBase_simulation_side(),
+        es.getAttack_observation_simulation_start_date(),
+        es.getAttack_observation_simulation_status(),
+        es.getBase_inject_side(),
         es.getBase_security_platforms_side(),
+        es.getAttack_observation_platform_types_reporting(),
         es.getAsset_name(),
         es.getAsset_hostname(),
         es.getEndpoint_platform(),
@@ -33,6 +37,7 @@ public class SnapshotObservationMapper {
         es.getAttack_observation_attempts_success(),
         es.getAttack_observation_coverage_ratio(),
         es.getAttack_observation_platforms_succeeded(),
+        es.getAttack_observation_platform_types_succeeded(),
         es.getAttack_observation_last_verified_at());
   }
 
@@ -57,8 +62,8 @@ public class SnapshotObservationMapper {
   }
 
   /**
-   * {@code base_findings_side} holds exactly one element by construction (FR5); a set has no order,
-   * so this must never be extended to more than one element without revisiting the caller.
+   * {@code base_findings_side} holds exactly one element by construction; a set has no order, so
+   * this must never be extended to more than one element without revisiting the caller.
    */
   private static String singleElement(Set<String> findings) {
     return findings == null || findings.isEmpty() ? null : findings.iterator().next();

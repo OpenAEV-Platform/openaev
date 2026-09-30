@@ -12,6 +12,7 @@ import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.DetectionInjectExpectation;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.Injector;
@@ -203,7 +204,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Scope (FR12/FR14 — ACs 4, 5)
+  // Scope
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -325,7 +326,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Forward progress (FR15 — AC6) and keyset paging
+  // Forward progress and keyset paging
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -477,7 +478,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Fan-out (AC7)
+  // Fan-out
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -515,7 +516,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Latest replay (FR18 — AC8)
+  // Latest replay
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -551,10 +552,75 @@ class AttackObservationIndexingTest extends IntegrationTest {
       assertThat(doc.getBase_simulation_side()).isEqualTo(olderExercise.getId());
       assertThat(doc.getAttack_observation_status()).isEqualTo(EXPECTATION_STATUS.SUCCESS.name());
     }
+
+    @Test
+    @DisplayName(
+        "a technique a newer finished replay no longer plays keeps the older replay, dated before it")
+    void given_techniqueDroppedByNewerFinishedReplay_should_keepOlderReplayWithItsStartDate() {
+      // ARRANGE
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      AttackPatternComposer.Composer keptTechnique =
+          attackPatternComposer.forAttackPattern(newAttackPattern());
+      AttackPatternComposer.Composer droppedTechnique =
+          attackPatternComposer.forAttackPattern(newAttackPattern());
+      Scenario scenario = persistScenario();
+      // exercise_start_date is a timestamp(0): whole seconds, so the round-trip is exact.
+      Instant olderStart = Instant.now().truncatedTo(ChronoUnit.SECONDS).minus(2, ChronoUnit.DAYS);
+      Exercise olderExercise =
+          wireExercise(
+              scenario,
+              olderStart,
+              buildDetectionInject(endpointWrapper, keptTechnique, EXPECTATION_STATUS.SUCCESS),
+              buildDetectionInject(endpointWrapper, droppedTechnique, EXPECTATION_STATUS.FAILED));
+      Instant newerStart = olderStart.plus(1, ChronoUnit.DAYS);
+      Exercise newerExercise =
+          wireExercise(
+              scenario,
+              newerStart,
+              buildDetectionInject(endpointWrapper, keptTechnique, EXPECTATION_STATUS.SUCCESS));
+      flushAndClear();
+      entityManager
+          .createNativeQuery(
+              "UPDATE exercises SET exercise_status = :status WHERE exercise_id IN (:ids)")
+          .setParameter("status", ExerciseStatus.FINISHED.name())
+          .setParameter("ids", List.of(olderExercise.getId(), newerExercise.getId()))
+          .executeUpdate();
+      flushAndClear();
+
+      // ACT
+      List<EsAttackObservation> docs =
+          attackObservationHandler.fetch(FROM, 5000).stream()
+              .filter(es -> es.getBase_asset_side().equals(endpointWrapper.get().getId()))
+              .toList();
+
+      // ASSERT
+      EsAttackObservation kept =
+          docs.stream()
+              .filter(es -> es.getBase_attack_patterns_side().contains(keptTechnique.get().getId()))
+              .findFirst()
+              .orElseThrow();
+      EsAttackObservation dropped =
+          docs.stream()
+              .filter(
+                  es -> es.getBase_attack_patterns_side().contains(droppedTechnique.get().getId()))
+              .findFirst()
+              .orElseThrow();
+      assertThat(kept.getBase_simulation_side()).isEqualTo(newerExercise.getId());
+      assertThat(kept.getAttack_observation_simulation_start_date()).isEqualTo(newerStart);
+      assertThat(kept.getAttack_observation_simulation_status())
+          .isEqualTo(ExerciseStatus.FINISHED.name());
+      // What lets a client tell it is superseded: an older replay than a finished one of the same
+      // scenario on the same asset.
+      assertThat(dropped.getBase_simulation_side()).isEqualTo(olderExercise.getId());
+      assertThat(dropped.getAttack_observation_simulation_start_date()).isEqualTo(olderStart);
+      assertThat(dropped.getAttack_observation_simulation_status())
+          .isEqualTo(ExerciseStatus.FINISHED.name());
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Counters (FR16/FR17 — AC9)
+  // Counters
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -630,8 +696,8 @@ class AttackObservationIndexingTest extends IntegrationTest {
       Scenario scenario = persistScenario();
       wireExercise(scenario, Instant.now(), verified, unverified);
       flushAndClear();
-      // A score-less sibling is out of scope entirely (FR14), so touching it moves neither the
-      // watermark nor last_verified_at.
+      // A score-less sibling is out of scope entirely, so touching it moves neither the watermark
+      // nor last_verified_at.
       Instant future = Instant.now().plus(1, ChronoUnit.HOURS);
       bumpExpectationTimestamp(unverified.get().getExpectations().get(0).getId(), future);
       flushAndClear();
@@ -648,10 +714,50 @@ class AttackObservationIndexingTest extends IntegrationTest {
       assertThat(doc.getAttack_observation_last_verified_at()).isBefore(future);
       assertThat(doc.getBase_updated_at()).isBefore(future);
     }
+
+    @Test
+    @DisplayName("base_inject_side is the inject of the latest verified attempt")
+    void given_severalAttempts_should_carryTheInjectOfTheLatestVerifiedOne() {
+      // ARRANGE
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      AttackPatternComposer.Composer attackPatternWrapper =
+          attackPatternComposer.forAttackPattern(newAttackPattern());
+      InjectComposer.Composer older =
+          buildDetectionInject(endpointWrapper, attackPatternWrapper, EXPECTATION_STATUS.SUCCESS);
+      InjectComposer.Composer latest =
+          buildDetectionInject(endpointWrapper, attackPatternWrapper, EXPECTATION_STATUS.FAILED);
+      InjectComposer.Composer unverified =
+          buildDetectionInject(endpointWrapper, attackPatternWrapper, EXPECTATION_STATUS.PENDING);
+      Scenario scenario = persistScenario();
+      wireExercise(scenario, Instant.now(), older, latest, unverified);
+      flushAndClear();
+      Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+      bumpExpectationTimestamp(
+          older.get().getExpectations().get(0).getId(), now.minus(10, ChronoUnit.MINUTES));
+      bumpExpectationTimestamp(
+          latest.get().getExpectations().get(0).getId(), now.minus(5, ChronoUnit.MINUTES));
+      // Later still, but without a verdict: it must not be the one linked to.
+      bumpExpectationTimestamp(
+          unverified.get().getExpectations().get(0).getId(), now.plus(1, ChronoUnit.HOURS));
+      flushAndClear();
+
+      // ACT
+      EsAttackObservation doc =
+          attackObservationHandler.fetch(FROM, 5000).stream()
+              .filter(es -> es.getBase_asset_side().equals(endpointWrapper.get().getId()))
+              .findFirst()
+              .orElseThrow();
+
+      // ASSERT
+      assertThat(doc.getBase_inject_side()).isEqualTo(latest.get().getId());
+      assertThat(doc.getAttack_observation_last_verified_at())
+          .isEqualTo(now.minus(5, ChronoUnit.MINUTES));
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Security platforms (FR19 — AC10)
+  // Security platforms
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -955,10 +1061,95 @@ class AttackObservationIndexingTest extends IntegrationTest {
           .contains(platformA.get().getId())
           .doesNotContain(platformB.get().getId());
     }
+
+    @Test
+    @DisplayName(
+        "platform types come from sourcePlatform, on the parent and agent-level children alike")
+    void given_sourcePlatformOnParentAndChildResults_should_aggregateTheTypes() {
+      // ARRANGE
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      endpointWrapper.persist();
+      AttackPatternComposer.Composer attackPatternWrapper =
+          attackPatternComposer.forAttackPattern(newAttackPattern());
+
+      // Parent results: an EDR that succeeds, and a result carrying no type, which is skipped.
+      BaseInjectExpectation parentExpectation =
+          InjectExpectationFixture.createExpectationWithTypeAndStatus(
+              EXPECTATION_TYPE.DETECTION, EXPECTATION_STATUS.SUCCESS);
+      parentExpectation.setResults(
+          List.of(
+              InjectExpectationResult.builder()
+                  .sourceId(UUID.randomUUID().toString())
+                  .sourceType("collector")
+                  .sourceName("EDR")
+                  .sourcePlatform("EDR")
+                  .result("detected")
+                  .score(100.0)
+                  .build(),
+              InjectExpectationResult.builder()
+                  .sourceId(UUID.randomUUID().toString())
+                  .sourceType("collector")
+                  .sourceName("untyped")
+                  .result("detected")
+                  .score(100.0)
+                  .build()));
+      InjectExpectationComposer.Composer parentWrapper =
+          injectExpectationComposer.forExpectation(parentExpectation).withEndpoint(endpointWrapper);
+
+      // Agent-level child result: a SIEM below the expected score.
+      Agent agent = AgentFixture.createDefaultAgentService();
+      agent.setAsset(endpointWrapper.get());
+      entityManager.persist(agent);
+      entityManager.flush();
+      DetectionInjectExpectation childExpectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      childExpectation.setAgent(entityManager.getReference(Agent.class, agent.getId()));
+      childExpectation.setAsset(endpointWrapper.get());
+      childExpectation.setScore(0.0);
+      childExpectation.setResults(
+          List.of(
+              InjectExpectationResult.builder()
+                  .sourceId(UUID.randomUUID().toString())
+                  .sourceType("collector")
+                  .sourceName("SIEM")
+                  .sourcePlatform("SIEM")
+                  .result("not detected")
+                  .score(0.0)
+                  .build()));
+      InjectExpectationComposer.Composer childWrapper =
+          injectExpectationComposer.forExpectation(childExpectation);
+
+      InjectorContractComposer.Composer contractWrapper =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withAttackPattern(attackPatternWrapper);
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(contractWrapper)
+              .withExpectation(parentWrapper)
+              .withExpectation(childWrapper);
+      Scenario scenario = persistScenario();
+      wireExercise(scenario, Instant.now(), injectWrapper);
+      flushAndClear();
+
+      // ACT
+      EsAttackObservation doc =
+          attackObservationHandler.fetch(FROM, 5000).stream()
+              .filter(es -> es.getBase_asset_side().equals(endpointWrapper.get().getId()))
+              .findFirst()
+              .orElseThrow();
+
+      // ASSERT
+      assertThat(doc.getAttack_observation_platform_types_reporting())
+          .containsExactlyInAnyOrder("EDR", "SIEM");
+      assertThat(doc.getAttack_observation_platform_types_succeeded()).containsExactly("EDR");
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Determinism and identity (AC11)
+  // Determinism and identity
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -1030,7 +1221,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Watermark (FR9 — AC12)
+  // Watermark
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -1145,7 +1336,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Dependencies (AC13)
+  // Dependencies
   // ---------------------------------------------------------------------------
 
   @Nested

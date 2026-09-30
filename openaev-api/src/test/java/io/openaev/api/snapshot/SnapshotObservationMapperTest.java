@@ -17,8 +17,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Regression net for the FR4/FR5 wire contract (story 7505, §15.1/§15.5): every JSON property name
- * is asserted, not just the record components, so a {@code @JsonProperty} typo fails the build.
+ * Regression net for the wire contract of both streams: every JSON property name is asserted, not
+ * just the record components, so a {@code @JsonProperty} typo fails the build.
  */
 class SnapshotObservationMapperTest {
 
@@ -41,7 +41,7 @@ class SnapshotObservationMapperTest {
   class AttackObservation {
 
     @Test
-    @DisplayName("every FR4 field is mapped and serialized under its contract name")
+    @DisplayName("every attack observation field is mapped and serialized under its contract name")
     void given_fullyPopulatedDocument_should_mapEveryField() {
       // -- ARRANGE --
       EsAttackObservation es = new EsAttackObservation();
@@ -50,6 +50,7 @@ class SnapshotObservationMapperTest {
       es.setBase_asset_side("asset-id");
       es.setBase_scenario_side("scenario-id");
       es.setBase_simulation_side("simulation-id");
+      es.setBase_inject_side("inject-id");
       es.setBase_security_platforms_side(Set.of("platform-id"));
       es.setAsset_name("my-asset");
       es.setAsset_hostname("WIN-HOST");
@@ -59,26 +60,36 @@ class SnapshotObservationMapperTest {
       es.setAttack_observation_attack_pattern_name("Process Injection");
       es.setAttack_observation_scenario_name("my-scenario");
       es.setAttack_observation_simulation_name("my-simulation");
+      es.setAttack_observation_simulation_start_date(Instant.parse("2023-12-31T00:00:00Z"));
+      es.setAttack_observation_simulation_status("FINISHED");
       es.setAttack_observation_expectation_type("PREVENTION");
       es.setAttack_observation_status("SUCCESS");
       es.setAttack_observation_attempts_total(3L);
       es.setAttack_observation_attempts_success(2L);
       es.setAttack_observation_coverage_ratio(0.66);
       es.setAttack_observation_platforms_succeeded(Set.of("platform-id"));
+      es.setAttack_observation_platform_types_reporting(Set.of("EDR"));
+      es.setAttack_observation_platform_types_succeeded(Set.of("EDR"));
       es.setAttack_observation_last_verified_at(Instant.parse("2024-01-02T00:00:00Z"));
 
       // -- ACT --
       AttackObservationOutput output = mapper.toOutput(es);
       String json = asJson(output);
 
-      // -- ASSERT: every FR4 field, under its contract name --
+      // -- ASSERT: every field, under its contract name --
       assertThat((String) JsonPath.read(json, "$.id")).isEqualTo("obs-id");
       assertThat((String) JsonPath.read(json, "$.updated_at")).isEqualTo("2024-01-01T00:00:00Z");
       assertThat((String) JsonPath.read(json, "$.asset_id")).isEqualTo("asset-id");
       assertThat((String) JsonPath.read(json, "$.scenario_id")).isEqualTo("scenario-id");
       assertThat((String) JsonPath.read(json, "$.last_simulation_id")).isEqualTo("simulation-id");
+      assertThat((String) JsonPath.read(json, "$.last_simulation_start_date"))
+          .isEqualTo("2023-12-31T00:00:00Z");
+      assertThat((String) JsonPath.read(json, "$.last_simulation_status")).isEqualTo("FINISHED");
+      assertThat((String) JsonPath.read(json, "$.last_inject_id")).isEqualTo("inject-id");
       assertThat((java.util.List<String>) JsonPath.read(json, "$.platforms_reporting"))
           .containsExactly("platform-id");
+      assertThat((java.util.List<String>) JsonPath.read(json, "$.platform_types_reporting"))
+          .containsExactly("EDR");
       assertThat((String) JsonPath.read(json, "$.asset_name")).isEqualTo("my-asset");
       assertThat((String) JsonPath.read(json, "$.endpoint_hostname")).isEqualTo("WIN-HOST");
       assertThat((String) JsonPath.read(json, "$.endpoint_platform")).isEqualTo("Windows");
@@ -95,10 +106,12 @@ class SnapshotObservationMapperTest {
       assertThat((Double) JsonPath.read(json, "$.coverage_ratio")).isEqualTo(0.66);
       assertThat((java.util.List<String>) JsonPath.read(json, "$.platforms_succeeded"))
           .containsExactly("platform-id");
+      assertThat((java.util.List<String>) JsonPath.read(json, "$.platform_types_succeeded"))
+          .containsExactly("EDR");
       assertThat((String) JsonPath.read(json, "$.last_verified_at"))
           .isEqualTo("2024-01-02T00:00:00Z");
 
-      // -- ASSERT: base_attack_patterns_side deliberately stays unexposed (§15.1) --
+      // -- ASSERT: base_attack_patterns_side deliberately stays unexposed --
       assertThat(json).doesNotContain("attack_pattern_id").doesNotContain("attack_patterns_side");
     }
   }
@@ -108,7 +121,8 @@ class SnapshotObservationMapperTest {
   class VulnerabilityObservation {
 
     @Test
-    @DisplayName("every FR5 field is mapped and serialized under its contract name")
+    @DisplayName(
+        "every vulnerability observation field is mapped and serialized under its contract name")
     void given_fullyPopulatedDocument_should_mapEveryField() {
       // -- ARRANGE --
       EsVulnerabilityObservation es = new EsVulnerabilityObservation();
@@ -133,7 +147,7 @@ class SnapshotObservationMapperTest {
       VulnerabilityObservationOutput output = mapper.toOutput(es);
       String json = asJson(output);
 
-      // -- ASSERT: every FR5 field, under its contract name --
+      // -- ASSERT: every field, under its contract name --
       assertThat((String) JsonPath.read(json, "$.id")).isEqualTo("obs-id");
       assertThat((String) JsonPath.read(json, "$.updated_at")).isEqualTo("2024-01-01T00:00:00Z");
       assertThat((String) JsonPath.read(json, "$.asset_id")).isEqualTo("asset-id");

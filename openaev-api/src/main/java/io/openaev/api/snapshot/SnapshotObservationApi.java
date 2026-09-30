@@ -29,8 +29,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Bulk differential export of observations for external GRC integrations (Story 1.7/1.8). Gated by
- * the {@link PreviewFeature#BULK_SNAPSHOT_EXPORT} preview flag and authorised solely by {@code
+ * Bulk differential export of observations for external GRC integrations. Gated by the {@link
+ * PreviewFeature#BULK_SNAPSHOT_EXPORT} preview flag and authorised solely by {@code
  * ACCESS_SNAPSHOT_OBSERVATION} — no {@code resourceId}, no {@code skipRBAC}.
  *
  * <p>The controller is only registered when the flag is on, like the indexing handlers (same {@link
@@ -67,7 +67,7 @@ public class SnapshotObservationApi extends RestBehavior {
             responseCode = "400",
             description =
                 "Invalid request: since and cursor both set, or a malformed cursor or one issued"
-                    + " for another tenant"),
+                    + " for another tenant or stream"),
         @ApiResponse(
             responseCode = "403",
             description =
@@ -90,7 +90,7 @@ public class SnapshotObservationApi extends RestBehavior {
             responseCode = "400",
             description =
                 "Invalid request: since and cursor both set, or a malformed cursor or one issued"
-                    + " for another tenant"),
+                    + " for another tenant or stream"),
         @ApiResponse(
             responseCode = "403",
             description =

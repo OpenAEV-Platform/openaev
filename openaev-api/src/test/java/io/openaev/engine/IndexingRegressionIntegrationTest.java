@@ -1248,7 +1248,7 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Keyset paging - additive slice, no behaviour change (Story 1.1/1.2)")
+  @DisplayName("Keyset paging - additive slice, no behaviour change")
   class KeysetPagingRegression {
 
     @Test
@@ -1297,7 +1297,7 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
     void given_emptyBatch_should_writeNoIndexingStatusRow() {
       // -- ARRANGE --
       // No endpoint fixture is created: @BeforeEach resets the endpoint composer, so the asset
-      // handler's fetch is empty and the loop takes the untouched "up to date" branch (plan §2).
+      // handler's fetch is empty and the loop takes the untouched "up to date" branch.
       assertThat(queryModel("asset").getTotal())
           .as("precondition: no seeded asset, otherwise the batch would not be empty")
           .isZero();

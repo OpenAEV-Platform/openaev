@@ -57,7 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Integration tests for {@link EngineService#searchCursorPaged}, exercised through the vulnerable-
- * observation snapshot stream (cheapest fixtures, per the story plan).
+ * observation snapshot stream, whose fixtures are the cheapest.
  *
  * <p>The bean only exists when the {@code BULK_SNAPSHOT_EXPORT} preview feature is enabled, hence
  * the class-level {@link TestPropertySource}.
@@ -87,6 +87,9 @@ class CursorPagedSearchTest extends IntegrationTest {
   private static final Instant WINDOW_END = Instant.now().plus(1, ChronoUnit.DAYS);
 
   private static final RawUserAuth ADMIN_USER = adminUser();
+
+  /** The tenant every fixture lands in when the test sets none. */
+  private static final String TENANT_ID = Tenant.DEFAULT_TENANT_UUID;
 
   /** A (assetId, findingId) pair identifying one vulnerability-observation grain. */
   private record Grain(String assetId, String findingId) {}
@@ -217,7 +220,7 @@ class CursorPagedSearchTest extends IntegrationTest {
         .get();
   }
 
-  private void indexAndWait() throws InterruptedException {
+  private void indexAll() {
     entityManager.flush();
     entityManager.clear();
     // Several tests rewind finding_updated_at into the past (window/since/millisecond-bucket
@@ -226,8 +229,6 @@ class CursorPagedSearchTest extends IntegrationTest {
     // re-picked-up; clearing the watermark forces a full re-fetch every time instead.
     indexingStatusRepository.deleteAll();
     engineService.bulkProcessing(engineContext.getModels().stream());
-    // ES/OpenSearch refreshes asynchronously; the bulk request sets no refresh policy.
-    Thread.sleep(1_000);
   }
 
   private void bumpFindingTimestamp(String findingId, Instant ts) {
@@ -241,7 +242,9 @@ class CursorPagedSearchTest extends IntegrationTest {
   private List<EsVulnerabilityObservation> page(
       RawUserAuth user, CursorPageQuery.Keyset after, int size) {
     return engineService.searchCursorPaged(
-        user, EsVulnerabilityObservation.class, new CursorPageQuery(null, after, WINDOW_END, size));
+        user,
+        EsVulnerabilityObservation.class,
+        new CursorPageQuery(TENANT_ID, null, after, WINDOW_END, size));
   }
 
   private static CursorPageQuery.Keyset cursorAfter(List<EsVulnerabilityObservation> page) {
@@ -286,12 +289,11 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("documents come back sorted by (base_updated_at, base_id), pages never repeat")
-    void given_multipleDocuments_should_returnSortedNonOverlappingPages()
-        throws InterruptedException {
+    void given_multipleDocuments_should_returnSortedNonOverlappingPages() {
       for (int i = 0; i < 10; i++) {
         newGrain();
       }
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> page1 = page(ADMIN_USER, null, 4);
       assertThat(page1).hasSize(4);
@@ -310,7 +312,7 @@ class CursorPagedSearchTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Tie-break (AC4)
+  // Tie-break
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -319,18 +321,17 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("30 documents sharing one base_updated_at page without duplicate or omission")
-    void given_30DocumentsSameTimestamp_should_pageWithoutDuplicateOrOmission()
-        throws InterruptedException {
+    void given_30DocumentsSameTimestamp_should_pageWithoutDuplicateOrOmission() {
       Instant sharedTs = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MILLIS);
       List<Grain> grains = new ArrayList<>();
       for (int i = 0; i < 30; i++) {
         grains.add(newGrain());
       }
-      indexAndWait();
+      indexAll();
       for (Grain grain : grains) {
         bumpFindingTimestamp(grain.findingId(), sharedTs);
       }
-      indexAndWait();
+      indexAll();
 
       Set<String> seen = new LinkedHashSet<>();
       CursorPageQuery.Keyset cursor = null;
@@ -353,7 +354,7 @@ class CursorPagedSearchTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Millisecond bucket (§3.2)
+  // Millisecond bucket
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -364,15 +365,14 @@ class CursorPagedSearchTest extends IntegrationTest {
     @DisplayName(
         "two documents differing by microseconds within one millisecond are both returned, "
             + "ordered by base_id, and resuming from the first returns exactly the second")
-    void given_subMillisecondDifference_should_returnBothOrderedByBaseId()
-        throws InterruptedException {
+    void given_subMillisecondDifference_should_returnBothOrderedByBaseId() {
       Instant sameMillis = Instant.now().minus(2, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MILLIS);
       Grain a = newGrain();
       Grain b = newGrain();
-      indexAndWait();
+      indexAll();
       bumpFindingTimestamp(a.findingId(), sameMillis.plusNanos(100_000));
       bumpFindingTimestamp(b.findingId(), sameMillis.plusNanos(900_000));
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> both =
           page(ADMIN_USER, null, 100).stream()
@@ -406,7 +406,7 @@ class CursorPagedSearchTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Resume (AC4)
+  // Resume
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -415,11 +415,11 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("resuming from the last document of page 2 continues exactly where paging stopped")
-    void given_cursorFromEndOfPage2_should_resumeExactlyAtPage3() throws InterruptedException {
+    void given_cursorFromEndOfPage2_should_resumeExactlyAtPage3() {
       for (int i = 0; i < 12; i++) {
         newGrain();
       }
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> page1 = page(ADMIN_USER, null, 5);
       List<EsVulnerabilityObservation> page2 = page(ADMIN_USER, cursorAfter(page1), 5);
@@ -436,7 +436,7 @@ class CursorPagedSearchTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Window (FR27)
+  // Window
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -445,20 +445,20 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("a document past windowEnd is never returned; the bound is inclusive")
-    void given_documentPastWindowEnd_should_neverBeReturned() throws InterruptedException {
+    void given_documentPastWindowEnd_should_neverBeReturned() {
       Instant windowEnd = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MILLIS);
       Grain withinWindow = newGrain();
       Grain pastWindow = newGrain();
-      indexAndWait();
+      indexAll();
       bumpFindingTimestamp(withinWindow.findingId(), windowEnd);
       bumpFindingTimestamp(pastWindow.findingId(), windowEnd.plusMillis(1));
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> results =
           engineService.searchCursorPaged(
               ADMIN_USER,
               EsVulnerabilityObservation.class,
-              new CursorPageQuery(null, null, windowEnd, 100));
+              new CursorPageQuery(TENANT_ID, null, null, windowEnd, 100));
 
       assertThat(containsAsset(results, withinWindow.assetId())).isTrue();
       assertThat(containsAsset(results, pastWindow.assetId())).isFalse();
@@ -466,7 +466,7 @@ class CursorPagedSearchTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Since (FR26)
+  // Since
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -475,20 +475,20 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("since is inclusive; a document strictly before it is excluded")
-    void given_sinceBound_should_excludeStrictlyOlderDocument() throws InterruptedException {
+    void given_sinceBound_should_excludeStrictlyOlderDocument() {
       Instant since = Instant.now().minus(3, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MILLIS);
       Grain atSince = newGrain();
       Grain beforeSince = newGrain();
-      indexAndWait();
+      indexAll();
       bumpFindingTimestamp(atSince.findingId(), since);
       bumpFindingTimestamp(beforeSince.findingId(), since.minusMillis(1));
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> results =
           engineService.searchCursorPaged(
               ADMIN_USER,
               EsVulnerabilityObservation.class,
-              new CursorPageQuery(since, null, WINDOW_END, 100));
+              new CursorPageQuery(TENANT_ID, since, null, WINDOW_END, 100));
 
       assertThat(containsAsset(results, atSince.assetId())).isTrue();
       assertThat(containsAsset(results, beforeSince.assetId())).isFalse();
@@ -496,9 +496,9 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("both since and after null returns from the beginning")
-    void given_noSinceNoAfter_should_returnFromTheBeginning() throws InterruptedException {
+    void given_noSinceNoAfter_should_returnFromTheBeginning() {
       Grain grain = newGrain();
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> results = page(ADMIN_USER, null, 100);
 
@@ -507,12 +507,19 @@ class CursorPagedSearchTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Bounds (FR28)
+  // Bounds
   // ---------------------------------------------------------------------------
 
   @Nested
   @DisplayName("bounds")
   class Bounds {
+
+    @Test
+    @DisplayName("a blank tenant throws IllegalArgumentException")
+    void given_blankTenant_should_throw() {
+      assertThatThrownBy(() -> new CursorPageQuery(" ", null, null, WINDOW_END, 10))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
 
     @Test
     @DisplayName("size 0 throws IllegalArgumentException")
@@ -522,7 +529,7 @@ class CursorPagedSearchTest extends IntegrationTest {
                   engineService.searchCursorPaged(
                       ADMIN_USER,
                       EsVulnerabilityObservation.class,
-                      new CursorPageQuery(null, null, WINDOW_END, 0)))
+                      new CursorPageQuery(TENANT_ID, null, null, WINDOW_END, 0)))
           .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -534,7 +541,7 @@ class CursorPagedSearchTest extends IntegrationTest {
                   engineService.searchCursorPaged(
                       ADMIN_USER,
                       EsVulnerabilityObservation.class,
-                      new CursorPageQuery(null, null, WINDOW_END, -1)))
+                      new CursorPageQuery(TENANT_ID, null, null, WINDOW_END, -1)))
           .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -547,7 +554,11 @@ class CursorPagedSearchTest extends IntegrationTest {
                       ADMIN_USER,
                       EsVulnerabilityObservation.class,
                       new CursorPageQuery(
-                          null, null, WINDOW_END, EngineService.CURSOR_PAGE_MAX_SIZE + 1)))
+                          TENANT_ID,
+                          null,
+                          null,
+                          WINDOW_END,
+                          EngineService.CURSOR_PAGE_MAX_SIZE + 1)))
           .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -560,7 +571,7 @@ class CursorPagedSearchTest extends IntegrationTest {
                       ADMIN_USER,
                       EsVulnerabilityObservation.class,
                       new CursorPageQuery(
-                          null, null, WINDOW_END, EngineService.CURSOR_PAGE_MAX_SIZE)))
+                          TENANT_ID, null, null, WINDOW_END, EngineService.CURSOR_PAGE_MAX_SIZE)))
           .doesNotThrowAnyException();
     }
   }
@@ -577,9 +588,9 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("a registered model returns documents")
-    void given_registeredModel_should_returnDocuments() throws InterruptedException {
+    void given_registeredModel_should_returnDocuments() {
       Grain grain = newGrain();
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> results = page(ADMIN_USER, null, 100);
 
@@ -594,7 +605,7 @@ class CursorPagedSearchTest extends IntegrationTest {
                   engineService.searchCursorPaged(
                       ADMIN_USER,
                       UnregisteredEsBase.class,
-                      new CursorPageQuery(null, null, WINDOW_END, 10)))
+                      new CursorPageQuery(TENANT_ID, null, null, WINDOW_END, 10)))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("not registered");
     }
@@ -608,40 +619,67 @@ class CursorPagedSearchTest extends IntegrationTest {
   @DisplayName("tenancy")
   class Tenancy {
 
+    private Tenant persistOtherTenant() {
+      return tenantComposer
+          .forTenant(TenantFixture.getTenant("cursor-search-other-" + UUID.randomUUID()))
+          .persist()
+          .get();
+    }
+
+    /** One CVE finding on one endpoint, both in {@code tenant}; returns the asset id. */
+    private String newGrainIn(Tenant tenant) {
+      Asset asset = EndpointFixture.createEndpoint("ep-other-tenant-" + UUID.randomUUID());
+      asset.setTenant(tenant);
+      entityManager.persist(asset);
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setTenant(tenant);
+      entityManager.persist(inject);
+      Finding finding = FindingFixture.createDefaultCveFindingWithRandomTitle();
+      finding.setTenant(tenant);
+      finding.setInject(inject);
+      finding.setAssets(List.of(asset));
+      entityManager.persist(finding);
+      return asset.getId();
+    }
+
     @Test
     @DisplayName("documents of another tenant are never returned")
-    void given_otherTenantDocument_should_neverBeReturned() throws InterruptedException {
-      Tenant otherTenant =
-          tenantComposer
-              .forTenant(TenantFixture.getTenant("cursor-search-other-" + UUID.randomUUID()))
-              .persist()
-              .get();
-
+    void given_otherTenantDocument_should_neverBeReturned() {
+      Tenant otherTenant = persistOtherTenant();
       Grain ownTenantGrain = newGrain();
+      String otherAssetId = newGrainIn(otherTenant);
 
-      Asset otherAsset = EndpointFixture.createEndpoint("ep-other-tenant-" + UUID.randomUUID());
-      otherAsset.setTenant(otherTenant);
-      entityManager.persist(otherAsset);
-      Inject otherInject = InjectFixture.getDefaultInject();
-      otherInject.setTenant(otherTenant);
-      entityManager.persist(otherInject);
-      Finding otherFinding = FindingFixture.createDefaultCveFindingWithRandomTitle();
-      otherFinding.setTenant(otherTenant);
-      otherFinding.setInject(otherInject);
-      otherFinding.setAssets(List.of(otherAsset));
-      entityManager.persist(otherFinding);
-
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> results = page(ADMIN_USER, null, 100);
 
-      assertThat(containsAsset(results, otherAsset.getId())).isFalse();
+      assertThat(containsAsset(results, otherAssetId)).isFalse();
       assertThat(containsAsset(results, ownTenantGrain.assetId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("the tenant of the query decides, not the thread's TenantContext")
+    void given_queryForAnotherTenant_should_returnThatTenantDocumentsOnly() {
+      Tenant otherTenant = persistOtherTenant();
+      Grain ownTenantGrain = newGrain();
+      String otherAssetId = newGrainIn(otherTenant);
+
+      indexAll();
+
+      // TenantContext is left unset here, so it reads as the default tenant of ownTenantGrain.
+      List<EsVulnerabilityObservation> results =
+          engineService.searchCursorPaged(
+              ADMIN_USER,
+              EsVulnerabilityObservation.class,
+              new CursorPageQuery(otherTenant.getId(), null, null, WINDOW_END, 100));
+
+      assertThat(containsAsset(results, otherAssetId)).isTrue();
+      assertThat(containsAsset(results, ownTenantGrain.assetId())).isFalse();
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Restrictions (§3.3)
+  // Restrictions
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -650,12 +688,11 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("admin sees every document regardless of restrictions")
-    void given_scenarioLinkedAndUnrestrictedDocuments_should_returnBothForAdmin()
-        throws InterruptedException {
+    void given_scenarioLinkedAndUnrestrictedDocuments_should_returnBothForAdmin() {
       Scenario scenario = persistScenario();
       Grain restricted = newScenarioLinkedGrain(scenario);
       Grain unrestricted = newGrain();
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> results = page(ADMIN_USER, null, 100);
 
@@ -665,11 +702,11 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("a non-admin user with no grant only sees unrestricted documents")
-    void given_noGrant_should_onlySeeUnrestrictedDocuments() throws InterruptedException {
+    void given_noGrant_should_onlySeeUnrestrictedDocuments() {
       Scenario scenario = persistScenario();
       Grain restricted = newScenarioLinkedGrain(scenario);
       Grain unrestricted = newGrain();
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> results = page(nonAdminUser(), null, 100);
 
@@ -679,10 +716,10 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("granting the scenario reveals the restricted document")
-    void given_grantOnScenario_should_revealRestrictedDocument() throws InterruptedException {
+    void given_grantOnScenario_should_revealRestrictedDocument() {
       Scenario scenario = persistScenario();
       Grain restricted = newScenarioLinkedGrain(scenario);
-      indexAndWait();
+      indexAll();
 
       List<EsVulnerabilityObservation> results = page(nonAdminUser(scenario.getId()), null, 100);
 
@@ -691,7 +728,7 @@ class CursorPagedSearchTest extends IntegrationTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Index scope (§3.4)
+  // Index scope
   // ---------------------------------------------------------------------------
 
   @Nested
@@ -700,17 +737,16 @@ class CursorPagedSearchTest extends IntegrationTest {
 
     @Test
     @DisplayName("a search on one snapshot stream never returns documents from the other stream")
-    void given_vulnerabilityDocuments_should_notAppearInAttackObservationSearch()
-        throws InterruptedException {
+    void given_vulnerabilityDocuments_should_notAppearInAttackObservationSearch() {
       newGrain();
       newGrain();
-      indexAndWait();
+      indexAll();
 
       List<EsAttackObservation> results =
           engineService.searchCursorPaged(
               ADMIN_USER,
               EsAttackObservation.class,
-              new CursorPageQuery(null, null, WINDOW_END, 100));
+              new CursorPageQuery(TENANT_ID, null, null, WINDOW_END, 100));
 
       assertThat(results).isEmpty();
     }

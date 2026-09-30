@@ -21,8 +21,12 @@ public class SnapshotCursorCodec {
 
   private final ObjectMapper objectMapper;
 
-  /** The decoded cursor payload. {@code v} is the wire format version. */
-  public record SnapshotCursor(int v, String tenant, Instant ts, String id) {}
+  /**
+   * The decoded cursor payload. {@code v} is the wire format version, {@code stream} the index of
+   * the stream that issued it: both streams share the {@code (ts, id)} space, so a cursor sent to
+   * the other one would be accepted and resume at the wrong position.
+   */
+  public record SnapshotCursor(int v, String tenant, String stream, Instant ts, String id) {}
 
   public String encode(SnapshotCursor cursor) {
     try {
@@ -34,13 +38,15 @@ public class SnapshotCursorCodec {
   }
 
   /**
-   * Decodes a cursor and validates it belongs to {@code tenantId}.
+   * Decodes a cursor and validates it belongs to {@code tenantId} and {@code stream}.
    *
    * @param cursor the opaque cursor string received from the client
    * @param tenantId the tenant id of the current request path, compared against the cursor
-   * @throws BadRequestException on any malformed, unsupported-version or foreign-tenant cursor
+   * @param stream the index of the stream being read, compared against the cursor
+   * @throws BadRequestException on any malformed, unsupported-version, foreign-tenant or
+   *     foreign-stream cursor
    */
-  public SnapshotCursor decode(String cursor, String tenantId) {
+  public SnapshotCursor decode(String cursor, String tenantId, String stream) {
     byte[] decoded;
     try {
       decoded = Base64.getUrlDecoder().decode(cursor);
@@ -60,6 +66,9 @@ public class SnapshotCursorCodec {
     }
     if (parsed.tenant() == null || parsed.tenant().isBlank() || !parsed.tenant().equals(tenantId)) {
       throw new BadRequestException("Cursor does not belong to this tenant");
+    }
+    if (!stream.equals(parsed.stream())) {
+      throw new BadRequestException("Cursor does not belong to this stream");
     }
     if (parsed.ts() == null || parsed.id() == null || parsed.id().isBlank()) {
       throw new BadRequestException("Malformed cursor");

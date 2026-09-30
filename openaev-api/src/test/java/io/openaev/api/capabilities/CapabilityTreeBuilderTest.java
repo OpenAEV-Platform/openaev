@@ -239,8 +239,8 @@ class CapabilityTreeBuilderTest {
     List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
 
     // -- ASSERT --
-    // A regression test for §3.2/§2.3 of the story plan: if ACCESS_SNAPSHOT_OBSERVATION is ever
-    // marked hidden, it silently vanishes from the role screen and becomes unprovisionable.
+    // A regression test: if ACCESS_SNAPSHOT_OBSERVATION is ever marked hidden, it silently
+    // vanishes from the role screen and becomes unprovisionable.
     CapabilityOutput findings =
         tree.stream().filter(n -> FINDINGS.name().equals(n.value())).findFirst().orElseThrow();
     assertThat(findings.children())
