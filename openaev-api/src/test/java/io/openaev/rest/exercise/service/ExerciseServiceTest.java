@@ -18,7 +18,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.LessonsService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
-import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -39,7 +39,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -82,8 +81,6 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private PauseRepository pauseRepository;
   @Mock private TeamRepository teamRepository;
   @Mock private UserRepository userRepository;
-  @Mock private LessonsQuestionRepository lessonsQuestionRepository;
-  @Mock private LessonsAnswerRepository lessonsAnswerRepository;
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
@@ -98,57 +95,51 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private AttackPathExecutionIngestionService attackPathExecutionService;
   @Mock private AutonomousRunRepository autonomousRunRepository;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
-  @InjectMocks private ExerciseService mockedExerciseService;
-  @Autowired private InjectStatusRepository injectStatusRepository;
-  @Autowired private StepService stepService;
+  @Autowired private WorkflowEndService workflowEndService;
 
   @BeforeEach
   void setUp() {
-    mockedExerciseService =
-        new ExerciseService(
-            enterpriseEditionService,
-            injectDuplicateService,
-            teamService,
-            variableService,
-            tagRuleService,
-            documentService,
-            injectService,
-            userService,
-            grantService,
-            exerciseTeamUserService,
-            scopeService,
-            exerciseMapper,
-            injectMapper,
-            resultUtils,
-            actionMetricCollector,
-            licenseCacheManager,
-            assetRepository,
-            assetGroupRepository,
-            injectExpectationRepository,
-            articleRepository,
-            exerciseRepository,
-            bulkDeleteExecutor,
-            injectStatusRepository,
-            pauseRepository,
-            lessonsQuestionRepository,
-            teamRepository,
-            userRepository,
-            exerciseTeamUserRepository,
-            injectRepository,
-            lessonsAnswerRepository,
-            lessonsCategoryRepository,
-            lessonsService,
-            urlAccessTokenService,
-            injectExpectationMapper,
-            scenarioRecurrenceService,
-            workflowService,
-            pauseExerciseService,
-            fileService,
-            stepService,
-            healthCheckUtils,
-            eventPublisher,
-            attackPathExecutionService,
-            autonomousRunRepository);
+    new ExerciseService(
+        enterpriseEditionService,
+        injectDuplicateService,
+        teamService,
+        variableService,
+        tagRuleService,
+        documentService,
+        injectService,
+        userService,
+        grantService,
+        exerciseTeamUserService,
+        scopeService,
+        exerciseMapper,
+        injectMapper,
+        resultUtils,
+        actionMetricCollector,
+        licenseCacheManager,
+        assetRepository,
+        assetGroupRepository,
+        injectExpectationRepository,
+        articleRepository,
+        exerciseRepository,
+        bulkDeleteExecutor,
+        pauseRepository,
+        teamRepository,
+        userRepository,
+        exerciseTeamUserRepository,
+        injectRepository,
+        lessonsCategoryRepository,
+        lessonsService,
+        urlAccessTokenService,
+        injectExpectationMapper,
+        scenarioRecurrenceService,
+        workflowService,
+        workflowEndService,
+        pauseExerciseService,
+        fileService,
+        healthCheckUtils,
+        eventPublisher,
+        attackPathExecutionService,
+        autonomousRunRepository);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

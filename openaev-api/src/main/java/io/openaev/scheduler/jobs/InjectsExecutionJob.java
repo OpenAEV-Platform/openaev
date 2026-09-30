@@ -373,7 +373,7 @@ public class InjectsExecutionJob implements Job {
                   String message =
                       "Inject " + inject.getId() + " has no tenant, cannot be executed";
                   log.warn(message);
-                  injectStatusService.failInjectStatus(inject.getId(), message);
+                  injectStatusService.persistErrorStatusOutOfTransaction(inject.getId(), message);
                   return false;
                 })
             .filter(
@@ -420,11 +420,11 @@ public class InjectsExecutionJob implements Job {
                               } catch (RuntimeException e) {
                                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                                 log.warn(cause.getMessage(), cause);
-                                injectStatusService.failInjectStatus(
+                                injectStatusService.persistErrorStatusOutOfTransaction(
                                     inject.getId(), cause.getMessage());
                               } catch (Exception e) {
                                 log.warn(e.getMessage(), e);
-                                injectStatusService.failInjectStatus(
+                                injectStatusService.persistErrorStatusOutOfTransaction(
                                     inject.getId(), e.getMessage());
                               }
                             });

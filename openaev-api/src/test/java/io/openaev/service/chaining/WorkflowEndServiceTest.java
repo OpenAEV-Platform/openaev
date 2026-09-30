@@ -12,6 +12,7 @@ import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -52,6 +53,16 @@ class WorkflowEndServiceTest {
     void
         should_endSteps_deleteDelayQueue_endWorkflow_completeActiveInjects_finishSimulation_inOrder() {
       // Arrange
+      doAnswer(
+              invocation -> {
+                InjectStatus status = invocation.getArgument(0);
+                status.setName(ExecutionStatus.ERROR);
+                status.setTrackingEndDate(Instant.now());
+                return status;
+              })
+          .when(injectStatusService)
+          .finalizeAsError(any(InjectStatus.class));
+
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
@@ -83,7 +94,7 @@ class WorkflowEndServiceTest {
       inOrder.verify(stepDelayQueueService).deleteAllByWorkflowRun(workflowRun, cause);
 
       inOrder.verify(injectService).findBySimulationId(simulation.getId());
-      inOrder.verify(injectStatusService).save(activeInject.getStatus().get());
+      inOrder.verify(injectStatusService).finalizeAsError(activeInject.getStatus().get());
 
       inOrder.verify(workflowRepository).save(workflowRun);
 
@@ -108,6 +119,16 @@ class WorkflowEndServiceTest {
     void should_completeAllActiveInjectStatuses_queuingExecutingPending() {
 
       // Arrange
+      doAnswer(
+              invocation -> {
+                InjectStatus status = invocation.getArgument(0);
+                status.setName(ExecutionStatus.ERROR);
+                status.setTrackingEndDate(Instant.now());
+                return status;
+              })
+          .when(injectStatusService)
+          .finalizeAsError(any(InjectStatus.class));
+
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
@@ -126,9 +147,9 @@ class WorkflowEndServiceTest {
       assertEquals(ExecutionStatus.ERROR, queuingInject.getStatus().get().getName());
       assertEquals(ExecutionStatus.ERROR, executingInject.getStatus().get().getName());
       assertEquals(ExecutionStatus.ERROR, pendingInject.getStatus().get().getName());
-      verify(injectStatusService).save(queuingInject.getStatus().get());
-      verify(injectStatusService).save(executingInject.getStatus().get());
-      verify(injectStatusService).save(pendingInject.getStatus().get());
+      verify(injectStatusService).finalizeAsError(queuingInject.getStatus().get());
+      verify(injectStatusService).finalizeAsError(executingInject.getStatus().get());
+      verify(injectStatusService).finalizeAsError(pendingInject.getStatus().get());
     }
 
     @Test
