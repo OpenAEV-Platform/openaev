@@ -13,6 +13,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The gate only reads the tree it checked out.
+permissions:
+  contents: read
+
 jobs:
   conformity:
     name: FDS conformity
