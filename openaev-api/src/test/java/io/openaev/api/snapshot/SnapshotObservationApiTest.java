@@ -140,6 +140,75 @@ class SnapshotObservationApiTest extends IntegrationTest {
     return attackPattern;
   }
 
+  /**
+   * Persists one attack-observation grain in the ambient (default) tenant, with a whole watermark
+   * pushed outside the default safety lag so the grain is inside every served window.
+   */
+  private EndpointComposer.Composer persistAttackGrainOutsideSafetyLag() {
+    EndpointComposer.Composer endpointWrapper =
+        endpointComposer.forEndpoint(EndpointFixture.createEndpoint("ep-" + UUID.randomUUID()));
+    endpointWrapper.persist();
+    InjectorContractComposer.Composer contractWrapper =
+        injectorContractComposer
+            .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+            .withAttackPattern(attackPatternComposer.forAttackPattern(newAttackPattern()));
+    InjectExpectationComposer.Composer expectationWrapper =
+        injectExpectationComposer
+            .forExpectation(
+                InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                    EXPECTATION_TYPE.DETECTION, EXPECTATION_STATUS.SUCCESS))
+            .withEndpoint(endpointWrapper);
+    InjectComposer.Composer injectWrapper =
+        injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withInjectorContract(contractWrapper)
+            .withExpectation(expectationWrapper);
+    Scenario scenario =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .persist()
+            .get();
+    Exercise exercise = ExerciseFixture.createDefaultIncidentResponseExercise(Instant.now());
+    exercise.setScenario(scenario);
+    exerciseComposer.forExercise(exercise).withInject(injectWrapper).persist();
+    entityManager.flush();
+
+    Instant past = Instant.now().minus(2, ChronoUnit.HOURS);
+    setTimestamp(
+        "injects_expectations",
+        "inject_expectation_updated_at",
+        "inject_expectation_id",
+        expectationWrapper.get().getId(),
+        past);
+    setTimestamp("injects", "inject_updated_at", "inject_id", injectWrapper.get().getId(), past);
+    setTimestamp("exercises", "exercise_updated_at", "exercise_id", exercise.getId(), past);
+    return endpointWrapper;
+  }
+
+  private void setTimestamp(String table, String column, String idColumn, String id, Instant ts) {
+    entityManager
+        .createNativeQuery(
+            "UPDATE " + table + " SET " + column + " = :ts WHERE " + idColumn + " = :id")
+        .setParameter("ts", ts)
+        .setParameter("id", id)
+        .executeUpdate();
+  }
+
+  private List<String> searchAttackAssetIds(String tenantId) throws Exception {
+    String response =
+        mvc.perform(
+                post(attackSearchUri(tenantId))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(new SnapshotSearchInput(null, null, 100, null)))
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$.observations[*].asset_id");
+  }
+
   @Nested
   @DisplayName("Authorization")
   class Authorization {
@@ -193,6 +262,30 @@ class SnapshotObservationApiTest extends IntegrationTest {
                   .content(asJsonString(input))
                   .accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION})
+    @DisplayName("given_tenantTheCallerIsNotAMemberOf_should_return403")
+    void given_tenantTheCallerIsNotAMemberOf_should_return403() throws Exception {
+      // -- ARRANGE: a tenant the mock user does not belong to --
+      Tenant foreignTenant =
+          tenantIsolationTestHelper.createTenant("snapshot-non-member-" + UUID.randomUUID());
+      SnapshotSearchInput input = new SnapshotSearchInput(null, null, null, null);
+
+      // -- ACT & ASSERT: refused on both streams, whatever the capability held elsewhere --
+      for (String uri :
+          List.of(
+              attackSearchUri(foreignTenant.getId()),
+              vulnerabilitySearchUri(foreignTenant.getId()))) {
+        mvc.perform(
+                post(uri)
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isForbidden());
+      }
     }
 
     @Test
@@ -389,6 +482,48 @@ class SnapshotObservationApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Attack stream tenancy")
+  class AttackTenancy {
+
+    // One tenant path per test method: the first request sets the transaction tenant scope.
+
+    @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION, Capability.ACCESS_ASSESSMENT})
+    @DisplayName("given_attackGrainOfTheRequestedTenant_should_beReturned")
+    void given_attackGrainOfTheRequestedTenant_should_beReturned() throws Exception {
+      // -- ARRANGE: the grain lives in the default tenant, the one requested --
+      tenantIsolationTestHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID,
+          Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION, Capability.ACCESS_ASSESSMENT));
+      EndpointComposer.Composer endpointWrapper = persistAttackGrainOutsideSafetyLag();
+      indexAndWait();
+
+      // -- ACT & ASSERT --
+      assertThat(searchAttackAssetIds(Tenant.DEFAULT_TENANT_UUID))
+          .contains(endpointWrapper.get().getId());
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_SNAPSHOT_OBSERVATION, Capability.ACCESS_ASSESSMENT})
+    @DisplayName("given_attackGrainOfAnotherTenant_should_neverBeReturned")
+    void given_attackGrainOfAnotherTenant_should_neverBeReturned() throws Exception {
+      // -- ARRANGE: the grain lives in the default tenant, another one is requested --
+      Tenant requestedTenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "snapshot-attack-tenancy-" + UUID.randomUUID(),
+              Set.of(Capability.ACCESS_SNAPSHOT_OBSERVATION, Capability.ACCESS_ASSESSMENT));
+      EndpointComposer.Composer endpointWrapper = persistAttackGrainOutsideSafetyLag();
+      indexAndWait();
+
+      // -- ACT & ASSERT: seeing every assessment of its own tenant never reaches another --
+      assertThat(searchAttackAssetIds(requestedTenant.getId()))
+          .doesNotContain(endpointWrapper.get().getId());
+    }
+  }
+
+  @Nested
   @DisplayName("Existence probe (AC7)")
   class ExistenceProbe {
 
@@ -450,9 +585,10 @@ class SnapshotObservationApiTest extends IntegrationTest {
       exercise.setScenario(scenario);
       exerciseComposer.forExercise(exercise).withInject(injectWrapper).persist();
 
-      // Attribute the whole grain to the requesting tenant.
-      endpointWrapper.get().setTenant(tenant);
-      injectWrapper.get().setTenant(tenant);
+      // No tenant re-attribution: none of the attack probe tables is tenant-active, so the probe
+      // is global, and moving only the endpoint and the inject to another tenant would detach
+      // them from their contract attack patterns (joined on the inject tenant) and exclude the
+      // parent for the wrong reason.
       entityManager.flush();
 
       Instant now = Instant.now();
