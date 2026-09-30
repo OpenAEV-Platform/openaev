@@ -82,8 +82,6 @@ function themeCssSources(state) {
     "node_modules",
     "@filigran",
     "design-system",
-    "packages",
-    "filigran-design-system",
     "dist",
     "tokens",
     "theme.css",

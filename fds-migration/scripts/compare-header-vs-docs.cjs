@@ -3,12 +3,12 @@
  * system's own documentation site, which is the known-correct host (it imports
  * full Tailwind, so it has the preflight this product does not).
  *
- * Re-run this at every pin bump; it turns a bump from an afternoon into
+ * Re-run this at every version bump; it turns a bump from an afternoon into
  * twenty minutes.
  *
- *   # 1. the docs site, at the SHA pinned in openaev-front/package.json
+ *   # 1. the docs site, on the release openaev-front/package.json depends on
  *   git clone https://github.com/XTM-Foundation/filigran-design-system.git /tmp/fdsdoc
- *   cd /tmp/fdsdoc && git checkout <PIN_SHA> && corepack enable
+ *   cd /tmp/fdsdoc && git checkout "@filigran/design-system@<VERSION>" && corepack enable
  *   pnpm install --frozen-lockfile        # the root `prepare` also builds the package
  *   cd docs && npx next dev --port 3066   # NOT `pnpm --filter ./docs dev -- --port`
  *
