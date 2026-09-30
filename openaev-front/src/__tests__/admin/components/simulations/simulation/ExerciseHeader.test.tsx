@@ -2,8 +2,6 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Product decision (#307): the chaining engine (queue-based) cannot pause a run, so the Pause CTA
-// must not exist for a chained simulation. Stop stays available in every case.
 const mocks = vi.hoisted(() => ({
   canLaunch: vi.fn(),
   dispatch: vi.fn(),
@@ -46,7 +44,6 @@ import { Buttons } from '../../../../../admin/components/simulations/simulation/
 
 const renderButtons = (props: {
   exerciseStatus: 'RUNNING' | 'PAUSED';
-  isChaining: boolean;
 }) => {
   render(
     <ThemeProvider theme={createTheme()}>
@@ -57,7 +54,6 @@ const renderButtons = (props: {
         onLoading={vi.fn()}
         isLoading={false}
         isScopeMissing={false}
-        isChaining={props.isChaining}
       />
     </ThemeProvider>,
   );
@@ -73,23 +69,10 @@ describe('ExerciseHeader lifecycle buttons', () => {
     vi.clearAllMocks();
   });
 
-  it('hides Pause for a running chained simulation but keeps Stop', () => {
+  it('shows Pause and Stop for a running simulation', () => {
     // Act
     renderButtons({
       exerciseStatus: 'RUNNING',
-      isChaining: true,
-    });
-
-    // Assert
-    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Stop' })).toBeDefined();
-  });
-
-  it('shows Pause and Stop for a running non-chained simulation', () => {
-    // Act
-    renderButtons({
-      exerciseStatus: 'RUNNING',
-      isChaining: false,
     });
 
     // Assert
@@ -97,11 +80,21 @@ describe('ExerciseHeader lifecycle buttons', () => {
     expect(screen.getByRole('button', { name: 'Stop' })).toBeDefined();
   });
 
-  it('keeps Resume available for a chained simulation already paused in database', () => {
+  it('shows Pause and Stop for a running simulation (regardless of chaining context)', () => {
+    // Act
+    renderButtons({
+      exerciseStatus: 'RUNNING',
+    });
+
+    // Assert
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeDefined();
+  });
+
+  it('keeps Resume available for a paused simulation', () => {
     // Act
     renderButtons({
       exerciseStatus: 'PAUSED',
-      isChaining: true,
     });
 
     // Assert

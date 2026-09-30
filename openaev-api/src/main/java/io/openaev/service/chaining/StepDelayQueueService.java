@@ -3,7 +3,9 @@ package io.openaev.service.chaining;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepDelayQueue;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.repository.StepDelayQueueRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -45,14 +47,15 @@ public class StepDelayQueueService {
       long delay,
       Workflow workflowRun,
       Instant goal) {
+    Instant delayedGoal = WorkflowStatus.STOP.equals(workflowRun.getStatus()) ? null : goal;
     log.debug(
         "[Chaining] Delay step template: {} condition time after: {} + {} milliseconds => goal: {}",
         stepTemplate.getId(),
         now,
         delay,
-        goal);
+        delayedGoal);
     stepDelayQueueRepository.upsertByWorkflowRunStepTemplateAndInput(
-        input, now, goal, delay, stepTemplate.getId(), workflowRun.getId());
+        input, now, delayedGoal, delay, stepTemplate.getId(), workflowRun.getId());
   }
 
   /**
@@ -101,5 +104,34 @@ public class StepDelayQueueService {
    */
   public List<StepDelayQueue> findAllByWorkflowRun(Workflow workflowRun) {
     return stepDelayQueueRepository.findAllByWorkflowRun(workflowRun);
+  }
+
+  @Transactional
+  public void nullifyGoalsByWorkflowRun(Workflow workflowRun) {
+    stepDelayQueueRepository.nullifyGoalsByWorkflowRun(workflowRun);
+  }
+
+  @Transactional
+  public void recalculateGoalsOnResume(
+      Workflow workflowRun, Instant resumeAt, Instant workflowPauseAt) {
+    List<StepDelayQueue> delayedSteps = stepDelayQueueRepository.findAllByWorkflowRun(workflowRun);
+    if (delayedSteps.isEmpty()) {
+      return;
+    }
+
+    for (StepDelayQueue delayedStep : delayedSteps) {
+      long delayMillis = Math.max(0L, delayedStep.getDelay() == null ? 0L : delayedStep.getDelay());
+      long remainingMillis = delayMillis;
+      Instant enqueuedAt = delayedStep.getNow();
+
+      if (workflowPauseAt != null && enqueuedAt != null && enqueuedAt.isBefore(workflowPauseAt)) {
+        Instant initialGoal = enqueuedAt.plusMillis(delayMillis);
+        remainingMillis = Math.max(0L, Duration.between(workflowPauseAt, initialGoal).toMillis());
+      }
+
+      delayedStep.setGoal(resumeAt.plusMillis(remainingMillis));
+    }
+
+    stepDelayQueueRepository.saveAll(delayedSteps);
   }
 }

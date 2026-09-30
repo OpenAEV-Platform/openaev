@@ -132,12 +132,14 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param stepReady step ready to run
    */
   void run(Step stepReady) {
-    // Guard: ignore if workflow run has already ended (e.g. timeout).
-    // Reads fresh status from DB to catch concurrent timeout completion.
+    // Guard: ignore if workflow run is not runnable (END or STOP).
+    // Reads fresh status from DB to catch concurrent timeout/pause completion.
     Workflow workflowRun = stepReady.getWorkflow();
-    if (workflowRun != null && workflowService.isWorkflowEnded(workflowRun.getId())) {
+    if (workflowRun != null
+        && (workflowService.isWorkflowEnded(workflowRun.getId())
+            || workflowService.isWorkflowStopped(workflowRun.getId()))) {
       log.info(
-          "[Chaining] Ignoring run request for step {} because workflow run {} has ended.",
+          "[Chaining] Ignoring run request for step {} because workflow run {} is not runnable (END/STOP).",
           stepReady.getId(),
           workflowRun.getId());
       return;
