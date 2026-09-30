@@ -58,8 +58,9 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
 
   /**
    * Retrieves the most recent workflow of a given status for a simulation. A simulation reuses the
-   * same id across launch / reset / relaunch cycles and old RUN rows are not deleted, so it may own
-   * several RUN rows; the latest (by creation date) is the current execution view. See ADR-006.
+   * same id across launch / reset / relaunch cycles. Reset now deletes its executions (ADR-009),
+   * but a database reset before that may still hold several RUN rows; the latest (by creation
+   * date) is the current execution view. See ADR-006.
    *
    * @param simulationId the ID of the simulation
    * @param status the status of the workflow

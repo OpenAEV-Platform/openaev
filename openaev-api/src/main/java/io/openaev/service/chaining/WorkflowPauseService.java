@@ -8,6 +8,7 @@ import io.openaev.rest.exception.ChainingException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,15 +26,16 @@ public class WorkflowPauseService {
     if (simulationId == null) {
       return;
     }
-    Instant pausedAt = Instant.now();
-    List<Workflow> workflowRuns = workflowService.findWorkflowRunBySimulationId(simulationId);
-
-    for (Workflow workflowRun : workflowRuns) {
-      workflowRun.setStatus(WorkflowStatus.STOP);
-      workflowRun.setPauseAt(pausedAt);
-      stepDelayQueueService.nullifyGoalsByWorkflowRun(workflowRun);
-      workflowService.saveWorkflowRun(workflowRun);
+    // Current execution only: a legacy database may still hold older runs of the simulation.
+    Optional<Workflow> currentRun = findCurrentRunWithStatus(simulationId, WorkflowStatus.RUN);
+    if (currentRun.isEmpty()) {
+      return;
     }
+    Workflow workflowRun = currentRun.get();
+    workflowRun.setStatus(WorkflowStatus.STOP);
+    workflowRun.setPauseAt(Instant.now());
+    stepDelayQueueService.nullifyGoalsByWorkflowRun(workflowRun);
+    workflowService.saveWorkflowRun(workflowRun);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -41,28 +43,31 @@ public class WorkflowPauseService {
     if (simulationId == null) {
       return false;
     }
-    Instant resumeAt = Instant.now();
-    List<Workflow> pausedRuns = workflowService.findWorkflowStoppedBySimulationId(simulationId);
-
-    for (Workflow pausedRun : pausedRuns) {
-      Instant pausedAt = pausedRun.getPauseAt();
-      if (pausedAt != null) {
-        long pauseDeltaSeconds = Math.max(0L, Duration.between(pausedAt, resumeAt).getSeconds());
-        pausedRun.setPauseSecond(pausedRun.getPauseSecond() + pauseDeltaSeconds);
-      }
-      pausedRun.setPauseAt(null);
-      pausedRun.setStatus(WorkflowStatus.RUN);
-      stepDelayQueueService.recalculateGoalsOnResume(pausedRun, resumeAt, pausedAt);
-      pausedRun = workflowService.saveWorkflowRun(pausedRun);
-      List<Step> readySteps =
-          stepService.findAllStepsByWorkflowRunIdAndStatus(pausedRun.getId(), StepStatus.READY);
-      stepService.enqueueReadySteps(readySteps, pausedRun);
-      pausedRun = workflowService.evaluateWorkflowProgress(pausedRun);
-      if (pausedRun.getStatus() == WorkflowStatus.END) {
-        // A simulation has a single workflow run in practice (#8020), so no other run to resume.
-        return true;
-      }
+    Optional<Workflow> currentRun = findCurrentRunWithStatus(simulationId, WorkflowStatus.STOP);
+    if (currentRun.isEmpty()) {
+      return false;
     }
-    return false;
+    Workflow pausedRun = currentRun.get();
+    Instant resumeAt = Instant.now();
+    Instant pausedAt = pausedRun.getPauseAt();
+    if (pausedAt != null) {
+      long pauseDeltaSeconds = Math.max(0L, Duration.between(pausedAt, resumeAt).getSeconds());
+      pausedRun.setPauseSecond(pausedRun.getPauseSecond() + pauseDeltaSeconds);
+    }
+    pausedRun.setPauseAt(null);
+    pausedRun.setStatus(WorkflowStatus.RUN);
+    stepDelayQueueService.recalculateGoalsOnResume(pausedRun, resumeAt, pausedAt);
+    pausedRun = workflowService.saveWorkflowRun(pausedRun);
+    List<Step> readySteps =
+        stepService.findAllStepsByWorkflowRunIdAndStatus(pausedRun.getId(), StepStatus.READY);
+    stepService.enqueueReadySteps(readySteps, pausedRun);
+    pausedRun = workflowService.evaluateWorkflowProgress(pausedRun);
+    return pausedRun.getStatus() == WorkflowStatus.END;
+  }
+
+  private Optional<Workflow> findCurrentRunWithStatus(String simulationId, WorkflowStatus status) {
+    return workflowService
+        .findCurrentWorkflowExecutionBySimulationId(simulationId)
+        .filter(run -> run.getStatus() == status);
   }
 }

@@ -858,14 +858,16 @@ public class WorkflowService {
   }
 
   /**
-   * Finds workflows stopped for a simulation.
+   * Finds the current execution of a simulation: its latest run, whatever its status (RUN, END or
+   * STOP). Reset deletes every execution (ADR-009), but a database reset before that may still hold
+   * older runs, so callers must act on this one only.
    *
    * @param simulationId the ID of the simulation
-   * @return a list of workflow executed (status = STOP)
+   * @return the latest workflow execution, or empty if the simulation was never launched
    */
-  public List<Workflow> findWorkflowStoppedBySimulationId(String simulationId) {
-    return this.workflowRepository.findAllBySimulation_IdAndStatus(
-        simulationId, WorkflowStatus.STOP);
+  public Optional<Workflow> findCurrentWorkflowExecutionBySimulationId(String simulationId) {
+    return this.workflowRepository.findFirstBySimulation_IdAndStatusInOrderByWorkflowCreatedAtDesc(
+        simulationId, List.of(WorkflowStatus.RUN, WorkflowStatus.END, WorkflowStatus.STOP));
   }
 
   /**

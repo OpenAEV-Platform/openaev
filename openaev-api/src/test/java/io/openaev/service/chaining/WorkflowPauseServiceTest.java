@@ -14,6 +14,7 @@ import io.openaev.database.model.WorkflowStatus;
 import io.openaev.rest.exception.ChainingException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -32,7 +33,8 @@ class WorkflowPauseServiceTest {
     Workflow run = new Workflow();
     run.setId("run-1");
     run.setStatus(WorkflowStatus.RUN);
-    when(workflowService.findWorkflowRunBySimulationId("sim-1")).thenReturn(List.of(run));
+    when(workflowService.findCurrentWorkflowExecutionBySimulationId("sim-1"))
+        .thenReturn(Optional.of(run));
 
     WorkflowPauseService service =
         new WorkflowPauseService(workflowService, stepDelayQueueService, stepService);
@@ -48,6 +50,28 @@ class WorkflowPauseServiceTest {
   }
 
   @Test
+  void givenCurrentExecutionNotRunning_whenPause_shouldLeaveItUntouched() {
+    // Arrange: the latest execution has ended; an older RUN row of a legacy database must not be
+    // picked up instead.
+    Workflow endedRun = new Workflow();
+    endedRun.setId("run-2");
+    endedRun.setStatus(WorkflowStatus.END);
+    when(workflowService.findCurrentWorkflowExecutionBySimulationId("sim-1"))
+        .thenReturn(Optional.of(endedRun));
+
+    WorkflowPauseService service =
+        new WorkflowPauseService(workflowService, stepDelayQueueService, stepService);
+
+    // Act
+    service.pauseSimulationWorkflowRuns("sim-1");
+
+    // Assert
+    assertEquals(WorkflowStatus.END, endedRun.getStatus());
+    verify(stepDelayQueueService, never()).nullifyGoalsByWorkflowRun(any());
+    verify(workflowService, never()).saveWorkflowRun(any());
+  }
+
+  @Test
   void givenStoppedWorkflow_whenResume_shouldAccumulatePauseAndRequeueReadySteps()
       throws ChainingException {
     // Arrange
@@ -60,8 +84,10 @@ class WorkflowPauseServiceTest {
     readyStep.setStatus(StepStatus.READY);
     readyStep.setWorkflow(stoppedRun);
 
-    when(workflowService.findWorkflowStoppedBySimulationId("sim-1"))
-        .thenReturn(List.of(stoppedRun));
+    when(workflowService.findCurrentWorkflowExecutionBySimulationId("sim-1"))
+        .thenReturn(Optional.of(stoppedRun));
+    when(workflowService.saveWorkflowRun(stoppedRun)).thenReturn(stoppedRun);
+    when(workflowService.evaluateWorkflowProgress(stoppedRun)).thenReturn(stoppedRun);
     when(stepService.findAllStepsByWorkflowRunIdAndStatus("run-1", StepStatus.READY))
         .thenReturn(List.of(readyStep));
 
@@ -78,5 +104,6 @@ class WorkflowPauseServiceTest {
     verify(stepDelayQueueService).recalculateGoalsOnResume(eq(stoppedRun), any(), any());
     verify(stepService).enqueueReadySteps(List.of(readyStep), stoppedRun);
     verify(workflowService).saveWorkflowRun(stoppedRun);
+    verify(workflowService).evaluateWorkflowProgress(stoppedRun);
   }
 }
