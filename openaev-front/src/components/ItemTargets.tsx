@@ -151,11 +151,25 @@ const ItemTargets: FunctionComponent<Props> = ({
               <TooltipTrigger asChild>
                 {link ? (
                   <Link to={link} className={chipLinkClassName} style={{ minWidth: 0 }}>
-                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} style={{ minWidth: 0, maxWidth: '100%' }} />
+                    <Chip
+                      startIcon={getIcon(target)}
+                      label={truncate(target.target_name!, truncateLimit) ?? ''}
+                      style={{
+                        minWidth: 0,
+                        maxWidth: '100%',
+                      }}
+                    />
                   </Link>
                 ) : (
                   <span className="inline-flex" style={{ minWidth: 0 }}>
-                    <Chip startIcon={getIcon(target)} label={truncate(target.target_name!, truncateLimit) ?? ''} style={{ minWidth: 0, maxWidth: '100%' }} />
+                    <Chip
+                      startIcon={getIcon(target)}
+                      label={truncate(target.target_name!, truncateLimit) ?? ''}
+                      style={{
+                        minWidth: 0,
+                        maxWidth: '100%',
+                      }}
+                    />
                   </span>
                 )}
               </TooltipTrigger>
