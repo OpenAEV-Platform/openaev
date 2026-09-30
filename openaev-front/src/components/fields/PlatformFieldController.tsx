@@ -91,7 +91,7 @@ const PlatformFieldController: FunctionComponent<Props> = ({
           <ComboboxLabel>{t(label)}</ComboboxLabel>
           <ComboboxField>
             <ComboboxChips />
-            <ComboboxInput />
+            <ComboboxInput className="min-w-0" />
             <ComboboxControls>
               <ComboboxClear />
               <ComboboxTrigger />

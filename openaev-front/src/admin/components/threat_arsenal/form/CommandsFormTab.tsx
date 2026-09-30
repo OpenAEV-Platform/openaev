@@ -12,12 +12,14 @@ import { useFormatter } from '../../../../components/i18n';
 import { type PayloadArgument } from '../../../../utils/api-types';
 import InjectFormSection from '../../common/injects/form/InjectFormSection';
 import PayloadArgumentsField from './PayloadArgumentsField';
+import useArgumentRowStyles from './useArgumentRowStyles';
 
 interface Props { disabledActionType?: boolean }
 
 const CommandsFormTab = ({ disabledActionType = false }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { classes } = useArgumentRowStyles();
   const { control, setValue, getValues, watch } = useFormContext();
   const actionType = watch('action_type');
 
@@ -211,23 +213,26 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           >
             {prerequisitesFields.map((prerequisitesField, prerequisitesIndex) => (
               <div
-                style={{
-                  display: 'flex',
-                  gap: theme.spacing(1),
-                }}
+                className={classes.alignedRow}
+                style={{ display: 'flex' }}
                 key={prerequisitesField.id}
               >
                 <SelectFieldController name={`action_prerequisites.${prerequisitesIndex}.executor` as const} label={t('Executor')} items={executorsItems} required />
                 <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.get_command` as const} label={t('Get command')} required />
                 <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.check_command` as const} label={t('Check command')} />
-                <IconButton
-                  icon={<DeleteOutlined />}
-                  variant="destructive"
-                  aria-label={t('Delete')}
-                  onClick={() => prerequisitesRemove(prerequisitesIndex)}
-                  priority="tertiary"
-                  size="sm"
-                />
+                <div className={classes.deleteCell}>
+                  <span aria-hidden className={classes.deleteLabelSpacer}>&nbsp;</span>
+                  <div className={classes.deleteControl}>
+                    <IconButton
+                      icon={<DeleteOutlined />}
+                      variant="destructive"
+                      aria-label={t('Delete')}
+                      onClick={() => prerequisitesRemove(prerequisitesIndex)}
+                      priority="tertiary"
+                      size="sm"
+                    />
+                  </div>
+                </div>
               </div>
             ))}
             <Button
