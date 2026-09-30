@@ -2,6 +2,12 @@
 # ---------------------------------------------------------------------------
 # Download openaev-agent and openaev-implant binaries from JFrog Artifactory.
 #
+# Each agent executable (binaries and Windows installers) is published on JFrog
+# with a `.sig` sidecar: the base64 RSA/SHA-256 signature of its bytes, made
+# when the release was promoted. It is downloaded next to the executable; the
+# platform returns it in a response header and the installer scripts verify it
+# against the keys they embed. Scripts and implants are not signed for now.
+#
 # Usage:
 #   ./scripts/download-binaries.sh <BINARY_VERSION> <LOCAL_VERSION>
 #
@@ -9,12 +15,6 @@
 #                     "prerelease", or a semver tag like "1.2.3").
 #   LOCAL_VERSION   – the version string used in the local file name
 #                     (e.g. the git tag). Defaults to BINARY_VERSION.
-#
-# Environment:
-#   AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY – optional RSA private key (PEM). When
-#                     set, each artifact is signed (RSA / SHA-256) and the
-#                     base64 signature is written to a `.sig` sidecar.
-#                     When unset, signing is skipped.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -33,29 +33,18 @@ IMPLANT_LOCAL="${RESOURCES}/implants/openaev-implant"
 # bandwidth, so fetching them concurrently turns ~40s into a few seconds.
 PARALLELISM="${DOWNLOAD_PARALLELISM:-8}"
 QUEUE="$(mktemp)"
-SIGNING_KEY_FILE=""
-trap 'rm -f "$QUEUE" ${SIGNING_KEY_FILE:+"$SIGNING_KEY_FILE"}' EXIT
-
-# The key is written to a private temp file because openssl reads keys from
-# files; it is removed on exit.
-if [[ -n "${AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY:-}" ]]; then
-  SIGNING_KEY_FILE="$(mktemp)"
-  chmod 600 "$SIGNING_KEY_FILE"
-  printf '%s\n' "$AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY" > "$SIGNING_KEY_FILE"
-  if ! openssl rsa -in "$SIGNING_KEY_FILE" -check -noout > /dev/null 2>&1; then
-    echo "❌ AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY is not a valid RSA private key" >&2
-    exit 1
-  fi
-else
-  echo "⚠️ AGENT_IMPLANT_SIGNATURE_PRIVATE_KEY not set, binaries will not be signed"
-fi
-export SIGNING_KEY_FILE
+trap 'rm -f "$QUEUE"' EXIT
 
 # ---------------------------------------------------------------------------
-# helper: download <remote_path> <local_path>  (queued, fetched at the end)
+# helpers: download <remote_path> <local_path>  (queued, fetched at the end)
+#          download_signed: same, along with the `.sig` published next to it
 # ---------------------------------------------------------------------------
 download() {
-  printf '%s %s\n' "$1" "$2" >> "$QUEUE"
+  printf '%s %s unsigned\n' "$1" "$2" >> "$QUEUE"
+}
+
+download_signed() {
+  printf '%s %s signed\n' "$1" "$2" >> "$QUEUE"
 }
 
 fetch_one() {
@@ -68,15 +57,12 @@ fetch_one() {
     return 1
   fi
   echo "  ↓ $2"
-  if [[ -n "$SIGNING_KEY_FILE" ]]; then
-    # Sign the binary itself, so it can be verified on any machine with:
-    #   openssl dgst -sha256 -verify pub.pem -signature <(base64 -d file.sig) file
-    if ! openssl dgst -sha256 -sign "$SIGNING_KEY_FILE" "$2" \
-        | openssl base64 -A > "${2}.sig"; then
-      echo "  ✗ SIGNATURE FAILED  $2" >&2
+  if [[ "$3" == "signed" ]]; then
+    if ! curl "${curl_opts[@]}" -o "${2}.sig" "${1}.sig"; then
+      echo "  ✗ FAILED  ${1}.sig" >&2
       return 1
     fi
-    echo "  ✎ ${2}.sig"
+    echo "  ↓ ${2}.sig"
   fi
 }
 export -f fetch_one
@@ -86,7 +72,7 @@ run_queue() {
   count=$(wc -l < "$QUEUE")
   echo ""
   echo "Fetching ${count} artifact(s), ${PARALLELISM} at a time..."
-  if ! xargs -a "$QUEUE" -P "$PARALLELISM" -n 2 bash -c 'set -o pipefail; fetch_one "$0" "$1"'; then
+  if ! xargs -a "$QUEUE" -P "$PARALLELISM" -n 3 bash -c 'set -o pipefail; fetch_one "$0" "$1" "$2"'; then
     echo "❌ One or more downloads failed" >&2
     exit 1
   fi
@@ -101,10 +87,10 @@ echo ""
 echo "── openaev-agent ──"
 
 # Linux binaries
-download "${JFROG_BASE}/${AGENT_REMOTE}/linux/arm64/openaev-agent-${BINARY_VERSION}" \
-         "${AGENT_LOCAL}/linux/arm64/openaev-agent-${LOCAL_VERSION}"
-download "${JFROG_BASE}/${AGENT_REMOTE}/linux/x86_64/openaev-agent-${BINARY_VERSION}" \
-         "${AGENT_LOCAL}/linux/x86_64/openaev-agent-${LOCAL_VERSION}"
+download_signed "${JFROG_BASE}/${AGENT_REMOTE}/linux/arm64/openaev-agent-${BINARY_VERSION}" \
+                "${AGENT_LOCAL}/linux/arm64/openaev-agent-${LOCAL_VERSION}"
+download_signed "${JFROG_BASE}/${AGENT_REMOTE}/linux/x86_64/openaev-agent-${BINARY_VERSION}" \
+                "${AGENT_LOCAL}/linux/x86_64/openaev-agent-${LOCAL_VERSION}"
 
 # Linux shell scripts
 for script in installer installer-service-user installer-session-user \
@@ -114,10 +100,10 @@ for script in installer installer-service-user installer-session-user \
 done
 
 # macOS binaries
-download "${JFROG_BASE}/${AGENT_REMOTE}/macos/arm64/openaev-agent-${BINARY_VERSION}" \
-         "${AGENT_LOCAL}/macos/arm64/openaev-agent-${LOCAL_VERSION}"
-download "${JFROG_BASE}/${AGENT_REMOTE}/macos/x86_64/openaev-agent-${BINARY_VERSION}" \
-         "${AGENT_LOCAL}/macos/x86_64/openaev-agent-${LOCAL_VERSION}"
+download_signed "${JFROG_BASE}/${AGENT_REMOTE}/macos/arm64/openaev-agent-${BINARY_VERSION}" \
+                "${AGENT_LOCAL}/macos/arm64/openaev-agent-${LOCAL_VERSION}"
+download_signed "${JFROG_BASE}/${AGENT_REMOTE}/macos/x86_64/openaev-agent-${BINARY_VERSION}" \
+                "${AGENT_LOCAL}/macos/x86_64/openaev-agent-${LOCAL_VERSION}"
 
 # macOS shell scripts
 for script in installer installer-service-user installer-session-user \
@@ -128,14 +114,14 @@ done
 
 # Windows binaries (arm64)
 for suffix in "" "-installer" "-installer-service-user" "-installer-session-user"; do
-  download "${JFROG_BASE}/${AGENT_REMOTE}/windows/arm64/openaev-agent${suffix}-${BINARY_VERSION}.exe" \
-           "${AGENT_LOCAL}/windows/arm64/openaev-agent${suffix}-${LOCAL_VERSION}.exe"
+  download_signed "${JFROG_BASE}/${AGENT_REMOTE}/windows/arm64/openaev-agent${suffix}-${BINARY_VERSION}.exe" \
+                  "${AGENT_LOCAL}/windows/arm64/openaev-agent${suffix}-${LOCAL_VERSION}.exe"
 done
 
 # Windows binaries (x86_64)
 for suffix in "" "-installer" "-installer-service-user" "-installer-session-user"; do
-  download "${JFROG_BASE}/${AGENT_REMOTE}/windows/x86_64/openaev-agent${suffix}-${BINARY_VERSION}.exe" \
-           "${AGENT_LOCAL}/windows/x86_64/openaev-agent${suffix}-${LOCAL_VERSION}.exe"
+  download_signed "${JFROG_BASE}/${AGENT_REMOTE}/windows/x86_64/openaev-agent${suffix}-${BINARY_VERSION}.exe" \
+                  "${AGENT_LOCAL}/windows/x86_64/openaev-agent${suffix}-${LOCAL_VERSION}.exe"
 done
 
 # Windows PowerShell scripts
@@ -165,4 +151,3 @@ run_queue
 
 echo ""
 echo "✅ All binaries downloaded successfully."
-

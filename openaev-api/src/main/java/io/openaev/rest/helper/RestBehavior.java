@@ -2,6 +2,7 @@ package io.openaev.rest.helper;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JavaType;
@@ -23,16 +24,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.Signature;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
@@ -65,9 +61,6 @@ public class RestBehavior {
 
   /** Response header carrying the base64 RSA/SHA-256 signature of a served binary. */
   public static final String SIGNATURE_HEADER = "X-Signature-Sha256-Rsa";
-
-  private static final String SIGNATURE_PUBLIC_KEY_PATH =
-      "/signature/agent-implant-signature-public.pem";
 
   @Resource protected ObjectMapper mapper;
 
@@ -759,76 +752,37 @@ public class RestBehavior {
   }
 
   /**
-   * Signature verification results per classpath binary. Bundled binaries never change at runtime,
-   * so each one is hashed and verified only once.
-   */
-  private static final Map<String, Boolean> VERIFIED_SIGNATURES = new ConcurrentHashMap<>();
-
-  /**
    * Adds the RSA/SHA-256 signature of a local classpath binary to the response headers, read from
-   * its adjacent {@code .sig} file (base64). Clients verify it against the binary they received
-   * with the agent/implant signature public key.
-   *
-   * <p>Does nothing when no signature file is shipped, or when the signature does not verify
-   * against the bundled public key, so clients are never handed a signature they would reject.
+   * its adjacent {@code .sig} file (base64). Forwarded as is: clients verify it against the keys
+   * they embed. Does nothing when no signature file is shipped.
    */
   protected void addLocalSignatureHeader(HttpHeaders headers, String resourcePath)
       throws IOException {
-    String signature;
     try (InputStream in = getClass().getResourceAsStream(resourcePath + ".sig")) {
-      if (in == null) {
-        return;
+      if (in != null) {
+        addSignatureHeader(headers, in);
       }
-      signature = new String(in.readAllBytes(), StandardCharsets.US_ASCII).trim();
     }
-    if (signature.isEmpty()) {
-      return;
+  }
+
+  /**
+   * Adds the RSA/SHA-256 signature of a JFrog binary to the response headers, read from the {@code
+   * .sig} file (base64) the release promotion publishes next to it. Forwarded as is: clients verify
+   * it against the keys they embed. Does nothing when no signature is published.
+   */
+  protected void addRepositorySignatureHeader(
+      HttpHeaders headers, String resourcePath, String filename) throws IOException {
+    try (InputStream in = validateJFrogUri(resourcePath, filename + ".sig").toURL().openStream()) {
+      addSignatureHeader(headers, in);
+    } catch (FileNotFoundException e) {
+      log.warn("No signature published for {}{}", resourcePath, filename);
     }
-    if (VERIFIED_SIGNATURES.computeIfAbsent(
-        resourcePath, path -> isValidSignature(path, signature))) {
+  }
+
+  private static void addSignatureHeader(HttpHeaders headers, InputStream in) throws IOException {
+    String signature = new String(in.readAllBytes(), StandardCharsets.US_ASCII).trim();
+    if (!signature.isEmpty()) {
       headers.add(SIGNATURE_HEADER, signature);
-    } else {
-      log.warn("Signature of {} does not match the bundled public key", resourcePath);
-    }
-  }
-
-  private static boolean isValidSignature(String resourcePath, String base64Signature) {
-    try (InputStream in = RestBehavior.class.getResourceAsStream(resourcePath)) {
-      if (in == null) {
-        return false;
-      }
-      Signature verifier = Signature.getInstance("SHA256withRSA");
-      verifier.initVerify(SignaturePublicKeyHolder.KEY);
-      byte[] buffer = new byte[8192];
-      int read;
-      while ((read = in.read(buffer)) != -1) {
-        verifier.update(buffer, 0, read);
-      }
-      return verifier.verify(Base64.getDecoder().decode(base64Signature));
-    } catch (IOException | GeneralSecurityException | IllegalArgumentException e) {
-      log.warn("Unable to verify signature of {}: {}", resourcePath, e.getMessage());
-      return false;
-    }
-  }
-
-  /** Lazily loads the bundled agent/implant signature public key once. */
-  private static final class SignaturePublicKeyHolder {
-    private static final PublicKey KEY = load();
-
-    private static PublicKey load() {
-      try (InputStream in = RestBehavior.class.getResourceAsStream(SIGNATURE_PUBLIC_KEY_PATH)) {
-        if (in == null) {
-          throw new IllegalStateException("Missing resource " + SIGNATURE_PUBLIC_KEY_PATH);
-        }
-        String base64 =
-            new String(in.readAllBytes(), StandardCharsets.US_ASCII)
-                .replaceAll("-----(BEGIN|END) PUBLIC KEY-----", "")
-                .replaceAll("\\s", "");
-        return KeyFactory.getInstance("RSA")
-            .generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(base64)));
-      } catch (IOException | GeneralSecurityException e) {
-        throw new IllegalStateException("Unable to load " + SIGNATURE_PUBLIC_KEY_PATH, e);
-      }
     }
   }
 
