@@ -38,6 +38,19 @@ By doing this, you are actively helping us to improve the quality of the entire 
 <!-- _NOTE: these things are not required to open a PR and can be done afterwards / while the PR draft is open._ -->
 <!-- For completed items, change [ ] to [x]. -->
 
+### Deployment
+
+<!--
+Tick the box to build this branch and deploy it to a staging environment; the
+link appears in the PR's deployment panel. While ticked, every new commit is
+redeployed; untick it to stop. Only users with write access can deploy: a box
+ticked by anyone else is unticked again. On fork PRs, each new commit unticks
+the box so a maintainer reviews the new code before ticking it again.
+Keep the trailing marker comment on the checkbox line.
+-->
+
+- [ ] 🚀 Deploy this branch to a staging environment <!-- feature-deploy -->
+
 ### Further comments
 
 If this is a relatively large or complex change, kick off the discussion by explaining why you chose the solution you did and what alternatives you considered, etc...
