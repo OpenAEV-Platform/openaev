@@ -8,7 +8,7 @@
 # need by polling; only 6 use `needs:`.
 #
 # Fan-in/fan-out is drawn lane-to-lane rather than job-to-job on purpose — the
-# Gate really has 14 `needs:`, but 14 arrows converging on one box is unreadable.
+# Gate really has 16 `needs:`, but 16 arrows converging on one box is unreadable.
 #
 # Every duration printed on a job is its `timeout-minutes`, never a measured
 # runtime. Keep the word "timeout" in the label so nobody reads it as a duration.
@@ -62,13 +62,14 @@ triggers.core -> pipe: "api-matrix · e2e-matrix\nvulnerability-scan-fail-on-err
 triggers.nightly -> pipe: "larger matrices\nvulnerability-scan-fail-on-error: true" {class: needs}
 
 # ═══ 2. Everything that starts immediately ═══════════════════════════════════
-wave0: "② LAUNCHED IMMEDIATELY AT  t = 0   —   12 job definitions, not one `needs:` between them" {
+wave0: "② LAUNCHED IMMEDIATELY AT  t = 0   —   14 job definitions, not one `needs:` between them" {
 direction: right
 style: {fill: "#ECEFF1"; stroke: "#546E7A"; stroke-width: 4                                             ; font-size: 26; bold: true}
 
 preflight: "PRE-FLIGHT" {
 class: lane
 mg: "🔎 Migrations Guard\ntimeout 3 min\nnew migrations must be appended\nafter the last release tag" {class: preflight}
+ocsf: "🔎 OCSF Parser Generation Stability\ntimeout 3 min\nregenerated OCSF parser\nmust leave no git diff" {class: preflight}
 }
 
 build: "BUILD" {
@@ -82,6 +83,7 @@ quality: "STATIC QUALITY" {
 class: lane
 sc: "🔍 Spotless Check\ntimeout 10 min · Java format" {class: quality}
 fq: "🧪 Frontend Quality & Unit Tests\ntimeout 20 min · ESLint + Vitest" {class: quality}
+bom: "🔎 BOM Override Guard\ntimeout 15 min · Spring Boot BOM overrides\nadvisory in the Gate" {class: quality}
 }
 
 docker: "DOCKER" {
@@ -99,7 +101,7 @@ atc: "🔎 API Types Check\ntimeout 20 min · generated TS types\nvs live API sc
 }
 }
 
-pipe -> wave0: "starts all 12 at once" {class: launch}
+pipe -> wave0: "starts all 14 at once" {class: launch}
 
 # ═══ 3. The only jobs that actually wait ═════════════════════════════════════
 gated: "③ THE ONLY JOBS THAT WAIT ON  needs:" {
@@ -121,11 +123,11 @@ style: {fill: "#FCE4EC"; stroke: "#AD1457"; stroke-width: 3                     
 wave0.tests -> cov: "backend needs: API Tests\ne2e needs: E2E" {class: needs}
 wave0.quality -> cov: "frontend needs: Frontend Quality" {class: needs}
 
-gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 14 jobs  ·  Coverage excluded" {
+gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 16 jobs  ·  Coverage excluded" {
 style: {fill: "#FFCDD2"; stroke: "#B71C1C"; stroke-width: 5                                                                                                                             ; border-radius: 8; font-size: 28; bold: true}
 }
 
-wave0 -> gate: "12 of the 14" {class: needs}
+wave0 -> gate: "14 of the 16" {class: needs}
 gated -> gate: "the other 2" {class: needs}
 
 retry: "🔄 Auto-Retry Failed CI\n\nseparate workflow, on workflow_run: completed\nconclusion == failure  AND  run_attempt == 1\n→ POST rerun-failed-jobs on the same run\n\nLoops back to ② as attempt 2 — exactly once" {
@@ -171,7 +173,7 @@ row3: "" {
 direction: right
 style: {fill: transparent                                                                                                                         ; stroke: transparent}
 a: "workflow" {class: swatch}
-b: "LAUNCH  —  the workflow starting a job. Not a dependency:\nthese 12 jobs have no upstream and begin the instant the run does." {shape: text ; class: note}
+b: "LAUNCH  —  the workflow starting a job. Not a dependency:\nthese 14 jobs have no upstream and begin the instant the run does." {shape: text ; class: note}
 a -> b {class: launch}
 }
 

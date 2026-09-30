@@ -61,7 +61,7 @@ terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 | **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
-| **Pipeline Gate** | 14 jobs (see below) | Aggregates results; runs `if: always()` |
+| **Pipeline Gate** | 16 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
 
@@ -134,10 +134,10 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 14 jobs:
+It `needs:` these 16 jobs:
 
-`migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
-`spotless-check`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
+`ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
+`spotless-check`, `bom-override-guard`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
 `backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `container-vulnerability-scan`
 
 **Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
