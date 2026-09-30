@@ -284,8 +284,13 @@ A client integrating against this export must honor the following:
 7. **Absence has one overloaded meaning.** A grain missing from the stream may be out of scope, never
    verified, or deleted, and the export cannot tell these apart. This is exactly why the full
    reconciliation of obligation 5 is required.
-8. **Labels are as of `last_verified_at`.** Renaming a Scenario propagates to an observation only on
-   its next verdict, so a stale name is expected behaviour, not a bug.
+8. **Labels are as of `last_verified_at`.** Every name copied into an observation — Endpoint name
+   and hostname, Scenario and Simulation names, attack pattern name, Tenant name — is the one
+   observed when the observation was last recomputed. Renaming one of them does not update the
+   existing observations: the new name only appears with the next verdict (attack stream) or the
+   next Finding (vulnerability stream) on that grain. A stale name is expected behaviour, not a
+   bug; the full reconciliation of obligation 5 does not refresh it either. Rely on the ids
+   (`asset_id`, `scenario_id`…) to join, never on the names.
 9. **Attack patterns are attributed per Injector Contract.** A contract carrying three techniques,
    detected once, produces three separate `SUCCESS` documents — one per technique. A consumer that
    counts detections per technique must account for this.
