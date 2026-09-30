@@ -47,7 +47,6 @@ const OutputFormTab = () => {
         action={(
           <Button
             type="button"
-            size="sm"
             startIcon={<Add fontSize="small" />}
             onClick={() => outputElementAppend({
               contract_output_element_name: '',
