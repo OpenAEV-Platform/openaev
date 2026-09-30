@@ -57,6 +57,7 @@ describe('utility classes the library ships', () => {
     expect(fs.existsSync(CSS)).toBe(true);
   });
 
+  // Walks every source file, which sits close to the 5s default under load.
   it('every class written in a className exists in that stylesheet', () => {
     const shipped = shippedClasses();
     const families = new Set([...shipped].map(familyOf).filter(Boolean));
@@ -64,5 +65,5 @@ describe('utility classes the library ships', () => {
       .filter(([cls]) => !shipped.has(cls) && families.has(familyOf(cls)))
       .map(([cls, files]) => `${cls} (${[...new Set(files)].slice(0, 3).join(', ')})`);
     expect(missing, 'these classes resolve to nothing at runtime').toEqual([]);
-  });
+  }, 30_000);
 });
