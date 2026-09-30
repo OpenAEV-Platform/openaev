@@ -20,7 +20,7 @@ const useStyles = makeStyles()(() => ({
     width: '100%',
     display: 'inline-grid',
     marginTop: '10px',
-    alignItems: 'center',
+    alignItems: 'end',
     gridTemplateColumns: ' 1fr 3fr 50px',
   },
   container: {
@@ -253,7 +253,12 @@ const RulesContractContent: FunctionComponent<Props> = ({
               <div key={ruleField.id} style={{ marginTop: 20 }}>
                 <div className={classes.rulesArray}>
                   <Typography
-                    style={{ textTransform: 'capitalize' }}
+                    style={{
+                      textTransform: 'capitalize',
+                      display: 'flex',
+                      alignItems: 'center',
+                      minHeight: 36,
+                    }}
                     variant="body1"
                     {...methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${rulesIndex}.rule_attribute_name` as const)}
                   >
