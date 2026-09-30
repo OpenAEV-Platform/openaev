@@ -14,7 +14,9 @@ import io.openaev.database.model.DetectionInjectExpectation;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tenant;
 import io.openaev.engine.model.snapshotobservation.AttackObservationHandler;
 import io.openaev.engine.model.snapshotobservation.EsAttackObservation;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -37,6 +39,8 @@ import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.fixtures.composers.TeamComposer;
+import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
@@ -85,6 +89,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private TeamComposer teamComposer;
+  @Autowired private TenantComposer tenantComposer;
 
   /**
    * A point in time used as the {@code :from} parameter — 1 hour ago, truncated to the microsecond
@@ -108,6 +113,7 @@ class AttackObservationIndexingTest extends IntegrationTest {
     collectorComposer.reset();
     securityPlatformComposer.reset();
     teamComposer.reset();
+    tenantComposer.reset();
   }
 
   // ---------------------------------------------------------------------------
@@ -1205,6 +1211,67 @@ class AttackObservationIndexingTest extends IntegrationTest {
       assertThat(doc.getBase_restrictions())
           .containsExactlyInAnyOrder(scenario.getId(), exercise.getId())
           .doesNotContain(endpointWrapper.get().getId());
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tenant correlation
+  // ---------------------------------------------------------------------------
+
+  @Nested
+  @DisplayName("tenant correlation")
+  class TenantCorrelation {
+
+    @Test
+    @DisplayName(
+        "a contract id shared with another tenant neither inflates the counters nor leaks its"
+            + " attack pattern")
+    void given_contractIdSharedWithAnotherTenant_should_stayWithinTheInjectTenant() {
+      // -- ARRANGE: tenant A (ambient) runs contract X, linked to its own attack pattern --
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      AttackPatternComposer.Composer attackPatternWrapper =
+          attackPatternComposer.forAttackPattern(newAttackPattern());
+      InjectComposer.Composer injectWrapper =
+          buildDetectionInject(endpointWrapper, attackPatternWrapper, EXPECTATION_STATUS.SUCCESS);
+      Scenario scenario = persistScenario();
+      wireExercise(scenario, Instant.now(), injectWrapper);
+      String sharedContractId = injectWrapper.get().getInjectorContract().orElseThrow().getId();
+
+      // Tenant B holds its own copy of contract X (same id, as for built-in contracts), linked to
+      // a different attack pattern of its own.
+      Tenant otherTenant =
+          tenantComposer
+              .forTenant(TenantFixture.getTenant("other-tenant-" + UUID.randomUUID()))
+              .persist()
+              .get();
+      AttackPattern otherAttackPattern = newAttackPattern();
+      otherAttackPattern.setTenant(otherTenant);
+      InjectorContract twinContract = InjectorContractFixture.createDefaultInjectorContract();
+      twinContract.setId(sharedContractId);
+      twinContract.setTenant(otherTenant);
+      twinContract.getInjectors().forEach(injector -> injector.setTenantId(otherTenant.getId()));
+      injectorContractComposer
+          .forInjectorContract(twinContract)
+          .withAttackPattern(attackPatternComposer.forAttackPattern(otherAttackPattern))
+          .persist();
+      flushAndClear();
+
+      // -- ACT --
+      List<EsAttackObservation> docs =
+          attackObservationHandler.fetch(FROM, 5000).stream()
+              .filter(es -> es.getBase_asset_side().equals(endpointWrapper.get().getId()))
+              .toList();
+
+      // -- ASSERT: one grain, on tenant A's attack pattern, counted once --
+      assertThat(docs).hasSize(1);
+      EsAttackObservation doc = docs.getFirst();
+      assertThat(doc.getAttack_observation_attack_pattern_external_id())
+          .isEqualTo(attackPatternWrapper.get().getExternalId());
+      assertThat(doc.getBase_attack_patterns_side())
+          .containsExactly(attackPatternWrapper.get().getId());
+      assertThat(doc.getAttack_observation_attempts_total()).isEqualTo(1L);
+      assertThat(doc.getAttack_observation_attempts_success()).isEqualTo(1L);
     }
   }
 }

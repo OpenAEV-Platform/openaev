@@ -65,7 +65,9 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
             FROM scenarios_exercises se
             WHERE se.exercise_id = e.exercise_id
         ) sa ON sa.scenario_id IS NOT NULL
-        JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract
+        -- Correlated on tenant_id: a built-in contract keeps the same id in every tenant, each
+        -- tenant linking it to its own attack_patterns rows, so the contract id alone fans out.
+        JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract AND icap.tenant_id = i.tenant_id
         JOIN attack_patterns ap ON ap.attack_pattern_id = icap.attack_pattern_id
         WHERE ie.agent_id IS NULL
           AND ie.asset_id IS NOT NULL
@@ -106,7 +108,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
             JOIN injects i ON i.inject_id = ie.inject_id
             JOIN exercises e ON e.exercise_id = i.inject_exercise
             JOIN scenarios_exercises se2 ON se2.exercise_id = e.exercise_id AND se2.scenario_id = t.scenario_id
-            JOIN injectors_contracts_attack_patterns icap2 ON icap2.injector_contract_id = i.inject_injector_contract
+            JOIN injectors_contracts_attack_patterns icap2 ON icap2.injector_contract_id = i.inject_injector_contract AND icap2.tenant_id = i.tenant_id
             JOIN attack_patterns ap2 ON ap2.attack_pattern_id = icap2.attack_pattern_id
                                      AND ap2.attack_pattern_external_id = t.attack_pattern_external_id
             WHERE ie.agent_id IS NULL
@@ -131,7 +133,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
          AND ie.inject_expectation_type = l.inject_expectation_type
          AND ie.agent_id IS NULL
         JOIN injects i ON i.inject_id = ie.inject_id AND i.inject_exercise = l.exercise_id AND i.tenant_id = l.tenant_id
-        JOIN injectors_contracts_attack_patterns icap3 ON icap3.injector_contract_id = i.inject_injector_contract
+        JOIN injectors_contracts_attack_patterns icap3 ON icap3.injector_contract_id = i.inject_injector_contract AND icap3.tenant_id = i.tenant_id
         JOIN attack_patterns ap3 ON ap3.attack_pattern_id = icap3.attack_pattern_id
                                  AND ap3.attack_pattern_external_id = l.attack_pattern_external_id
     ),
@@ -270,7 +272,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
           FROM scenarios_exercises se
           WHERE se.exercise_id = e.exercise_id
       ) sa ON sa.scenario_id IS NOT NULL
-      JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract
+      JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = i.inject_injector_contract AND icap.tenant_id = i.tenant_id
       JOIN attack_patterns ap ON ap.attack_pattern_id = icap.attack_pattern_id
       WHERE ie.agent_id IS NULL
         AND ie.asset_id IS NOT NULL
