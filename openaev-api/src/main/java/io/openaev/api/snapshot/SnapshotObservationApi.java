@@ -32,9 +32,11 @@ import org.springframework.web.bind.annotation.RestController;
  * the {@link PreviewFeature#BULK_SNAPSHOT_EXPORT} preview flag (404 when off) and authorised solely
  * by {@code ACCESS_SNAPSHOT_OBSERVATION} — no {@code resourceId}, no {@code skipRBAC}.
  *
- * <p>The {@code TxCtx} parameters read as unused but are not: resolving them is what refuses a
- * {@code tenantId} the caller is not a member of, before the service ever trusts that path
- * variable.
+ * <p>The {@code TxCtx} parameters read as unused but are not: membership of {@code tenantId} is
+ * already refused upstream by {@code TenantInterceptor}, but resolving {@code TxCtx} is what opens
+ * the transaction with that tenant as its {@code app.current_tenants} scope. The pending-indexing
+ * probe is a native query on tenant-active tables: without the scope it reads zero rows and would
+ * report a ready snapshot while rows are still waiting to be indexed.
  */
 @Slf4j
 @RestController

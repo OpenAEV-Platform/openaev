@@ -158,8 +158,9 @@ walk of the entire current state, restricted to documents updated at or after th
 request sends `cursor` to resume a walk in progress, from the `next_cursor` of a previous page.
 
 The cursor is opaque: do not parse it, store it beyond your own resume logic, or share it across
-Tenants — a cursor is bound to the Tenant and the stream it was issued for, and a foreign-tenant or
-malformed cursor returns a **400**.
+Tenants — a cursor is bound to the Tenant it was issued for, and a foreign-tenant or malformed
+cursor returns a **400**. It is not bound to a stream: never send the cursor of one stream to the
+other, it would be accepted and resume at the wrong position.
 
 !!! example "Full reconciliation, then resume by cursor"
 
@@ -234,10 +235,13 @@ indexed.
 !!! note "`indexed_through` is a platform-wide signal"
 
     The indexing cursor is stored per stream, not per Tenant, and the indexer sweeps every Tenant
-    together. So `indexed_through`, and therefore `snapshot_ready`, describe the platform's indexing
-    backlog, not this Tenant's. On a busy shared platform, a quiet Tenant's window can be held back
-    by another Tenant's write volume, with nothing in the response to explain why. See the warning
-    in [Client obligations](#client-obligations) about not gating polling on `snapshot_ready`.
+    together. So `indexed_through`, and therefore `snapshot_ready`, can describe the platform's
+    indexing backlog rather than this Tenant's: on a busy shared platform, a quiet Tenant's window
+    can be held back by another Tenant's write volume, with nothing in the response to explain why.
+    The check for pending rows is scoped to the Tenant wherever the underlying data is
+    Tenant-isolated (today the vulnerability stream), which narrows that effect, but do not rely on
+    it. See the warning in [Client obligations](#client-obligations) about not gating polling on
+    `snapshot_ready`.
 
 ## Client obligations
 
