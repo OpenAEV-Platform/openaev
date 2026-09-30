@@ -654,6 +654,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                           gap: 8,
                           marginBottom: 8,
                           ...layerInputVars,
+                          ...draggableProvided.draggableProps.style,
                         }}
                       >
                         <Box sx={{
