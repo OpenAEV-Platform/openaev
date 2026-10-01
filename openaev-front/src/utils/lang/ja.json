@@ -3969,6 +3969,7 @@
   "Update an endpoint": "エンドポイントの更新",
   "Update connector instance": "コネクタインスタンスを更新する",
   "Update credential": "認証情報を更新する",
+  "Update credential in this inject": "このインジェクションで認証情報を更新する",
   "Update credentials": "認証情報を更新する",
   "Update credentials in this inject": "このインジェクション内の認証情報を更新してください",
   "Update date": "更新日",
