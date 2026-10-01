@@ -2,7 +2,9 @@ package io.openaev.export;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.ExportOptions;
@@ -12,6 +14,8 @@ import io.openaev.rest.inject.exports.InjectsFileExport;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.organization.OrganizationService;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.Getter;
 
 @Getter
@@ -89,5 +93,37 @@ public class FileExportBase {
       this.objectMapper.addMixIn(Variable.class, VariableMixin.class);
     }
     return this;
+  }
+
+  /**
+   * Nulls, in a serialized export, every organization reference ({@code user_organization}, {@code
+   * team_organization}) that points outside the organizations the export carries ({@code
+   * <prefix>_organizations}). A user is platform-level and may belong to another tenant's
+   * organization: the export leaves that organization out, and its id must not leak through the
+   * reference either. The field is kept (null), since the importer reads it unconditionally.
+   *
+   * @param export the serialized export
+   * @param prefix the export's key prefix ({@code exercise}, {@code scenario}, {@code inject})
+   */
+  public static void dropForeignOrganizationReferences(ObjectNode export, String prefix) {
+    Set<String> exportedIds = new HashSet<>();
+    export
+        .path(prefix + "_organizations")
+        .forEach(organization -> exportedIds.add(organization.path("organization_id").asText()));
+    nullReferencesOutside(export.path(prefix + "_users"), "user_organization", exportedIds);
+    nullReferencesOutside(export.path(prefix + "_teams"), "team_organization", exportedIds);
+  }
+
+  private static void nullReferencesOutside(
+      JsonNode items, String referenceField, Set<String> exportedIds) {
+    items.forEach(
+        item -> {
+          JsonNode reference = item.get(referenceField);
+          if (reference != null
+              && !reference.isNull()
+              && !exportedIds.contains(reference.asText())) {
+            ((ObjectNode) item).putNull(referenceField);
+          }
+        });
   }
 }

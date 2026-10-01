@@ -117,6 +117,9 @@ class OrganizationExportIsolationTest extends IntegrationTest {
     player = userComposer.forUser(player).persist().get();
     tenantRepository.addUserToTenant(player.getId(), ownerTenant.getId());
     tenantRepository.addUserToTenant(player.getId(), foreignTenant.getId());
+    // addUserToTenant clears the persistence context (@Modifying(clearAutomatically = true)):
+    // reload the player, or the simulation's team users (@MapsId) would cascade a detached one.
+    player = entityManager.find(User.class, player.getId());
 
     Team team = TeamFixture.getEmptyTeam();
     team.setName(prefix + "-team");
@@ -158,19 +161,34 @@ class OrganizationExportIsolationTest extends IntegrationTest {
     return ZipUtils.getZipEntry(zip, entryName + ".json", ZipUtils::streamToString);
   }
 
-  private void assertOnlyOwnOrganization(String json, String organizationsKey, Fixture fixture)
+  /**
+   * Asserts the export (keys {@code <exportPrefix>_organizations}, {@code _teams}, {@code _users})
+   * only carries the owning tenant's organization: nothing of the foreign one, not even its id as
+   * the player's {@code user_organization} reference, while references to an exported organization
+   * are kept.
+   */
+  private void assertOnlyOwnOrganization(String json, String exportPrefix, Fixture fixture)
       throws Exception {
-    JsonNode organizations = mapper.readTree(json).get(organizationsKey);
-    assertThat(organizations).as(organizationsKey).isNotNull();
+    JsonNode export = mapper.readTree(json);
+    JsonNode organizations = export.get(exportPrefix + "_organizations");
+    assertThat(organizations).as(exportPrefix + "_organizations").isNotNull();
     List<String> exportedIds =
         StreamSupport.stream(organizations.spliterator(), false)
             .map(organization -> organization.get("organization_id").asText())
             .distinct()
             .toList();
     assertThat(exportedIds).containsExactly(fixture.ownOrganization().getId());
-    // Neither the foreign organization's name nor its tag may leak into the tenant's export.
+    // The reference to an exported organization survives (the team's)...
+    assertThat(export.get(exportPrefix + "_teams").get(0).get("team_organization").asText())
+        .isEqualTo(fixture.ownOrganization().getId());
+    // ...the reference to the foreign one is written null, so the archive stays importable.
+    JsonNode player = export.get(exportPrefix + "_users").get(0);
+    assertThat(player.has("user_organization")).isTrue();
+    assertThat(player.get("user_organization").isNull()).isTrue();
+    // Nothing of the foreign organization leaks: not its name, not its tag, not even its id.
     assertThat(json)
         .contains(fixture.ownOrganization().getName())
+        .doesNotContain(fixture.foreignOrganization().getId())
         .doesNotContain(fixture.foreignOrganization().getName())
         .doesNotContain(prefix + "-foreign-tag");
   }
@@ -214,7 +232,7 @@ class OrganizationExportIsolationTest extends IntegrationTest {
               exercise.getName());
 
       // Assert
-      assertOnlyOwnOrganization(json, "exercise_organizations", fixture);
+      assertOnlyOwnOrganization(json, "exercise", fixture);
     }
 
     @Test
@@ -241,7 +259,7 @@ class OrganizationExportIsolationTest extends IntegrationTest {
               exercise.getName());
 
       // Assert
-      assertOnlyOwnOrganization(json, "exercise_organizations", fixture);
+      assertOnlyOwnOrganization(json, "exercise", fixture);
     }
   }
 
@@ -272,7 +290,7 @@ class OrganizationExportIsolationTest extends IntegrationTest {
               scenario.getName());
 
       // Assert
-      assertOnlyOwnOrganization(json, "scenario_organizations", fixture);
+      assertOnlyOwnOrganization(json, "scenario", fixture);
     }
   }
 
@@ -304,7 +322,7 @@ class OrganizationExportIsolationTest extends IntegrationTest {
               "injects");
 
       // Assert
-      assertOnlyOwnOrganization(json, "inject_organizations", fixture);
+      assertOnlyOwnOrganization(json, "inject", fixture);
     }
   }
 }
