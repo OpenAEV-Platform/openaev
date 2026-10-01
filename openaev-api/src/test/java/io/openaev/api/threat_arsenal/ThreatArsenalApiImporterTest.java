@@ -38,6 +38,7 @@ import io.openaev.jsonapi.Relationship;
 import io.openaev.jsonapi.ResourceIdentifier;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.service.ZipJsonService;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.ThreatArsenalInputFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
@@ -60,6 +61,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class ThreatArsenalApiImporterTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mockMvc;
   @Autowired private DomainComposer domainComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -71,7 +73,8 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     domainComposer.reset();
     injectorContractComposer.reset();
     // The import endpoint resolves a single write tenant from the request scope (injectors /

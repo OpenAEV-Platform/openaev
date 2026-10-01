@@ -13,6 +13,7 @@ import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationF
 import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.constants.Constants;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.nio.file.Files;
@@ -43,6 +44,7 @@ class KillChainPhaseImportAttributionTest extends IntegrationTest {
       "src/test/resources/importer-v1/import-scenario-with-attack-pattern.json";
   private static final String PHASE_EXTERNAL_ID = "KILLCHAIN_EXTERNAL_ID";
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private V1_DataImporter importer;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private JdbcTemplate jdbc;
@@ -58,7 +60,7 @@ class KillChainPhaseImportAttributionTest extends IntegrationTest {
     contextTenant = TenantContext.getCurrentTenant();
     tenantA = tenantHelper.createTenantWithCurrentUser("kcp-import-a").getId();
     tenantB = tenantHelper.createTenantWithCurrentUser("kcp-import-b").getId();
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(contextTenant);
+    builtinConnectorRegistration.register(openaevInjectorIntegrationFactory, contextTenant);
   }
 
   @Test

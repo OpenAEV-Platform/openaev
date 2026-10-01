@@ -52,6 +52,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   static AssetGroup ALL_ASSETGROUP;
   static AssetGroup ALL_WINDOWS;
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private InjectorFixture injectorFixture;
 
   @Autowired private MockMvc mvc;
@@ -79,8 +80,10 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        manualInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");

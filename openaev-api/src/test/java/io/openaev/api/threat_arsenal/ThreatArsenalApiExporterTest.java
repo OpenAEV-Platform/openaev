@@ -20,6 +20,7 @@ import io.openaev.database.model.Domain;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.User;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DomainFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
@@ -52,6 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class ThreatArsenalApiExporterTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mockMvc;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private DomainComposer domainComposer;
@@ -62,7 +64,8 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     injectorContractComposer.reset();
     domainComposer.reset();
   }
