@@ -53,6 +53,7 @@ import io.openaev.database.repository.NotificationEventRecordRepository;
 import io.openaev.database.repository.NotificationRepository;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.NotifierRepository;
+import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
@@ -161,8 +162,13 @@ import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioDashboardApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.settings.TenantSettingsApi;
+import io.openaev.rest.team.TeamApi;
+import io.openaev.rest.user.MeApi;
+import io.openaev.rest.user.PlayerApi;
+import io.openaev.rest.user.PlayerService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.scheduler.jobs.ComchecksExecutionJob;
+import io.openaev.search.FullTextSearchService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.ChannelService;
 import io.openaev.service.EndpointService;
@@ -195,6 +201,7 @@ import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
@@ -257,6 +264,7 @@ class TenantActiveTableAccessArchTest {
           "injectors",
           "tags",
           "tag_rules",
+          "organizations",
           "channels",
           "domains",
           "attackpath_execution",
@@ -847,6 +855,37 @@ class TenantActiveTableAccessArchTest {
                   + " the repository: resolving it in an unscoped context silently yields an empty"
                   + " notifier list, and the dispatch pipeline then delivers nothing at all. New"
                   + " callers must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule organizations_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Owning service: reads are scoped by the calling transaction (OrganizationApi's
+              // TxCtx, the ManagerCreator scope for built-in injectors), writes carry an explicit
+              // tenant id.
+              OrganizationService.class,
+              // TxCtx-carrying entrypoints linking a user/team to an organization through
+              // updateRelation: the inspector scopes the findById, so a foreign organization is
+              // not found.
+              MeApi.class,
+              PlayerApi.class,
+              TeamApi.class,
+              // Service behind PlayerApi#createPlayer / #upsertPlayer, same updateRelation lookup.
+              PlayerService.class,
+              // Organization search behind the TxCtx-carrying FullTextSearchApi handlers.
+              FullTextSearchService.class,
+              // HTTP-triggered importer; resolves the write tenant explicitly before reusing or
+              // creating an organization.
+              V1_DataImporter.class,
+              // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
+              ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(OrganizationRepository.class)
+          .because(
+              "organizations is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule channels_repository_access_is_reviewed =

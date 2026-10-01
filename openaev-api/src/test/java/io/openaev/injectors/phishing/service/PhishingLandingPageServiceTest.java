@@ -128,7 +128,7 @@ class PhishingLandingPageServiceTest {
     when(expectationBuilderService.buildDetectionExpectation()).thenReturn(new Expectation());
     when(expectationBuilderService.buildManualExpectation()).thenReturn(new Expectation());
     when(domainService.upsertDomainEntities(any(), any())).thenReturn(Set.of());
-    when(organizationService.findOrCreateByName(any())).thenReturn(new Organization());
+    when(organizationService.findOrCreateByName(any(), anyString())).thenReturn(new Organization());
 
     AttackPattern spearphishingLink = new AttackPattern();
     spearphishingLink.setExternalId("T1566.002");
@@ -284,7 +284,7 @@ class PhishingLandingPageServiceTest {
     when(expectationBuilderService.buildDetectionExpectation()).thenReturn(new Expectation());
     when(expectationBuilderService.buildManualExpectation()).thenReturn(new Expectation());
     when(domainService.upsertDomainEntities(any(), any())).thenReturn(Set.of());
-    when(organizationService.findOrCreateByName(any())).thenReturn(new Organization());
+    when(organizationService.findOrCreateByName(any(), anyString())).thenReturn(new Organization());
     when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(any(), any()))
         .thenReturn(List.of());
     when(mapper.writeValueAsString(any())).thenReturn("{}");

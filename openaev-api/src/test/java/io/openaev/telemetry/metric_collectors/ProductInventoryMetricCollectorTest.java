@@ -293,6 +293,22 @@ class ProductInventoryMetricCollectorTest {
     }
 
     @Test
+    @DisplayName("organizations gauge is wired to the scoped supplier, not the repository")
+    void given_organizationsGauge_should_runInAllTenantsScope() {
+      // organizations is v2-active: a gauge left on the raw repository publishes zero under the
+      // inspector's fail-closed scope, so assert the REGISTERED supplier reaches the primitive.
+      when(organizationRepository.count()).thenReturn(3L);
+
+      collector.init();
+
+      verify(metricRegistry).registerGauge(eq("organizations_total"), any(), gaugeCaptor.capture());
+      Supplier<Long> gauge = gaugeCaptor.getValue();
+      clearInvocations(tenantTx);
+      assertThat(gauge.get()).isEqualTo(3L);
+      verify(tenantTx).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
     @DisplayName("mappers gauge uses the all-tenants scoped transaction for v2 tables")
     void given_mappersGauge_should_runInAllTenantsScope() {
       when(importMapperRepository.count()).thenReturn(5L);
