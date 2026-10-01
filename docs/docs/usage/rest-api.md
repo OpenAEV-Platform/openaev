@@ -207,9 +207,11 @@ When OpenAEV is connected to XTM One, the embedded chat panel reaches XTM One th
 | `GET /api/xtmone/chat/conversation-references` | Lists the conversations the user may reference with `@`, those XTM One lets them open. Optional parameters: `q` (search text, trimmed and cut to 200 characters), `limit` (1 to 20) and `exclude` (the id of a conversation not to list, typically the current one). A malformed parameter is left out rather than refused |
 | `POST /api/xtmone/chat/messages` | Sends a message and streams the answer as server-sent events. `referenced_conversation_ids` names the conversations the message references: only an array of UUIDs is read, and its first 5 distinct ids are forwarded |
 
-Path `{id}` values must be UUIDs, otherwise the request is refused with a `400`. Except for `POST /api/xtmone/chat/sessions` and `POST /api/xtmone/chat/messages`, these endpoints answer with XTM One's own status, and when XTM One refuses a change (for example the user's default workspace, or a workspace that still holds work items, cannot be deleted), with a body holding only XTM One's `detail` message. An XTM One `401` is answered as a `422`, so XTM One rejecting OpenAEV's credentials never signs the user out of OpenAEV.
+Path `{id}` values must be UUIDs, otherwise the request is refused with a `400`. Except for `POST /api/xtmone/chat/messages`, these endpoints answer with XTM One's own status, and when XTM One refuses a change (for example the user's default workspace, or a workspace that still holds work items, cannot be deleted), with a body holding only XTM One's `detail` message. A `422` means XTM One refused the request, possibly because of an error between OpenAEV and XTM One: the reason is in the response body's `detail`.
 
 Restoring a conversation (`POST /api/xtmone/chat/sessions` with its `conversation_id`) returns its messages as XTM One serves them: a user message that referenced other conversations keeps their `conversation_refs` (`conversation_id`, `title`, `key`).
+
+When XTM One is not configured on OpenAEV, every endpoint under `/api/xtmone/chat` answers `503 Service Unavailable` with the body `{"detail": "XTM One is not configured"}`.
 
 ## Multi-tenant context
 

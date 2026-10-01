@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -25,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
@@ -32,6 +35,7 @@ import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,11 +47,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.quality.Strictness;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("XTM One Client tests")
 class XtmOneClientTest {
+
+  private static final ObjectMapper JSON = new ObjectMapper();
 
   @Mock private HttpClientFactory httpClientFactory;
   @Mock private XtmOneConfig config;
@@ -56,62 +64,276 @@ class XtmOneClientTest {
 
   @Spy @InjectMocks private XtmOneClient xtmOneClient;
 
+  private void configureClientCommon() {
+    when(config.isConfigured()).thenReturn(true);
+    when(config.getUrl()).thenReturn("http://localhost:8080");
+    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
+    doReturn("fake-jwt").when(xtmOneClient).issueJwtForCurrentUser();
+  }
+
+  /** {@link #configureClientCommon} for a test that sends through several kinds of client. */
+  private void configureClientLeniently() throws Exception {
+    lenient().when(config.isConfigured()).thenReturn(true);
+    lenient().when(config.getUrl()).thenReturn("http://localhost:8080");
+    lenient().when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
+    lenient().when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+    lenient().doReturn("fake-jwt").when(xtmOneClient).issueJwtForCurrentUser();
+    lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+  }
+
+  /** An XTM One answer: a status and a body (the JSON the mocked mapper then reads is stubbed). */
+  private static ClassicHttpResponse answer(int statusCode, String body) throws Exception {
+    ClassicHttpResponse httpResponse =
+        mock(ClassicHttpResponse.class, withSettings().strictness(Strictness.LENIENT));
+    when(httpResponse.getCode()).thenReturn(statusCode);
+    HttpEntity entity = mock(HttpEntity.class, withSettings().strictness(Strictness.LENIENT));
+    when(entity.getContent())
+        .thenReturn(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
+    when(entity.getContentLength()).thenReturn((long) body.length());
+    when(httpResponse.getEntity()).thenReturn(entity);
+    return httpResponse;
+  }
+
+  /**
+   * Stubs the HTTP exchange with the given status and a JSON body, capturing the request. The
+   * response mocks are lenient because some handler paths (e.g. DELETE 204) never read the entity.
+   */
+  private ArgumentCaptor<Object> mockExchange(int statusCode) throws Exception {
+    ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
+    when(httpClient.execute(
+            (ClassicHttpRequest) requestCaptor.capture(), any(HttpClientResponseHandler.class)))
+        .thenAnswer(
+            invocation -> {
+              HttpClientResponseHandler<?> handler = invocation.getArgument(1);
+              return handler.handleResponse(answer(statusCode, "{}"));
+            });
+    return requestCaptor;
+  }
+
+  /** Every chat call relaying XTM One's answer, by name. */
+  static Stream<Arguments> relayingCalls() {
+    MockMultipartFile file = new MockMultipartFile("file", "iocs.csv", "text/csv", new byte[] {1});
+    return Stream.of(
+        relayingCall("createChatSession", c -> c.createChatSession(Map.of("agent_slug", "a"))),
+        relayingCall("listChatSessions", XtmOneClient::listChatSessions),
+        relayingCall("deleteChatSession", c -> c.deleteChatSession("conv-1")),
+        relayingCall("updateChatSession", c -> c.updateChatSession("conv-1", Map.of("title", "t"))),
+        relayingCall("listChatWorkspaces", XtmOneClient::listChatWorkspaces),
+        relayingCall("createChatWorkspace", c -> c.createChatWorkspace(Map.of("name", "n"))),
+        relayingCall(
+            "updateChatWorkspace", c -> c.updateChatWorkspace("ws-1", Map.of("name", "n"))),
+        relayingCall("deleteChatWorkspace", c -> c.deleteChatWorkspace("ws-1")),
+        relayingCall(
+            "searchChatConversationReferences",
+            c -> c.searchChatConversationReferences("red", 5, "conv-2")),
+        relayingCall("steerChatMessage", c -> c.steerChatMessage("hello", "conv-1")),
+        relayingCall("approveToolCalls", c -> c.approveToolCalls("conv-1", List.of())),
+        relayingCall("getPendingApprovals", c -> c.getPendingApprovals("conv-1")),
+        relayingCall("getChatPrompts", XtmOneClient::getChatPrompts),
+        relayingCall("getChatQuota", XtmOneClient::getChatQuota),
+        relayingCall(
+            "submitMessageFeedback",
+            c -> c.submitMessageFeedback("conv-1", "msg-1", "positive", null)),
+        relayingCall("retractMessageFeedback", c -> c.retractMessageFeedback("conv-1", "msg-1")),
+        relayingCall("uploadChatFile", c -> c.uploadChatFile("conv-1", file)));
+  }
+
+  private static Arguments relayingCall(
+      String name, Function<XtmOneClient, XtmOneClient.RelayedResponse> call) {
+    return Arguments.of(Named.of(name, call));
+  }
+
+  /** Every chat call that relays only XTM One's refusal, by name. */
+  static Stream<Arguments> refusingCalls() {
+    return Stream.of(
+        refusingCall("listChatAgents", c -> c.listChatAgents("global.assistant")),
+        refusingCall("downloadChatFile", c -> c.downloadChatFile("file-1")),
+        refusingCall(
+            "streamChatMessage", c -> c.streamChatMessage("hello", null, null, stream -> {})));
+  }
+
+  private static Arguments refusingCall(String name, Consumer<XtmOneClient> call) {
+    return Arguments.of(Named.of(name, call));
+  }
+
+  @Nested
+  @DisplayName("Relayed answers")
+  class RelayedAnswers {
+
+    @Test
+    @DisplayName("Given a success with a JSON body should keep its status and body")
+    void given_successWithBody_should_keepStatusAndBody() throws Exception {
+      ObjectNode payload = JsonNodeFactory.instance.objectNode().put("id", "ws-1");
+      when(objectMapper.readTree(anyString())).thenReturn(payload);
+
+      XtmOneClient.RelayedResponse result = xtmOneClient.relayed(answer(201, "{}"), "testing");
+
+      assertEquals(new XtmOneClient.RelayedResponse(201, payload), result);
+    }
+
+    @ParameterizedTest(name = "Given an HTTP {0} without a readable body should keep the status")
+    @MethodSource("successStatuses")
+    @DisplayName("Given a success without a readable body should keep it with an empty object")
+    void given_successWithoutReadableBody_should_relayEmptyObject(int code, String body)
+        throws Exception {
+      lenient()
+          .when(objectMapper.readTree(anyString()))
+          .thenThrow(new JsonParseException(null, "not JSON"));
+
+      XtmOneClient.RelayedResponse result = xtmOneClient.relayed(answer(code, body), "testing");
+
+      assertEquals(code, result.status());
+      assertEquals(JsonNodeFactory.instance.objectNode(), result.body());
+    }
+
+    static Stream<Arguments> successStatuses() {
+      return Stream.of(
+          Arguments.of(200, ""), Arguments.of(201, "   "), Arguments.of(200, "<html>ok</html>"));
+    }
+
+    @Test
+    @DisplayName("Given a 204 should relay it without a body")
+    void given_noContent_should_relayWithoutBody() throws Exception {
+      XtmOneClient.RelayedResponse result = xtmOneClient.relayed(answer(204, ""), "testing");
+
+      assertEquals(new XtmOneClient.RelayedResponse(204, null), result);
+    }
+
+    @ParameterizedTest(name = "Given XTM One answers {0} should relay {1}")
+    @MethodSource("refusalStatuses")
+    @DisplayName("Given a refusal should map its status")
+    void given_refusal_should_mapStatus(int code, int expected) throws Exception {
+      XtmOneClient.RelayedResponse result = xtmOneClient.relayed(answer(code, "{}"), "testing");
+
+      assertEquals(expected, result.status());
+      assertEquals("[XTM One] HTTP " + code, result.detailText());
+      assertEquals(1, result.body().size());
+    }
+
+    static Stream<Arguments> refusalStatuses() {
+      return Stream.of(
+          Arguments.of(401, 422),
+          Arguments.of(403, 403),
+          Arguments.of(404, 404),
+          Arguments.of(409, 409),
+          Arguments.of(429, 429),
+          Arguments.of(500, 500),
+          Arguments.of(503, 503),
+          Arguments.of(302, 502),
+          Arguments.of(101, 502));
+    }
+
+    @Test
+    @DisplayName("Given a refusal with a detail should keep only the detail, as XTM One wrote it")
+    void given_refusalWithDetail_should_keepOnlyTheDetail() throws Exception {
+      ObjectNode refusal = JsonNodeFactory.instance.objectNode();
+      refusal.putArray("detail").addObject().put("msg", "field required");
+      refusal.put("trace", "internal");
+      when(objectMapper.readTree(anyString())).thenReturn(refusal);
+
+      XtmOneClient.RelayedResponse result = xtmOneClient.relayed(answer(400, "{}"), "testing");
+
+      assertEquals(400, result.status());
+      assertEquals(refusal.get("detail"), result.body().get("detail"));
+      assertFalse(result.body().has("trace"));
+      assertEquals("[{\"msg\":\"field required\"}]", result.detailText());
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("io.openaev.xtmone.XtmOneClientTest#relayingCalls")
+    @DisplayName("Given XTM One rejects OpenAEV's credentials, every relaying call answers 422")
+    void given_rejectedCredentials_should_relayUnprocessable(
+        Function<XtmOneClient, XtmOneClient.RelayedResponse> call) throws Exception {
+      configureClientLeniently();
+      mockExchange(401);
+
+      XtmOneClient.RelayedResponse result = call.apply(xtmOneClient);
+
+      assertEquals(422, result.status());
+      assertEquals("[XTM One] HTTP 401", result.detailText());
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("io.openaev.xtmone.XtmOneClientTest#refusingCalls")
+    @DisplayName("Given XTM One rejects OpenAEV's credentials, every other call refuses with 422")
+    void given_rejectedCredentials_should_refuseUnprocessable(Consumer<XtmOneClient> call)
+        throws Exception {
+      configureClientLeniently();
+      mockExchange(401);
+
+      XtmOneUpstreamException ex =
+          assertThrows(XtmOneUpstreamException.class, () -> call.accept(xtmOneClient));
+
+      assertEquals(422, ex.getStatusCode().value());
+      assertEquals("[XTM One] HTTP 401", ex.getReason());
+      assertEquals(422, ex.getResponse().status());
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("io.openaev.xtmone.XtmOneClientTest#relayingCalls")
+    @DisplayName("Given XTM One not configured, every relaying call refuses without calling it")
+    void given_notConfigured_relayingCall_should_refuse(
+        Function<XtmOneClient, XtmOneClient.RelayedResponse> call) {
+      when(config.isConfigured()).thenReturn(false);
+
+      XtmOneNotConfiguredException ex =
+          assertThrows(XtmOneNotConfiguredException.class, () -> call.apply(xtmOneClient));
+
+      assertEquals(503, ex.getStatusCode().value());
+      assertEquals(XtmOneNotConfiguredException.MESSAGE, ex.getReason());
+      verifyNoInteractions(httpClientFactory);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("io.openaev.xtmone.XtmOneClientTest#refusingCalls")
+    @DisplayName("Given XTM One not configured, every other call refuses without calling it")
+    void given_notConfigured_otherCall_should_refuse(Consumer<XtmOneClient> call) {
+      when(config.isConfigured()).thenReturn(false);
+
+      XtmOneNotConfiguredException ex =
+          assertThrows(XtmOneNotConfiguredException.class, () -> call.accept(xtmOneClient));
+
+      assertEquals(XtmOneNotConfiguredException.MESSAGE, ex.getReason());
+      verifyNoInteractions(httpClientFactory);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("io.openaev.xtmone.XtmOneClientTest#relayingCalls")
+    @DisplayName("Given XTM One cannot be reached, every relaying call fails with a 500")
+    void given_connectionFails_should_throwInternalServerError(
+        Function<XtmOneClient, XtmOneClient.RelayedResponse> call) throws Exception {
+      configureClientLeniently();
+      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
+          .thenThrow(new IOException("Connection refused"));
+
+      ResponseStatusException ex =
+          assertThrows(ResponseStatusException.class, () -> call.apply(xtmOneClient));
+
+      assertEquals(500, ex.getStatusCode().value());
+    }
+  }
+
   @Nested
   @DisplayName("listChatAgents")
   class ListChatAgents {
 
     @Test
-    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
-    void given_notConfigured_should_throwServiceUnavailable() {
-      // -- ARRANGE --
-      when(config.isConfigured()).thenReturn(false);
-
-      // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatAgents("intent"));
-      assertEquals(503, ex.getStatusCode().value());
-    }
-
-    @Test
-    @DisplayName("Given XTM One returns 200 with agents should return the list")
+    @DisplayName("Given XTM One returns 200 with agents should return the valid ones")
     void given_returns200WithAgents_should_returnList() throws Exception {
       // -- ARRANGE --
-      configureClient();
-      when(objectMapper.convertValue(any(), eq(ChatbotAgentOutput.class)))
+      configureClientCommon();
+      mockExchange(200);
+      when(objectMapper.readTree(anyString()))
+          .thenReturn(
+              JSON.readTree(
+                  "[{\"intent\":\"global.assistant\",\"agents\":["
+                      + "{\"agent_id\":\"agent-1\",\"agent_name\":\"Agent 1\","
+                      + "\"agent_slug\":\"agent-1\",\"agent_description\":\"Agent 1 description\"},"
+                      + "{\"agent_id\":\"agent-2\",\"agent_name\":\"No slug\"}]},"
+                      + "{\"intent\":\"other\"}]"));
+      when(objectMapper.convertValue(any(JsonNode.class), eq(ChatbotAgentOutput.class)))
           .thenAnswer(
-              invocation -> {
-                Object source = invocation.getArgument(0);
-                if (!(source instanceof Map<?, ?> map)) {
-                  return null;
-                }
-                String id = map.get("agent_id") != null ? map.get("agent_id").toString() : null;
-                String name =
-                    map.get("agent_name") != null ? map.get("agent_name").toString() : null;
-                String slug =
-                    map.get("agent_slug") != null ? map.get("agent_slug").toString() : null;
-                String description =
-                    map.get("agent_description") != null
-                        ? map.get("agent_description").toString()
-                        : null;
-                return new ChatbotAgentOutput(id, name, slug, description);
-              });
-      List<Map<String, Object>> catalog =
-          List.of(
-              Map.of(
-                  "intent",
-                  "global.assistant",
-                  "agents",
-                  List.of(
-                      Map.of(
-                          "agent_id",
-                          "agent-1",
-                          "agent_name",
-                          "Agent 1",
-                          "agent_slug",
-                          "agent-1",
-                          "agent_description",
-                          "Agent 1 description"))));
-      mockHttpResponse(catalog);
+              invocation -> JSON.convertValue(invocation.getArgument(0), ChatbotAgentOutput.class));
 
       // -- ACT --
       List<ChatbotAgentOutput> result = xtmOneClient.listChatAgents("intent");
@@ -119,14 +341,29 @@ class XtmOneClientTest {
       // -- ASSERT --
       assertEquals(1, result.size());
       assertEquals("agent-1", result.getFirst().id());
+      assertEquals("agent-1", result.getFirst().slug());
     }
 
     @Test
-    @DisplayName("Given XTM One returns 200 with empty list should throw NOT_FOUND")
+    @DisplayName("Given XTM One returns 200 with an empty catalog should throw NOT_FOUND")
     void given_returns200Empty_should_throwNotFound() throws Exception {
       // -- ARRANGE --
-      configureClient();
-      mockHttpResponse(List.of());
+      configureClientCommon();
+      mockExchange(200);
+      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.arrayNode());
+
+      // -- ACT & ASSERT --
+      ResponseStatusException ex =
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatAgents("intent"));
+      assertEquals(404, ex.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns 200 without a readable body should throw NOT_FOUND")
+    void given_returns200Unreadable_should_throwNotFound() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(200);
 
       // -- ACT & ASSERT --
       ResponseStatusException ex =
@@ -136,44 +373,33 @@ class XtmOneClientTest {
 
     static Stream<Arguments> errorStatusCodes() {
       return Stream.of(
-          Arguments.of(401, 422, "UNPROCESSABLE_ENTITY"),
-          Arguments.of(403, 422, "UNPROCESSABLE_ENTITY"),
-          Arguments.of(503, 503, "SERVICE_UNAVAILABLE"),
-          Arguments.of(502, 500, "INTERNAL_SERVER_ERROR (default)"));
+          Arguments.of(401, 422),
+          Arguments.of(403, 403),
+          Arguments.of(404, 404),
+          Arguments.of(503, 503),
+          Arguments.of(502, 502));
     }
 
-    @ParameterizedTest(name = "Given XTM One returns {0} should throw {2}")
+    @ParameterizedTest(name = "Given XTM One returns {0} should refuse with {1}")
     @MethodSource("errorStatusCodes")
-    void given_errorStatus_should_throwMatchingException(
-        int remoteStatus, int expectedStatus, String description) throws Exception {
+    void given_errorStatus_should_refuseWithTheRelayedStatus(int remoteStatus, int expectedStatus)
+        throws Exception {
       // -- ARRANGE --
-      configureClient();
-      mockHttpResponseWithStatus(remoteStatus);
+      configureClientCommon();
+      mockExchange(remoteStatus);
 
       // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatAgents("intent"));
+      XtmOneUpstreamException ex =
+          assertThrows(XtmOneUpstreamException.class, () -> xtmOneClient.listChatAgents("intent"));
       assertEquals(expectedStatus, ex.getStatusCode().value());
-    }
-
-    @Test
-    @DisplayName("Given XTM One returns 404 should throw NOT_FOUND")
-    void given_returns404_should_throwNotFound() throws Exception {
-      // -- ARRANGE --
-      configureClient();
-      mockHttpResponseWithStatus(404);
-
-      // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatAgents("intent"));
-      assertEquals(404, ex.getStatusCode().value());
+      assertEquals(expectedStatus, ex.getResponse().status());
     }
 
     @Test
     @DisplayName("Given connection fails should throw INTERNAL_SERVER_ERROR")
     void given_connectionFails_should_throwInternalServerError() throws Exception {
       // -- ARRANGE --
-      configureClient();
+      configureClientCommon();
       when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
           .thenThrow(new IOException("Connection refused"));
 
@@ -183,48 +409,21 @@ class XtmOneClientTest {
       assertEquals(500, ex.getStatusCode().value());
     }
 
-    private void configureClient() {
-      when(config.isConfigured()).thenReturn(true);
-      when(config.getUrl()).thenReturn("http://localhost:8080");
-      when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
-      doReturn("fake-jwt").when(xtmOneClient).issueJwtForCurrentUser();
+    @Test
+    @DisplayName("Given additional attack agents and XTM One not configured should list none")
+    void given_notConfigured_additionalAttackAgents_should_returnEmpty() {
+      when(config.isConfigured()).thenReturn(false);
+
+      assertEquals(List.of(), xtmOneClient.listAdditionalAttackAgents());
     }
 
-    @SuppressWarnings("unchecked")
-    private void mockHttpResponse(List<Map<String, Object>> responseBody) throws Exception {
-      String json = "[]";
-      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
-          .thenAnswer(
-              invocation -> {
-                HttpClientResponseHandler<?> handler = invocation.getArgument(1);
-                ClassicHttpResponse httpResponse = mock(ClassicHttpResponse.class);
-                when(httpResponse.getCode()).thenReturn(200);
-                HttpEntity entity = mock(HttpEntity.class);
-                when(entity.getContent())
-                    .thenReturn(new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)));
-                when(entity.getContentLength()).thenReturn((long) json.length());
-                when(httpResponse.getEntity()).thenReturn(entity);
-                when(objectMapper.readValue(anyString(), any(Class.class)))
-                    .thenReturn(responseBody);
-                return handler.handleResponse(httpResponse);
-              });
-    }
+    @Test
+    @DisplayName("Given additional attack agents and XTM One answers 404 should list none")
+    void given_upstreamNotFound_additionalAttackAgents_should_returnEmpty() throws Exception {
+      configureClientCommon();
+      mockExchange(404);
 
-    @SuppressWarnings("unchecked")
-    private void mockHttpResponseWithStatus(int statusCode) throws Exception {
-      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
-          .thenAnswer(
-              invocation -> {
-                HttpClientResponseHandler<?> handler = invocation.getArgument(1);
-                ClassicHttpResponse httpResponse = mock(ClassicHttpResponse.class);
-                when(httpResponse.getCode()).thenReturn(statusCode);
-                HttpEntity entity = mock(HttpEntity.class);
-                when(entity.getContent())
-                    .thenReturn(new ByteArrayInputStream("{}".getBytes(StandardCharsets.UTF_8)));
-                when(entity.getContentLength()).thenReturn(2L);
-                when(httpResponse.getEntity()).thenReturn(entity);
-                return handler.handleResponse(httpResponse);
-              });
+      assertEquals(List.of(), xtmOneClient.listAdditionalAttackAgents());
     }
   }
 
@@ -354,127 +553,106 @@ class XtmOneClientTest {
       assertFalse(body.containsKey("referenced_conversation_ids"));
       assertEquals(true, body.get("supports_tool_approval"));
     }
-  }
 
-  private void configureClientCommon() {
-    when(config.isConfigured()).thenReturn(true);
-    when(config.getUrl()).thenReturn("http://localhost:8080");
-    when(httpClientFactory.httpClientNoRetry()).thenReturn(httpClient);
-    doReturn("fake-jwt").when(xtmOneClient).issueJwtForCurrentUser();
-  }
+    @Test
+    @DisplayName(
+        "Given XTM One answers 429 with a detail should refuse with it, as the quota label")
+    void given_quotaExceeded_should_refuseWithTheDetail() throws Exception {
+      // -- ARRANGE --
+      stubRequestBodyCapture();
+      mockExchange(429);
+      when(objectMapper.readTree(anyString()))
+          .thenReturn(JsonNodeFactory.instance.objectNode().put("detail", "Daily quota reached"));
 
-  /**
-   * Stubs the HTTP exchange with the given status and a JSON body, capturing the request. The
-   * response mocks are lenient because some handler paths (e.g. DELETE 204) never read the entity.
-   */
-  private ArgumentCaptor<Object> mockExchange(int statusCode) throws Exception {
-    ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
-    when(httpClient.execute(
-            (org.apache.hc.core5.http.ClassicHttpRequest) requestCaptor.capture(),
-            any(HttpClientResponseHandler.class)))
-        .thenAnswer(
-            invocation -> {
-              HttpClientResponseHandler<?> handler = invocation.getArgument(1);
-              ClassicHttpResponse httpResponse =
-                  mock(
-                      ClassicHttpResponse.class,
-                      withSettings().strictness(org.mockito.quality.Strictness.LENIENT));
-              when(httpResponse.getCode()).thenReturn(statusCode);
-              HttpEntity entity =
-                  mock(
-                      HttpEntity.class,
-                      withSettings().strictness(org.mockito.quality.Strictness.LENIENT));
-              when(entity.getContent())
-                  .thenReturn(new ByteArrayInputStream("{}".getBytes(StandardCharsets.UTF_8)));
-              when(entity.getContentLength()).thenReturn(2L);
-              when(httpResponse.getEntity()).thenReturn(entity);
-              return handler.handleResponse(httpResponse);
-            });
-    return requestCaptor;
+      // -- ACT & ASSERT --
+      XtmOneUpstreamException ex =
+          assertThrows(
+              XtmOneUpstreamException.class,
+              () -> xtmOneClient.streamChatMessage("hello", null, null, stream -> {}));
+      assertEquals(429, ex.getStatusCode().value());
+      assertEquals("Daily quota reached", ex.getReason());
+    }
   }
 
   @Nested
-  @DisplayName("listChatSessions")
-  class ListChatSessions {
+  @DisplayName("Conversations")
+  class Conversations {
 
     @Test
-    @DisplayName("Given not configured should return null")
-    void given_notConfigured_should_returnNull() {
-      when(config.isConfigured()).thenReturn(false);
-
-      assertNull(xtmOneClient.listChatSessions());
-    }
-
-    @Test
-    @DisplayName("Given XTM One returns 200 should return the parsed payload")
-    @SuppressWarnings("unchecked")
-    void given_returns200_should_returnPayload() throws Exception {
+    @DisplayName("Given XTM One lists the conversations should relay its payload")
+    void given_conversations_should_relayPayload() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
-      mockExchange(200);
-      Map<String, Object> payload = Map.of("conversations", List.of());
-      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(payload);
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      JsonNode payload = JSON.readTree("{\"conversations\":[{\"workspace_id\":\"ws-1\"}]}");
+      when(objectMapper.readTree(anyString())).thenReturn(payload);
 
-      // -- ACT & ASSERT --
-      assertEquals(payload, xtmOneClient.listChatSessions());
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.listChatSessions();
+
+      // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(200, payload), result);
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("GET", request.getMethod());
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/sessions"));
+      assertEquals("Bearer fake-jwt", request.getFirstHeader("Authorization").getValue());
     }
 
     @Test
-    @DisplayName("Given XTM One returns an error status should return null")
-    void given_errorStatus_should_returnNull() throws Exception {
+    @DisplayName("Given XTM One fails to list the conversations should relay its refusal")
+    void given_listFailure_should_relayRefusal() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       mockExchange(500);
 
-      // -- ACT & ASSERT --
-      assertNull(xtmOneClient.listChatSessions());
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.listChatSessions();
+
+      // -- ASSERT --
+      assertEquals(500, result.status());
+      assertEquals("[XTM One] HTTP 500", result.detailText());
     }
 
     @Test
-    @DisplayName("Given the connection fails should return null")
-    void given_connectionFails_should_returnNull() throws Exception {
+    @DisplayName("Given a panel body should post it as-is, workspace and unknown fields included")
+    @SuppressWarnings("unchecked")
+    void given_panelBody_should_postItAsIs() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
-      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
-          .thenThrow(new IOException("Connection refused"));
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
+      JsonNode payload =
+          JSON.readTree("{\"conversation_id\":\"conv-1\",\"workspace_id\":\"ws-1\"}");
+      when(objectMapper.readTree(anyString())).thenReturn(payload);
+      Map<String, Object> body =
+          Map.of("agent_slug", "ariane", "workspace_id", "ws-1", "future_field", true);
 
-      // -- ACT & ASSERT --
-      assertNull(xtmOneClient.listChatSessions());
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.createChatSession(body);
+
+      // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(200, payload), result);
+      assertEquals(body, bodyCaptor.getValue());
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("POST", request.getMethod());
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/sessions"));
     }
-  }
-
-  @Nested
-  @DisplayName("deleteChatSession")
-  class DeleteChatSession {
 
     @Test
-    @DisplayName("Given not configured should return false")
-    void given_notConfigured_should_returnFalse() {
-      when(config.isConfigured()).thenReturn(false);
-
-      assertFalse(xtmOneClient.deleteChatSession("conv-1"));
-    }
-
-    @Test
-    @DisplayName("Given XTM One returns 204 should return true")
-    void given_returns204_should_returnTrue() throws Exception {
+    @DisplayName("Given XTM One archives the conversation should relay a 204 without a body")
+    void given_deletedConversation_should_relayNoContent() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
-      mockExchange(204);
+      ArgumentCaptor<Object> requestCaptor = mockExchange(204);
 
-      // -- ACT & ASSERT --
-      assertTrue(xtmOneClient.deleteChatSession("conv-1"));
-    }
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.deleteChatSession("conv-1");
 
-    @Test
-    @DisplayName("Given XTM One returns an error status should return false")
-    void given_errorStatus_should_returnFalse() throws Exception {
-      // -- ARRANGE --
-      configureClientCommon();
-      mockExchange(404);
-
-      // -- ACT & ASSERT --
-      assertFalse(xtmOneClient.deleteChatSession("conv-1"));
+      // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(204, null), result);
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("DELETE", request.getMethod());
     }
 
     @Test
@@ -488,64 +666,39 @@ class XtmOneClientTest {
       xtmOneClient.deleteChatSession("abc/.. def");
 
       // -- ASSERT --
-      org.apache.hc.core5.http.ClassicHttpRequest request =
-          (org.apache.hc.core5.http.ClassicHttpRequest) requestCaptor.getValue();
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
       assertTrue(
           request.getUri().toString().endsWith("/api/v1/platform/chat/sessions/abc%2F..%20def"));
     }
-  }
-
-  @Nested
-  @DisplayName("createChatSession")
-  class CreateChatSession {
 
     @Test
-    @DisplayName("Given not configured should return null")
-    void given_notConfigured_should_returnNull() {
-      when(config.isConfigured()).thenReturn(false);
-
-      assertNull(xtmOneClient.createChatSession(Map.of("agent_slug", "ariane")));
-    }
-
-    @Test
-    @DisplayName("Given a panel body should post it as-is, workspace and unknown fields included")
+    @DisplayName("Given a conversation unfiled should PATCH an explicit null workspace id")
     @SuppressWarnings("unchecked")
-    void given_panelBody_should_postItAsIs() throws Exception {
+    void given_unfiledConversation_should_patchExplicitNull() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       ArgumentCaptor<Object> requestCaptor = mockExchange(200);
       ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
       when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
-      Map<String, Object> payload = Map.of("conversation_id", "conv-1", "workspace_id", "ws-1");
-      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(payload);
-      Map<String, Object> body =
-          Map.of("agent_slug", "ariane", "workspace_id", "ws-1", "future_field", true);
+      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.objectNode());
+      Map<String, Object> changes = new HashMap<>();
+      changes.put("workspace_id", null);
 
       // -- ACT --
-      Map<String, Object> result = xtmOneClient.createChatSession(body);
+      xtmOneClient.updateChatSession("conv-1", changes);
 
       // -- ASSERT --
-      assertEquals(payload, result);
-      assertEquals(body, bodyCaptor.getValue());
+      assertTrue(bodyCaptor.getValue().containsKey("workspace_id"));
+      assertNull(bodyCaptor.getValue().get("workspace_id"));
       ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
-      assertEquals("POST", request.getMethod());
-      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/sessions"));
+      assertEquals("PATCH", request.getMethod());
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/sessions/conv-1"));
     }
   }
 
   @Nested
-  @DisplayName("Workspaces and conversation filing")
-  class WorkspacesAndFiling {
-
-    @Test
-    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
-    void given_notConfigured_should_throwServiceUnavailable() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatWorkspaces());
-      assertEquals(503, ex.getStatusCode().value());
-    }
+  @DisplayName("Workspaces")
+  class Workspaces {
 
     @Test
     @DisplayName("Given XTM One lists workspaces should relay the payload read as the current user")
@@ -648,33 +801,9 @@ class XtmOneClientTest {
       assertFalse(result.body().has("trace"));
     }
 
-    @ParameterizedTest(name = "Given XTM One answers {0} without a detail should relay {1}")
-    @MethodSource("statusesWithoutDetail")
-    void given_statusWithoutDetail_should_relayTheStatusCode(int remoteStatus, int expectedStatus)
-        throws Exception {
-      // -- ARRANGE --
-      configureClientCommon();
-      mockExchange(remoteStatus);
-
-      // -- ACT --
-      XtmOneClient.RelayedResponse result = xtmOneClient.listChatWorkspaces();
-
-      // -- ASSERT --
-      assertEquals(expectedStatus, result.status());
-      assertEquals("[XTM One] HTTP " + remoteStatus, result.body().get("detail").asText());
-    }
-
-    static Stream<Arguments> statusesWithoutDetail() {
-      return Stream.of(
-          Arguments.of(401, 422),
-          Arguments.of(403, 403),
-          Arguments.of(500, 500),
-          Arguments.of(302, 502));
-    }
-
     @Test
-    @DisplayName("Given XTM One answers 200 with no JSON body should relay a 502")
-    void given_unreadableSuccess_should_relayBadGateway() throws Exception {
+    @DisplayName("Given XTM One answers 200 with no JSON body should relay the 200, empty")
+    void given_unreadableSuccess_should_relayEmptyObject() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       mockExchange(200);
@@ -683,45 +812,8 @@ class XtmOneClientTest {
       XtmOneClient.RelayedResponse result = xtmOneClient.listChatWorkspaces();
 
       // -- ASSERT --
-      assertEquals(502, result.status());
-    }
-
-    @Test
-    @DisplayName("Given a conversation unfiled should PATCH an explicit null workspace id")
-    @SuppressWarnings("unchecked")
-    void given_unfiledConversation_should_patchExplicitNull() throws Exception {
-      // -- ARRANGE --
-      configureClientCommon();
-      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
-      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
-      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
-      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.objectNode());
-      Map<String, Object> changes = new HashMap<>();
-      changes.put("workspace_id", null);
-
-      // -- ACT --
-      xtmOneClient.updateChatSession("conv-1", changes);
-
-      // -- ASSERT --
-      assertTrue(bodyCaptor.getValue().containsKey("workspace_id"));
-      assertNull(bodyCaptor.getValue().get("workspace_id"));
-      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
-      assertEquals("PATCH", request.getMethod());
-      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/sessions/conv-1"));
-    }
-
-    @Test
-    @DisplayName("Given the connection fails should throw INTERNAL_SERVER_ERROR")
-    void given_connectionFails_should_throwInternalServerError() throws Exception {
-      // -- ARRANGE --
-      configureClientCommon();
-      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
-          .thenThrow(new IOException("Connection refused"));
-
-      // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.listChatWorkspaces());
-      assertEquals(500, ex.getStatusCode().value());
+      assertEquals(
+          new XtmOneClient.RelayedResponse(200, JsonNodeFactory.instance.objectNode()), result);
     }
 
     private JsonNode workspaceList() {
@@ -739,18 +831,6 @@ class XtmOneClientTest {
   class SearchChatConversationReferences {
 
     private static final String REFERENCES_PATH = "/api/v1/platform/chat/conversation-references";
-
-    @Test
-    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
-    void given_notConfigured_should_throwServiceUnavailable() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class,
-              () -> xtmOneClient.searchChatConversationReferences("red", 5, null));
-      assertEquals(503, ex.getStatusCode().value());
-    }
 
     @Test
     @DisplayName("Given search parameters should GET them URL-encoded as the current user")
@@ -850,110 +930,114 @@ class XtmOneClientTest {
   }
 
   @Nested
-  @DisplayName("steerChatMessage")
-  class SteerChatMessage {
+  @DisplayName("Steering and tool approval")
+  class SteeringAndApproval {
 
     @Test
-    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
-    void given_notConfigured_should_throwServiceUnavailable() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class, () -> xtmOneClient.steerChatMessage("hi", "conv-1"));
-      assertEquals(503, ex.getStatusCode().value());
-    }
-
-    @Test
-    @DisplayName("Given XTM One returns 200 should return the parsed payload and send the body")
+    @DisplayName("Given XTM One accepts the steering should send the body and relay the payload")
     @SuppressWarnings("unchecked")
-    void given_returns200_should_returnPayload() throws Exception {
+    void given_steeringAccepted_should_relayPayload() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
-      mockExchange(200);
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
       ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
       when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
-      Map<String, Object> payload = Map.of("status", "queued");
-      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(payload);
+      JsonNode payload = JsonNodeFactory.instance.objectNode().put("status", "queued");
+      when(objectMapper.readTree(anyString())).thenReturn(payload);
 
-      // -- ACT & ASSERT --
-      assertEquals(payload, xtmOneClient.steerChatMessage("hello", "conv-1"));
-      assertEquals("hello", bodyCaptor.getValue().get("content"));
-      assertEquals("conv-1", bodyCaptor.getValue().get("conversation_id"));
+      // -- ACT --
+      XtmOneClient.RelayedResponse result = xtmOneClient.steerChatMessage("hello", "conv-1");
+
+      // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(200, payload), result);
+      assertEquals(Map.of("content", "hello", "conversation_id", "conv-1"), bodyCaptor.getValue());
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/messages/steer"));
     }
 
-    static Stream<Arguments> upstreamStatusCodes() {
-      return Stream.of(
-          Arguments.of(409, 409, "CONFLICT preserved (no run active)"),
-          Arguments.of(429, 429, "TOO_MANY_REQUESTS preserved"),
-          Arguments.of(404, 404, "NOT_FOUND preserved"),
-          Arguments.of(503, 503, "SERVICE_UNAVAILABLE preserved"));
-    }
-
-    @ParameterizedTest(name = "Given XTM One returns {0} should propagate {1} ({2})")
-    @MethodSource("upstreamStatusCodes")
-    void given_upstreamError_should_preserveStatusCode(
-        int remoteStatus, int expectedStatus, String description) throws Exception {
+    @ParameterizedTest(name = "Given XTM One answers {0} to a steering should relay {1}")
+    @MethodSource("steeringStatuses")
+    void given_steeringRefused_should_relayStatus(int remoteStatus, int expectedStatus)
+        throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       mockExchange(remoteStatus);
       when(objectMapper.writeValueAsString(any())).thenReturn("{}");
 
       // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class,
-              () -> xtmOneClient.steerChatMessage("hello", "conv-1"));
-      assertEquals(expectedStatus, ex.getStatusCode().value());
+      assertEquals(expectedStatus, xtmOneClient.steerChatMessage("hello", "conv-1").status());
+    }
+
+    static Stream<Arguments> steeringStatuses() {
+      return Stream.of(
+          Arguments.of(409, 409),
+          Arguments.of(429, 429),
+          Arguments.of(404, 404),
+          Arguments.of(503, 503),
+          Arguments.of(401, 422));
     }
 
     @Test
-    @DisplayName("Given the connection fails should throw INTERNAL_SERVER_ERROR")
-    void given_connectionFails_should_throwInternalServerError() throws Exception {
+    @DisplayName("Given tool call decisions should post them for the conversation")
+    @SuppressWarnings("unchecked")
+    void given_decisions_should_postThem() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
-      when(objectMapper.writeValueAsString(any())).thenReturn("{}");
-      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
-          .thenThrow(new IOException("Connection refused"));
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
+      List<Map<String, Object>> decisions =
+          List.of(Map.of("tool_call_id", "toolu_1", "decision", "approve"));
 
-      // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class,
-              () -> xtmOneClient.steerChatMessage("hello", "conv-1"));
-      assertEquals(500, ex.getStatusCode().value());
+      // -- ACT --
+      xtmOneClient.approveToolCalls("conv-1", decisions);
+
+      // -- ASSERT --
+      assertEquals(
+          Map.of("conversation_id", "conv-1", "decisions", decisions), bodyCaptor.getValue());
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/messages/approve"));
+    }
+
+    @Test
+    @DisplayName("Given a conversation should read its pending approvals")
+    void given_conversation_should_readPendingApprovals() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+
+      // -- ACT --
+      xtmOneClient.getPendingApprovals("conv-1");
+
+      // -- ASSERT --
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("GET", request.getMethod());
+      assertTrue(
+          request
+              .getUri()
+              .toString()
+              .endsWith("/api/v1/platform/chat/conversations/conv-1/pending-approvals"));
     }
   }
 
   @Nested
-  @DisplayName("getChatPrompts")
-  class GetChatPrompts {
+  @DisplayName("Prompts and quota")
+  class PromptsAndQuota {
 
     @Test
-    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
-    void given_notConfigured_should_throwServiceUnavailable() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatPrompts());
-      assertEquals(503, ex.getStatusCode().value());
-    }
-
-    @Test
-    @DisplayName("Given XTM One returns 200 should return the payload read as the current user")
-    @SuppressWarnings("unchecked")
-    void given_returns200_should_returnPayload() throws Exception {
+    @DisplayName("Given XTM One returns prompts should relay them read as the current user")
+    void given_prompts_should_relayThem() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       ArgumentCaptor<Object> requestCaptor = mockExchange(200);
-      Map<String, Object> payload = Map.of("prompts", List.of(Map.of("id", "p-1")));
-      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(payload);
+      JsonNode payload = JSON.readTree("{\"prompts\":[{\"id\":\"p-1\"}]}");
+      when(objectMapper.readTree(anyString())).thenReturn(payload);
 
       // -- ACT --
-      Map<String, Object> result = xtmOneClient.getChatPrompts();
+      XtmOneClient.RelayedResponse result = xtmOneClient.getChatPrompts();
 
       // -- ASSERT --
-      assertEquals(payload, result);
+      assertEquals(new XtmOneClient.RelayedResponse(200, payload), result);
       ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
       assertEquals("GET", request.getMethod());
       assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/prompts"));
@@ -961,50 +1045,8 @@ class XtmOneClientTest {
     }
 
     @Test
-    @DisplayName("Given XTM One returns 404 should propagate 404")
-    void given_upstreamNotFound_should_preserveStatusCode() throws Exception {
-      // -- ARRANGE --
-      configureClientCommon();
-      mockExchange(404);
-
-      // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatPrompts());
-      assertEquals(404, ex.getStatusCode().value());
-    }
-
-    @Test
-    @DisplayName("Given the connection fails should throw INTERNAL_SERVER_ERROR")
-    void given_connectionFails_should_throwInternalServerError() throws Exception {
-      // -- ARRANGE --
-      configureClientCommon();
-      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
-          .thenThrow(new IOException("Connection refused"));
-
-      // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatPrompts());
-      assertEquals(500, ex.getStatusCode().value());
-    }
-  }
-
-  @Nested
-  @DisplayName("getChatQuota")
-  class GetChatQuota {
-
-    @Test
-    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
-    void given_notConfigured_should_throwServiceUnavailable() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatQuota());
-      assertEquals(503, ex.getStatusCode().value());
-    }
-
-    @Test
-    @DisplayName("Given XTM One returns a quota object should return it")
-    void given_quotaObject_should_returnIt() throws Exception {
+    @DisplayName("Given XTM One returns a quota object should relay it")
+    void given_quotaObject_should_relayIt() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       ArgumentCaptor<Object> requestCaptor = mockExchange(200);
@@ -1012,86 +1054,71 @@ class XtmOneClientTest {
       when(objectMapper.readTree(anyString())).thenReturn(quota);
 
       // -- ACT --
-      JsonNode result = xtmOneClient.getChatQuota();
+      XtmOneClient.RelayedResponse result = xtmOneClient.getChatQuota();
 
       // -- ASSERT --
-      assertEquals(quota, result);
+      assertEquals(new XtmOneClient.RelayedResponse(200, quota), result);
       ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
       assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/quota"));
     }
 
-    @Test
-    @DisplayName("Given XTM One returns null (nothing to show) should return a null node")
-    void given_nullQuota_should_returnNullNode() throws Exception {
+    @ParameterizedTest(name = "Given XTM One returns {0} should answer a 200 JSON null")
+    @MethodSource("nothingToShow")
+    void given_nothingToShow_should_answerNull(String description, JsonNode quota)
+        throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       mockExchange(200);
-      when(objectMapper.readTree(anyString())).thenReturn(NullNode.getInstance());
+      when(objectMapper.readTree(anyString())).thenReturn(quota);
 
       // -- ACT & ASSERT --
-      assertTrue(xtmOneClient.getChatQuota().isNull());
+      assertEquals(
+          new XtmOneClient.RelayedResponse(200, NullNode.getInstance()),
+          xtmOneClient.getChatQuota());
+    }
+
+    static Stream<Arguments> nothingToShow() {
+      return Stream.of(
+          Arguments.of("null", NullNode.getInstance()),
+          Arguments.of("an array", JsonNodeFactory.instance.arrayNode()),
+          Arguments.of("an empty object", JsonNodeFactory.instance.objectNode()),
+          Arguments.of("no readable body", null));
     }
 
     @Test
-    @DisplayName("Given XTM One returns something other than an object should return a null node")
-    void given_nonObjectQuota_should_returnNullNode() throws Exception {
-      // -- ARRANGE --
-      configureClientCommon();
-      mockExchange(200);
-      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.arrayNode());
-
-      // -- ACT & ASSERT --
-      assertTrue(xtmOneClient.getChatQuota().isNull());
-    }
-
-    @Test
-    @DisplayName("Given XTM One returns 503 should propagate 503")
-    void given_upstreamUnavailable_should_preserveStatusCode() throws Exception {
+    @DisplayName("Given XTM One returns 503 should relay it")
+    void given_upstreamUnavailable_should_relayIt() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       mockExchange(503);
 
       // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatQuota());
-      assertEquals(503, ex.getStatusCode().value());
+      assertEquals(503, xtmOneClient.getChatQuota().status());
     }
   }
 
   @Nested
-  @DisplayName("submitMessageFeedback")
-  class SubmitMessageFeedback {
+  @DisplayName("Message feedback")
+  class MessageFeedback {
 
     @Test
-    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
-    void given_notConfigured_should_throwServiceUnavailable() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class,
-              () -> xtmOneClient.submitMessageFeedback("conv-1", "msg-1", "positive", null));
-      assertEquals(503, ex.getStatusCode().value());
-    }
-
-    @Test
-    @DisplayName("Given XTM One returns 200 should post the rating and return the stored one")
+    @DisplayName("Given XTM One returns 200 should post the rating and relay the stored one")
     @SuppressWarnings("unchecked")
-    void given_returns200_should_postRatingAndReturnPayload() throws Exception {
+    void given_returns200_should_postRatingAndRelayPayload() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       ArgumentCaptor<Object> requestCaptor = mockExchange(200);
       ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
       when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
-      Map<String, Object> payload = Map.of("rating", "negative", "comment", "Wrong CVE");
-      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(payload);
+      JsonNode payload = JSON.readTree("{\"rating\":\"negative\",\"comment\":\"Wrong CVE\"}");
+      when(objectMapper.readTree(anyString())).thenReturn(payload);
 
       // -- ACT --
-      Map<String, Object> result =
+      XtmOneClient.RelayedResponse result =
           xtmOneClient.submitMessageFeedback("conv-1", "msg-1", "negative", "Wrong CVE");
 
       // -- ASSERT --
-      assertEquals(payload, result);
+      assertEquals(new XtmOneClient.RelayedResponse(200, payload), result);
       assertEquals(Map.of("rating", "negative", "comment", "Wrong CVE"), bodyCaptor.getValue());
       ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
       assertEquals("POST", request.getMethod());
@@ -1111,7 +1138,6 @@ class XtmOneClientTest {
       mockExchange(200);
       ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
       when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
-      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(Map.of());
 
       // -- ACT --
       xtmOneClient.submitMessageFeedback("conv-1", "msg-1", "positive", null);
@@ -1122,49 +1148,30 @@ class XtmOneClientTest {
     }
 
     @Test
-    @DisplayName("Given XTM One returns 404 (message not readable) should propagate 404")
-    void given_upstreamNotFound_should_preserveStatusCode() throws Exception {
+    @DisplayName("Given XTM One returns 404 (message not readable) should relay 404")
+    void given_upstreamNotFound_should_relayIt() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       mockExchange(404);
       when(objectMapper.writeValueAsString(any())).thenReturn("{}");
 
       // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class,
-              () -> xtmOneClient.submitMessageFeedback("conv-1", "msg-1", "positive", null));
-      assertEquals(404, ex.getStatusCode().value());
-    }
-  }
-
-  @Nested
-  @DisplayName("retractMessageFeedback")
-  class RetractMessageFeedback {
-
-    @Test
-    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
-    void given_notConfigured_should_throwServiceUnavailable() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class,
-              () -> xtmOneClient.retractMessageFeedback("conv-1", "msg-1"));
-      assertEquals(503, ex.getStatusCode().value());
+      assertEquals(
+          404, xtmOneClient.submitMessageFeedback("conv-1", "msg-1", "positive", null).status());
     }
 
     @Test
-    @DisplayName("Given XTM One returns 204 should send a DELETE to the message feedback")
+    @DisplayName("Given XTM One returns 204 should DELETE the message feedback and relay it")
     void given_returns204_should_deleteFeedback() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       ArgumentCaptor<Object> requestCaptor = mockExchange(204);
 
       // -- ACT --
-      xtmOneClient.retractMessageFeedback("conv-1", "msg-1");
+      XtmOneClient.RelayedResponse result = xtmOneClient.retractMessageFeedback("conv-1", "msg-1");
 
       // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(204, null), result);
       ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
       assertEquals("DELETE", request.getMethod());
       assertTrue(
@@ -1193,20 +1200,53 @@ class XtmOneClientTest {
               .toString()
               .endsWith("/api/v1/platform/chat/conversations/a%2F../messages/b%20c/feedback"));
     }
+  }
+
+  @Nested
+  @DisplayName("Files")
+  class Files {
 
     @Test
-    @DisplayName("Given XTM One returns 404 should propagate 404")
-    void given_upstreamNotFound_should_preserveStatusCode() throws Exception {
+    @DisplayName("Given XTM One stores an uploaded file should relay its id")
+    void given_storedFile_should_relayItsId() throws Exception {
+      // -- ARRANGE --
+      when(config.isConfigured()).thenReturn(true);
+      when(config.getUrl()).thenReturn("http://localhost:8080");
+      when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
+      doReturn("fake-jwt").when(xtmOneClient).issueJwtForCurrentUser();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      JsonNode stored = JsonNodeFactory.instance.objectNode().put("file_id", "file-1");
+      when(objectMapper.readTree(anyString())).thenReturn(stored);
+
+      // -- ACT --
+      XtmOneClient.RelayedResponse result =
+          xtmOneClient.uploadChatFile(
+              "conv-1", new MockMultipartFile("file", "iocs.csv", "text/csv", new byte[] {1}));
+
+      // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(200, stored), result);
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertTrue(
+          request
+              .getUri()
+              .toString()
+              .endsWith("/api/v1/chat/conversations/conv-1/upload?create_message=false"));
+    }
+
+    @Test
+    @DisplayName("Given XTM One refuses a download should refuse with its status and detail")
+    void given_refusedDownload_should_refuseWithStatusAndDetail() throws Exception {
       // -- ARRANGE --
       configureClientCommon();
       mockExchange(404);
+      when(objectMapper.readTree(anyString()))
+          .thenReturn(JsonNodeFactory.instance.objectNode().put("detail", "File not found"));
 
       // -- ACT & ASSERT --
-      ResponseStatusException ex =
-          assertThrows(
-              ResponseStatusException.class,
-              () -> xtmOneClient.retractMessageFeedback("conv-1", "msg-1"));
+      XtmOneUpstreamException ex =
+          assertThrows(XtmOneUpstreamException.class, () -> xtmOneClient.downloadChatFile("f-1"));
       assertEquals(404, ex.getStatusCode().value());
+      assertEquals("File not found", ex.getReason());
     }
   }
 
