@@ -458,6 +458,27 @@ public class PhishingTrackingService {
       final Map<String, String> fields,
       final String ip,
       final String userAgent) {
+    return markSubmitted(token, fields, ip, userAgent, null);
+  }
+
+  /**
+   * Same as {@link #markSubmitted(String, Map, String, String)}, but with {@code
+   * resolvedLandingPage} used for credential capture instead of {@code result.getLandingPage()}
+   * when the caller already resolved it under the correct tenant scope. {@code HostedPublicApi}
+   * (anonymous, no {@code {tenantId}} path segment) must pass its own tenant-scoped lookup here:
+   * the ambient {@code TxCtx} of that request is {@link io.openaev.context.TxCtx#missing()}, so
+   * {@code result.getLandingPage()} - a lazy load of the v2-active {@code phishing_landing_pages}
+   * table - would admit no row if touched from inside this call. The legacy {@code
+   * PhishingPublicApi} (tenant in the path) keeps calling the 4-arg overload: its ambient scope is
+   * already the recipient's own tenant, so {@code result.getLandingPage()} resolves correctly
+   * there.
+   */
+  public Optional<PhishingResult> markSubmitted(
+      @NotBlank final String token,
+      final Map<String, String> fields,
+      final String ip,
+      final String userAgent,
+      final PhishingLandingPage resolvedLandingPage) {
     Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
     return optResult.map(
         result -> {
@@ -485,7 +506,7 @@ public class PhishingTrackingService {
           }
           applyRequestMetadata(result, ip, userAgent);
           if (firstSubmit) {
-            captureCredentials(result, fields);
+            captureCredentials(result, fields, resolvedLandingPage);
           }
           PhishingResult saved = phishingResultRepository.save(result);
           compromiseSteps(
@@ -575,8 +596,12 @@ public class PhishingTrackingService {
     }
   }
 
-  private void captureCredentials(final PhishingResult result, final Map<String, String> fields) {
-    PhishingLandingPage landingPage = result.getLandingPage();
+  private void captureCredentials(
+      final PhishingResult result,
+      final Map<String, String> fields,
+      final PhishingLandingPage resolvedLandingPage) {
+    PhishingLandingPage landingPage =
+        resolvedLandingPage != null ? resolvedLandingPage : result.getLandingPage();
     if (landingPage == null || !landingPage.isCaptureSubmittedData()) {
       return;
     }

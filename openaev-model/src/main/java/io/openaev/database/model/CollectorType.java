@@ -3,7 +3,6 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -11,7 +10,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
@@ -20,11 +18,15 @@ import org.hibernate.annotations.UuidGenerator;
  * <p>This table is independent of collector instances and has no cascade behavior. Rows are
  * inserted when a collector type is first registered and never deleted (even if all instances of
  * that type are removed). Detection rules survive instance lifecycle.
+ *
+ * <p>This entity is fully switched to v2 tenant isolation (statement inspector + {@code
+ * can_access_tenant}). Keep the v1 {@code @Filter} and {@code TenantBaseListener} removed to avoid
+ * mixed isolation/write-attribution modes; {@code CollectorService#ensureCollectorTypeExists}
+ * stamps {@code tenant} explicitly.
  */
 @Entity
 @Table(name = "collector_types")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
