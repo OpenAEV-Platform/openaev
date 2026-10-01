@@ -498,7 +498,15 @@ const ExecutionBoard: FunctionComponent<Props> = ({
                         {durationSeconds !== null && ` · ${durationSeconds}${t('s')}`}
                       </Typography>
                     </Box>
-                    <Box sx={{ flexShrink: 0 }}>
+                    {/* A shared minimum width with the tag pinned left: every row's status starts
+                        at the same x instead of hugging the row's right edge (Error vs Executed). */}
+                    <Box sx={{
+                      flexShrink: 0,
+                      minWidth: 88,
+                      display: 'flex',
+                      justifyContent: 'flex-start',
+                    }}
+                    >
                       <InjectStatus status={inject.inject_status?.status_name} />
                     </Box>
                   </ListItemButton>
