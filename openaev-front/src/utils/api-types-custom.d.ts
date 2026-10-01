@@ -98,6 +98,7 @@ export interface ContractElement {
   }[];
   cardinality: '1' | 'n';
   multiple?: boolean;
+  credential_reference_type?: ApiTypes.CredentialOutput['credential_type'];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultValue: any;
   richText?: boolean;

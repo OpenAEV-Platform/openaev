@@ -4,6 +4,7 @@ import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
+import { type CredentialOutput } from '../../../../../../utils/api-types';
 import CredentialsPicker from '../../../../assets/credentials/CredentialsPicker';
 
 const useStyles = makeStyles()(theme => ({
@@ -27,6 +28,7 @@ interface Props {
   errorLabel?: string | null;
   label?: string | boolean;
   multiple?: boolean;
+  credentialType?: CredentialOutput['credential_type'];
 }
 
 const InjectAddCredentials: FunctionComponent<Props> = ({
@@ -36,6 +38,7 @@ const InjectAddCredentials: FunctionComponent<Props> = ({
   errorLabel = null,
   label,
   multiple = true,
+  credentialType,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -78,6 +81,7 @@ const InjectAddCredentials: FunctionComponent<Props> = ({
         onSubmit={onSubmit}
         title={t('Update credentials in this inject')}
         multiple={multiple}
+        credentialType={credentialType}
       />
     </>
   );
