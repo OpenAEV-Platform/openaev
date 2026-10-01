@@ -17,7 +17,7 @@ type-safe, and uses modern conventions consistently.
 1. **Read `AGENTS.md`** for architecture overview and module structure
 2. **Read `.github/copilot-instructions.md`** for build, conventions, and frontend stack
 3. **Read `.github/instructions/frontend.instructions.md`** for component, form, permission, and styling rules
-4. **Follow `.github/skills/review-frontend/SKILL.md`** step-by-step — run every command
+4. **Follow `.claude/skills/review-frontend/SKILL.md`** step-by-step — run every command
 
 ## Model Policy
 

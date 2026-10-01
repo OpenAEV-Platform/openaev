@@ -22,7 +22,7 @@ Load conditionally based on the diff:
 - **`tenant_id`, `TenantContext`, `TenantBase`, `@Filter`** → read `.github/instructions/multi-tenancy.instructions.md`
 
 Then:
-- **Follow `.github/skills/review-security/SKILL.md`** step-by-step — run every command
+- **Follow `.claude/skills/review-security/SKILL.md`** step-by-step — run every command
 
 ## Model Policy
 
