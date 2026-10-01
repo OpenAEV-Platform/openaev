@@ -171,8 +171,8 @@ class TenantTableActivationCoverageArchTest {
       // Arrange + Act
       List<Deferral> deferrals = deferrals();
 
-      // Assert
-      assertTrue(!deferrals.isEmpty(), "the burn-down list is empty; see the class javadoc");
+      // Assert. No non-empty requirement: an empty list is the end state #8201 describes, and the
+      // coverage test above is what refuses an emptied list while tables are still deferred.
       for (Deferral deferral : deferrals) {
         String where = NOT_YET_RESOURCE + ":" + deferral.line();
         assertTrue(
