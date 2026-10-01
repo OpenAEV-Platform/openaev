@@ -60,6 +60,7 @@ import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
+import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
@@ -95,6 +96,8 @@ import io.openaev.injectors.channel.ChannelExecutor;
 import io.openaev.injectors.phishing.PhishingExecutor;
 import io.openaev.injectors.phishing.service.PhishingEmailTemplateService;
 import io.openaev.injectors.phishing.service.PhishingLandingPageService;
+import io.openaev.injectors.phishing.service.PhishingTrackingPublicLookupService;
+import io.openaev.injectors.phishing.service.PhishingTrackingService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration;
 import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegrationFactory;
@@ -307,7 +310,8 @@ class TenantActiveTableAccessArchTest {
           "attackpath_execution_remediation",
           "asset_agent_jobs",
           "payloads",
-          "vulnerabilities");
+          "vulnerabilities",
+          "phishing_results");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -723,6 +727,25 @@ class TenantActiveTableAccessArchTest {
               "tenant_xtmhub_registrations is tenant-active: an accessor without a tenant scope"
                   + " silently reads zero rows. New accessors must carry a scope and be"
                   + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule phishing_results_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Owns the tracking lifecycle; scoped via TxCtx on the token-only public routes
+              // (REQUIRES_NEW) and via the ambient TxCtx on the tenant-prefixed legacy route.
+              PhishingTrackingService.class,
+              // The one deliberately cross-tenant read, resolving a token's owning tenant with no
+              // tenant of its own to scope with, under TxCtx.allTenants() through the background
+              // primitive.
+              PhishingTrackingPublicLookupService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PhishingResultRepository.class)
+          .because(
+              "phishing_results is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule tags_repository_access_is_reviewed =
