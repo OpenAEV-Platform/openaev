@@ -15,8 +15,10 @@ class CredentialsPickerDialog {
     this.page = page;
     this.dialog = page.getByRole('dialog', { name: /Update credentials? in this inject/ });
     this.searchField = this.dialog.getByPlaceholder('Search these results...');
-    // Filter chips are the only removable chips of the picker (status chips are not).
-    this.constraintChip = this.dialog.locator('.MuiChip-root').filter({ has: page.getByTestId('CancelIcon') });
+    // Filter chips are the only removable chips of the picker (status chips are not). MUI only
+    // sets the icon test ids (e.g. "CancelIcon") in development builds, so the E2E environment,
+    // which serves a production build, is matched on the deletable state class instead.
+    this.constraintChip = this.dialog.locator('.MuiChip-root.MuiChip-deletable');
     this.submitButton = this.dialog.getByRole('button', {
       name: 'Update',
       exact: true,
@@ -55,7 +57,7 @@ class CredentialsPickerDialog {
 
   async removeConstraint() {
     const searchResponse = this.waitForSearch(body => !body.includes(CREDENTIAL_TYPE_FILTER_KEY));
-    await this.constraintChip.getByTestId('CancelIcon').click();
+    await this.constraintChip.locator('.MuiChip-deleteIcon').click();
     await searchResponse;
   }
 
