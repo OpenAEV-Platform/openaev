@@ -68,11 +68,17 @@ public class MitigationApi extends RestBehavior {
   // TxCtx scopes the search to the caller's tenants. The handler does not use it directly.
   public Page<Mitigation> mitigations(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return buildPaginationJPA(
-        (Specification<Mitigation> specification, Pageable pageable) ->
-            this.mitigationRepository.findAll(specification, pageable),
-        searchPaginationInput,
-        Mitigation.class);
+    Page<Mitigation> page =
+        buildPaginationJPA(
+            (Specification<Mitigation> specification, Pageable pageable) ->
+                this.mitigationRepository.findAll(specification, pageable),
+            searchPaginationInput,
+            Mitigation.class);
+    // Same reason as the list and detail reads above: attackPatterns is lazy, so without this
+    // Jackson loads it after the transaction has closed, outside the scope, and an in-scope link
+    // serializes as an empty array.
+    hydrated(page.getContent());
+    return page;
   }
 
   @GetMapping("/{mitigationId}")
