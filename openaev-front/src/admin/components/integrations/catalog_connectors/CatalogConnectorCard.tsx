@@ -92,12 +92,15 @@ const CollapsedUseCaseChips = ({ useCases }: { useCases: string[] }) => {
   if (useCases.length === 0) return null;
   const [first, ...others] = useCases.map(prettifyUseCase);
   return (
-    <Stack direction="row" spacing={1} sx={{ minWidth: 0 }}>
-      <Box sx={{
-        minWidth: 0,
-        display: 'flex',
+    <Stack
+      direction="row"
+      spacing={1}
+      sx={{
+        flex: '1 1 0',
+        minWidth: 'min-content',
       }}
-      >
+    >
+      <Box sx={{ display: 'flex' }}>
         <Tooltip>
           <TooltipTrigger asChild>
             <Chip label={first} severity="info" style={{ maxWidth: '100%' }} />
@@ -318,13 +321,18 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
               display: 'flex',
               alignItems: 'flex-end',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
               gap: theme.spacing(1),
               width: '100%',
             }}
             >
               <CollapsedUseCaseChips useCases={connector.useCases} />
               {footerAction && (
-                <div style={{ flexShrink: 0 }}>
+                <div style={{
+                  flexShrink: 0,
+                  marginLeft: 'auto',
+                }}
+                >
                   {footerAction}
                 </div>
               )}
