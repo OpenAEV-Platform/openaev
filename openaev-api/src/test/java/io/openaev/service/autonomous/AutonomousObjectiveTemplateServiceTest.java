@@ -7,6 +7,8 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import java.io.IOException;
@@ -29,11 +31,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
  * Unit test for the objective-template gallery seeding. Focuses on the {@code scopeMode}
  * classification, which the orchestrator relies on to decide (deterministically, on its first
  * cycle) whether an objective needs a specific target the operator must pick.
+ *
+ * <p>Tenant isolation and write attribution are not provable here, since mocks do not run the
+ * statement inspector: they are covered on the real stack by {@code
+ * AutonomousObjectiveTemplateHttpIsolationTest}.
  */
 @ExtendWith(MockitoExtension.class)
 class AutonomousObjectiveTemplateServiceTest {
 
+  private static final String TENANT = "11111111-1111-1111-1111-111111111111";
+
   @Mock private AutonomousObjectiveTemplateRepository repository;
+
+  @Mock private TenantWriteScopeResolver writeScopeResolver;
 
   @InjectMocks private AutonomousObjectiveTemplateService service;
 
@@ -50,8 +60,9 @@ class AutonomousObjectiveTemplateServiceTest {
               return t;
             });
     when(repository.findByEnabledTrueOrderByOrderAsc()).thenReturn(saved);
+    when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn(TENANT);
 
-    List<AutonomousObjectiveTemplate> result = service.listForCurrentTenant();
+    List<AutonomousObjectiveTemplate> result = service.listForScope(TxCtx.forTenant(TENANT));
     return result.stream().collect(Collectors.toMap(AutonomousObjectiveTemplate::getKey, t -> t));
   }
 
@@ -62,6 +73,10 @@ class AutonomousObjectiveTemplateServiceTest {
     assertFalse(byKey.isEmpty(), "built-ins should be seeded into an empty tenant");
     for (AutonomousObjectiveTemplate template : byKey.values()) {
       assertTrue(template.isBuiltin(), "seeded templates are built-in");
+      assertEquals(
+          TENANT,
+          template.getTenant().getId(),
+          "the seed attributes the tenant explicitly; the entity listener is gone");
       String mode = template.getScopeMode();
       assertNotNull(mode, "scopeMode must never be null (DB column is NOT NULL)");
       assertTrue(
@@ -103,8 +118,9 @@ class AutonomousObjectiveTemplateServiceTest {
         .thenAnswer(inv -> Optional.ofNullable(seeded.get(inv.getArgument(0, String.class))));
     when(repository.findByEnabledTrueOrderByOrderAsc())
         .thenReturn(new ArrayList<>(seeded.values()));
+    when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn(TENANT);
 
-    service.listForCurrentTenant();
+    service.listForScope(TxCtx.forTenant(TENANT));
 
     verify(repository, never()).save(any());
   }
