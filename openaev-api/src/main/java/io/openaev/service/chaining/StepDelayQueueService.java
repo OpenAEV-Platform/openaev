@@ -126,7 +126,11 @@ public class StepDelayQueueService {
 
       if (workflowPauseAt != null && enqueuedAt != null && enqueuedAt.isBefore(workflowPauseAt)) {
         Instant initialGoal = enqueuedAt.plusMillis(delayMillis);
+        long pauseDuration = Duration.between(workflowPauseAt, resumeAt).toMillis();
+        delayedStep.setNow(enqueuedAt.plusMillis(pauseDuration));
         remainingMillis = Math.max(0L, Duration.between(workflowPauseAt, initialGoal).toMillis());
+      } else {
+        delayedStep.setNow(resumeAt);
       }
 
       delayedStep.setGoal(resumeAt.plusMillis(remainingMillis));
