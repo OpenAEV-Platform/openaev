@@ -2,6 +2,7 @@ package io.openaev.service.autonomous;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -18,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -50,8 +50,9 @@ class AutonomousObjectiveTemplateServiceTest {
   /** Seed into an empty tenant and return the persisted templates by key. */
   private Map<String, AutonomousObjectiveTemplate> seedAll() {
     List<AutonomousObjectiveTemplate> saved = new ArrayList<>();
-    // Empty tenant: no built-in exists yet, so every one is materialised.
-    when(repository.findByKey(anyString())).thenReturn(Optional.empty());
+    // Empty tenant: no built-in exists yet, so every one is materialised. The seed reads the keys
+    // in one query before the loop, so no statement inside it can auto-flush a pending insert.
+    when(repository.findByKeyIn(anyCollection())).thenReturn(List.of());
     when(repository.save(any(AutonomousObjectiveTemplate.class)))
         .thenAnswer(
             invocation -> {
@@ -114,8 +115,7 @@ class AutonomousObjectiveTemplateServiceTest {
 
     // Every key already exists AND already matches the code definition, so the scope-mode sync
     // finds nothing to change and nothing is saved.
-    when(repository.findByKey(anyString()))
-        .thenAnswer(inv -> Optional.ofNullable(seeded.get(inv.getArgument(0, String.class))));
+    when(repository.findByKeyIn(anyCollection())).thenReturn(new ArrayList<>(seeded.values()));
     when(repository.findByEnabledTrueOrderByOrderAsc())
         .thenReturn(new ArrayList<>(seeded.values()));
     when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn(TENANT);
