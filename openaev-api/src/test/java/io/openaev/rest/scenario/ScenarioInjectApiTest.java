@@ -13,6 +13,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.manual.ManualContract;
@@ -31,6 +32,7 @@ import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
+import java.time.Instant;
 import java.util.*;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
@@ -61,6 +63,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @Autowired private DomainComposer domainComposer;
 
   @Autowired private AttackPatternRepository attackPatternRepository;
+  @Autowired private AssetRepository assetRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private EndpointService endpointService;
@@ -247,6 +250,101 @@ class ScenarioInjectApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful());
 
     assertFalse(injectRepository.existsById(SCENARIO_INJECT_ID));
+  }
+
+  @Nested
+  @DisplayName("Update inject assets for scenario")
+  @WithMockUser(isAdmin = true)
+  class UpdateInjectAssetsForScenario {
+
+    // A delete on injects_assets fires a trigger touching asset_updated_at: an asset whose
+    // updated_at is unchanged proves its injects_assets row was not deleted and re-inserted.
+    private Instant assetUpdatedAt(Endpoint endpoint) {
+      return assetRepository.findById(endpoint.getId()).orElseThrow().getUpdatedAt();
+    }
+
+    private String updateInjectAssets(Scenario scenario, Inject inject, List<String> assetIds)
+        throws Exception {
+      InjectInput input = new InjectInput();
+      input.setTitle(inject.getTitle());
+      input.setDependsDuration(inject.getDependsDuration());
+      input.setAssets(assetIds);
+      return mvc.perform(
+              put(SCENARIO_URI + "/" + scenario.getId() + "/injects/" + inject.getId())
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @DisplayName("Given unchanged assets, should not rewrite the inject assets")
+    @Test
+    void given_unchangedAssets_should_notRewriteInjectAssets() throws Exception {
+      // -- PREPARE --
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withEndpoint(endpointWrapper);
+      ScenarioComposer.Composer scenarioWrapper =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(injectWrapper)
+              .persist();
+      Instant updatedAtBefore = assetUpdatedAt(endpointWrapper.get());
+
+      // -- EXECUTE --
+      String response =
+          updateInjectAssets(
+              scenarioWrapper.get(), injectWrapper.get(), List.of(endpointWrapper.get().getId()));
+
+      // -- ASSERT --
+      assertEquals(
+          List.of(endpointWrapper.get().getId()), JsonPath.read(response, "$.inject_assets"));
+      assertEquals(updatedAtBefore, assetUpdatedAt(endpointWrapper.get()));
+
+      // -- CLEAN --
+      scenarioWrapper.delete();
+    }
+
+    @DisplayName("Given changed assets, should replace the inject assets")
+    @Test
+    void given_changedAssets_should_replaceInjectAssets() throws Exception {
+      // -- PREPARE --
+      EndpointComposer.Composer removedEndpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      EndpointComposer.Composer addedEndpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(removedEndpointWrapper);
+      ScenarioComposer.Composer scenarioWrapper =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(injectWrapper)
+              .persist();
+      Instant removedUpdatedAtBefore = assetUpdatedAt(removedEndpointWrapper.get());
+
+      // -- EXECUTE --
+      String response =
+          updateInjectAssets(
+              scenarioWrapper.get(),
+              injectWrapper.get(),
+              List.of(addedEndpointWrapper.get().getId()));
+
+      // -- ASSERT --
+      assertEquals(
+          List.of(addedEndpointWrapper.get().getId()), JsonPath.read(response, "$.inject_assets"));
+      assertNotEquals(removedUpdatedAtBefore, assetUpdatedAt(removedEndpointWrapper.get()));
+
+      // -- CLEAN --
+      scenarioWrapper.delete();
+      addedEndpointWrapper.delete();
+    }
   }
 
   @Nested

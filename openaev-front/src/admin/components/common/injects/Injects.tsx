@@ -317,29 +317,22 @@ const Injects: FunctionComponent<Props> = ({
     }
   };
 
+  // The updates are sent one after the other, never in parallel: these injects are linked
+  // (parent / children) and usually share the same scenario and assets, so concurrent updates
+  // contend on the same rows server-side and can deadlock, failing one of the requests.
   const massUpdateInject = async (data: Inject[]) => {
-    const promises: Promise<InjectStore | undefined>[] = [];
-    data.forEach((inject) => {
-      promises.push(injectContext.onUpdateInject(inject.inject_id, inject).then((result: {
-        result: string;
-        entities: { injects: Record<string, InjectStore> };
-      }) => {
-        if (result.entities) {
-          return result.entities.injects[result.result];
-        }
-        return undefined;
-      }));
-    });
+    const values: (InjectStore | undefined)[] = [];
+    for (const inject of data) {
+      // eslint-disable-next-line no-await-in-loop
+      const result = await injectContext.onUpdateInject(inject.inject_id, inject);
+      values.push(result.entities ? result.entities.injects[result.result] : undefined);
+    }
 
-    Promise.all(promises).then((values) => {
-      if (values !== undefined) {
-        const updatedInjects = injects
-          .map(inject => (values.find(value => value !== undefined && value.inject_id === inject.inject_id)
-            ? (values.find(value => value !== undefined && value?.inject_id === inject.inject_id) as InjectOutputType)
-            : inject as InjectOutputType));
-        setInjects(updatedInjects);
-      }
-    });
+    const updatedInjects = injects
+      .map(inject => (values.find(value => value !== undefined && value.inject_id === inject.inject_id)
+        ? (values.find(value => value !== undefined && value?.inject_id === inject.inject_id) as InjectOutputType)
+        : inject as InjectOutputType));
+    setInjects(updatedInjects);
   };
 
   // Creation now happens on a dedicated full page (contract picker + config).
