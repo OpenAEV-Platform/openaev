@@ -141,6 +141,9 @@ Below is a full list of capabilities in OpenAEV:
 | `Access tenant users, groups and roles` | Read-only access to the tenant's users, groups and roles.                                                                                 |
 | &nbsp;&nbsp;`Manage tenant users, groups and roles` | Create and update the tenant's users, groups and roles. Requires *Access tenant users, groups and roles*.                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant users, groups and roles` | Permanently delete them. Requires *Manage tenant users, groups and roles*.                                                                |
+| `Access marking definitions` | Read-only access to marking definitions (e.g. TLP levels) and to assigning them to Assets, up to the level you hold yourself. See [Markings](markings.md). |
+| &nbsp;&nbsp;`Manage marking definitions` | Create and update marking definitions. Requires *Access marking definitions*.                                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete marking definitions` | Permanently delete marking definitions. Requires *Manage marking definitions*.                                                            |
 | `Install agent` | Get the agent install command and installer token, and download the agent binaries. Has no parent or child capability.                   |
 
 

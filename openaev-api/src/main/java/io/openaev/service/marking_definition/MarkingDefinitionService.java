@@ -80,6 +80,14 @@ public class MarkingDefinitionService {
    */
   @Transactional(readOnly = true)
   public List<MarkingDefinition> list(@NotNull TxCtx ctx) {
+    return listInternal(ctx);
+  }
+
+  // Non-transactional body shared by every @Transactional entry point that needs "every
+  // definition in scope" - an intra-class call to a @Transactional method bypasses the Spring
+  // proxy (self-invocation), so neither the transaction nor tenant-scope activation runs for the
+  // inner call. list() and listAssignable() both call this instead of calling each other.
+  private List<MarkingDefinition> listInternal(@NotNull TxCtx ctx) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     if (tenantIds.isEmpty()) {
       return List.of();
@@ -105,7 +113,7 @@ public class MarkingDefinitionService {
   @Transactional(readOnly = true)
   public List<MarkingDefinition> listAssignable(
       @NotNull TxCtx ctx, @NotBlank String tenantId, @NotBlank String userId, boolean bypass) {
-    List<MarkingDefinition> all = list(ctx);
+    List<MarkingDefinition> all = listInternal(ctx);
     MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId, bypass);
     return switch (clearance) {
       case MarkingCtx.None ignored -> List.of();
