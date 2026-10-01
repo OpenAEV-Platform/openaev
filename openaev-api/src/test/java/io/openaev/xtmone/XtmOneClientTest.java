@@ -302,6 +302,58 @@ class XtmOneClientTest {
       // -- ASSERT --
       assertFalse(bodyCaptor.getValue().containsKey("context"));
     }
+
+    @Test
+    @DisplayName("Given referenced conversations should include them in the upstream body")
+    void given_referencedConversations_should_includeThemInBody() throws Exception {
+      // -- ARRANGE --
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = stubRequestBodyCapture();
+      List<String> referenced = List.of("conv-2", "conv-3");
+
+      // -- ACT --
+      xtmOneClient.streamChatMessage(
+          "hello", "conv-1", "agent-1", null, true, referenced, stream -> {});
+
+      // -- ASSERT --
+      Map<String, Object> body = bodyCaptor.getValue();
+      assertEquals(referenced, body.get("referenced_conversation_ids"));
+      assertEquals("conv-1", body.get("conversation_id"));
+      assertEquals(true, body.get("supports_tool_approval"));
+    }
+
+    @ParameterizedTest(name = "Given {0} referenced conversations should omit the field")
+    @MethodSource("noReferencedConversations")
+    void given_noReferencedConversations_should_omitThem(
+        String description, List<String> referenced) throws Exception {
+      // -- ARRANGE --
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = stubRequestBodyCapture();
+
+      // -- ACT --
+      xtmOneClient.streamChatMessage(
+          "hello", null, "agent-1", null, false, referenced, stream -> {});
+
+      // -- ASSERT --
+      assertFalse(bodyCaptor.getValue().containsKey("referenced_conversation_ids"));
+    }
+
+    static Stream<Arguments> noReferencedConversations() {
+      return Stream.of(Arguments.of("null", null), Arguments.of("empty", List.of()));
+    }
+
+    @Test
+    @DisplayName("Given the overload without references should reference no conversation")
+    void given_overloadWithoutReferences_should_omitThem() throws Exception {
+      // -- ARRANGE --
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = stubRequestBodyCapture();
+
+      // -- ACT --
+      xtmOneClient.streamChatMessage("hello", null, "agent-1", null, true, stream -> {});
+
+      // -- ASSERT --
+      Map<String, Object> body = bodyCaptor.getValue();
+      assertFalse(body.containsKey("referenced_conversation_ids"));
+      assertEquals(true, body.get("supports_tool_approval"));
+    }
   }
 
   private void configureClientCommon() {
@@ -679,6 +731,121 @@ class XtmOneClientTest {
       workspace.put("is_own", true);
       workspace.put("can_manage", true);
       return JsonNodeFactory.instance.arrayNode().add(workspace);
+    }
+  }
+
+  @Nested
+  @DisplayName("searchChatConversationReferences")
+  class SearchChatConversationReferences {
+
+    private static final String REFERENCES_PATH = "/api/v1/platform/chat/conversation-references";
+
+    @Test
+    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
+    void given_notConfigured_should_throwServiceUnavailable() {
+      when(config.isConfigured()).thenReturn(false);
+
+      ResponseStatusException ex =
+          assertThrows(
+              ResponseStatusException.class,
+              () -> xtmOneClient.searchChatConversationReferences("red", 5, null));
+      assertEquals(503, ex.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("Given search parameters should GET them URL-encoded as the current user")
+    void given_parameters_should_getThemEncoded() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.objectNode());
+
+      // -- ACT --
+      xtmOneClient.searchChatConversationReferences("red team & co/\u00fc+", 5, "conv-1");
+
+      // -- ASSERT --
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("GET", request.getMethod());
+      assertTrue(
+          request
+              .getUri()
+              .toString()
+              .endsWith(
+                  REFERENCES_PATH + "?q=red%20team%20%26%20co%2F%C3%BC%2B&limit=5&exclude=conv-1"),
+          request.getUri().toString());
+      assertEquals("Bearer fake-jwt", request.getFirstHeader("Authorization").getValue());
+    }
+
+    @Test
+    @DisplayName("Given no search parameter should GET the route without a query string")
+    void given_noParameter_should_getWithoutQuery() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.objectNode());
+
+      // -- ACT --
+      xtmOneClient.searchChatConversationReferences(null, null, null);
+
+      // -- ASSERT --
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertTrue(request.getUri().toString().endsWith(REFERENCES_PATH));
+    }
+
+    @Test
+    @DisplayName("Given only a limit should send it as the only parameter")
+    void given_onlyLimit_should_sendItAlone() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.objectNode());
+
+      // -- ACT --
+      xtmOneClient.searchChatConversationReferences(null, 20, null);
+
+      // -- ASSERT --
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertTrue(request.getUri().toString().endsWith(REFERENCES_PATH + "?limit=20"));
+    }
+
+    @Test
+    @DisplayName("Given XTM One lists conversations should relay the payload")
+    void given_conversations_should_relayPayload() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(200);
+      ObjectNode conversations = JsonNodeFactory.instance.objectNode();
+      conversations
+          .putArray("conversations")
+          .addObject()
+          .put("id", "conv-2")
+          .put("title", "Red team plan")
+          .put("key", "red-team-plan")
+          .put("is_own", true);
+      when(objectMapper.readTree(anyString())).thenReturn(conversations);
+
+      // -- ACT --
+      XtmOneClient.RelayedResponse result =
+          xtmOneClient.searchChatConversationReferences("red", null, null);
+
+      // -- ASSERT --
+      assertEquals(new XtmOneClient.RelayedResponse(200, conversations), result);
+    }
+
+    @Test
+    @DisplayName("Given XTM One rejects the JWT (401) should relay a 422")
+    void given_unauthorized_should_relayUnprocessableEntity() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(401);
+
+      // -- ACT --
+      XtmOneClient.RelayedResponse result =
+          xtmOneClient.searchChatConversationReferences("red", null, null);
+
+      // -- ASSERT --
+      assertEquals(422, result.status());
+      assertEquals("[XTM One] HTTP 401", result.body().get("detail").asText());
     }
   }
 

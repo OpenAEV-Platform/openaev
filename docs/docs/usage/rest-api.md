@@ -194,7 +194,7 @@ These endpoints check the caller's grant on the workflow's parent Simulation or 
 
 ## XTM One chat endpoints
 
-When OpenAEV is connected to XTM One, the embedded chat panel reaches XTM One through proxy endpoints under `/api/xtmone/chat`. They require an Enterprise Edition license and call XTM One's embedded-chat API as the calling OpenAEV user, so XTM One applies that user's own permissions. The endpoints below manage the conversations of the chat history and the XTM One workspaces that group them:
+When OpenAEV is connected to XTM One, the embedded chat panel reaches XTM One through proxy endpoints under `/api/xtmone/chat`. They require an Enterprise Edition license and call XTM One's embedded-chat API as the calling OpenAEV user, so XTM One applies that user's own permissions. The endpoints below manage the conversations of the chat history, the XTM One workspaces that group them, and the conversations a message references with `@`:
 
 | Endpoint | Description |
 |---|---|
@@ -204,8 +204,12 @@ When OpenAEV is connected to XTM One, the embedded chat panel reaches XTM One th
 | `POST /api/xtmone/chat/workspaces` | Creates a workspace (`name`, optional `description`) |
 | `PATCH /api/xtmone/chat/workspaces/{id}` | Renames a workspace or changes its description |
 | `DELETE /api/xtmone/chat/workspaces/{id}` | Deletes a workspace |
+| `GET /api/xtmone/chat/conversation-references` | Lists the conversations the user may reference with `@`, those XTM One lets them open. Optional parameters: `q` (search text, trimmed and cut to 200 characters), `limit` (1 to 20) and `exclude` (the id of a conversation not to list, typically the current one). A malformed parameter is left out rather than refused |
+| `POST /api/xtmone/chat/messages` | Sends a message and streams the answer as server-sent events. `referenced_conversation_ids` names the conversations the message references: only an array of UUIDs is read, and its first 5 distinct ids are forwarded |
 
-Path `{id}` values must be UUIDs, otherwise the request is refused with a `400`. Except for `POST /api/xtmone/chat/sessions`, these endpoints answer with XTM One's own status, and when XTM One refuses a change (for example the user's default workspace, or a workspace that still holds work items, cannot be deleted), with a body holding only XTM One's `detail` message. An XTM One `401` is answered as a `422`, so XTM One rejecting OpenAEV's credentials never signs the user out of OpenAEV.
+Path `{id}` values must be UUIDs, otherwise the request is refused with a `400`. Except for `POST /api/xtmone/chat/sessions` and `POST /api/xtmone/chat/messages`, these endpoints answer with XTM One's own status, and when XTM One refuses a change (for example the user's default workspace, or a workspace that still holds work items, cannot be deleted), with a body holding only XTM One's `detail` message. An XTM One `401` is answered as a `422`, so XTM One rejecting OpenAEV's credentials never signs the user out of OpenAEV.
+
+Restoring a conversation (`POST /api/xtmone/chat/sessions` with its `conversation_id`) returns its messages as XTM One serves them: a user message that referenced other conversations keeps their `conversation_refs` (`conversation_id`, `title`, `key`).
 
 ## Multi-tenant context
 
