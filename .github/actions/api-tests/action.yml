@@ -44,6 +44,9 @@ inputs:
       ones, which surfaces what activating the rest would break. Both turn the fail-closed
       detector on, so an unscoped production read fails its test instead of silently returning zero
       rows.
+      A shadow shard reports a true pass or fail, and cannot fail the workflow: the matrix entry
+      carries continue_on_error. What those runs currently fail on is written down in
+      .github/tenant-shadow-distance.md.
       Scope, exactly: the list is a JVM system property, and a class carrying
       @TestPropertySource(properties = "openaev.tenant.active-tables=...") keeps its own narrower
       list, because inlined test properties win over system properties. Those classes are the
@@ -269,15 +272,16 @@ runs:
         esac
         echo "🔐 tenant shadow: mode=$MODE"
         echo "   active-tables=$LIST"
-        # maven.test.failure.ignore=true: a shadow run is a report, not a gate. Test failures and
-        # errors are the expected output and are recorded in the surefire reports either way; ignoring
-        # them keeps the build (and so the job) green. The core API shards reach this step too, but with
-        # an empty tenant-mode they take the early return above (args=, exit 0) and never reach this
-        # line, so they never receive the flag and still fail on a red test. Only shadow modes get it.
+        # No maven.test.failure.ignore here, on purpose. A shadow shard must report a true pass or
+        # fail, and it already cannot fail the workflow: the matrix entry carries continue_on_error,
+        # which keeps a red job out of the run conclusion. Measured, not assumed: the runs of 13 and
+        # 14 September had every shadow shard red, the Pipeline Gate green and the run green. Ignoring
+        # the failures instead made the job green whatever happened, which is the one state nobody can
+        # read. Every later step in this action is guarded by !cancelled() or failure(), so they all
+        # still run when the test step is red.
         # Single-quoted so '*' reaches the JVM instead of being glob-expanded by the shell below.
-        # The write-attribution detector rides the same shadow run as the fail-closed one: both
-        # report and never gate, since failure.ignore keeps the job green.
-        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dopenaev.writeattr.detector=on -Dmaven.test.failure.ignore=true" >> "$GITHUB_OUTPUT"
+        # The write-attribution detector rides the same shadow run as the fail-closed one.
+        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dopenaev.writeattr.detector=on" >> "$GITHUB_OUTPUT"
 
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
@@ -326,9 +330,13 @@ runs:
       env:
         MODE: ${{ inputs.tenant-mode }}
         SHARD: ${{ inputs.shard-name }}
+        RUN_OUTCOME: ${{ steps.run-tests.outcome }}
       run: |
         REPORTS=openaev-api/target/surefire-reports
         S="$GITHUB_STEP_SUMMARY"
+        # One tab-separated line per shard, collected by the tenant shadow verdict job into a single
+        # table on the run page. Fields: mode, shard, verdict, tests, failures, errors, skipped, note.
+        VERDICT_FILE=openaev-api/target/tenant-shadow-verdict.tsv
         {
           echo "## Tenant shadow \`$MODE\`, shard $SHARD"
           echo
@@ -337,16 +345,15 @@ runs:
           echo "already running with their table active._"
           echo
         } >> "$S"
-        # A broken instrument must stay visible without turning the job red. Two shapes go unnoticed
-        # otherwise: no surefire report at all (the suite never ran), and a Spring context that fails
-        # to load (every test errors, yet the JaCoCo agent still writes jacoco.exec at JVM exit and
-        # -Dmaven.test.failure.ignore=true leaves the build green, the 12 Sep shadow-all state). Emit
-        # a GitHub warning annotation, never an error and never a non-zero exit: it shows on the run
-        # page and in the job without failing either, and the on-call alert keys off the run
-        # conclusion, so it stays quiet.
+        # Two shapes of broken instrument would otherwise read as a pass: no surefire report at all
+        # (the suite never ran), and a Spring context that fails to load. Both are reported as
+        # NO RESULT, which is neither a pass nor a plain test failure, and both raise a warning
+        # annotation. This step never exits non-zero: the shard's own verdict is the Maven step's
+        # result, and the collected verdict is the tenant shadow verdict job's.
         if [ ! -d "$REPORTS" ] || [ -z "$(find "$REPORTS" -maxdepth 1 -name '*.txt' -print -quit 2>/dev/null)" ]; then
-          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::No surefire report: the shadow suite did not run. A green job here is not a pass."
-          echo "No surefire reports: the suite did not start." >> "$S"
+          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::No surefire report: the shadow suite did not run. This is not a pass."
+          echo "**NO RESULT**: no surefire report, the suite did not start." >> "$S"
+          printf '%s\t%s\tNO RESULT\t0\t0\t0\t0\t%s\n' "$MODE" "$SHARD" "no surefire report, the suite did not start" > "$VERDICT_FILE"
           exit 0
         fi
 
@@ -354,15 +361,45 @@ runs:
         # because the Spring context never came up. || true: grep exits 1 on no match under pipefail.
         CTX=$(grep -ho 'Failed to load ApplicationContext' "$REPORTS"/*.txt 2>/dev/null | wc -l | tr -d ' ' || true)
         if [ "${CTX:-0}" -gt 0 ]; then
-          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::Spring context failed to load ($CTX x 'Failed to load ApplicationContext'). Every affected test errored; the job is green only because shadow failures are ignored, so this is not a pass."
+          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::Spring context failed to load ($CTX x 'Failed to load ApplicationContext'). Every affected test errored."
         fi
 
         # Totals, summed over the shard's classes. Read from the reports, never from a grep of the
         # build log: Maven writes ANSI colour codes inside its counters, so a grep there is vacuous.
-        awk -F'[:,]' '/^Tests run:/ {t+=$2; f+=$4; e+=$6; s+=$8}
-          END {printf "| Tests | Failures | Errors | Skipped |\n|---|---|---|---|\n| %d | %d | %d | %d |\n", t, f, e, s}' \
-          "$REPORTS"/*.txt >> "$S" 2>/dev/null || true
-        echo >> "$S"
+        read -r TESTS FAILURES ERRORS SKIPPED <<< "$(awk -F'[:,]' '/^Tests run:/ {t+=$2; f+=$4; e+=$6; s+=$8}
+          END {printf "%d %d %d %d\n", t, f, e, s}' "$REPORTS"/*.txt 2>/dev/null)" || true
+        TESTS=${TESTS:-0}; FAILURES=${FAILURES:-0}; ERRORS=${ERRORS:-0}; SKIPPED=${SKIPPED:-0}
+
+        # The verdict. A shard passes only when surefire ran, reported tests, and none of them went
+        # red. The Maven step's own outcome is part of it: a build that died before surefire finished
+        # leaves partial reports that would otherwise read as a clean run.
+        NOTE=""
+        if [ "$FAILURES" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
+          RESULT=FAIL
+        elif [ "$TESTS" -eq 0 ]; then
+          RESULT="NO RESULT"; NOTE="surefire reported zero tests"
+        elif [ "$RUN_OUTCOME" != "success" ]; then
+          RESULT="NO RESULT"; NOTE="the Maven step did not succeed ($RUN_OUTCOME) although no test is red"
+        else
+          RESULT=PASS
+        fi
+        if [ "${CTX:-0}" -gt 0 ]; then
+          NOTE="${NOTE:+$NOTE; }$CTX Spring context load failures"
+        fi
+        printf '%s\t%s\t%s\t%d\t%d\t%d\t%d\t%s\n' \
+          "$MODE" "$SHARD" "$RESULT" "$TESTS" "$FAILURES" "$ERRORS" "$SKIPPED" "$NOTE" > "$VERDICT_FILE"
+
+        {
+          echo "### Verdict: $RESULT"
+          echo
+          echo "| Tests | Failures | Errors | Skipped |"
+          echo "|---|---|---|---|"
+          echo "| $TESTS | $FAILURES | $ERRORS | $SKIPPED |"
+          echo
+        } >> "$S"
+        if [ "$RESULT" != "PASS" ]; then
+          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::$RESULT: $FAILURES failures and $ERRORS errors over $TESTS tests.${NOTE:+ $NOTE.}"
+        fi
 
         # Unscoped production reads the fail-closed gate refused. Each is a path that would return
         # zero rows in production once its table is active.
@@ -493,6 +530,17 @@ runs:
             echo '```'
           } >> "$S"
         fi
+
+    - name: Upload the tenant shadow verdict
+      # One line per shadow shard, read by the tenant shadow verdict job, which turns the whole set
+      # into a single table on the run page. if-no-files-found: error, because a missing verdict is
+      # exactly the silence this instrument exists to remove.
+      if: ${{ !cancelled() && inputs.tenant-mode != '' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: tenant-shadow-verdict-${{ inputs.tenant-mode }}-${{ inputs.shard-name }}
+        path: openaev-api/target/tenant-shadow-verdict.tsv
+        if-no-files-found: error
 
     - name: Verify JaCoCo exec data
       if: ${{ !cancelled() }}

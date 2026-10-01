@@ -25,7 +25,10 @@ jobs:
       # lands, whoever wrote it. "shadow-all" runs with every strict tenant table active,
       # which is the exhaustive list of what activating the rest would break, obtained
       # without changing anything on main. Both turn the fail-closed detector on.
-      # Reports, not gates: continue_on_error keeps a red one from failing the workflow.
+      # Reports, not gates: continue_on_error keeps a red one from failing the workflow, so a
+      # shard reports its true result and the "Tenant shadow verdict" job collects them into one
+      # table on the run page. Their measured distance to green, and what they currently fail on,
+      # is in .github/tenant-shadow-distance.md.
       # Retire both when the migration is done; shadow-prod may then become a core gate.
       # ── API Tests: 9 shards + catch-all across Elasticsearch and OpenSearch ──
       api-matrix: >
