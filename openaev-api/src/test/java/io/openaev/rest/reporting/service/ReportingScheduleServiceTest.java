@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -86,6 +87,17 @@ class ReportingScheduleServiceTest {
     // in ReportingScheduleDocumentScopeTest).
     when(tenantScopedJobRunner.supplyInTenant(anyString(), any()))
         .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
+    // markLastRun and requestGeneration now run inside runInTenant too (reporting_schedules and
+    // reportings are tenant-active): run the wrapped work so these unit tests keep exercising the
+    // schedule logic (the scope itself is pinned on the real stack in
+    // ReportingScheduleDocumentScopeTest).
+    doAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantScopedJobRunner)
+        .runInTenant(anyString(), any());
   }
 
   // -- FIXTURES --

@@ -115,15 +115,23 @@ public class ReportingScheduleService {
     String tenantId = schedule.getTenant().getId();
     try {
       // Generations run under the owner's identity so RBAC and tenant checks apply as if the
-      // owner had requested the report manually.
+      // owner had requested the report manually. This ambient tenant is unrelated to the v2
+      // primitive below: RBAC/session lookups still read it, while every read or write of the
+      // now-active reporting_schedules/reportings/reporting_generations tables carries its own
+      // scope through TenantScopedJobRunner, which a table read via findByIdAndTenantId's own
+      // predicate needs in addition to (not instead of) that explicit predicate.
       TenantContext.setCurrentTenant(tenantId);
       userService.createUserSession(schedule.getOwner());
-      reportingScheduleLoader.markLastRun(schedule.getId(), dueMinute);
+      tenantScopedJobRunner.runInTenant(
+          tenantId, () -> reportingScheduleLoader.markLastRun(schedule.getId(), dueMinute));
       ReportingGeneration generation =
-          reportingService.requestGeneration(
-              schedule.getReporting().getId(),
-              schedule.getFormat(),
-              ReportingGenerationTrigger.SCHEDULED);
+          tenantScopedJobRunner.supplyInTenant(
+              tenantId,
+              () ->
+                  reportingService.requestGeneration(
+                      schedule.getReporting().getId(),
+                      schedule.getFormat(),
+                      ReportingGenerationTrigger.SCHEDULED));
       ReportingGeneration terminal = awaitTerminalStatus(generation.getId(), tenantId);
       if (terminal != null && ReportingGenerationStatus.SUCCESS.equals(terminal.getStatus())) {
         deliverReport(schedule, terminal);
@@ -150,10 +158,10 @@ public class ReportingScheduleService {
    * row disappeared.
    *
    * <p>The re-read fetches the produced document with a JOIN FETCH on the now-active {@code
-   * documents} table, so it runs under the v2 primitive scope of the schedule's tenant ({@code
-   * TxCtx.forTenant} through {@link TenantScopedJobRunner}); without it the inspector fail-closes
-   * the join and the delivery is skipped with a document-less generation. The surrounding {@code
-   * TenantContext} still scopes the {@code reporting_generations} row itself, which stays v1.
+   * documents} table, and {@code reporting_generations} is itself tenant-active too, so both sides
+   * of the join need the v2 primitive scope of the schedule's tenant ({@code TxCtx.forTenant}
+   * through {@link TenantScopedJobRunner}); without it the inspector fail-closes the read and the
+   * delivery is skipped with no generation found at all.
    */
   ReportingGeneration awaitTerminalStatus(String generationId, String tenantId) {
     Instant deadline = Instant.now().plus(POLL_TIMEOUT);

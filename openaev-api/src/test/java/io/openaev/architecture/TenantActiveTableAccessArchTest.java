@@ -44,6 +44,7 @@ import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.CustomDomainRepository;
 import io.openaev.database.repository.CweRepository;
+import io.openaev.database.repository.DataPackRepository;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.FindingRepository;
@@ -60,6 +61,10 @@ import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
+import io.openaev.database.repository.PhishingResultRepository;
+import io.openaev.database.repository.ReportingGenerationRepository;
+import io.openaev.database.repository.ReportingRepository;
+import io.openaev.database.repository.ReportingScheduleRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
@@ -95,6 +100,8 @@ import io.openaev.injectors.channel.ChannelExecutor;
 import io.openaev.injectors.phishing.PhishingExecutor;
 import io.openaev.injectors.phishing.service.PhishingEmailTemplateService;
 import io.openaev.injectors.phishing.service.PhishingLandingPageService;
+import io.openaev.injectors.phishing.service.PhishingTrackingPublicLookupService;
+import io.openaev.injectors.phishing.service.PhishingTrackingService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration;
 import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegrationFactory;
@@ -173,6 +180,11 @@ import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
 import io.openaev.rest.payload.service.PayloadUpsertService;
+import io.openaev.rest.reporting.ReportingApi;
+import io.openaev.rest.reporting.ReportingService;
+import io.openaev.rest.reporting.service.PlaywrightReportingRenderer;
+import io.openaev.rest.reporting.service.ReportingScheduleLoader;
+import io.openaev.rest.reporting.service.ReportingScheduleService;
 import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioDashboardApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
@@ -181,6 +193,7 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.scheduler.jobs.ComchecksExecutionJob;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.ChannelService;
+import io.openaev.service.DataPackService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.EsAttackPathService;
 import io.openaev.service.InjectExpectationTraceService;
@@ -307,7 +320,12 @@ class TenantActiveTableAccessArchTest {
           "attackpath_execution_remediation",
           "asset_agent_jobs",
           "payloads",
-          "vulnerabilities");
+          "vulnerabilities",
+          "phishing_results",
+          "reporting_schedules",
+          "reportings",
+          "reporting_generations",
+          "datapacks");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -379,7 +397,8 @@ class TenantActiveTableAccessArchTest {
       Set.of(
           CustomDashboardRepository.class,
           KillChainPhaseRepository.class,
-          TenantXtmHubRegistrationRepository.class);
+          TenantXtmHubRegistrationRepository.class,
+          ReportingScheduleRepository.class);
 
   @ArchTest
   static void joined_queries_on_active_tables_correlate_the_tenant(JavaClasses classes) {
@@ -723,6 +742,25 @@ class TenantActiveTableAccessArchTest {
               "tenant_xtmhub_registrations is tenant-active: an accessor without a tenant scope"
                   + " silently reads zero rows. New accessors must carry a scope and be"
                   + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule phishing_results_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Owns the tracking lifecycle; scoped via TxCtx on the token-only public routes
+              // (REQUIRES_NEW) and via the ambient TxCtx on the tenant-prefixed legacy route.
+              PhishingTrackingService.class,
+              // The one deliberately cross-tenant read, resolving a token's owning tenant with no
+              // tenant of its own to scope with, under TxCtx.allTenants() through the background
+              // primitive.
+              PhishingTrackingPublicLookupService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PhishingResultRepository.class)
+          .because(
+              "phishing_results is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule tags_repository_access_is_reviewed =
@@ -1923,5 +1961,97 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(VulnerabilityRepository.class)
           .because(
               "vulnerabilities is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule reporting_schedules_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoint (create/update/delete schedule), pinned by
+              // TenantScopedEntrypointsTxCtxArchTest:
+              ReportingApi.class,
+              // Resolves schedules by id with a plain findById inside that scoped transaction,
+              // and attributes a new schedule from its parent reporting's tenant:
+              ReportingService.class,
+              // Cross-tenant engine loader: reads every tenant's schedules under allTenants(),
+              // and persists the double-fire marker under the schedule's own tenant through
+              // TenantScopedJobRunner (called from ReportingScheduleService):
+              ReportingScheduleLoader.class,
+              // Scheduling engine: wraps every markLastRun/requestGeneration call in the
+              // schedule's own tenant through TenantScopedJobRunner:
+              ReportingScheduleService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ReportingScheduleRepository.class)
+          .because(
+              "reporting_schedules is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule reportings_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              ReportingApi.class,
+              // Resolves reportings by id with a plain findById inside that scoped transaction,
+              // and attributes a new reporting from the request's write scope:
+              ReportingService.class,
+              // Platform-wide telemetry gauge, scoped with countAcrossAllTenants():
+              ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ReportingRepository.class)
+          .because(
+              "reportings is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule reporting_generations_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              ReportingApi.class,
+              // Resolves generations by id with a plain findById inside that scoped transaction,
+              // and attributes a new generation from its parent reporting's tenant:
+              ReportingService.class,
+              // Polls a generation to a terminal status under TenantScopedJobRunner, the
+              // schedule's own tenant:
+              ReportingScheduleService.class,
+              // Render lifecycle (markRunning/completeWithSuccess/completeWithError), each under
+              // TenantScopedJobRunner with the job's own captured tenant:
+              PlaywrightReportingRenderer.class,
+              // Native IN-list lookup used to mark report outputs read-only on the generic
+              // documents surface, reached only from the TxCtx-carrying document entrypoints:
+              io.openaev.rest.document.DocumentApi.class,
+              DocumentService.class,
+              // Fallback renderer (Playwright/Chromium unavailable): @Transactional, joins the
+              // caller's already-scoped transaction synchronously, never runs on a background
+              // thread:
+              io.openaev.rest.reporting.service.NoopReportingRenderer.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ReportingGenerationRepository.class)
+          .because(
+              "reporting_generations is tenant-active: an accessor without a tenant scope"
+                  + " silently reads zero rows. New accessors must carry a scope and be"
+                  + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule datapacks_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Sole accessor: provisioning lookups/writes reached from MigrationProcessor,
+              // already inside its own scoped transaction (setScopeOnCurrentTransaction on
+              // onboarding, execute() at startup, one per tenant):
+              DataPackService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(DataPackRepository.class)
+          .because(
+              "datapacks is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
 }
