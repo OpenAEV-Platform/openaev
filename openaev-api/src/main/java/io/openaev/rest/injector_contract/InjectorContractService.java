@@ -885,6 +885,12 @@ public class InjectorContractService implements DependenciesManager {
    * injector type and name). Grouping by the unselected injector id would split a contract linked
    * to several injectors into one identical projected row per link, making page content disagree
    * with the distinct count.
+   *
+   * <p>{@code collector_types} is a tenant-active table, so {@code TenantStatementInspector} wraps
+   * the joined table in a filtered derived table. A derived table carries no primary key, so
+   * PostgreSQL cannot infer that {@code name} is functionally dependent on {@code id} the way it
+   * can for a real base table; {@code name} must be grouped explicitly or every selector that
+   * projects it (FULL, THREAT_ARSENAL) fails with "column must appear in the GROUP BY clause".
    */
   private List<Expression<?>> getCommonGroupBy(
       @NotNull final Root<InjectorContract> injectorContractRoot,
@@ -892,7 +898,8 @@ public class InjectorContractService implements DependenciesManager {
     return Arrays.asList(
         injectorContractRoot.get("compositeId"),
         ctx.payloadJoin().get("id"),
-        ctx.payloadCollectorTypeJoin().get("id"));
+        ctx.payloadCollectorTypeJoin().get("id"),
+        ctx.payloadCollectorTypeJoin().get("name"));
   }
 
   /**
