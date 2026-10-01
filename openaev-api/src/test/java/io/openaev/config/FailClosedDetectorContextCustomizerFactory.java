@@ -1,9 +1,6 @@
 package io.openaev.config;
 
 import java.util.List;
-import javax.sql.DataSource;
-import net.ttddyy.dsproxy.support.ProxyDataSource;
-import net.ttddyy.dsproxy.support.ProxyDataSourceBuilder;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Environment;
@@ -47,13 +44,8 @@ public class FailClosedDetectorContextCustomizerFactory implements ContextCustom
               new BeanPostProcessor() {
                 @Override
                 public Object postProcessAfterInitialization(Object bean, String beanName) {
-                  if (bean instanceof DataSource dataSource && !(bean instanceof ProxyDataSource)) {
-                    return ProxyDataSourceBuilder.create(dataSource)
-                        .name("failclosed-detector")
-                        .listener(listener)
-                        .build();
-                  }
-                  return bean;
+                  return DetectorDataSourceProxies.wrapOrChain(
+                      bean, "failclosed-detector", listener);
                 }
               });
     }
