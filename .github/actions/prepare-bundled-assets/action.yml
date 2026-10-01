@@ -11,6 +11,12 @@ inputs:
     description: Upload the prepared assets as the shared `release-assets` artifact.
     required: false
     default: "true"
+  working-directory:
+    description: >
+      Checkout to prepare the assets in. Scripts always come from this action's
+      own checkout, so the directory may hold untrusted code.
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -30,6 +36,7 @@ runs:
 
     - name: Download agent & implant binaries
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
         BINARY_VERSION="${{ steps.versions.outputs.binary_version }}"
 
@@ -39,8 +46,7 @@ runs:
           LOCAL_VERSION="$BINARY_VERSION"
         fi
 
-        chmod +x scripts/download-binaries.sh
-        if ! bash scripts/download-binaries.sh "$BINARY_VERSION" "$LOCAL_VERSION"; then
+        if ! bash "$GITHUB_ACTION_PATH/../../../scripts/download-binaries.sh" "$BINARY_VERSION" "$LOCAL_VERSION"; then
           echo "❌ download-binaries.sh failed"
           exit 1
         fi
@@ -54,6 +60,7 @@ runs:
 
     - name: Patch catalog version
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
         CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
         CATALOG_VERSION="${{ steps.versions.outputs.catalog_version }}"
@@ -90,6 +97,6 @@ runs:
       with:
         name: release-assets
         path: |
-          openaev-api/src/main/resources/agents/
-          openaev-api/src/main/resources/implants/
-          openaev-api/src/main/resources/catalog/
+          ${{ inputs.working-directory }}/openaev-api/src/main/resources/agents/
+          ${{ inputs.working-directory }}/openaev-api/src/main/resources/implants/
+          ${{ inputs.working-directory }}/openaev-api/src/main/resources/catalog/

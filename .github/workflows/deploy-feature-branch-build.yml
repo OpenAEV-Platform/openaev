@@ -3,7 +3,10 @@ name: "[Core] Deploy Feature Branch Build"
 # Unprivileged build workflow dispatched by deploy-feature-branch.yml.
 # SECURITY: This workflow has read-only contents/actions access — no secrets
 # and no write-capable token.
-# It checks out and builds untrusted PR code in a safe sandbox.
+# It builds untrusted PR code. The run is on main's ref, so every job can write
+# main's Actions cache: PR code may only run inside containers, never directly on
+# the runner. Actions and scripts come from main's checkout at the workspace root;
+# the PR is checked out under pr/ and only used as the Docker build context.
 #
 # The application is built from source via a multi-stage Dockerfile. Agent,
 # implant, and catalog assets are prepared once and included in the image.
@@ -41,45 +44,41 @@ permissions:
   actions: read
 
 jobs:
-  prepare-build:
-    name: "📦 Prepare feature build"
+  docker-build:
+    name: "🐳 Docker Build (amd64)"
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      image-tag: ${{ steps.image-tag.outputs.value }}
+    timeout-minutes: 20
     steps:
+      # Trusted: the main commit this run was dispatched on
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github
+            scripts
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.head_sha }}
+          path: pr
+          # prepare-bundled-assets derives the local asset version from `git describe`
           fetch-depth: 0
+          filter: blob:none
+          # The checkout is the build context, which RUN steps can bind-mount
+          persist-credentials: false
       - name: Compute immutable Docker tag
         id: image-tag
         env:
           HEAD_SHA: ${{ inputs.head_sha }}
         run: echo "value=openaev:${HEAD_SHA:0:12}" >> "$GITHUB_OUTPUT"
-      - uses: ./.github/actions/prepare-bundled-assets
-
-  docker-build:
-    name: "🐳 Docker Build (amd64)"
-    needs: prepare-build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.head_sha }}
-          # prepare-bundled-assets derives the local asset version from `git describe`
-          fetch-depth: 0
-          filter: blob:none
       - uses: ./.github/actions/docker-build
         id: docker-build
         with:
-          tags: ${{ needs.prepare-build.outputs.image-tag }}
+          tags: ${{ steps.image-tag.outputs.value }}
+          context: pr
+          dockerfile: pr/Dockerfile
           platform: linux/amd64
           download-release-assets: "true"
           allow-registry: "false"
-          # Dispatched on main, so github.ref alone would let PR code export into main's cache scope
-          cache-write: "false"
+          untrusted-context: "true"
       # Promotion expects one openaev-image artifact holding openaev-image.tar.gz.
       # The single-platform OCI archive already carries an image index, so no merge is needed.
       - name: Rename image archive for promotion

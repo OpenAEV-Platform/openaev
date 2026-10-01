@@ -6,6 +6,8 @@ description: >
   archive as an artifact.  A separate merge step combines per-platform
   archives into the final multi-arch image.
   The calling job MUST run actions/checkout before this action.
+  This action and the scripts it runs come from the workspace root checkout;
+  only `context` is built.
 
 inputs:
   tags:
@@ -17,6 +19,12 @@ inputs:
     description: Docker image labels (from docker/metadata-action)
     required: false
     default: ""
+  context:
+    description: >
+      Directory holding the code to build. A caller building untrusted code
+      checks out trusted code at the workspace root and the untrusted code here.
+    required: false
+    default: "."
   dockerfile:
     description: Path to the Dockerfile to build
     required: false
@@ -55,13 +63,15 @@ inputs:
     description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
     required: false
     default: "false"
-  cache-write:
+  untrusted-context:
     description: >
-      Set to "false" to read the layer cache without exporting it. Workflows
-      dispatched on main that build PR code (feature deploys) must not write
-      main's cache scope, and the export takes several minutes.
+      Set to "true" when `context` holds untrusted code in a run on main's ref
+      (feature deploys of PR code), where any cache write lands in main's scope.
+      The layer cache is then read but never exported, and the Dockerfile
+      frontend is pinned: a `# syntax=` image would receive the cache settings,
+      including the token that can write the cache.
     required: false
-    default: "true"
+    default: "false"
 
 outputs:
   digest:
@@ -104,6 +114,7 @@ runs:
       uses: ./.github/actions/prepare-bundled-assets
       with:
         upload-artifact: "false"
+        working-directory: ${{ inputs.context }}
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
@@ -142,7 +153,7 @@ runs:
       env:
         BUILDKIT_PROGRESS: plain
       with:
-        context: .
+        context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile }}
         platforms: ${{ inputs.platform }}
         push: false
@@ -150,8 +161,10 @@ runs:
         outputs: |
           type=oci,dest=${{ steps.names.outputs.artifact_name }}.tar,name=${{ inputs.tags }}
         labels: ${{ inputs.labels }}
+        # BUILDKIT_SYNTAX overrides the Dockerfile's `# syntax=` directive
+        build-args: ${{ inputs.untrusted-context == 'true' && 'BUILDKIT_SYNTAX=docker/dockerfile:1' || '' }}
         cache-from: ${{ inputs.no-cache != 'true' && inputs.cache-scope != '' && format('type=gha,scope={0}', steps.names.outputs.cache_scope) || '' }}
-        cache-to: ${{ inputs.no-cache != 'true' && inputs.cache-write == 'true' && inputs.cache-scope != '' && github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
+        cache-to: ${{ inputs.no-cache != 'true' && inputs.untrusted-context != 'true' && inputs.cache-scope != '' && github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
 
     - name: Push image to CI registry
       id: registry-push
