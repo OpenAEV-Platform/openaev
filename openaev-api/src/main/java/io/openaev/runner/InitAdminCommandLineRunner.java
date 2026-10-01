@@ -7,6 +7,8 @@ import static io.openaev.database.model.User.ADMIN_LASTNAME;
 import static io.openaev.database.model.User.ADMIN_UUID;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
@@ -42,21 +44,40 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   private final TokenRepository tokenRepository;
   private final TenantUserService tenantUserService;
   private final AdminPrivilegeService adminPrivilegeService;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   public InitAdminCommandLineRunner(
       @NotNull final UserRepository userRepository,
       @NotNull final TokenRepository tokenRepository,
       @NotNull final TenantUserService tenantUserService,
-      @NotNull final AdminPrivilegeService adminPrivilegeService) {
+      @NotNull final AdminPrivilegeService adminPrivilegeService,
+      @NotNull final TenantScopedTransaction tenantScopedTransaction) {
     this.userRepository = userRepository;
     this.tokenRepository = tokenRepository;
     this.tenantUserService = tenantUserService;
     this.adminPrivilegeService = adminPrivilegeService;
+    this.tenantScopedTransaction = tenantScopedTransaction;
   }
 
   @Override
   @Transactional
   public void run(String... args) {
+    // This transaction reads a tenant-scoped table: the well-known groups ensured below carry an
+    // eager Group.markings association, and marking_definitions is filtered on the transaction's
+    // scope. Without one the read is fail-closed, so the groups come back granting no marking at
+    // all - benign today only because clearance is read through JdbcTemplate rather than that
+    // association. The scope is the default tenant rather than every tenant: a marking belongs to
+    // exactly one tenant (marking_definitions.tenant_id is NOT NULL, there is no platform marking),
+    // the default tenant is the only one this runner provisions, and a group may only grant
+    // markings
+    // of its own tenant. A wider scope could therefore only surface another tenant's clearance
+    // grant
+    // on a group that must not carry it.
+    //
+    // The scope is set on the transaction this method already owns, not in a new one: the whole
+    // bootstrap must stay a single unit of work.
+    this.tenantScopedTransaction.setScopeOnCurrentTransaction(TxCtx.forTenant(DEFAULT_TENANT_UUID));
+
     // Handle admin user
     Optional<User> adminUserOptional = this.userRepository.findById(ADMIN_UUID);
     User adminUser = adminUserOptional.map(this::updateUser).orElseGet(this::createUser);
