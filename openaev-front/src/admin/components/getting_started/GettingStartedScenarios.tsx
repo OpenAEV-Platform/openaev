@@ -131,7 +131,7 @@ const ScenarioCard = ({ scenario }: { scenario: Scenario }) => {
         )}
         <div style={{ flex: 1 }} />
         <MUILink
-          href="https://docs.openaev.io/latest/usage/scenarios-and-simulations/"
+          href="https://docs.openaev.io/latest/usage/foundations/scenarios-and-simulations/ "
           target="_blank"
           rel="noopener noreferrer"
           underline="hover"
