@@ -45,15 +45,17 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
-    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
-    // class-wide fixture names the default tenant explicitly rather than relying on it.
-    TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, and the
+    // listener no longer stamps an unattributed write, so this class-wide fixture stamps the
+    // default tenant explicitly on each payload before saving it.
     try {
       Payload command = createDefaultCommand();
+      command.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       Payload commandSaved = this.payloadRepository.save(command);
       PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
 
       Payload dnsResolution = createDefaultDnsResolution();
+      dnsResolution.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
       PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
@@ -61,6 +63,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
       Document documentSaved = this.documentRepository.save(document);
 
       Payload executable = createDefaultExecutable(documentSaved);
+      executable.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       Payload executableSaved = this.payloadRepository.save(executable);
       PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
     } finally {

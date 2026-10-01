@@ -17,6 +17,7 @@ import io.openaev.api.marking_definition.MarkingDefinitionApi;
 import io.openaev.api.notification.NotificationApi;
 import io.openaev.api.notification_trigger.NotificationTriggerMapper;
 import io.openaev.api.notifier.NotifierApi;
+import io.openaev.api.payload.PayloadApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Article;
@@ -56,12 +57,14 @@ import io.openaev.database.repository.NotificationEventRecordRepository;
 import io.openaev.database.repository.NotificationRepository;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.NotifierRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
+import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.database.repository.WidgetRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionCollectorRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
@@ -107,6 +110,7 @@ import io.openaev.notification.engine.NotificationEventRetentionService;
 import io.openaev.notification.engine.NotificationTriggerLoader;
 import io.openaev.notification.engine.ResolvedNotificationTrigger;
 import io.openaev.processor.core.V20260420_Migrate_rabbitmq_queues;
+import io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts;
 import io.openaev.processor.datapack.V20260101_Starter_pack;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.processor.datapack.V20260708_Dynamic_injectors_base_url;
@@ -165,6 +169,7 @@ import io.openaev.rest.lessons_template.LessonsTemplateApi;
 import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.mitigation.MitigationApi;
 import io.openaev.rest.payload.PayloadApi;
+import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
 import io.openaev.rest.payload.service.PayloadUpsertService;
@@ -300,7 +305,9 @@ class TenantActiveTableAccessArchTest {
           "phishing_landing_pages",
           "attackpath_execution_collector",
           "attackpath_execution_remediation",
-          "asset_agent_jobs");
+          "asset_agent_jobs",
+          "payloads",
+          "vulnerabilities");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -1863,4 +1870,58 @@ class TenantActiveTableAccessArchTest {
               "attackpath_execution_remediation is tenant-active: an accessor without a tenant"
                   + " scope silently reads zero rows. New accessors must carry a scope and be"
                   + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule payloads_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest and
+              // PayloadHttpIsolationTest:
+              PayloadApi.class,
+              PayloadApiExporter.class,
+              // Services behind those handlers, and behind every other TxCtx-carrying payload
+              // write path (threat arsenal, upsert-by-collector):
+              PayloadCreationService.class,
+              PayloadService.class,
+              PayloadUpdateService.class,
+              PayloadUpsertService.class,
+              // Reads the payload behind an inject's detection remediations; scoped by
+              // InjectApi#getPayloadDetectionRemediations, which carries TxCtx:
+              InjectService.class,
+              // Attack-path graph reads (icon metadata); every AttackPathApi entrypoint that
+              // reaches it carries TxCtx and is @Transactional(readOnly = true):
+              AttackPathGraphService.class,
+              // v1 import: every call site threads the TxCtx of the scoped import transaction;
+              // the duplicate-detection lookups additionally bind an explicit tenantId:
+              V1_DataImporter.class,
+              // One-shot repair migration, tenant-scoped by MigrationProcessor's per-tenant
+              // transaction and reading with an explicit tenantId parameter regardless:
+              V20260725_Fix_starter_pack_payload_contracts.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PayloadRepository.class)
+          .because(
+              "payloads is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule vulnerabilities_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Service behind every TxCtx-carrying vulnerability write path, pinned by
+              // VulnerabilityHttpIsolationTest:
+              VulnerabilityService.class,
+              // Provisioning datapack: seeds the tenant's default vulnerabilities/CWEs, stamping
+              // the tenant explicitly on each entity before save:
+              V20260330_Default_tenant_data.class,
+              // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
+              ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(VulnerabilityRepository.class)
+          .because(
+              "vulnerabilities is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
 }
