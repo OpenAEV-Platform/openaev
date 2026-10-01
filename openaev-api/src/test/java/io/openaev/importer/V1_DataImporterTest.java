@@ -2176,7 +2176,8 @@ class V1_DataImporterTest extends IntegrationTest {
     String externalId = "T1021.002";
     AttackPattern existing =
         attackPatternRepository.save(
-            AttackPatternFixture.createAttackPatternsWithExternalId(externalId));
+            AttackPatternFixture.createAttackPatternsWithExternalId(
+                externalId, TenantContext.getCurrentTenant()));
     String targetId = existing.getId();
     String sourceId = UUID.randomUUID().toString();
     assertNotEquals(targetId, sourceId);
@@ -2400,7 +2401,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // be preserved when it still exists on the target, not silently wiped to an empty array.
     AttackPattern existing =
         attackPatternRepository.save(
-            AttackPatternFixture.createAttackPatternsWithExternalId("T1105-" + UUID.randomUUID()));
+            AttackPatternFixture.createAttackPatternsWithExternalId(
+                "T1105-" + UUID.randomUUID(), TenantContext.getCurrentTenant()));
     ObjectMapper om = new ObjectMapper();
     ObjectNode contractNode = om.createObjectNode();
     contractNode.set("injector_contract_attack_patterns", tagIdArray(om, existing.getId()));
@@ -2637,7 +2639,8 @@ class V1_DataImporterTest extends IntegrationTest {
             KillChainPhaseFixture.getKillChainPhase(
                 "execution", 2L, TenantContext.getCurrentTenant()));
     AttackPattern targetAttackPattern =
-        AttackPatternFixture.createAttackPatternsWithExternalId("T1059.001");
+        AttackPatternFixture.createAttackPatternsWithExternalId(
+            "T1059.001", TenantContext.getCurrentTenant());
     targetAttackPattern.setKillChainPhases(new ArrayList<>(List.of(targetPhase)));
     targetAttackPattern = attackPatternRepository.save(targetAttackPattern);
 
@@ -3911,7 +3914,8 @@ class V1_DataImporterTest extends IntegrationTest {
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     AttackPattern existing =
         attackPatternRepository.save(
-            AttackPatternFixture.createAttackPatternsWithExternalId("T1105-" + UUID.randomUUID()));
+            AttackPatternFixture.createAttackPatternsWithExternalId(
+                "T1105-" + UUID.randomUUID(), TenantContext.getCurrentTenant()));
     String existingAttackPatternId = existing.getId();
 
     ObjectMapper om = new ObjectMapper();

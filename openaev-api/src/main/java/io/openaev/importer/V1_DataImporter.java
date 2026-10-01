@@ -557,7 +557,7 @@ public class V1_DataImporter implements Importer {
   private List<AttackPattern> importAttackPattern(
       TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
     ArrayList<AttackPattern> attackPatterns = new ArrayList<>();
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     resolveJsonElements(importNode, prefix + "attack_patterns")
         .forEach(
             nodeAttackPattern -> {
@@ -593,7 +593,7 @@ public class V1_DataImporter implements Importer {
 
               List<AttackPattern> existingAttackPattern =
                   this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-                      List.of(name), TenantContext.getCurrentTenant());
+                      List.of(name), tenantId);
               if (!existingAttackPattern.isEmpty()) {
                 baseIds.put(id, existingAttackPattern.getFirst());
                 attackPatterns.add(existingAttackPattern.getFirst());
@@ -603,7 +603,8 @@ public class V1_DataImporter implements Importer {
                         createAttackPattern(
                             nodeAttackPattern,
                             importKillChainPhase(
-                                ctx, nodeAttackPattern, "attack_pattern_", baseIds)));
+                                ctx, nodeAttackPattern, "attack_pattern_", baseIds),
+                            tenantId));
                 baseIds.put(id, attackPatternCreated);
                 attackPatterns.add(attackPatternCreated);
               }
@@ -728,8 +729,9 @@ public class V1_DataImporter implements Importer {
   }
 
   private AttackPattern createAttackPattern(
-      JsonNode jsonNode, List<KillChainPhase> killChainPhases) {
+      JsonNode jsonNode, List<KillChainPhase> killChainPhases, String tenantId) {
     AttackPattern attackPattern = new AttackPattern();
+    attackPattern.setTenant(new Tenant(tenantId));
     attackPattern.setStixId("attack-pattern--" + UUID.randomUUID());
     attackPattern.setName(jsonNode.get("attack_pattern_name").textValue());
     attackPattern.setDescription(jsonNode.get("attack_pattern_description").textValue());
