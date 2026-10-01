@@ -30,7 +30,7 @@ yarn generate-types-from-api           # Sync API types
 ## Where to find conventions
 
 Do NOT look for conventions here — they live in dedicated instruction files, activated automatically based on the files you touch
-(Copilot reads the `applyTo` of `.github/instructions/`; Claude Code reads the generated copies in `.claude/rules/`).
+(Copilot reads their `applyTo`; Claude Code reads the `CLAUDE.md` of each folder, which imports them).
 
 | Domain | File | Applies to |
 |---|---|---|
@@ -171,8 +171,10 @@ The mapping is:
 
 If no agent exists yet for a new instruction file → create one following the pattern in `migration-reviewer.agent.md`.
 
-After any change to `.github/instructions/` (content or `applyTo`), regenerate the Claude Code copies in the same PR:
-`python .github/scripts/sync-claude-rules.py`. Never edit `.claude/rules/` by hand — CI (`ci-claude-rules.yml`) fails when they drift.
+Claude Code ignores `applyTo`: it loads each instruction file through a one-line `@` import in the `CLAUDE.md` of the
+folders it covers (e.g. `openaev-front/CLAUDE.md`). When you add an instruction file or change an `applyTo`, add or move
+those imports in the same PR. Single files outside a dedicated folder go in the `paths` of a pointer rule in
+`.claude/rules/` (see `chaining-engine.md`). Never copy instruction content.
 
 
 <!-- filigran-conventions:start -->
