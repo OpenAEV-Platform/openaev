@@ -20,9 +20,10 @@ interface Props {
   errorLabel?: string | null;
   label?: string | boolean;
   multiple?: boolean;
+  credentialType?: CredentialOutput['credential_type'];
 }
 
-const InjectCredentialReferencesList = ({ disabled = false, errorLabel, label, multiple = true }: Props) => {
+const InjectCredentialReferencesList = ({ disabled = false, errorLabel, label, multiple = true, credentialType }: Props) => {
   const { control, setValue } = useFormContext();
   const dispatch = useAppDispatch();
   const [credentials, setCredentials] = useState<CredentialOutput[]>([]);
@@ -84,6 +85,7 @@ const InjectCredentialReferencesList = ({ disabled = false, errorLabel, label, m
           errorLabel={errorLabel}
           label={label}
           multiple={multiple}
+          credentialType={credentialType}
         />
       </Can>
     </>

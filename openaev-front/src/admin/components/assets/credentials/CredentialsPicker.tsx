@@ -3,6 +3,7 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
 import { findCredentialsByIds, searchCredentials } from '../../../../actions/assets/credential-actions';
 import { arrayOfCredentials } from '../../../../actions/Schema';
+import { buildFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
@@ -23,6 +24,7 @@ interface Props {
   onSubmit: (endpointIds: string[]) => void;
   title: string;
   multiple?: boolean;
+  credentialType?: CredentialOutput['credential_type'];
 }
 
 // Always rendered as an inline dialog: every context that picks endpoints
@@ -35,6 +37,7 @@ const CredentialsPicker: FunctionComponent<Props> = ({
   onSubmit,
   title,
   multiple = true,
+  credentialType,
 }) => {
   // Standard hooks
   const { t, fldt } = useFormatter();
@@ -156,16 +159,19 @@ const CredentialsPicker: FunctionComponent<Props> = ({
 
   const availableFilterNames = [
     'asset_tags',
+    'secret_reference_credential_type',
   ];
-  // endpoint_platform / endpoint_arch are single-value enums: their only valid
-  // operator is 'eq' (the filter UI exposes eq/not_eq/empty/not_empty - 'contains'
-  // is not selectable). Only add each scoping filter when the caller actually
-  // restricts the selection (e.g. an inject payload); the asset-group flow passes
-  // no platforms, so it must open with no predefined filter at all.
+  // The filter key is the entity property (secret_reference_credential_type), not the
+  // output field (credential_type): the chip only renders - and can only be removed -
+  // when its key resolves to a filterable property schema. Single-value enum, so 'eq'.
+  // Only pre-apply it when the inject contract restricts the credential type.
   const quickFilter: FilterGroup = {
-    mode: 'and',
+    mode: 'or',
     filters: [],
   };
+  if (credentialType) {
+    quickFilter.filters?.push(buildFilter('secret_reference_credential_type', [credentialType], 'eq'));
+  }
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({ filterGroup: quickFilter }));
 
   const paginationComponent = (
