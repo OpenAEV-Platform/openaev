@@ -1,11 +1,15 @@
 package io.openaev.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.config.FailClosedAccessRecorder.Violation;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -101,5 +105,127 @@ class FailClosedGateExtensionTest {
                 from("io.openaev.service.NewlyBrokenService.readActiveTable:42"),
                 from("io.openaev.service.NewlyBrokenService.readActiveTable:99")));
     assertEquals(1, offending.size());
+  }
+
+  /**
+   * The gate asserts per test in the normal pipeline and reports instead under a shadow mode. Three
+   * directions, because a gate measured in two of them is not measured: the normal path still
+   * fails, the shadow path does not fail, and a signature new to the armed mode's own list still
+   * reaches the shadow verdict.
+   */
+  @Nested
+  @DisplayName("per-mode shadow reporting")
+  class ShadowMode {
+
+    private static final String NEW_SITE = "io.openaev.service.NewlyBrokenService.readActiveTable";
+
+    @Test
+    @DisplayName("with no shadow mode armed the gate still fails the test")
+    void given_noShadowModeArmed_should_failThePerTestAssertion() {
+      // Arrange + Act + Assert: the decision the afterEach callback takes on a non-empty
+      // offending set. Empty mode means the normal pipeline, which must keep failing.
+      assertTrue(
+          FailClosedGateExtension.failsPerTest(""),
+          "the normal pipeline must keep failing a test on a new production signature");
+      assertTrue(FailClosedGateExtension.failsPerTest(null));
+    }
+
+    @Test
+    @DisplayName("the running test JVM arms no shadow mode, so the gate asserts")
+    void given_thisJvm_should_armNoShadowMode() {
+      // Arrange + Act: the live value, not a crafted one - the normal suite sets no property.
+      String armed = FailClosedGateExtension.armedShadowMode();
+
+      // Assert
+      assertEquals("", armed, "no suite may arm a shadow mode by default");
+      assertTrue(FailClosedGateExtension.failsPerTest(armed));
+    }
+
+    @Test
+    @DisplayName("with a shadow mode armed the gate does not fail the test")
+    void given_shadowModeArmed_should_notFailThePerTestAssertion() {
+      // Arrange + Act + Assert
+      assertFalse(FailClosedGateExtension.failsPerTest("shadow-prod"));
+      assertFalse(FailClosedGateExtension.failsPerTest("shadow-all"));
+    }
+
+    @Test
+    @DisplayName("a signature absent from the armed mode's list is new")
+    void given_signatureAbsentFromTheModeList_should_beNew() {
+      // Arrange
+      Set<String> modeList = Set.of("io.openaev.service.KnownService.read");
+
+      // Act
+      List<String> fresh =
+          FailClosedGateExtension.newSignatures(
+              List.of(NEW_SITE, "io.openaev.service.KnownService.read"), modeList);
+
+      // Assert
+      assertEquals(List.of(NEW_SITE), fresh);
+    }
+
+    @Test
+    @DisplayName("a signature in the armed mode's list is not new")
+    void given_signatureInTheModeList_should_notBeNew() {
+      // Arrange + Act
+      List<String> fresh =
+          FailClosedGateExtension.newSignatures(List.of(NEW_SITE), Set.of(NEW_SITE));
+
+      // Assert
+      assertTrue(
+          fresh.isEmpty(), "a signature in the mode's own list must not be new, got " + fresh);
+    }
+
+    @Test
+    @DisplayName("the shadow report marks a new signature so the verdict can read it")
+    void given_aNewSignature_should_bePrefixedNewInTheReport() {
+      // Arrange + Act
+      String content =
+          FailClosedGateExtension.shadowReportContent(
+              "shadow-prod",
+              List.of(NEW_SITE, "io.openaev.service.KnownService.read"),
+              Set.of("io.openaev.service.KnownService.read"));
+
+      // Assert
+      assertTrue(
+          content.contains(FailClosedGateExtension.NEW_PREFIX + NEW_SITE),
+          "the verdict counts lines prefixed '"
+              + FailClosedGateExtension.NEW_PREFIX
+              + "', got:\n"
+              + content);
+      assertTrue(
+          content.contains(
+              FailClosedGateExtension.KNOWN_PREFIX + "io.openaev.service.KnownService.read"),
+          "a listed signature stays visible as known, got:\n" + content);
+      assertTrue(content.startsWith("# "), "the report opens with a header line, got:\n" + content);
+      assertTrue(
+          content.contains("shadow-prod"), "the header names the armed mode, got:\n" + content);
+    }
+
+    @Test
+    @DisplayName("a clean shadow report has no new line at all")
+    void given_everySignatureListed_should_produceNoNewLine() {
+      // Arrange + Act
+      String content =
+          FailClosedGateExtension.shadowReportContent(
+              "shadow-all", List.of(NEW_SITE), Set.of(NEW_SITE));
+
+      // Assert
+      assertFalse(
+          content.contains("\n" + FailClosedGateExtension.NEW_PREFIX),
+          "nothing may be new when the mode's list covers it, got:\n" + content);
+    }
+
+    @Test
+    @DisplayName("an unknown shadow mode is refused rather than silently unarmed")
+    void given_anUnknownMode_should_beRefused() {
+      // Arrange + Act + Assert: a typo must not read as "no mode armed", which would turn the
+      // shadow back into a per-test gate without anyone noticing.
+      assertThrows(
+          IllegalArgumentException.class, () -> FailClosedGateExtension.shadowMode("shadow-prd"));
+      assertEquals("shadow-prod", FailClosedGateExtension.shadowMode(" shadow-prod "));
+      assertEquals("", FailClosedGateExtension.shadowMode(null));
+      assertEquals("", FailClosedGateExtension.shadowMode("  "));
+    }
   }
 }
