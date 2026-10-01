@@ -14,9 +14,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.atomic_testing.form.InjectRecurrenceInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
@@ -28,12 +30,15 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultMatcher;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -369,6 +374,119 @@ public class AtomicTestingApiTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.inject_recurrence").doesNotExist());
+  }
+
+  @Nested
+  @DisplayName("Credential references")
+  class CredentialReferences {
+
+    @Autowired private CredentialSecretReferenceRepository credentialSecretReferenceRepository;
+
+    private CredentialSecretReference persistDefaultTenantCredential() {
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository.save(
+              CredentialFixture.createDefaultUsernameCredentialReference(
+                  new Tenant(Tenant.DEFAULT_TENANT_UUID)));
+      entityManager.flush();
+      return credential;
+    }
+
+    private AtomicTestingInput atomicTestingWithCredentials(List<String> credentialIds) {
+      AtomicTestingInput input = InjectFixture.createAtomicTesting("credentials", null);
+      input.setSecretReferences(credentialIds);
+      return input;
+    }
+
+    private String saveAtomicTesting(
+        MockHttpServletRequestBuilder request, AtomicTestingInput input, ResultMatcher expected)
+        throws Exception {
+      return mvc.perform(
+              request
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .with(csrf()))
+          .andExpect(expected)
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    private String getAtomicTesting(String injectId) throws Exception {
+      entityManager.flush();
+      entityManager.clear();
+      return mvc.perform(
+              get(ATOMIC_TESTINGS_URI + "/" + injectId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_credentialOfTheInjectTenant_should_persistAndExposeIt")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_credentialOfTheInjectTenant_should_persistAndExposeIt() throws Exception {
+      // Arrange
+      CredentialSecretReference credential = persistDefaultTenantCredential();
+
+      // Act
+      String response =
+          saveAtomicTesting(
+              post(ATOMIC_TESTINGS_URI),
+              atomicTestingWithCredentials(List.of(credential.getId())),
+              status().is2xxSuccessful());
+
+      // Assert
+      assertThatJson(response)
+          .node("inject_secret_references")
+          .isArray()
+          .containsExactly(credential.getId());
+      String injectId = JsonPath.read(response, "$.inject_id");
+      assertThatJson(getAtomicTesting(injectId))
+          .node("inject_secret_references")
+          .isArray()
+          .containsExactly(credential.getId());
+    }
+
+    @Test
+    @DisplayName("given_credentialsRemovedOnUpdate_should_detachThem")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_credentialsRemovedOnUpdate_should_detachThem() throws Exception {
+      // Arrange
+      CredentialSecretReference credential = persistDefaultTenantCredential();
+      String created =
+          saveAtomicTesting(
+              post(ATOMIC_TESTINGS_URI),
+              atomicTestingWithCredentials(List.of(credential.getId())),
+              status().is2xxSuccessful());
+      String injectId = JsonPath.read(created, "$.inject_id");
+
+      // Act
+      saveAtomicTesting(
+          put(ATOMIC_TESTINGS_URI + "/" + injectId),
+          atomicTestingWithCredentials(List.of()),
+          status().is2xxSuccessful());
+
+      // Assert
+      assertThatJson(getAtomicTesting(injectId))
+          .node("inject_secret_references")
+          .isArray()
+          .isEmpty();
+    }
+
+    @Test
+    @DisplayName("given_unknownCredential_should_rejectTheAtomicTesting")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_unknownCredential_should_rejectTheAtomicTesting() throws Exception {
+      // Act & Assert
+      saveAtomicTesting(
+          post(ATOMIC_TESTINGS_URI),
+          atomicTestingWithCredentials(List.of(UUID.randomUUID().toString())),
+          status().isBadRequest());
+    }
   }
 
   @Nested
