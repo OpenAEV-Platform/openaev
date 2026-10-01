@@ -86,7 +86,7 @@ class InjectServiceTest {
   @Mock private AssetGroupService assetGroupService;
 
   @Mock private TeamRepository teamRepository;
-  @Mock private InjectSecretReferenceService injectSecretReferenceService;
+  @Mock private SecretReferenceRepository secretReferenceRepository;
   @Mock private PreviewFeatureService previewFeatureService;
 
   @Mock private ExecutionTraceRepository executionTraceRepository;
@@ -1383,8 +1383,8 @@ class InjectServiceTest {
       input.setTitle("inject");
       input.setDependsDuration(0L);
       input.setSecretReferences(List.of("credential-1"));
-      when(injectSecretReferenceService.resolveSecretReferences(inject, List.of("credential-1")))
-          .thenReturn(new ArrayList<>(List.of(credential)));
+      when(secretReferenceRepository.findAllById(List.of("credential-1")))
+          .thenReturn(List.of(credential));
 
       // Act
       Inject result = injectService.updateInject(INJECT_ID, input);
@@ -1394,23 +1394,26 @@ class InjectServiceTest {
     }
 
     @Test
-    @DisplayName("given_rejectedCredentials_should_propagateTheRejection")
-    void given_rejectedCredentials_should_propagateTheRejection() {
+    @DisplayName("given_noRequestedCredential_should_detachTheExistingOnes")
+    void given_noRequestedCredential_should_detachTheExistingOnes() {
       // Arrange
+      CredentialSecretReference credential = new CredentialSecretReference();
+      credential.setId("credential-1");
       Inject inject = new Inject();
       inject.setId(INJECT_ID);
+      inject.setSecretReferences(new ArrayList<>(List.of(credential)));
       when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
       InjectInput input = new InjectInput();
       input.setTitle("inject");
       input.setDependsDuration(0L);
-      input.setSecretReferences(List.of("foreign-credential"));
-      when(injectSecretReferenceService.resolveSecretReferences(
-              inject, List.of("foreign-credential")))
-          .thenThrow(new BadRequestException("CREDENTIAL_NOT_FOUND"));
+      input.setSecretReferences(List.of());
 
-      // Act & Assert
-      assertThrows(BadRequestException.class, () -> injectService.updateInject(INJECT_ID, input));
-      assertThat(inject.getSecretReferences()).isEmpty();
+      // Act
+      Inject result = injectService.updateInject(INJECT_ID, input);
+
+      // Assert
+      assertThat(result.getSecretReferences()).isEmpty();
+      verify(secretReferenceRepository).findAllById(List.of());
     }
   }
 }
