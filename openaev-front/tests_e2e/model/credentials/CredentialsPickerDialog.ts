@@ -13,7 +13,7 @@ class CredentialsPickerDialog {
 
   constructor(page: Page) {
     this.page = page;
-    this.dialog = page.getByRole('dialog', { name: /Update credentials in this inject/ });
+    this.dialog = page.getByRole('dialog', { name: /Update credentials? in this inject/ });
     this.searchField = this.dialog.getByPlaceholder('Search these results...');
     // Filter chips are the only removable chips of the picker (status chips are not).
     this.constraintChip = this.dialog.locator('.MuiChip-root').filter({ has: page.getByTestId('CancelIcon') });
