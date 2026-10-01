@@ -16,6 +16,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -58,6 +60,8 @@ public class StreamApiTest {
   private static final String SESSION_ID = "sessionid";
   private static final String TENANT_ID = "tenant-a";
   private static final String OTHER_TENANT_ID = "tenant-b";
+  private static final String OTHER_USER_ID = "other-user";
+  private static final String OTHER_SESSION_ID = "other-session";
 
   @Mock private User mockUser;
 
@@ -133,9 +137,32 @@ public class StreamApiTest {
   }
 
   private void denyRead(Base resource) {
+    stubRead(mockUser, resource, false);
+  }
+
+  private void stubRead(User user, Base resource, boolean allowed) {
     when(permissionService.hasPermission(
-            mockUser, Optional.empty(), RESOURCE_ID, resource.getResourceType(), Action.READ))
-        .thenReturn(false);
+            user, Optional.empty(), RESOURCE_ID, resource.getResourceType(), Action.READ))
+        .thenReturn(allowed);
+  }
+
+  private void failRead(User user, Base resource) {
+    when(permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, resource.getResourceType(), Action.READ))
+        .thenThrow(new ElementNotFoundException("Not found with id: " + RESOURCE_ID));
+  }
+
+  /** Adds a second tenant-less consumer next to the default one and returns its sink. */
+  private FluxSink<Object> registerSecondConsumer(User user) throws Exception {
+    OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
+    when(principal.getId()).thenReturn(OTHER_USER_ID);
+    when(userService.user(OTHER_USER_ID)).thenReturn(user);
+    FluxSink<Object> sink = mock(FluxSink.class);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> consumers =
+        (Map<String, Object>) ReflectionTestUtils.getField(streamApi, "consumers");
+    consumers.put(OTHER_SESSION_ID, buildStreamConsumer(principal, null, sink));
+    return sink;
   }
 
   private void assertDeniedDeletionIsMasked(Base resource, String idProperty) {
@@ -251,6 +278,135 @@ public class StreamApiTest {
   @Test
   public void given_expectationDeletion_when_userCannotRead_should_maskTheInheritedId() {
     assertDeniedDeletionIsMasked(restrictedExpectation(), "inject_expectation_id");
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {"  "})
+  public void given_deniedDeletion_when_eventHasNoIdAttribute_should_sendNothing(
+      String attributeId) {
+    ObjectMapper jsonMapper = useRealMapper();
+    Agent agent = restrictedAgent();
+    denyRead(agent);
+    BaseEvent event = new BaseEvent(DATA_DELETE, agent, jsonMapper);
+    event.setAttributeId(attributeId);
+
+    streamApi.listenDatabaseUpdate(event);
+
+    verify(mockSink, never()).next(any());
+  }
+
+  // -- Fan-out isolation --
+  //
+  // Each consumer's outcome is computed on its own: a denied, failing or masked consumer must
+  // neither alter what the others receive nor stop delivery to them. Every test swaps which of the
+  // two consumers is the odd one out, so both iteration orders of the consumer map are covered.
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void given_deletion_when_oneConsumerCannotRead_should_maskOnlyThatConsumer(
+      boolean defaultConsumerDenied) throws Exception {
+    ObjectMapper jsonMapper = useRealMapper();
+    User otherUser = mock(User.class);
+    FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
+    Agent agent = restrictedAgent();
+    stubRead(mockUser, agent, !defaultConsumerDenied);
+    stubRead(otherUser, agent, defaultConsumerDenied);
+    FluxSink<Object> deniedSink = defaultConsumerDenied ? mockSink : otherSink;
+    FluxSink<Object> allowedSink = defaultConsumerDenied ? otherSink : mockSink;
+
+    BaseEvent event = new BaseEvent(DATA_DELETE, agent, jsonMapper);
+    JsonNode originalData = event.getInstanceData().deepCopy();
+    streamApi.listenDatabaseUpdate(event);
+
+    assertEquals(
+        jsonMapper.createObjectNode().put("agent_id", RESOURCE_ID),
+        captureWireEvent(deniedSink, jsonMapper).path("instance"));
+    assertEquals(originalData, captureWireEvent(allowedSink, jsonMapper).path("instance"));
+    assertEquals(originalData, event.getInstanceData());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void given_deletion_when_permissionCheckThrows_should_sendTombstoneAndServeOthers(
+      boolean defaultConsumerFails) throws Exception {
+    // A deleted inject (or objective, evaluation, workflow...) can no longer be resolved to its
+    // parent, so the check throws for every non-admin consumer: the deletion must still reach them.
+    ObjectMapper jsonMapper = useRealMapper();
+    User otherUser = mock(User.class);
+    FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
+    Agent agent = restrictedAgent();
+    failRead(defaultConsumerFails ? mockUser : otherUser, agent);
+    stubRead(defaultConsumerFails ? otherUser : mockUser, agent, true);
+    FluxSink<Object> failingSink = defaultConsumerFails ? mockSink : otherSink;
+    FluxSink<Object> healthySink = defaultConsumerFails ? otherSink : mockSink;
+
+    BaseEvent event = new BaseEvent(DATA_DELETE, agent, jsonMapper);
+    JsonNode originalData = event.getInstanceData().deepCopy();
+    streamApi.listenDatabaseUpdate(event);
+
+    assertEquals(
+        jsonMapper.createObjectNode().put("agent_id", RESOURCE_ID),
+        captureWireEvent(failingSink, jsonMapper).path("instance"));
+    assertEquals(originalData, captureWireEvent(healthySink, jsonMapper).path("instance"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void given_update_when_permissionCheckThrows_should_dropItAndServeOthers(
+      boolean defaultConsumerFails) throws Exception {
+    ObjectMapper jsonMapper = useRealMapper();
+    User otherUser = mock(User.class);
+    FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
+    Agent agent = restrictedAgent();
+    failRead(defaultConsumerFails ? mockUser : otherUser, agent);
+    stubRead(defaultConsumerFails ? otherUser : mockUser, agent, true);
+    FluxSink<Object> failingSink = defaultConsumerFails ? mockSink : otherSink;
+    FluxSink<Object> healthySink = defaultConsumerFails ? otherSink : mockSink;
+
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, jsonMapper));
+
+    verify(failingSink, never()).next(any());
+    verify(healthySink).next(any());
+  }
+
+  @Test
+  public void given_permissionCheckThrows_should_notCacheTheDenial() {
+    ObjectMapper jsonMapper = useRealMapper();
+    Agent agent = restrictedAgent();
+    when(permissionService.hasPermission(
+            mockUser, Optional.empty(), RESOURCE_ID, agent.getResourceType(), Action.READ))
+        .thenThrow(new ElementNotFoundException("transient"))
+        .thenReturn(true);
+
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, jsonMapper));
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, jsonMapper));
+
+    verify(permissionService, times(2))
+        .hasPermission(
+            mockUser, Optional.empty(), RESOURCE_ID, agent.getResourceType(), Action.READ);
+    verify(mockSink, times(1)).next(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void given_oneConsumerFails_should_keepServingTheOthers(boolean defaultConsumerFails)
+      throws Exception {
+    ObjectMapper jsonMapper = useRealMapper();
+    User otherUser = mock(User.class);
+    FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
+    Agent agent = restrictedAgent();
+    stubRead(mockUser, agent, true);
+    stubRead(otherUser, agent, true);
+    when(userService.user(defaultConsumerFails ? USER_ID : OTHER_USER_ID))
+        .thenThrow(new ElementNotFoundException("User not found"));
+    FluxSink<Object> failingSink = defaultConsumerFails ? mockSink : otherSink;
+    FluxSink<Object> healthySink = defaultConsumerFails ? otherSink : mockSink;
+
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, jsonMapper));
+
+    verify(failingSink, never()).next(any());
+    verify(healthySink).next(any());
   }
 
   @ParameterizedTest

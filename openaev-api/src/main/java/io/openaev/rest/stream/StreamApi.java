@@ -119,20 +119,35 @@ public class StreamApi extends RestBehavior {
    * with the consumer's tenant context already set (the underlying check is tenant-aware). Cache
    * misses of the same key may race and both hit the database: bounded and far cheaper than one
    * resolution per event per consumer.
+   *
+   * <p>Fails closed: a check that throws counts as denied and is not cached. This is the normal
+   * outcome for deletions of parent-scoped resources (inject, objective, evaluation, workflow,
+   * step, condition): the event is delivered after commit, so the entity whose parent decides the
+   * permission can no longer be loaded. Treated as denied, the deletion still reaches the client as
+   * an id-only tombstone.
    */
   private boolean hasReadPermission(StreamConsumer consumer, User user, BaseEvent event) {
-    return hasReadPermission(
-        consumer,
-        event.getInstance().getId(),
-        event.getInstance().getResourceType(),
-        CHECK_ENTITY_EVENT,
-        () ->
-            permissionService.hasPermission(
-                user,
-                Optional.empty(),
-                event.getInstance().getId(),
-                event.getInstance().getResourceType(),
-                Action.READ));
+    try {
+      return hasReadPermission(
+          consumer,
+          event.getInstance().getId(),
+          event.getInstance().getResourceType(),
+          CHECK_ENTITY_EVENT,
+          () ->
+              permissionService.hasPermission(
+                  user,
+                  Optional.empty(),
+                  event.getInstance().getId(),
+                  event.getInstance().getResourceType(),
+                  Action.READ));
+    } catch (Exception e) {
+      log.debug(
+          "Stream permission check failed for {} {}, treated as denied",
+          event.getInstance().getResourceType(),
+          event.getInstance().getId(),
+          e);
+      return false;
+    }
   }
 
   /**
@@ -231,78 +246,91 @@ public class StreamApi extends RestBehavior {
 
     consumers.forEach(
         (key, consumer) -> {
-          if (!isVisibleForTenant(event, consumer.tenantId())) {
-            return;
-          }
-
-          // User-scoped entities (e.g. notifications) are only delivered to their owner,
-          // bypassing the capability-based masking below.
-          if (event.getInstance() instanceof UserScoped userScoped) {
-            if (consumer.principal().getId().equals(userScoped.getOwnerUserId())) {
-              sendStreamEvent(consumer.fluxSink(), event);
-            }
-            return;
-          }
-
-          // Resolved from a short-lived cache instead of a DB query per event per consumer,
-          // which used to exhaust the connection pool while viewing busy simulations.
-          User user = resolveUser(consumer.principal().getId());
-
-          // Set the tenant context for permission checks on the async thread.
-          // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
-          // tenant-scoped capabilities to be invisible and incorrect DELETE events
-          // to be sent for entities on non-default tenants. Legacy consumers
-          // (blank tenant) are explicitly cleared so a reused @Async pool thread
-          // can never evaluate (and cache) their decisions under a tenant leaked
-          // by a previous task.
-          if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
-            TenantContext.setCurrentTenant(consumer.tenantId());
-          } else {
-            TenantContext.clearCurrentTenant();
-          }
-
+          // Isolated per consumer: one failing delivery must not stop the fan-out to the others.
           try {
-            FluxSink<Object> fluxSink = consumer.fluxSink();
-            if (!hasReadPermission(consumer, user, event)) {
-              // A consumer that cannot read the entity gets nothing for creations and updates:
-              // even an id-only tombstone would disclose the id, schema and timing of every
-              // unreadable mutation, and would wipe rows the client loaded through
-              // parent-scoped reads (e.g. simulation expectations). Only actual deletions are
-              // relayed, as an id-only tombstone, so such rows still leave the client store
-              if (!DATA_DELETE.equals(event.getType())) {
-                return;
-              }
-              try {
-                String propertyId = event.getAttributeId();
-                if (propertyId == null || propertyId.isBlank()) {
-                  log.warn(
-                      "Class {} can't be streamed without an identifier",
-                      event.getInstance().getClass().getSimpleName());
-                  return;
-                }
-                ObjectNode deleteNode = mapper.createObjectNode();
-                deleteNode.set(
-                    propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-                sendStreamEvent(fluxSink, event.clone(), deleteNode);
-              } catch (Exception e) {
-                String simpleName = event.getInstance().getClass().getSimpleName();
-                log.warn(String.format("Class %s can't be streamed", simpleName), e);
-              }
-            } else if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
-                && !permissionService.hasCapabilityPermission(
-                    user, ResourceType.NOTIFIER, Action.READ)) {
-              ObjectNode instanceData = mapper.valueToTree(event.getInstance());
-              instanceData.putNull("notifier_configuration");
-              sendStreamEvent(fluxSink, event.clone(), instanceData);
-            } else {
-              sendStreamEvent(fluxSink, event);
-            }
-          } finally {
-            // Reset tenant context unconditionally to avoid leaking into other
-            // consumers in the loop or into later tasks on this pooled thread
-            TenantContext.clearCurrentTenant();
+            streamDatabaseEvent(consumer, event);
+          } catch (Exception e) {
+            log.warn(
+                "Failed to stream {} event on {} to user {}",
+                event.getType(),
+                event.getSchema(),
+                consumer.principal().getId(),
+                e);
           }
         });
+  }
+
+  private void streamDatabaseEvent(StreamConsumer consumer, BaseEvent event) {
+    if (!isVisibleForTenant(event, consumer.tenantId())) {
+      return;
+    }
+
+    // User-scoped entities (e.g. notifications) are only delivered to their owner,
+    // bypassing the capability-based masking below.
+    if (event.getInstance() instanceof UserScoped userScoped) {
+      if (consumer.principal().getId().equals(userScoped.getOwnerUserId())) {
+        sendStreamEvent(consumer.fluxSink(), event);
+      }
+      return;
+    }
+
+    // Resolved from a short-lived cache instead of a DB query per event per consumer,
+    // which used to exhaust the connection pool while viewing busy simulations.
+    User user = resolveUser(consumer.principal().getId());
+
+    // Set the tenant context for permission checks on the async thread.
+    // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
+    // tenant-scoped capabilities to be invisible and incorrect DELETE events
+    // to be sent for entities on non-default tenants. Legacy consumers
+    // (blank tenant) are explicitly cleared so a reused @Async pool thread
+    // can never evaluate (and cache) their decisions under a tenant leaked
+    // by a previous task.
+    if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
+      TenantContext.setCurrentTenant(consumer.tenantId());
+    } else {
+      TenantContext.clearCurrentTenant();
+    }
+
+    try {
+      FluxSink<Object> fluxSink = consumer.fluxSink();
+      if (!hasReadPermission(consumer, user, event)) {
+        // A consumer that cannot read the entity gets nothing for creations and updates:
+        // even an id-only tombstone would disclose the id, schema and timing of every
+        // unreadable mutation, and would wipe rows the client loaded through
+        // parent-scoped reads (e.g. simulation expectations). Only actual deletions are
+        // relayed, as an id-only tombstone, so such rows still leave the client store
+        if (!DATA_DELETE.equals(event.getType())) {
+          return;
+        }
+        try {
+          String propertyId = event.getAttributeId();
+          if (propertyId == null || propertyId.isBlank()) {
+            log.warn(
+                "Class {} can't be streamed without an identifier",
+                event.getInstance().getClass().getSimpleName());
+            return;
+          }
+          ObjectNode deleteNode = mapper.createObjectNode();
+          deleteNode.set(
+              propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
+          sendStreamEvent(fluxSink, event.clone(), deleteNode);
+        } catch (Exception e) {
+          String simpleName = event.getInstance().getClass().getSimpleName();
+          log.warn(String.format("Class %s can't be streamed", simpleName), e);
+        }
+      } else if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
+          && !permissionService.hasCapabilityPermission(user, ResourceType.NOTIFIER, Action.READ)) {
+        ObjectNode instanceData = mapper.valueToTree(event.getInstance());
+        instanceData.putNull("notifier_configuration");
+        sendStreamEvent(fluxSink, event.clone(), instanceData);
+      } else {
+        sendStreamEvent(fluxSink, event);
+      }
+    } finally {
+      // Reset tenant context unconditionally to avoid leaking into other
+      // consumers in the loop or into later tasks on this pooled thread
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   /**
