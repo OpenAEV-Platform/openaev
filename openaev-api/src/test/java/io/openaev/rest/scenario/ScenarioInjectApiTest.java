@@ -31,6 +31,7 @@ import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
 import java.time.Instant;
 import java.util.*;
@@ -64,6 +65,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
   @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private AssetRepository assetRepository;
+  @Autowired private EntityManager entityManager;
   @Autowired private InjectRepository injectRepository;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private EndpointService endpointService;
@@ -259,8 +261,13 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
     // A delete on injects_assets fires a trigger touching asset_updated_at: an asset whose
     // updated_at is unchanged proves its injects_assets row was not deleted and re-inserted.
+    // The pending statements are flushed so the trigger runs, and the asset is refreshed to read
+    // the database value rather than the one cached in the persistence context.
     private Instant assetUpdatedAt(Endpoint endpoint) {
-      return assetRepository.findById(endpoint.getId()).orElseThrow().getUpdatedAt();
+      entityManager.flush();
+      Asset asset = assetRepository.findById(endpoint.getId()).orElseThrow();
+      entityManager.refresh(asset);
+      return asset.getUpdatedAt();
     }
 
     private String updateInjectAssets(Scenario scenario, Inject inject, List<String> assetIds)
@@ -283,6 +290,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
     @DisplayName("Given unchanged assets, should not rewrite the inject assets")
     @Test
+    @Transactional
     void given_unchangedAssets_should_notRewriteInjectAssets() throws Exception {
       // -- PREPARE --
       EndpointComposer.Composer endpointWrapper =
@@ -312,6 +320,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
     @DisplayName("Given changed assets, should replace the inject assets")
     @Test
+    @Transactional
     void given_changedAssets_should_replaceInjectAssets() throws Exception {
       // -- PREPARE --
       EndpointComposer.Composer removedEndpointWrapper =
