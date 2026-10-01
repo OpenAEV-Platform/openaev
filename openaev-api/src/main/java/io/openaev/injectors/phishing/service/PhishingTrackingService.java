@@ -4,7 +4,6 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForTeamManualValidation;
 import static java.time.Instant.now;
 
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.ContractOutputType;
@@ -287,21 +286,16 @@ public class PhishingTrackingService {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public PhishingResult createResult(
       @NotNull final Inject inject,
+      @NotBlank final String tenantId,
       @NotNull final PhishingLandingPage landingPage,
       @NotBlank final String userId,
       final String teamId,
       final String stepId) {
     PhishingResult result = new PhishingResult();
     result.setToken(generateToken());
-    // phishing_results is tenant-active: the row's tenant no longer follows from TenantBaseListener
-    // and must be attributed explicitly. This method runs in its own REQUIRES_NEW transaction (see
-    // the class javadoc above), so it cannot safely touch a lazy association on `inject` - it may
-    // be
-    // the still-uncommitted, suspended entity the chaining case passes in. The ambient
-    // TenantContext
-    // is the one thing this class's own invariant already guarantees is set correctly here ("the
-    // executor runs inside the inject execution job, tenant filter set").
-    result.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    // The caller resolves the tenant from the inject it already holds, outside this REQUIRES_NEW
+    // transaction (see PhishingExecutor).
+    result.setTenant(new Tenant(tenantId));
     if (stepId != null) {
       result.setStep(stepRepository.getReferenceById(stepId));
     } else {

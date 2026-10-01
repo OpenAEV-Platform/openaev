@@ -30,13 +30,13 @@ import org.springframework.test.context.TestPropertySource;
 
 /**
  * {@code phishing_results} is tenant-active, so {@code createResult} attributes the row's tenant
- * explicitly from the ambient {@link TenantContext} (see its class javadoc) instead of relying on
- * {@code TenantBaseListener}. {@code PhishingTrackingServiceIntegrationTest} exercises {@code
- * createResult} but never activates {@code phishing_results} and never sets a non-default ambient
- * tenant, so a regression that dropped the explicit {@code setTenant} call would still pass there:
- * {@code TenantContext}'s default-tenant fallback produces the same row either way. This class
- * activates the table and runs under a genuinely different tenant, then reads the written row back
- * by SQL, so a real misattribution cannot hide behind the default-tenant coincidence.
+ * explicitly instead of relying on {@code TenantBaseListener}, and it takes that tenant from the
+ * inject its caller already holds. {@code PhishingTrackingServiceIntegrationTest} exercises {@code
+ * createResult} but never activates {@code phishing_results} and only ever runs in the default
+ * tenant, so an attribution that fell back to the ambient {@link TenantContext} would still pass
+ * there: the default-tenant fallback produces the same row either way. This class activates the
+ * table, puts the inject in a tenant of its own and clears the ambient tenant entirely before
+ * writing, then reads the row back by SQL - the one case the ambient tenant cannot get right.
  */
 @SpringBootTest
 @TestPropertySource(properties = "openaev.tenant.active-tables=phishing_results")
@@ -54,8 +54,8 @@ class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
   @Autowired private JdbcTemplate jdbcTemplate;
 
   @Nested
-  @DisplayName("createResult under a non-default tenant scope")
-  class CreateResultUnderNonDefaultTenant {
+  @DisplayName("createResult with the inject in a non-default tenant")
+  class CreateResultWithInjectInNonDefaultTenant {
 
     private Tenant tenantB;
     private Inject inject;
@@ -65,6 +65,11 @@ class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
 
     @AfterEach
     void tearDown() {
+      // The fixtures live in tenant B and Inject is still filtered on the ambient tenant, so the
+      // cleanup reads only find them under B.
+      if (tenantB != null) {
+        TenantContext.setCurrentTenant(tenantB.getId());
+      }
       if (created != null) {
         phishingResultRepository.deleteById(created.getId());
       }
@@ -81,19 +86,34 @@ class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("should attribute the row to tenant B, not the default tenant")
-    void given_ambientTenantB_should_writeTenantBOnTheRow() throws Exception {
+    @DisplayName("should attribute the row to the inject's tenant with no ambient tenant set")
+    void given_injectInTenantBAndNoAmbientTenant_should_writeTenantBOnTheRow() throws Exception {
       // Arrange
       tenantB = tenantHelper.createTenantWithCurrentUser("wattr-phishing-b");
+      TenantContext.setCurrentTenant(tenantB.getId());
       inject = injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
       landingPage = new PhishingLandingPage();
       landingPage.setName("wattr phishing landing page");
+      // Explicit, not left to PhishingLandingPage's own v1 TenantBaseListener (removed on the
+      // phishing_landing_pages activation): the fixture row needs a tenant of its own.
+      landingPage.setTenant(tenantB);
       landingPage = phishingLandingPageRepository.save(landingPage);
       user = userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
-      TenantContext.setCurrentTenant(tenantB.getId());
+      assertThat(inject.getTenant().getId())
+          .as("the fixture inject must be the one carrying tenant B")
+          .isEqualTo(tenantB.getId());
+      // Production's send loop runs with a tenant on the thread; clearing it here is what makes the
+      // assertion below discriminating. A test fixture leaves one behind, and nothing clears it
+      // before a call that is not an HTTP request.
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.hasCurrentTenant())
+          .as("no ambient tenant must be set, so only the inject can attribute the row")
+          .isFalse();
 
       // Act
-      created = phishingTrackingService.createResult(inject, landingPage, user.getId(), null, null);
+      created =
+          phishingTrackingService.createResult(
+              inject, inject.getTenant().getId(), landingPage, user.getId(), null, null);
 
       // Assert: read the row's tenant back by SQL, independent of the ORM's own tenant filter.
       String writtenTenantId =
@@ -102,7 +122,7 @@ class PhishingTrackingServiceWriteAttributionTest extends IntegrationTest {
               String.class,
               created.getId());
       assertThat(writtenTenantId)
-          .as("the row must carry the ambient tenant, not the platform default")
+          .as("the row must carry the inject's tenant, not the platform default")
           .isEqualTo(tenantB.getId())
           .isNotEqualTo(Tenant.DEFAULT_TENANT_UUID);
     }
