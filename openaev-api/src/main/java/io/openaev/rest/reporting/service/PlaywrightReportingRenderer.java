@@ -205,20 +205,28 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
                 .map(Token::getValue)
                 .orElse(null);
     if (tokenValue == null) {
-      // Fail synchronously, still inside the caller transaction. reporting_generations is
-      // tenant-active: nest a v2-scoped transaction through the primitive's REQUIRES_NEW wrapper
-      // (the plain wrapper refuses to open inside one already active) rather than rely on the
-      // caller's own scope, which a background caller (the schedule engine, already inside its own
-      // primitive transaction) does not carry as an HTTP request scope.
+      // Fail synchronously, inside the caller's own transaction, which is where the generation row
+      // was created and is still uncommitted. reporting_generations is tenant-active, so the write
+      // needs a v2 scope; it is set on that same transaction rather than nested in a new one. A
+      // REQUIRES_NEW nesting reads its own snapshot and cannot see that row: the save resolves to
+      // a merge whose select finds nothing, and the whole generation request dies on it.
       String tenantId = generation.getTenant().getId();
-      generation.setStatus(ReportingGenerationStatus.ERROR);
-      generation.setErrorMessage(
+      String errorMessage =
           actingUser == null
               ? "No acting user available for the render"
-              : "Acting user has no API token to authenticate the render");
-      generation.setCompletedAt(Instant.now());
-      this.tenantScopedJobRunner.runInNewTenantTransaction(
-          tenantId, () -> this.reportingGenerationRepository.save(generation));
+              : "Acting user has no API token to authenticate the render";
+      // The status is set INSIDE the scoped block, not before it: setting the scope issues a
+      // native statement, which flushes everything already pending under the scope still in
+      // force. Mutating the generation first would make its UPDATE part of that early flush and
+      // run it under the caller's scope instead of the one set here.
+      this.tenantScopedJobRunner.runInCurrentTenantTransaction(
+          tenantId,
+          () -> {
+            generation.setStatus(ReportingGenerationStatus.ERROR);
+            generation.setErrorMessage(errorMessage);
+            generation.setCompletedAt(Instant.now());
+            this.reportingGenerationRepository.save(generation);
+          });
       return;
     }
     RenderJob job = toRenderJob(generation, tokenValue);

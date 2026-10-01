@@ -81,14 +81,23 @@ public class TenantScopedJobRunner {
   }
 
   /**
-   * REQUIRES_NEW variant of {@link #runInTenant}, for a background write that must survive a
-   * rollback of the caller's own transaction (a synchronous fail-fast path that runs while still
-   * inside an HTTP request's or the schedule engine's transaction). No v1 {@link TenantContext}
-   * bridge: the caller thread's ambient tenant is already whatever it should be, and swapping it
-   * here would leak into the caller's remaining work once this nested transaction returns.
+   * Scopes the caller's ALREADY-OPEN transaction to {@code tenantId} and runs {@code work} inside
+   * it. Opens nothing: for a synchronous write that belongs to the caller's unit of work (a
+   * fail-fast status update on a row the caller created earlier in that same transaction, still
+   * uncommitted).
+   *
+   * <p>Nesting a {@code REQUIRES_NEW} transaction there is wrong twice over. It reads its own
+   * snapshot and cannot see the caller's uncommitted row, so a {@code save} resolves to a merge
+   * whose select finds nothing and Hibernate rejects the entity outright ({@code
+   * StaleObjectStateException}), failing the caller's whole unit of work. And a status written in a
+   * separate transaction would outlive a caller rollback that also removes the row it describes.
+   *
+   * <p>No v1 {@link TenantContext} bridge: the caller thread's ambient tenant is already whatever
+   * it should be, and swapping it here would leak into the caller's remaining work.
    */
-  public void runInNewTenantTransaction(
+  public void runInCurrentTenantTransaction(
       @NotNull final String tenantId, @NotNull final Runnable work) {
-    tenantTx.executeNew(TxCtx.forTenant(tenantId), work);
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    work.run();
   }
 }
