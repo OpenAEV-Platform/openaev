@@ -30,6 +30,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -234,26 +235,54 @@ class PayloadHttpIsolationTest extends IntegrationTest {
       "under tenant A's path: an executable payload whose file belongs to tenant B does not"
           + " leak B's document and does not crash the read")
   void executableWithCrossTenantDocumentDoesNotLeakOrCrash() throws Exception {
+    // The payload read serves the executable's file as an id (PayloadOutput.executableFile, a
+    // MonoIdSerializer field), never as a name, so the subject of both assertions is that id.
+    // Positive control first, on A's own document: without it an empty field would satisfy the
+    // cross-tenant assertion whatever the scope did.
+    Document ownDocument = DocumentFixture.getDocumentJpeg();
+    ownDocument.setTenant(new Tenant(tenantA));
+    entityManager.persist(ownDocument);
+    Executable ownExecutable = (Executable) PayloadFixture.createDefaultExecutable(ownDocument);
+    // The fixture carries a fixed id, so the two executables of this test need distinct ones.
+    ownExecutable.setId(UUID.randomUUID().toString());
+    ownExecutable.setName("executable-with-a-document");
+    ownExecutable.setTenant(new Tenant(tenantA));
+    entityManager.persist(ownExecutable);
+
     Document bDocument = DocumentFixture.getDocumentJpeg();
     bDocument.setTenant(new Tenant(tenantB));
     entityManager.persist(bDocument);
-
     Executable executable = (Executable) PayloadFixture.createDefaultExecutable(bDocument);
+    executable.setId(UUID.randomUUID().toString());
     executable.setName("executable-with-b-document");
     executable.setTenant(new Tenant(tenantA));
     entityManager.persist(executable);
+    // Flush and clear so the reads below issue real SELECTs instead of being answered from this
+    // transaction's first-level cache, which no scope applies to.
     entityManager.flush();
     entityManager.clear();
-    String executableId = executable.getId();
+
+    String ownResponse =
+        mvc.perform(get(PAYLOAD_BY_ID, tenantA, ownExecutable.getId()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertEquals(
+        ownDocument.getId(),
+        JsonPath.read(ownResponse, "$.executable_file"),
+        "A's own executable must serve its own document id, otherwise the assertion below is"
+            + " satisfied by a field that is never populated");
 
     String response =
-        mvc.perform(get(PAYLOAD_BY_ID, tenantA, executableId))
+        mvc.perform(get(PAYLOAD_BY_ID, tenantA, executable.getId()))
+            .andExpect(status().isOk())
             .andReturn()
             .getResponse()
             .getContentAsString();
     assertTrue(
-        !response.contains(bDocument.getName()),
-        "B's document name must never appear in A's payload read");
+        !response.contains(bDocument.getId()),
+        "B's document id must never appear in A's payload read: " + response);
   }
 
   // Ground-truth reads, bypassing the scope: raw JDBC on the test's own connection sees the

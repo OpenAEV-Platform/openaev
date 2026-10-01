@@ -1,8 +1,6 @@
 package io.openaev.notification.engine;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.NotificationTriggerType;
@@ -94,27 +92,8 @@ class NotifierBackgroundIsolationTest extends IntegrationTest {
         List.of(notifierB),
         notifierIdsOf(triggers, triggerB),
         "tenant B's trigger must resolve its own notifier");
-  }
-
-  @Test
-  @DisplayName("a trigger never resolves another tenant's notifier")
-  void noTriggerResolvesAnotherTenantsNotifier() {
-    List<ResolvedNotificationTrigger> triggers =
-        triggerLoader.loadEnabledTriggers(NotificationTriggerType.LIVE);
-
-    List<String> resolvedForA = notifierIdsOf(triggers, triggerA);
-    List<String> resolvedForB = notifierIdsOf(triggers, triggerB);
-
-    // Non-emptiness first: with both lists empty the cross-tenant assertions below hold for the
-    // wrong reason, which is precisely how a fail-closed read passes for isolation it never did.
-    assertFalse(resolvedForA.isEmpty(), "tenant A's trigger resolved no notifier at all");
-    assertFalse(resolvedForB.isEmpty(), "tenant B's trigger resolved no notifier at all");
-    assertTrue(
-        resolvedForA.stream().noneMatch(notifierB::equals),
-        "tenant B's notifier must not reach tenant A's trigger");
-    assertTrue(
-        resolvedForB.stream().noneMatch(notifierA::equals),
-        "tenant A's notifier must not reach tenant B's trigger");
+    // The two assertions are exact: a list equal to the trigger's own notifier is also a list
+    // holding no other tenant's, so nothing else is needed to state that no notifier crosses.
   }
 
   private List<String> notifierIdsOf(List<ResolvedNotificationTrigger> triggers, String triggerId) {
