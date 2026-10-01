@@ -4266,6 +4266,7 @@
   "Update an endpoint": "Actualizar un endpoint",
   "Update connector instance": "Actualizar instancia de conector",
   "Update credential": "Actualizar credencial",
+  "Update credential in this inject": "Actualizar las credenciales en esta inyección",
   "Update credentials": "Actualizar credenciales",
   "Update credentials in this inject": "Actualiza las credenciales en este inyector",
   "Update date": "Fecha de actualización",

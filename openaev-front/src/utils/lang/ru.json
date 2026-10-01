@@ -4266,6 +4266,7 @@
   "Update an endpoint": "Обновить конечную точку",
   "Update connector instance": "Обновить экземпляр коннектора",
   "Update credential": "Обновить учетные данные",
+  "Update credential in this inject": "Обновить учетные данные в этом инджекте",
   "Update credentials": "Обновить учетные данные",
   "Update credentials in this inject": "Обновите учетные данные в этом инджекте",
   "Update date": "Дата обновления",

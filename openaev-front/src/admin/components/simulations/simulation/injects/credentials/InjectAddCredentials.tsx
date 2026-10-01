@@ -79,7 +79,7 @@ const InjectAddCredentials: FunctionComponent<Props> = ({
         open={openDialog}
         onClose={handleClose}
         onSubmit={onSubmit}
-        title={t('Update credentials in this inject')}
+        title={multiple ? t('Update credentials in this inject') : t('Update credential in this inject')}
         multiple={multiple}
         credentialType={credentialType}
       />
