@@ -15,7 +15,19 @@ the flip to `*` should ask for, and it is meant to be re-measured and rewritten,
 
 ---
 
-## Measured on 2026-10-01, against `main@7faac0b43b`
+## Measured on 2026-10-01, from nightly run `36809639051`, head `ab2bdc4d44`
+
+That run checked out `ab2bdc4d4436cab15966b4e0537509fbf8fcce00`, **not** today's `main`. It matters for every
+number below: `shadow-prod` reads `openaev.tenant.active-tables` out of `application.properties` at the
+checked-out sha, and at `ab2bdc4d44` that line held **35** entries, thirteen fewer than `7faac0b43b`. The
+thirteen missing: `collector_types`, `payloads`, `vulnerabilities`, `custom_domains`,
+`phishing_email_templates`, `phishing_landing_pages`, `phishing_results`,
+`attackpath_execution_collector`, `attackpath_execution_remediation`, `reporting_schedules`, `reportings`,
+`reporting_generations`, `datapacks`.
+
+So a `shadow-prod` count of zero for one of those thirteen means "not armed that night", not "fine under the
+production list". Any per-constraint row on a table in that list is stale by construction and must be
+re-measured; the rows on tables armed in both modes are the ones still worth reading.
 
 Source: the scheduled Nightly run of 2026-10-01 (run `36809639051`), the ten `shadow-all` shards
 and the ten Elasticsearch 8 `shadow-prod` shards. The matrix also carries ten `elk9` `shadow-prod`
@@ -78,7 +90,7 @@ ten `shadow-all` shards:
 | Constraint | `shadow-all` | `shadow-prod` | Reading |
 |---|---|---|---|
 | `domains_domain_name_tenant_key` | 2484 | 2484 | The single largest shape, identical in both modes, so it belongs to the already-live list, not to the flip |
-| `collector_types_name_tenant_unique` | 360 | 0 | Only when everything is armed: the collector types seeding collides per tenant |
+| `collector_types_name_tenant_unique` | 360 | 0 | Pre-#8119 only, and the 0 is "not armed that night". `ensureCollectorTypeExists` looked the row up by name alone and let the v1 listener stamp the tenant, so arming the table hid the other tenant's row and the upsert re-inserted it. Replaced by `findByNameAndTenantId` plus an explicit tenant in `ebdb7b00c9`, merged after this run. Re-measure |
 | `injectors_pkey` | 174 | 209 | Injector registration re-inserting |
 | `tag_name_tenant_unique` | 70 | 70 | Tag seeding |
 | `executors_pkey` | 53 | 53 | Executor registration re-inserting |
