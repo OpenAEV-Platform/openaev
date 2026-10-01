@@ -38,8 +38,10 @@ public class WorkflowResumeService {
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
   public boolean resumeWorkflowRunIsolated(TxCtx ctx, String workflowRunId, Instant resumeAt) {
+    // Locked: a concurrent resume waits here, then finds no STOP run and resumes nothing, so the
+    // pause is accounted and the READY steps republished once.
     Optional<Workflow> stoppedRun =
-        workflowRepository.findByIdAndStatus(workflowRunId, WorkflowStatus.STOP);
+        workflowRepository.findForUpdateByIdAndStatus(workflowRunId, WorkflowStatus.STOP);
     if (stoppedRun.isEmpty()) {
       return false;
     }

@@ -43,7 +43,7 @@ class WorkflowResumeServiceTest {
     stoppedRun.setStatus(WorkflowStatus.STOP);
     stoppedRun.setPauseAt(pausedAt);
     stoppedRun.setPauseSecond(10L);
-    when(workflowRepository.findByIdAndStatus("run-1", WorkflowStatus.STOP))
+    when(workflowRepository.findForUpdateByIdAndStatus("run-1", WorkflowStatus.STOP))
         .thenReturn(Optional.of(stoppedRun));
 
     // Act
@@ -63,7 +63,7 @@ class WorkflowResumeServiceTest {
   @DisplayName("resumes nothing when the run is no longer STOP")
   void given_runNotStopped_should_notResume() {
     // Arrange
-    when(workflowRepository.findByIdAndStatus("run-1", WorkflowStatus.STOP))
+    when(workflowRepository.findForUpdateByIdAndStatus("run-1", WorkflowStatus.STOP))
         .thenReturn(Optional.empty());
 
     // Act

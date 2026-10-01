@@ -90,7 +90,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           TxCtx.forTenant(tenantId),
           () ->
               stepRepository
-                  .findById(stepEvent.getStepId())
+                  .findForUpdateById(stepEvent.getStepId())
                   .ifPresentOrElse(
                       this::run,
                       () ->
@@ -149,6 +149,16 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     try {
       ActionStep actionStep =
           stepService.factoryAction(stepReady.getStepAction(), stepReady.getId());
+      // A step runs once. A second READY request for it (published twice, e.g. still queued when
+      // resume republished it) must neither run its inject again nor touch the step: the first
+      // execution owns it. The step was read under its row lock, so a concurrent duplicate waits
+      // for that execution to commit and sees it here.
+      if (actionStep.isAlreadyRun(stepReady)) {
+        log.warn(
+            "[Chaining] Ready consume: step {} already ran, duplicate READY request dropped.",
+            stepReady.getId());
+        return;
+      }
       stepRun =
           actionStep
               .run(stepReady)

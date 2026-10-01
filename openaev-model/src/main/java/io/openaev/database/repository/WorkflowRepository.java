@@ -2,10 +2,12 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
+import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -70,6 +72,16 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
       @NotBlank String simulationId, List<WorkflowStatus> status);
 
   Optional<Workflow> findByIdAndStatus(String workflowId, WorkflowStatus status);
+
+  /**
+   * {@link #findByIdAndStatus} under a row lock (SELECT ... FOR UPDATE), for a status transition
+   * that must happen once: a concurrent caller waits, then the status no longer matches and it gets
+   * nothing (e.g. two simultaneous resumes, only the first takes the run from STOP to RUN).
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT w FROM Workflow w WHERE w.id = :id AND w.status = :status")
+  Optional<Workflow> findForUpdateByIdAndStatus(
+      @Param("id") String workflowId, @Param("status") WorkflowStatus status);
 
   boolean existsByIdAndStatus(String workflowId, WorkflowStatus status);
 
