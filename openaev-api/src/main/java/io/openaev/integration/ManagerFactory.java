@@ -18,12 +18,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ManagerFactory implements DependenciesManager {
 
-  /**
-   * How long a caller waits for another thread's creation of the same tenant's Manager. Creation
-   * runs in the caller's transaction and writes built-in connector rows, so it can wait on a row
-   * that a waiting caller's own transaction already holds — a deadlock neither PostgreSQL nor Java
-   * can see. Giving up makes the waiter roll back or commit, which frees the row.
-   */
+  /** Max wait for the lock, so a caller fails instead of deadlocking with a Manager creation. */
   static final long MANAGER_LOCK_TIMEOUT_MS = 30_000;
 
   /**
