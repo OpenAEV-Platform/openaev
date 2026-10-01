@@ -264,14 +264,12 @@ public class InjectorApi extends RestBehavior {
     }
 
     InputStream in = null;
-    HttpHeaders headers = new HttpHeaders();
     String filename = "";
     String resourcePath = "/openaev-implant/" + resolvedPlatform + "/" + resolvedArch + "/";
 
     if (implantBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = "openaev-implant-" + version + (resolvedPlatform.equals("windows") ? ".exe" : "");
       in = getClass().getResourceAsStream("/implants" + resourcePath + filename);
-      addLocalSignatureHeader(headers, "/implants" + resourcePath + filename);
     } else if (implantBinaryOrigin.equals(
         "repository")) { // if we want a specific version from artifactory
       filename =
@@ -282,6 +280,7 @@ public class InjectorApi extends RestBehavior {
     }
 
     if (in != null) {
+      HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
       // Stream the binary instead of buffering it fully in heap: thousands of concurrent implant
       // downloads with byte[] buffering caused GC churn / OOM risk
