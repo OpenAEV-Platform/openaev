@@ -20,6 +20,7 @@ import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -122,8 +123,10 @@ public class ConnectorOrchestrationService {
    * org.springframework.dao.DataIntegrityViolationException}: that exception maps to HTTP 409,
    * which the frontend renders as a blanket "The element already exists" - utterly misleading when
    * the actual problem is a missing id or a connector that is not visible in the current tenant.
+   *
+   * @return the connector id carried by the migration input
    */
-  private void throwIfConnectorIdDoesNotExist(
+  private String requireExistingConnectorId(
       CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
       throws BadRequestException {
     String connectorId =
@@ -161,6 +164,7 @@ public class ConnectorOrchestrationService {
               + connectorId
               + " is visible in the current tenant");
     }
+    return connectorId;
   }
 
   /**
@@ -214,18 +218,23 @@ public class ConnectorOrchestrationService {
     throwIfEnterpriseLicenseNotActive();
 
     throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
+    ConnectorType containerType = catalogConnectorWithConfigMap.catalogConnector.getContainerType();
     // If we already have an ID in the input, then we're migrating from an existing connector
     // meaning that we do not check if the connector type already exists
     if (input.getConfigurations().stream()
         .anyMatch(
-            configurationInput ->
-                configurationInput
-                    .getKey()
-                    .equals(
-                        catalogConnectorWithConfigMap.catalogConnector.getContainerType()
-                            + "_ID"))) {
+            configurationInput -> configurationInput.getKey().equals(containerType + "_ID"))) {
       // If we have an ID in the input, we check if the connector already exists
-      throwIfConnectorIdDoesNotExist(input, catalogConnectorWithConfigMap.catalogConnector);
+      String connectorId =
+          requireExistingConnectorId(input, catalogConnectorWithConfigMap.catalogConnector);
+      // A connector is migrated only once: a double submit, a second tab or a stale page returns
+      // the instance already created. Two instances with the same connector id get the same XTM
+      // Composer deployment name, and the composer loops on the name collision.
+      Optional<ConnectorInstancePersisted> existingInstance =
+          connectorInstanceService.findPersistedByConnectorId(containerType, connectorId, tenantId);
+      if (existingInstance.isPresent()) {
+        return connectorInstanceService.connectorInstanceById(existingInstance.get().getId());
+      }
     }
 
     return connectorInstanceService.createConnectorInstance(
