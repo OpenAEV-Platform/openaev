@@ -500,8 +500,9 @@ public class PayloadService {
         payloadRepository
             .findByDocumentId(documentId)
             .orElseGet(() -> this.createFileDropPayload(ctx, documentId));
-    fileDrop.getFileDropFile().getScenarios().add(scenario);
-    this.documentService.save(fileDrop.getFileDropFile());
+    Document document = this.documentService.document(documentId);
+    document.getScenarios().add(scenario);
+    this.documentService.save(document);
     return fileDrop;
   }
 
