@@ -140,7 +140,7 @@ public class ProductInventoryMetricCollector {
     metricRegistry.registerGauge(
         "vulnerabilities_total",
         "Number of vulnerabilities",
-        () -> safeCount(vulnerabilityRepository::count));
+        () -> safeCount(this::countVulnerabilities));
     metricRegistry.registerGauge(
         "vulnerable_endpoints_total",
         "Number of vulnerable endpoints",
@@ -154,13 +154,18 @@ public class ProductInventoryMetricCollector {
   private Map<Attributes, Long> collectPayloads() {
     Map<Attributes, Long> result = new HashMap<>();
     try {
+      // payloads is v2-active: with app.current_tenants unset the count is silently zero, same
+      // treatment as collectSecurityPlatforms/collectEndpoints.
       List<Object[]> rows =
-          entityManager
-              .createQuery(
-                  "select p.type, p.source, p.status, count(p) from Payload p"
-                      + " group by p.type, p.source, p.status",
-                  Object[].class)
-              .getResultList();
+          tenantTx.execute(
+              TxCtx.allTenants(),
+              () ->
+                  entityManager
+                      .createQuery(
+                          "select p.type, p.source, p.status, count(p) from Payload p"
+                              + " group by p.type, p.source, p.status",
+                          Object[].class)
+                      .getResultList());
       for (Object[] row : rows) {
         Attributes attributes =
             Attributes.of(
@@ -313,6 +318,11 @@ public class ProductInventoryMetricCollector {
   /** Counts custom dashboards across the whole platform (custom_dashboards is v2-active). */
   long countCustomDashboards() {
     return countAcrossAllTenants(customDashboardRepository::count);
+  }
+
+  /** Counts vulnerabilities across the whole platform (vulnerabilities is v2-active). */
+  long countVulnerabilities() {
+    return countAcrossAllTenants(vulnerabilityRepository::count);
   }
 
   private long countAcrossAllTenants(Supplier<Long> counter) {
