@@ -92,17 +92,26 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
     }
   }, [edition, isAiTarget, endpoint.asset_id, aiTargetValues]);
 
+  // Returns whether the update actually succeeded - AiTargetForm awaits this (SubmitHandler's own
+  // return type, `unknown`, already permits it) to decide whether to revert a markings change that
+  // committed earlier in the same submit. See AssetForm's `onSubmit` doc for the full rationale.
+  //
+  // handleCloseEdit is now conditional on success (it previously ran unconditionally, closing the
+  // drawer even on a failed save) - closing on failure would both hide the error from the user and
+  // contradict the "form stays open on a half-applied save" guarantee the revert logic relies on.
   const submitEditAiTarget = (data: AiTargetInput) => {
-    dispatch(updateAiTarget(endpoint.asset_id, data)).then(
+    return dispatch(updateAiTarget(endpoint.asset_id, data)).then(
       (result: {
         result: string;
         entities?: { aitargets: Record<string, EndpointOverviewOutput> };
       }) => {
-        if (result.entities && onUpdate) {
-          onUpdate(result.entities.aitargets[result.result]);
+        if (result.entities) {
+          if (onUpdate) {
+            onUpdate(result.entities.aitargets[result.result]);
+          }
+          handleCloseEdit();
         }
-        handleCloseEdit();
-        return result;
+        return !!result.entities;
       },
     );
   };

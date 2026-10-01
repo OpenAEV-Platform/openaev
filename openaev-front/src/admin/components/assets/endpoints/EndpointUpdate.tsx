@@ -39,11 +39,14 @@ const EndpointUpdate: FunctionComponent<Props> = ({
     dispatch(fetchEndpoint(endpointId)).finally(() => setLoading(false));
   });
 
+  // Returns whether the update actually succeeded - AssetForm awaits this (SubmitHandler's own
+  // return type, `unknown`, already permits it) to decide whether to revert a markings change that
+  // committed earlier in the same submit. See AssetForm's `onSubmit` doc.
   const onSubmit = (data: EndpointInput) => {
-    dispatch(updateEndpoint(endpointId, data)).then(
+    return dispatch(updateEndpoint(endpointId, data)).then(
       (result: {
         result: string;
-        entities: { endpoints: Record<string, Endpoint> };
+        entities?: { endpoints: Record<string, Endpoint> };
       }) => {
         if (result.entities) {
           if (onUpdate) {
@@ -52,7 +55,7 @@ const EndpointUpdate: FunctionComponent<Props> = ({
           }
           handleClose();
         }
-        return result;
+        return !!result.entities;
       },
     );
   };

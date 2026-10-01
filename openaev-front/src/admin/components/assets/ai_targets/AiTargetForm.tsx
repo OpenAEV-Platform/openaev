@@ -21,6 +21,11 @@ import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
 type AiTargetFormValues = AiTargetInput & { asset_markings?: string[] | null };
 
 interface Props {
+  /**
+   * May resolve to `false` to report failure - `SubmitHandler`'s own return type (`unknown`)
+   * already allows this. When markings were also changed this submit, `false` here triggers a
+   * compensating revert - see `onMarkingsChange` and `handleSubmitWithMarkings`.
+   */
   onSubmit: SubmitHandler<AiTargetInput>;
   handleClose: () => void;
   editing?: boolean;
@@ -32,6 +37,9 @@ interface Props {
    * selection actually changed from what the form opened with. Resolves to `false` on failure
    * (the caller has already shown its own error notification for it) - a `false` here cancels
    * `onSubmit` too, so the form stays open on a half-applied save.
+   *
+   * Also called a second time, with the pre-submit id list, to revert the markings PUT if it
+   * committed but `onSubmit` then failed - see `handleSubmitWithMarkings`.
    */
   onMarkingsChange?: (markingIds: string[]) => boolean | Promise<boolean>;
 }
@@ -136,10 +144,12 @@ const AiTargetForm: FunctionComponent<Props> = ({
   // and its selection actually moved from what the form opened with - see AssetForm's identically
   // named handler for the full race/failure-handling rationale this mirrors.
   const handleSubmitWithMarkings = handleSubmit(async ({ asset_markings, ...aiTargetData }) => {
+    const initialIds = initialValues.asset_markings ?? [];
+    let markingsChanged = false;
     if (showMarkings) {
       const currentIds = asset_markings ?? [];
-      const initialIds = initialValues.asset_markings ?? [];
-      if (!markingIdSetsEqual(currentIds, initialIds)) {
+      markingsChanged = !markingIdSetsEqual(currentIds, initialIds);
+      if (markingsChanged) {
         const markingsSaved = await onMarkingsChange?.(currentIds);
         // `false` means the markings PUT failed - its own error notification already fired - so
         // don't also run the asset update: better to leave the form open on a save the user can
@@ -150,7 +160,17 @@ const AiTargetForm: FunctionComponent<Props> = ({
         }
       }
     }
-    onSubmit(aiTargetData);
+
+    const saved = await onSubmit(aiTargetData);
+
+    // The markings PUT already committed but the rest of the save didn't - compensate by
+    // reverting markings to what the form opened with, rather than leaving the AI target with new
+    // markings and none of the other changes. Best-effort and silent, same as AssetForm: the
+    // asset/markings split stays an implementation detail, not something surfaced to the user - a
+    // failed revert still gets the same generic error notification any other failed PUT would.
+    if (saved === false && markingsChanged) {
+      await onMarkingsChange?.(initialIds);
+    }
   });
 
   return (

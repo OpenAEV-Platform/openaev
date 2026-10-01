@@ -46,6 +46,14 @@ type AssetFormValues = EndpointInput & { asset_markings?: string[] | null };
 
 interface Props {
   category: AssetCategory;
+  /**
+   * May resolve to `false` to report failure - `SubmitHandler`'s own return type (`unknown`)
+   * already allows this, so it costs nothing for a caller that doesn't need the distinction. When
+   * markings were also changed this submit, `false` here triggers a compensating revert: the
+   * markings PUT (see `onMarkingsChange`) commits independently and earlier, so if this fails
+   * afterwards the asset would otherwise be left with new markings but none of the rest of the
+   * save applied.
+   */
   onSubmit: SubmitHandler<EndpointInput>;
   handleClose: () => void;
   editing?: boolean;
@@ -59,6 +67,9 @@ interface Props {
    * `false` on failure (the caller has already shown its own error notification for it) - a
    * `false` here cancels `onSubmit` too, so the form stays open on a half-applied save instead of
    * reporting success for the endpoint fields while the markings silently didn't take.
+   *
+   * Also called a second time, with the pre-submit id list, to revert the markings PUT if it
+   * committed but `onSubmit` then failed - see `handleSubmitWithoutPropagation`.
    */
   onMarkingsChange?: (markingIds: string[]) => boolean | Promise<boolean>;
 }
@@ -226,10 +237,12 @@ const AssetForm: FunctionComponent<Props> = ({
     e.preventDefault();
     e.stopPropagation();
     handleSubmit(async ({ asset_markings, ...endpointData }) => {
+      const initialIds = defaultValues.asset_markings ?? [];
+      let markingsChanged = false;
       if (showMarkings) {
         const currentIds = asset_markings ?? [];
-        const initialIds = defaultValues.asset_markings ?? [];
-        if (!markingIdSetsEqual(currentIds, initialIds)) {
+        markingsChanged = !markingIdSetsEqual(currentIds, initialIds);
+        if (markingsChanged) {
           const markingsSaved = await onMarkingsChange?.(currentIds);
           // `false` means the markings PUT failed - its own error notification already fired (see
           // onMarkingsChange's doc), so don't also run the endpoint update: better to leave the
@@ -240,7 +253,18 @@ const AssetForm: FunctionComponent<Props> = ({
           }
         }
       }
-      onSubmit(endpointData);
+
+      const saved = await onSubmit(endpointData);
+
+      // The markings PUT already committed (it ran, and succeeded, above) but the rest of the save
+      // didn't - rather than leave the asset with new markings and none of the other changes,
+      // compensate by reverting markings to what the form opened with. Best-effort and silent: the
+      // asset/markings split is an implementation detail, not something to surface to the user, so
+      // no extra messaging here either way - a failed revert still gets the same generic error
+      // notification any other failed PUT would (see onMarkingsChange's own dispatch).
+      if (saved === false && markingsChanged) {
+        await onMarkingsChange?.(initialIds);
+      }
     })(e);
   };
 
