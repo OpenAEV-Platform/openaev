@@ -1,6 +1,8 @@
 package io.openaev.rest.helper.queue;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,8 +26,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * Tests the shutdown handling and reconnection logic in BatchQueueService. Verifies that
- * application-initiated shutdowns are ignored, while unexpected connection losses trigger
- * reconnection attempts.
+ * application-initiated shutdowns are ignored, while unexpected connection losses, consumer
+ * cancellations and broker-side consumer channel closes trigger a single reconnection attempt.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BatchQueueService Reconnection Tests")
@@ -106,6 +108,65 @@ class BatchQueueServiceReconnectionTest {
     assertFalse(
         reconnExecutor.getQueue().isEmpty(),
         "A reconnection task should be scheduled on the executor");
+  }
+
+  @Test
+  @DisplayName("should initiate reconnection when the broker cancels the consumer")
+  void shouldInitiateReconnectionOnConsumerCancel() throws Exception {
+    captureCancelCallback().handle("consumer-test-queue-0");
+
+    assertEquals(1, getReconnectionExecutor().getQueue().size());
+  }
+
+  @Test
+  @DisplayName("should initiate reconnection when the broker closes the consumer channel")
+  void shouldInitiateReconnectionOnBrokerChannelClose() throws Exception {
+    captureConsumerChannelShutdownListener()
+        .shutdownCompleted(new ShutdownSignalException(false, false, null, consumerChannel));
+
+    assertEquals(1, getReconnectionExecutor().getQueue().size());
+  }
+
+  @Test
+  @DisplayName("should not trigger reconnection when the application closes the consumer channel")
+  void shouldNotReconnectOnApplicationChannelClose() throws Exception {
+    captureConsumerChannelShutdownListener()
+        .shutdownCompleted(new ShutdownSignalException(false, true, null, consumerChannel));
+
+    assertTrue(getReconnectionExecutor().getQueue().isEmpty());
+  }
+
+  @Test
+  @DisplayName("should schedule a single reconnection when several signals arrive together")
+  void shouldScheduleSingleReconnectionForSeveralSignals() throws Exception {
+    captureCancelCallback().handle("consumer-test-queue-0");
+    captureConsumerChannelShutdownListener()
+        .shutdownCompleted(new ShutdownSignalException(false, false, null, consumerChannel));
+    capturedShutdownListener.shutdownCompleted(
+        new ShutdownSignalException(true, false, null, connection));
+
+    assertEquals(1, getReconnectionExecutor().getQueue().size());
+  }
+
+  private CancelCallback captureCancelCallback() throws IOException {
+    ArgumentCaptor<CancelCallback> captor = ArgumentCaptor.forClass(CancelCallback.class);
+    verify(consumerChannel)
+        .basicConsume(
+            anyString(),
+            eq(false),
+            anyString(),
+            eq(false),
+            eq(false),
+            isNull(),
+            any(DeliverCallback.class),
+            captor.capture());
+    return captor.getValue();
+  }
+
+  private ShutdownListener captureConsumerChannelShutdownListener() {
+    ArgumentCaptor<ShutdownListener> captor = ArgumentCaptor.forClass(ShutdownListener.class);
+    verify(consumerChannel).addShutdownListener(captor.capture());
+    return captor.getValue();
   }
 
   private ScheduledThreadPoolExecutor getReconnectionExecutor() throws Exception {
