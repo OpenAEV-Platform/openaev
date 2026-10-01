@@ -79,7 +79,10 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   // system messages) so the panel never slides under the header when a banner
   // is shown.
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  const topOffset = 64 + bannerHeightNumber;
+  const headerHeight = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--fds-header-height'),
+  );
+  const topOffset = (Number.isFinite(headerHeight) ? headerHeight : 68) + bannerHeightNumber;
   const firstName = me.user_email?.split('@')[0] ?? 'User';
   // `ai` is a required PaletteColor (components/Theme.ts), so the literal
   // fallback was unreachable — and it carried the DARK value, which would
