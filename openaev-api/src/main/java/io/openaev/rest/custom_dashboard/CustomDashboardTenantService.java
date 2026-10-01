@@ -27,6 +27,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+/**
+ * Home dashboard queries for a tenant.
+ *
+ * <p>The methods below take both a {@code tenantId} and a {@link TxCtx}, which reads as a duplicate
+ * and is not. {@code tenantId} comes from the request path and says WHOSE home dashboard is being
+ * asked for, so it selects the dashboard definition. {@code TxCtx} is the caller's resolved scope
+ * and says WHICH ROWS may be read when the widgets are evaluated. On the current routes the two
+ * name the same tenant, which is why they look interchangeable.
+ *
+ * <p>They are kept apart on purpose. A scope can hold several tenants, so deriving the id from it
+ * would mean picking one and guessing when there is more than one. A home dashboard aggregated
+ * across tenants is not supported today and would want its own contract rather than this one
+ * stretched.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
