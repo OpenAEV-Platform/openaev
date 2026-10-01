@@ -100,7 +100,10 @@ class AgentHttpIsolationTest extends IntegrationTest {
   @AfterEach
   void cleanup() {
     TenantContext.clearCurrentTenant();
-    for (String tenantId : List.of(tenantA, tenantB)) {
+    // A plain array, not List.of: if setup fails after creating only the first tenant, List.of
+    // throws on the null second element before the loop runs, which masks the original failure and
+    // leaks the tenant that was committed.
+    for (String tenantId : new String[] {tenantA, tenantB}) {
       if (tenantId == null) {
         continue;
       }
