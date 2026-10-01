@@ -478,14 +478,18 @@ public class AtomicTestingApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given_unknownCredential_should_rejectTheAtomicTesting")
+    @DisplayName("given_unknownCredential_should_beIgnored")
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-    void given_unknownCredential_should_rejectTheAtomicTesting() throws Exception {
-      // Act & Assert
-      saveAtomicTesting(
-          post(ATOMIC_TESTINGS_URI),
-          atomicTestingWithCredentials(List.of(UUID.randomUUID().toString())),
-          status().isBadRequest());
+    void given_unknownCredential_should_beIgnored() throws Exception {
+      // Act
+      String response =
+          saveAtomicTesting(
+              post(ATOMIC_TESTINGS_URI),
+              atomicTestingWithCredentials(List.of(UUID.randomUUID().toString())),
+              status().is2xxSuccessful());
+
+      // Assert
+      assertThatJson(response).node("inject_secret_references").isArray().isEmpty();
     }
   }
 
