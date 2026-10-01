@@ -36,6 +36,7 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.TagRuleService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ConditionService;
@@ -86,7 +87,8 @@ class InjectServiceTest {
   @Mock private InjectAgentResolverService injectAgentResolverService;
   @Mock private TeamRepository teamRepository;
   @Mock private AgentRepository agentRepository;
-  @Mock private SecretReferenceRepository secretReferenceRepository;
+  @Mock private InjectSecretReferenceService injectSecretReferenceService;
+  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
@@ -155,7 +157,10 @@ class InjectServiceTest {
         injectService,
         "healthCheckUtils",
         new HealthCheckUtils(
-            new ExecutorUtils(assetAgentJobRepository), stepTargetingService, conditionService));
+            new ExecutorUtils(assetAgentJobRepository),
+            stepTargetingService,
+            conditionService,
+            previewFeatureService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -167,7 +172,8 @@ class InjectServiceTest {
             new HealthCheckUtils(
                 new ExecutorUtils(assetAgentJobRepository),
                 stepTargetingService,
-                conditionService)));
+                conditionService,
+                previewFeatureService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -1377,6 +1383,54 @@ class InjectServiceTest {
 
       assertThat(code).isNull();
       verifyNoInteractions(injectAuthorisationRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("updateInject credential references")
+  class UpdateInjectCredentialReferencesTests {
+
+    @Test
+    @DisplayName("given_requestedCredentials_should_setTheResolvedReferencesOnTheInject")
+    void given_requestedCredentials_should_setTheResolvedReferencesOnTheInject() {
+      // Arrange
+      Inject inject = new Inject();
+      inject.setId(INJECT_ID);
+      when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
+      CredentialSecretReference credential = new CredentialSecretReference();
+      credential.setId("credential-1");
+      InjectInput input = new InjectInput();
+      input.setTitle("inject");
+      input.setDependsDuration(0L);
+      input.setSecretReferences(List.of("credential-1"));
+      when(injectSecretReferenceService.resolveSecretReferences(inject, List.of("credential-1")))
+          .thenReturn(new ArrayList<>(List.of(credential)));
+
+      // Act
+      Inject result = injectService.updateInject(INJECT_ID, input);
+
+      // Assert
+      assertThat(result.getSecretReferences()).containsExactly(credential);
+    }
+
+    @Test
+    @DisplayName("given_rejectedCredentials_should_propagateTheRejection")
+    void given_rejectedCredentials_should_propagateTheRejection() {
+      // Arrange
+      Inject inject = new Inject();
+      inject.setId(INJECT_ID);
+      when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
+      InjectInput input = new InjectInput();
+      input.setTitle("inject");
+      input.setDependsDuration(0L);
+      input.setSecretReferences(List.of("foreign-credential"));
+      when(injectSecretReferenceService.resolveSecretReferences(
+              inject, List.of("foreign-credential")))
+          .thenThrow(new BadRequestException("CREDENTIAL_NOT_FOUND"));
+
+      // Act & Assert
+      assertThrows(BadRequestException.class, () -> injectService.updateInject(INJECT_ID, input));
+      assertThat(inject.getSecretReferences()).isEmpty();
     }
   }
 }

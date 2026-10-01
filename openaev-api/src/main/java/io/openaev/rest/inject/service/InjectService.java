@@ -2,9 +2,7 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
 import static io.openaev.database.model.ExecutionStatus.*;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
+import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
 import static io.openaev.helper.CryptoHelper.hashWithSHA256;
@@ -63,11 +61,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
-import io.openaev.utils.FilterUtilsJpa;
-import io.openaev.utils.InjectContentUtils;
-import io.openaev.utils.InjectUtils;
-import io.openaev.utils.JpaUtils;
-import io.openaev.utils.TargetType;
+import io.openaev.utils.*;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -860,7 +854,7 @@ public class InjectService {
     }
     inject.setAssetGroups(fromIterable(this.assetGroupService.assetGroups(input.getAssetGroups())));
     inject.setSecretReferences(
-        fromIterable(this.secretReferenceRepository.findAllById(input.getSecretReferences())));
+        fromIterable(secretReferenceRepository.findAllById(input.getSecretReferences())));
     inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 
     // Set documents
