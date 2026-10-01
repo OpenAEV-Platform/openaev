@@ -23,13 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Verifies that instances sharing the same connector id are reduced to one: the started instance
- * wins, then the oldest; instances with distinct ids are untouched and re-running is a no-op.
- *
- * <p>{@code @Transactional} so the seeded rows and migration side effects roll back with the test
- * transaction.
- */
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Remove duplicated connector instances migration")

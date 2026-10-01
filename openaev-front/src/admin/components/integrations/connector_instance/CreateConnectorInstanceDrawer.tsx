@@ -74,8 +74,6 @@ const CreateConnectorInstanceDrawer = ({
         configuration_value: migrationSource as unknown as JsonNode,
       });
     }
-    // Return the promise so the form stays in submitting state (button disabled)
-    // until the request ends: a double click must not migrate the connector twice.
     return createConnectorInstance({
       catalog_connector_id: catalogConnectorId,
       ...data,

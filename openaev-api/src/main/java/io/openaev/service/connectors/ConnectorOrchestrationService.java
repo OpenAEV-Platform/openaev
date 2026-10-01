@@ -123,8 +123,6 @@ public class ConnectorOrchestrationService {
    * org.springframework.dao.DataIntegrityViolationException}: that exception maps to HTTP 409,
    * which the frontend renders as a blanket "The element already exists" - utterly misleading when
    * the actual problem is a missing id or a connector that is not visible in the current tenant.
-   *
-   * @return the connector id carried by the migration input
    */
   private String requireExistingConnectorId(
       CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
@@ -227,9 +225,7 @@ public class ConnectorOrchestrationService {
       // If we have an ID in the input, we check if the connector already exists
       String connectorId =
           requireExistingConnectorId(input, catalogConnectorWithConfigMap.catalogConnector);
-      // A connector is migrated only once: a double submit, a second tab or a stale page returns
-      // the instance already created. Two instances with the same connector id get the same XTM
-      // Composer deployment name, and the composer loops on the name collision.
+      // Already migrated: return it, a duplicate would collide in XTM Composer
       Optional<ConnectorInstancePersisted> existingInstance =
           connectorInstanceService.findPersistedByConnectorId(containerType, connectorId, tenantId);
       if (existingInstance.isPresent()) {

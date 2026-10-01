@@ -5,23 +5,7 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/**
- * Removes the connector instances that share the same connector id ({@code COLLECTOR_ID}, {@code
- * INJECTOR_ID}, ...) inside a tenant.
- *
- * <p>Migrating an existing connector twice (double submit, second tab, stale page) created two
- * instances carrying the same connector id. XTM Composer names a deployment after the catalog title
- * and that id, so both instances got the same deployment name: the composer saw a deployment owned
- * by another instance id and looped on the name collision, recreating the pod forever. The
- * single-result lookups by connector id also failed on these rows. Creation is now idempotent.
- *
- * <p>For each (tenant, id key, connector id) group, the started instance is kept (it owns the
- * running deployment), then the oldest one. Secret references of the removed instances are moved to
- * the kept one. Configurations and logs cascade on delete. The connector row itself (collector,
- * injector, ...) is not touched.
- *
- * <p>Idempotent: re-runs find no group with more than one instance.
- */
+/** Keeps one instance per connector id and tenant: the started one, else the oldest. */
 @Component
 public class V6_20261001120000000__Remove_duplicated_connector_instances extends BaseJavaMigration {
 
