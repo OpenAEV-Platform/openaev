@@ -39,6 +39,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.export.FileExportBase;
 import io.openaev.export.Mixins;
 import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -963,6 +964,7 @@ public class ScenarioService {
     zipEntry.setComment(EXPORT_ENTRY_SCENARIO);
     zipExport.putNextEntry(zipEntry);
     ObjectNode exportNode = objectMapper.valueToTree(scenarioFileExport);
+    FileExportBase.dropForeignOrganizationReferences(exportNode, "scenario");
     workflowExportInitializer.enrichWorkflowDataForExport(
         exportNode, "scenario_workflow", objectMapper);
     zipExport.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));

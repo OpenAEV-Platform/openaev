@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
+import io.openaev.export.FileExportBase;
 import io.openaev.export.Mixins;
 import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -116,6 +117,7 @@ public class ExportService {
     zipEntry.setComment(EXPORT_ENTRY_EXERCISE);
     zipExport.putNextEntry(zipEntry);
     ObjectNode exportNode = importExport.getObjectMapper().valueToTree(importExport);
+    FileExportBase.dropForeignOrganizationReferences(exportNode, "exercise");
     workflowExportInitializer.enrichWorkflowDataForExport(
         exportNode, "exercise_workflow", importExport.getObjectMapper());
     zipExport.write(
