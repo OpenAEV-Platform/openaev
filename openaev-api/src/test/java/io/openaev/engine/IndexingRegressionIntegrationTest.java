@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
@@ -128,7 +129,9 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
     // ALL_TIME avoids the DEFAULT branch that requires a dashboard timeRange parameter
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
     ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 5000));
-    return engineService.entities(ADMIN_USER, runtime);
+    // Not a tenant-scope test: it only checks indexing/deletion counts across fixtures that may
+    // span tenants, so it reads the platform-wide view rather than any one tenant's.
+    return engineService.entities(TxCtx.allTenants(), ADMIN_USER, runtime);
   }
 
   /**

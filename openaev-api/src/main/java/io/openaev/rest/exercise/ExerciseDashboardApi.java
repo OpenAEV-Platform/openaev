@@ -67,7 +67,7 @@ public class ExerciseDashboardApi {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.customDashboardService.dashboardCountOnResourceId(
-        simulationId, widgetId, parameters);
+        ctx, simulationId, widgetId, parameters);
   }
 
   @PostMapping({
@@ -85,7 +85,7 @@ public class ExerciseDashboardApi {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.customDashboardService.dashboardAverageOnResourceId(
-        simulationId, widgetId, parameters);
+        ctx, simulationId, widgetId, parameters);
   }
 
   @PostMapping({
@@ -103,7 +103,7 @@ public class ExerciseDashboardApi {
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.customDashboardService.dashboardSeriesOnResourceId(
-        simulationId, widgetId, parameters);
+        ctx, simulationId, widgetId, parameters);
   }
 
   @PostMapping({
@@ -120,7 +120,8 @@ public class ExerciseDashboardApi {
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody EntitiesPaginationInput input) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(simulationId, widgetId, input);
+    return this.customDashboardService.dashboardEntitiesOnResourceId(
+        ctx, simulationId, widgetId, input);
   }
 
   @PostMapping({
@@ -138,7 +139,7 @@ public class ExerciseDashboardApi {
       @PathVariable final String widgetId,
       @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
     return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
-        simulationId, widgetId, input);
+        ctx, simulationId, widgetId, input);
   }
 
   @PostMapping({
@@ -157,6 +158,6 @@ public class ExerciseDashboardApi {
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
     return this.customDashboardService.dashboardAttackPathsOnResourceId(
-        simulationId, widgetId, parameters);
+        ctx, simulationId, widgetId, parameters);
   }
 }
