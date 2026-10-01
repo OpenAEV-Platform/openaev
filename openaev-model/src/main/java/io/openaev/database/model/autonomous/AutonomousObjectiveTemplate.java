@@ -18,6 +18,14 @@ import org.hibernate.annotations.UpdateTimestamp;
  * A reusable objective template for autonomous runs (e.g. "Reach the domain controller", "Prove
  * data exfiltration", "Validate EDR detections"). Built-ins are seeded per tenant and admins can
  * add their own. The gallery in the run-creation UI reads these.
+ *
+ * <p>Tenant-active (multi-tenancy v2): reads and writes are scoped by the statement inspector, and
+ * the tenant is attributed EXPLICITLY by the lazy gallery seed ({@code
+ * AutonomousObjectiveTemplateService} stamps it from the request scope through the write-scope
+ * resolver) - deliberately no {@code TenantBaseListener} and no {@code @Filter}. Restoring either
+ * as defense in depth would break the header-scoped read: the listener's thread-local default
+ * silently stamps the ambient tenant on a path that forgot to attribute, where a {@code NOT NULL}
+ * failure is loud.
  */
 @Getter
 @Setter
