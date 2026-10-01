@@ -51,6 +51,12 @@ def expression_string_literals(value: str) -> list[str]:
     A caller may wrap its matrix in `${{ cond && '[...]' || '[...]' }}`. The runner evaluates that
     to one of the single-quoted literals and parses that, so each one has to be valid JSON on its
     own. Inside a GitHub single-quoted string a quote is escaped by doubling it.
+
+    Only RESULT alternatives are returned. A literal that is part of a comparison, such as
+    `github.event_name == 'pull_request'`, is a condition and is never parsed as a matrix. The
+    distinction is made on the literal's position and NOT on its contents: filtering by a leading
+    bracket would silently skip a result alternative whose bracket someone deleted, which is exactly
+    the breakage this check exists to catch.
     """
     literals: list[str] = []
     i = 0
@@ -58,6 +64,7 @@ def expression_string_literals(value: str) -> list[str]:
         if value[i] != "'":
             i += 1
             continue
+        before = value[:i].rstrip()
         i += 1
         buf = []
         while i < len(value):
@@ -70,14 +77,16 @@ def expression_string_literals(value: str) -> list[str]:
                 break
             buf.append(value[i])
             i += 1
-        literals.append("".join(buf))
+        after = value[i:].lstrip()
+        is_comparison = before.endswith(("==", "!=")) or after.startswith(("==", "!="))
+        if not is_comparison:
+            literals.append("".join(buf))
     return literals
 
 
 def parse_matrix(where: str, value: str) -> list[list[dict]]:
     """Every JSON list the runner could obtain from this input, or [] once an error is recorded."""
     candidates = expression_string_literals(value) if "${{" in value else [value]
-    candidates = [c for c in candidates if c.strip().startswith("[")]
     if not candidates:
         fail(f"{where}: no JSON list found in the value")
         return []
@@ -104,6 +113,7 @@ def parse_matrix(where: str, value: str) -> list[list[dict]]:
 
 def check_api_matrix(where: str, matrix: list[dict]) -> None:
     seen: dict[str, int] = {}
+    coverage_artifacts: dict[str, str] = {}
     for index, entry in enumerate(matrix):
         name = entry.get("shard_name")
         if not name:
@@ -112,6 +122,19 @@ def check_api_matrix(where: str, matrix: list[dict]) -> None:
         if name in seen:
             fail(f"{where}: shard_name '{name}' is used by entries {seen[name]} and {index}")
         seen[name] = index
+
+        # Coverage artifacts are named from shard + artifact_suffix, not from shard_name
+        # (api-tests/action.yml), so two entries with distinct shard_names can still collide there
+        # and the second upload fails the run. Shadow entries upload no coverage.
+        if not entry.get("tenant_mode"):
+            coverage = f"jacoco-exec-shard-{entry.get('shard')}{entry.get('artifact_suffix', '')}"
+            if coverage in coverage_artifacts:
+                fail(
+                    f"{where}: entries '{coverage_artifacts[coverage]}' and '{name}' would both "
+                    f"upload the coverage artifact '{coverage}'"
+                )
+            else:
+                coverage_artifacts[coverage] = name
 
         if entry.get("includes") == "shardfile":
             shard = entry.get("shard")

@@ -337,6 +337,11 @@ runs:
         # One tab-separated line per shard, collected by the tenant shadow verdict job into a single
         # table on the run page. Fields: mode, shard, verdict, tests, failures, errors, skipped, note.
         VERDICT_FILE=openaev-api/target/tenant-shadow-verdict.tsv
+        # The directory may not exist: a service that failed to start, or an artifact download that
+        # failed, leaves no target/. This step still runs under !cancelled(), and without the mkdir
+        # the redirection below dies and the shard uploads no NO RESULT row at all, which is the
+        # silence this instrument exists to remove.
+        mkdir -p "$(dirname "$VERDICT_FILE")"
         {
           echo "## Tenant shadow \`$MODE\`, shard $SHARD"
           echo
