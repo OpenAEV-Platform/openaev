@@ -32,10 +32,24 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * End-to-end proof that activating {@code tenant_xtmhub_registrations} scopes the real XTM Hub HTTP
- * endpoints. The table is one-row-per-tenant, so the tenant path must expose only that tenant's
- * registration and write paths must attribute or refuse based on the request scope, never the v1
- * thread-local default tenant fallback.
+ * Write attribution and refusal for the real XTM Hub HTTP endpoints. The table is
+ * one-row-per-tenant, so the tenant path must expose only that tenant's registration and write
+ * paths must attribute or refuse based on the request scope, never the v1 thread-local default
+ * tenant fallback.
+ *
+ * <p>What this class does NOT prove, deliberately: that the {@code tenant_xtmhub_registrations}
+ * activation isolates reads. It cannot, and neither can any other test driven through this feature.
+ * Every per-tenant path on the table addresses it BY tenant id already ({@code findByTenantId},
+ * {@code deleteByTenantId} in {@code TenantXtmHubRegistrationRepository}), so a cross-tenant read
+ * or delete matches nothing whether the table is active or not. The one query with no tenant
+ * predicate, {@code findAllByTenantNotDeleted}, is called under an explicit {@code
+ * TxCtx.allTenants()} scope by {@code XtmHubService#refreshConnectivityAllTenants} because it is
+ * meant to see every tenant. Isolation on this table is therefore structural, carried by the
+ * queries themselves, and the activation is a second layer with nothing observable behind it.
+ *
+ * <p>The proof obligation this class carries instead is the write attribution below: a registration
+ * created or deleted under one route must land on that route's tenant and on no other. That is the
+ * part the scope decides, and it is the part that can regress.
  */
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=tenant_xtmhub_registrations")
