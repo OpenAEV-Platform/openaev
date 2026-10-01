@@ -45,11 +45,15 @@ public class ScenarioApiSearchTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
+    // class-wide fixture names the default tenant explicitly rather than relying on it.
     Scenario scenario1 = ScenarioFixture.createDefaultCrisisScenario();
+    scenario1.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Scenario scenario1Saved = this.scenarioRepository.save(scenario1);
     SCENARIO_IDS.add(scenario1Saved.getId());
 
     Scenario scenario2 = ScenarioFixture.createDefaultIncidentResponseScenario();
+    scenario2.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Scenario scenario2Saved = this.scenarioRepository.save(scenario2);
     SCENARIO_IDS.add(scenario2Saved.getId());
   }

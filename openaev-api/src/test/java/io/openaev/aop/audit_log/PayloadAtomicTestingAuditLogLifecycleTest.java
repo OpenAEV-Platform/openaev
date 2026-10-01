@@ -93,7 +93,7 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   class PayloadAtomicTestingLifecycle {
 
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     // Verifies end-to-end audit logging for payload + atomic testing lifecycle actions.
     void given_payloadAndAtomicTestingLifecycle_should_logExpectedAuditEvents() throws Exception {
       // Arrange

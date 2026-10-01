@@ -273,13 +273,15 @@ jobs:
           no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
-  # Coverage Merge & Upload
+  # Coverage Upload — one job per Codecov flag, each starting as soon as its own tests finish
   # ════════════════════════════════════════════════════════════════════
+  # One upload per flag with explicit files: a single upload tags every file with every flag,
+  # and .codecov.yml counts uploads (after_n_builds) before it reports on the PR.
 
-  codecov:
-    name: "📊 Coverage Merge & Upload"
-    needs: [api-tests, frontend-quality, e2e-tests, api-types-check]
-    if: ${{ !cancelled() }}
+  coverage-backend:
+    name: "📊 Coverage Upload (backend)"
+    needs: [api-tests]
+    if: ${{ !cancelled() && (needs.api-tests.result == 'success' || needs.api-tests.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -302,7 +304,6 @@ jobs:
             maven-v2-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Download compiled Maven artifacts
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           name: backend-compiled
@@ -310,7 +311,6 @@ jobs:
         continue-on-error: true
 
       - name: Download API build output
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           name: api-build-output
@@ -318,7 +318,6 @@ jobs:
         continue-on-error: true
 
       - name: Download all JaCoCo exec shards
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           pattern: jacoco-exec-shard-*
@@ -327,7 +326,6 @@ jobs:
 
       - name: Merge JaCoCo exec files
         id: jacoco-merge
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         run: |
           echo "📦 Merging JaCoCo exec files from all shards..."
           EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
@@ -355,28 +353,73 @@ jobs:
           path: openaev-api/target/site/jacoco/jacoco.xml
           if-no-files-found: warn
 
+      - name: Upload backend coverage to Codecov
+        if: ${{ hashFiles('openaev-api/target/site/jacoco/jacoco.xml') != '' }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: openaev-api/target/site/jacoco/jacoco.xml
+          flags: backend
+          disable_search: true
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  coverage-frontend:
+    name: "📊 Coverage Upload (frontend)"
+    needs: [frontend-quality]
+    if: ${{ !cancelled() && needs.frontend-quality.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
       - name: Download vitest coverage
-        if: ${{ needs.frontend-quality.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
           name: vitest-coverage
           path: coverage/frontend
         continue-on-error: true
 
+      - name: Upload frontend coverage to Codecov
+        if: ${{ hashFiles('coverage/frontend/lcov.info') != '' }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/frontend/lcov.info
+          flags: frontend
+          disable_search: true
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  coverage-e2e:
+    name: "📊 Coverage Upload (e2e)"
+    needs: [e2e-tests]
+    if: ${{ !cancelled() && needs.e2e-tests.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      # One directory per shard: every shard writes lcov.info, so merging would keep only the last one.
       - name: Download playwright coverage
-        if: ${{ needs.e2e-tests.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
           pattern: playwright-coverage-*
           path: coverage/e2e
-          merge-multiple: true
         continue-on-error: true
 
-      - name: Upload to Codecov
+      - name: List E2E coverage files
+        id: e2e-coverage
+        run: echo "files=$(find coverage/e2e -name lcov.info 2>/dev/null | paste -sd, -)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload E2E coverage to Codecov
+        if: ${{ steps.e2e-coverage.outputs.files != '' }}
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          flags: backend,frontend,e2e
+          files: ${{ steps.e2e-coverage.outputs.files }}
+          flags: e2e
+          disable_search: true
           fail_ci_if_error: false
         continue-on-error: true
 

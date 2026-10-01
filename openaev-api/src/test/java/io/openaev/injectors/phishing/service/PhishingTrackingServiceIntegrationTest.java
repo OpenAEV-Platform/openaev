@@ -9,6 +9,7 @@ import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepActionClass;
 import io.openaev.database.model.StepStatus;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -84,6 +85,9 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
   private PhishingLandingPage persistLandingPage() {
     PhishingLandingPage landingPage = new PhishingLandingPage();
     landingPage.setName("Test landing page");
+    // Explicit, not left to PhishingLandingPage's own v1 TenantBaseListener (removed on the
+    // phishing_landing_pages activation): this test runs with no tenant context of its own.
+    landingPage.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     return phishingLandingPageRepository.save(landingPage);
   }
 
@@ -154,7 +158,12 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
           Assertions.assertDoesNotThrow(
               () ->
                   phishingTrackingService.createResult(
-                      uncommittedInject, landingPage, user.getId(), null, step.getId()));
+                      uncommittedInject,
+                      Tenant.DEFAULT_TENANT_UUID,
+                      landingPage,
+                      user.getId(),
+                      null,
+                      step.getId()));
 
       PhishingResult saved = phishingResultRepository.findById(result.getId()).orElseThrow();
       assertThat(saved.getStep()).isNotNull();
@@ -171,7 +180,8 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
       user = persistUser();
 
       PhishingResult result =
-          phishingTrackingService.createResult(inject, landingPage, user.getId(), null, null);
+          phishingTrackingService.createResult(
+              inject, inject.getTenant().getId(), landingPage, user.getId(), null, null);
 
       PhishingResult saved = phishingResultRepository.findById(result.getId()).orElseThrow();
       assertThat(saved.getInject()).isNotNull();
@@ -205,7 +215,12 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
       user = persistUser();
       PhishingResult created =
           phishingTrackingService.createResult(
-              InjectFixture.getDefaultInject(), landingPage, user.getId(), null, step.getId());
+              InjectFixture.getDefaultInject(),
+              Tenant.DEFAULT_TENANT_UUID,
+              landingPage,
+              user.getId(),
+              null,
+              step.getId());
 
       var resolved = phishingTrackingService.resolveAndBackfillByToken(created.getToken());
 
@@ -243,7 +258,12 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
       user = persistUser();
       PhishingResult created =
           phishingTrackingService.createResult(
-              InjectFixture.getDefaultInject(), landingPage, user.getId(), null, step.getId());
+              InjectFixture.getDefaultInject(),
+              Tenant.DEFAULT_TENANT_UUID,
+              landingPage,
+              user.getId(),
+              null,
+              step.getId());
       // Pushes sentAt into the past so the automated-probe delay guard (a hit within the first
       // seconds of "sending") does not suppress these hits.
       created.setSentAt(Instant.now().minusSeconds(120));
@@ -293,7 +313,12 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
       uncommittedInject.setId(UUID.randomUUID().toString());
       PhishingResult created =
           phishingTrackingService.createResult(
-              uncommittedInject, landingPage, user.getId(), null, step.getId());
+              uncommittedInject,
+              Tenant.DEFAULT_TENANT_UUID,
+              landingPage,
+              user.getId(),
+              null,
+              step.getId());
       assertThat(phishingResultRepository.findById(created.getId())).isPresent();
 
       workflowRepository.deleteById(step.getWorkflow().getId());
@@ -310,7 +335,8 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
       landingPage = persistLandingPage();
       user = persistUser();
       PhishingResult created =
-          phishingTrackingService.createResult(inject, landingPage, user.getId(), null, null);
+          phishingTrackingService.createResult(
+              inject, inject.getTenant().getId(), landingPage, user.getId(), null, null);
       assertThat(phishingResultRepository.findById(created.getId())).isPresent();
 
       injectRepository.deleteById(inject.getId());

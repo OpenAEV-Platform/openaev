@@ -1,4 +1,4 @@
-import { type ChatMode, ChatPanel } from '@filigran/chatbot';
+import { type ApiEndpoints, type ChatMode, ChatPanel } from '@filigran/chatbot';
 import { Alert, SvgIcon } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { useTheme } from '@mui/material/styles';
@@ -6,6 +6,7 @@ import { LogoXtmOneIcon } from 'filigran-icon';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useIntl } from 'react-intl';
 import { useLocation } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
@@ -27,6 +28,30 @@ interface AskArianePanelProps {
 
 type AgentFetchState = 'loading' | 'success' | 'no_agents' | 'error';
 
+// Paths relative to the '/api/xtmone/chat' proxy base. Every route the panel
+// uses must be named here: the chatbot defaults ('/chat/...') assume XTM One
+// paths and 404 behind the OpenAEV proxy.
+const CHAT_API_ENDPOINTS = {
+  agents: '/agents',
+  messages: '/messages',
+  steer: '/messages/steer',
+  // Setting these is what makes the panel advertise `supports_tool_approval`
+  // upstream; left unset it never claims support and gated tools degrade to
+  // a plain assistant message instead of pausing the turn.
+  approve: '/messages/approve',
+  pendingApprovals: '/conversations',
+  sessions: '/sessions',
+  upload: '/upload',
+  download: '/files',
+  // Composer prompt picker and quota indicator: the chatbot hides either one
+  // whenever its route fails or has nothing to show.
+  prompts: '/prompts',
+  quota: '/quota',
+  // Base of the per-message rating route: the chatbot appends
+  // '/{conversationId}/messages/{messageId}/feedback' (POST rates, DELETE retracts).
+  feedback: '/conversations',
+} satisfies ApiEndpoints;
+
 const AskArianePanel: React.FC<AskArianePanelProps> = ({
   mode,
   onClose,
@@ -36,7 +61,15 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   onResizeEnd,
 }) => {
   const theme = useTheme<Theme>();
-  const { t } = useFormatter();
+  const { t, locale } = useFormatter();
+  const { messages } = useIntl();
+  // The chatbot calls t(key) with no values and fills '{quota}', '{count}'...
+  // itself, so it gets the raw catalog string: through formatMessage those
+  // placeholders are ICU arguments with no value and log a FORMAT_ERROR.
+  const chatbotT = (key: string) => {
+    const message = messages[key];
+    return typeof message === 'string' ? message : key;
+  };
   const location = useLocation();
   const { me, settings } = useAuth();
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -167,26 +200,11 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     topOffset,
     backendType: 'rest' as const,
     apiBaseUrl: '/api/xtmone/chat',
-    apiEndpoints: {
-      agents: '/agents',
-      messages: '/messages',
-      // Mid-run steering — must be set explicitly because the chatbot
-      // default ('/chat/messages/steer') assumes XTM One-style paths,
-      // while the OpenAEV proxy exposes '/messages/steer' relative to
-      // its '/api/xtmone/chat' base.
-      steer: '/messages/steer',
-      // Setting these is what makes the panel advertise `supports_tool_approval`
-      // upstream; left unset it never claims support and gated tools degrade to
-      // a plain assistant message instead of pausing the turn.
-      approve: '/messages/approve',
-      pendingApprovals: '/conversations',
-      sessions: '/sessions',
-      upload: '/upload',
-      download: '/files',
-    },
+    apiEndpoints: CHAT_API_ENDPOINTS,
     user: { firstName },
     disableFileManagement: false,
-    t,
+    t: chatbotT,
+    locale,
     accentColor,
     logoIcon,
     agentDashboardUrl: xtmOneUrl || undefined,

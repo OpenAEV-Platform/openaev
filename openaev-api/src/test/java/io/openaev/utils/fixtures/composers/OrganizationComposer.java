@@ -1,7 +1,9 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.OrganizationRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +39,11 @@ public class OrganizationComposer extends ComposerBase<Organization> {
     @Override
     public Composer persist() {
       this.tagComposers.forEach(TagComposer.Composer::persist);
+      // The listener now fails fast on an unattributed write; stamp the ambient tenant here when
+      // the caller left it unset, mirroring EndpointComposer and SecurityPlatformComposer.
+      if (organization.getTenant() == null) {
+        organization.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      }
       organizationRepository.save(organization);
       return this;
     }

@@ -670,9 +670,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@filigran/chatbot@npm:3.11.1":
-  version: 3.11.1
-  resolution: "@filigran/chatbot@npm:3.11.1"
+"@filigran/chatbot@npm:3.12.1":
+  version: 3.12.1
+  resolution: "@filigran/chatbot@npm:3.12.1"
   dependencies:
     remark-parse: "npm:^11.0.0"
     unified: "npm:^11.0.0"
@@ -682,7 +682,7 @@ __metadata:
     react-markdown: ">=10"
     remark-breaks: ">=4"
     remark-gfm: ">=4"
-  checksum: 10c0/ebc300ada562a9693cb77cc8fd35c5f968dc09146a86a679be32e572edcc9a74f9cf7cab1e918236856578caca8434dd2e1dab5da7702282382fff54ab8f34f1
+  checksum: 10c0/77a14f2e06b48cb17590661eb2312975b164d47c8664489111cc4ea1473ade455e144b48a2223231cbc4cc24945d67f3f7ee1aa0d3d1a08e173acfdb8f1c839b
   languageName: node
   linkType: hard
 
@@ -8702,7 +8702,7 @@ __metadata:
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:9.39.5"
     "@faker-js/faker": "npm:10.6.0"
-    "@filigran/chatbot": "npm:3.11.1"
+    "@filigran/chatbot": "npm:3.12.1"
     "@filigran/rich-text-editor": "npm:@filigran/rich-text-editor@1.2.1"
     "@fontsource/geologica": "npm:5.3.0"
     "@fontsource/ibm-plex-sans": "npm:5.3.0"

@@ -3,6 +3,7 @@ package io.openaev.xtmone;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import io.jsonwebtoken.Jwts;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.authorisation.HttpClientFactory;
@@ -121,6 +122,12 @@ public class XtmOneClient {
     HttpGet httpGet = new HttpGet(config.getUrl() + path);
     addChatHeaders(httpGet, jwt);
     return httpGet;
+  }
+
+  // URLEncoder targets query strings ('+' for spaces) - normalize to %20 for a path segment
+  // (same approach as DocumentService.encodeFileName).
+  private static String encodePathSegment(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
   }
 
   @SuppressWarnings("unchecked")
@@ -255,12 +262,13 @@ public class XtmOneClient {
         }
         yield agents;
       }
+      // XTM One rejecting our JWT is a config issue, not the caller's: a 401 would log them out
       case 401 ->
           throw new ResponseStatusException(
-              HttpStatus.UNAUTHORIZED, "[XTM One] Unauthorized access to chat agents");
+              HttpStatus.UNPROCESSABLE_ENTITY, "[XTM One] Unauthorized access to chat agents");
       case 403 ->
           throw new ResponseStatusException(
-              HttpStatus.FORBIDDEN, "[XTM One] Forbidden access to chat agents");
+              HttpStatus.UNPROCESSABLE_ENTITY, "[XTM One] Forbidden access to chat agents");
       case 404 ->
           throw new ResponseStatusException(
               HttpStatus.NOT_FOUND, "[XTM One] Chat agents endpoint not found");
@@ -344,13 +352,11 @@ public class XtmOneClient {
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
-      // URLEncoder targets query strings ('+' for spaces) — normalize to %20 for a path segment
-      // (same approach as DocumentService.encodeFileName).
-      String encodedConversationId =
-          URLEncoder.encode(conversationId, StandardCharsets.UTF_8).replace("+", "%20");
       HttpDelete httpDelete =
           new HttpDelete(
-              config.getUrl() + "/api/v1/platform/chat/sessions/" + encodedConversationId);
+              config.getUrl()
+                  + "/api/v1/platform/chat/sessions/"
+                  + encodePathSegment(conversationId));
       addChatHeaders(httpDelete, jwt);
       httpDelete.setConfig(
           RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
@@ -495,6 +501,175 @@ public class XtmOneClient {
           "[XTM One] Unexpected error while reading pending approvals",
           e);
     }
+  }
+
+  /**
+   * Returns the prompts the current user's XTM One web chat picker offers, as the raw upstream
+   * payload ({@code {"prompts": [...]}}). Upstream status codes are propagated as {@link
+   * ResponseStatusException}.
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> getChatPrompts() {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpGet httpGet = chatGetBuilder("/api/v1/platform/chat/prompts", jwt);
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            throw mapUpstreamErrorPreservingStatus(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Chat prompts error: ", e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "[XTM One] Unexpected error while reading prompts", e);
+    }
+  }
+
+  /**
+   * Returns the current user's agentic quota as the XTM One web chat shows it ({@code {"used",
+   * "limit", "period", "scope"}}), or a JSON {@code null} node when there is nothing to show
+   * (Community Edition, no enforceable limit). Upstream status codes are propagated as {@link
+   * ResponseStatusException}.
+   */
+  public JsonNode getChatQuota() {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpGet httpGet = chatGetBuilder("/api/v1/platform/chat/quota", jwt);
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() == 200) {
+              JsonNode quota = objectMapper.readTree(EntityUtils.toString(response.getEntity()));
+              return quota != null && quota.isObject() ? quota : NullNode.getInstance();
+            }
+            throw mapUpstreamErrorPreservingStatus(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Chat quota error: ", e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "[XTM One] Unexpected error while reading quota", e);
+    }
+  }
+
+  /**
+   * Rates an assistant message of one of the current user's conversations and returns the stored
+   * rating ({@code {"rating", "comment"}}). Upstream status codes are propagated as {@link
+   * ResponseStatusException}: XTM One answers 404 for a message the user cannot read.
+   *
+   * @param rating {@code positive} or {@code negative}
+   * @param comment optional free text, {@code null} for none
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> submitMessageFeedback(
+      String conversationId, String messageId, String rating, String comment) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      Map<String, Object> body = new HashMap<>();
+      body.put("rating", rating);
+      body.put("comment", comment);
+      String json = objectMapper.writeValueAsString(body);
+
+      HttpPost httpPost =
+          chatPostBuilder(messageFeedbackPath(conversationId, messageId), jwt, json);
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            throw mapUpstreamErrorPreservingStatus(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Message feedback error: ", e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          "[XTM One] Unexpected error while rating the message",
+          e);
+    }
+  }
+
+  /**
+   * Removes the current user's rating of an assistant message. Idempotent upstream (a message never
+   * rated is answered 204 too). Upstream status codes are propagated as {@link
+   * ResponseStatusException}.
+   */
+  public void retractMessageFeedback(String conversationId, String messageId) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpDelete httpDelete =
+          new HttpDelete(config.getUrl() + messageFeedbackPath(conversationId, messageId));
+      addChatHeaders(httpDelete, jwt);
+      httpDelete.setConfig(
+          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      httpClient.execute(
+          httpDelete,
+          response -> {
+            if (response.getCode() == 204 || response.getCode() == 200) {
+              return null;
+            }
+            throw mapUpstreamErrorPreservingStatus(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Message feedback retraction error: ", e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          "[XTM One] Unexpected error while removing the message rating",
+          e);
+    }
+  }
+
+  private static String messageFeedbackPath(String conversationId, String messageId) {
+    return "/api/v1/platform/chat/conversations/"
+        + encodePathSegment(conversationId)
+        + "/messages/"
+        + encodePathSegment(messageId)
+        + "/feedback";
   }
 
   /**
