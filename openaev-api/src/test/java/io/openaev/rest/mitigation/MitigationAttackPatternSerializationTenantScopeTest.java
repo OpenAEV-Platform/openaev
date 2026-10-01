@@ -68,7 +68,7 @@ class MitigationAttackPatternSerializationTenantScopeTest extends IntegrationTes
     mitigationId = seedMitigation(tenant);
     jdbc.update(
         "INSERT INTO mitigations_attack_patterns (mitigation_id, attack_pattern_id)"
-            + " VALUES (CAST(? AS uuid), CAST(? AS uuid))",
+            + " VALUES (?, ?)",
         mitigationId,
         attackPatternId);
   }
@@ -76,14 +76,12 @@ class MitigationAttackPatternSerializationTenantScopeTest extends IntegrationTes
   @AfterEach
   void cleanup() {
     for (String id : seededMitigations) {
-      jdbc.update(
-          "DELETE FROM mitigations_attack_patterns WHERE mitigation_id = CAST(? AS uuid)", id);
-      jdbc.update("DELETE FROM mitigations WHERE mitigation_id = CAST(? AS uuid)", id);
+      jdbc.update("DELETE FROM mitigations_attack_patterns WHERE mitigation_id = ?", id);
+      jdbc.update("DELETE FROM mitigations WHERE mitigation_id = ?", id);
     }
     for (String id : seededAttackPatterns) {
-      jdbc.update(
-          "DELETE FROM mitigations_attack_patterns WHERE attack_pattern_id = CAST(? AS uuid)", id);
-      jdbc.update("DELETE FROM attack_patterns WHERE attack_pattern_id = CAST(? AS uuid)", id);
+      jdbc.update("DELETE FROM mitigations_attack_patterns WHERE attack_pattern_id = ?", id);
+      jdbc.update("DELETE FROM attack_patterns WHERE attack_pattern_id = ?", id);
     }
     seededMitigations.clear();
     seededAttackPatterns.clear();
@@ -129,7 +127,7 @@ class MitigationAttackPatternSerializationTenantScopeTest extends IntegrationTes
     String id = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO mitigations (mitigation_id, mitigation_name, mitigation_external_id,"
-            + " mitigation_stix_id, tenant_id) VALUES (CAST(? AS uuid), ?, ?, ?, CAST(? AS uuid))",
+            + " mitigation_stix_id, tenant_id) VALUES (?, ?, ?, ?, ?)",
         id,
         "mitigation-" + id,
         "M" + id.substring(0, 8),
@@ -144,7 +142,7 @@ class MitigationAttackPatternSerializationTenantScopeTest extends IntegrationTes
     jdbc.update(
         "INSERT INTO attack_patterns (attack_pattern_id, attack_pattern_name,"
             + " attack_pattern_external_id, attack_pattern_stix_id, tenant_id)"
-            + " VALUES (CAST(? AS uuid), ?, ?, ?, CAST(? AS uuid))",
+            + " VALUES (?, ?, ?, ?, ?)",
         id,
         "pattern-" + id,
         "T" + id.substring(0, 8),
