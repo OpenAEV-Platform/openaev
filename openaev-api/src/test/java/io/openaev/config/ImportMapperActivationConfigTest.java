@@ -403,14 +403,15 @@ class ImportMapperActivationConfigTest {
 
   @Test
   @DisplayName(
-      "openaev.tenant.active-tables in application.properties contains phishing_email_templates")
+      "openaev.tenant.active-tables in application.properties contains"
+          + " phishing_email_templates")
   void prodConfigActivatesPhishingEmailTemplates() throws Exception {
     assertActiveTableEntry("phishing_email_templates");
   }
 
   @Test
   @DisplayName(
-      "openaev.tenant.active-tables in application.properties contains phishing_landing_pages")
+      "openaev.tenant.active-tables in application.properties contains" + " phishing_landing_pages")
   void prodConfigActivatesPhishingLandingPages() throws Exception {
     assertActiveTableEntry("phishing_landing_pages");
   }
@@ -435,5 +436,31 @@ class ImportMapperActivationConfigTest {
   @DisplayName("openaev.tenant.active-tables in application.properties contains phishing_results")
   void prodConfigActivatesPhishingResults() throws Exception {
     assertActiveTableEntry("phishing_results");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains" + " reporting_schedules")
+  void prodConfigActivatesReportingSchedules() throws Exception {
+    assertActiveTableEntry("reporting_schedules");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains reportings")
+  void prodConfigActivatesReportings() throws Exception {
+    assertActiveTableEntry("reportings");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains" + " reporting_generations")
+  void prodConfigActivatesReportingGenerations() throws Exception {
+    assertActiveTableEntry("reporting_generations");
+  }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains datapacks")
+  void prodConfigActivatesDatapacks() throws Exception {
+    assertActiveTableEntry("datapacks");
   }
 }
