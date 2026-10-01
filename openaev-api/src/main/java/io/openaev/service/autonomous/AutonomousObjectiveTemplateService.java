@@ -1,10 +1,12 @@
 package io.openaev.service.autonomous;
 
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,13 +14,18 @@ import org.springframework.transaction.annotation.Transactional;
  * Owns the objective-template gallery for autonomous runs. Built-ins are seeded lazily for the
  * calling tenant on first read (idempotent by key), so every tenant gets the catalog without a
  * cross-tenant seed migration, and admins can still add or disable their own.
+ *
+ * <p>The table is tenant-active, so reads are scoped by the statement inspector and the seed
+ * attributes its rows explicitly from the request scope. The seed also reads the table to decide
+ * what is missing, which is only single-valued under a single-tenant scope: the gallery endpoint
+ * pins one with {@code @RequireTenantSelector}.
  */
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AutonomousObjectiveTemplateService {
 
   private final AutonomousObjectiveTemplateRepository repository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   /**
    * The built-in objective catalog. Free-text objectives are always allowed on top of these; the
@@ -174,8 +181,8 @@ public class AutonomousObjectiveTemplateService {
                   + " point would spread."));
 
   @Transactional
-  public List<AutonomousObjectiveTemplate> listForCurrentTenant() {
-    ensureBuiltinsSeeded();
+  public List<AutonomousObjectiveTemplate> listForScope(TxCtx ctx) {
+    ensureBuiltinsSeeded(writeScopeResolver.tenantForWrite(ctx, null));
     return repository.findByEnabledTrueOrderByOrderAsc();
   }
 
@@ -187,8 +194,8 @@ public class AutonomousObjectiveTemplateService {
     return repository.findByKey(key).orElse(null);
   }
 
-  /** Idempotently materialises any missing built-in for the calling tenant. */
-  private void ensureBuiltinsSeeded() {
+  /** Idempotently materialises any missing built-in for the tenant the scope pins. */
+  private void ensureBuiltinsSeeded(String tenantId) {
     int order = 0;
     for (Builtin b : BUILTINS) {
       order += 10;
@@ -203,11 +210,7 @@ public class AutonomousObjectiveTemplateService {
             && b.scopeMode() != null
             && !b.scopeMode().equals(existing.getScopeMode())) {
           existing.setScopeMode(b.scopeMode());
-          try {
-            repository.save(existing);
-          } catch (Exception e) {
-            log.debug("[Autonomous] Could not sync scope mode for {}", b.key());
-          }
+          repository.save(existing);
         }
         continue;
       }
@@ -222,28 +225,12 @@ public class AutonomousObjectiveTemplateService {
       template.setBuiltin(true);
       template.setEnabled(true);
       template.setOrder(order);
-      try {
-        repository.save(template);
-      } catch (Exception e) {
-        // A concurrent first-read in the same tenant may have seeded it; ignore the unique clash.
-        log.debug("[Autonomous] Objective template {} already seeded", b.key());
-      }
+      template.setTenant(new Tenant(tenantId));
+      // Deliberately not guarded: save only enqueues the persist, so a unique clash from a
+      // concurrent first-read in the same tenant surfaces at commit, outside this method. A catch
+      // here never saw that clash and instead swallowed write-attribution failures, which is how
+      // this gallery came to return an empty catalog on the non-prefixed route.
+      repository.save(template);
     }
-  }
-
-  @Transactional
-  public AutonomousObjectiveTemplate create(AutonomousObjectiveTemplate template) {
-    template.setBuiltin(false);
-    return repository.save(template);
-  }
-
-  @Transactional
-  public AutonomousObjectiveTemplate update(AutonomousObjectiveTemplate template) {
-    return repository.save(template);
-  }
-
-  @Transactional
-  public void delete(String id) {
-    repository.deleteById(id);
   }
 }

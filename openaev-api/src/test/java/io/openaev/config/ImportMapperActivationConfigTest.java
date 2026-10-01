@@ -463,4 +463,12 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesDatapacks() throws Exception {
     assertActiveTableEntry("datapacks");
   }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " autonomous_objective_templates")
+  void prodConfigActivatesAutonomousObjectiveTemplates() throws Exception {
+    assertActiveTableEntry("autonomous_objective_templates");
+  }
 }

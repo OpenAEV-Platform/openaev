@@ -77,6 +77,7 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
+import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.engine.model.finding.FindingHandler;
 import io.openaev.engine.model.securitydomain.SecurityDomainHandler;
@@ -212,6 +213,7 @@ import io.openaev.service.attackpath.AttackPathSecurityPlatformResolver;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.autonomous.AutonomousEventService;
+import io.openaev.service.autonomous.AutonomousObjectiveTemplateService;
 import io.openaev.service.autonomous.AutonomousRunReconciliationWriter;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
@@ -325,7 +327,8 @@ class TenantActiveTableAccessArchTest {
           "reporting_schedules",
           "reportings",
           "reporting_generations",
-          "datapacks");
+          "datapacks",
+          "autonomous_objective_templates");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2054,4 +2057,21 @@ class TenantActiveTableAccessArchTest {
           .because(
               "datapacks is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule autonomous_objective_templates_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Sole accessor: the objective-template gallery service, reached only from
+              // AutonomousRunApi.objectiveTemplates, whose TxCtx carries @RequireTenantSelector so
+              // the scope pins exactly one tenant for both the read and the lazy built-in seed.
+              AutonomousObjectiveTemplateService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AutonomousObjectiveTemplateRepository.class)
+          .because(
+              "autonomous_objective_templates is tenant-active: an accessor without a tenant scope"
+                  + " silently reads zero rows, and the seed it drives would attribute its rows to"
+                  + " the wrong tenant. New accessors must carry a scope and be allowlisted here");
 }

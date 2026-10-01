@@ -3,7 +3,6 @@ package io.openaev.database.model.autonomous;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -24,7 +23,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Setter
 @Entity
 @Table(name = "autonomous_objective_templates")
-@EntityListeners(TenantBaseListener.class)
 public class AutonomousObjectiveTemplate implements TenantBase {
 
   @Id

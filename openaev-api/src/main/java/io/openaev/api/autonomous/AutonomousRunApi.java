@@ -23,6 +23,7 @@ import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.RunTenantScope;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
@@ -60,18 +61,19 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>The controller is deliberately thin: all lifecycle, callback, steering, and read logic lives
  * in {@link AutonomousRunService}. RBAC is skipped at the annotation level because the run's
  * authority derives from its bound simulation, checked in-service through {@code
- * AutonomousRunAccessControl}. The {@code autonomous_runs}, {@code autonomous_events} and {@code
- * autonomous_directives} tables are tenant-active (multi-tenancy v2): handlers that touch them take
- * a {@code TxCtx} so the transaction aspect sets the request scope. Operator handlers resolve that
- * scope from the caller's memberships / {@code X-Tenant-Ids}; the orchestrator CALLBACK handlers
- * mark their {@code TxCtx} with {@link io.openaev.config.RunTenantScope} so, on the legacy
- * non-prefixed route and for the VERIFIED XTM One cross-platform service identity only (the bearer
- * {@code io.openaev.security.token.XtmJwksExtractor} fully validated), the scope is derived from
- * the parent run's own tenant - otherwise that legacy callback, whose per-user JWT carries no
- * tenant claim, would fail to write the run's own timeline once the caller's scope does not pin the
- * run's tenant. A non-service caller on the same handlers keeps the standard caller-authorized
- * resolution (no cross-tenant reach from a known run id), and on the tenant-prefixed route the
- * handlers stay caller-authorized like every other prefixed endpoint.
+ * AutonomousRunAccessControl}. The {@code autonomous_runs}, {@code autonomous_events}, {@code
+ * autonomous_directives} and {@code autonomous_objective_templates} tables are tenant-active
+ * (multi-tenancy v2): handlers that touch them take a {@code TxCtx} so the transaction aspect sets
+ * the request scope. Operator handlers resolve that scope from the caller's memberships / {@code
+ * X-Tenant-Ids}; the orchestrator CALLBACK handlers mark their {@code TxCtx} with {@link
+ * io.openaev.config.RunTenantScope} so, on the legacy non-prefixed route and for the VERIFIED XTM
+ * One cross-platform service identity only (the bearer {@code
+ * io.openaev.security.token.XtmJwksExtractor} fully validated), the scope is derived from the
+ * parent run's own tenant - otherwise that legacy callback, whose per-user JWT carries no tenant
+ * claim, would fail to write the run's own timeline once the caller's scope does not pin the run's
+ * tenant. A non-service caller on the same handlers keeps the standard caller-authorized resolution
+ * (no cross-tenant reach from a known run id), and on the tenant-prefixed route the handlers stay
+ * caller-authorized like every other prefixed endpoint.
  *
  * <p>Endpoints split into three audiences: the operator UI (create / start / pause / resume /
  * cancel / steer / read), the XTM One orchestrator callbacks (events / status / directive
@@ -89,12 +91,17 @@ public class AutonomousRunApi extends RestBehavior {
 
   // region operator UI
 
-  @Operation(summary = "List objective templates for the run-creation gallery")
+  @Operation(
+      summary = "List objective templates for the run-creation gallery",
+      description =
+          "Materialises the built-in catalog for the selected tenant on first read, then lists what"
+              + " that tenant holds. The scope must pin a single tenant, since the catalog is"
+              + " per-tenant and the seed attributes its rows.")
   @GetMapping("/objective-templates")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public List<AutonomousObjectiveTemplate> objectiveTemplates(TxCtx ctx) {
-    return autonomousRunService.objectiveTemplates();
+  public List<AutonomousObjectiveTemplate> objectiveTemplates(@RequireTenantSelector TxCtx ctx) {
+    return autonomousRunService.objectiveTemplates(ctx);
   }
 
   @Operation(
