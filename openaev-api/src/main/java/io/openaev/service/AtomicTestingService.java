@@ -28,7 +28,10 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -139,7 +142,7 @@ public class AtomicTestingService {
     injectToSave.setAssetGroups(
         fromIterable(this.assetGroupRepository.findAllById(input.getAssetGroups())));
     injectToSave.setSecretReferences(
-        fromIterable(this.secretReferenceRepository.findAllById(input.getSecretReferences())));
+        fromIterable(secretReferenceRepository.findAllById(input.getSecretReferences())));
 
     injectToSave.getDocuments().clear();
 
