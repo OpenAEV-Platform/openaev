@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 class ThreatArsenalListPage {
   readonly page: Page;
@@ -24,7 +24,16 @@ class ThreatArsenalListPage {
   }
 
   async openCreateThreatArsenal() {
-    await this.addButton.click();
+    await expect(async () => {
+      await this.addButton.click();
+      await expect(this.page.getByRole('heading', {
+        name: 'Create a new action',
+        exact: true,
+      })).toBeVisible({ timeout: 5_000 });
+    }).toPass({
+      intervals: [1_000],
+      timeout: 60_000,
+    });
   }
 
   async searchThreatArsenal(search: string) {

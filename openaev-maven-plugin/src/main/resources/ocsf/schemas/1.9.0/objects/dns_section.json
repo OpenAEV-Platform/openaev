@@ -1,0 +1,33 @@
+{
+  "attributes" : {
+    "tsig" : {
+      "type" : "object_t",
+      "description" : "The TSIG (Transaction Signature) record present in this DNS section, used to authenticate the entire DNS message. Per RFC 2845, at most one TSIG record is permitted per DNS message.",
+      "requirement" : "optional",
+      "caption" : "TSIG",
+      "object_type" : "tsig",
+      "object_name" : "TSIG"
+    },
+    "records" : {
+      "type" : "object_t",
+      "description" : "The resource records contained in this DNS section.",
+      "is_array" : true,
+      "requirement" : "required",
+      "caption" : "Resource Records",
+      "object_type" : "dns_resource_record",
+      "object_name" : "DNS Resource Record"
+    }
+  },
+  "name" : "dns_section",
+  "description" : "The DNS Section object represents a DNS message section that carries supplementary resource records alongside an optional TSIG record. It is used for both the client Additional section (<code>query_additional</code>) and the server Additional section (<code>response_additional</code>) of a DNS message. A DNS message has at most one TSIG record, which authenticates the entire message.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "RFC 1035 — DNS Implementation and Specification.",
+    "url" : "https://www.rfc-editor.org/rfc/rfc1035.txt"
+  }, {
+    "description" : "RFC 2845 — Secret Key Transaction Authentication for DNS (TSIG).",
+    "url" : "https://www.rfc-editor.org/rfc/rfc2845"
+  } ],
+  "caption" : "DNS Section",
+  "_links" : [ ]
+}

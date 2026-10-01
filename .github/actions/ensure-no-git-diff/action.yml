@@ -1,0 +1,12 @@
+name: Ensure no git diff
+description: Ensures there is no git diff in the local copy
+
+
+runs:
+  using: composite
+  steps:
+    - name: Check git diff and error if non zero
+      id: no-git-diff
+      run: |
+        git diff --exit-code
+      shell: bash

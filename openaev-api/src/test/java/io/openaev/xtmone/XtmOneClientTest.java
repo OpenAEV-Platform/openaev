@@ -6,16 +6,26 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NullNode;
+import io.jsonwebtoken.Jwts;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.service.xtm_auth.XtmAuthKeyService;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
@@ -124,8 +134,8 @@ class XtmOneClientTest {
 
     static Stream<Arguments> errorStatusCodes() {
       return Stream.of(
-          Arguments.of(401, 401, "UNAUTHORIZED"),
-          Arguments.of(403, 403, "FORBIDDEN"),
+          Arguments.of(401, 422, "UNPROCESSABLE_ENTITY"),
+          Arguments.of(403, 422, "UNPROCESSABLE_ENTITY"),
           Arguments.of(503, 503, "SERVICE_UNAVAILABLE"),
           Arguments.of(502, 500, "INTERNAL_SERVER_ERROR (default)"));
     }
@@ -504,6 +514,357 @@ class XtmOneClientTest {
               ResponseStatusException.class,
               () -> xtmOneClient.steerChatMessage("hello", "conv-1"));
       assertEquals(500, ex.getStatusCode().value());
+    }
+  }
+
+  @Nested
+  @DisplayName("getChatPrompts")
+  class GetChatPrompts {
+
+    @Test
+    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
+    void given_notConfigured_should_throwServiceUnavailable() {
+      when(config.isConfigured()).thenReturn(false);
+
+      ResponseStatusException ex =
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatPrompts());
+      assertEquals(503, ex.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns 200 should return the payload read as the current user")
+    @SuppressWarnings("unchecked")
+    void given_returns200_should_returnPayload() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      Map<String, Object> payload = Map.of("prompts", List.of(Map.of("id", "p-1")));
+      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(payload);
+
+      // -- ACT --
+      Map<String, Object> result = xtmOneClient.getChatPrompts();
+
+      // -- ASSERT --
+      assertEquals(payload, result);
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("GET", request.getMethod());
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/prompts"));
+      assertEquals("Bearer fake-jwt", request.getFirstHeader("Authorization").getValue());
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns 404 should propagate 404")
+    void given_upstreamNotFound_should_preserveStatusCode() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(404);
+
+      // -- ACT & ASSERT --
+      ResponseStatusException ex =
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatPrompts());
+      assertEquals(404, ex.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("Given the connection fails should throw INTERNAL_SERVER_ERROR")
+    void given_connectionFails_should_throwInternalServerError() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
+          .thenThrow(new IOException("Connection refused"));
+
+      // -- ACT & ASSERT --
+      ResponseStatusException ex =
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatPrompts());
+      assertEquals(500, ex.getStatusCode().value());
+    }
+  }
+
+  @Nested
+  @DisplayName("getChatQuota")
+  class GetChatQuota {
+
+    @Test
+    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
+    void given_notConfigured_should_throwServiceUnavailable() {
+      when(config.isConfigured()).thenReturn(false);
+
+      ResponseStatusException ex =
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatQuota());
+      assertEquals(503, ex.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns a quota object should return it")
+    void given_quotaObject_should_returnIt() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      JsonNode quota = JsonNodeFactory.instance.objectNode().put("used", 3).put("limit", 10);
+      when(objectMapper.readTree(anyString())).thenReturn(quota);
+
+      // -- ACT --
+      JsonNode result = xtmOneClient.getChatQuota();
+
+      // -- ASSERT --
+      assertEquals(quota, result);
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/quota"));
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns null (nothing to show) should return a null node")
+    void given_nullQuota_should_returnNullNode() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(200);
+      when(objectMapper.readTree(anyString())).thenReturn(NullNode.getInstance());
+
+      // -- ACT & ASSERT --
+      assertTrue(xtmOneClient.getChatQuota().isNull());
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns something other than an object should return a null node")
+    void given_nonObjectQuota_should_returnNullNode() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(200);
+      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.arrayNode());
+
+      // -- ACT & ASSERT --
+      assertTrue(xtmOneClient.getChatQuota().isNull());
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns 503 should propagate 503")
+    void given_upstreamUnavailable_should_preserveStatusCode() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(503);
+
+      // -- ACT & ASSERT --
+      ResponseStatusException ex =
+          assertThrows(ResponseStatusException.class, () -> xtmOneClient.getChatQuota());
+      assertEquals(503, ex.getStatusCode().value());
+    }
+  }
+
+  @Nested
+  @DisplayName("submitMessageFeedback")
+  class SubmitMessageFeedback {
+
+    @Test
+    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
+    void given_notConfigured_should_throwServiceUnavailable() {
+      when(config.isConfigured()).thenReturn(false);
+
+      ResponseStatusException ex =
+          assertThrows(
+              ResponseStatusException.class,
+              () -> xtmOneClient.submitMessageFeedback("conv-1", "msg-1", "positive", null));
+      assertEquals(503, ex.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns 200 should post the rating and return the stored one")
+    @SuppressWarnings("unchecked")
+    void given_returns200_should_postRatingAndReturnPayload() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(200);
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
+      Map<String, Object> payload = Map.of("rating", "negative", "comment", "Wrong CVE");
+      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(payload);
+
+      // -- ACT --
+      Map<String, Object> result =
+          xtmOneClient.submitMessageFeedback("conv-1", "msg-1", "negative", "Wrong CVE");
+
+      // -- ASSERT --
+      assertEquals(payload, result);
+      assertEquals(Map.of("rating", "negative", "comment", "Wrong CVE"), bodyCaptor.getValue());
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("POST", request.getMethod());
+      assertTrue(
+          request
+              .getUri()
+              .toString()
+              .endsWith("/api/v1/platform/chat/conversations/conv-1/messages/msg-1/feedback"));
+    }
+
+    @Test
+    @DisplayName("Given no comment should send an explicit null comment")
+    @SuppressWarnings("unchecked")
+    void given_noComment_should_sendNullComment() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(200);
+      ArgumentCaptor<Map<String, Object>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+      when(objectMapper.writeValueAsString(bodyCaptor.capture())).thenReturn("{}");
+      when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(Map.of());
+
+      // -- ACT --
+      xtmOneClient.submitMessageFeedback("conv-1", "msg-1", "positive", null);
+
+      // -- ASSERT --
+      assertTrue(bodyCaptor.getValue().containsKey("comment"));
+      assertNull(bodyCaptor.getValue().get("comment"));
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns 404 (message not readable) should propagate 404")
+    void given_upstreamNotFound_should_preserveStatusCode() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(404);
+      when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+
+      // -- ACT & ASSERT --
+      ResponseStatusException ex =
+          assertThrows(
+              ResponseStatusException.class,
+              () -> xtmOneClient.submitMessageFeedback("conv-1", "msg-1", "positive", null));
+      assertEquals(404, ex.getStatusCode().value());
+    }
+  }
+
+  @Nested
+  @DisplayName("retractMessageFeedback")
+  class RetractMessageFeedback {
+
+    @Test
+    @DisplayName("Given not configured should throw SERVICE_UNAVAILABLE")
+    void given_notConfigured_should_throwServiceUnavailable() {
+      when(config.isConfigured()).thenReturn(false);
+
+      ResponseStatusException ex =
+          assertThrows(
+              ResponseStatusException.class,
+              () -> xtmOneClient.retractMessageFeedback("conv-1", "msg-1"));
+      assertEquals(503, ex.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns 204 should send a DELETE to the message feedback")
+    void given_returns204_should_deleteFeedback() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(204);
+
+      // -- ACT --
+      xtmOneClient.retractMessageFeedback("conv-1", "msg-1");
+
+      // -- ASSERT --
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("DELETE", request.getMethod());
+      assertTrue(
+          request
+              .getUri()
+              .toString()
+              .endsWith("/api/v1/platform/chat/conversations/conv-1/messages/msg-1/feedback"));
+      assertEquals("Bearer fake-jwt", request.getFirstHeader("Authorization").getValue());
+    }
+
+    @Test
+    @DisplayName("Given ids with path characters should URL-encode each segment")
+    void given_pathCharacters_should_urlEncodeSegments() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(204);
+
+      // -- ACT --
+      xtmOneClient.retractMessageFeedback("a/..", "b c");
+
+      // -- ASSERT --
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertTrue(
+          request
+              .getUri()
+              .toString()
+              .endsWith("/api/v1/platform/chat/conversations/a%2F../messages/b%20c/feedback"));
+    }
+
+    @Test
+    @DisplayName("Given XTM One returns 404 should propagate 404")
+    void given_upstreamNotFound_should_preserveStatusCode() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      mockExchange(404);
+
+      // -- ACT & ASSERT --
+      ResponseStatusException ex =
+          assertThrows(
+              ResponseStatusException.class,
+              () -> xtmOneClient.retractMessageFeedback("conv-1", "msg-1"));
+      assertEquals(404, ex.getStatusCode().value());
+    }
+  }
+
+  @Nested
+  @DisplayName("issueAuthenticationJwt")
+  class IssueAuthenticationJwt {
+
+    private static final String INTERNAL_URL = "http://xtm-one:4000";
+    private static final String PUBLIC_ISSUER = "http://localhost:8090";
+
+    /** The audience of a token OpenAEV sends to XTM One reached on its internal URL. */
+    @SuppressWarnings("unchecked")
+    private Set<String> audienceWhenTheMetadataAnswers(Object answer) throws Exception {
+      XtmOneConfig xtmOneConfig = new XtmOneConfig();
+      xtmOneConfig.setUrl(INTERNAL_URL);
+      OpenAEVConfig openAEVConfig = new OpenAEVConfig();
+      openAEVConfig.setBaseUrl("http://localhost:8080");
+      KeyPair keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+      XtmAuthKeyService keyService = mock(XtmAuthKeyService.class);
+      when(keyService.getKid()).thenReturn("openaev");
+      when(keyService.getKeyPair()).thenReturn(keyPair);
+      when(httpClientFactory.httpClientNoRetry(any())).thenReturn(httpClient);
+      var metadata =
+          when(
+              httpClient.execute(
+                  (ClassicHttpRequest) any(), (HttpClientResponseHandler<String>) any()));
+      if (answer instanceof Exception failure) {
+        metadata.thenThrow(failure);
+      } else {
+        metadata.thenReturn((String) answer);
+      }
+      ObjectMapper mapper = new ObjectMapper();
+      XtmOneClient client =
+          new XtmOneClient(
+              xtmOneConfig,
+              mapper,
+              keyService,
+              openAEVConfig,
+              httpClientFactory,
+              null,
+              new XtmOneIdentity(xtmOneConfig, httpClientFactory, mapper));
+
+      String jwt = client.issueAuthenticationJwt("user-1", "Analyst", "analyst@example.com");
+
+      return Jwts.parser()
+          .verifyWith(keyPair.getPublic())
+          .build()
+          .parseSignedClaims(jwt)
+          .getPayload()
+          .getAudience();
+    }
+
+    @Test
+    @DisplayName("Given XTM One publishes its identity should address the token to it")
+    void given_publishedIdentity_should_addressTheTokenToIt() throws Exception {
+      assertEquals(
+          Set.of(PUBLIC_ISSUER),
+          audienceWhenTheMetadataAnswers("{\"issuer\":\"" + PUBLIC_ISSUER + "/\"}"));
+    }
+
+    @Test
+    @DisplayName("Given XTM One publishes no identity should address the token to its URL")
+    void given_noPublishedIdentity_should_addressTheTokenToTheConfiguredUrl() throws Exception {
+      assertEquals(
+          Set.of(INTERNAL_URL),
+          audienceWhenTheMetadataAnswers(new XtmOneIdentity.IdentityNotPublished()));
     }
   }
 }

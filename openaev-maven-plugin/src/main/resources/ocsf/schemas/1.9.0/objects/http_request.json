@@ -1,0 +1,264 @@
+{
+  "attributes" : {
+    "args" : {
+      "type" : "string_t",
+      "description" : "The arguments sent along with the HTTP request.",
+      "requirement" : "optional",
+      "caption" : "HTTP Arguments",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The Hypertext Transfer Protocol (HTTP) version.",
+      "requirement" : "recommended",
+      "caption" : "HTTP Version",
+      "type_name" : "String"
+    },
+    "length" : {
+      "type" : "integer_t",
+      "description" : "The length of the entire HTTP request, in number of bytes.",
+      "requirement" : "optional",
+      "caption" : "Request Length",
+      "type_name" : "Integer"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the http request.",
+      "requirement" : "optional",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "url" : {
+      "type" : "object_t",
+      "description" : "The URL object that pertains to the request.",
+      "requirement" : "recommended",
+      "caption" : "URL",
+      "object_type" : "url",
+      "object_name" : "Uniform Resource Locator"
+    },
+    "x_forwarded_for" : {
+      "type" : "ip_t",
+      "description" : "The X-Forwarded-For header identifying the originating IP address(es) of a client connecting to a web server through an HTTP proxy or a load balancer.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "X-Forwarded-For",
+      "type_name" : "IP Address"
+    },
+    "body_length" : {
+      "type" : "integer_t",
+      "description" : "The actual length of the HTTP request body, in number of bytes, independent of a potentially existing Content-Length header.",
+      "requirement" : "optional",
+      "caption" : "Request Body Length",
+      "type_name" : "Integer"
+    },
+    "user_agent" : {
+      "type" : "string_t",
+      "description" : "The request header that identifies the operating system and web browser.",
+      "requirement" : "recommended",
+      "caption" : "HTTP User-Agent",
+      "type_name" : "String",
+      "observable" : 16
+    },
+    "http_headers" : {
+      "type" : "object_t",
+      "description" : "Additional HTTP headers of an HTTP request or response.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "HTTP Headers",
+      "object_type" : "http_header",
+      "object_name" : "HTTP Header"
+    },
+    "http_method" : {
+      "type" : "string_t",
+      "enum" : {
+        "ORDERPATCH" : {
+          "description" : "The ORDERPATCH method changes the ordering of members in an ordered collection.",
+          "caption" : "Order Patch"
+        },
+        "MKACTIVITY" : {
+          "description" : "The MKACTIVITY method creates a new activity resource.",
+          "caption" : "Make Activity"
+        },
+        "ACL" : {
+          "description" : "The ACL method modifies the access control list of the specified resource.",
+          "caption" : "ACL"
+        },
+        "HEAD" : {
+          "description" : "The HEAD method asks for a response identical to a GET request, but without the response body.",
+          "caption" : "Head"
+        },
+        "UPDATE" : {
+          "description" : "The UPDATE method updates a version-controlled resource to match a specified version.",
+          "caption" : "Update"
+        },
+        "LINK" : {
+          "description" : "The LINK method establishes one or more links between resources.",
+          "caption" : "Link"
+        },
+        "MKWORKSPACE" : {
+          "description" : "The MKWORKSPACE method creates a new workspace resource.",
+          "caption" : "Make Workspace"
+        },
+        "MKCALENDAR" : {
+          "description" : "The MKCALENDAR method creates a new calendar collection resource.",
+          "caption" : "Make Calendar"
+        },
+        "PATCH" : {
+          "description" : "The PATCH method applies partial modifications to a resource.",
+          "caption" : "Patch"
+        },
+        "MOVE" : {
+          "description" : "The MOVE method atomically duplicates and deletes the specified resource.",
+          "caption" : "Move"
+        },
+        "QUERY" : {
+          "description" : "The QUERY method performs a safe query request that can include a request body.",
+          "caption" : "Query"
+        },
+        "MKREDIRECTREF" : {
+          "description" : "The MKREDIRECTREF method creates a new redirect reference resource.",
+          "caption" : "Make Redirect Reference"
+        },
+        "UPDATEREDIRECTREF" : {
+          "description" : "The UPDATEREDIRECTREF method changes the target of a redirect reference resource.",
+          "caption" : "Update Redirect Reference"
+        },
+        "OPTIONS" : {
+          "description" : "The OPTIONS method describes the communication options for the target resource.",
+          "caption" : "Options"
+        },
+        "TRACE" : {
+          "description" : "The TRACE method performs a message loop-back test along the path to the target resource.",
+          "caption" : "Trace"
+        },
+        "PROPPATCH" : {
+          "description" : "The PROPPATCH method sets and/or removes properties defined on the specified resource.",
+          "caption" : "Property Patch"
+        },
+        "SEARCH" : {
+          "description" : "The SEARCH method searches a resource or collection using the request payload.",
+          "caption" : "Search"
+        },
+        "BIND" : {
+          "description" : "The BIND method adds a binding to the specified collection resource.",
+          "caption" : "Bind"
+        },
+        "PROPFIND" : {
+          "description" : "The PROPFIND method retrieves properties defined on the specified resource.",
+          "caption" : "Property Find"
+        },
+        "PUT" : {
+          "description" : "The PUT method replaces all current representations of the target resource with the request payload.",
+          "caption" : "Put"
+        },
+        "MERGE" : {
+          "description" : "The MERGE method merges changes from another resource into the specified resource.",
+          "caption" : "Merge"
+        },
+        "POST" : {
+          "description" : "The POST method submits an entity to the specified resource, often causing a change in state or side effects on the server.",
+          "caption" : "Post"
+        },
+        "LABEL" : {
+          "description" : "The LABEL method adds, sets, or removes labels on a version-controlled resource.",
+          "caption" : "Label"
+        },
+        "UNLINK" : {
+          "description" : "The UNLINK method removes one or more links between resources.",
+          "caption" : "Unlink"
+        },
+        "CONNECT" : {
+          "description" : "The CONNECT method establishes a tunnel to the server identified by the target resource.",
+          "caption" : "Connect"
+        },
+        "CHECKIN" : {
+          "description" : "The CHECKIN method creates a new version from a checked-out version-controlled resource.",
+          "caption" : "Check In"
+        },
+        "COPY" : {
+          "description" : "The COPY method duplicates the specified resource.",
+          "caption" : "Copy"
+        },
+        "GET" : {
+          "description" : "The GET method requests a representation of the specified resource. Requests using GET should only retrieve data.",
+          "caption" : "Get"
+        },
+        "REPORT" : {
+          "description" : "The REPORT method retrieves a report about the specified resource.",
+          "caption" : "Report"
+        },
+        "VERSION-CONTROL" : {
+          "description" : "The VERSION-CONTROL method places the specified resource under version control.",
+          "caption" : "Version Control"
+        },
+        "REBIND" : {
+          "description" : "The REBIND method moves a binding from one collection to another.",
+          "caption" : "Rebind"
+        },
+        "PRI" : {
+          "description" : "The PRI method appears in the HTTP/2 connection preface to confirm the protocol.",
+          "caption" : "PRI"
+        },
+        "CHECKOUT" : {
+          "description" : "The CHECKOUT method prepares a version-controlled resource for modification.",
+          "caption" : "Check Out"
+        },
+        "LOCK" : {
+          "description" : "The LOCK method acquires or refreshes a lock on the specified resource.",
+          "caption" : "Lock"
+        },
+        "BASELINE-CONTROL" : {
+          "description" : "The BASELINE-CONTROL method places the specified collection resource under baseline control.",
+          "caption" : "Baseline Control"
+        },
+        "UNBIND" : {
+          "description" : "The UNBIND method removes a binding from the specified collection resource.",
+          "caption" : "Unbind"
+        },
+        "MKCOL" : {
+          "description" : "The MKCOL method creates a new collection resource.",
+          "caption" : "Make Collection"
+        },
+        "UNLOCK" : {
+          "description" : "The UNLOCK method releases a lock on the specified resource.",
+          "caption" : "Unlock"
+        },
+        "UNCHECKOUT" : {
+          "description" : "The UNCHECKOUT method cancels a checkout and restores the resource to its previous state.",
+          "caption" : "Un-Check Out"
+        },
+        "DELETE" : {
+          "description" : "The DELETE method deletes the specified resource.",
+          "caption" : "Delete"
+        }
+      },
+      "description" : "The HTTP request method indicates the desired action to be performed for a given resource.",
+      "references" : [ {
+        "description" : "IANA HTTP Method Registry",
+        "url" : "https://www.iana.org/assignments/http-methods/http-methods.xhtml"
+      }, {
+        "description" : "HTTP Request method",
+        "url" : "https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "HTTP Method",
+      "type_name" : "String"
+    },
+    "referrer" : {
+      "type" : "string_t",
+      "description" : "The request header that identifies the address of the previous web page, which is linked to the current web page or resource being requested.",
+      "requirement" : "optional",
+      "caption" : "HTTP Referrer",
+      "type_name" : "String"
+    }
+  },
+  "name" : "http_request",
+  "description" : "The HTTP Request object represents the attributes of a request made to a web server. It encapsulates the details and metadata associated with an HTTP request, including the request method, headers, URL, query parameters, body content, and other relevant information.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:OutboundInternetNetworkTraffic.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:OutboundInternetNetworkTraffic/"
+  } ],
+  "caption" : "HTTP Request",
+  "_links" : [ ]
+}

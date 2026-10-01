@@ -1,0 +1,129 @@
+{
+  "attributes" : {
+    "status" : {
+      "type" : "string_t",
+      "description" : "The status of the ticket normalized to the caption of the <code>status_id</code> value. In the case of <code>99</code>, this value should as defined by the source.",
+      "requirement" : "optional",
+      "caption" : "Ticket Status",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The linked ticket type determines whether the ticket is internal or in an external ticketing system.",
+      "requirement" : "optional",
+      "caption" : "Ticket Type",
+      "type_name" : "String"
+    },
+    "title" : {
+      "type" : "string_t",
+      "description" : "The title of the ticket.",
+      "requirement" : "optional",
+      "caption" : "Title",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "Unique identifier of the ticket.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "0" : {
+          "description" : "The type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Internal"
+        },
+        "2" : {
+          "caption" : "External"
+        },
+        "99" : {
+          "description" : "The type is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized identifier for the ticket type.",
+      "requirement" : "optional",
+      "caption" : "Ticket Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The url of a ticket in the ticket system.",
+      "requirement" : "recommended",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    },
+    "status_details" : {
+      "type" : "string_t",
+      "description" : "A list of contextual descriptions of the <code>status, status_id</code> values.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Status Details",
+      "type_name" : "String"
+    },
+    "status_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Relevant parties have been notified about the ticket.",
+          "caption" : "Notified"
+        },
+        "6" : {
+          "description" : "The ticket has been completed and closed.",
+          "caption" : "Closed"
+        },
+        "0" : {
+          "description" : "The status is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The ticket is new and yet to be reviewed.",
+          "caption" : "New"
+        },
+        "2" : {
+          "description" : "The ticket is actively being worked on.",
+          "caption" : "In Progress"
+        },
+        "99" : {
+          "description" : "The status is not mapped. See the <code>status</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Work on the ticket is temporarily suspended.",
+          "caption" : "On Hold"
+        },
+        "5" : {
+          "description" : "The ticket is resolved and a solution is implemented, pending confirmation or verification from the requestor.",
+          "caption" : "Resolved"
+        },
+        "7" : {
+          "description" : "The ticket has been canceled and will not be processed.",
+          "caption" : "Canceled"
+        },
+        "8" : {
+          "description" : "The ticket was previously closed, but has been reopened.",
+          "caption" : "Reopened"
+        }
+      },
+      "description" : "The normalized identifier for the ticket status.",
+      "requirement" : "optional",
+      "caption" : "Ticket Status ID",
+      "sibling" : "status",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "ticket",
+  "description" : "The Ticket object represents ticket in the customer's IT Service Management (ITSM) systems like ServiceNow, Jira, etc.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "src_url", "uid" ]
+  },
+  "caption" : "Ticket",
+  "_links" : [ ]
+}

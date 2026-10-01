@@ -522,6 +522,32 @@ describe('url-helper', () => {
       expect(result).toBe('/api/settings');
     });
 
+    it('given a public player page carrying the tenant should build a tenant scoped player API URI', async () => {
+      // Arrange: the link the platform mails carries the simulation tenant as the first segment
+      const simulationId = faker.string.uuid();
+      setPathname(`/${VALID_UUID}/challenges/${simulationId}`);
+      const { buildTenantApiPath } = await importHelper();
+
+      // Act
+      const result = buildTenantApiPath(`/api/player/simulations/${simulationId}/documents`);
+
+      // Assert
+      expect(result).toBe(`/api/tenants/${VALID_UUID}/player/simulations/${simulationId}/documents`);
+    });
+
+    it('given a public player page with no tenant segment should fall back to the default tenant', async () => {
+      // Arrange
+      const simulationId = faker.string.uuid();
+      setPathname(`/challenges/${simulationId}`);
+      const { buildTenantApiPath, DEFAULT_TENANT_UUID } = await importHelper();
+
+      // Act
+      const result = buildTenantApiPath(`/api/player/simulations/${simulationId}/documents`);
+
+      // Assert
+      expect(result).toBe(`/api/tenants/${DEFAULT_TENANT_UUID}/player/simulations/${simulationId}/documents`);
+    });
+
     it('given xtmComposer API path should build scoped API URI', async () => {
       // Arrange
       setPathname(`/${VALID_UUID}/admin/tags`);

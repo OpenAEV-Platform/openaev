@@ -10030,7 +10030,7 @@ export interface PlatformSettings {
   platform_whitemark?: string;
   /** True if XTM One is configured (url and token set) */
   platform_xtm_one_configured?: boolean;
-  /** XTM One platform URL */
+  /** URL a browser opens XTM One on: the identity it publishes, else its configured URL */
   platform_xtm_one_url?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;

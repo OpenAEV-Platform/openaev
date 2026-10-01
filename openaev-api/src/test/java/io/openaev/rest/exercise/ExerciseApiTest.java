@@ -144,6 +144,38 @@ public class ExerciseApiTest extends IntegrationTest {
     assertEquals(customDashboardSaved.getId(), newExercise.getCustomDashboard().getId());
   }
 
+  @DisplayName("Create exercise on the non-prefixed route with no ambient tenant")
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void given_noAmbientTenantOnNonPrefixedRoute_should_createExerciseUnderDefaultTenant()
+      throws Exception {
+    // -- PREPARE --
+    // TenantInterceptor never sets an ambient tenant for this route: reproduce that thread state
+    // instead of relying on the test fixture's DefaultTenantExtension.
+    TenantContext.clearCurrentTenant();
+    ExerciseInput exerciseInput = new ExerciseInput();
+    exerciseInput.setName("My non-prefixed exercise");
+
+    // -- EXECUTE --
+    String response =
+        this.mvc
+            .perform(
+                post(EXERCISE_URI)
+                    .content(asJsonString(exerciseInput))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    String newExerciseId = JsonPath.read(response, "$.exercise_id");
+    Exercise newExercise = this.exerciseRepository.findById(newExerciseId).orElseThrow();
+    assertEquals(Tenant.DEFAULT_TENANT_UUID, newExercise.getTenant().getId());
+  }
+
   @DisplayName("Create chained exercise fails without enterprise edition")
   @Test
   @WithMockUser(

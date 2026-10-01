@@ -88,6 +88,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -231,6 +232,18 @@ public class ExerciseService {
     return this.exerciseRepository
         .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+  }
+
+  /**
+   * Initializes the lazy {@code exercise_documents} a raw {@link Exercise} response serializes as
+   * an id array. Serialization runs open-in-view after the controller transaction has committed,
+   * where the tenant scope no longer exists: a lazy load at that point fails closed and the array
+   * comes back empty. Call it on the endpoints that manage the exercise documents and return the
+   * entity.
+   */
+  public Exercise withDocumentLinksInitialized(Exercise exercise) {
+    Hibernate.initialize(exercise.getDocuments());
+    return exercise;
   }
 
   public RawSimulationIndexing rawSimulation(@NotBlank final String simulationId) {
@@ -600,11 +613,12 @@ public class ExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
-    // Attack-path rows have no FK to the simulation, so the native exercise delete does not cascade
-    // them: clear them explicitly under the caller's tenant (same primitive as the reset path),
-    // otherwise a deleted simulation leaves orphan attack-path executions and findings behind.
-    attackPathExecutionService.deleteAllBySimulationId(
-        simulationId, TenantContext.getCurrentTenant());
+
+    if (workflowService.isSimulationChaining(simulationId)) {
+      workflowService.deleteSimulationDeleteWorkflows(simulationId);
+      log.info("[Chaining] Workflow TEMPLATE will be deleted for simulation {}", simulationId);
+    }
+
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
     // must be notified explicitly or the simulation (and its cascade-deleted injects,
@@ -751,16 +765,11 @@ public class ExerciseService {
             }
           });
       if (workflowService.isSimulationChaining(exercise.getId())) {
-        // DELETE workflow states
-        workflowService.resetSimulationDeleteWorkflow(exercise.getId());
+        // DELETE workflow execution
+        workflowService.resetSimulationDeleteWorkflowExecution(exercise.getId());
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
-        // Delete attack path execution
-        this.attackPathExecutionService.deleteAllBySimulationId(
-            exercise.getId(), exercise.getTenant().getId());
-        // Clean scope rules of the simulation
-        workflowService.cleanScopeRulesSimulation(exercise.getId());
       }
       urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
@@ -844,8 +853,8 @@ public class ExerciseService {
     // 3. RESET LESSONS ANSWERS
     lessonsService.resetLessonsAnswer(exercise.getId());
 
-    // 4. CLEAR WORKFLOW STATES
-    workflowService.resetSimulationDeleteWorkflow(exercise.getId());
+    // 4. CLEAR WORKFLOW EXECUTION
+    workflowService.resetSimulationDeleteWorkflowExecution(exercise.getId());
 
     // 5. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
     TransactionSynchronizationManager.registerSynchronization(

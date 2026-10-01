@@ -125,7 +125,12 @@ public class ExportService {
             docId -> {
               Document doc =
                   documentRepository.findById(docId).orElseThrow(ElementNotFoundException::new);
-              Optional<InputStream> docStream = fileService.getFile(doc);
+              // Include a document's bytes only when it belongs to the exercise's tenant: a
+              // document
+              // bound from another tenant is skipped, as if the object were missing.
+              Optional<InputStream> docStream =
+                  fileService.getFile(
+                      doc, exercise.getTenant() == null ? null : exercise.getTenant().getId());
               if (docStream.isPresent()) {
                 try {
                   ZipEntry zipDoc = new ZipEntry(doc.getTarget());

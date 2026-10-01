@@ -1,0 +1,24 @@
+{
+  "attributes" : {
+    "decision" : {
+      "type" : "string_t",
+      "description" : "Authorization Result/outcome, e.g. allowed, denied.",
+      "requirement" : "recommended",
+      "caption" : "Authorization Decision/Outcome",
+      "type_name" : "String"
+    },
+    "policy" : {
+      "type" : "object_t",
+      "description" : "Details about the Identity/Access management policies that are applicable.",
+      "requirement" : "optional",
+      "caption" : "Policy",
+      "object_type" : "policy",
+      "object_name" : "Policy"
+    }
+  },
+  "name" : "authorization",
+  "description" : "The Authorization Result object provides details about the authorization outcome and associated policies related to activity.",
+  "extends" : "object",
+  "caption" : "Authorization Result",
+  "_links" : [ ]
+}
