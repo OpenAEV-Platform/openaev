@@ -2970,6 +2970,7 @@ class WorkflowServiceTest {
     void given_singleRunWithActiveSteps_should_endItAndCleanUpDependencies() {
       // Arrange
       Exercise simulation = exerciseWithId("sim-1");
+      simulation.setTenant(new Tenant(TENANT));
       Workflow run =
           Workflow.builder()
               .id("wf-run-1")
@@ -2978,10 +2979,7 @@ class WorkflowServiceTest {
               .build();
 
       // Act
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
-        workflowService.cancelSimulationEndWorkflowRun(List.of(run));
-      }
+      workflowService.cancelSimulationEndWorkflowRun(List.of(run));
 
       // Assert
       assertEquals(WorkflowStatus.END, run.getStatus());
@@ -2999,7 +2997,9 @@ class WorkflowServiceTest {
     void given_multipleRuns_should_endEachRunIndependently() {
       // Arrange
       Exercise simulation1 = exerciseWithId("sim-1");
+      simulation1.setTenant(new Tenant(TENANT));
       Exercise simulation2 = exerciseWithId("sim-2");
+      simulation2.setTenant(new Tenant(TENANT));
       Workflow run1 =
           Workflow.builder()
               .id("wf-run-1")
@@ -3014,10 +3014,7 @@ class WorkflowServiceTest {
               .build();
 
       // Act
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
-        workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
-      }
+      workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
 
       // Assert
       assertEquals(WorkflowStatus.END, run1.getStatus());

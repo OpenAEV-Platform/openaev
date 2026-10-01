@@ -12,6 +12,7 @@ import io.openaev.api.asset.AssetMarkingsService;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.custom_dashboard.CustomDashboardApiExporter;
 import io.openaev.api.custom_dashboard.CustomDashboardApiImporter;
+import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.api.marking_definition.MarkingDefinitionApi;
 import io.openaev.api.notification.NotificationApi;
 import io.openaev.api.notification_trigger.NotificationTriggerMapper;
@@ -33,11 +34,14 @@ import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.CustomDashboardRepository;
+import io.openaev.database.repository.CustomDomainRepository;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.ExecutorRepository;
@@ -52,11 +56,15 @@ import io.openaev.database.repository.NotificationEventRecordRepository;
 import io.openaev.database.repository.NotificationRepository;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.database.repository.NotifierRepository;
+import io.openaev.database.repository.PhishingEmailTemplateRepository;
+import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.WidgetRepository;
+import io.openaev.database.repository.attackpath.AttackPathExecutionCollectorRepository;
+import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
@@ -74,16 +82,23 @@ import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorContextService;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService;
 import io.openaev.executors.tanium.service.TaniumExecutorContextService;
+import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
 import io.openaev.importer.V1_DataImporter;
 import io.openaev.injectors.challenge.ChallengeExecutor;
 import io.openaev.injectors.channel.ChannelExecutor;
+import io.openaev.injectors.phishing.PhishingExecutor;
+import io.openaev.injectors.phishing.service.PhishingEmailTemplateService;
 import io.openaev.injectors.phishing.service.PhishingLandingPageService;
 import io.openaev.integration.ManagerFactory;
+import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration;
+import io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegrationFactory;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegration;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.phishing.PhishingInjectorIntegration;
+import io.openaev.integration.impl.injectors.phishing.PhishingInjectorIntegrationFactory;
 import io.openaev.integration.migration.ConfigurationMigration;
 import io.openaev.notification.engine.NotificationDigestService;
 import io.openaev.notification.engine.NotificationDispatchService;
@@ -96,6 +111,7 @@ import io.openaev.processor.datapack.V20260101_Starter_pack;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.processor.datapack.V20260708_Dynamic_injectors_base_url;
 import io.openaev.processor.datapack.V20260914_Default_tenant_markings;
+import io.openaev.rest.asset.endpoint.EndpointApi;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.attack_pattern.AttackPatternApi;
@@ -133,6 +149,7 @@ import io.openaev.rest.inject.ScenarioInjectApi;
 import io.openaev.rest.inject.SimulationInjectApi;
 import io.openaev.rest.inject.exports.InjectsFileExport;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi;
 import io.openaev.rest.injector.InjectorApi;
@@ -173,6 +190,7 @@ import io.openaev.service.TenantGroupService;
 import io.openaev.service.attackpath.AttackPathCausalSeedService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
+import io.openaev.service.attackpath.AttackPathSecurityPlatformResolver;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.autonomous.AutonomousEventService;
@@ -181,13 +199,16 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.chaining.ScopeSnapshotService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.notification.NotificationService;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.service.notification.NotifierService;
+import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
@@ -272,7 +293,14 @@ class TenantActiveTableAccessArchTest {
           "assets",
           "notifiers",
           "notification_triggers",
-          "notification_events");
+          "notification_events",
+          "custom_domains",
+          "collector_types",
+          "phishing_email_templates",
+          "phishing_landing_pages",
+          "attackpath_execution_collector",
+          "attackpath_execution_remediation",
+          "asset_agent_jobs");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -1676,4 +1704,163 @@ class TenantActiveTableAccessArchTest {
           .because(
               "autonomous_directives is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule asset_agent_jobs_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              // getEndpointJobs (both), cleanupAssetAgentJob (both), upsertEndpoint/register.
+              EndpointApi.class,
+              // Register/getEndpointJobs write and read path behind EndpointApi; every write sets
+              // tenant explicitly from the owning agent, so it does not depend on the ambient v1
+              // listener either.
+              EndpointService.class,
+              // Reads a job's inject/agent to log a retrieval trace, inside the caller's scope
+              // (EndpointApi#cleanupAssetAgentJob or the scheduled-execution job runner).
+              InjectStatusService.class,
+              // Deletes jobs on workflow end; reached only from already-scoped callers (see
+              // AssetAgentJobDeletionScopeTest and the activation report for the three causes).
+              WorkflowEndService.class,
+              // OpenAEV executor: creates an upgrade-command job for a resolved agent, INSERT-only
+              // and tenant-attributed explicitly from the agent (VALUES inserts are not blocked by
+              // the inspector) - reached from the scoped scheduled-execution job runner.
+              OpenAEVExecutorContextService.class,
+              // Background reader behind the inject-execution job's overloaded-agent check,
+              // reached inside TenantScopedJobRunner#runInTenant.
+              ExecutorUtils.class,
+              // Constructor plumbing only: hands the repository to OpenAEVExecutorContextService /
+              // OpenAEVExecutorIntegration without calling it directly.
+              OpenAEVExecutorIntegrationFactory.class,
+              OpenAEVExecutorIntegration.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AssetAgentJobRepository.class)
+          .because(
+              "asset_agent_jobs is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows, and an unscoped DELETE purges nothing while reporting success. New"
+                  + " accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule custom_domains_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Admin CRUD is TxCtx-carrying HTTP (CustomDomainApi). The one deliberately
+              // cross-tenant read (the public domain-check lookup) is isolated behind this bean,
+              // which opens its own TxCtx.allTenants() scope through the background primitive
+              // (kept off the HTTP path per NO_PRIMITIVE_ON_HTTP_PATH):
+              CustomDomainService.class, CustomDomainPublicLookupService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CustomDomainRepository.class)
+          .because(
+              "custom_domains is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule collector_types_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // CollectorService.register/ensureCollectorTypeExists: reached from CollectorApi
+              // (TxCtx-carrying HTTP) and from the built-in collectors' registerForTenant, which
+              // ManagerCreator.createManager scopes with setScopeOnCurrentTransaction before
+              // calling. PayloadUpsertService.upsertPayload: TxCtx-carrying HTTP (PayloadApi),
+              // read-only lookup of an existing collector type:
+              CollectorService.class, PayloadUpsertService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CollectorTypeRepository.class)
+          .because(
+              "collector_types is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule phishing_email_templates_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Admin CRUD is TxCtx-carrying HTTP (PhishingEmailTemplateApi). PhishingExecutor
+              // reads it from InjectsExecutionJob's tenantScopedJobRunner.runInTenant and from the
+              // chaining queue's per-inject TenantScopedTransaction; the two integration classes
+              // only wire the repository through to PhishingExecutor's constructor, they never
+              // query it themselves:
+              PhishingEmailTemplateService.class,
+              // PhishingLandingPageService reads the email-template chooser's rows when
+              // building a landing page's contract, and seedDefaultsIfEmpty seeds the default
+              // template directly through this repository:
+              PhishingLandingPageService.class,
+              PhishingExecutor.class,
+              PhishingInjectorIntegration.class,
+              PhishingInjectorIntegrationFactory.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PhishingEmailTemplateRepository.class)
+          .because(
+              "phishing_email_templates is tenant-active: an accessor without a tenant scope"
+                  + " silently reads zero rows. New accessors must carry a scope and be allowlisted"
+                  + " here");
+
+  @ArchTest
+  static final ArchRule phishing_landing_pages_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Same shape as phishing_email_templates above. The unauthenticated HostedPublicApi
+              // routes carry no {tenantId} path segment, so TxCtxArgumentResolver resolves their
+              // ctx to TxCtx.missing() regardless of the recipient's tenant bound onto the legacy
+              // TenantContext - a direct repository read from HostedPublicApi would fail-closed.
+              // It never touches this repository itself: it resolves the landing page through
+              // PhishingLandingPagePublicLookupService instead, scoped to the one tenant recovered
+              // from the per-recipient token (same shape as CustomDomainPublicLookupService, kept
+              // off the HTTP path per NO_PRIMITIVE_ON_HTTP_PATH):
+              PhishingLandingPageService.class,
+              PhishingExecutor.class,
+              PhishingInjectorIntegration.class,
+              PhishingInjectorIntegrationFactory.class,
+              PhishingLandingPagePublicLookupService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PhishingLandingPageRepository.class)
+          .because(
+              "phishing_landing_pages is tenant-active: an accessor without a tenant scope"
+                  + " silently reads zero rows. New accessors must carry a scope and be allowlisted"
+                  + " here");
+
+  @ArchTest
+  static final ArchRule attackpath_execution_collector_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // AttackPathApi is TxCtx-carrying HTTP; ingestion runs inside InjectExecutionStep's
+              // queue transaction (TenantScopedTransaction on the inject's tenant) or
+              // ExerciseService's TxCtx-carrying HTTP call, and stamps the tenant explicitly from
+              // the inject (AttackPathExecutionIngestionService,
+              // row.setTenant(inject.getTenant())):
+              AttackPathSecurityPlatformResolver.class, AttackPathExecutionIngestionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AttackPathExecutionCollectorRepository.class)
+          .because(
+              "attackpath_execution_collector is tenant-active: an accessor without a tenant scope"
+                  + " silently reads zero rows. New accessors must carry a scope and be allowlisted"
+                  + " here");
+
+  @ArchTest
+  static final ArchRule attackpath_execution_remediation_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // AttackPathGraphService: TxCtx-carrying HTTP (AttackPathApi). Ingestion: same
+              // scoping as attackpath_execution_collector above:
+              AttackPathGraphService.class, AttackPathExecutionIngestionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(AttackPathExecutionRemediationRepository.class)
+          .because(
+              "attackpath_execution_remediation is tenant-active: an accessor without a tenant"
+                  + " scope silently reads zero rows. New accessors must carry a scope and be"
+                  + " allowlisted here");
 }

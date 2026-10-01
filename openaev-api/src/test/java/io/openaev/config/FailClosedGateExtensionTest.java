@@ -52,6 +52,40 @@ class FailClosedGateExtensionTest {
     assertTrue(offending.isEmpty(), "test/fixture callers must be auto-waived, got " + offending);
   }
 
+  /**
+   * Same gap already measured on the write-attribution detector: {@code TestUserHolder.get}
+   * (package {@code io.openaev.utils.mockUser}, class name does not end {@code Test}/{@code
+   * IT}/{@code Benchmark}) was reported as a production caller in every tenant-creating test under
+   * the shadow arguments. Both gates share this rule; folded here too.
+   */
+  @Test
+  @DisplayName("the mock-user fixture plumbing is auto-waived")
+  void mockUserFixturePlumbingAutoWaived() {
+    List<String> offending =
+        FailClosedGateExtension.offendingSignatures(
+            List.of(
+                from("io.openaev.utils.mockUser.TestUserHolder.get:33"),
+                from(
+                    "io.openaev.utils.mockUser.WithMockUserTestExecutionListener.beforeTestMethod:108"),
+                from("io.openaev.utils.TenantIsolationTestHelper.createTenantWithCurrentUser:66")));
+    assertTrue(
+        offending.isEmpty(), "mock-user fixture plumbing must be auto-waived, got " + offending);
+  }
+
+  /**
+   * The rule must not swallow the production utility classes that share the same {@code
+   * io.openaev.utils} package name (compiled from {@code src/main}, not {@code src/test}): only the
+   * {@code .mockUser.} sub-package and the {@code *TestHelper} suffix are test-only.
+   */
+  @Test
+  @DisplayName("a production utils call site is still offending")
+  void productionUtilsCallSiteStillOffending() {
+    List<String> offending =
+        FailClosedGateExtension.offendingSignatures(
+            List.of(from("io.openaev.utils.AgentUtils.resolve:42")));
+    assertEquals(List.of("io.openaev.utils.AgentUtils.resolve"), offending);
+  }
+
   @Test
   @DisplayName("an unlocatable (unknown) caller does not fail the gate")
   void unknownCallerIsWaived() {

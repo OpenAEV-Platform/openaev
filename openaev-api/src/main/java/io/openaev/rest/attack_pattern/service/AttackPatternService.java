@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.attack_pattern.dto.AttackPatternCoverageOutput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -181,7 +182,7 @@ public class AttackPatternService {
    *     prevention or detection result are excluded)
    */
   @Transactional(readOnly = true)
-  public List<AttackPatternCoverageOutput> getGlobalCoverage(Integer latest) {
+  public List<AttackPatternCoverageOutput> getGlobalCoverage(TxCtx ctx, Integer latest) {
     List<String> simulationIds = resolveLatestSimulationIds(latest);
     if (simulationIds != null && simulationIds.isEmpty()) {
       // latest scoping was requested but no finished simulation exists -> nothing to aggregate
@@ -221,7 +222,7 @@ public class AttackPatternService {
 
     List<EsSeries> series =
         engineService.multiTermHistogram(
-            user, new StructuralHistogramRuntime(widget, Map.of(), Map.of()));
+            ctx, user, new StructuralHistogramRuntime(widget, Map.of(), Map.of()));
 
     // attackPatternId -> [preventionSuccess, preventionFailed, detectionSuccess, detectionFailed]
     Map<String, long[]> countsByAttackPattern = new HashMap<>();
