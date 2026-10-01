@@ -165,7 +165,7 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
                 aria-label={t('Download latest generation')}
                 onClick={() => window.location.assign(downloadReportingGenerationUrl(generation.reporting_generation_id))}
                 priority="tertiary"
-                size="sm"
+                size="md"
               />
             </TooltipTrigger>
             <TooltipContent>{t('Download latest generation')}</TooltipContent>
