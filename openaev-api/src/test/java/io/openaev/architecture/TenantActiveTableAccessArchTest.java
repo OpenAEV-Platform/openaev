@@ -1644,6 +1644,10 @@ class TenantActiveTableAccessArchTest {
               // Indexing: the sweep runs under TxCtx.allTenants(), and findForIndexing is
               // deliberately cross-tenant:
               AttackPatternHandler.class,
+              // Attack-path widget: findAllById resolves the ids Elasticsearch returned, on the
+              // request thread after both detached futures are joined, so it runs under the
+              // scope of the @Transactional endpoint that called it. Proved through the real
+              // endpoint by DashboardAttackPathIsolationTest:
               EsAttackPathService.class,
               // Background telemetry: counts across all tenants explicitly (countAcrossAllTenants):
               ProductInventoryMetricCollector.class)
