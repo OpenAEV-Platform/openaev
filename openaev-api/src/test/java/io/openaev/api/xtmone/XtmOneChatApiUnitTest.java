@@ -1,12 +1,15 @@
 package io.openaev.api.xtmone;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -14,19 +17,26 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
+import io.openaev.xtmone.XtmOneNotConfiguredException;
+import io.openaev.xtmone.XtmOneUpstreamException;
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,25 +47,161 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
  * Unit test for the {@code /api/xtmone/chat} proxy forwarding contract. For {@code /messages} it
  * executes the returned {@link StreamingResponseBody} so the controller body actually runs and we
  * can verify the arguments handed to {@link XtmOneClient#streamChatMessage}; the prompts, quota,
- * message feedback, workspace and conversation filing routes are checked for their validation and
- * what they hand to the client. Pure POJO (no Spring / async dispatch) to keep the contract check
- * fast and deterministic.
+ * message feedback, workspace, conversation filing and upload routes are checked for their
+ * validation and what they hand to the client, and every route for its refusal of an unconfigured
+ * XTM One. Pure POJO (no Spring / async dispatch) to keep the contract check fast and
+ * deterministic.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("XTM One Chat API forwarding tests")
 class XtmOneChatApiUnitTest {
 
+  private static final XtmOneClient.RelayedResponse OK_EMPTY =
+      new XtmOneClient.RelayedResponse(200, JsonNodeFactory.instance.objectNode());
+
   @Mock private XtmOneClient client;
   @Mock private XtmOneConfig config;
   @Mock private AiMetricCollector aiMetricCollector;
   @InjectMocks private XtmOneChatApi api;
+
+  @Nested
+  @DisplayName("XTM One not configured")
+  class NotConfigured {
+
+    /** Every route of the chat API, by name. */
+    static Stream<Arguments> endpoints() {
+      return Arrays.stream(XtmOneChatApi.class.getDeclaredMethods())
+          .filter(method -> Modifier.isPublic(method.getModifiers()))
+          .filter(method -> AnnotatedElementUtils.hasAnnotation(method, RequestMapping.class))
+          .sorted(Comparator.comparing(Method::getName))
+          .map(method -> Arguments.of(Named.of(method.getName(), method)));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("endpoints")
+    @DisplayName("Given XTM One not configured, every route refuses before doing anything")
+    void given_notConfigured_should_refuseEveryRoute(Method endpoint) {
+      when(config.isConfigured()).thenReturn(false);
+      Object[] arguments =
+          Arrays.stream(endpoint.getParameterTypes()).map(NotConfigured::placeholder).toArray();
+
+      InvocationTargetException thrown =
+          assertThrows(InvocationTargetException.class, () -> endpoint.invoke(api, arguments));
+
+      XtmOneNotConfiguredException refusal =
+          assertInstanceOf(XtmOneNotConfiguredException.class, thrown.getCause());
+      assertEquals(XtmOneNotConfiguredException.MESSAGE, refusal.getReason());
+      verifyNoInteractions(client, aiMetricCollector);
+    }
+
+    /** An argument the guard never reads: it refuses before validating anything. */
+    private static Object placeholder(Class<?> type) {
+      if (type == TxCtx.class) {
+        return TxCtx.missing();
+      }
+      if (type == String.class) {
+        return "11111111-1111-1111-1111-111111111111";
+      }
+      if (type == Map.class) {
+        return new HashMap<String, Object>();
+      }
+      if (type == MultipartHttpServletRequest.class) {
+        return mock(MultipartHttpServletRequest.class);
+      }
+      return null;
+    }
+
+    @Test
+    @DisplayName("Given XTM One not configured, the chat routes answer 503 with one message")
+    void given_notConfigured_should_answerServiceUnavailable() {
+      ResponseEntity<Object> response =
+          new XtmOneChatApiExceptionHandler()
+              .handleNotConfigured(new XtmOneNotConfiguredException());
+
+      assertEquals(503, response.getStatusCode().value());
+      assertEquals(MediaType.APPLICATION_JSON, response.getHeaders().getContentType());
+      assertEquals(
+          JsonNodeFactory.instance.objectNode().put("detail", "XTM One is not configured"),
+          response.getBody());
+    }
+
+    @Test
+    @DisplayName("Given XTM One refuses a route it does not relay, its refusal is relayed")
+    void given_upstreamRefusal_should_relayIt() {
+      XtmOneClient.RelayedResponse refusal =
+          XtmOneClient.RelayedResponse.ofDetail(422, TextNode.valueOf("[XTM One] HTTP 401"));
+
+      ResponseEntity<Object> response =
+          new XtmOneChatApiExceptionHandler()
+              .handleUpstreamRefusal(new XtmOneUpstreamException(refusal));
+
+      assertEquals(422, response.getStatusCode().value());
+      assertEquals(refusal.body(), response.getBody());
+    }
+  }
+
+  @Nested
+  @DisplayName("File upload")
+  class FileUpload {
+
+    private static final String CONVERSATION_ID = "11111111-1111-1111-1111-111111111111";
+
+    private MultipartHttpServletRequest twoFiles() {
+      LinkedMultiValueMap<String, MultipartFile> files = new LinkedMultiValueMap<>();
+      files.add("file", new MockMultipartFile("file", "a.csv", "text/csv", new byte[] {1}));
+      files.add("file", new MockMultipartFile("file", "b.csv", "text/csv", new byte[] {2}));
+      MultipartHttpServletRequest request = mock(MultipartHttpServletRequest.class);
+      when(request.getMultiFileMap()).thenReturn(files);
+      return request;
+    }
+
+    @Test
+    @DisplayName("Given XTM One stores one file of two should answer the stored id")
+    void given_oneStored_should_answerItsId() {
+      when(config.isConfigured()).thenReturn(true);
+      when(client.uploadChatFile(eq(CONVERSATION_ID), any()))
+          .thenReturn(
+              new XtmOneClient.RelayedResponse(
+                  200, JsonNodeFactory.instance.objectNode().put("file_id", "file-1")))
+          .thenReturn(
+              XtmOneClient.RelayedResponse.ofDetail(413, TextNode.valueOf("File too large")));
+
+      ResponseEntity<Object> response =
+          api.uploadFiles(TxCtx.missing(), CONVERSATION_ID, twoFiles());
+
+      assertEquals(200, response.getStatusCode().value());
+      assertEquals(Map.of("file_ids", List.of("file-1")), response.getBody());
+    }
+
+    @Test
+    @DisplayName("Given XTM One stores no file should relay its refusal")
+    void given_noneStored_should_relayRefusal() {
+      when(config.isConfigured()).thenReturn(true);
+      XtmOneClient.RelayedResponse refusal =
+          XtmOneClient.RelayedResponse.ofDetail(413, TextNode.valueOf("File too large"));
+      when(client.uploadChatFile(eq(CONVERSATION_ID), any())).thenReturn(refusal);
+
+      ResponseEntity<Object> response =
+          api.uploadFiles(TxCtx.missing(), CONVERSATION_ID, twoFiles());
+
+      assertEquals(413, response.getStatusCode().value());
+      assertEquals(refusal.body(), response.getBody());
+    }
+  }
 
   @Test
   @DisplayName("Given a context in the request body should forward it to streamChatMessage")
@@ -153,37 +299,15 @@ class XtmOneChatApiUnitTest {
   class PromptsAndQuota {
 
     @Test
-    @DisplayName("Given XTM One not configured should answer an empty prompt list")
-    void given_notConfigured_should_answerNoPrompts() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseEntity<Map<String, Object>> response = api.listPrompts(TxCtx.missing());
-
-      assertEquals(Map.of("prompts", List.of()), response.getBody());
-      verifyNoInteractions(client);
-    }
-
-    @Test
     @DisplayName("Given XTM One configured should relay the prompts")
     void given_configured_should_relayPrompts() {
       when(config.isConfigured()).thenReturn(true);
-      Map<String, Object> payload = Map.of("prompts", List.of(Map.of("id", "p-1")));
-      when(client.getChatPrompts()).thenReturn(payload);
+      JsonNode payload = JsonNodeFactory.instance.objectNode().putArray("prompts").addObject();
+      when(client.getChatPrompts()).thenReturn(new XtmOneClient.RelayedResponse(200, payload));
 
-      ResponseEntity<Map<String, Object>> response = api.listPrompts(TxCtx.missing());
+      ResponseEntity<Object> response = api.listPrompts(TxCtx.missing());
 
       assertEquals(payload, response.getBody());
-    }
-
-    @Test
-    @DisplayName("Given XTM One not configured should answer a null quota")
-    void given_notConfigured_should_answerNullQuota() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseEntity<Object> response = api.getQuota(TxCtx.missing());
-
-      assertEquals(NullNode.getInstance(), response.getBody());
-      verifyNoInteractions(client);
     }
 
     @Test
@@ -191,11 +315,23 @@ class XtmOneChatApiUnitTest {
     void given_configured_should_relayQuota() {
       when(config.isConfigured()).thenReturn(true);
       JsonNode quota = JsonNodeFactory.instance.objectNode().put("used", 3);
-      when(client.getChatQuota()).thenReturn(quota);
+      when(client.getChatQuota()).thenReturn(new XtmOneClient.RelayedResponse(200, quota));
 
       ResponseEntity<Object> response = api.getQuota(TxCtx.missing());
 
       assertEquals(quota, response.getBody());
+    }
+
+    @Test
+    @DisplayName("Given nothing to show should answer a JSON null")
+    void given_nothingToShow_should_answerNull() {
+      when(config.isConfigured()).thenReturn(true);
+      when(client.getChatQuota())
+          .thenReturn(new XtmOneClient.RelayedResponse(200, NullNode.getInstance()));
+
+      ResponseEntity<Object> response = api.getQuota(TxCtx.missing());
+
+      assertEquals(NullNode.getInstance(), response.getBody());
     }
   }
 
@@ -222,29 +358,16 @@ class XtmOneChatApiUnitTest {
           Arguments.of(Map.of("rating", "negative", "comment", "x".repeat(2001))));
     }
 
-    @Test
-    @DisplayName("Given XTM One not configured should refuse a rating")
-    void given_notConfigured_should_refuseRating() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseEntity<Map<String, Object>> response =
-          api.submitMessageFeedback(
-              TxCtx.missing(), CONVERSATION_ID, MESSAGE_ID, Map.of("rating", "positive"));
-
-      assertEquals(400, response.getStatusCode().value());
-      verifyNoInteractions(client);
-    }
-
     @ParameterizedTest
     @MethodSource("invalidPaths")
     @DisplayName("Given a malformed conversation or message id should refuse without forwarding")
     void given_malformedIds_should_refuse(String conversationId, String messageId) {
       when(config.isConfigured()).thenReturn(true);
 
-      ResponseEntity<Map<String, Object>> post =
+      ResponseEntity<Object> post =
           api.submitMessageFeedback(
               TxCtx.missing(), conversationId, messageId, Map.of("rating", "positive"));
-      ResponseEntity<Void> delete =
+      ResponseEntity<Object> delete =
           api.retractMessageFeedback(TxCtx.missing(), conversationId, messageId);
 
       assertEquals(400, post.getStatusCode().value());
@@ -258,7 +381,7 @@ class XtmOneChatApiUnitTest {
     void given_invalidBody_should_refuse(Map<String, Object> body) {
       when(config.isConfigured()).thenReturn(true);
 
-      ResponseEntity<Map<String, Object>> response =
+      ResponseEntity<Object> response =
           api.submitMessageFeedback(TxCtx.missing(), CONVERSATION_ID, MESSAGE_ID, body);
 
       assertEquals(400, response.getStatusCode().value());
@@ -269,11 +392,15 @@ class XtmOneChatApiUnitTest {
     @DisplayName("Given a valid rating should forward it and relay the stored rating")
     void given_validRating_should_forward() {
       when(config.isConfigured()).thenReturn(true);
-      Map<String, Object> stored = Map.of("rating", "negative", "comment", "Wrong CVE");
+      JsonNode stored =
+          JsonNodeFactory.instance
+              .objectNode()
+              .put("rating", "negative")
+              .put("comment", "Wrong CVE");
       when(client.submitMessageFeedback(CONVERSATION_ID, MESSAGE_ID, "negative", "Wrong CVE"))
-          .thenReturn(stored);
+          .thenReturn(new XtmOneClient.RelayedResponse(200, stored));
 
-      ResponseEntity<Map<String, Object>> response =
+      ResponseEntity<Object> response =
           api.submitMessageFeedback(
               TxCtx.missing(),
               CONVERSATION_ID,
@@ -288,6 +415,7 @@ class XtmOneChatApiUnitTest {
     @DisplayName("Given no comment should forward a null comment")
     void given_noComment_should_forwardNullComment() {
       when(config.isConfigured()).thenReturn(true);
+      when(client.submitMessageFeedback(any(), any(), any(), any())).thenReturn(OK_EMPTY);
 
       api.submitMessageFeedback(
           TxCtx.missing(), CONVERSATION_ID, MESSAGE_ID, Map.of("rating", "positive"));
@@ -302,8 +430,9 @@ class XtmOneChatApiUnitTest {
       // XTM One counts characters, not UTF-16 units: 2000 emoji are 4000 Java chars.
       when(config.isConfigured()).thenReturn(true);
       String comment = "\uD83D\uDE00".repeat(2000);
+      when(client.submitMessageFeedback(any(), any(), any(), any())).thenReturn(OK_EMPTY);
 
-      ResponseEntity<Map<String, Object>> response =
+      ResponseEntity<Object> response =
           api.submitMessageFeedback(
               TxCtx.missing(),
               CONVERSATION_ID,
@@ -315,23 +444,13 @@ class XtmOneChatApiUnitTest {
     }
 
     @Test
-    @DisplayName("Given XTM One not configured should refuse a retraction")
-    void given_notConfigured_should_refuseRetraction() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseEntity<Void> response =
-          api.retractMessageFeedback(TxCtx.missing(), CONVERSATION_ID, MESSAGE_ID);
-
-      assertEquals(400, response.getStatusCode().value());
-      verifyNoInteractions(client);
-    }
-
-    @Test
     @DisplayName("Given valid ids should retract the rating and answer 204")
     void given_validIds_should_retractAndAnswerNoContent() {
       when(config.isConfigured()).thenReturn(true);
+      when(client.retractMessageFeedback(CONVERSATION_ID, MESSAGE_ID))
+          .thenReturn(new XtmOneClient.RelayedResponse(204, null));
 
-      ResponseEntity<Void> response =
+      ResponseEntity<Object> response =
           api.retractMessageFeedback(TxCtx.missing(), CONVERSATION_ID, MESSAGE_ID);
 
       assertEquals(204, response.getStatusCode().value());
@@ -368,10 +487,11 @@ class XtmOneChatApiUnitTest {
       when(config.isConfigured()).thenReturn(true);
       Map<String, Object> body =
           Map.of("agent_slug", "ariane", "workspace_id", WORKSPACE_ID, "future_field", true);
-      Map<String, Object> created = Map.of("conversation_id", CONVERSATION_ID);
-      when(client.createChatSession(body)).thenReturn(created);
+      JsonNode created = JsonNodeFactory.instance.objectNode().put("conversation_id", "c-1");
+      when(client.createChatSession(body))
+          .thenReturn(new XtmOneClient.RelayedResponse(200, created));
 
-      ResponseEntity<Map<String, Object>> response = api.createSession(TxCtx.missing(), body);
+      ResponseEntity<Object> response = api.createSession(TxCtx.missing(), body);
 
       assertEquals(created, response.getBody());
     }
@@ -457,17 +577,6 @@ class XtmOneChatApiUnitTest {
 
       assertEquals(204, response.getStatusCode().value());
       assertNull(response.getBody());
-    }
-
-    @Test
-    @DisplayName("Given XTM One not configured should answer an empty workspace list")
-    void given_notConfigured_should_answerNoWorkspace() {
-      when(config.isConfigured()).thenReturn(false);
-
-      ResponseEntity<Object> response = api.listWorkspaces(TxCtx.missing());
-
-      assertEquals(Map.of("workspaces", List.of()), response.getBody());
-      verifyNoInteractions(client);
     }
 
     @ParameterizedTest

@@ -205,7 +205,9 @@ When OpenAEV is connected to XTM One, the embedded chat panel reaches XTM One th
 | `PATCH /api/xtmone/chat/workspaces/{id}` | Renames a workspace or changes its description |
 | `DELETE /api/xtmone/chat/workspaces/{id}` | Deletes a workspace |
 
-Path `{id}` values must be UUIDs, otherwise the request is refused with a `400`. Except for `POST /api/xtmone/chat/sessions`, these endpoints answer with XTM One's own status, and when XTM One refuses a change (for example the user's default workspace, or a workspace that still holds work items, cannot be deleted), with a body holding only XTM One's `detail` message. An XTM One `401` is answered as a `422`, so XTM One rejecting OpenAEV's credentials never signs the user out of OpenAEV.
+Path `{id}` values must be UUIDs, otherwise the request is refused with a `400`. These endpoints answer with XTM One's own status, and when XTM One refuses a change (for example the user's default workspace, or a workspace that still holds work items, cannot be deleted), with a body holding only XTM One's `detail` message. A `422` means XTM One refused the request, possibly because of an error between OpenAEV and XTM One: the reason is in the response body's `detail`.
+
+When XTM One is not configured on OpenAEV, every endpoint under `/api/xtmone/chat` answers `503 Service Unavailable` with the body `{"detail": "XTM One is not configured"}`.
 
 ## Multi-tenant context
 
