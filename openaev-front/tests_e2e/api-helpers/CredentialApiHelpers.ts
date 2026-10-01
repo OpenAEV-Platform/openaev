@@ -1,4 +1,5 @@
 import { type APIRequestContext } from '@playwright/test';
+import { randomBytes } from 'crypto';
 
 import { type CredentialInput, type CredentialOutput } from '../../src/utils/api-types';
 import { tenantApiPath } from '../utils/url';
@@ -23,7 +24,7 @@ class CredentialApiHelpers {
    * displayed or returned to the frontend afterwards.
    */
   async createCredential(name: string, type: CredentialType): Promise<CreatedCredential> {
-    const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const suffix = `${Date.now()}-${randomBytes(8).toString('hex')}`;
     let input: CredentialInput;
     let secrets: string[];
     switch (type) {
