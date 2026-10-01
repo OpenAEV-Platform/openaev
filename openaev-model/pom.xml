@@ -89,6 +89,13 @@
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
             <version>${minio.version}</version>
+            <!-- snappy-java is only used by MinioAsyncClient#uploadSnowballObjects, which we never call -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.xerial.snappy</groupId>
+                    <artifactId>snappy-java</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- okhttp3 is used by minio 8.6 client but was removed from Spring boot 3.5 -->
         <dependency>
