@@ -13,7 +13,7 @@ import { type Inject, type LessonsAnswer, type LessonsCategory, type LessonsQues
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import ConfigurationSection from '../../common/ConfigurationSection';
+import ConfigurationSection, { SECTION_HEADER_WITH_ACTION_HEIGHT } from '../../common/ConfigurationSection';
 import { LessonContext, PermissionsContext } from '../../common/Context';
 import CreateLessonsCategory from '../categories/CreateLessonsCategory';
 import CreateObjective from '../CreateObjective';
@@ -130,7 +130,7 @@ const Lessons: FunctionComponent<Props> = ({
     <Box sx={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 2,
+      gap: 3,
       paddingBottom: 5,
     }}
     >
@@ -269,6 +269,7 @@ const Lessons: FunctionComponent<Props> = ({
           count={objectives.length}
           action={source.isUpdatable ? <CreateObjective /> : undefined}
           withSurface
+          headerMinHeight={SECTION_HEADER_WITH_ACTION_HEIGHT}
         >
           <LessonsObjectives
             objectives={objectives}
@@ -276,7 +277,11 @@ const Lessons: FunctionComponent<Props> = ({
             source={source}
           />
         </ConfigurationSection>
-        <ConfigurationSection title={t('Crisis intensity (injects by hour)')} withSurface>
+        <ConfigurationSection
+          title={t('Crisis intensity (injects by hour)')}
+          withSurface
+          headerMinHeight={SECTION_HEADER_WITH_ACTION_HEIGHT}
+        >
           <CrysisIntensity injects={injects} />
         </ConfigurationSection>
       </Box>

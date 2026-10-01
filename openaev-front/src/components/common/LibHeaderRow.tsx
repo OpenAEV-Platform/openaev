@@ -16,6 +16,8 @@ import { type FunctionComponent, type ReactNode } from 'react';
  * `flex h-6 items-center gap-2` inside a `flex flex-col gap-2` wrapper, with
  * the title in `content-compact text-default-secondary`.
  * `LibHeaderRow.test.tsx` renders both and fails if either side moves.
+ * One deliberate departure: the row height is a 24px FLOOR (`minHeight`), not
+ * the library's fixed `h-6`, so a 36px action grows the row (see the row style).
  *
  * `content-compact` is used as ONE composite class, never as the four
  * `text-`/`font-`/`leading-`/`tracking-` utilities: those four carry no
@@ -49,9 +51,10 @@ interface Props {
   title: ReactNode;
   action?: ReactNode;
   children: ReactNode;
+  minRowHeight?: number;
 }
 
-const LibHeaderRow: FunctionComponent<Props> = ({ title, action, children }) => (
+const LibHeaderRow: FunctionComponent<Props> = ({ title, action, children, minRowHeight = LIB_HEADER_ROW_HEIGHT }) => (
   <div style={{
     display: 'flex',
     flexDirection: 'column',
@@ -63,7 +66,7 @@ const LibHeaderRow: FunctionComponent<Props> = ({ title, action, children }) => 
       data-testid="lib-header-row"
       style={{
         display: 'flex',
-        height: LIB_HEADER_ROW_HEIGHT,
+        minHeight: minRowHeight,
         alignItems: 'center',
         gap: LIB_HEADER_GAP,
         justifyContent: 'space-between',

@@ -4,7 +4,7 @@ import { Box, Dialog, DialogActions, DialogContent, DialogContentText, DialogTit
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
-import { Field, InformationGrid } from '../../../../components/common/detail/EntityDetailCommon';
+import { Field } from '../../../../components/common/detail/EntityDetailCommon';
 import LibHeaderRow from '../../../../components/common/LibHeaderRow';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
@@ -12,7 +12,7 @@ import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type Le
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import ConfigurationSection from '../../common/ConfigurationSection';
+import ConfigurationSection, { SECTION_HEADER_WITH_ACTION_HEIGHT } from '../../common/ConfigurationSection';
 import { LessonContext, PermissionsContext } from '../../common/Context';
 import CreateLessonsCategory from '../categories/CreateLessonsCategory';
 import CreateObjective from '../CreateObjective';
@@ -41,6 +41,14 @@ interface Props {
   lessonsAnswers?: LessonsAnswer[];
   lessonsTemplates: LessonsTemplate[];
 }
+
+const PARAMETERS_GRID_SX = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: '12px',
+  rowGap: '16px',
+  alignContent: 'start',
+} as const;
 
 const Lessons: FunctionComponent<Props> = ({
   source,
@@ -88,7 +96,7 @@ const Lessons: FunctionComponent<Props> = ({
     <Box sx={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 2,
+      gap: 3,
       paddingBottom: 5,
     }}
     >
@@ -103,55 +111,59 @@ const Lessons: FunctionComponent<Props> = ({
         alignItems: 'stretch',
       }}
       >
-        {/* action={null} is now a NO-OP, kept only to avoid churn: the
-            library's header row is a constant 24px with or without an action,
-            so this panel top-aligns with the Objectives column (which carries a create
-            button in its header). */}
-        <InformationGrid title={t('Parameters')} action={null}>
-          {permissions.canManage && (
-            <Field label={t('Questionnaire mode')}>
-              <Switch
-                name="anonymized"
-                checked={source.lessons_anonymized}
-                onCheckedChange={() => {
-                  if (!source.lessons_anonymized) {
-                    setOpenAnonymize(true);
-                  } else {
-                    toggleAnonymize();
-                  }
-                }}
-                label={t('Anonymize answers')}
-              />
-            </Field>
-          )}
-          {canApplyTemplate && (
-            <Field label={t('Template')}>
-              <Button type="button" priority="secondary" size="sm" startIcon={<ContentPasteGoOutlined fontSize="small" />} onClick={() => setOpenApplyTemplate(true)}>
-                {t('Apply')}
+        <ConfigurationSection
+          title={t('Parameters')}
+          withSurface
+          padding={16}
+          headerMinHeight={SECTION_HEADER_WITH_ACTION_HEIGHT}
+        >
+          <Box sx={PARAMETERS_GRID_SX}>
+            {permissions.canManage && (
+              <Field label={t('Questionnaire mode')}>
+                <Switch
+                  name="anonymized"
+                  checked={source.lessons_anonymized}
+                  onCheckedChange={() => {
+                    if (!source.lessons_anonymized) {
+                      setOpenAnonymize(true);
+                    } else {
+                      toggleAnonymize();
+                    }
+                  }}
+                  label={t('Anonymize answers')}
+                />
+              </Field>
+            )}
+            {canApplyTemplate && (
+              <Field label={t('Template')}>
+                <Button type="button" priority="secondary" size="sm" startIcon={<ContentPasteGoOutlined fontSize="small" />} onClick={() => setOpenApplyTemplate(true)}>
+                  {t('Apply')}
+                </Button>
+              </Field>
+            )}
+            <Field label={t('Check')}>
+              <Button asChild priority="secondary" size="sm">
+                <a href={`/lessons/${source.type}/${source.id}?preview=true`}>
+                  <VisibilityOutlined fontSize="small" />
+                  {t('Preview')}
+                </a>
               </Button>
             </Field>
-          )}
-          <Field label={t('Check')}>
-            <Button asChild priority="secondary" size="sm">
-              <a href={`/lessons/${source.type}/${source.id}?preview=true`}>
-                <VisibilityOutlined fontSize="small" />
-                {t('Preview')}
-              </a>
-            </Button>
-          </Field>
-          {permissions.canManage && (
-            <Field label={t('Categories and questions')}>
-              <Button type="button" variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenEmptyLessons(true)}>
-                {t('Clear out')}
-              </Button>
-            </Field>
-          )}
-        </InformationGrid>
+            {permissions.canManage && (
+              <Field label={t('Categories and questions')}>
+                <Button type="button" variant="destructive" priority="secondary" size="sm" startIcon={<DeleteSweepOutlined fontSize="small" />} onClick={() => setOpenEmptyLessons(true)}>
+                  {t('Clear out')}
+                </Button>
+              </Field>
+            )}
+          </Box>
+        </ConfigurationSection>
         <ConfigurationSection
           title={t('Objectives')}
           count={objectives.length}
           action={source.isUpdatable ? <CreateObjective /> : undefined}
           withSurface
+          headerMinHeight={SECTION_HEADER_WITH_ACTION_HEIGHT}
         >
           <LessonsObjectives
             objectives={objectives}

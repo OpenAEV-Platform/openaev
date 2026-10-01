@@ -71,7 +71,9 @@ describe('LibHeaderRow mirrors the library Paper header', () => {
       </LibHeaderRow>,
     );
     const row = getByTestId('lib-header-row');
-    expect(row.style.height).toBe(`${LIB_HEADER_ROW_HEIGHT}px`);
+    // A floor rather than the library's fixed h-6, so a 36px action grows the row instead of
+    // spilling out of it (see LibHeaderRow).
+    expect(row.style.minHeight).toBe(`${LIB_HEADER_ROW_HEIGHT}px`);
     expect(row.style.gap).toBe(`${LIB_HEADER_GAP}px`);
     expect(row.style.alignItems).toBe('center');
     expect(row.contains(getByRole('button', { name: ACTION_LABEL }))).toBe(true);
