@@ -6,6 +6,8 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -194,12 +196,45 @@ public class AutonomousObjectiveTemplateService {
     return repository.findByKey(key).orElse(null);
   }
 
-  /** Idempotently materialises any missing built-in for the tenant the scope pins. */
+  /**
+   * High 32 bits of the per-tenant advisory-lock key, namespacing the gallery seed so it can never
+   * collide with another advisory lock the platform takes. Arbitrary but stable ("OT" = objective
+   * template), following {@link AutonomousEventService}'s convention.
+   */
+  private static final long SEED_LOCK_NAMESPACE = 0x4f54_0001L;
+
+  /**
+   * Builds the 64-bit advisory-lock key for a tenant's gallery seed: the namespace in the high 32
+   * bits and the tenant id's hash in the low 32 bits. A hash collision across two tenants merely
+   * serialises their (independent) seeds for an instant, never a correctness issue.
+   */
+  private static long seedLockKey(String tenantId) {
+    return (SEED_LOCK_NAMESPACE << 32) | (tenantId.hashCode() & 0xffff_ffffL);
+  }
+
+  /**
+   * Idempotently materialises any missing built-in for the tenant the scope pins.
+   *
+   * <p>Serialised per tenant by a transaction advisory lock taken BEFORE the existence read, the
+   * same protocol {@link AutonomousEventService#appendTerminalStatusOnce} uses for its own
+   * read-before-write. Without it two first reads of the same tenant both observe a key as missing
+   * and both enqueue the same {@code (tenant_id, key)} insert; the loser then fails on the unique
+   * index. Catching that failure is not an alternative: a flush that violates a constraint marks
+   * the transaction rollback-only, so the request fails whether or not anyone catches it.
+   *
+   * <p>The existence read is a single query before the loop rather than one per key, so no
+   * statement inside the loop can auto-flush a pending insert. The lock takes no row lock first, so
+   * the platform-wide {@code row -> advisory} ordering is preserved.
+   */
   private void ensureBuiltinsSeeded(String tenantId) {
+    repository.lockTenantGallerySeed(seedLockKey(tenantId));
+    Map<String, AutonomousObjectiveTemplate> bySeenKey =
+        repository.findByKeyIn(BUILTINS.stream().map(Builtin::key).toList()).stream()
+            .collect(Collectors.toMap(AutonomousObjectiveTemplate::getKey, template -> template));
     int order = 0;
     for (Builtin b : BUILTINS) {
       order += 10;
-      AutonomousObjectiveTemplate existing = repository.findByKey(b.key()).orElse(null);
+      AutonomousObjectiveTemplate existing = bySeenKey.get(b.key());
       if (existing != null) {
         // Keep the built-in scope classification authoritative across releases: when an
         // objective's scope mode is refined later (e.g. phishing became target-scoped so the
@@ -226,10 +261,10 @@ public class AutonomousObjectiveTemplateService {
       template.setEnabled(true);
       template.setOrder(order);
       template.setTenant(new Tenant(tenantId));
-      // Deliberately not guarded: save only enqueues the persist, so a unique clash from a
-      // concurrent first-read in the same tenant surfaces at commit, outside this method. A catch
-      // here never saw that clash and instead swallowed write-attribution failures, which is how
-      // this gallery came to return an empty catalog on the non-prefixed route.
+      // Deliberately not guarded. The advisory lock above is what makes the insert safe; a catch
+      // here never saw the clash it claimed to handle, and it did swallow write-attribution
+      // failures, which is how this gallery came to return an empty catalog on the non-prefixed
+      // route.
       repository.save(template);
     }
   }
