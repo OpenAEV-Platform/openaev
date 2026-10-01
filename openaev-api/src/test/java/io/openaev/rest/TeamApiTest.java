@@ -77,7 +77,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team input, should create a team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validTeamInput_should_createTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -103,12 +103,14 @@ class TeamApiTest extends IntegrationTest {
   @DisplayName(
       "Given no ambient tenant on the non-prefixed route, should create the team under the default tenant")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_noAmbientTenantOnNonPrefixedRoute_should_createTeamUnderDefaultTenant()
       throws Exception {
     // --PREPARE--
     // TenantInterceptor never sets an ambient tenant for this route: reproduce that thread state
-    // instead of relying on the test fixture's DefaultTenantExtension.
+    // instead of relying on the test fixture's DefaultTenantExtension. The write tenant now comes
+    // from the request scope, which for this single-tenant caller is the default tenant, so the
+    // outcome is the same and no longer depends on the listener's fallback.
     TenantContext.clearCurrentTenant();
     TeamCreateInput teamInput = createTeam();
 
@@ -133,7 +135,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given existing team name input, should throw an exception")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_existingTeamNameInput_should_throwAnException() throws Exception {
     // --PREPARE--
     Team team = new Team();
@@ -163,7 +165,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid contextual team input, should create a contextual team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validContextualTeamInput_should_createContextualTeamSuccessfully() throws Exception {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();
@@ -190,7 +192,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given existing contextual team name input, should throw an exception")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_existingContextualTeamNameInput_should_throwAnException() throws Exception {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();
@@ -224,7 +226,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team ID and input, should update team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validTeamIdAndInput_should_updateTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -333,7 +335,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team ID and input, should upsert team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validTeamIdAndInput_should_upsertTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -365,7 +367,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given non existing and team input, should upsert team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_nonExistingTeamInput_should_upsertTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -389,7 +391,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given contextual team input with multiple exercise, should throw an exception")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_contextualTeamWithMultipleExercise_should_throwAnException() {
     // -- PREPARE --
     Exercise exercise1 = ExerciseFixture.getExercise();
@@ -423,7 +425,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a team linked to injects, should delete the team and keep the injects")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_teamLinkedToInjects_should_deleteTeamSuccessfully() throws Exception {
     // --PREPARE--
     Team team = this.teamRepository.save(createTeamWithName(TEAM_NAME + "-linked"));
@@ -441,7 +443,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given teams linked to injects, should bulk delete the teams and keep the injects")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_teamsLinkedToInjects_should_bulkDeleteTeamsSuccessfully() throws Exception {
     // --PREPARE--
     Team firstTeam = this.teamRepository.save(createTeamWithName(TEAM_NAME + "-bulk-1"));
@@ -541,7 +543,7 @@ class TeamApiTest extends IntegrationTest {
   @DisplayName("Test optionsByName")
   @ParameterizedTest
   @MethodSource("optionsByNameTestParameters")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void optionsByNameTest(
       String searchText, Boolean simulationOrScenarioId, Integer expectedNumberOfResults)
       throws Exception {
@@ -578,7 +580,7 @@ class TeamApiTest extends IntegrationTest {
   @DisplayName("Test optionsById")
   @ParameterizedTest
   @MethodSource("optionsByIdTestParameters")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void optionsByIdTest(Integer numberOfTeamToProvide, Integer expectedNumberOfResults)
       throws Exception {
     // --PREPARE--
@@ -1025,6 +1027,103 @@ class TeamApiTest extends IntegrationTest {
 
       List<String> sameTenantIds = JsonPath.read(sameTenantResponse, "$[*].id");
       assertTrue(sameTenantIds.contains(teamId));
+    }
+
+    @DisplayName(
+        "Given the non-prefixed route selecting a tenant by header, should create the team in that"
+            + " tenant")
+    @Test
+    // Admin so the capability check, which still resolves the caller's role in the AMBIENT tenant,
+    // cannot be what this test measures; member of the default tenant too so the header selector
+    // narrows a genuinely multi-tenant caller.
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_headerRouteSelectingTenantX_should_createTeamInTenantX() throws Exception {
+      // --PREPARE--
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      // The fixture leaves the default tenant on the thread while the header pins tenant X: that
+      // divergence is the whole point, the listener's fallback and the request scope disagree.
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+      TeamCreateInput teamInput = createTeam();
+      teamInput.setName("HeaderRouteTeam");
+
+      // --EXECUTE--
+      String response =
+          mvc.perform(
+                  post(TEAM_URI)
+                      .header("X-Tenant-Ids", tenantX.getId())
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // --ASSERT--
+      String teamId = JsonPath.read(response, "$.team_id");
+      entityManager.flush();
+      assertEquals(
+          tenantX.getId(),
+          persistedTenantId(teamId),
+          "the write tenant must be the tenant the request scope pins, not the default tenant the"
+              + " listener falls back to");
+    }
+
+    @DisplayName(
+        "Given a team in another tenant, the non-prefixed route selecting a tenant by header should"
+            + " not read it")
+    @Test
+    void given_teamOutsideTheHeaderScope_should_notBeReadableOnTheNonPrefixedRoute()
+        throws Exception {
+      // --PREPARE--
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      String teamId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO teams (team_id, team_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", teamId)
+          .setParameter("name", "OutOfScopeTeam")
+          .setParameter("tenant", Tenant.DEFAULT_TENANT_UUID)
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+      // The fixture leaves the default tenant on the thread, which is exactly the mismatch under
+      // test: the ambient tenant owns the row while the request scope pins another tenant.
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+
+      // --EXECUTE--
+      int responseStatus =
+          mvc.perform(
+                  get(TEAM_URI + "/" + teamId)
+                      .header("X-Tenant-Ids", tenantX.getId())
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // --ASSERT--
+      assertEquals(
+          HttpStatus.NOT_FOUND.value(),
+          responseStatus,
+          "the by-id read must be keyed on the request scope, not on the ambient tenant the"
+              + " non-prefixed route never sets in production");
+    }
+
+    private String persistedTenantId(String teamId) {
+      return (String)
+          entityManager
+              .createNativeQuery("SELECT cast(tenant_id as varchar) FROM teams WHERE team_id = :id")
+              .setParameter("id", teamId)
+              .getSingleResult();
     }
   }
 }

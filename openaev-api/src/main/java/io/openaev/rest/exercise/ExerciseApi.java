@@ -19,7 +19,6 @@ import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -403,10 +402,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     return hydrateKillChainPhases(
         exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds()));
   }
@@ -452,10 +448,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
@@ -481,10 +474,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().removeAll(fromIterable(teamUsers));
     teamRepository.save(team);

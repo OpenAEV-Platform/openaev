@@ -34,7 +34,6 @@ import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
@@ -87,6 +86,7 @@ public class ScenarioApi extends RestBehavior {
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final ImportService importService;
   private final ScenarioService scenarioService;
+  private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
   private final ChannelService channelService;
@@ -499,7 +499,7 @@ public class ScenarioApi extends RestBehavior {
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
     return hydrateKillChainPhases(
         this.scenarioService.enableAddScenarioTeamPlayer(
-            scenarioId, teamId, input.getPlayersIds()));
+            ctx, scenarioId, teamId, input.getPlayersIds()));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -535,7 +535,7 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
     return hydrateKillChainPhases(
-        this.scenarioService.addScenarioPlayer(scenarioId, teamId, input.getPlayersIds()));
+        this.scenarioService.addScenarioPlayer(ctx, scenarioId, teamId, input.getPlayersIds()));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -552,10 +552,7 @@ public class ScenarioApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().removeAll(fromIterable(teamUsers));
     teamRepository.save(team);

@@ -141,7 +141,8 @@ class V1_DataImporterTest extends IntegrationTest {
     Optional<Exercise> exercise = this.exerciseRepository.findOne(exerciseByName(EXERCISE_NAME));
     assertTrue(exercise.isPresent());
 
-    Optional<Team> team = this.teamRepository.findByName(TEAM_NAME);
+    Optional<Team> team =
+        this.teamRepository.findByNameAndTenantIdIn(TEAM_NAME, List.of(Tenant.DEFAULT_TENANT_UUID));
     assertTrue(team.isPresent());
     assertEquals(1, team.get().getUsersNumber());
     assertEquals(ORGANIZATION_NAME, team.get().getOrganization().getName());
@@ -861,7 +862,9 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     Team importedTeam =
-        teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).stream()
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .stream()
             .findFirst()
             .orElseThrow();
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -917,7 +920,9 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     Team importedTeam =
-        teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).stream()
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .stream()
             .findFirst()
             .orElseThrow();
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -2038,7 +2043,10 @@ class V1_DataImporterTest extends IntegrationTest {
     Workflow workflow = findImportedWorkflow(scenarioName);
     assertEquals(2, workflow.getWorkflowScopeRules().size());
 
-    Team createdTeam = teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).getFirst();
+    Team createdTeam =
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .getFirst();
     assertEquals(teamName, createdTeam.getName());
 
     User createdPlayer = userRepository.findByEmailIgnoreCase(playerEmail).orElseThrow();
@@ -2121,7 +2129,10 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
-    Team createdTeam = teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).getFirst();
+    Team createdTeam =
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .getFirst();
     assertEquals(2, createdTeam.getUsers().size());
     assertTrue(
         createdTeam.getUsers().stream()

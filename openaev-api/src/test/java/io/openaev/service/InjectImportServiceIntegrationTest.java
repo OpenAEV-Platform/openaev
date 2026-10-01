@@ -5,11 +5,13 @@ import static io.openaev.utils.fixtures.import_mapper.RuleAttributeFixture.creat
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectImporter;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.XlsFixture;
@@ -48,7 +50,13 @@ public class InjectImportServiceIntegrationTest extends IntegrationTest {
     // -- ACT --
     ImportTestSummary result =
         injectImportService.importInjectIntoScenarioFromXLS(
-            scenario, importMapper, importId, XlsFixture.DEFAULT_SHEET_NAME, 0, false);
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            scenario,
+            importMapper,
+            importId,
+            XlsFixture.DEFAULT_SHEET_NAME,
+            0,
+            false);
 
     // -- ASSERT --
     assertNotNull(result);
@@ -81,7 +89,13 @@ public class InjectImportServiceIntegrationTest extends IntegrationTest {
     // -- ACT --
     ImportTestSummary result =
         injectImportService.importInjectIntoScenarioFromXLS(
-            scenario, importMapper, importId, XlsFixture.DEFAULT_SHEET_NAME, 0, false);
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            scenario,
+            importMapper,
+            importId,
+            XlsFixture.DEFAULT_SHEET_NAME,
+            0,
+            false);
 
     // -- ASSERT --
     assertEquals(1, result.getTotalNumberOfInjects());

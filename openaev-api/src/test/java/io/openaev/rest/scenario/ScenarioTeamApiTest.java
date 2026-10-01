@@ -160,7 +160,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario and team, should add player to team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validScenarioAndTeam_should_addPlayerToTeamSuccessfully() throws Exception {
     // -- PREPARE --
     Team teamCreated = createTeam(TEAM_NAME);
@@ -201,7 +201,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
   @DisplayName(
       "Given a valid scenario and team with a player, should remove player from team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validScenarioAndTeamWithPlayer_should_removePlayerFromTeamSuccessfully()
       throws Exception {
     // -- PREPARE --
