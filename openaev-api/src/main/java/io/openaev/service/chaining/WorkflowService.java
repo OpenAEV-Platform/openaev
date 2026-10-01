@@ -1658,7 +1658,11 @@ public class WorkflowService {
     // createReadySteps/enqueueReadySteps
     // below, re-readying and re-enqueuing steps on a terminated run (churn, and a possible re-fire
     // after a timeout settle).
-    if (this.isWorkflowEnded(workflowRun.getId()) || this.isWorkflowStopped(workflowRun.getId())) {
+    // STOP is read straight from the repository: this method is already transactional, and a call
+    // to the @Transactional isWorkflowStopped of this class would bypass the Spring proxy (see
+    // TenantBackgroundTransactionArchTest#no_transactional_self_invocation).
+    if (this.isWorkflowEnded(workflowRun.getId())
+        || workflowRepository.existsByIdAndStatus(workflowRun.getId(), WorkflowStatus.STOP)) {
       log.info(
           "[Chaining] Ignoring evaluation because workflow run {} is not runnable (END/STOP).",
           workflowRun.getId());
