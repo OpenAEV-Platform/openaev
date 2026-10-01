@@ -130,13 +130,19 @@ class InjectorContractTenantProvisioningDomainTest extends IntegrationTest {
         .getSingleResult();
   }
 
-  /** Join rows of this tenant's contracts whose domain row exists, whatever tenant owns it. */
+  /**
+   * Join rows of the copied contract whose domain row exists, whatever tenant owns it. Restricted
+   * to {@code EMAIL_DEFAULT}, the contract this test copies: counting every contract the tenant
+   * holds would stay positive on the strength of the other builtins even if this one ended with no
+   * domain, which is the regression the assertion exists to rule out.
+   */
   private long countContractDomainLinks(String tenantId) {
     return rawCount(
         "SELECT count(*) FROM injectors_contracts_domains link"
             + " JOIN domains d ON d.domain_id = link.domain_id"
-            + " WHERE link.tenant_id = ?",
-        tenantId);
+            + " WHERE link.tenant_id = ? AND link.injector_contract_id = ?",
+        tenantId,
+        EmailContract.EMAIL_DEFAULT);
   }
 
   /** The same join rows, restricted to those pointing at another tenant's domain. */
