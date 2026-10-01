@@ -14,13 +14,27 @@ inputs:
   working-directory:
     description: >
       Checkout to prepare the assets in. Scripts always come from this action's
-      own checkout, so the directory may hold untrusted code.
+      own checkout and the checkout must not hold symlinks, so the directory may
+      hold untrusted code.
     required: false
     default: "."
 
 runs:
   using: composite
   steps:
+    # The steps below write into the checkout on the runner; a tracked symlink
+    # would redirect those writes to any file outside it, such as an action.yml.
+    - name: Reject symlinks
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        LINKS=$(git ls-files -s | awk '$1 == "120000"')
+        if [ -n "$LINKS" ]; then
+          echo "❌ Symlinks are not supported in the checkout:"
+          echo "$LINKS"
+          exit 1
+        fi
+
     - name: Compute versions
       id: versions
       shell: bash

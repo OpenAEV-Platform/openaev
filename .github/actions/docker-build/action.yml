@@ -33,6 +33,12 @@ inputs:
     description: Name for the uploaded artifact (platform suffix is appended automatically)
     required: false
     default: "openaev-image"
+  upload-artifact:
+    description: >
+      Upload the OCI archive as the `<artifact-name>-<arch>` artifact. Set to
+      "false" when the caller uploads the archive itself.
+    required: false
+    default: "true"
   platform:
     description: "Target platform (e.g. linux/amd64 or linux/arm64)"
     required: false
@@ -302,6 +308,7 @@ runs:
       shell: bash
 
     - name: Upload Docker image artifact
+      if: ${{ inputs.upload-artifact == 'true' }}
       uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.names.outputs.artifact_name }}

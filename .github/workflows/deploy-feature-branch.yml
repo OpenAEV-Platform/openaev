@@ -6,19 +6,22 @@ name: "[Core] Deploy Feature Branch"
 #
 # The "Deployment" checkbox in the PR description is the opt-in:
 #   - Ticking it deploys the PR head. While it stays ticked, every new commit
-#     on a same-repo PR is redeployed. Unticking it stops redeploys.
+#     is redeployed. Unticking it stops redeploys.
 #   - `/deploy` comment: same as ticking the box (the workflow ticks it).
 #   - PR closed: marks the environment's deployments inactive.
-#   - PRs opened without the template get the Deployment section appended.
+#   - Same-repo PRs opened without the template get the Deployment section
+#     appended.
 #
 # Security:
+#   - Fork PRs are never deployed, since anyone can push to a fork: a ticked
+#     box is unticked and `/deploy` is ignored. Only branches of this
+#     repository, which need write access to push, are built.
 #   - Only users with write access to the repository can deploy. The API
-#     permission of whoever ticked the box or commented is checked; a box
-#     ticked by anyone else is unticked again. Bot edits are ignored.
+#     permission of whoever ticked the box, commented or pushed is checked; a
+#     box ticked by anyone else is unticked again, and so is the box of a PR
+#     that anyone else (bots included) pushes to. Bot edits are ignored.
 #   - Only an unticked -> ticked change deploys, so other description edits
 #     never trigger a build.
-#   - Fork PRs run untrusted code: a new commit unticks the box, so a
-#     maintainer must review and tick again before that commit is built.
 #   - This workflow NEVER checks out PR code. It only does API calls.
 #     pull_request_target is used so same-repo and fork PRs get a write token;
 #     it runs the workflow from the base branch. PR-controlled values (branch
@@ -115,11 +118,19 @@ jobs:
 
             const pr = context.payload.pull_request
               ?? (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
-            // A deleted fork has no head repo; treat it as untrusted
+            // Only branches of this repository are deployed: pushing to them needs write
+            // access, while anyone can push to a fork. A deleted fork has no head repo.
             const isFork = pr.head.repo?.full_name !== `${owner}/${repo}`;
 
             let deploy = false;
-            if (context.eventName === 'issue_comment') {
+            if (isFork) {
+              if (context.eventName === 'issue_comment') {
+                core.warning('Fork PRs cannot be deployed, /deploy ignored. Push the branch to this repository instead.');
+              } else if (isChecked(pr.body)) {
+                core.warning('Fork PRs cannot be deployed, unticking the Deployment box.');
+                await updateBox(false);
+              }
+            } else if (context.eventName === 'issue_comment') {
               if (await canDeploy(sender)) {
                 deploy = true;
                 await updateBox(true);
@@ -150,11 +161,13 @@ jobs:
                 }
               }
             } else if (action === 'synchronize' && isChecked(pr.body)) {
-              if (isFork) {
-                core.notice('New commit on a fork PR: unticking the Deployment box until a maintainer reviews it.');
-                await updateBox(false);
-              } else {
+              // Only commits pushed by a user with write access are redeployed; a push by
+              // anyone else (bots and apps included) waits for a maintainer to tick again.
+              if (await canDeploy(sender)) {
                 deploy = true;
+              } else {
+                core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
+                await updateBox(false);
               }
             }
 

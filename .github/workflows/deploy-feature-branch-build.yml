@@ -79,6 +79,7 @@ jobs:
           download-release-assets: "true"
           allow-registry: "false"
           untrusted-context: "true"
+          upload-artifact: "false"
       # Promotion expects one openaev-image artifact holding openaev-image.tar.gz.
       # The single-platform OCI archive already carries an image index, so no merge is needed.
       - name: Rename image archive for promotion
