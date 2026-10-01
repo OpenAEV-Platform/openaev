@@ -16,6 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Organization;
@@ -72,6 +74,7 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
   @Autowired private TagComposer tagComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private OrganizationService organizationService;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private Tenant tenantA;
   private Tenant tenantB;
@@ -121,7 +124,8 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
     @ValueSource(strings = {"read", "update", "delete"})
     @DisplayName("Foreign ID operations reject the organization without hydrating it")
     void given_foreignOrganization_should_rejectBeforeHydration(String operation) {
-      // Arrange
+      // Arrange: called below HTTP, so set the v2 scope an A request would resolve
+      tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA.getId()));
       Session session = entityManager.unwrap(Session.class);
       Statistics statistics = session.getSessionFactory().getStatistics();
       boolean statisticsEnabled = statistics.isStatisticsEnabled();
@@ -145,7 +149,7 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
         // Assert
         assertThat(statistics.getEntityStatistics(Organization.class.getName()).getLoadCount())
             .isEqualTo(loadCount);
-        assertThat(session.getEnabledFilter("tenantFilter")).isNotNull();
+        // The rest of the transaction still reads under the scope, A only.
         assertThat(
                 entityManager
                     .createQuery("select o.id from Organization o where o.id in :ids", String.class)
@@ -160,18 +164,22 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
     @Test
     @DisplayName("An authorized lookup outside the ambient tenant must respect the v2 tenant scope")
     void given_multiTenantScope_should_findOrganizationUnderTheResolvedTenantScope() {
+      // Arrange: called below HTTP, so set the v2 scope a request over A and B would resolve. B
+      // is outside the ambient tenant (the default one, nothing set): only the scope decides.
+      tenantTx.setScopeOnCurrentTransaction(
+          TxCtx.forTenants(List.of(tenantA.getId(), tenantB.getId())));
+
       // Act
       Organization organization = organizationService.findById(organizationB.getId());
 
       // Assert
       assertThat(organization.getId()).isEqualTo(organizationB.getId());
-      assertThat(entityManager.unwrap(Session.class).getEnabledFilter("tenantFilter")).isNull();
       assertThat(
               entityManager
                   .createQuery("select o.id from Organization o where o.id in :ids", String.class)
                   .setParameter("ids", List.of(organizationA.getId(), organizationB.getId()))
                   .getResultList())
-          .containsExactly(organizationA.getId());
+          .containsExactlyInAnyOrder(organizationA.getId(), organizationB.getId());
     }
 
     @ParameterizedTest
@@ -588,9 +596,15 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
       // Act & Assert
       for (var request : collectionRequests(ORGANIZATION_URI)) {
         String result = response(scoped(request, route));
-        assertThat(result)
-            .doesNotContain(
-                organizationA.getId(), organizationB.getId(), defaultOrganization.getId());
+        // Never the ambient default tenant the caller is not a member of, never another tenant.
+        assertThat(result).doesNotContain(organizationB.getId(), defaultOrganization.getId());
+        // Without a selector the v2 scope is the caller's authorized tenants (A here), like the
+        // X-Tenant-Ids header selecting A: the authorized tenant stays visible.
+        if (route.equals("none")) {
+          assertThat(result).doesNotContain(organizationA.getId());
+        } else {
+          assertThat(result).contains(organizationA.getId());
+        }
       }
     }
 
@@ -647,10 +661,11 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
                   .content(asJsonString(bulkInput(selectAll)))
                   .with(csrf()));
 
-      // Assert
-      assertThatJson(result).isArray().isEmpty();
+      // Assert: without a selector the v2 scope is the caller's authorized tenants (A only), so
+      // the bulk deletion behaves as under A's path, and never reaches the default tenant or B.
+      assertThatJson(result).isArray().containsExactly(organizationA.getId());
       assertThat(rawState(defaultOrganization.getId())).isEqualTo(before);
-      assertThat(rawState(organizationA.getId())).isNotNull();
+      assertThat(rawState(organizationA.getId())).isNull();
       assertThat(rawState(organizationB.getId())).isNotNull();
     }
   }
