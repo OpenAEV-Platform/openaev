@@ -198,7 +198,8 @@ public class Payload implements GrantableBase, TenantBase {
 
   // -- COLLECTOR TYPE --
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  // EAGER: serialized after the tenant scope closes, a lazy proxy can no longer load
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "payload_collector_type")
   @JsonSerialize(using = CollectorTypeNameSerializer.class)
   @JsonProperty("payload_collector_type")
