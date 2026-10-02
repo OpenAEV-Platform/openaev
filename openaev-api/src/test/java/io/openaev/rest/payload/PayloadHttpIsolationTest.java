@@ -235,8 +235,9 @@ class PayloadHttpIsolationTest extends IntegrationTest {
       "under tenant A's path: an executable payload whose file belongs to tenant B does not"
           + " leak B's document and does not crash the read")
   void executableWithCrossTenantDocumentDoesNotLeakOrCrash() throws Exception {
-    // The payload read serves the executable's file as an id (PayloadOutput.executableFile, a
-    // MonoIdSerializer field), never as a name, so the subject of both assertions is that id.
+    // The payload read serves the executable's file as an id: PayloadOutput.executableFile is a
+    // plain String, and PayloadMapper.toPayloadOutput extracts the document id into it. A name is
+    // never serialized here, so the subject of both assertions is that id.
     // Positive control first, on A's own document: without it an empty field would satisfy the
     // cross-tenant assertion whatever the scope did.
     Document ownDocument = DocumentFixture.getDocumentJpeg();

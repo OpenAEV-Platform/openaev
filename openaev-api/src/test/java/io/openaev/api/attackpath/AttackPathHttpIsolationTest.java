@@ -106,7 +106,7 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
     // answers with an empty tick before any row query runs. That is what this asserts, and it is
     // why it is green with the projection tables disarmed: the empty node and edge lists below are
     // the short-circuit, not a filtered read. The row reads of the delta are proved by
-    // deltaUnderOtherTenantWithItsOwnCounterCarriesNoOwnerRow below, where the counter exists.
+    // given_otherTenantWithACounterOfItsOwn_should_readNoneOfTheOwnerRows below, where it exists.
     mvc.perform(get(DELTA, tenantB, SIM).param("since", "0"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.resyncRequired").value(false))
@@ -136,7 +136,7 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName(
       "under another tenant's path, counter of its own: the delta reads none of the owner's rows")
-  void deltaUnderOtherTenantWithItsOwnCounterCarriesNoOwnerRow() throws Exception {
+  void given_otherTenantWithACounterOfItsOwn_should_readNoneOfTheOwnerRows() throws Exception {
     // With a counter of its own, tenant B's delta no longer short-circuits: buildDelta compares
     // since=0 against B's current version and runs the row queries, countChangedSince and
     // findGraphRowsSince, neither of which carries a tenant predicate. The scope is therefore the
