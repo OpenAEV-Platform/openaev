@@ -1,0 +1,32 @@
+name: FDS MUI Regression
+description: >
+  Block a MUI component from re-entering the codebase where the design system already replaces it
+  in this product. Only symbols a file did not already import on the merge base with `base` are
+  read, so existing code is untouched by construction. The watched list is generated, never typed
+  here: fds-migration/mui-regression-policy.generated.json, emitted by
+  `pnpm generate:mui-regression-policy --product openaev` in the filigran-design-system repo.
+  Requires a full-history checkout: a shallow clone cannot resolve the merge base.
+
+inputs:
+  base:
+    description: "Ref the pull request merges into, e.g. origin/main"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version: "24.21.0"
+
+    - name: Check for MUI regressions
+      shell: bash
+      env:
+        BASE: ${{ inputs.base }}
+      run: node fds-migration/scripts/check-mui-regression.mjs --base "$BASE"
+
+    # Runs whatever the verdict was: on a red gate this is the context the author needs.
+    - name: Policy in force
+      if: ${{ always() }}
+      shell: bash
+      run: node fds-migration/scripts/check-mui-regression.mjs --explain

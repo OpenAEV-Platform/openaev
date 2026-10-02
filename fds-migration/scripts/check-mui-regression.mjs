@@ -38,7 +38,7 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..");
 const POLICY_PATH = path.join(REPO_ROOT, "fds-migration", "mui-regression-policy.generated.json");
-const DEFAULT_BASE = "origin/design-system/current";
+const DEFAULT_BASE = "origin/main";
 const KEEP_MARKER = "fds:keep-mui";
 const SOURCE_RE = /^@mui\/|^@filigran\/ui(\/|$)/;
 const CODE_EXT = new Set([".ts", ".tsx", ".js", ".jsx"]);
