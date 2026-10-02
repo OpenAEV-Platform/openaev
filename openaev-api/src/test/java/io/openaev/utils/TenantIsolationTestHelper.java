@@ -15,6 +15,7 @@ import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import java.util.Arrays;
@@ -225,11 +226,16 @@ public class TenantIsolationTestHelper {
     if (createdTenantId != null) {
       tenants.add(createdTenantId);
     }
-    entityManager
-        .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
-        .setFlushMode(FlushModeType.COMMIT)
-        .setParameter("scope", String.join(",", tenants))
-        .getSingleResult();
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, String.join(",", tenants));
+  }
+
+  /**
+   * Clears the tenant scope of the current transaction, for a test whose premise is an unscoped
+   * read (the test transaction otherwise runs in the default tenant's scope, see {@link
+   * DefaultTenantScopeTestListener}).
+   */
+  public void clearScope() {
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, "");
   }
 
   /**
