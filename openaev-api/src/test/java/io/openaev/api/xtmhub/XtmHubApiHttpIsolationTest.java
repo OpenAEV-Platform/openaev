@@ -44,8 +44,11 @@ import org.springframework.transaction.annotation.Transactional;
  * or delete matches nothing whether the table is active or not. The one query with no tenant
  * predicate, {@code findAllByTenantNotDeleted}, is called under an explicit {@code
  * TxCtx.allTenants()} scope by {@code XtmHubService#refreshConnectivityAllTenants} because it is
- * meant to see every tenant. Isolation on this table is therefore structural, carried by the
- * queries themselves, and the activation is a second layer with nothing observable behind it.
+ * meant to see every tenant. The repository's inherited {@code count()} is the second such read,
+ * reached by {@code PlatformAdoptionMetricCollector#isXtmHubRegistered}, and it is wrapped in
+ * {@code TxCtx.allTenants()} for the same reason: a platform adoption gauge counts across tenants
+ * by design. Isolation on this table is therefore structural, carried by the queries themselves,
+ * and the activation is a second layer with nothing observable behind it.
  *
  * <p>The proof obligation this class carries instead is the write attribution below: a registration
  * created or deleted under one route must land on that route's tenant and on no other. That is the
