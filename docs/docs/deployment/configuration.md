@@ -69,15 +69,6 @@ Here are the configuration keys, for both containers (environment variables) and
 
     If you are using the parameter `openaev.extra-trusted-certs-dir`, the file format needed for the certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 certs.
 
-#### Rate limiting
-
-| Parameter                           | Environment variable                | Default value | Description                                                                                               |
-|:------------------------------------|:------------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------|
-| openaev.ratelimit.enabled           | OPENAEV_RATELIMIT_ENABLED           | `true`        | Turn on to enable global rate limiting on the REST API                                                    |
-| openaev.ratelimit.store-backend     | OPENAEV_RATELIMIT_STORE-BACKEND     | `IN_MEMORY`   | Selects the rate limit bucket store backend. As fo writing, only the `IN_MEMORY` store backend available. |
-| openaev.ratelimit.default-rps       | OPENAEV_RATELIMIT_DEFAULT-RPS       | 10            | Maximum requests per second for unauthenticated requests, segmented per originating IP address.           |
-| openaev.ratelimit.authenticated-rps | OPENAEV_RATELIMIT_AUTHENTICATED-RPS | 300           | Maximum requests per second for authenticated requests, segmented per user account.                       |
-
 #### Logging
 
 | Parameter                                   | Environment variable                        | Default value      | Description                                   |
