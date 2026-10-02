@@ -9,6 +9,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.UUID;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=datapacks")
 @WithMockUser(isAdmin = true)
+@WithoutTenantScope
 class DataPackTenantIsolationTest extends IntegrationTest {
 
   @Autowired private DataPackService dataPackService;

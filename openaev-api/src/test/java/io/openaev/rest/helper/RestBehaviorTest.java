@@ -703,22 +703,26 @@ class RestBehaviorTest {
         "unnamed same-typed parameters get distinct positional labels instead of colliding")
     void given_unnamedParameters_should_labelPositionallyWithoutCollision()
         throws NoSuchMethodException {
-      // GIVEN - two String parameters whose names are unavailable (no discoverer initialized,
-      // as when sources are not compiled with -parameters): a type-based fallback would label
-      // both "String" and clobber one children entry
+      // GIVEN - two String parameters whose names are unavailable (as when sources are not
+      // compiled with -parameters): a type-based fallback would label both "String" and clobber
+      // one children entry. Spring 7 discovers names by default, so discovery is turned off.
       Method method =
           HandlerMethodValidationHandling.class.getDeclaredMethod(
               "linkActionsLike", String.class, String.class);
+      MethodParameter firstParameter = new MethodParameter(method, 0);
+      firstParameter.initParameterNameDiscovery(null);
+      MethodParameter secondParameter = new MethodParameter(method, 1);
+      secondParameter.initParameterNameDiscovery(null);
       ParameterValidationResult first =
           validationResult(
-              new MethodParameter(method, 0),
+              firstParameter,
               "",
               List.of(
                   new DefaultMessageSourceResolvable(
                       new String[] {"NotBlank"}, "must not be blank")));
       ParameterValidationResult second =
           validationResult(
-              new MethodParameter(method, 1),
+              secondParameter,
               "x",
               List.of(
                   new DefaultMessageSourceResolvable(

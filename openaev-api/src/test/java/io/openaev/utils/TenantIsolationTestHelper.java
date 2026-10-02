@@ -187,7 +187,7 @@ public class TenantIsolationTestHelper {
   public Tenant createTenant(String name) throws DependenciesManagerException {
     boolean hadTenant = TenantContext.hasCurrentTenant();
     String previousTenantId = hadTenant ? TenantContext.getCurrentTenant() : null;
-    String previousScope = currentScope();
+    String previousScope = ambientScope();
     Tenant tenant =
         TenantFixture.getTenant(name + "-" + UUID.randomUUID().toString().substring(0, 8));
     try {
@@ -205,26 +205,38 @@ public class TenantIsolationTestHelper {
     }
   }
 
-  private String currentScope() {
+  /**
+   * The current tenant scope when it is still the test's ambient one (see {@link
+   * DefaultTenantScopeTestListener}), empty otherwise: an unscoped test, or one that set its own
+   * scope.
+   */
+  private String ambientScope() {
     return (String)
         entityManager
-            .createNativeQuery("SELECT coalesce(current_setting('app.current_tenants', true), '')")
+            .createNativeQuery(
+                "SELECT CASE WHEN current_setting('app.current_tenants', true)"
+                    + " = current_setting('"
+                    + DefaultTenantScopeTestListener.AMBIENT_SCOPE_SETTING
+                    + "', true) THEN coalesce(current_setting('app.current_tenants', true), '')"
+                    + " ELSE '' END")
             .setFlushMode(FlushModeType.COMMIT)
             .getSingleResult();
   }
 
   /**
    * Replaces the {@code app.current_tenants} transaction-local setting left behind by tenant
-   * onboarding (see {@link #createTenant}'s javadoc) with the scope the test had before, plus the
-   * created tenant (when it was persisted). A no-op outside an active transaction.
+   * onboarding (see {@link #createTenant}'s javadoc): the test's ambient scope plus the created
+   * tenant when the test ran in it, empty otherwise. A no-op outside an active transaction.
    */
   private void restoreScopeWith(String previousScope, String createdTenantId) {
     Set<String> tenants = new LinkedHashSet<>();
+    // Only the ambient scope is extended with the new tenant; anything else is reset, as it always
+    // was (an unscoped test stays unscoped, a test that set its own scope sets it again).
     if (!previousScope.isEmpty()) {
       tenants.addAll(Arrays.asList(previousScope.split(",")));
-    }
-    if (createdTenantId != null) {
-      tenants.add(createdTenantId);
+      if (createdTenantId != null) {
+        tenants.add(createdTenantId);
+      }
     }
     DefaultTenantScopeTestListener.setAmbientScope(entityManager, String.join(",", tenants));
   }

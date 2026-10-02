@@ -3,7 +3,9 @@ package io.openaev.utilstest;
 import io.openaev.database.model.Tenant;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.test.context.TestContext;
+import org.springframework.test.context.TestContextAnnotationUtils;
 import org.springframework.test.context.support.AbstractTestExecutionListener;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -40,6 +42,11 @@ public class DefaultTenantScopeTestListener extends AbstractTestExecutionListene
   public void beforeTestMethod(TestContext testContext) {
     if (!TransactionSynchronizationManager.isActualTransactionActive()) {
       return; // set_config(..., true) is transaction-local: nothing to scope without a transaction
+    }
+    if (AnnotatedElementUtils.hasAnnotation(testContext.getTestMethod(), WithoutTenantScope.class)
+        || TestContextAnnotationUtils.hasAnnotation(
+            testContext.getTestClass(), WithoutTenantScope.class)) {
+      return;
     }
     setAmbientScope(
         testContext.getApplicationContext().getBean(EntityManager.class),

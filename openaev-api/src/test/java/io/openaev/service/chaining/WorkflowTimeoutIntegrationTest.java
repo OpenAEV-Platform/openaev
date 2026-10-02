@@ -429,10 +429,17 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
     Workflow persisted =
         workflowComposer.forWorkflow(workflowRun).withSimulation(simComposer).persist().get();
 
-    // Force the createdAt after initial persist — @CreationTimestamp only acts on INSERT,
-    // so this UPDATE will keep our custom value.
-    persisted.setWorkflowCreatedAt(createdAt);
-    return workflowRepository.save(persisted);
+    // Backdate createdAt after the initial persist. Hibernate 7 leaves a @CreationTimestamp column
+    // out of the entity UPDATE, so setting the field and saving no longer writes it: go through a
+    // bulk update instead, then reload the entity with the backdated value.
+    workflowRepository.flush();
+    entityManager
+        .createQuery("UPDATE Workflow w SET w.workflowCreatedAt = :createdAt WHERE w.id = :id")
+        .setParameter("createdAt", createdAt)
+        .setParameter("id", persisted.getId())
+        .executeUpdate();
+    entityManager.refresh(persisted);
+    return persisted;
   }
 
   private Step createPersistedStep(Workflow workflow, StepStatus status) {
