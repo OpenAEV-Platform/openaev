@@ -4,7 +4,7 @@
   <parent>
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>3.260923.0</version>
+    <version>3.261001.0</version>
   </parent>
   <artifactId>openaev-maven-plugin</artifactId>
   <packaging>maven-plugin</packaging>
@@ -15,8 +15,6 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
     <commons-lang3.version>3.20.0</commons-lang3.version>
-    <httpclient5.version>5.5.2</httpclient5.version>
-    <jackson-bom.version>2.22.1</jackson-bom.version>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -34,8 +32,6 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>1.6.3</version>
-      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>

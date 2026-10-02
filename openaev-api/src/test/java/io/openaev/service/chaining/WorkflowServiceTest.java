@@ -23,6 +23,7 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.LessonsService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
@@ -73,6 +74,7 @@ class WorkflowServiceTest {
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private InjectService injectService;
   @Mock private InjectStatusService injectStatusService;
+  @Mock private AttackPathExecutionIngestionService attackPathExecutionIngestionService;
 
   private WorkflowService workflowService;
   private WorkflowEndService workflowEndService;
@@ -90,7 +92,8 @@ class WorkflowServiceTest {
             workflowRepository,
             scopeSnapshotService,
             assetAgentJobRepository,
-            workflowStateRepository);
+            workflowStateRepository,
+            attackPathExecutionIngestionService);
 
     workflowService =
         new WorkflowService(
@@ -2957,6 +2960,7 @@ class WorkflowServiceTest {
   @Nested
   @DisplayName("cancelSimulationEndWorkflowRun")
   class CancelSimulationEndWorkflowRunTests {
+    WorkflowEndService.WORKFLOW_END_CAUSE cause = WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED;
     private static final String TENANT = "tenant-1";
 
     @Test
@@ -2966,6 +2970,7 @@ class WorkflowServiceTest {
     void given_singleRunWithActiveSteps_should_endItAndCleanUpDependencies() {
       // Arrange
       Exercise simulation = exerciseWithId("sim-1");
+      simulation.setTenant(new Tenant(TENANT));
       Workflow run =
           Workflow.builder()
               .id("wf-run-1")
@@ -2974,18 +2979,13 @@ class WorkflowServiceTest {
               .build();
 
       // Act
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
-        workflowService.cancelSimulationEndWorkflowRun(List.of(run));
-      }
+      workflowService.cancelSimulationEndWorkflowRun(List.of(run));
 
       // Assert
       assertEquals(WorkflowStatus.END, run.getStatus());
-      verify(scopeSnapshotService).freezeEnd(run);
-      verify(stepService)
-          .endActiveStepsByWorkflowId("wf-run-1", WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
-      verify(stepDelayQueueService)
-          .deleteAllByWorkflowRun(run, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+      verify(scopeSnapshotService).freezeEnd(run, cause);
+      verify(stepService).endActiveStepsByWorkflowId("wf-run-1", cause);
+      verify(stepDelayQueueService).deleteAllByWorkflowRun(run, cause);
       verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
       verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-1");
       verify(workflowRepository).save(run);
@@ -2997,7 +2997,9 @@ class WorkflowServiceTest {
     void given_multipleRuns_should_endEachRunIndependently() {
       // Arrange
       Exercise simulation1 = exerciseWithId("sim-1");
+      simulation1.setTenant(new Tenant(TENANT));
       Exercise simulation2 = exerciseWithId("sim-2");
+      simulation2.setTenant(new Tenant(TENANT));
       Workflow run1 =
           Workflow.builder()
               .id("wf-run-1")
@@ -3012,11 +3014,7 @@ class WorkflowServiceTest {
               .build();
 
       // Act
-      WorkflowEndService.WORKFLOW_END_CAUSE cause = WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED;
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
-        workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
-      }
+      workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
 
       // Assert
       assertEquals(WorkflowStatus.END, run1.getStatus());

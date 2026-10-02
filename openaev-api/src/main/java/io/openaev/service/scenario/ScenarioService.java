@@ -1199,6 +1199,7 @@ public class ScenarioService {
 
   private Scenario copyScenario(Scenario scenario) {
     Scenario scenarioDuplicate = new Scenario();
+    scenarioDuplicate.setTenant(scenario.getTenant());
     scenarioDuplicate.setName(duplicateString(scenario.getName()));
     scenarioDuplicate.setCategory(scenario.getCategory());
     scenarioDuplicate.setDescription(scenario.getDescription());

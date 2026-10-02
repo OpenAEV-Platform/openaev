@@ -88,7 +88,10 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
 
   /**
    * True when the emitting frame is test or fixture code, which is never a production fail-closed
-   * bug.
+   * bug. Shares its rule with {@code WriteAttrStack.isTestFrame}, including why {@code .mockUser.}
+   * and {@code *TestHelper} are markers rather than a bare {@code io.openaev.utils.} prefix (that
+   * package also holds production utility classes under the same package name); see that method's
+   * javadoc.
    */
   private static boolean isTestCaller(String caller) {
     String sig = signature(caller);
@@ -99,14 +102,16 @@ public class FailClosedGateExtension implements BeforeEachCallback, AfterEachCal
     String classFqn = sig.substring(0, lastDot);
     if (classFqn.contains(".fixtures.")
         || classFqn.contains(".utilstest.")
-        || classFqn.contains(".composers.")) {
+        || classFqn.contains(".composers.")
+        || classFqn.contains(".mockUser.")) {
       return true;
     }
     String outer = classFqn.contains("$") ? classFqn.substring(0, classFqn.indexOf('$')) : classFqn;
     String simpleName = outer.substring(outer.lastIndexOf('.') + 1);
     return simpleName.endsWith("Test")
         || simpleName.endsWith("IT")
-        || simpleName.endsWith("Benchmark");
+        || simpleName.endsWith("Benchmark")
+        || simpleName.endsWith("TestHelper");
   }
 
   private static Set<String> loadBaseline() {

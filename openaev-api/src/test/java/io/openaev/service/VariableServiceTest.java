@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Variable;
 import io.openaev.database.model.Variable.VariableType;
 import io.openaev.database.repository.ExerciseRepository;
@@ -37,6 +38,9 @@ public class VariableServiceTest extends IntegrationTest {
     exercise.setName("Exercise name");
     exercise.setFrom("test@test.com");
     exercise.setReplyTos(List.of("test@test.com"));
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
+    // class-wide fixture names the default tenant explicitly rather than relying on it.
+    exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     EXERCISE = this.exerciseRepository.save(exercise);
   }
 

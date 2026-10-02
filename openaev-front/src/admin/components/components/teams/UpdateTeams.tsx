@@ -1,6 +1,6 @@
 import { AddOutlined, GroupsOutlined } from '@mui/icons-material';
 import { Button } from '@mui/material';
-import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 
 import { findTeams } from '../../../../actions/teams/team-actions';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -29,6 +29,12 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
   // Drawer
   const [open, setOpen] = useState(false);
 
+  // Load the current teams once on open, so parent re-renders don't reset the user's selection
+  const handleOpen = () => {
+    setOpen(true);
+    findTeams(addedTeamIds).then(result => setSelectedTeamValues(result.data));
+  };
+
   const handleClose = () => {
     setOpen(false);
     setSelectedTeamValues([]);
@@ -38,12 +44,6 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
     await onReplaceTeam?.(selectedTeamValues.map(v => v.team_id));
     setOpen(false);
   };
-
-  useEffect(() => {
-    if (open) {
-      findTeams(addedTeamIds).then(result => setSelectedTeamValues(result.data));
-    }
-  }, [open, addedTeamIds]);
 
   const selectedIds = useMemo(() => selectedTeamValues.map(v => v.team_id), [selectedTeamValues]);
 
@@ -99,7 +99,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
         color="primary"
         size="small"
         startIcon={<AddOutlined />}
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
       >
         {t('Add team')}
       </Button>

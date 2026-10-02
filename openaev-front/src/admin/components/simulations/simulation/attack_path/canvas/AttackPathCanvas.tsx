@@ -911,6 +911,7 @@ const AttackPathCanvas = ({
           return (
             <Box
               key={node.id}
+              data-testid="attack-path-node"
               className={isEntering ? AP_NODE_ENTER_CLASS : undefined}
               onPointerDown={e => handleCardPointerDown(e, node.id)}
               onPointerMove={handleCardPointerMove}
