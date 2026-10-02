@@ -1,0 +1,114 @@
+name: "[Core] Deploy Feature Branch Result"
+
+# Publishes the outcome of a feature branch deployment on its PR.
+#
+# Triggered via repository_dispatch (event type "feature-deploy-result") by the
+# n8n automation once the release repo's feature-branch-promote workflow has
+# completed. client_payload.result is that run's deploy-result.json:
+#   { deployment_id, pr_number, sha, state, description, environment_url,
+#     log_url, docker_tag, dry_run }
+#
+# It posts the status on the PR's GitHub deployment and, on success, writes the
+# environment URL under the Deployment checkbox of the PR description.
+#
+# SECURITY: This workflow NEVER checks out code, and repository_dispatch runs it
+# from the default branch. deployment_id comes from build metadata produced by a
+# run that executed PR code, so the deployment is only updated once its
+# creator, environment, commit and PR number match the result.
+
+on:
+  repository_dispatch:
+    types: [feature-deploy-result]
+
+permissions:
+  deployments: write # to post the deployment status
+  pull-requests: write # to write the environment URL in the PR description
+
+jobs:
+  publish:
+    name: "📣 Publish deployment result"
+    runs-on: ubuntu-latest
+    concurrency:
+      # Serializes description edits for the same PR
+      group: feature-deploy-result-${{ github.event.client_payload.result.pr_number }}
+      cancel-in-progress: false
+    steps:
+      - name: Post deployment status and environment URL
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const result = context.payload.client_payload?.result ?? {};
+
+            const STATES = ['success', 'failure', 'error', 'inactive'];
+            const ENVIRONMENT_URL = /^https:\/\/feat-[a-z0-9-]+\.oaev\.staging\.filigran\.io$/;
+            const LOG_URL = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/actions\/runs\/\d+(\/attempts\/\d+)?$/;
+
+            const deploymentId = Number(result.deployment_id);
+            const prNumber = Number(result.pr_number);
+            const sha = String(result.sha ?? '');
+            const { state } = result;
+            if (!Number.isSafeInteger(deploymentId) || deploymentId <= 0 ||
+                !Number.isSafeInteger(prNumber) || prNumber <= 0 ||
+                !/^[0-9a-f]{40}$/.test(sha) || !STATES.includes(state)) {
+              core.setFailed('Invalid deploy result payload');
+              return;
+            }
+
+            const environmentUrl = state === 'success' ? String(result.environment_url ?? '') : '';
+            if (state === 'success' && !ENVIRONMENT_URL.test(environmentUrl)) {
+              core.setFailed(`Unexpected environment URL: ${environmentUrl}`);
+              return;
+            }
+            const logUrl = LOG_URL.test(result.log_url ?? '') ? result.log_url : undefined;
+
+            const { data: deployment } = await github.rest.repos.getDeployment({
+              owner, repo, deployment_id: deploymentId
+            });
+            if (deployment.creator?.login !== 'github-actions[bot]' ||
+                deployment.environment !== `feature-pr-${prNumber}` ||
+                deployment.sha !== sha ||
+                Number(deployment.payload?.pr_number) !== prNumber) {
+              core.setFailed(`Deployment ${deploymentId} does not belong to PR #${prNumber} at ${sha}`);
+              return;
+            }
+
+            await github.rest.repos.createDeploymentStatus({
+              owner, repo,
+              deployment_id: deploymentId,
+              state,
+              description: String(result.description ?? '').slice(0, 140),
+              log_url: logUrl,
+              environment_url: environmentUrl || undefined
+            });
+            core.info(`Deployment ${deploymentId} of PR #${prNumber} marked ${state}`);
+
+            if (state !== 'success') return;
+
+            // Re-read the body right before writing so a concurrent human edit is kept
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+            if (pr.state !== 'open') {
+              core.info(`PR #${prNumber} is ${pr.state}, description left unchanged`);
+              return;
+            }
+
+            // Keep in sync with the BOX pattern of deploy-feature-branch.yml
+            const BOX = /^([ \t]*)[-*+][ \t]+\[[ xX]\][^\r\n]*<!--\s*feature-deploy\s*-->[^\r\n]*/m;
+            // The line break before the URL line goes with it, so re-inserting it is a no-op
+            const URL_LINE = /\r?\n[^\r\n]*<!--\s*feature-deploy-url\s*-->[^\r\n]*/g;
+
+            const body = pr.body || '';
+            const eol = body.includes('\r\n') ? '\r\n' : '\n';
+            const withoutUrl = body.replace(URL_LINE, '');
+            const box = withoutUrl.match(BOX);
+            if (!box) {
+              core.info(`PR #${prNumber} has no Deployment checkbox, description left unchanged`);
+              return;
+            }
+            const end = box.index + box[0].length;
+            const urlLine = `${box[1]}  🌐 ${environmentUrl} <!-- feature-deploy-url -->`;
+            const next = `${withoutUrl.slice(0, end)}${eol}${urlLine}${withoutUrl.slice(end)}`;
+            if (next !== body) {
+              await github.rest.pulls.update({ owner, repo, pull_number: prNumber, body: next });
+              core.info(`Environment URL written in PR #${prNumber}: ${environmentUrl}`);
+            }
