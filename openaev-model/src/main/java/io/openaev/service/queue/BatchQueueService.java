@@ -381,7 +381,7 @@ public class BatchQueueService<T extends Queueable> {
       for (DeliveryContext context : deliveryTable.values()) {
         try {
           if (context.getDeliveryChannel().isOpen()) {
-            context.getDeliveryChannel().basicReject(context.getTag(), false);
+            context.rejectWithoutRequeue();
           }
         } catch (Exception e) {
           log.warn("Failed to reject message during purge: {}", e.getMessage());
@@ -445,11 +445,11 @@ public class BatchQueueService<T extends Queueable> {
                 boolean ack = processed.contains(element);
                 try {
                   if (ack) {
-                    context.getDeliveryChannel().basicAck(context.getTag(), false);
+                    context.ack();
                   } else {
                     // To avoid having elements that are not properly processed but can never be,
                     // we're not requeueing them.
-                    context.getDeliveryChannel().basicReject(context.getTag(), false);
+                    context.rejectWithoutRequeue();
                   }
                 } catch (IOException | ShutdownSignalException e) {
                   log.error(
