@@ -229,7 +229,6 @@ nav:
       - Security:
         - Policies: administration/policies.md
         - Users and RBAC: administration/users-and-rbac.md
-        - Markings: administration/markings.md
       - Taxonomies: administration/taxonomies.md
       - Default Asset Rules: administration/default-asset-rules.md
       - XTM Hub: administration/hub.md # Warning: page is linked in XTM Hub documentation

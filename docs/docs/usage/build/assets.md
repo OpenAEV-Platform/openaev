@@ -56,7 +56,6 @@ By clicking on an endpoint, you will be able to access and manage its details:
 | **IP addresses**    | All IP addresses detected                                                                                                                                                                                                                                                                                                                                           | Yes*                                    |
 | **MAC addresses**   | All MAC addresses detected                                                                                                                                                                                                                                                                                                                                          | Yes*                                    |
 | **Tags**            | OpenAEV tags to identify your machine                                                                                                                                                                                                                                                                                                                               | No                                      |
-| **Markings**        | Sensitivity labels (e.g. TLP) controlling who can see this Endpoint -- see [Markings](../../administration/markings.md)                                                                                                                                                                                                                                             | No                                      |
 
 *You can manually add or remove IP and MAC addresses, but addresses reported by agents are always upserted.
 
@@ -127,4 +126,3 @@ security platform integration is not yet available, you can create it manually h
 - [Scenarios](scenario/scenario.md) -- Use your Assets in Scenarios
 - [Injects](../evaluate/injects/inject-overview.md) -- Target Assets with Injects
 - [People](people.md) -- Manage Players and Teams
-- [Markings](../../administration/markings.md) -- Control who can see sensitive Assets
