@@ -19,11 +19,18 @@
 #      LOWER(column)) is skipped, because its real key is not a column list and reading one column
 #      out of it invents a key the schema does not have. The cross-check pins the skipped set by
 #      name so a new expression index cannot appear unnoticed.
-#   3. the column's value space is not globally unique anyway: it is neither a single-column primary
-#      key nor a single-column foreign key onto one. This is what keeps users_tenants.user_id and
-#      injectors_contracts.injector_contract_payload off the list: both carry values minted by a
-#      single-column primary key elsewhere, so the per-tenant unique index over them constrains
-#      multiplicity, not identity.
+#   3. the column does not itself carry a TOTAL single-column unique index in this same table, which
+#      is what keeps a value already unique platform-wide off the list, for example
+#      injectors_contracts.injector_contract_payload.
+#      Two traps this rule used to fall into. A foreign key onto a single-column primary key says the
+#      referenced value is unique where it is defined, NOT that the referencing column is unique here:
+#      users_tenants.user_id is a foreign key onto users and repeats once per tenant the user belongs
+#      to, so it IS a shared key. It is NOT in the list below, and the cross-check names it as the one
+#      shared key the join guard cannot enforce yet: the guard resolves a key by column name, and
+#      user_id is the first shared key whose name is not distinctive, so enforcing it today reports
+#      nine predicates that are on users_groups, users_tags, users_teams or users and are not this key.
+#      And a PARTIAL unique index buys nothing: uk_parameters_key_platform is unique on parameter_key
+#      only WHERE tenant_id IS NULL, so it says nothing about two tenants holding the same key.
 #
 # Known gap, deliberate and pinned by the cross-check: a key made of SEVERAL non-tenant columns is
 # not listed, because no single column of it is shared on its own. The cross-check asserts the exact

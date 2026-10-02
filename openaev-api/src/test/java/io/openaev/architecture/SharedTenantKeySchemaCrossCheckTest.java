@@ -47,8 +47,18 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
    * <p>The three conditions in the WHERE clause are, in order: the index names all of its key
    * columns, so an expression key (which is not a column list) is skipped rather than guessed at;
    * the non-tenant part is a single column, since no single column of a wider key is shared on its
-   * own; and the column is not a single-column foreign key onto a single-column primary key, which
-   * is what keeps a value minted elsewhere and merely constrained per tenant off the list.
+   * own; and the column does not itself carry a single-column unique index in THIS table, which is
+   * what keeps a value that is already unique platform-wide off the list. That index must be total:
+   * {@code uk_parameters_key_platform} is unique on {@code parameter_key} only {@code WHERE
+   * tenant_id IS NULL}, so it says nothing about two tenants holding the same key, and a partial
+   * index must not buy an exclusion.
+   *
+   * <p>That third condition used to test for a foreign key onto a single-column primary key, which
+   * was wrong: a foreign key says the referenced value is unique in the table it points at, not
+   * that the referencing column is unique here. {@code users_tenants.user_id} is exactly that case,
+   * a foreign key onto {@code users} whose value repeats once per tenant the user belongs to, so
+   * the old rule excluded it and an unscoped join between membership rows on {@code user_id} would
+   * have walked past this guard.
    */
   private static final String DERIVE_SHARED_KEYS =
       """
@@ -81,16 +91,13 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
          AND cardinality(u.non_tenant_columns) = 1
          AND NOT EXISTS (
                SELECT 1
-                 FROM pg_constraint c
-                 JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
-                WHERE c.contype = 'f'
-                  AND c.conrelid = u.table_oid
-                  AND array_length(c.conkey, 1) = 1
-                  AND a.attname = u.non_tenant_columns[1]
-                  AND EXISTS (SELECT 1 FROM pg_index pi
-                               WHERE pi.indrelid = c.confrelid
-                                 AND pi.indisprimary
-                                 AND pi.indnatts = 1))
+                 FROM pg_index pu
+                 JOIN pg_attribute pa ON pa.attrelid = pu.indrelid AND pa.attnum = pu.indkey[0]
+                WHERE pu.indrelid = u.table_oid
+                  AND pu.indisunique
+                  AND pu.indnatts = 1
+                  AND pu.indpred IS NULL
+                  AND pa.attname = u.non_tenant_columns[1])
        ORDER BY 1, 2
       """;
 
@@ -171,16 +178,13 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
                  AND na.attnum = ANY(ix.indkey)
                  AND na.attname <> 'tenant_id') = 1
          AND EXISTS (SELECT 1
-                       FROM pg_constraint c
-                       JOIN pg_attribute fa ON fa.attrelid = c.conrelid AND fa.attnum = c.conkey[1]
-                      WHERE c.contype = 'f'
-                        AND c.conrelid = t.oid
-                        AND array_length(c.conkey, 1) = 1
-                        AND fa.attname = a.attname
-                        AND EXISTS (SELECT 1 FROM pg_index pi
-                                     WHERE pi.indrelid = c.confrelid
-                                       AND pi.indisprimary
-                                       AND pi.indnatts = 1))
+                       FROM pg_index pu
+                       JOIN pg_attribute pa ON pa.attrelid = pu.indrelid AND pa.attnum = pu.indkey[0]
+                      WHERE pu.indrelid = t.oid
+                        AND pu.indisunique
+                        AND pu.indnatts = 1
+                        AND pu.indpred IS NULL
+                        AND pa.attname = a.attname)
        ORDER BY 1
       """;
 
@@ -188,9 +192,45 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
       List.of(
           // injector_contract_payload holds payload_id values, and payloads.payload_id is a
           // single-column primary key, so the value is globally unique.
-          "injectors_contracts injector_contract_payload",
-          // users_tenants.user_id holds users.user_id values; the composite expresses membership.
-          "users_tenants user_id");
+          // Nothing else today. users_tenants.user_id used to be here, wrongly: a foreign key onto
+          // users says users.user_id is unique in users, not that user_id is unique in
+          // users_tenants, where it repeats once per tenant the user belongs to.
+          "injectors_contracts injector_contract_payload");
+
+  /**
+   * Shared keys the derivation is right about and the join guard cannot enforce yet.
+   *
+   * <p>{@code users_tenants.user_id} is a genuine shared key. It is held back from
+   * `shared-tenant-keys.txt` for one reason, stated here rather than hidden in a pile of waivers:
+   * the join guard resolves a key by COLUMN NAME, and `user_id` is the first shared key whose
+   * column name is not distinctive. Enforcing it today reports thirteen predicates in
+   * `UserRepository`, of which nine are on `users_groups`, `users_tags`, `users_teams` or `users`
+   * and are not this key at all, while the four that do touch `users_tenants` carry the tenant in
+   * the query's WHERE clause rather than in the join predicate.
+   *
+   * <p>So enforcing it needs the matcher to resolve an alias to its table first. Until then this
+   * set is the honest record, and the assertion below makes a second such key impossible to add
+   * unnoticed.
+   */
+  private static final List<String> KNOWN_UNENFORCEABLE_SHARED_KEYS =
+      List.of("users_tenants user_id");
+
+  @Test
+  @DisplayName("given a shared key the guard cannot enforce, when listed, then it is a known one")
+  void given_anUnenforceableSharedKey_should_beOneOfTheKnownOnes() throws Exception {
+    // ARRANGE / ACT
+    List<String> derived = query(DERIVE_SHARED_KEYS, 2);
+    List<String> checkedIn = resourceLines("/shared-tenant-keys.txt");
+    TreeSet<String> missing = new TreeSet<>(derived);
+    missing.removeAll(checkedIn);
+
+    // ASSERT: a shared key the schema reports and the guard does not enforce must be a named one,
+    // with its reason, not a quiet omission.
+    assertEquals(
+        new TreeSet<>(KNOWN_UNENFORCEABLE_SHARED_KEYS),
+        missing,
+        "a shared key is derived from the schema but absent from the enforced list");
+  }
 
   @Test
   @DisplayName("given a column dropped as globally unique, when listed, then it is a known one")
@@ -213,7 +253,10 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
     List<String> derived = query(DERIVE_SHARED_KEYS, 2);
     List<String> checkedIn = resourceLines("/shared-tenant-keys.txt");
 
-    // ASSERT
+    // ASSERT. The unenforceable set is subtracted, and its own test above pins it, so a key cannot
+    // disappear from the guard by being quietly dropped here.
+    derived = new java.util.ArrayList<>(derived);
+    derived.removeAll(KNOWN_UNENFORCEABLE_SHARED_KEYS);
     assertTrue(derived.size() > 15, "the derivation returned almost nothing: " + derived);
     assertEquals(
         new TreeSet<>(derived),
