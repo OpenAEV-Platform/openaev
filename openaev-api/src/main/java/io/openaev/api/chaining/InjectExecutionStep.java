@@ -190,7 +190,10 @@ public class InjectExecutionStep implements ActionStep {
    * Executor}, and updates the step data with inject ID.
    *
    * @param readyStep the step currently in READY status
-   * @return the updated step with execution info, or null if execution fails
+   * @return the updated step with execution info, or an empty Optional if no agent could run the
+   *     inject: the inject is set to ERROR and the caller ends the step without retry
+   * @throws ChainingException on any other failure: the transaction is rolled back and the event is
+   *     retried
    */
   @Override
   @Transactional(rollbackFor = Exception.class)
