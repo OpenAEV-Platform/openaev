@@ -53,6 +53,18 @@ interface ControlledProps extends CommonProps {
 type Props<T extends FieldValues> = FormProps<T> | ControlledProps;
 
 /**
+ * A date-only pick keeps the wall-clock time of the current value, as the MUI X
+ * pickers this field replaced did; the library returns local midnight. Values
+ * stored as UTC midnight would otherwise move to the previous day east of UTC.
+ */
+const keepTimeOf = (picked: Date | null, current: Date | null): Date | null => {
+  if (!picked || !current || Number.isNaN(current.getTime())) return picked;
+  const merged = new Date(picked);
+  merged.setHours(current.getHours(), current.getMinutes(), current.getSeconds(), current.getMilliseconds());
+  return merged;
+};
+
+/**
  * The product's single date field. Two bindings: `name` for react-hook-form,
  * `value`/`onChange` for a controlled field.
  */
@@ -106,7 +118,10 @@ const DateField = <T extends FieldValues = FieldValues>({
           <DatePicker
             {...shared}
             value={field.value ? new Date(field.value) : null}
-            onChange={date => field.onChange(date ? (toStorage ?? ((d: Date) => d.toISOString()))(date) : clearedValue)}
+            onChange={(picked) => {
+              const date = withTime ? picked : keepTimeOf(picked, field.value ? new Date(field.value) : null);
+              field.onChange(date ? (toStorage ?? ((d: Date) => d.toISOString()))(date) : clearedValue);
+            }}
             onBlur={() => {
               field.onBlur();
               onBlur?.();
@@ -123,7 +138,7 @@ const DateField = <T extends FieldValues = FieldValues>({
     <DatePicker
       {...shared}
       value={value}
-      onChange={date => onChange(date)}
+      onChange={picked => onChange(withTime ? picked : keepTimeOf(picked, value ?? null))}
       onBlur={onBlur}
       error={error}
     />

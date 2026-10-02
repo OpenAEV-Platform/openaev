@@ -10,6 +10,7 @@ import { type FunctionComponent } from 'react';
 
 import DateField from '../../../../components/fields/DateField';
 import { useFormatter } from '../../../../components/i18n';
+import { toUtcMidnightIso, utcMidnightToLocalDay } from '../../../../utils/Time';
 import { CUSTOM_TIME_RANGE, getTimeRangeItems } from './widgets/configuration/common/TimeRangeUtils';
 
 interface Props {
@@ -57,21 +58,22 @@ const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleSta
       {
         timeRangeValue === CUSTOM_TIME_RANGE && (
           <>
+            {/* Both bounds are stored as UTC midnight of the picked day and shown as that day, in every time zone */}
             <DateField
-              value={startDateValue ? new Date(startDateValue) : null}
-              maxDate={new Date(new Date(endDateValue ?? '').setUTCHours(24, 0, 0, 0))}
+              value={startDateValue ? utcMidnightToLocalDay(startDateValue) : null}
+              maxDate={endDateValue ? utcMidnightToLocalDay(endDateValue, 1) : undefined}
               onChange={(startDate) => {
                 if (!startDate) return;
-                handleStartDate(new Date(new Date(startDate).setUTCHours(24, 0, 0, 0)).toISOString());
+                handleStartDate(toUtcMidnightIso(startDate));
               }}
               label={t('Start date')}
             />
             <DateField
-              value={endDateValue ? new Date(endDateValue) : null}
-              minDate={new Date(new Date(startDateValue ?? '').setUTCHours(24, 0, 0, 0))}
+              value={endDateValue ? utcMidnightToLocalDay(endDateValue) : null}
+              minDate={startDateValue ? utcMidnightToLocalDay(startDateValue, 1) : undefined}
               onChange={(endDate) => {
                 if (!endDate) return;
-                handleEndDate(new Date(new Date(endDate).setUTCHours(24, 0, 0, 0)).toISOString());
+                handleEndDate(toUtcMidnightIso(endDate));
               }}
               label={t('End date')}
             />
