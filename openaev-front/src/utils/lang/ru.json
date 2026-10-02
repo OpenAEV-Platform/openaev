@@ -748,6 +748,7 @@
   "Commands run beforehand to make sure the arsenal item can execute.": "Команды, выполняемые заранее, чтобы убедиться, что элемент арсенала может быть выполнен.",
   "Comment (optional)": "Комментарий (необязательно)",
   "Comments": "Комментарии",
+  "Commit hash": "Хеш коммита",
   "Communication check": "Проверка связи",
   "Community": "Сообщество",
   "COMMUNITY": "Сообщество",
