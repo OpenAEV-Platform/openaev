@@ -171,11 +171,14 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
       return;
     }
 
-    Optional<Step> stepRun;
+    Step stepRun;
     try {
       ActionStep actionStep =
           stepService.factoryAction(stepReady.getStepAction(), stepReady.getId());
-      stepRun = actionStep.run(stepReady);
+      stepRun =
+          actionStep
+              .run(stepReady)
+              .orElseThrow(() -> new ChainingException("Step (READY) execution failed"));
     } catch (ChainingException e) {
       // todo system notif queue fail + system log for step + status FAIL
       log.error(
@@ -196,15 +199,8 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
       }*/
     }
 
-    if (stepRun.isEmpty()) {
-      // Final failure, already logged by the action step: end the step without retry.
-      stepReady.setStatus(StepStatus.END);
-      stepService.saveStep(stepReady);
-      return;
-    }
-
-    stepRun.get().setStatus(StepStatus.RUN);
-    stepService.saveStep(stepRun.get());
+    stepRun.setStatus(StepStatus.RUN);
+    stepService.saveStep(stepRun);
   }
 
   // -- EXTERNAL UPDATE EVENTS --
