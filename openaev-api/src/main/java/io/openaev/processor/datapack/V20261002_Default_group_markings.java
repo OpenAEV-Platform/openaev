@@ -67,8 +67,8 @@ public class V20261002_Default_group_markings extends DataPack {
 
   /**
    * @return {@code true} once this group/marking pair is in its desired end state (assigned, or
-   *     already was); {@code false} if a prerequisite datapack hasn't produced the group or
-   *     marking yet, so the caller must not let this pack register as processed.
+   *     already was); {@code false} if a prerequisite datapack hasn't produced the group or marking
+   *     yet, so the caller must not let this pack register as processed.
    */
   private boolean assignMarkingToGroup(Tenant tenant, String groupName, String markingDefinition) {
     Optional<Group> maybeGroup = groupRepository.findByNameAndTenantId(groupName, tenant.getId());

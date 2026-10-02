@@ -104,8 +104,7 @@ class V20261002DefaultGroupMarkingsTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName(
-      "given_groupsNotYetCreatedByPrerequisitePack_should_notRegisterPackSoItRetriesLater")
+  @DisplayName("given_groupsNotYetCreatedByPrerequisitePack_should_notRegisterPackSoItRetriesLater")
   void given_groupsNotYetCreatedByPrerequisitePack_should_notRegisterPackSoItRetriesLater()
       throws Exception {
     Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
