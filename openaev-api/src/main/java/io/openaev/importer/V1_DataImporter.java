@@ -53,6 +53,7 @@ import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -295,6 +296,7 @@ public class V1_DataImporter implements Importer {
             entityManager
                 .createNativeQuery(
                     "SELECT coalesce(current_setting('app.current_tenants', true), '')")
+                .setFlushMode(FlushModeType.COMMIT)
                 .getSingleResult();
     if (guc.isBlank()) {
       return fallback;

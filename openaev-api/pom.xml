@@ -332,6 +332,14 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Boot 4 moved the auto-configuration that applies springSecurity() to MockMvc into this
+             module. Without it MockMvc never sees the test SecurityContext and every authenticated
+             request is rejected with a 401. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>

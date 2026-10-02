@@ -11,6 +11,7 @@ import io.openaev.utils.fixtures.GrantFixture;
 import io.openaev.utils.fixtures.composers.GrantComposer;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUserTestExecutionListener;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RabbitMQTestListener;
 import io.openaev.utilstest.StartupSnapshotTestListener;
 import jakarta.persistence.EntityManager;
@@ -25,6 +26,7 @@ import org.springframework.test.context.TestExecutionListeners;
 @TestExecutionListeners(
     value = {
       StartupSnapshotTestListener.class,
+      DefaultTenantScopeTestListener.class,
       WithMockUserTestExecutionListener.class,
       RabbitMQTestListener.class
     },

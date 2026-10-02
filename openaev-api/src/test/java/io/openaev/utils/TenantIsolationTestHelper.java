@@ -16,6 +16,9 @@ import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -173,7 +176,9 @@ public class TenantIsolationTestHelper {
    * {@code @Transactional} test (the dominant two-tenant {@code @BeforeEach} idiom) leaves the
    * scope pinned to whichever tenant was created LAST. Onboarding also sets {@link TenantContext},
    * so restore both scopes here; otherwise a later request can target the tenant created only for
-   * test data instead of the caller's original tenant.
+   * test data instead of the caller's original tenant. The database scope is restored with the new
+   * tenant added, so the test can seed data in it (each MockMvc request starts from a cleared scope
+   * anyway, see {@code RequestTenantScopeTestConfiguration}).
    *
    * @param name the tenant name
    * @return the persisted {@link Tenant}
@@ -181,13 +186,14 @@ public class TenantIsolationTestHelper {
   public Tenant createTenant(String name) throws DependenciesManagerException {
     boolean hadTenant = TenantContext.hasCurrentTenant();
     String previousTenantId = hadTenant ? TenantContext.getCurrentTenant() : null;
+    String previousScope = currentScope();
     Tenant tenant =
         TenantFixture.getTenant(name + "-" + UUID.randomUUID().toString().substring(0, 8));
     try {
       return tenantService.create(tenant);
     } finally {
       try {
-        resetLeftoverOnboardingScope();
+        restoreScopeWith(previousScope, tenant.getId());
       } finally {
         if (hadTenant) {
           TenantContext.setCurrentTenant(previousTenantId);
@@ -198,14 +204,31 @@ public class TenantIsolationTestHelper {
     }
   }
 
+  private String currentScope() {
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT coalesce(current_setting('app.current_tenants', true), '')")
+            .setFlushMode(FlushModeType.COMMIT)
+            .getSingleResult();
+  }
+
   /**
-   * Resets the {@code app.current_tenants} transaction-local setting left behind by tenant
-   * onboarding (see {@link #createTenant}'s javadoc). A no-op outside an active transaction or when
-   * nothing was ever set.
+   * Replaces the {@code app.current_tenants} transaction-local setting left behind by tenant
+   * onboarding (see {@link #createTenant}'s javadoc) with the scope the test had before, plus the
+   * created tenant (when it was persisted). A no-op outside an active transaction.
    */
-  private void resetLeftoverOnboardingScope() {
+  private void restoreScopeWith(String previousScope, String createdTenantId) {
+    Set<String> tenants = new LinkedHashSet<>();
+    if (!previousScope.isEmpty()) {
+      tenants.addAll(Arrays.asList(previousScope.split(",")));
+    }
+    if (createdTenantId != null) {
+      tenants.add(createdTenantId);
+    }
     entityManager
-        .createNativeQuery("SELECT set_config('app.current_tenants', '', true)")
+        .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
+        .setFlushMode(FlushModeType.COMMIT)
+        .setParameter("scope", String.join(",", tenants))
         .getSingleResult();
   }
 

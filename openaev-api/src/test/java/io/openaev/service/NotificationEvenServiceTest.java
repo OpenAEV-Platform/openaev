@@ -11,7 +11,9 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -21,6 +23,7 @@ import org.springframework.test.context.TestExecutionListeners;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+@ExtendWith(MockitoExtension.class)
 public class NotificationEvenServiceTest extends IntegrationTest {
 
   @Mock private ApplicationEventPublisher appPublisher;
