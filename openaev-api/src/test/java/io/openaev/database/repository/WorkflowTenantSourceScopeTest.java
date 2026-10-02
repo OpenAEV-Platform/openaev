@@ -220,14 +220,24 @@ class WorkflowTenantSourceScopeTest extends IntegrationTest {
     }
   }
 
+  /**
+   * What this nest does NOT establish: that a transaction is always open where the publisher is
+   * reached. It is not. {@code BatchingInjectStatusService.handleInjectExecutionCallback} is
+   * {@code @Transactional(propagation = NOT_SUPPORTED)} and returns from its per-tenant
+   * transactions before its {@code @WorkflowUpdateEvent} advice calls {@code
+   * QueueChainingService.updateStep}, so that publisher path reaches the resolution with no
+   * transaction at all. Both shapes of cost therefore apply to wrapping the resolution in an
+   * explicit intention: it is refused where a transaction is open, and it has to open one where
+   * none is, and that is the argument for reading the tenant off the row instead.
+   */
   @Nested
-  @DisplayName("the transactional state at the publisher's call site")
+  @DisplayName("the transactional state at one of the publisher's call sites")
   class CallSite {
 
     @Test
-    @DisplayName("refuses to open the background primitive inside the publisher's transaction")
+    @DisplayName("refuses to open the background primitive inside a caller's transaction")
     void given_anActiveTransaction_should_refuseToOpenAnIntention() {
-      // Act: every production caller of the publisher already runs inside a transaction.
+      // Act: the publisher paths that run inside a transaction, which is some of them, not all.
       IllegalStateException refusal =
           assertThrows(
               IllegalStateException.class,
