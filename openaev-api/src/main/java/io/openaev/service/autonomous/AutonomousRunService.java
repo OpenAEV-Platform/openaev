@@ -3674,7 +3674,7 @@ public class AutonomousRunService {
       created.setName(hasText(name) ? name : defaultTargetTeamName(players));
       created.setContextual(true);
       created.setUsers(new ArrayList<>(players));
-      created.setExercises(new ArrayList<>(List.of(simulation)));
+      created.setExercises(new HashSet<>(List.of(simulation)));
       team = teamRepository.save(created);
     }
 

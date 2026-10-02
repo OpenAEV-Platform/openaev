@@ -38,6 +38,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -175,12 +176,13 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                 "tom-test+" + uniqueSuffix + "@fake.email"));
     Team team = TeamFixture.getTeam(user, "TeamA-" + uniqueSuffix, true);
     team.setExercises(
-        Arrays.asList(
-            scheduledExercise,
-            runningExercise,
-            pausedExercise,
-            canceledExercise,
-            finishedExercise));
+        new HashSet<>(
+            Arrays.asList(
+                scheduledExercise,
+                runningExercise,
+                pausedExercise,
+                canceledExercise,
+                finishedExercise)));
     SCHEDULED_EXERCISE = exerciseRepository.save(scheduledExercise);
     RUNNING_EXERCISE = exerciseRepository.save(runningExercise);
     PAUSED_EXERCISE = exerciseRepository.save(pausedExercise);
