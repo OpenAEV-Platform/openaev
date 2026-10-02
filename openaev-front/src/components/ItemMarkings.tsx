@@ -21,30 +21,48 @@ interface Props {
 // Seeded definitions already store the display value with its type baked in, e.g.
 // `marking_definition_definition: "TLP:RED"` for a `marking_definition_type: "TLP"`. Prefixing
 // unconditionally would render `TLP:TLP:RED`, so the type is only prepended when the definition
-// does not already carry it.
-const markingLabel = (marking: MarkingDefinitionOutput) => (
-  marking.marking_definition_definition.startsWith(`${marking.marking_definition_type}:`)
-    ? marking.marking_definition_definition
-    : `${marking.marking_definition_type}:${marking.marking_definition_definition}`
-);
+// does not already carry it. Always rendered uppercase (e.g. `TLP:GREEN`), regardless of how the
+// type/definition were cased when the marking was created.
+const markingLabel = (marking: MarkingDefinitionOutput) => {
+  const type = marking.marking_definition_type.toUpperCase();
+  const definition = marking.marking_definition_definition.toUpperCase();
+  return definition.startsWith(`${type}:`) ? definition : `${type}:${definition}`;
+};
 
 const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) => {
+  // The design system's MuiChip/MuiTooltip theme overrides force `text-transform: lowercase` (+
+  // capitalize first letter) globally - see ThemeDark.ts/ThemeLight.ts. Markings must stay fully
+  // uppercase (e.g. `TLP:GREEN`, not `Tlp:green`), so that is explicitly undone here rather than
+  // in the shared theme, which drives every other chip/tooltip in the app.
+  const noCaseTransformSx = {
+    'textTransform': 'none',
+    '&::first-letter': { textTransform: 'none' },
+    '& .MuiChip-label': { textTransform: 'none' },
+  };
   const chipSx = {
     height: variant === 'list' ? 20 : 25,
     fontSize: 12,
     margin: 0,
     borderRadius: 1,
+    ...noCaseTransformSx,
   };
 
-  // An id with no matching definition is dropped rather than rendered raw: marking ids are stored
-  // inline as text[] with no foreign key, so a deleted definition can leave a dangling id behind.
-  // Highest order (most restrictive, e.g. TLP:RED) first - same convention as the assign-marking
-  // picker, so the most sensitive grant is always the first thing a reader sees.
+  // Only the highest-order marking of each type is kept (e.g. TLP:CLEAR/GREEN/AMBER collapse to
+  // TLP:AMBER)
   const resolved = useMemo(
-    () => (markingIds ?? [])
-      .map(id => definitions[id])
-      .filter((marking): marking is MarkingDefinitionOutput => !!marking)
-      .sort((a, b) => b.marking_definition_order - a.marking_definition_order),
+    () => {
+      const sorted = (markingIds ?? [])
+        .map(id => definitions[id])
+        .filter((marking): marking is MarkingDefinitionOutput => !!marking)
+        .sort((a, b) => b.marking_definition_order - a.marking_definition_order);
+      const highestByType = new Map<string, MarkingDefinitionOutput>();
+      sorted.forEach((marking) => {
+        if (!highestByType.has(marking.marking_definition_type)) {
+          highestByType.set(marking.marking_definition_type, marking);
+        }
+      });
+      return Array.from(highestByType.values());
+    },
     [markingIds, definitions],
   );
 
@@ -52,7 +70,7 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
   // nullable inputs and so return nullable results, which `resolved` never is.
   const visible = resolved.slice(0, limit);
   const remaining = resolved.length - visible.length;
-  const tooltipLabel = resolved.slice(limit).map(marking => marking.marking_definition_definition).join(', ');
+  const tooltipLabel = resolved.slice(limit).map(marking => markingLabel(marking)).join(', ');
 
   if (resolved.length === 0) {
     return <span>-</span>;
@@ -67,7 +85,7 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
     }}
     >
       {visible.map((marking: MarkingDefinitionOutput) => (
-        <Tooltip key={marking.marking_definition_id} title={markingLabel(marking)}>
+        <Tooltip key={marking.marking_definition_id} title={<span style={{ textTransform: 'none' }}>{markingLabel(marking)}</span>}>
           <Chip
             variant="outlined"
             // The dot mirrors the "Color" column of the marking definitions admin list, so a
@@ -86,12 +104,12 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
               borderColor: marking.marking_definition_color,
               backgroundColor: marking.marking_definition_color ? hexToRGB(marking.marking_definition_color) : undefined,
             }}
-            label={truncate(marking.marking_definition_definition, variant === 'list' ? 15 : 20)}
+            label={truncate(markingLabel(marking), variant === 'list' ? 15 : 20)}
           />
         </Tooltip>
       ))}
       {remaining > 0 && (
-        <Tooltip title={tooltipLabel}>
+        <Tooltip title={<span style={{ textTransform: 'none' }}>{tooltipLabel}</span>}>
           <Chip variant="outlined" sx={chipSx} label={`+${remaining}`} />
         </Tooltip>
       )}
