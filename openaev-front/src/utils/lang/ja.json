@@ -2582,6 +2582,7 @@
   "Missed injects by week": "週別の見逃されたインジェクト",
   "Missing content": "不足内容",
   "Missing simulation or scenario id": "シミュレーションまたはシナリオ ID がありません",
+  "Missing the ASSIGN_MARKING capability": "ASSIGN_MARKING 機能が欠落しています",
   "Missing token": "トークンの欠落",
   "Mission": "ミッション",
   "Mission (planned)": "ミッション（計画）",

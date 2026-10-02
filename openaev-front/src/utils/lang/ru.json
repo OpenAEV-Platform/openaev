@@ -2582,6 +2582,7 @@
   "Missed injects by week": "Пропущенные инъекции по неделям",
   "Missing content": "Отсутствующее содержимое",
   "Missing simulation or scenario id": "Отсутствует идентификатор симуляции или сценария",
+  "Missing the ASSIGN_MARKING capability": "Отсутствует функция ASSIGN_MARKING",
   "Missing token": "Отсутствующий токен",
   "Mission": "Миссия",
   "Mission (planned)": "Миссия (запланирована)",

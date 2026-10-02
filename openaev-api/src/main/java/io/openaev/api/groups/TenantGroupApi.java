@@ -138,7 +138,8 @@ public class TenantGroupApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Group updated"),
         @ApiResponse(
             responseCode = "403",
-            description = "Missing the ASSIGN_MARKING capability, or assigning a marking the caller lacks"),
+            description =
+                "Missing the ASSIGN_MARKING capability, or assigning a marking the caller lacks"),
         @ApiResponse(responseCode = "404", description = "Group or marking not found")
       })
   // The @AccessControl WRITE check above answers "may you change what this group grants" (same
