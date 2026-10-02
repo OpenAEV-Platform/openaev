@@ -5,6 +5,7 @@ import { IntlProvider } from 'react-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import PlatformInfoPanel from '../../../../admin/components/settings/PlatformInfoPanel';
+import ThemeDark from '../../../../components/ThemeDark';
 import { type PlatformSettings } from '../../../../utils/api-types';
 import type * as UtilsModule from '../../../../utils/utils';
 
@@ -27,14 +28,7 @@ vi.mock('../../../../utils/utils', async (importOriginal) => {
 
 const COMMIT = 'a59197d8cc0123456789abcdef0123456789abcd';
 
-const theme = createTheme({
-  palette: {
-    ee: {
-      main: '#6b4fff',
-      lightBackground: 'rgba(107, 79, 255, 0.08)',
-    },
-  },
-});
+const theme = createTheme(ThemeDark());
 
 const renderPanel = (settings: Partial<PlatformSettings>) => {
   const wrapper = ({ children }: { children: ReactNode }) => (
