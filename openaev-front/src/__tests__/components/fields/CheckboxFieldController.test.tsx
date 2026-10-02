@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -35,8 +35,6 @@ describe('CheckboxFieldController', () => {
     fireEvent.click(box);
     expect(box).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(screen.getByRole('button', { name: saveLabel }));
-    await screen.findByRole('checkbox', { name: 'Create findings' });
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(submitted).toEqual({ flag: true });
+    await waitFor(() => expect(submitted).toEqual({ flag: true }));
   });
 });
