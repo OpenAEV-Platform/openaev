@@ -1,6 +1,7 @@
 package io.openaev.rest.lessons;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.lessons.LessonsCategoryHydration.hydrateForResponse;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
@@ -44,7 +45,8 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public Iterable<LessonsCategory> scenarioLessonsCategories(
       TxCtx ctx, @PathVariable String scenarioId) {
-    return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromScenario(scenarioId));
+    return hydrateForResponse(
+        lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromScenario(scenarioId)));
   }
 
   @PostMapping({
@@ -90,7 +92,8 @@ public class ScenarioLessonsApi extends RestBehavior {
               .toList();
       lessonsQuestionRepository.saveAll(lessonsQuestions);
     }
-    return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromScenario(scenarioId));
+    return hydrateForResponse(
+        lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromScenario(scenarioId)));
   }
 
   @PostMapping({
@@ -138,7 +141,7 @@ public class ScenarioLessonsApi extends RestBehavior {
             .findAll(LessonsCategorySpecification.fromScenario(scenarioId))
             .stream()
             .toList();
-    return lessonsCategories;
+    return hydrateForResponse(lessonsCategories);
   }
 
   @PutMapping({
@@ -161,7 +164,7 @@ public class ScenarioLessonsApi extends RestBehavior {
             .orElseThrow(ElementNotFoundException::new);
     lessonsTemplateCategory.setUpdateAttributes(input);
     lessonsTemplateCategory.setUpdated(now());
-    return lessonsCategoryRepository.save(lessonsTemplateCategory);
+    return hydrateForResponse(lessonsCategoryRepository.save(lessonsTemplateCategory));
   }
 
   @DeleteMapping({
@@ -198,7 +201,7 @@ public class ScenarioLessonsApi extends RestBehavior {
             .orElseThrow(ElementNotFoundException::new);
     Iterable<Team> lessonsCategoryTeams = teamRepository.findAllById(input.getTeamIds());
     lessonsCategory.setTeams(fromIterable(lessonsCategoryTeams));
-    return lessonsCategoryRepository.save(lessonsCategory);
+    return hydrateForResponse(lessonsCategoryRepository.save(lessonsCategory));
   }
 
   @GetMapping({

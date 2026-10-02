@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springdoc.api.ErrorMessage;
 import org.springframework.context.MessageSourceResolvable;
@@ -758,5 +759,16 @@ public class RestBehavior {
             instanceof ServletRequestAttributes attributes
         ? attributes.getRequest().getRequestURI()
         : "?";
+  }
+
+  /**
+   * Hydrates, inside the scoped transaction, the lazy {@code user_teams} collection every endpoint
+   * returning a raw {@link User} serializes. The collection is loaded after the controller returns,
+   * through open-in-view, where the tenant scope is already gone: a lazy load at that point runs
+   * unscoped and fails closed, so the array comes back empty although the memberships exist.
+   */
+  protected static User hydrateUserForResponse(User user) {
+    Hibernate.initialize(user.getTeams());
+    return user;
   }
 }
