@@ -1,4 +1,4 @@
-import { Paper, Tooltip, TooltipTrigger } from '@filigran/design-system';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Link, List, ListItem, ListItemText } from '@mui/material';
 import { type ReactNode } from 'react';
 
@@ -56,12 +56,13 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
         <ListItem divider>
           <ListItemText primary={t('Version')} />
           {/* Kept muted and left of the chip so the version column stays aligned */}
-          {!settings.platform_commit && (
+          {settings.platform_commit && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link
                   component="button"
                   type="button"
+                  aria-label={settings.platform_commit}
                   variant="caption"
                   color="text.secondary"
                   underline="hover"
@@ -71,9 +72,10 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
                     marginRight: 1,
                   }}
                 >
-                  {settings.platform_commit ? settings.platform_commit.slice(0, 7) : ''}
+                  {settings.platform_commit.slice(0, 7)}
                 </Link>
               </TooltipTrigger>
+              <TooltipContent>{settings.platform_commit}</TooltipContent>
             </Tooltip>
           )}
           <ItemBoolean variant="large" status={null} neutralLabel={settings?.platform_version?.replace('-SNAPSHOT', '')} />
