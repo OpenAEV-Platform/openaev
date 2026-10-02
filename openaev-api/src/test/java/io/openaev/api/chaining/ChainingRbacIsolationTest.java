@@ -3,14 +3,19 @@ package io.openaev.api.chaining;
 import static io.openaev.api.chaining.ConditionApi.TENANT_CONDITION_URI;
 import static io.openaev.api.chaining.StepApi.TENANT_STEP_URI;
 import static io.openaev.api.chaining.WorkflowApi.TENANT_WORKFLOW_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.config.OpenAEVConfig;
@@ -20,6 +25,7 @@ import io.openaev.database.model.Grant;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowStatus;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.fixtures.ConditionFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -30,6 +36,7 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,6 +70,7 @@ class ChainingRbacIsolationTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private WorkflowRepository workflowRepository;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private StepComposer stepComposer;
   @Autowired private ConditionComposer conditionComposer;
@@ -228,6 +236,48 @@ class ChainingRbacIsolationTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(validConfig())))
         .andExpect(status().isOk());
+  }
+
+  // -- DUPLICATE (ADR-007): the chained branch of POST /api/exercises/{id} reads and writes
+  // chaining rows, which carry no tenant_id. Its isolation is the same grant chain as above,
+  // resolved on the owning simulation. --
+
+  @Test
+  @WithMockUser
+  @DisplayName("duplicate: no grant on the chained simulation is forbidden (403)")
+  void withoutGrant_duplicateChainedSimulationForbidden() throws Exception {
+    mockMvc
+        .perform(post(tenantUri(TENANT_EXERCISE_URI + "/" + simulationId)).with(csrf()))
+        .andExpect(status().isForbidden());
+    // Nothing was cloned: the source workflow is still the only one on this simulation.
+    assertEquals(
+        1,
+        workflowRepository.findAllBySimulation_Id(simulationId).size(),
+        "no workflow was cloned");
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true)
+  @DisplayName("duplicate: the copied workflow belongs to the duplicate, never to the source")
+  void admin_duplicateChainedSimulationClonesWorkflowOntoTheDuplicate() throws Exception {
+    // -- ACT --
+    String response =
+        mockMvc
+            .perform(post(tenantUri(TENANT_EXERCISE_URI + "/" + simulationId)).with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String duplicateId = JsonPath.read(response, "$.exercise_id");
+
+    // -- ASSERT --
+    assertNotEquals(simulationId, duplicateId);
+    List<Workflow> duplicateWorkflows = workflowRepository.findAllBySimulation_Id(duplicateId);
+    assertEquals(1, duplicateWorkflows.size());
+    assertEquals(WorkflowStatus.TEMPLATE, duplicateWorkflows.getFirst().getStatus());
+    assertNotEquals(workflowId, duplicateWorkflows.getFirst().getId());
+    // The source object is left strictly untouched by the duplication.
+    assertEquals(1, workflowRepository.findAllBySimulation_Id(simulationId).size());
   }
 
   private WorkflowConfigurationInput validConfig() {

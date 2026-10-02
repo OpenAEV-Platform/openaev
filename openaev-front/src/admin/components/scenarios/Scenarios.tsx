@@ -295,12 +295,9 @@ const Scenarios = () => {
           loading
             ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
             : scenarios.map((scenario: Scenario) => {
-                const isScenarioChaining = !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id;
-                // A chained scenario owns its attack-path logic and is never duplicated by hand
-                // (its metadata stays editable); a time-based one may also be duplicated.
-                const scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = isScenarioChaining
-                  ? ['Update', 'Export', 'Delete']
-                  : ['Duplicate', 'Export', 'Delete'];
+                // Chained and time-based scenarios share the same duplicate endpoint: a chained one
+                // gets its logic map copied along with its metadata.
+                const scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Export', 'Delete'];
                 return (
                   <ListItem
                     key={scenario.scenario_id}
