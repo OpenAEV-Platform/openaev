@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -34,7 +35,9 @@ const renderPanel = (settings: Partial<PlatformSettings>) => {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <ThemeProvider theme={theme}>
       <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
-        {children}
+        <TooltipProvider>
+          {children}
+        </TooltipProvider>
       </IntlProvider>
     </ThemeProvider>
   );

@@ -152,6 +152,7 @@ Location: `openaev-front/src/actions/{feature}/` and `src/admin/components/`
 - List page with `Queryable` + `DataTable`
 - Create/Edit form with React Hook Form + Zod
 - Permission guards with CASL (`ability.can(ACTIONS.MANAGE, SUBJECTS.X)`)
+- UI built from `@filigran/design-system` components (Button, IconButton, Tooltip, Chip, Paper, Text, form fields…); MUI only where the library has no equivalent (Dialog, Drawer, Alert…)
 
 ### Step 11 — Verify
 
@@ -159,4 +160,5 @@ Location: `openaev-front/src/actions/{feature}/` and `src/admin/components/`
 mvn spotless:apply
 mvn test
 cd openaev-front && yarn lint && yarn check-ts && yarn test
+cd .. && node fds-migration/scripts/check-mui-regression.mjs --base origin/main
 ```

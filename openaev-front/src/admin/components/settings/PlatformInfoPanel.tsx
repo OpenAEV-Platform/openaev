@@ -1,4 +1,5 @@
-import { Link, List, ListItem, ListItemText, Paper, Tooltip } from '@mui/material';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Link, List, ListItem, ListItemText } from '@mui/material';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -37,13 +38,7 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
     : t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.');
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        padding: theme => `${theme.spacing(1)}`,
-        flex: 1,
-      }}
-    >
+    <Paper padding={8} style={{ flex: 1 }}>
       <List sx={{ padding: 0 }}>
         {topContent}
         <ListItem divider>
@@ -62,21 +57,25 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
           <ListItemText primary={t('Version')} />
           {/* Kept muted and left of the chip so the version column stays aligned */}
           {settings.platform_commit && (
-            <Tooltip title={settings.platform_commit}>
-              <Link
-                component="button"
-                type="button"
-                variant="caption"
-                color="text.secondary"
-                underline="hover"
-                onClick={() => copyToClipboard(t, settings.platform_commit ?? '')}
-                sx={{
-                  fontFamily: 'Consolas, monaco, monospace',
-                  marginRight: 1,
-                }}
-              >
-                {settings.platform_commit.slice(0, 7)}
-              </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  component="button"
+                  type="button"
+                  aria-label={settings.platform_commit}
+                  variant="caption"
+                  color="text.secondary"
+                  underline="hover"
+                  onClick={() => copyToClipboard(t, settings.platform_commit ?? '')}
+                  sx={{
+                    fontFamily: 'Consolas, monaco, monospace',
+                    marginRight: 1,
+                  }}
+                >
+                  {settings.platform_commit.slice(0, 7)}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>{settings.platform_commit}</TooltipContent>
             </Tooltip>
           )}
           <ItemBoolean variant="large" status={null} neutralLabel={settings?.platform_version?.replace('-SNAPSHOT', '')} />

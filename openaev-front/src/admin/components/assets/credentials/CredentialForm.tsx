@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, CircularProgress } from '@mui/material';
+import { CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type BaseSyntheticEvent, type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import {
@@ -341,6 +342,7 @@ const CredentialForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="credentialForm"
         style={{
           display: 'flex',
@@ -350,7 +352,6 @@ const CredentialForm: FunctionComponent<Props> = ({
         onSubmit={handleSubmitWithoutPropagation}
       >
         <TextFieldController
-          variant="standard"
           name="credential_name"
           label={t('Name')}
           required
@@ -358,7 +359,6 @@ const CredentialForm: FunctionComponent<Props> = ({
         />
 
         <TextFieldController
-          variant="standard"
           name="credential_description"
           label={t('Description')}
           multiline
@@ -423,20 +423,10 @@ const CredentialForm: FunctionComponent<Props> = ({
             marginTop: theme.spacing(1),
           }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={isSubmitting || !isDirty}
-          >
+          <Button type="submit" disabled={isSubmitting || !isDirty}>
             {isSubmitting && (
               <CircularProgress
                 size={16}

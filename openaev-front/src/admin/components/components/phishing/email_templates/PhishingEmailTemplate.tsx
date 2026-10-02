@@ -126,6 +126,9 @@ const PhishingEmailTemplate = () => {
           gap: 16,
         }}
         >
+          {/* action={null} is now a NO-OP, kept only to avoid churn: the
+              library's header row is a constant 24px with or without an action,
+              so this panel top-aligns with its sibling column on its own. */}
           <InformationGrid title={t('Configuration')} action={null}>
             <Field label={t('Subject')}>
               <Typography variant="body2">

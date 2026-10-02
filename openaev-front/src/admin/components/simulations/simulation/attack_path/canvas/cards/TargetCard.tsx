@@ -1,11 +1,11 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ComputerOutlined, Groups, LocalFireDepartment, Person, SwapHoriz, Workspaces } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { memo } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import LogicNodeTooltip, { type TooltipRow } from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
-import graphTooltipSlotProps from '../../../../../chaining/logic/logic-graph/graphTooltipSlotProps';
 import attackPathStatusColor, { attackPathChokepointColor, attackPathStatusLabel } from '../../attack-path-colors';
 import { type AttackPathFlowNodeData, displayIp } from '../../attack-path-flow-helpers';
 import { buildCardSx, buildIconBoxSx, CAPTION_SX, EYEBROW_SX, TITLE_SX } from './card-styles';
@@ -102,86 +102,89 @@ const TargetCard = ({ data, selected = false }: Props) => {
     .join(' · ');
 
   return (
-    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300} slotProps={graphTooltipSlotProps}>
-      <Box
-        aria-label={`${data.label}, ${statusText}${isChokepoint ? `, ${t('chokepoint')}` : ''}`}
-        sx={buildCardSx({
-          theme,
-          accent,
-          selected,
-          dimmed: data.dimmed,
-          dashed: knownNoFindings,
-        })}
-      >
-        <Box sx={buildIconBoxSx(theme, accent)}>
-          <KindIcon />
-        </Box>
-        <Box sx={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2px',
-        }}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Box
+          aria-label={`${data.label}, ${statusText}${isChokepoint ? `, ${t('chokepoint')}` : ''}`}
+          sx={buildCardSx({
+            theme,
+            accent,
+            selected,
+            dimmed: data.dimmed,
+            dashed: knownNoFindings,
+          })}
         >
+          <Box sx={buildIconBoxSx(theme, accent)}>
+            <KindIcon />
+          </Box>
           <Box sx={{
+            flex: 1,
+            minWidth: 0,
             display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
+            flexDirection: 'column',
+            gap: '2px',
           }}
           >
-            <Typography
-              component="span"
-              sx={{
-                ...EYEBROW_SX,
-                flex: 1,
-                minWidth: 0,
-              }}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+            }}
             >
-              {kindLabel}
-            </Typography>
-            {data.isPivot && (
-              <SwapHoriz sx={{
-                fontSize: 13,
-                color: theme.palette.warning.main,
-                flexShrink: 0,
-              }}
-              />
-            )}
-            {isChokepoint && (
-              <Box
+              <Typography
                 component="span"
                 sx={{
-                  flexShrink: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  fontSize: '0.5625rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.03em',
-                  color: chokepointColor,
-                  backgroundColor: alpha(chokepointColor, 0.14),
-                  borderRadius: 0.5,
-                  paddingInline: 0.5,
-                  paddingBlock: '1px',
-                  lineHeight: 1.4,
+                  ...EYEBROW_SX,
+                  flex: 1,
+                  minWidth: 0,
                 }}
               >
-                <LocalFireDepartment sx={{ fontSize: 11 }} />
-                {`#${data.chokepointRank}`}
-              </Box>
+                {kindLabel}
+              </Typography>
+              {data.isPivot && (
+                <SwapHoriz sx={{
+                  fontSize: 13,
+                  color: theme.palette.warning.main,
+                  flexShrink: 0,
+                }}
+                />
+              )}
+              {isChokepoint && (
+                <Box
+                  component="span"
+                  sx={{
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '2px',
+                    fontSize: '0.5625rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.03em',
+                    color: chokepointColor,
+                    backgroundColor: alpha(chokepointColor, 0.14),
+                    borderRadius: 0.5,
+                    paddingInline: 0.5,
+                    paddingBlock: '1px',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <LocalFireDepartment sx={{ fontSize: 11 }} />
+                  {`#${data.chokepointRank}`}
+                </Box>
+              )}
+            </Box>
+            <Typography component="div" sx={TITLE_SX}>
+              {data.label}
+            </Typography>
+            {caption && (
+              <Typography component="div" sx={CAPTION_SX}>
+                {caption}
+              </Typography>
             )}
           </Box>
-          <Typography component="div" sx={TITLE_SX}>
-            {data.label}
-          </Typography>
-          {caption && (
-            <Typography component="div" sx={CAPTION_SX}>
-              {caption}
-            </Typography>
-          )}
         </Box>
-      </Box>
+      </TooltipTrigger>
+      {tooltip && <TooltipContent side="top">{tooltip}</TooltipContent>}
     </Tooltip>
   );
 };

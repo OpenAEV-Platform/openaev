@@ -1,19 +1,7 @@
+import { ButtonGroup, ButtonGroupItem, Chip, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BarChartOutlined, KeyboardArrowRight, MailOutlined, ReorderOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Chip,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  ListItemText,
-  Paper,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-} from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link, useParams } from 'react-router';
@@ -53,36 +41,42 @@ const headerStyles = {
     float: 'left',
     width: '30%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_users_number: {
     float: 'left',
     width: '15%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_sent_at: {
     float: 'left',
     width: '15%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_communications_not_ack_number: {
     float: 'left',
     width: '10%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_communications_number: {
     float: 'left',
     width: '10%',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
   inject_tags: {
     float: 'left',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
+    color: 'var(--text-default-secondary)',
   },
 };
 
@@ -127,7 +121,9 @@ const Mails = () => {
   const [viewMode, setViewMode] = useState(() => localStorage.getItem(VIEW_MODE_STORAGE_KEY) ?? 'list');
   const { permissions } = useContext(PermissionsContext);
 
-  const handleViewModeChange = (_, next) => {
+  // The library ButtonGroup hands the value straight through; MUI's
+  // ToggleButtonGroup passed (event, value), so the leading argument is gone.
+  const handleViewModeChange = (next) => {
     if (next) {
       setViewMode(next);
       localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
@@ -135,15 +131,6 @@ const Mails = () => {
   };
 
   // Mail count chips: theme-driven tones (read = primary, not read = error).
-  const comChipSx = color => ({
-    fontSize: 12,
-    height: 'fit-content',
-    textTransform: 'uppercase',
-    borderRadius: 1,
-    color,
-    backgroundColor: alpha(color, 0.08),
-    border: `1px solid ${alpha(color, 0.5)}`,
-  });
 
   // Filter and sort hook
   const searchColumns = ['title', 'description', 'content'];
@@ -205,25 +192,26 @@ const Mails = () => {
               <CreateQuickInject exercise={exercise} />
             </TeamContext.Provider>
           )}
-          <ToggleButtonGroup
+          <ButtonGroup
+            usecase="isolated"
             value={viewMode}
-            exclusive
-            size="small"
-            onChange={handleViewModeChange}
+            size="md"
+            onValueChange={handleViewModeChange}
             aria-label={t('View mode')}
-            sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
           >
-            <ToggleButton value="list" aria-label={t('List view')}>
-              <Tooltip title={t('List view')}>
-                <ReorderOutlined fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
-            <ToggleButton value="distribution" aria-label={t('Distribution view')}>
-              <Tooltip title={t('Distribution view')}>
-                <BarChartOutlined fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
-          </ToggleButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
+              </TooltipTrigger>
+              <TooltipContent>{t('List view')}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem value="distribution" aria-label={t('Distribution view')} icon={<BarChartOutlined fontSize="small" />} />
+              </TooltipTrigger>
+              <TooltipContent>{t('Distribution view')}</TooltipContent>
+            </Tooltip>
+          </ButtonGroup>
         </div>
         {viewMode === 'distribution' && (
           <>
@@ -263,7 +251,7 @@ const Mails = () => {
         {viewMode === 'list' && (
           sortedInjects.length === 0
             ? (
-                <Paper variant="outlined" sx={{ borderRadius: 1 }}>
+                <Paper padding={0}>
                   <Empty
                     icon={MailOutlined}
                     message={t('No mails have been sent yet')}
@@ -366,15 +354,12 @@ const Mails = () => {
                               </div>
                               <div style={inlineStyles.inject_communications_not_ack_number}>
                                 <Chip
-                                  sx={comChipSx(theme.palette.error.main)}
-                                  label={inject.inject_communications_not_ack_number}
+                                  severity="critical"
+                                  label={String(inject.inject_communications_not_ack_number)}
                                 />
                               </div>
                               <div style={inlineStyles.inject_communications_number}>
-                                <Chip
-                                  sx={comChipSx(theme.palette.primary.main)}
-                                  label={inject.inject_communications_number}
-                                />
+                                <Chip severity="info" label={String(inject.inject_communications_number)} />
                               </div>
                               <div style={inlineStyles.inject_tags}>
                                 <ItemTags variant="list" tags={inject.inject_tags} />

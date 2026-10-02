@@ -66,7 +66,7 @@ const MarkingDefinitionForm: FunctionComponent<Props> = ({
     control,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = methods;
 
   useEffect(() => {
@@ -91,32 +91,24 @@ const MarkingDefinitionForm: FunctionComponent<Props> = ({
         }}
       >
         <TextFieldController
-          variant="standard"
           name="marking_definition_type"
           label={t('Type')}
           required
           readOnly={isEdit}
         />
         <TextFieldController
-          variant="standard"
           name="marking_definition_definition"
           label={t('Definition')}
           required
         />
         <ColorPickerField
-          variant="standard"
-          fullWidth
           label={t('Color')}
           required
-          error={!!errors.marking_definition_color}
-          helperText={errors.marking_definition_color?.message}
-          sx={{ marginTop: 2 }}
-          slotProps={{ htmlInput: { readOnly: true } }}
+          className="w-full mt-4"
           control={control as Control<MarkingDefinitionFormValues>}
           name="marking_definition_color"
         />
         <TextFieldController
-          variant="standard"
           name="marking_definition_order"
           label={t('Order')}
           type="number"

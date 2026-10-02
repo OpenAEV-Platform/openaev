@@ -1,6 +1,6 @@
-import { Paper, TablePagination } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { TablePagination } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { searchConnectorInstanceLogs } from '../../../../actions/connector_instances/connector-instance-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
@@ -9,12 +9,9 @@ import Terminal from '../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorInstanceLog } from '../../../../utils/api-types';
 
-const useStyles = makeStyles()(theme => ({ paper: { padding: theme.spacing(2) } }));
-
 type ConnectorLogsProps = { connectorInstanceId: string };
 
 const ConnectorLogs = ({ connectorInstanceId }: ConnectorLogsProps) => {
-  const { classes } = useStyles();
   const { t, fldt } = useFormatter();
 
   const [logs, setLogs] = useState<ConnectorInstanceLog[]>([]);
@@ -46,7 +43,7 @@ const ConnectorLogs = ({ connectorInstanceId }: ConnectorLogsProps) => {
   }, [connectorInstanceId, page, size]);
 
   return (
-    <Paper variant="outlined" className={classes.paper}>
+    <Paper padding={16}>
       <TablePagination
         component="div"
         rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
