@@ -37,6 +37,10 @@ public class ThemeInput {
   @Schema(description = "Accent color of the theme")
   private String accentColor;
 
+  @JsonProperty("text_color")
+  @Schema(description = "Text color of the theme")
+  private String textColor;
+
   @JsonProperty("logo_url")
   @Schema(description = "Url of the logo")
   private String logoUrl;

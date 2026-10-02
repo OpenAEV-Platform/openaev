@@ -1157,7 +1157,8 @@ public class V1_DataImporter implements Importer {
 
               // Prevent duplication of team, based on the team name and not contextual
               List<Team> existingTeams =
-                  this.teamRepository.findByNameIgnoreCaseAndNotContextual(name);
+                  this.teamRepository.findByNameIgnoreCaseAndNotContextual(
+                      name, List.of(writeTenant));
 
               if (!existingTeams.isEmpty()) {
                 baseTeams.put(id, existingTeams.getFirst());
@@ -2654,6 +2655,9 @@ public class V1_DataImporter implements Importer {
       Scenario savedScenario,
       Map<String, Base> baseIds,
       Map<String, String> resolvedContracts) {
+    // Teams reconstructed from an exported scope rule are read and written in the import's own
+    // write tenant, not in whatever the v1 ambient thread-local happens to hold.
+    String workflowWriteTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     // Check for workflow node in both scenario and exercise exports
     String workflowKey = prefix.equals("scenario_") ? "scenario_workflow" : "exercise_workflow";
     JsonNode workflowNode = importNode.get(workflowKey);
@@ -2744,7 +2748,8 @@ public class V1_DataImporter implements Importer {
                   ruleSource,
                   ruleValueType,
                   teamMembersByRuleValue,
-                  workflowScopePlayersByLabel);
+                  workflowScopePlayersByLabel,
+                  workflowWriteTenant);
           scopeRules.add(rule);
         }
         workflow.setWorkflowScopeRules(scopeRules);
@@ -2825,7 +2830,8 @@ public class V1_DataImporter implements Importer {
       ScopeRuleSource ruleSource,
       ScopeRuleValueType ruleValueType,
       Map<String, JsonNode> teamMembersByRuleValue,
-      Map<String, List<String>> workflowScopePlayersByLabel) {
+      Map<String, List<String>> workflowScopePlayersByLabel,
+      String writeTenant) {
     ScopeRuleSelectedMode selectedMode = resolveWorkflowScopeRuleSelectedMode(ruleNode);
     String rawValue = getTextValue(ruleNode, "workflow_scope_rule_value");
     String importedLabel = getTextValue(ruleNode, "workflow_scope_rule_value_label");
@@ -2834,7 +2840,7 @@ public class V1_DataImporter implements Importer {
       // TEAM rules preserve the team identity and, when available, the reconstructed membership
       // list so chained imports round-trip the same audience context as the export.
       WorkflowScopeTeamResolution teamResolution =
-          resolveWorkflowScopeTeam(rawValue, importedLabel, baseIds);
+          resolveWorkflowScopeTeam(rawValue, importedLabel, baseIds, writeTenant);
       List<User> teamUsers =
           resolveWorkflowScopeTeamMembers(
               teamMembersByRuleValue.get(rawValue), baseIds, workflowScopePlayersByLabel);
@@ -2944,12 +2950,12 @@ public class V1_DataImporter implements Importer {
   }
 
   private WorkflowScopeTeamResolution resolveWorkflowScopeTeam(
-      String rawValue, String label, Map<String, Base> baseIds) {
+      String rawValue, String label, Map<String, Base> baseIds, String writeTenant) {
     if (hasText(rawValue) && baseIds.get(rawValue) instanceof Team cachedTeam) {
       return new WorkflowScopeTeamResolution(cachedTeam, false);
     }
 
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = writeTenant;
     if (hasText(rawValue)) {
       Optional<Team> existingTeam = teamRepository.findByIdAndTenantId(rawValue, tenantId);
       if (existingTeam.isPresent()) {
@@ -2959,7 +2965,8 @@ public class V1_DataImporter implements Importer {
     }
 
     if (hasText(label)) {
-      List<Team> existingTeams = teamRepository.findByNameIgnoreCaseAndNotContextual(label);
+      List<Team> existingTeams =
+          teamRepository.findByNameIgnoreCaseAndNotContextual(label, List.of(tenantId));
       if (!existingTeams.isEmpty()) {
         Team existingTeam = existingTeams.getFirst();
         if (hasText(rawValue)) {

@@ -1,11 +1,25 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { HomeWorkOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
 import { type FunctionComponent, useCallback, useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import { makeStyles } from 'tss-react/mui';
 
 import { searchTenants } from '../../actions/platform/tenants/tenant-action';
 import type { TenantOutput } from '../../utils/api-types';
 import type { Option } from '../../utils/Option';
+
+const useStyles = makeStyles()(theme => ({ icon: { marginRight: theme.spacing(1) } }));
 
 interface Props {
   name: string;
@@ -14,6 +28,7 @@ interface Props {
 }
 
 const TenantFieldController: FunctionComponent<Props> = ({ name, label, disabled = false }) => {
+  const { classes } = useStyles();
   const { control } = useFormContext();
   const [options, setOptions] = useState<Option[]>([]);
 
@@ -38,31 +53,34 @@ const TenantFieldController: FunctionComponent<Props> = ({ name, label, disabled
       name={name}
       control={control}
       render={({ field: { onChange, value }, fieldState: { error } }) => (
-        <MuiAutocomplete
+        <Combobox<Option>
           multiple
-          fullWidth
           disabled={disabled}
           options={options}
-          value={options.filter(o => (value as string[] ?? []).includes(o.id))}
-          onChange={(_, newValue) => onChange(newValue.map(v => v.id))}
+          value={options.filter(o => ((value as string[]) ?? []).includes(o.id))}
+          onValueChange={next => onChange((next as Option[]).map(v => v.id))}
           getOptionLabel={option => option.label}
           isOptionEqualToValue={(option, val) => option.id === val.id}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
-              <HomeWorkOutlined fontSize="small" sx={{ mr: 1 }} />
+          error={!!error}
+          renderOption={option => (
+            <>
+              <HomeWorkOutlined fontSize="small" className={classes.icon} />
               {option.label}
-            </Box>
+            </>
           )}
-          renderInput={params => (
-            <TextField
-              {...params}
-              label={label}
-              variant="standard"
-              error={!!error}
-              helperText={error?.message}
-            />
-          )}
-        />
+        >
+          <ComboboxLabel>{label}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxChips />
+            <ComboboxInput />
+            <ComboboxControls>
+              <ComboboxClear />
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+          {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+        </Combobox>
       )}
     />
   );

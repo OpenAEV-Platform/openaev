@@ -14,6 +14,8 @@ import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ratelimit.aop.RateLimitAspect;
+import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.rest.exception.*;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.stix.parsing.ParsingException;
@@ -27,12 +29,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springdoc.api.ErrorMessage;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -49,6 +53,10 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
+/**
+ * Base class for all REST controllers in the app. Note controllers inheriting are globally rate
+ * limited ({@link RateLimitAspect}).
+ */
 @RestControllerAdvice
 @Slf4j
 public class RestBehavior {
@@ -357,6 +365,16 @@ public class RestBehavior {
     // Index -1 is the method return value, which has no position to point at - the declared type
     // is the most useful label left.
     return index >= 0 ? "arg" + index : parameter.getParameterType().getSimpleName();
+  }
+
+  @ResponseStatus(code = HttpStatus.TOO_MANY_REQUESTS)
+  @ExceptionHandler(RateLimitedException.class)
+  public ResponseEntity<Object> handleRateLimitingException(RateLimitedException ex) {
+    return ResponseEntity.of(ProblemDetail.forStatus(HttpStatus.TOO_MANY_REQUESTS))
+        .header("RateLimit-Limit", String.valueOf(ex.getQuota()))
+        .header("RateLimit-Remaining", String.valueOf(ex.getRemaining()))
+        .header("RateLimit-Reset", String.valueOf(ex.getReset()))
+        .build();
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -758,5 +776,16 @@ public class RestBehavior {
             instanceof ServletRequestAttributes attributes
         ? attributes.getRequest().getRequestURI()
         : "?";
+  }
+
+  /**
+   * Hydrates, inside the scoped transaction, the lazy {@code user_teams} collection every endpoint
+   * returning a raw {@link User} serializes. The collection is loaded after the controller returns,
+   * through open-in-view, where the tenant scope is already gone: a lazy load at that point runs
+   * unscoped and fails closed, so the array comes back empty although the memberships exist.
+   */
+  protected static User hydrateUserForResponse(User user) {
+    Hibernate.initialize(user.getTeams());
+    return user;
   }
 }

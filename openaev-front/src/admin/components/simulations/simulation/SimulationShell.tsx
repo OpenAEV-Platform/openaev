@@ -1,4 +1,4 @@
-import { Box, Tab, Tabs } from '@mui/material';
+import { Tabs, TabsList, TabsTrigger } from '@filigran/design-system';
 import { type FunctionComponent, type ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 
@@ -19,11 +19,13 @@ import buildSimulationTabs from './simulationTabs';
 const SimulationShell: FunctionComponent<{
   exercise: SimulationDetails;
   children: ReactNode;
+  /** Width reserved on the right of the routed content for a sticky rail. */
+  contentPaddingRight?: number;
   /** Present when this simulation is an autonomous (AI-driven) run: swaps the manual chaining tabs
    *  (Scope, Logic) for the AI cockpit and turns the hero observe-only (control lives on the parent
    *  scenario). */
   autonomousRun?: AutonomousRun | null;
-}> = ({ exercise, children, autonomousRun = null }) => {
+}> = ({ exercise, children, autonomousRun = null, contentPaddingRight = 0 }) => {
   const { t } = useFormatter();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
@@ -60,9 +62,9 @@ const SimulationShell: FunctionComponent<{
     t,
   });
 
-  // MUI Tabs requires the value to match one of the rendered tabs; screens
-  // without a dedicated tab (e.g. dashboard) deselect all tabs instead.
-  const validTabValue = tabs.some(([suffix]) => `${base}${suffix}` === tabValue) ? tabValue : false;
+  // A value that matches no tab leaves every tab unselected: screens without a
+  // dedicated tab (e.g. dashboard) keep the bar with nothing highlighted.
+  const validTabValue = tabs.some(([suffix]) => `${base}${suffix}` === tabValue) ? tabValue : '';
 
   return (
     <>
@@ -88,26 +90,19 @@ const SimulationShell: FunctionComponent<{
         ? <Loader />
         : (
             <>
-              <Box
-                sx={{
-                  borderBottom: 1,
-                  borderColor: 'divider',
-                  marginBottom: 2,
-                }}
-              >
-                <Tabs value={validTabValue}>
-                  {tabs.map(([suffix, label]) => (
-                    <Tab
-                      key={suffix}
-                      component={Link}
-                      to={`${base}${suffix}`}
-                      value={`${base}${suffix}`}
-                      label={label}
-                    />
-                  ))}
-                </Tabs>
-              </Box>
-              {children}
+              <Tabs value={validTabValue} panels="external" style={{ marginBottom: 16 }}>
+                <TabsList>
+                  {tabs.map(([suffix, label]) => {
+                    const path = `${base}${suffix}`;
+                    return (
+                      <TabsTrigger key={suffix} value={path} asChild>
+                        <Link to={path} aria-current={validTabValue === path ? 'page' : undefined}>{label}</Link>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </Tabs>
+              <div style={{ paddingRight: contentPaddingRight }}>{children}</div>
             </>
           )}
     </>

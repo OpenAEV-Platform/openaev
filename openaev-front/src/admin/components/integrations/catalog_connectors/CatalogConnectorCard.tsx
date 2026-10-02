@@ -1,5 +1,6 @@
+import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, HelpCenterOutlined } from '@mui/icons-material';
-import { Box, Card, CardActionArea, CardContent, Chip, Stack, SvgIcon, Tooltip, Typography } from '@mui/material';
+import { Box, Card, CardActionArea, CardContent, Stack, SvgIcon, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
@@ -15,29 +16,14 @@ interface Props {
   footerAction?: ReactNode;
 }
 
-// Use-case chips shown in the footer-left, exact same anatomy as OpenCTI's
-// IngestionCatalogChip: outlined primary, 12px sentence-case label, no icon,
-// rgba(0,0,0,0.1) background, 4px radius. Overflow behavior mirrors OpenCTI:
-// chips that fit are shown, the last visible one may ellipsize, the rest
-// collapses into a "+N" chip - a chip is never clipped mid-label.
-// Exported for reuse by the lines view (CatalogConnectorLine).
+// Use-case chips for the footer-left; exported for the lines view.
+// Chips that fit are shown, the rest collapse into "+N" — never clipped mid-label.
 export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
-  const { containerRef, chipRefs, visibleCount } = useChipOverflow(useCases);
+  const { containerRef, chipRefs, overflowRef, visibleCount } = useChipOverflow(useCases);
 
   const hiddenCount = useCases.length - visibleCount;
-  const hiddenUseCases = useCases.slice(visibleCount);
-
-  const chipSx = {
-    'fontSize': 12,
-    'lineHeight': '14px',
-    'borderRadius': 1,
-    'backgroundColor': 'rgba(0, 0, 0, 0.1)',
-    'maxWidth': '100%',
-    '& .MuiChip-label': {
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-    },
-  } as const;
+  // Only what the "+N" stands for: the chips already shown are not repeated.
+  const hiddenUseCases = useCases.slice(visibleCount).map(prettifyUseCase).join(', ');
 
   return (
     <Stack
@@ -53,45 +39,84 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
     >
       {useCases.map((useCase, index) => {
         const isVisible = index < visibleCount;
-        const canShrink = index === visibleCount - 1;
         return (
           <Box
             key={useCase}
             ref={(el: HTMLDivElement | null) => {
               chipRefs.current[index] = el;
             }}
+            // Fixed-size chips, so the overflow count is measurable.
             sx={{
-              flexShrink: canShrink ? 1 : 0,
-              minWidth: canShrink ? 0 : 'auto',
+              flexShrink: 0,
+              maxWidth: '100%',
+              minWidth: 0,
               visibility: isVisible ? 'visible' : 'hidden',
               position: isVisible ? 'relative' : 'absolute',
             }}
           >
-            <Tooltip title={prettifyUseCase(useCase)}>
-              <Chip
-                variant="outlined"
-                size="small"
-                color="primary"
-                label={prettifyUseCase(useCase)}
-                sx={chipSx}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Chip
+                  label={prettifyUseCase(useCase)}
+                  severity="info"
+                  style={{ maxWidth: '100%' }}
+                />
+              </TooltipTrigger>
+              {prettifyUseCase(useCase) && <TooltipContent>{prettifyUseCase(useCase)}</TooltipContent>}
             </Tooltip>
           </Box>
         );
       })}
-      {hiddenCount > 0 && (
-        <Tooltip title={hiddenUseCases.map(prettifyUseCase).join(', ')}>
-          <Chip
-            variant="outlined"
-            size="small"
-            color="primary"
-            label={`+${hiddenCount}`}
-            sx={{
-              ...chipSx,
-              flexShrink: 0,
-            }}
-          />
+      {/* Always mounted, so its width is known before anything is hidden; it is
+          only taken out of the flow while there is nothing to count. */}
+      <Box
+        ref={overflowRef}
+        sx={{
+          flexShrink: 0,
+          visibility: hiddenCount > 0 ? 'visible' : 'hidden',
+          position: hiddenCount > 0 ? 'relative' : 'absolute',
+        }}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip label={`+${Math.max(hiddenCount, 1)}`} severity="info" />
+          </TooltipTrigger>
+          {hiddenUseCases && <TooltipContent>{hiddenUseCases}</TooltipContent>}
         </Tooltip>
+      </Box>
+    </Stack>
+  );
+};
+
+const CollapsedUseCaseChips = ({ useCases }: { useCases: string[] }) => {
+  if (useCases.length === 0) return null;
+  const [first, ...others] = useCases.map(prettifyUseCase);
+  return (
+    <Stack
+      direction="row"
+      spacing={1}
+      sx={{
+        flex: '1 1 0',
+        minWidth: 'min-content',
+      }}
+    >
+      <Box sx={{ display: 'flex' }}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip label={first} severity="info" style={{ maxWidth: '100%' }} />
+          </TooltipTrigger>
+          {first && <TooltipContent>{first}</TooltipContent>}
+        </Tooltip>
+      </Box>
+      {others.length > 0 && (
+        <Box sx={{ flexShrink: 0 }}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Chip label={`+${others.length}`} severity="info" />
+            </TooltipTrigger>
+            <TooltipContent>{others.join(', ')}</TooltipContent>
+          </Tooltip>
+        </Box>
       )}
     </Stack>
   );
@@ -109,9 +134,8 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
   };
 
   return (
-    // The hover styles live on this wrapper so they also apply when the inner
-    // action area is disabled (cards without a detail page). Same hover, fixed
-    // height and anatomy as the OpenCTI integrations marketplace card.
+    // Hover on the wrapper, so it still applies when the inner action area is
+    // disabled (cards without a detail page).
     <Box
       data-testid="connector-card"
       sx={{
@@ -133,9 +157,10 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
           height: 280,
           borderRadius: 1,
           display: 'flex',
-          // Same card surface as OpenCTI's marketplace (background.secondary):
-          // slightly lighter than the page so cards pop against the hero.
-          backgroundColor: theme.palette.mode === 'dark' ? '#0c1524' : undefined,
+          // Slightly lighter than the page, so cards pop against the hero. Read
+          // from the palette slot this literal was copying, which moved to a
+          // library token: the default surface shifts from #0c1524 to #13213e.
+          backgroundColor: theme.palette.mode === 'dark' ? theme.palette.background.secondary : undefined,
         }}
       >
         <CardActionArea
@@ -182,8 +207,8 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
                     src={connector.logoSrc}
                     alt={connector.title}
                     style={{
-                      width: 44,
-                      height: 44,
+                      width: 56,
+                      height: 56,
                       objectFit: 'contain',
                       borderRadius: 4,
                     }}
@@ -214,45 +239,55 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
                 >
                   {typeLabels[connector.type]}
                 </Typography>
-                <Tooltip title={connector.title} placement="bottom-start">
-                  <Typography
-                    sx={{
-                      fontSize: 15,
-                      fontWeight: 600,
-                      lineHeight: 1.35,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {connector.title}
-                  </Typography>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Typography
+                      sx={{
+                        fontSize: 15,
+                        fontWeight: 600,
+                        lineHeight: 1.35,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {connector.title}
+                    </Typography>
+                  </TooltipTrigger>
+                  {connector.title && <TooltipContent side="bottom" align="start">{connector.title}</TooltipContent>}
                 </Tooltip>
               </Box>
               {/* Support semantics (same as OpenCTI): the verified flag means
                   supported by Filigran, otherwise supported by the community. */}
-              <Tooltip title={connector.verified ? t('Supported by Filigran') : t('Supported by Community')}>
-                {connector.verified ? (
-                  <SvgIcon
-                    component={LogoFiligranIcon}
-                    inheritViewBox
-                    color="primary"
-                    sx={{
-                      fontSize: 20,
-                      flexShrink: 0,
-                    }}
-                  />
-                ) : (
-                  <GroupsOutlined
-                    color="disabled"
-                    sx={{
-                      fontSize: 20,
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    {connector.verified ? (
+                      <SvgIcon
+                        component={LogoFiligranIcon}
+                        inheritViewBox
+                        color="primary"
+                        sx={{
+                          fontSize: 20,
+                          flexShrink: 0,
+                        }}
+                      />
+                    ) : (
+                      <GroupsOutlined
+                        sx={{
+                          fontSize: 20,
+                          flexShrink: 0,
+                          // Who supports the connector is a category, not a
+                          // state: the secondary ink, not the disabled one.
+                          color: 'var(--text-default-secondary)',
+                        }}
+                      />
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{connector.verified ? t('Supported by Filigran') : t('Supported by Community')}</TooltipContent>
               </Tooltip>
             </Stack>
 
@@ -286,13 +321,18 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
               display: 'flex',
               alignItems: 'flex-end',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
               gap: theme.spacing(1),
               width: '100%',
             }}
             >
-              <UseCaseChips useCases={connector.useCases} />
+              <CollapsedUseCaseChips useCases={connector.useCases} />
               {footerAction && (
-                <div style={{ flexShrink: 0 }}>
+                <div style={{
+                  flexShrink: 0,
+                  marginLeft: 'auto',
+                }}
+                >
                   {footerAction}
                 </div>
               )}

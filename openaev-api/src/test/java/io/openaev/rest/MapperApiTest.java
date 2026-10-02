@@ -281,7 +281,7 @@ public class MapperApiTest extends IntegrationTest {
     injectsImportInput.getImportMapper().setName("TEST");
 
     when(injectImportService.importInjectIntoScenarioFromXLS(
-            any(), any(), any(), any(), anyInt(), anyBoolean()))
+            any(), any(), any(), any(), any(), anyInt(), anyBoolean()))
         .thenReturn(new ImportTestSummary());
     when(mapperService.createImportMapper(any())).thenReturn(importMapper);
 

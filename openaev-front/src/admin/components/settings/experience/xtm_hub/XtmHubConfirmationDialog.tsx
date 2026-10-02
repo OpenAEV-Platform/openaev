@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import type React from 'react';
 
 interface ConfirmationDialogProps {
@@ -35,10 +36,10 @@ const XtmHubConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onCancel} variant="outlined" color="primary">
+        <Button type="button" priority="secondary" onClick={onCancel}>
           {cancelButtonText}
         </Button>
-        <Button onClick={onConfirm} variant="contained" color="primary" autoFocus>
+        <Button type="button" onClick={onConfirm} autoFocus>
           {confirmButtonText}
         </Button>
       </DialogActions>

@@ -20,12 +20,14 @@ import io.openaev.database.repository.ScenarioTeamUserRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ResourceInUseException;
 import io.openaev.rest.team.form.TeamBulkProcessingInput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.CopyObjectListUtils;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
@@ -34,6 +36,7 @@ import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotNull;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
@@ -57,6 +60,30 @@ public class TeamService {
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final ScenarioTeamUserRepository scenarioTeamUserRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+
+  /**
+   * Tenant ids a request may read teams from, taken from its resolved scope. Replaces the v1
+   * ambient tenant, which {@code TenantInterceptor} sets only on the tenant-prefixed route: off
+   * that route an ambient-keyed read saw the default tenant while the request scope was another
+   * tenant.
+   */
+  public Set<String> readScope(@NotNull final TxCtx ctx) {
+    return TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+  }
+
+  /**
+   * Loads a team by id inside the request's tenant scope. An empty scope is fail-closed and reads
+   * nothing, same outcome as a team that belongs to another tenant.
+   */
+  public Team teamInScope(@NotNull final TxCtx ctx, @NotNull final String teamId) {
+    Set<String> tenantIds = readScope(ctx);
+    if (tenantIds.isEmpty()) {
+      throw new ElementNotFoundException();
+    }
+    return teamRepository
+        .findByIdAndTenantIdIn(teamId, tenantIds)
+        .orElseThrow(ElementNotFoundException::new);
+  }
 
   /**
    * Bulk delete of teams, either from an explicit list of ids or from a search input (select all).

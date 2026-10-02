@@ -1,5 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -37,10 +38,12 @@ const useStyles = makeStyles()(() => ({
 
 const inlineStyles: Record<string, CSSProperties> = {
   asset_group_name: { width: '18%' },
-  asset_group_description: { width: '18%' },
-  asset_group_assets: { width: '30%' },
+  asset_group_description: { width: '14%' },
+  // The rules cell holds several chips on one line; the width it needs comes
+  // from the description and the tags, which truncate gracefully.
+  asset_group_assets: { width: '38%' },
   asset_group_posture: { width: '10%' },
-  asset_group_tags: { width: '24%' },
+  asset_group_tags: { width: '20%' },
 };
 
 const AssetGroups = () => {
@@ -206,10 +209,9 @@ const AssetGroups = () => {
           {canManage && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -275,12 +277,11 @@ const AssetGroups = () => {
                         onClick={event => onToggleEntity(assetGroup, event)}
                       >
                         <Checkbox
-                          edge="start"
+                          aria-label={assetGroup.asset_group_name}
                           checked={
                             (selectAll && !(assetGroup.asset_group_id in (deSelectedElements || {})))
                             || assetGroup.asset_group_id in (selectedElements || {})
                           }
-                          disableRipple
                         />
                       </ListItemIcon>
                     )}

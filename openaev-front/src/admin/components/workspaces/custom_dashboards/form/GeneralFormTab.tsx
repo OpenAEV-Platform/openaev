@@ -7,13 +7,11 @@ const GeneralFormTab = () => {
   return (
     <>
       <TextFieldController
-        variant="standard"
         name="custom_dashboard_name"
         label={t('Name')}
         required
       />
       <TextFieldController
-        variant="standard"
         name="custom_dashboard_description"
         label={t('Description')}
       />

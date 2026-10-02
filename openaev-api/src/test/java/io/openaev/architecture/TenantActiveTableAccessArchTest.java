@@ -68,6 +68,7 @@ import io.openaev.database.repository.ReportingScheduleRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.database.repository.WidgetRepository;
@@ -325,7 +326,8 @@ class TenantActiveTableAccessArchTest {
           "reporting_schedules",
           "reportings",
           "reporting_generations",
-          "datapacks");
+          "datapacks",
+          "teams");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2054,4 +2056,57 @@ class TenantActiveTableAccessArchTest {
           .because(
               "datapacks is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule teams_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              io.openaev.rest.team.TeamApi.class,
+              io.openaev.rest.exercise.ExerciseApi.class,
+              io.openaev.rest.scenario.ScenarioApi.class,
+              io.openaev.rest.comcheck.ComcheckApi.class,
+              io.openaev.rest.lessons.ExerciseLessonsApi.class,
+              io.openaev.rest.lessons.ScenarioLessonsApi.class,
+              // Owns the by-id read for every team path: reads inside the request scope and is
+              // fail-closed on an empty one:
+              io.openaev.service.TeamService.class,
+              // Services behind the entrypoints above; their team reads run in the scoped
+              // transaction the entrypoint opened:
+              io.openaev.rest.exercise.service.ExerciseService.class,
+              io.openaev.rest.finding.FindingService.class,
+              io.openaev.rest.inject.service.InjectService.class,
+              io.openaev.rest.inject.service.SimulationInjectService.class,
+              io.openaev.rest.user.PlayerService.class,
+              io.openaev.search.FullTextSearchService.class,
+              io.openaev.service.AtomicTestingService.class,
+              io.openaev.service.ExerciseTeamUserService.class,
+              io.openaev.service.InjectSearchService.class,
+              io.openaev.service.scenario.ScenarioService.class,
+              io.openaev.service.ScenarioToExerciseService.class,
+              io.openaev.service.targets.search.TeamTargetSearchAdaptor.class,
+              io.openaev.utils.mapper.ExerciseMapper.class,
+              io.openaev.injectors.phishing.service.PhishingTrackingService.class,
+              // Import paths: every team create stamps the tenant resolved for the import, every
+              // read is keyed on it:
+              io.openaev.importer.V1_DataImporter.class,
+              io.openaev.service.InjectImportService.class,
+              // Creates the wrapper team in the run's own tenant, validated when the run was
+              // created:
+              io.openaev.service.autonomous.AutonomousRunService.class,
+              // Chaining engine: reads the scope's teams inside the transaction the engine opened:
+              io.openaev.service.chaining.ScopeService.class,
+              io.openaev.service.chaining.ScopeSnapshotService.class,
+              io.openaev.service.chaining.WorkflowService.class,
+              // Export path, HTTP-only in practice, still keyed on the legacy ambient tenant:
+              io.openaev.export.WorkflowExportInitializer.class,
+              // Indexing fetch, under the sweep's allTenants() scope:
+              io.openaev.engine.model.team.TeamHandler.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(TeamRepository.class)
+          .because(
+              "teams is tenant-active: an accessor without a tenant scope silently reads zero rows."
+                  + " New accessors must carry a scope and be allowlisted here");
 }

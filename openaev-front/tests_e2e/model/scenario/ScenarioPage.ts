@@ -76,7 +76,10 @@ class ScenarioPage {
       .getByRole('button')
       .filter({ hasText: existingTeamName })
       .first();
-    await teamRow.getByRole('checkbox').check();
+    // The row owns the selection: its design-system checkbox is presentational (an aria-hidden
+    // span without the checkbox role), so the row is clicked and the box state asserted instead.
+    await teamRow.click();
+    await expect(teamRow.locator('[data-state="checked"]')).toBeVisible();
     await this.updateTeamDialog.save();
     await expect(this.updateTeamDialog.listContainer).toBeHidden();
   }

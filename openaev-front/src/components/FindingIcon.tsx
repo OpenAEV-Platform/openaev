@@ -1,5 +1,5 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BugReportOutlined, InsertDriveFileOutlined } from '@mui/icons-material';
-import { Tooltip } from '@mui/material';
 import {
   AccountAlertOutline,
   AccountArrowRight,
@@ -74,8 +74,11 @@ const renderIcon = (findingType: string) => {
 const FindingIcon: FunctionComponent<FindingIconProps> = ({ findingType, tooltip = false }) => {
   if (tooltip) {
     return (
-      <Tooltip title={findingType}>
-        {renderIcon(findingType)}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{renderIcon(findingType)}</span>
+        </TooltipTrigger>
+        <TooltipContent>{findingType}</TooltipContent>
       </Tooltip>
     );
   }

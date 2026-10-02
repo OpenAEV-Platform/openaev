@@ -1,5 +1,5 @@
+import { Badge, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { NotificationAddOutlined, NotificationsActiveOutlined } from '@mui/icons-material';
-import { IconButton, Tooltip } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { createNotificationTrigger, deleteNotificationTrigger, searchNotificationTriggers, updateNotificationTrigger } from '../../../../actions/notifications/notification-trigger-actions';
@@ -115,16 +115,24 @@ const TriggerSubscribeButton: FunctionComponent<Props> = ({
 
   return (
     <>
-      <Tooltip title={instanceTrigger ? t('Manage notifications on this entity') : t('Subscribe to notifications on this entity')}>
-        <IconButton
-          size="small"
-          color={instanceTrigger ? 'success' : 'primary'}
-          onClick={instanceTrigger ? () => setOpenEdit(true) : subscribe}
-        >
-          {instanceTrigger
-            ? <NotificationsActiveOutlined fontSize="small" />
-            : <NotificationAddOutlined fontSize="small" />}
-        </IconButton>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {/* A subscription is a fact about the entity, not a pressed state: the badge
+              carries it. `accessibleText={false}` because the anchor's own name already
+              says which of the two states it is in. */}
+          <Badge invisible={!instanceTrigger} bareAnchor="md" accessibleText={false}>
+            <IconButton
+              icon={instanceTrigger
+                ? <NotificationsActiveOutlined fontSize="small" />
+                : <NotificationAddOutlined fontSize="small" />}
+              aria-label={instanceTrigger ? t('Manage notifications on this entity') : t('Subscribe to notifications on this entity')}
+              onClick={instanceTrigger ? () => setOpenEdit(true) : subscribe}
+              priority="tertiary"
+              size="md"
+            />
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>{instanceTrigger ? t('Manage notifications on this entity') : t('Subscribe to notifications on this entity')}</TooltipContent>
       </Tooltip>
       {instanceTrigger && (
         <Drawer

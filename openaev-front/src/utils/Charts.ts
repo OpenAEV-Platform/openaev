@@ -144,6 +144,12 @@ export const lineChartOptions = ({
         ? 'rgba(255, 255, 255, .1)'
         : 'rgba(0, 0, 0, .1)',
     strokeDashArray: 3,
+    ...(isTimeSeries && {
+      padding: {
+        left: 24,
+        right: 24,
+      },
+    }),
   },
   legend: {
     show: true,
@@ -170,6 +176,11 @@ export const lineChartOptions = ({
     tickPlacement: 'on',
     labels: {
       formatter: (value: string) => (xFormatter ? xFormatter(value) : value),
+      // Horizontal: a tilted first date reaches further left and clips again.
+      ...(isTimeSeries && {
+        rotate: 0,
+        hideOverlappingLabels: true,
+      }),
       style: {
         fontSize: '12px',
         fontFamily: '"IBM Plex Sans", sans-serif',
@@ -216,6 +227,12 @@ export const areaChartOptions = (
         ? 'rgba(255, 255, 255, .1)'
         : 'rgba(0, 0, 0, .1)',
     strokeDashArray: 3,
+    ...(isTimeSeries && {
+      padding: {
+        left: 24,
+        right: 24,
+      },
+    }),
   },
   legend: { show: false },
   tooltip: { theme: theme.palette.mode },
@@ -238,6 +255,11 @@ export const areaChartOptions = (
     tickPlacement: 'on',
     labels: {
       formatter: (value: string) => (xFormatter ? xFormatter(value) : value),
+      // Horizontal: a tilted first date reaches further left and clips again.
+      ...(isTimeSeries && {
+        rotate: 0,
+        hideOverlappingLabels: true,
+      }),
       style: {
         fontSize: '12px',
         fontFamily: '"IBM Plex Sans", sans-serif',
@@ -361,6 +383,12 @@ export const verticalBarsChartOptions = ({
         ? 'rgba(255, 255, 255, .1)'
         : 'rgba(0, 0, 0, .1)',
     strokeDashArray: 3,
+    ...(isTimeSeries && {
+      padding: {
+        left: 24,
+        right: 24,
+      },
+    }),
   },
   legend: {
     show: legend,
@@ -382,6 +410,10 @@ export const verticalBarsChartOptions = ({
     tickAmount,
     tickPlacement: 'on',
     labels: {
+      // Dates keep ApexCharts' auto-tilt here: its overlap hiding measures its own
+      // short date format, not the xFormatter output, so it lets long dates
+      // collide. Tilted, the first date still fits: the first bar group is
+      // already inset from the edge, on top of the grid padding.
       formatter: (value: string) => (xFormatter ? xFormatter(value) : value),
       style: {
         fontSize: '12px',
