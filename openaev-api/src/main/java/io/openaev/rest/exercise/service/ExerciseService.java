@@ -810,12 +810,14 @@ public class ExerciseService {
         workflowPauseService.pauseSimulationWorkflowRuns(exercise.getId());
       }
     }
-    // Cancelation
-    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+    // Cancelation, from a running or a paused simulation
+    if ((ExerciseStatus.RUNNING.equals(exercise.getStatus())
+            || ExerciseStatus.PAUSED.equals(exercise.getStatus()))
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
-      // End WORKFLOW + STEP + delete workflow states
-      List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
+      // End WORKFLOW + STEP + delete workflow states. A paused run is STOP, not RUN: it must be
+      // ended too, or the simulation is CANCELED while its workflow stays parked forever.
+      List<Workflow> run = workflowService.findActiveWorkflowBySimulationId(exercise.getId());
       if (!run.isEmpty()) {
         workflowService.cancelSimulationEndWorkflowRun(run);
 

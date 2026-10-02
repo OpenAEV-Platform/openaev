@@ -852,6 +852,20 @@ public class WorkflowService {
         simulationId, WorkflowStatus.RUN);
   }
 
+  /**
+   * Finds the workflow executions of a simulation that have not ended yet: running (RUN) or paused
+   * (STOP). A paused simulation keeps its run in STOP, so {@link #findWorkflowRunBySimulationId}
+   * cannot see it; this is the lookup for anything that must act on a live run whatever its pause
+   * state, such as cancelling the simulation.
+   *
+   * @param simulationId the ID of the simulation
+   * @return the workflow executions with status RUN or STOP
+   */
+  public List<Workflow> findActiveWorkflowBySimulationId(String simulationId) {
+    return this.workflowRepository.findAllBySimulation_IdAndStatusIn(
+        simulationId, List.of(WorkflowStatus.RUN, WorkflowStatus.STOP));
+  }
+
   public List<Workflow> findAllWorkflowExecutionBySimulationId(String simulationId) {
     return this.workflowRepository.findAllBySimulation_IdAndStatusIn(
         simulationId, List.of(WorkflowStatus.RUN, WorkflowStatus.END, WorkflowStatus.STOP));
