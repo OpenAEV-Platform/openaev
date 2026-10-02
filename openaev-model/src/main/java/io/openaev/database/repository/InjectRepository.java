@@ -314,12 +314,6 @@ public interface InjectRepository
       nativeQuery = true)
   void addTeam(@Param("injectId") String injectId, @Param("teamId") String teamId);
 
-  // See addAssetGroup below: removing a team from Inject.teams in memory makes Hibernate 7 plan a
-  // recreate of that tenant-filtered collection, which it refuses while the filter is enabled.
-  @Modifying
-  @Query(value = "delete from injects_teams where team_id in (:teamIds)", nativeQuery = true)
-  void removeTeams(@Param("teamIds") List<String> teamIds);
-
   // Inserted directly through a native query rather than via the JPA-managed collection: the
   // assetGroups field is a @Filter(tenantFilter)'d, EAGER, FetchMode.SUBSELECT many-to-many, and
   // Hibernate 7 refuses to plan a delete-all+reinsert ("recreate") for such a collection while the
