@@ -52,6 +52,7 @@
   "Validate EDR / SIEM Detections": "EDR / SIEM 탐지 검증",
   "Web App": "웹 앱",
   "Web Application Exploitation": "웹 애플리케이션 익스플로잇",
+  "Missing the DELETE_MARKING_ASSIGNMENT capability": "DELETE_MARKING_ASSIGNMENT 기능이 누락되었습니다.",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "“예, 항상”을 선택하면 설정이 저장됩니다. 그러면 해당 도구는 사용자가 취소할 때까지 — 아무도 지켜보지 않는 예약된 실행을 포함하여 — 별도의 확인 없이 실행됩니다.",
   "(last 180 days)": "(지난 180일)",
   "(no output)": "(출력 없음)",

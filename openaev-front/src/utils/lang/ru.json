@@ -52,6 +52,7 @@
   "Validate EDR / SIEM Detections": "Проверка обнаружений EDR / SIEM",
   "Web App": "Веб-приложение",
   "Web Application Exploitation": "Эксплуатация веб-приложений",
+  "Missing the DELETE_MARKING_ASSIGNMENT capability": "Отсутствует возможность DELETE_MARKING_ASSIGNMENT",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "«Да, всегда» сохраняет это настройку для вас. После этого инструмент будет запускаться без запроса — в том числе при запланированных запусках, за которыми никто не наблюдает, — до тех пор, пока вы не отмените эту настройку.",
   "(last 180 days)": "(последние 180 дней)",
   "(no output)": "(нет вывода)",

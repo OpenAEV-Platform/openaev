@@ -52,6 +52,7 @@
   "Validate EDR / SIEM Detections": "Convalidare i rilevamenti EDR / SIEM",
   "Web App": "Applicazione web",
   "Web Application Exploitation": "Sfruttamento di applicazioni web",
+  "Missing the DELETE_MARKING_ASSIGNMENT capability": "Manca la funzionalità DELETE_MARKING_ASSIGNMENT",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "“Sì, sempre” salva questa impostazione per te. Lo strumento verrà quindi eseguito senza chiedere conferma — anche nelle esecuzioni pianificate che nessuno sta monitorando — finché non revocherai questa impostazione.",
   "(last 180 days)": "(ultimi 180 giorni)",
   "(no output)": "(nessun output)",

@@ -12,14 +12,11 @@ import io.openaev.api.groups.dto.TenantGroupMarkingsOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.service.PermissionService;
 import io.openaev.service.TenantGroupService;
-import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,8 +37,6 @@ public class TenantGroupApi extends RestBehavior {
 
   private final TenantGroupService tenantGroupService;
   private final TenantWriteScopeResolver writeScopeResolver;
-  private final PermissionService permissionService;
-  private final UserService userService;
 
   // -- CREATE --
 
@@ -129,32 +124,32 @@ public class TenantGroupApi extends RestBehavior {
   @Operation(
       summary = "Replace the markings a group grants its members",
       description =
-          "Replaces the whole set: an empty list revokes every grant. A caller may only assign"
-              + " markings they hold themselves, and only markings defined in their own tenant."
-              + " Every member's cached clearance is evicted, so the change takes effect on their"
-              + " next request.")
+          "Replaces the whole set: an empty list revokes every grant. Requires ASSIGN_MARKING to"
+              + " add any marking the group does not already grant, and/or"
+              + " DELETE_MARKING_ASSIGNMENT to remove any it currently does - whichever of the two"
+              + " this request's payload actually does, checked independently and in addition to"
+              + " the group's own WRITE control above. A caller may only assign markings they hold"
+              + " themselves, and only markings defined in their own tenant. Every member's cached"
+              + " clearance is evicted, so the change takes effect on their next request.")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Group updated"),
         @ApiResponse(
             responseCode = "403",
             description =
-                "Missing the ASSIGN_MARKING capability, or assigning a marking the caller lacks"),
+                "Missing ASSIGN_MARKING/DELETE_MARKING_ASSIGNMENT for what this payload changes,"
+                    + " or assigning a marking the caller lacks"),
         @ApiResponse(responseCode = "404", description = "Group or marking not found")
       })
   // The @AccessControl WRITE check above answers "may you change what this group grants" (same
-  // gate as updateGroupUsers/updateGroupRoles); it says nothing about markings specifically. The
-  // ASSIGN_MARKING capability check below is additive, not a replacement: both must pass. Per-
-  // definition escalation (you may not grant a marking you do not hold yourself) is a separate,
-  // narrower check enforced in TenantGroupService.updateGroupMarkings via
-  // MarkingEscalationValidator.
+  // gate as updateGroupUsers/updateGroupRoles); it says nothing about markings specifically. Which
+  // of ASSIGN_MARKING / DELETE_MARKING_ASSIGNMENT this request additionally needs depends on the
+  // diff between the payload and the group's current markings, so that check is done in
+  // TenantGroupService.updateGroupMarkings, which already loads the group's current state - see
+  // its doc. Per-definition escalation (you may not grant a marking you do not hold yourself) is a
+  // separate, narrower check also enforced there, via MarkingEscalationValidator.
   public TenantGroupMarkingsOutput updateGroupMarkings(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateMarkingsInput input) {
-    User currentUser = userService.currentUser();
-    if (!permissionService.hasCapabilityPermission(
-        currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
-      throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
-    }
     // Tenant resolved here and passed down, per the multi-tenancy convention: the service never
     // touches TenantContext. It is the tenant whose clearance the caller is checked against.
     return TenantGroupMarkingsOutput.from(
