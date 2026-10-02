@@ -270,10 +270,6 @@ sequenceDiagram
     participant SVC as AtomicTestingService
     participant DUP as InjectUtils.duplicateInject()
     participant INJ as Inject (DB)
-    participant EXECJOB as InjectsExecutionJob
-    participant ISVC as InjectService.<br/>resolveAllAssetsToExecute()
-    participant CACHE as MarkingClearanceCacheManager
-    participant EXEC as Executor (agents)
 
     alt Manual launch
         U->>API: POST /atomic-testings/{id}/launch
@@ -297,18 +293,149 @@ sequenceDiagram
             SVC->>INJ: newInject.setLaunchedBy(original.getScheduledBy())<br/>*** NEW ***
         end
     end
-
-    Note over EXECJOB: Later, decoupled, on its own Quartz tick — no live user, no session.
-    EXECJOB->>ISVC: resolveAllAssetsToExecute(inject)
-    rect rgb(255, 205, 205)
-        ISVC->>INJ: inject.getLaunchedBy()
-        ISVC->>CACHE: findClearance(launchedBy.id, tenantId, bypass)<br/>*** NEW CALL — this is the enforcement point ***
-        CACHE-->>ISVC: MarkingCtx (actor's current clearance)
-        ISVC->>ISVC: drop resolved assets whose marking<br/>is not in MarkingCtx
-    end
-    ISVC-->>EXECJOB: filtered AssetToExecute list<br/>(restricted targets silently absent)
-    EXECJOB->>EXEC: execute(executableInject)
 ```
+
+What happens to this `launched_by` value once dispatch actually starts — and why reaching
+`resolveAllAssetsToExecute` turned out not to be the whole story — is covered next, since it's shared
+with the Scenario/Exercise path rather than specific to Atomic Testing.
+
+---
+
+## Execution dispatch has three independent asset-resolution paths, not one
+
+Manual e2e validation (launch an Atomic Testing targeting one unmarked, agentless asset and one
+`TLP:RED` agent, as a `TLP:GREEN` user) found that the `TLP:RED` agent **actually executed** — not just
+appeared in a result the launcher could see, but a real payload ran on it, confirmed by execution
+traces (`"Distributing inject to 1 agent(s) across 1 endpoint(s)"`, then that agent's `stdout`). The
+data was all correct — `launched_by` was the right user, that user's clearance was correctly `TLP:GREEN`
+only, the agent's asset was correctly marked `TLP:RED` — yet it ran anyway.
+
+Root cause: `Executor.execute()` → `ExecutableInject` → `resolveAllAssetsToExecute()` is **one of three
+separate places** that independently decide "which assets does this inject concern." Per the Option 1
+decision (partial/scoped execution), the marking filter must apply consistently at all three — at the
+time of this finding, it was wired into only one of them. The three paths and how each one now applies
+(or, for one documented exception, doesn't yet apply) the filter are described below.
+
+### 1 — Expectation / finding computation
+
+`InjectService.resolveAllAssetsToExecute()`, called from `InjectsExecutionJob.executeInject()`
+(`InjectsExecutionJob.java:149`) and again from `OpenAEVImplantExecutor.process()`
+(`OpenAEVImplantExecutor.java:39`) and `AbstractTechnicalBehavior` (`AbstractTechnicalBehavior.java:94`,
+with a fallback to calling it directly for "direct callers" that don't pre-cache). This is the one path
+where the marking filter is wired in, and it's correct **for what it feeds**: which assets get
+expectation rows, scores, and therefore findings.
+
+```mermaid
+sequenceDiagram
+    participant EXECJOB as InjectsExecutionJob /<br/>OpenAEVImplantExecutor
+    participant ISVC as InjectService.<br/>resolveAllAssetsToExecute()
+    participant CACHE as MarkingClearanceCacheManager
+    participant EXP as InjectExpectationService
+
+    EXECJOB->>ISVC: resolveAllAssetsToExecute(inject)
+    rect rgb(205, 255, 205)
+        ISVC->>CACHE: findClearance(launchedBy.id, tenantId, bypass)
+        CACHE-->>ISVC: MarkingCtx
+        ISVC->>ISVC: drop assets whose marking is not in MarkingCtx
+    end
+    ISVC-->>EXECJOB: filtered AssetToExecute list
+    EXECJOB->>EXP: computeAndSaveExpectations(injection, ...)
+    Note over EXP: Correct: no expectation, no score, no finding<br/>is ever created for the restricted asset.
+```
+
+This explains why the overview didn't show `ASSET_RED` as a target — but it does **not** explain the
+Finding showing `DDD`, because that Finding came from the asset that actually ran, which this path
+never controls.
+
+### 2 — Agent-routing dispatch (the path manual testing caught)
+
+`Executor.execute()` calls `ExecutionExecutorService.launchExecutorContext(inject)`
+**unconditionally**, before branching into `executeInternal`/`executeExternal`, whenever
+`injectorContract.getNeedsExecutor()` is true. That method calls
+`InjectService.getAgentsAndAgentlessAssetsByInject(inject)` (`InjectService.java:1111-1126`) — a
+**third, independent** method that builds the real `Set<Agent>` commanded to execute via each agent's
+connector/executor instance. Manual e2e validation found this method originally walked
+`inject.getAssets()` + expanded `inject.getAssetGroups()` directly off the entity with no marking
+awareness at all — the actual cause of the `TLP:RED` agent executing in that test.
+
+```mermaid
+sequenceDiagram
+    participant EXEC as Executor.execute()
+    participant CTX as ExecutionExecutorService.<br/>launchExecutorContext()
+    participant ISVC as InjectService.<br/>getAgentsAndAgentlessAssetsByInject()
+    participant INJ as Inject (DB)
+    participant CONN as Connector instance<br/>(per executor)
+    participant AGENT as Real agent
+
+    EXEC->>CTX: launchExecutorContext(inject)
+    CTX->>ISVC: getAgentsAndAgentlessAssetsByInject(inject)
+    rect rgb(205, 255, 205)
+        ISVC->>ISVC: resolveLaunchedByClearance(inject)
+        ISVC->>INJ: inject.getAssets() + expand inject.getAssetGroups(),<br/>each checked against that clearance before extraction
+        ISVC-->>CTX: resolved agents + agentless assets<br/>(restricted assets excluded from both)
+    end
+    CTX->>CONN: route per executor instance
+    CONN->>AGENT: dispatch command
+    Note over AGENT: Before this fix, this is the agent that ran the TLP:RED<br/>payload in manual testing — launched_by's clearance<br/>was never consulted on this path.
+```
+
+**This is the highest-leverage point for the filter.** It's inject-type-agnostic (any `Inject`,
+Scenario-linked or Atomic Testing) and runs before the internal/external split, so filtering here covers
+both Scenario/Simulation and Atomic Testing, and however an injector is classified (internal or
+external), in one place.
+
+### 3 — External-push dispatch payload (non-agent connectors)
+
+For an injector classified `isExternal()` (e.g. email, SMS, OpenCTI — not agent-based), `executeExternal()`
+builds the published payload via `ExecutableInjectDTOMapper.toExecutableInjectDTO()`. Its `.assets(...)`
+is built from `executableInject.getAssetsToExecute()` (the filtered list, cached by `InjectsExecutionJob`
+or resolved fresh on the same fallback `AbstractTechnicalBehavior` already uses for direct callers) —
+consistent with path 2's filter, since both resolve clearance through the same
+`resolveLaunchedByClearance`.
+
+`.assetGroups(...)`, however, is passed through **unfiltered** — a deliberate boundary, not an
+oversight. Asset groups carry no marking of their own today (that's US1, still open — see "Open items
+carried forward"), so there is no clearance rule to apply to a group reference itself, and the
+downstream injector resolves non-endpoint members (e.g. AI targets) from the group independently of the
+filtered flat asset list. Emptying `.assetGroups(...)` once `.assets(...)` carries the filtered list
+would silently break that AI-target-via-group path, not just de-duplicate it.
+
+```mermaid
+sequenceDiagram
+    participant EXEC as Executor.executeExternal()
+    participant MAP as ExecutableInjectDTOMapper
+    participant EI as ExecutableInject<br/>(built by InjectHelper.toExecutableInject())
+    participant MQ as RabbitMQ
+
+    EXEC->>MAP: toExecutableInjectDTO(executableInject, ...)
+    rect rgb(205, 255, 205)
+        MAP->>EI: executableInject.getAssetsToExecute()<br/>(falls back to resolveAllAssetsToExecute() if not pre-cached)
+    end
+    rect rgb(255, 230, 200)
+        MAP->>EI: executableInject.getAssetGroups()<br/>*** unfiltered by design — groups carry no marking yet (US1) ***
+    end
+    MAP-->>EXEC: ExecutableInjectDTO
+    EXEC->>MQ: publish(injector.getId(), dto)
+```
+
+**Known, scoped consequence**: a marked AI-target asset reachable only through an asset group,
+dispatched to a non-agent external connector, is not covered by partial/scoped execution today. This
+is a direct function of US1 being open, not a gap in this path's own logic — revisit once asset groups
+have their own marking semantics.
+
+This path doesn't involve `Agent`/`Endpoint` extraction at all, so it's genuinely distinct from path 2 —
+filtering one does not filter the other. Any injector type that isn't agent-based still needs its own
+asset list filtered for the design to hold across *all* injector types, not just agent ones.
+
+### How Option 1 holds across all three paths
+
+The partial/scoped execution decision is a property of the inject's dispatch as a whole, not of any one
+method — so it must hold at every point that independently resolves "which assets does this concern."
+All three paths now resolve clearance through the same `resolveLaunchedByClearance(Inject): MarkingCtx`
+— one implementation of the rule, called from each path's own resolution point, rather than three
+divergent copies of it. The one documented exception is `.assetGroups(...)` in path 3 (above): asset
+groups themselves carry no marking today, so that one channel remains outside what this rule can
+currently filter.
 
 ---
 
@@ -364,9 +491,12 @@ Whichever field is read (`Exercise.launched_by`, `Inject.launched_by`), the rule
 - **A stored, deleted, or deactivated actor resolves to zero clearance.** No error, no fallback to
   "run anyway" — every remaining restricted target is simply skipped, same as if the actor had never
   had any group markings.
-- This check runs inside asset resolution (`InjectService.resolveAllAssetsToExecute`, called from
-  `InjectsExecutionJob.executeInject()`, `InjectsExecutionJob.java:149`) — filtering the resolved
-  `AssetToExecute` list down to what the stored actor can currently see, before dispatch.
+- This rule must be applied at **each** of the three independent asset-resolution points described in
+  ["Execution dispatch has three independent asset-resolution paths, not one"](#execution-dispatch-has-three-independent-asset-resolution-paths-not-one)
+  above — `resolveAllAssetsToExecute` alone (path 1) was found, during manual e2e validation, to filter
+  expectations/findings but not the actual dispatch. Path 2
+  (`getAgentsAndAgentlessAssetsByInject`/`launchExecutorContext`) is the primary target; path 3
+  (`ExecutableInjectDTOMapper`) covers non-agent external connectors.
 
 ---
 
@@ -497,6 +627,7 @@ Decisions Log addition (to be reflected in [`../user-stories.md`](../user-storie
 | --- | --- | --- |
 | 2026-09-30 | Launch/relaunch/scheduled execution runs in **partial/scoped mode** (Option 1): only targets visible to the resolved actor are executed; restricted targets are skipped, never run. Running on all targets and hiding the result (Option 2) is rejected as a privilege-escalation vector. | Soumaya Boussaha (PO) |
 | 2026-09-30 | The actor whose clearance gates a run is captured explicitly at launch/relaunch/recurrence-configuration time (`Exercise.launched_by`, `Scenario.scheduled_by`, `Inject.launched_by`, `Inject.scheduled_by`) — never inferred from a "last edited/updated" field. | — |
+| 2026-10-01 | Manual e2e validation found the PoC's initial enforcement point (`resolveAllAssetsToExecute`, path 1) filters expectations/findings but not real dispatch. Scope expanded to all three independent asset-resolution paths (see "Execution dispatch has three independent asset-resolution paths, not one") — path 2 (agent routing) is the primary fix, path 3 (external-push payload) required for non-agent connectors. | — |
 
 ---
 

@@ -145,6 +145,22 @@ public class Exercise implements GrantableBase, TenantBase {
   @Queryable(filterable = true, sortable = true)
   private Instant end;
 
+  /**
+   * The actor whose marking clearance this Exercise's inject dispatch is filtered against.
+   * Stamped once, at creation ({@code ScenarioToExerciseService.toExercise}): the live
+   * caller for a manual launch, or the owning {@link Scenario}'s {@code scheduledBy} when created
+   * by {@link io.openaev.scheduler.jobs.ScenarioExecutionJob} with no live user. Clearance is
+   * always resolved live from this reference at dispatch time, never cached here. No deserializer
+   * on purpose: stamped server-side only, never accepted from client JSON.
+   */
+  @Getter
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "exercise_launched_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("exercise_launched_by")
+  @Schema(implementation = String.class)
+  private User launchedBy;
+
   @Getter
   @Column(name = "exercise_message_header")
   @JsonProperty("exercise_message_header")

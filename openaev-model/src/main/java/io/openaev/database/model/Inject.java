@@ -238,6 +238,40 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @Schema(implementation = String.class)
   private User user;
 
+  /**
+   * Root/atomic-testing injects only ({@code exercise == null && scenario == null}): the user who
+   * last configured (created or updated) this atomic testing's recurrence. This is distinct from
+   * {@link #user}, which tracks the last content editor and is re-stamped on every content save —
+   * {@code scheduledBy} is stamped only by the recurrence-update endpoint. It is the actor {@link
+   * #launchedBy} is resolved from when a scheduled relaunch fires with no live user present
+   * ({@code AtomicTestingExecutionJob}). No deserializer on purpose: server-stamped only.
+   */
+  @Getter
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "inject_scheduled_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("inject_scheduled_by")
+  @Schema(implementation = String.class)
+  private User scheduledBy;
+
+  /**
+   * Root/atomic-testing injects only ({@code exercise == null && scenario == null}): the actor
+   * whose marking clearance this inject's dispatch is filtered against. Stamped at
+   * launch/relaunch time — the live caller for a manual launch/relaunch, or the original inject's
+   * {@link #scheduledBy} for a scheduled relaunch ({@code AtomicTestingExecutionJob}). A
+   * relaunch's duplicate must overwrite this explicitly; it must never be copied forward from the
+   * inject being replaced the way {@link #user} is. Scenario-linked injects resolve clearance via
+   * {@code getExercise().getLaunchedBy()} instead and have no value here. No deserializer on
+   * purpose: server-stamped only, never accepted from client JSON.
+   */
+  @Getter
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "inject_launched_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("inject_launched_by")
+  @Schema(implementation = String.class)
+  private User launchedBy;
+
   // CascadeType.ALL is required here because inject status are embedded
   // Filter/sort on the execution status name (not the relation id), with the
   // enum values exposed to the UI so the filter is a picker instead of free text

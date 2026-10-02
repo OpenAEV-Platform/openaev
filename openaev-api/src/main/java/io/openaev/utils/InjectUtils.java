@@ -366,6 +366,12 @@ public class InjectUtils {
     duplicatedInject.setRecurrence(injectOrigin.getRecurrence());
     duplicatedInject.setRecurrenceStart(injectOrigin.getRecurrenceStart());
     duplicatedInject.setRecurrenceEnd(injectOrigin.getRecurrenceEnd());
+    // scheduledBy travels with the recurrence it owns, same reasoning as the fields above.
+    duplicatedInject.setScheduledBy(injectOrigin.getScheduledBy());
+    // launchedBy is deliberately NOT copied here: it must reflect whoever is relaunching THIS
+    // occurrence, not the previous launcher. The caller (InjectService.doRelaunch) stamps it
+    // explicitly right after duplication - never let it fall through as a silent copy the way
+    // `user` and the recurrence fields above intentionally do.
     return duplicatedInject;
   }
 

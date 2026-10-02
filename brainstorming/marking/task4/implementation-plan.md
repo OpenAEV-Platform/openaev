@@ -7,7 +7,15 @@
 `MarkingClearanceCacheManager`); [Task 3 — Marking-based Access Control for Assets](../task3/tech-design.md)
 (asset marking = read filter, enforced via the statement-inspector rewrite).
 
-**Status**: not started.
+**Status**: POC 1 steps 4.1–4.6, 4.8, 4.9 done and verified (unit tests green, integration tests green
+against a real Postgres, no regressions in any known caller of the two methods steps 4.8/4.9 touched).
+Step 4.5, on its own, was found during manual e2e validation to filter expectations/findings but not
+real dispatch — steps 4.8 (agent-routing dispatch, the actual fix for what manual testing caught) and
+4.9 (external-push payload) close that gap; see `tech-design.md`'s "Execution dispatch has three
+independent asset-resolution paths, not one" for the full finding. One known, deliberately scoped-out
+gap remains from step 4.9: asset groups are not marking-filtered in the external-push path, since asset
+groups carry no marking of their own yet (depends on US1, POC 2). All changes remain uncommitted on this
+branch. Step 4.7 (Playwright e2e) not started.
 
 This plan is organized as a series of PoCs, each scoped narrowly enough to ship and demo on its own.
 POC 1 below covers only the launch/execution enforcement path already decided in `tech-design.md`;
@@ -84,7 +92,7 @@ authoritative scope statement; that one just points back to it per step.
 
 ### 3) Delivery steps
 
-#### Step 4.1 — Data model: four new columns + migration 🔴 next
+#### Step 4.1 — Data model: four new columns + migration ✅ done
 
 | Column | Table | Type |
 |---|---|---|
@@ -99,7 +107,12 @@ until the next launch/relaunch/recurrence-update re-stamps them.
 
 **DoD**: migration applies cleanly on a populated dev DB; entity mapping round-trips in a repository test.
 
-#### Step 4.2 — Write `scheduled_by` on recurrence configuration 🔴 not started
+**Done**: `V6_20260930120000000__Add_scheduled_by_and_launched_by_columns.java` — indexed, matches the
+existing `inject_user` FK idiom. Verified via the integration suites in step 4.3/4.5 actually loading a
+Spring context against it (Postgres via Podman, not Testcontainers — this repo uses a plain compose-managed
+test database).
+
+#### Step 4.2 — Write `scheduled_by` on recurrence configuration ✅ done
 
 - `ScenarioApi.updateScenarioRecurrence` (`ScenarioApi.java:577`) — stamp
   `scenario.setScheduledBy(currentUser())` whenever the call actually configures a schedule
@@ -110,7 +123,10 @@ until the next launch/relaunch/recurrence-update re-stamps them.
 does not (nothing to gate anymore, but the field is deliberately left as-is rather than nulled, so a
 later re-enable doesn't silently lose the last confirmed owner).
 
-#### Step 4.3 — Write `launched_by` on Exercise creation 🔴 not started
+**Done**: both call sites stamp as planned; covered by the "launched_by / scheduled_by stamping" nested
+tests in `InjectServiceTest` (4 tests, green) for the Atomic Testing side.
+
+#### Step 4.3 — Write `launched_by` on Exercise creation ✅ done
 
 `ScenarioToExerciseService.toExercise()` (`ScenarioToExerciseService.java:54`) gains a new actor
 parameter — it has no way to know its own caller today. Both call sites resolve it differently:
@@ -123,7 +139,18 @@ parameter — it has no way to know its own caller today. Both call sites resolv
 **DoD**: unit test per call site confirming the right actor lands on the created `Exercise`; existing
 `ScenarioToExerciseService` tests updated for the new parameter.
 
-#### Step 4.4 — Write `launched_by` on Atomic Testing launch/relaunch 🔴 not started
+**Corrections found while building, not while assuming**: `toExercise()` has a *third* caller family
+this plan didn't account for — `AutonomousRunService` calls it from three places (`doCreate`,
+`restart`, `promoteToRealRun`), not just `ScenarioApi`. All three are live-user, capability-gated
+operator actions, so resolving current-user there is consistent with the design, but it's more surface
+than planned: `AutonomousRunService.java` gained a `resolveLaunchedBy()` helper wired into all three
+call sites, and `AutonomousRunServiceTest` needed a new `UserRepository` mock plus
+`SecurityContextHolder` setup/teardown to exercise it.
+
+**Done**: `ScenarioToExerciseServiceTest`, `ScenarioToExerciseDocumentAttributionTest`,
+`AutonomousRunServiceTest` all green (integration suites run against Postgres via Podman — see §Status).
+
+#### Step 4.4 — Write `launched_by` on Atomic Testing launch/relaunch ✅ done
 
 - `AtomicTestingService.launch()` (`AtomicTestingService.java:231-234`) currently writes nothing —
   add `inject.setLaunchedBy(currentUser())`.
@@ -137,7 +164,21 @@ parameter — it has no way to know its own caller today. Both call sites resolv
 `launched_by` from the original inject; scheduled-relaunch test proving it inherits `scheduled_by`
 instead.
 
-#### Step 4.5 — Dispatch-time enforcement (the core check) 🔴 not started
+**Corrections found while building, not while assuming**:
+
+- `AtomicTestingService.launch()`/`doRelaunch()` don't touch the `Inject` entity directly — they
+  delegate to `InjectService.launch()`/`InjectService.doRelaunch()`, which is where the actual entity
+  mutation and the `duplicateInject()` call live. The stamping landed there instead, per the plan's
+  intent, not literally inside `AtomicTestingService`.
+- Not in the original plan text but necessary for correctness: `duplicateInject()` also needed to copy
+  `scheduledBy` forward (recurrence-adjacent, like `recurrence`/`recurrenceStart`/`recurrenceEnd`) so a
+  recurring atomic testing doesn't lose its schedule owner after its first scheduled relaunch — only
+  `launchedBy` is deliberately withheld from the copy.
+
+**Done**: 14 new tests in `InjectServiceTest` cover the launch/relaunch stamping and the
+`duplicateInject()` trap specifically (manual relaunch does not inherit the prior launcher).
+
+#### Step 4.5 — Dispatch-time enforcement, expectations/findings only ⚠️ done, but not the fix this PoC needs
 
 Inside `InjectService.resolveAllAssetsToExecute`, called from `InjectsExecutionJob.executeInject()`
 (`InjectsExecutionJob.java:149`):
@@ -154,12 +195,101 @@ Inside `InjectService.resolveAllAssetsToExecute`, called from `InjectsExecutionJ
 `ASSET_RED` silently skipped — the canonical worked example from `user-stories.md`), zero clearance (no
 targets run), bypass actor (all targets run regardless of grants), and null actor (no targets run).
 
-#### Step 4.6 — Guardrail test against the bypass leak 🔴 not started
+**Done**: all five scenarios covered in `InjectServiceTest`'s "dispatch-time marking clearance
+enforcement" nested class; also verified against real Postgres via `ScenarioExecutionJobTest` /
+`InjectsExecutionJobTest` / `InjectsExecutionJobUnitTest` / `AtomicTestingExecutionJobTest` (26 tests,
+green) — these exercise the full creation → dispatch path end to end, not just the mocked unit slice.
+
+**Found during manual e2e validation, not caught by any of the above**: this method
+(`resolveAllAssetsToExecute`) only feeds expectation/scoring/finding computation. It is not what
+decides which agents actually get commanded to execute, nor what's serialized into the external-push
+dispatch payload — those are two further, independent asset-resolution points (`InjectService.java:1111-1126`
+and `ExecutableInjectDTOMapper.java:23-39`) that this step never touched. A `TLP:RED` agent targeted
+alongside an unmarked asset, launched by a `TLP:GREEN` user, genuinely executed the payload — confirmed
+via `execution_traces`. See steps 4.8 and 4.9, and `tech-design.md`'s "Execution dispatch has three
+independent asset-resolution paths, not one" for the full finding. None of the 26+54 tests above caught
+this because none of them asserted anything about the real agent dispatch path or the external-push DTO
+— they only ever exercised `resolveAllAssetsToExecute()`'s own return value.
+
+#### Step 4.6 — Guardrail test against the bypass leak ✅ done
 
 A targeted test proving `AGENT_RUNTIME_ACCESS` alone does **not** grant bypass in this new path — i.e.
 that step 4.5 calls `MarkingClearanceCacheManager` directly and never through
 `HttpMarkingScopeSupplier`. This is the regression this PoC exists to prevent, per `tech-design.md`'s
 bypass section, so it gets its own explicit test rather than relying on code review alone.
+
+**Done**: `given_agentRuntimeAccessOnlyActor_should_notBypass()` in `InjectServiceTest` — no production
+code change was needed, the guardrail was already correctly implemented (`bypass =
+launchedBy.isAdminOrBypass()` only); this test exists purely to pin that property against regression.
+
+#### Step 4.8 — Filter the agent-routing dispatch path (the actual fix) ✅ done
+
+`InjectService.getAgentsAndAgentlessAssetsByInject(inject)` (`InjectService.java:1111-1126`), called
+from `ExecutionExecutorService.launchExecutorContext(inject)` unconditionally before the
+internal/external split — this is the method that builds the real `Set<Agent>` commanded to execute,
+and it reads `inject.getAssets()` / expanded `inject.getAssetGroups()` directly, with no marking
+awareness. Fix:
+
+1. Extract the clearance-resolution half of step 4.5's `filterByMarkingClearance` into its own
+   reusable method, e.g. `resolveLaunchedByClearance(Inject inject): MarkingCtx` (same actor
+   resolution, same live `MarkingClearanceCacheManager.findClearance` call, same null-actor →
+   `MarkingCtx.none()` fallback) — shared by both this step and step 4.5, rather than duplicated.
+2. In `getAgentsAndAgentlessAssetsByInject`, resolve clearance once, then skip
+   `extractAgentsAndAssetsAgentless(...)` for any asset not visible under that clearance — both in the
+   direct-assets loop and the asset-group-expansion loop.
+
+**DoD**: the canonical worked example as an actual execution test, not just an asset-list assertion —
+launch (or directly call `launchExecutorContext`) with a `TLP:GREEN` actor against one unmarked and one
+`TLP:RED` endpoint; assert the returned `Set<Agent>` excludes the `TLP:RED` endpoint's agent entirely.
+Regression test: an admin/bypass actor still gets both. Ideally re-run the exact manual e2e scenario
+that found this (two assets, one `TLP:RED` agent, `TLP:GREEN` launcher) and confirm no execution trace
+is produced for the restricted agent at all — not just that it's hidden from a result view.
+
+**Done**: `resolveLaunchedByClearance(Inject): MarkingCtx` extracted from step 4.5's
+`filterByMarkingClearance` and shared by both. New `InjectServiceTest` nested class
+(`AgentRoutingDispatchFilterTests`, 3 tests): partial clearance excludes the restricted agent from the
+returned `Set<Agent>` entirely (not just from a display list), bypass actor gets both, unmarked asset
+included under zero clearance. Regression across every known caller of
+`getAgentsAndAgentlessAssetsByInject` — `ExecutionExecutorServiceTest`, `InjectExecutionStepTest`,
+`AttackPathExecutionIngestionServiceTest` (82 tests) — green.
+
+#### Step 4.9 — Filter the external-push dispatch payload (non-agent connectors) ✅ done
+
+`ExecutableInjectDTOMapper.toExecutableInjectDTO()` (`ExecutableInjectDTOMapper.java:23-39`) builds
+`.assets(...)`/`.assetGroups(...)` from `executableInject.getAssets()`/`getAssetGroups()` — the
+original fields set once in `InjectHelper.toExecutableInject()`, independent of anything
+`resolveAllAssetsToExecute()` computed. This is the path for any injector classified `isExternal()`
+that isn't agent-based (email, SMS, OpenCTI, etc.). Fix: consume the filtered
+`executableInject.getAssetsToExecute()` instead, falling back to calling
+`injectService.resolveAllAssetsToExecute(inject)` when null — the same fallback pattern
+`AbstractTechnicalBehavior` already uses for direct callers that don't pre-cache
+(`AbstractTechnicalBehavior.java:92-97`).
+
+**To resolve during implementation, not assume**: whether `.assetGroups(...)` in the DTO is used
+downstream only for target expansion (in which case it should become empty once `.assets(...)` carries
+the already-expanded, filtered flat list — passing both would double-submit and could leak unfiltered
+group members through that second channel) or serves another purpose the connector needs (e.g.
+labeling/reporting) that would be lost by emptying it. Check every downstream consumer of
+`ExecutableInjectDTO.assetGroups` before deciding.
+
+**DoD**: unit test on the mapper proving a restricted asset present in `executableInject.getAssets()`
+is absent from the built DTO when a filtered `assetsToExecute` excludes it; existing mapper tests
+(non-marking cases) unaffected.
+
+**Done**: `ExecutableInjectDTOMapper` now takes an `InjectService` dependency and builds `.assets(...)`
+from `executableInject.getAssetsToExecute()`, falling back to `injectService.resolveAllAssetsToExecute(inject)`
+when null. New `ExecutableInjectDTOMapperTest` (3 tests): cached-filtered-list path, fallback-to-resolve
+path, non-marking case unaffected.
+
+**`.assetGroups(...)` decision — left unfiltered, deliberately, not resolved the way the DoD assumed a
+clean answer existed:** the mapper's own existing comment confirms non-endpoint assets reached via a
+group (e.g. AI targets) are resolved by the downstream injector *from the group itself*, independent of
+the filtered flat asset list. Asset groups carry no marking of their own today — that's Task 4's own
+explicitly-deferred US1 — so there is no clearance rule to apply to this set yet; emptying it would
+silently break the AI-target-via-group path for external injectors, not just de-duplicate. **Known,
+scoped gap, not an oversight**: a marked AI-target asset reachable only through an asset group,
+dispatched to a non-agent external connector, is not covered by this fix. Revisit once US1 (POC 2)
+gives asset groups their own marking semantics.
 
 #### Step 4.7 — End-to-end proof, as a Playwright e2e test (CI-covered) 🔴 not started
 
@@ -182,7 +312,10 @@ UI-driven assertions, not clicking through every setup step):
    (Task 3's existing read filter, incidentally exercised here too).
 3. *(UI, as `USER_GREEN`)* click Launch.
 4. *(UI, as `USER_GREEN`)* open the resulting Simulation — assert only `ASSET_GREEN` shows as a
-   target/result; no count, placeholder, or error hints that a second target exists.
+   target/result; no count, placeholder, or error hints that a second target exists. **Also assert no
+   execution trace exists for the `TLP:RED` agent** (via API, not just UI) — a UI-only assertion here
+   would have passed even with the step 4.5-only gap manual testing found, since the overview already
+   hid the restricted asset while it was still actually executing underneath.
 5. *(UI, as `FULL_ADMIN`)* open the same Simulation — assert both `ASSET_GREEN` and `ASSET_RED` are
    still configured as targets, proving the underlying data wasn't altered, only filtered per-viewer
    (the "configurations and results are not altered or corrupted" acceptance principle in
@@ -211,22 +344,61 @@ Restated from §1 against concrete steps — none of these have a step above, by
 
 ### 5) Validation matrix
 
-- New unit tests from steps 4.2–4.6, green.
-- `ScenarioToExerciseServiceTest`, `AtomicTestingServiceTest`, `InjectsExecutionJobTest` — existing
-  suites updated for the new parameter/fields, green.
-- Tenant isolation suite unaffected — this PoC adds no new statement-inspector dimension; the
-  dispatch-time filter is a plain Java check inside asset resolution, not a SQL rewrite.
+**Steps 4.1–4.4, 4.6 ✅** — green and verified:
+
+- New/updated unit tests: `InjectServiceTest` (54 tests total, including 14 new — stamping, the
+  `duplicateInject` trap, and the step 4.6 guardrail).
+- Existing suites updated for the new `toExercise()` parameter and fields, green:
+  `ScenarioToExerciseServiceTest`, `ScenarioToExerciseDocumentAttributionTest`, `AutonomousRunServiceTest`
+  (the step 4.3 correction — new `UserRepository` mock + `SecurityContextHolder` setup).
+- Full creation path verified against a real Postgres (Podman-managed compose stack, not
+  Testcontainers — this repo doesn't use it): `ScenarioExecutionJobTest`, `InjectsExecutionJobTest`,
+  `InjectsExecutionJobUnitTest`, `AtomicTestingExecutionJobTest` (26 tests, green), plus a regression
+  check of `AtomicTestingServiceTest` (unaffected, green).
+- Tenant isolation suite unaffected — this PoC adds no new statement-inspector dimension.
+
+**Step 4.5 ⚠️ green, but proven insufficient on its own** — all 54+26 tests above stayed green through
+manual e2e validation that found a real agent still executes a restricted target. None of them asserted
+anything about the real agent-dispatch path or the external-push DTO, only about
+`resolveAllAssetsToExecute()`'s own return value — a gap in what was tested, not a flaky result. Steps
+4.8/4.9 close it.
+
+**Steps 4.8, 4.9 ✅** — green and verified:
+
+- `InjectServiceTest`'s new `AgentRoutingDispatchFilterTests` (3 tests) and `ExecutableInjectDTOMapperTest`
+  (3 tests, new file) — green, covering each step's DoD.
+- Regression across every known caller of `getAgentsAndAgentlessAssetsByInject`:
+  `ExecutionExecutorServiceTest`, `InjectExecutionStepTest`, `AttackPathExecutionIngestionServiceTest`
+  (82 tests) — green.
+- Full integration regression against real Postgres (Podman): `ScenarioToExerciseServiceTest`,
+  `ScenarioToExerciseDocumentAttributionTest`, `ScenarioExecutionJobTest`, `InjectsExecutionJobTest`,
+  `InjectsExecutionJobUnitTest`, `AtomicTestingExecutionJobTest`, `AtomicTestingServiceTest`,
+  `AutonomousRunServiceTest` (92 tests) — green.
+- One failure surfaced on a full-module run, `AccessControlAuditLogAspectTest`
+  (`ObjectOptimisticLockingFailureException` during Spring context startup) — isolated and re-run alone
+  (13/13 green); confirmed a pre-existing environmental flake from the long-lived, reused test Postgres
+  container accumulating state across many runs this session, unrelated to inject/asset/marking logic.
+- Known, deliberately scoped-out gap from step 4.9: asset groups are not marking-filtered in the
+  external-push path (see step 4.9's "Done" note) — tracked against US1, not a test gap.
+
+**Step 4.7 🔴 not started.**
+
 - No *new* frontend UI is built in this PoC — the launch/relaunch actions and the marking-assignment
-  screens all already exist (Task 1/2/3). Step 4.7's e2e test *exercises* that existing UI as proof
+  screens all already exist (Task 1/2/3). Step 4.7's e2e test will *exercise* that existing UI as proof
   and as permanent CI regression coverage; it does not add or change any product UI.
+- Not yet committed: all changes remain as uncommitted working-tree modifications, deliberately,
+  pending review.
 
 ### 6) Traceability to user stories
 
 - **US2** (Scenarios, Simulations, Atomic testing: restricted assets hidden in targets, execution
-  details, results, scores, findings, remediations) — **execution/dispatch enforcement done** by this
-  PoC (steps 4.1–4.6); target/result/score/finding display-filtering already runs through Task 3's
-  existing per-asset read filter. Whether the *entity itself* is hidden or filtered when it has mixed
-  targets (Row 2) is explicitly **not** decided or built here — see §4.
+  details, results, scores, findings, remediations) — **execution/dispatch enforcement done** (steps
+  4.1–4.6, 4.8, 4.9) for directly-targeted and asset-group-targeted endpoints alike, across agent-routing
+  and external-push dispatch. One scoped exception: a marked AI-target asset reachable only through an
+  asset group, dispatched via a non-agent external connector, is not yet covered — depends on US1 giving
+  asset groups their own marking semantics. Target/result/score/finding display-filtering already runs
+  through Task 3's existing per-asset read filter. Whether the *entity itself* is hidden or filtered when
+  it has mixed targets (Row 2) is explicitly **not** decided or built here — see §4.
 - **US1** (Asset Groups) — **not addressed**; deferred, §4.
 - **US0** (Dashboards) — **not addressed**; per `user-stories.md`'s own open question #8, dashboards
   reuse US2's result filtering once Row 2 is settled, so this PoC is a prerequisite input, not a

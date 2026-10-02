@@ -1,5 +1,6 @@
 package io.openaev.rest.scenario;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ScenarioSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -591,6 +592,13 @@ public class ScenarioApi extends RestBehavior {
             || (input.getRecurrence() != null && !input.getRecurrence().isBlank());
     if (schedules) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
+      // The actor a scheduled Exercise's launchedBy is resolved from when ScenarioExecutionJob
+      // materializes it later with no live user present. Re-stamped on every recurrence
+      // configuration call, not just the first — always the live caller at that moment.
+      scenario.setScheduledBy(
+          this.userRepository
+              .findById(currentUser().getId())
+              .orElseThrow(ElementNotFoundException::new));
     }
     scenario.setUpdateAttributes(input);
     return this.scenarioService.updateScenario(scenario);
@@ -669,6 +677,9 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
+    // The live caller's clearance gates this Exercise's inject dispatch.
+    User launchedBy =
+        this.userRepository.findById(currentUser().getId()).orElseThrow(ElementNotFoundException::new);
 
     if (workflowService.isScenarioChaining(scenarioId)) {
       // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
@@ -678,14 +689,14 @@ public class ScenarioApi extends RestBehavior {
       autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
       simulation =
           scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
       simulation =
           scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
     }
 
     return simulation;
