@@ -103,6 +103,65 @@ class V20261002DefaultGroupMarkingsTest extends IntegrationTest {
     assertGroupHasMarking(tenant, "Observer", "TLP:GREEN");
   }
 
+  @Test
+  @DisplayName(
+      "given_groupsNotYetCreatedByPrerequisitePack_should_notRegisterPackSoItRetriesLater")
+  void given_groupsNotYetCreatedByPrerequisitePack_should_notRegisterPackSoItRetriesLater()
+      throws Exception {
+    Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
+
+    // Arrange: markings exist (V20260914 ran) but V20260330 hasn't created the groups yet —
+    // a transient ordering/failure case this pack must not paper over by registering anyway.
+    tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> {
+          seedMarking(tenant, "TLP:RED", 5);
+          seedMarking(tenant, "TLP:AMBER", 3);
+          seedMarking(tenant, "TLP:GREEN", 2);
+          return null;
+        });
+
+    MigrationProcessor processor =
+        new MigrationProcessor(
+            List.of(groupMarkingsDataPack), Collections.emptyList(), tenantRepository, tenantTx);
+
+    // Act
+    processor.createDependencyForTenant(tenant);
+
+    // Assert: not registered, so a later retry (once groups exist) still runs this pack.
+    assertThat(dataPackService.findByIdAndTenant(groupMarkingsDataPack.getPackId(), tenant))
+        .isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "given_markingsNotYetCreatedByPrerequisitePack_should_notRegisterPackSoItRetriesLater")
+  void given_markingsNotYetCreatedByPrerequisitePack_should_notRegisterPackSoItRetriesLater()
+      throws Exception {
+    Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
+
+    // Arrange: groups exist (V20260330 ran) but V20260914 hasn't created the markings yet.
+    tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> {
+          seedGroup(tenant, "Admin");
+          seedGroup(tenant, "Manager");
+          seedGroup(tenant, "Observer");
+          return null;
+        });
+
+    MigrationProcessor processor =
+        new MigrationProcessor(
+            List.of(groupMarkingsDataPack), Collections.emptyList(), tenantRepository, tenantTx);
+
+    // Act
+    processor.createDependencyForTenant(tenant);
+
+    // Assert: not registered, so a later retry (once markings exist) still runs this pack.
+    assertThat(dataPackService.findByIdAndTenant(groupMarkingsDataPack.getPackId(), tenant))
+        .isEmpty();
+  }
+
   private void seedGroup(Tenant tenant, String name) {
     Group group = new Group();
     group.setName(name);
