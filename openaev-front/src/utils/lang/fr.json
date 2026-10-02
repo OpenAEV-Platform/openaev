@@ -10,6 +10,7 @@
   "-": "Aucun",
   ",": ",",
   ".": ".",
+  "\"Missing the DELETE_MARKING_ASSIGNMENT capability": "Absence de la fonctionnalité DELETE_MARKING_ASSIGNMENT",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "« Oui, toujours » enregistre cette préférence pour vous. Cet outil s’exécutera alors sans vous demander votre avis — y compris lors des exécutions planifiées que personne ne surveille — jusqu’à ce que vous révoquiez cette autorisation.",
   "(last 180 days)": "(180 derniers jours)",
   "(no output)": "(aucune sortie)",

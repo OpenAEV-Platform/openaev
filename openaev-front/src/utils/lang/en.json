@@ -10,6 +10,7 @@
   "-": "None",
   ",": ",",
   ".": ".",
+  "\"Missing the DELETE_MARKING_ASSIGNMENT capability": "Missing the DELETE_MARKING_ASSIGNMENT capability",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.",
   "(last 180 days)": "(last 180 days)",
   "(no output)": "(no output)",

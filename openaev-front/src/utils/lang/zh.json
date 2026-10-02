@@ -10,6 +10,7 @@
   "-": "-",
   ",": ",",
   ".": ".",
+  "\"Missing the DELETE_MARKING_ASSIGNMENT capability": "缺少 DELETE_MARKING_ASSIGNMENT 权限",
   "“Yes, always” saves a preference for you. That tool will then run without asking — including on scheduled runs nobody is watching — until you revoke it.": "“是，始终”会为您保存该偏好设置。此后，该工具将无需询问即可运行——包括在无人监视的定时运行中——直到您撤销该设置为止。",
   "(last 180 days)": "(过去 180 天）",
   "(no output)": "（无输出）",
