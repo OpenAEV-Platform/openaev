@@ -463,4 +463,10 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesDatapacks() throws Exception {
     assertActiveTableEntry("datapacks");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains agents")
+  void prodConfigActivatesAgents() throws Exception {
+    assertActiveTableEntry("agents");
+  }
 }
