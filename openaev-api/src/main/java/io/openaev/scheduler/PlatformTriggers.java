@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.AgentInactivityMonitorJob.AGENT_INACTIVITY_MONITOR_TRIGGER;
 import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIAL_CONNECTIVITY_CHECK_TRIGGER;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_TRIGGER;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
@@ -32,6 +33,9 @@ public class PlatformTriggers {
   @Value("${openaev.cron.config.steps.delay.queue.polling.interval:10000}")
   private int stepDelayQueue;
 
+  @Value("${openaev.cron.config.agent.inactivity.monitor.interval:5}")
+  private int agentInactivityMonitorIntervalMinutes;
+
   @Value("${openaev.credentials.status-validation.cron:0 */6 * * * ?}")
   private String credentialsConnectivityCheckCron;
 
@@ -46,6 +50,16 @@ public class PlatformTriggers {
         .forJob(platformJobs.getInjectsExecution())
         .withIdentity("InjectsExecutionTrigger")
         .withSchedule(cronSchedule("0 0/1 * * * ?")) // Every minute align on clock
+        .build();
+  }
+
+  @Bean
+  public Trigger injectsFinalizationTrigger() {
+    return newTrigger()
+        .forJob(platformJobs.getInjectsFinalization())
+        .withIdentity("InjectsFinalizationTrigger")
+        // Offset from the dispatch job so the two never contend for the same DB connections
+        .withSchedule(cronSchedule("30 0/1 * * * ?"))
         .build();
   }
 
@@ -109,6 +123,19 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.getConnectorPingJob())
         .withIdentity("connectorPingJob")
         .withSchedule(_40_seconds)
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger agentInactivityMonitorTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.agentInactivityMonitorJobDetail())
+        .withIdentity(AGENT_INACTIVITY_MONITOR_TRIGGER)
+        .withSchedule(
+            simpleSchedule()
+                .withIntervalInMinutes(agentInactivityMonitorIntervalMinutes)
+                .repeatForever())
         .build();
   }
 

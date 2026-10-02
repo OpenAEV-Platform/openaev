@@ -139,7 +139,7 @@ public class LessonsTemplateApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.LESSON_LEARNED)
   public Iterable<LessonsTemplateCategory> lessonsTemplateCategories(
-      @PathVariable String lessonsTemplateId) {
+      TxCtx ctx, @PathVariable String lessonsTemplateId) {
     return lessonsTemplateCategoryRepository.findAll(
         LessonsTemplateCategorySpecification.fromTemplate(lessonsTemplateId));
   }
@@ -154,6 +154,7 @@ public class LessonsTemplateApi extends RestBehavior {
       resourceType = ResourceType.LESSON_LEARNED)
   @Transactional(rollbackFor = Exception.class)
   public LessonsTemplateCategory updateLessonsTemplateCategory(
+      TxCtx ctx,
       @PathVariable String lessonsTemplateId,
       @PathVariable String lessonsTemplateCategoryId,
       @Valid @RequestBody LessonsTemplateCategoryInput input) {
@@ -176,7 +177,9 @@ public class LessonsTemplateApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
   public void deleteLessonsTemplateCategory(
-      @PathVariable String lessonsTemplateId, @PathVariable String lessonsTemplateCategoryId) {
+      TxCtx ctx,
+      @PathVariable String lessonsTemplateId,
+      @PathVariable String lessonsTemplateCategoryId) {
     lessonsTemplateCategoryRepository.deleteById(lessonsTemplateCategoryId);
   }
 
@@ -192,7 +195,7 @@ public class LessonsTemplateApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.LESSON_LEARNED)
   public Iterable<LessonsTemplateQuestion> lessonsTemplateQuestions(
-      @PathVariable String lessonsTemplateId) {
+      TxCtx ctx, @PathVariable String lessonsTemplateId) {
     return lessonsTemplateCategoryRepository
         .findAll(LessonsTemplateCategorySpecification.fromTemplate(lessonsTemplateId))
         .stream()
@@ -218,6 +221,7 @@ public class LessonsTemplateApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
   public LessonsTemplateQuestion createLessonsTemplateQuestion(
+      TxCtx ctx,
       @PathVariable String lessonsTemplateId,
       @PathVariable String lessonsTemplateCategoryId,
       @Valid @RequestBody LessonsTemplateQuestionInput input) {
@@ -238,7 +242,9 @@ public class LessonsTemplateApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.LESSON_LEARNED)
   public Iterable<LessonsTemplateQuestion> lessonsTemplateCategoryQuestions(
-      @PathVariable String lessonsTemplateId, @PathVariable String lessonsTemplateCategoryId) {
+      TxCtx ctx,
+      @PathVariable String lessonsTemplateId,
+      @PathVariable String lessonsTemplateCategoryId) {
     return lessonsTemplateQuestionRepository.findAll(
         LessonsTemplateQuestionSpecification.fromCategory(lessonsTemplateCategoryId));
   }
@@ -253,6 +259,7 @@ public class LessonsTemplateApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
   public LessonsTemplateQuestion updateLessonsTemplateQuestion(
+      TxCtx ctx,
       @PathVariable String lessonsTemplateId,
       @PathVariable String lessonsTemplateCategoryId,
       @PathVariable String lessonsTemplateQuestionId,
@@ -276,6 +283,7 @@ public class LessonsTemplateApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
   public void deleteLessonsTemplateQuestion(
+      TxCtx ctx,
       @PathVariable String lessonsTemplateId,
       @PathVariable String lessonsTemplateCategoryId,
       @PathVariable String lessonsTemplateQuestionId) {

@@ -2,6 +2,8 @@ package io.openaev.telemetry.metric_collectors;
 
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
@@ -19,11 +21,17 @@ import org.springframework.stereotype.Service;
  * installed on the asset, agentless otherwise). Counts only, no asset content is ever collected.
  *
  * <p>The counts are intentionally instance-wide (all tenants): the query runs on the OTel exporter
- * thread, outside any request or tenant context. Note for multi-tenancy v2: if the {@code assets}
- * or {@code agents} tables are ever activated in {@code openaev.tenant.active-tables}, the
- * fail-closed {@link io.openaev.config.TenantStatementInspector} will reject this query on a thread
- * without a tenant scope and the gauge will degrade to empty (error logged); the collector must
- * then move to an inspector-bypassing path (e.g. raw JDBC) to stay instance-wide.
+ * thread, outside any request or tenant context. Under v1 that came for free, because the Hibernate
+ * {@code tenantFilter} is only enabled on a transactional call. {@code assets} is on v2, and {@link
+ * io.openaev.config.TenantStatementInspector} does not care whether a transaction is active: with
+ * {@code app.current_tenants} unset, {@code can_access_tenant} returns false for every row and the
+ * gauge reports an empty map. It keeps reporting, it just reports nothing.
+ *
+ * <p>The scope is therefore explicit, {@code TxCtx.allTenants()} through {@link
+ * TenantScopedTransaction}. An earlier version of this javadoc prescribed raw JDBC to bypass the
+ * inspector instead. That advice predates the primitive and would trade a documented, enumerated
+ * cross-tenant intention for an unreviewable one, which is what the {@code
+ * TenantNonOrmAccessArchTest} guardrail exists to prevent.
  */
 @Slf4j
 @Service
@@ -36,6 +44,7 @@ public class AssetMetricCollector {
   private static final String AGENTLESS = "agentless";
 
   private final MetricRegistry metricRegistry;
+  private final TenantScopedTransaction tenantTx;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -47,19 +56,24 @@ public class AssetMetricCollector {
         this::collectAssets);
   }
 
-  private Map<Attributes, Long> collectAssets() {
+  /** Package-private so the tenant-scope regression test can call it without the OTel plumbing. */
+  Map<Attributes, Long> collectAssets() {
     Map<Attributes, Long> result = new HashMap<>();
     try {
       @SuppressWarnings("unchecked")
       List<Object[]> rows =
-          entityManager
-              .createNativeQuery(
-                  "select t.asset_category, t.has_agent, count(*) from ("
-                      + "  select a.asset_category,"
-                      + "    exists (select 1 from agents ag where ag.agent_asset = a.asset_id) as has_agent"
-                      + "  from assets a"
-                      + ") t group by 1, 2")
-              .getResultList();
+          tenantTx.execute(
+              TxCtx.allTenants(),
+              () ->
+                  entityManager
+                      .createNativeQuery(
+                          "select t.asset_category, t.has_agent, count(*) from ("
+                              + "  select a.asset_category,"
+                              + "    exists (select 1 from agents ag where ag.agent_asset ="
+                              + " a.asset_id) as has_agent"
+                              + "  from assets a"
+                              + ") t group by 1, 2")
+                      .getResultList());
       for (Object[] row : rows) {
         Attributes attributes =
             Attributes.of(

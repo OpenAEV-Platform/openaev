@@ -5,6 +5,9 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.Execution;
+import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
@@ -24,6 +27,7 @@ import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -45,6 +49,27 @@ public class MailingService {
           "Email injector contract has no linked injector: " + injectorContract.getId());
     }
     return injectorContract.getInjectors().getFirst();
+  }
+
+  /**
+   * Turns a failed or partially failed delivery into an exception. The email injector swallows
+   * every error into {@link Execution} traces, so this is the only place where a caller can learn
+   * that nothing was actually sent.
+   */
+  private void raiseOnFailedDelivery(Execution execution, String contractId, int recipientCount) {
+    ExecutionStatus status = execution.getStatus();
+    if (!ExecutionStatus.ERROR.equals(status) && !ExecutionStatus.PARTIAL.equals(status)) {
+      return;
+    }
+    String errors =
+        execution.getTraces().stream()
+            .filter(trace -> trace.getStatus().isError())
+            .map(ExecutionTrace::getMessage)
+            .collect(Collectors.joining("; "));
+    throw new IllegalStateException(
+        String.format(
+            "Email delivery %s for contract %s (%d recipient(s)): %s",
+            status, contractId, recipientCount, errors));
   }
 
   private String resolveInjectorType(InjectorContract injectorContract, Injector firstInjector) {
@@ -103,7 +128,12 @@ public class MailingService {
                   new ExecutableInject(false, true, inject, userInjectContexts);
               io.openaev.executors.Injector executor =
                   managerFactory.getManager(tenantId).requestInjectorExecutorByType(injectorType);
-              executor.executeInjection(injection);
+              // Injector.execute() never propagates: it catches every failure into execution
+              // traces. Discarding the returned Execution would make a failed delivery (SMTP
+              // down, misconfigured mailer, encryption error) indistinguishable from a success,
+              // which is how notification emails went missing with no trace in the logs.
+              Execution execution = executor.executeInjection(injection);
+              raiseOnFailedDelivery(execution, injectorContract.getId(), userInjectContexts.size());
             });
   }
 

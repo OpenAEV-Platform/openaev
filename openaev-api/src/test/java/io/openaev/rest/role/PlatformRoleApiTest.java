@@ -11,13 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.api.platform.roles.PlatformRoleInput;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.role.form.RoleInput;
 import io.openaev.utils.fixtures.PlatformRoleFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
@@ -56,8 +56,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
     @DisplayName("Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should create a platform role")
     void given_managePlatform_should_createRole() throws Exception {
       // -------- Arrange --------
-      PlatformRoleInput input =
-          new PlatformRoleInput(
+      RoleInput input =
+          new RoleInput(
               "NewPlatformRole",
               "A description",
               Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES));
@@ -76,9 +76,9 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -------- Assert --------
-      assertNotNull(JsonPath.read(response, "$.platform_role_id"));
-      assertEquals("NewPlatformRole", JsonPath.read(response, "$.platform_role_name"));
-      assertEquals("A description", JsonPath.read(response, "$.platform_role_description"));
+      assertNotNull(JsonPath.read(response, "$.role_id"));
+      assertEquals("NewPlatformRole", JsonPath.read(response, "$.role_name"));
+      assertEquals("A description", JsonPath.read(response, "$.role_description"));
     }
 
     @Test
@@ -86,8 +86,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
     @DisplayName("Given ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES only, should be forbidden to create")
     void given_accessPlatform_should_forbidCreate() throws Exception {
       // -------- Arrange --------
-      PlatformRoleInput input =
-          new PlatformRoleInput("Forbidden", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+      RoleInput input =
+          new RoleInput("Forbidden", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -105,8 +105,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
         "Given MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, should be forbidden to assign unowned capabilities")
     void given_managePlatform_should_forbidCreateWithUnownedCapabilities() throws Exception {
       // -------- Arrange --------
-      PlatformRoleInput input =
-          new PlatformRoleInput("Forbidden", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+      RoleInput input =
+          new RoleInput("Forbidden", "desc", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -128,8 +128,7 @@ public class PlatformRoleApiTest extends IntegrationTest {
       // The mock user puts platform-only capabilities in a platform group and BYPASS — which is
       // tenant-scoped too — in a tenant group. The caller therefore clears the endpoint's access
       // check while holding BYPASS in one tenant only.
-      PlatformRoleInput input =
-          new PlatformRoleInput("Escalated", "desc", Set.of(Capability.BYPASS));
+      RoleInput input = new RoleInput("Escalated", "desc", Set.of(Capability.BYPASS));
 
       // -------- Act --------
       String response =
@@ -180,13 +179,14 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -------- Assert --------
-      assertEquals(role.getId(), JsonPath.read(response, "$.platform_role_id"));
-      assertEquals("FindMeRole", JsonPath.read(response, "$.platform_role_name"));
+      assertEquals(role.getId(), JsonPath.read(response, "$.role_id"));
+      assertEquals("FindMeRole", JsonPath.read(response, "$.role_name"));
     }
 
     @Test
     @WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES})
-    @DisplayName("Given ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES, should return capabilities")
+    @DisplayName(
+        "Given ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES, should expose capabilities in the output")
     void given_accessPlatform_should_returnCapabilities() throws Exception {
       // -------- Arrange --------
       Role role =
@@ -198,7 +198,7 @@ public class PlatformRoleApiTest extends IntegrationTest {
       // -------- Act --------
       String response =
           mvc.perform(
-                  get(PLATFORM_ROLES_URI + "/" + role.getId() + "/capabilities")
+                  get(PLATFORM_ROLES_URI + "/" + role.getId())
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().isOk())
@@ -207,7 +207,7 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -------- Assert --------
-      List<String> caps = JsonPath.read(response, "$");
+      List<String> caps = JsonPath.read(response, "$.role_capabilities");
       assertTrue(caps.contains(Capability.ACCESS_PLATFORM_SETTINGS.name()));
     }
 
@@ -315,8 +315,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      PlatformRoleInput input =
-          new PlatformRoleInput(
+      RoleInput input =
+          new RoleInput(
               "UpdatedRoleName",
               "Updated desc",
               Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES));
@@ -335,8 +335,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -------- Assert --------
-      assertEquals("UpdatedRoleName", JsonPath.read(response, "$.platform_role_name"));
-      assertEquals("Updated desc", JsonPath.read(response, "$.platform_role_description"));
+      assertEquals("UpdatedRoleName", JsonPath.read(response, "$.role_name"));
+      assertEquals("Updated desc", JsonPath.read(response, "$.role_description"));
     }
 
     @Test
@@ -357,8 +357,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      PlatformRoleInput input =
-          new PlatformRoleInput(
+      RoleInput input =
+          new RoleInput(
               "Healed",
               "healed",
               Set.of(Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES, Capability.ACCESS_ASSETS));
@@ -394,9 +394,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      PlatformRoleInput input =
-          new PlatformRoleInput(
-              "Forbidden", "forbidden", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+      RoleInput input =
+          new RoleInput("Forbidden", "forbidden", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -420,9 +419,8 @@ public class PlatformRoleApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      PlatformRoleInput input =
-          new PlatformRoleInput(
-              "Forbidden", "forbidden", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
+      RoleInput input =
+          new RoleInput("Forbidden", "forbidden", Set.of(Capability.ACCESS_PLATFORM_SETTINGS));
 
       // -------- Act & Assert --------
       mvc.perform(

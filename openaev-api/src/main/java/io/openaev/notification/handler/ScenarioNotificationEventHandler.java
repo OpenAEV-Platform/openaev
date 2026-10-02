@@ -1,5 +1,7 @@
 package io.openaev.notification.handler;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.notification.engine.NotificationEngineService;
@@ -19,7 +21,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Session;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Detects scenario score degradations between the two most recent finished simulations and, when
@@ -32,51 +33,78 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
   private final EntityManager entityManager;
   private final ExerciseService exerciseService;
   private final NotificationEngineService notificationEngineService;
+  private final TenantScopedTransaction tenantTx;
+
+  /** Outcome of the detection phase; {@code null} stands for "no degradation to report". */
+  private record Degradation(String scenarioId, String tenantId, String message) {}
 
   @Override
-  @Transactional(rollbackFor = Exception.class)
   public void handle(NotificationEvent event) {
+    if (!NotificationEventType.SIMULATION_COMPLETED.equals(event.getEventType())) {
+      return;
+    }
+    // Two phases, deliberately not one transaction. Detection needs a transaction and a tenant
+    // scope to read the simulations; the engine then opens its OWN scoped transaction per trigger
+    // and TenantScopedTransaction.execute() refuses to run inside an active one. So the detection
+    // transaction must be closed before the engine is called - the same contract the CRUD path
+    // gets for free from @TransactionalEventListener (it runs after commit).
+    Degradation degradation = tenantTx.execute(TxCtx.allTenants(), () -> detect(event));
+    if (degradation == null) {
+      return;
+    }
+    notificationEngineService.handleEventWithMessage(
+        NotificationResourceCatalog.SCENARIO,
+        degradation.scenarioId(),
+        degradation.tenantId(),
+        NotificationTriggerEventType.SCORE_DEGRADATION,
+        degradation.message());
+  }
+
+  /** Compares the two most recent finished simulations of the scenario. */
+  private Degradation detect(NotificationEvent event) {
     // Disable tenant filter — this handler runs cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-    if (NotificationEventType.SIMULATION_COMPLETED.equals(event.getEventType())) {
-      // get the last 2 simulations
-      Exercise lastSimulation =
-          exerciseService.previousFinishedSimulation(event.getResourceId(), event.getTimestamp());
-      if (lastSimulation == null || lastSimulation.getEnd().isEmpty()) {
-        return;
-      }
-      Exercise secondLastSimulation =
-          exerciseService.previousFinishedSimulation(
-              event.getResourceId(), lastSimulation.getEnd().get());
-      if (secondLastSimulation == null) {
-        return;
-      }
-
-      // create map with the results to facilitate the computing of the score difference
-      // TODO update exerciseService to return a map with result
-      Map<ExpectationType, ExpectationResultsByType> lastSimulationResultsMap =
-          exerciseService.getGlobalResults(lastSimulation.getId()).stream()
-              .collect(Collectors.toMap(ExpectationResultsByType::type, Function.identity()));
-      Map<ExpectationType, ExpectationResultsByType> secondLastSimulationResultsMap =
-          exerciseService.getGlobalResults(secondLastSimulation.getId()).stream()
-              .collect(Collectors.toMap(ExpectationResultsByType::type, Function.identity()));
-
-      if (exerciseService.isThereAScoreDegradation(
-          lastSimulationResultsMap, secondLastSimulationResultsMap)) {
-        Scenario scenario = lastSimulation.getScenario();
-        notificationEngineService.handleEventWithMessage(
-            NotificationResourceCatalog.SCENARIO,
-            scenario.getId(),
-            scenario.getTenant() != null ? scenario.getTenant().getId() : null,
-            NotificationTriggerEventType.SCORE_DEGRADATION,
-            buildDegradationMessage(
-                scenario,
-                lastSimulation,
-                secondLastSimulation,
-                lastSimulationResultsMap,
-                secondLastSimulationResultsMap));
-      }
+    // get the last 2 simulations
+    Exercise lastSimulation =
+        exerciseService.previousFinishedSimulation(event.getResourceId(), event.getTimestamp());
+    if (lastSimulation == null || lastSimulation.getEnd().isEmpty()) {
+      return null;
     }
+    Exercise secondLastSimulation =
+        exerciseService.previousFinishedSimulation(
+            event.getResourceId(), lastSimulation.getEnd().get());
+    if (secondLastSimulation == null) {
+      return null;
+    }
+
+    // create map with the results to facilitate the computing of the score difference
+    // TODO update exerciseService to return a map with result
+    Map<ExpectationType, ExpectationResultsByType> lastSimulationResultsMap =
+        exerciseService.getGlobalResults(lastSimulation.getId()).stream()
+            .collect(Collectors.toMap(ExpectationResultsByType::type, Function.identity()));
+    Map<ExpectationType, ExpectationResultsByType> secondLastSimulationResultsMap =
+        exerciseService.getGlobalResults(secondLastSimulation.getId()).stream()
+            .collect(Collectors.toMap(ExpectationResultsByType::type, Function.identity()));
+
+    if (!exerciseService.isThereAScoreDegradation(
+        lastSimulationResultsMap, secondLastSimulationResultsMap)) {
+      return null;
+    }
+    Scenario scenario = lastSimulation.getScenario();
+    String tenantId = scenario.getTenant() != null ? scenario.getTenant().getId() : null;
+    if (tenantId == null) {
+      // The engine drops tenant-less events fail-closed anyway; bail out now.
+      return null;
+    }
+    return new Degradation(
+        scenario.getId(),
+        tenantId,
+        buildDegradationMessage(
+            scenario,
+            lastSimulation,
+            secondLastSimulation,
+            lastSimulationResultsMap,
+            secondLastSimulationResultsMap));
   }
 
   private String buildDegradationMessage(

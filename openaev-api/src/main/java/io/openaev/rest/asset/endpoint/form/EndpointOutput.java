@@ -60,6 +60,17 @@ public class EndpointOutput {
   @JsonProperty("asset_tags")
   private Set<String> tags;
 
+  /**
+   * Marking definition ids carried by the asset, resolved to names and colours client-side like
+   * {@code asset_tags}.
+   *
+   * <p>Exposing these leaks nothing: a row only reaches the caller when its markings are a subset
+   * of their clearance, so every id here is one the caller already holds.
+   */
+  @Schema(description = "Marking definition ids carried by the asset")
+  @JsonProperty("asset_markings")
+  private Set<String> markings;
+
   @Schema(description = "Asset category")
   @JsonProperty("asset_category")
   private AssetCategory category;

@@ -10,7 +10,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
-import io.openaev.utils.IpAddressUtils;
+import io.openaev.validator.IpAddressUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -596,15 +596,6 @@ public class WorkflowStateService {
     hashExecution.clear();
     localState.setEntries(gson.toJson(entries));
     save(localState);
-  }
-
-  /**
-   * Deletes all workflow states associated with workflows of the given simulation.
-   *
-   * @param simulationId the ID of the simulation whose workflow states should be cleared
-   */
-  public void deleteAllBySimulationId(String simulationId) {
-    workflowStateRepository.deleteAllByWorkflowExecution_Simulation_Id(simulationId);
   }
 
   /**

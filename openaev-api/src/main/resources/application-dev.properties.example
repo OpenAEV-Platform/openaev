@@ -16,6 +16,8 @@ info.app.version=@project.version@
 openaev.name=@project.name@
 openaev.version=@project.version@
 openaev.base-url=http://localhost:3001/
+# Optional: override the URL agents use to reach the platform (defaults to openaev.base-url)
+# openaev.agent-url=https://agent.example.com
 openaev.map-tile-server-light=https://map.openaev.io/styles/filigran-light2/{z}/{x}/{y}.png
 openaev.map-tile-server-dark=https://map.openaev.io/styles/filigran-dark2/{z}/{x}/{y}.png
 openaev.cookie-name=openaev_token

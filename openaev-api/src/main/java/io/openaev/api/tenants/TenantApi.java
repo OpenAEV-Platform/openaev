@@ -3,6 +3,7 @@ package io.openaev.api.tenants;
 import static io.openaev.api.tenants.TenantMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.multitenancy.DependenciesManagerException;
@@ -36,7 +37,7 @@ public class TenantApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public TenantOutput create(@Valid @RequestBody TenantInput input)
+  public TenantOutput create(TxCtx ctx, @Valid @RequestBody TenantInput input)
       throws DependenciesManagerException {
     return toOutput(tenantService.create(TenantMapper.fromInput(null, input)));
   }
@@ -53,7 +54,7 @@ public class TenantApi extends RestBehavior {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @GetMapping("/{tenantId}")
-  public TenantOutput getById(@PathVariable String tenantId) {
+  public TenantOutput getById(TxCtx ctx, @PathVariable String tenantId) {
     return toOutput(tenantService.findById(tenantId));
   }
 
@@ -69,7 +70,7 @@ public class TenantApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   public Page<TenantOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantService.search(searchPaginationInput);
   }
 
@@ -83,7 +84,8 @@ public class TenantApi extends RestBehavior {
       isEnterpriseEdition = true)
   @PutMapping("/{tenantId}")
   @Transactional
-  public TenantOutput update(@PathVariable String tenantId, @Valid @RequestBody TenantInput input) {
+  public TenantOutput update(
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody TenantInput input) {
 
     return toOutput(tenantService.update(tenantId, input));
   }
@@ -100,7 +102,7 @@ public class TenantApi extends RestBehavior {
       isEnterpriseEdition = true)
   @PostMapping("/{tenantId}/reactivate")
   @Transactional
-  public TenantOutput reactivate(@PathVariable String tenantId) {
+  public TenantOutput reactivate(TxCtx ctx, @PathVariable String tenantId) {
     return toOutput(tenantService.reactivate(tenantId));
   }
 
@@ -119,7 +121,7 @@ public class TenantApi extends RestBehavior {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @DeleteMapping("/{tenantId}")
-  public TenantOutput softDelete(@PathVariable String tenantId) {
+  public TenantOutput softDelete(TxCtx ctx, @PathVariable String tenantId) {
     return toOutput(tenantService.softDelete(tenantId));
   }
 }

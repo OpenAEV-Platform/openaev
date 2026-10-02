@@ -11,6 +11,7 @@ import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -59,7 +60,7 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> findAllAtomicTestings(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return atomicTestingService.searchAtomicTestingsForCurrentUser(searchPaginationInput);
   }
 
@@ -129,7 +130,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECT)
-  public void deleteAtomicTesting(@PathVariable @NotBlank final String injectId) {
+  public void deleteAtomicTesting(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
     atomicTestingService.deleteAtomicTesting(injectId);
   }
 
@@ -143,8 +144,8 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ATOMIC_TESTING)
   public List<String> bulkDeleteAtomicTestings(
-      @RequestBody @Valid final InjectBulkProcessingInput input) {
-    return atomicTestingService.bulkDelete(input);
+      TxCtx ctx, @RequestBody @Valid final InjectBulkProcessingInput input) {
+    return atomicTestingService.bulkDelete(ctx, input);
   }
 
   @PostMapping("/{atomicTestingId}/duplicate")
@@ -173,7 +174,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public ExpectationsDriftOutput atomicTestingExpectationsDrift(
-      @PathVariable @NotBlank final String injectId) {
+      TxCtx ctx, @PathVariable @NotBlank final String injectId) {
     return expectationsDriftService.injectDrift(injectId);
   }
 
@@ -191,8 +192,8 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public ExpectationsRealignOutput realignAtomicTestingExpectations(
-      @PathVariable @NotBlank final String injectId) {
-    return expectationsDriftService.realignInject(injectId);
+      TxCtx ctx, @PathVariable @NotBlank final String injectId) {
+    return expectationsDriftService.realignInject(ctx, injectId);
   }
 
   @Operation(
@@ -208,6 +209,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public ExpectationsDriftOutput dismissAtomicTestingExpectationsDrift(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final ExpectationsDriftDismissInput input) {
     return expectationsDriftService.dismissInjectDrift(injectId, input.dismissed());
@@ -268,13 +270,13 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<InjectExpectationOutput> findTargetResult(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
-      @PathVariable String targetType,
-      @RequestParam(required = false) String parentTargetId) {
+      @PathVariable String targetType) {
     return toOutputs(
-        injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-            injectId, targetId, parentTargetId, targetType));
+        injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+            injectId, targetId, targetType));
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/asset_with_agents")
@@ -292,6 +294,7 @@ public class AtomicTestingApi extends RestBehavior {
             description = "The list of the agents injects expectations")
       })
   public List<InjectExpectationAgentOutput> findTargetResultAssetWithAgents(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
       @RequestParam @NotBlank String expectationType) {
@@ -324,6 +327,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<InjectExpectationOutput> findTargetResultMerged(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType) {
@@ -342,6 +346,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTestingTags(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingUpdateTagsInput input) {
     return atomicTestingService.updateAtomicTestingTags(injectId, input);
@@ -361,7 +366,7 @@ public class AtomicTestingApi extends RestBehavior {
             description = "The list of Security platforms used in an atomic testing remediation")
       })
   public List<SecurityPlatformSimpleOutput> securityPlatformsFromAtomicTesting(
-      @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String injectId) {
     return SecurityPlatformMapper.toSimpleOutputs(
         detectionRemediationService.securityPlatformsForInject(injectId));
   }
@@ -372,15 +377,18 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read/write (the import reads InjectorContract#getFirstInjector()).
-      // The handler does not use it directly.
-      TxCtx ctx, @RequestPart("file") MultipartFile file, HttpServletResponse response)
+      // The TxCtx parameter signals the transaction aspect to set the tenant scope for this
+      // read/write (the import reads InjectorContract#getFirstInjector()) and gives the importer
+      // the single tenant the imported rows are attributed to; without a selector it is resolved
+      // from the caller's memberships so tenant-unaware clients keep working.
+      @RequireTenantSelector TxCtx ctx,
+      @RequestPart("file") MultipartFile file,
+      HttpServletResponse response)
       throws Exception {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
 
-    this.injectImportService.importInjectsForAtomicTestings(file);
+    this.injectImportService.importInjectsForAtomicTestings(ctx, file);
   }
 }

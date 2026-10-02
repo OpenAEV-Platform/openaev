@@ -1,5 +1,6 @@
 package io.openaev.rest.user;
 
+import io.openaev.annotation.NoTenantScope;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.aop.audit_log.AuditEventScope;
@@ -69,11 +70,19 @@ public class UserApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
+  @NoTenantScope
+  // Deliberately unscoped: this endpoint (and the password-reset handlers below) is permitAll
+  // (AppSecurityConfig) and runs before authentication succeeds, and User is a dual-scope entity
+  // (nullable tenant_id, not v2-activated), so nothing read here needs a tenant scope. A TxCtx
+  // would resolve to the anonymous, empty scope, which is fail-closed the day User is activated.
   public User login(@Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
+        if (httpRequest.getSession(false) != null) {
+          httpRequest.changeSessionId();
+        }
         userService.createUserSession(user);
         // Capture auth context in session for reliable expiry audit metadata.
         SessionManager.markAuthenticatedSession(httpRequest, user.getId());
@@ -118,9 +127,10 @@ public class UserApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  @NoTenantScope
+  // No TxCtx here either: permitAll, pre-auth, see the comment on login() above.
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
-    // async execution; check method annotation
-    userService.requestPasswordReset(input);
+    userService.requestPasswordSetup(input.getLogin(), input.getLang());
     // force a 200 OK response even if no user was found
     // to avoid enumeration via status code
     return ResponseEntity.ok().build();
@@ -138,6 +148,8 @@ public class UserApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  @NoTenantScope
+  // No TxCtx here either: permitAll, pre-auth, see the comment on login() above.
   public User changePasswordReset(
       @PathVariable @Schema(description = "Token generated during reset") String token,
       @Valid @RequestBody ChangePasswordInput input)
@@ -158,6 +170,8 @@ public class UserApi extends RestBehavior {
       })
   @GetMapping("/api/reset/{token}")
   @AccessControl(skipRBAC = true)
+  @NoTenantScope
+  // No TxCtx here either: permitAll, pre-auth, see the comment on login() above.
   public boolean validatePasswordResetToken(
       @PathVariable @Schema(description = "Token generated during reset") String token) {
     return userService.getResetToken(token);

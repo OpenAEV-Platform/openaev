@@ -35,7 +35,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-@TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages")
+@TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages,challenges")
 @WithMockUser(isAdmin = true)
 @DisplayName("ChallengeApi tenant isolation when security_coverages is v2-active")
 class ChallengeApiSecurityCoverageIsolationTest extends IntegrationTest {
@@ -101,7 +101,12 @@ class ChallengeApiSecurityCoverageIsolationTest extends IntegrationTest {
         inTenant(tenantAId, () -> exerciseRepository.save(ExerciseFixture.createDefaultExercise()));
     Challenge challengeA =
         inTenant(
-            tenantAId, () -> challengeRepository.save(ChallengeFixture.createDefaultChallenge()));
+            tenantAId,
+            () -> {
+              Challenge challenge = ChallengeFixture.createDefaultChallenge();
+              challenge.setTenant(new Tenant(tenantAId));
+              return challengeRepository.save(challenge);
+            });
 
     mvc.perform(
             post(

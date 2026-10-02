@@ -7,7 +7,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import LogicNodeTooltip from '../../../../../chaining/logic/chaining_flow/NodeTooltip';
 import graphTooltipSlotProps from '../../../../../chaining/logic/logic-graph/graphTooltipSlotProps';
 import attackPathStatusColor, { attackPathStatusLabel } from '../../attack-path-colors';
-import { type AttackPathFlowNodeData, maskFindingValue } from '../../attack-path-flow-helpers';
+import { type AttackPathFlowNodeData, displayFindingValue } from '../../attack-path-flow-helpers';
 import { buildCardSx, buildIconBoxSx, EYEBROW_SX, TITLE_COMPACT_SX } from './card-styles';
 
 interface Props {
@@ -27,7 +27,7 @@ const FindingCard = ({ data, selected = false }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const verdict = data.status ? attackPathStatusColor(theme, data.status) : theme.palette.divider;
-  const value = maskFindingValue(data.typeFindings, data.label);
+  const value = displayFindingValue(data.typeFindings, data.label);
   // Hard-truncate what is rendered on the card (no word-boundary trimming, so it always keeps
   // FINDING_LABEL_MAX_LENGTH characters); the full value stays in the tooltip below.
   const displayValue = value.length > FINDING_LABEL_MAX_LENGTH

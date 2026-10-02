@@ -1,10 +1,12 @@
 package io.openaev.rest.scenario;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
@@ -40,12 +42,15 @@ public class ScenarioChallengesApi extends RestBehavior {
     return documentService.getPlayerDocuments(articles, injects);
   }
 
-  @GetMapping("/api/player/scenarios/{scenarioId}/documents")
+  @GetMapping({
+    "/api/player/scenarios/{scenarioId}/documents",
+    TENANT_PREFIX + "/player/scenarios/{scenarioId}/documents"
+  })
   @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String scenarioId, @RequestParam Optional<String> userId)
+      TxCtx ctx, @PathVariable String scenarioId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant());
@@ -61,13 +66,16 @@ public class ScenarioChallengesApi extends RestBehavior {
     }
   }
 
-  @GetMapping("/api/observer/scenarios/{scenarioId}/challenges")
+  @GetMapping({
+    "/api/observer/scenarios/{scenarioId}/challenges",
+    TENANT_PREFIX + "/observer/scenarios/{scenarioId}/challenges"
+  })
   @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public ScenarioChallengesReader observerChallenges(@PathVariable String scenarioId) {
+  public ScenarioChallengesReader observerChallenges(TxCtx ctx, @PathVariable String scenarioId) {
     Scenario scenario =
         scenarioRepository
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())

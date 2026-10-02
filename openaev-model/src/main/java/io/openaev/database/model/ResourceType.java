@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 public enum ResourceType {
   ASSET,
   AGENT,
+  AGENT_INSTALLER,
   SCENARIO,
   SIMULATION,
   PLAYER,
@@ -21,6 +22,7 @@ public enum ResourceType {
   RESOURCE_TYPE,
   SECURITY_PLATFORM,
   CREDENTIAL,
+  MARKING_DEFINITION,
   DOCUMENT,
   CHANNEL,
   PHISHING_LANDING_PAGE,
@@ -41,6 +43,7 @@ public enum ResourceType {
   VULNERABILITY,
   USER_GROUP,
   INJECTOR,
+  INJECT_SECRET,
   INJECTOR_CONTRACT,
   MAPPER,
   GROUP_ROLE,
@@ -67,6 +70,7 @@ public enum ResourceType {
   CONDITION,
   // Auth related
   SESSION,
+  TOKEN,
   PLATFORM_SESSION,
   SKIP_RBAC; // Used to skip RBAC checks.
 

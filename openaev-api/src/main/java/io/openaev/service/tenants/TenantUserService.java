@@ -71,7 +71,6 @@ public class TenantUserService implements DependenciesManager {
     return UserMapper.toOutput(reloaded);
   }
 
-  /** Attaches a user to the specified tenant. Does nothing if already attached. */
   public void attachToTenant(@NotBlank String userId, @NotBlank String tenantId) {
     tenantRepository.addUserToTenant(userId, tenantId);
     tenantMembershipCacheManager.evict(userId, tenantId);
@@ -167,6 +166,9 @@ public class TenantUserService implements DependenciesManager {
   @Override
   public void deleteDependencyForTenant(String tenantId) {
     // users_tenants rows are cascade-deleted via FK on tenants table
+    for (String userId : userRepository.findUserIdsByTenantId(tenantId)) {
+      tenantMembershipCacheManager.evict(userId, tenantId);
+    }
   }
 
   // -- INTERNAL --

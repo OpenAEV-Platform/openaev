@@ -8,6 +8,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -65,7 +66,7 @@ public class TeamService {
    * @param input the bulk processing input
    * @return the ids of the deleted teams
    */
-  public List<String> bulkDelete(@NotNull final TeamBulkProcessingInput input)
+  public List<String> bulkDelete(TxCtx ctx, @NotNull final TeamBulkProcessingInput input)
       throws ResourceInUseException {
     if ((CollectionUtils.isEmpty(input.getTeamIdsToProcess())
             && input.getSearchPaginationInput() == null)
@@ -76,6 +77,7 @@ public class TeamService {
     }
     List<String> teamIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Team> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -98,6 +100,7 @@ public class TeamService {
             });
     try {
       return bulkDeleteExecutor.deleteInChunks(
+          ctx,
           "teams",
           teamIdsToDelete,
           chunk -> deleteAllDetachingInjects(teamRepository.findAllById(chunk)));
@@ -139,6 +142,7 @@ public class TeamService {
    */
   public Team copyContextualTeam(Team teamToCopy) {
     Team newTeam = new Team();
+    newTeam.setTenant(teamToCopy.getTenant());
     newTeam.setName(teamToCopy.getName());
     newTeam.setDescription(teamToCopy.getDescription());
     newTeam.setTags(CopyObjectListUtils.copy(teamToCopy.getTags(), Tag.class));

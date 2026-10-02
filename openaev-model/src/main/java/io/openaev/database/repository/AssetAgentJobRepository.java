@@ -50,4 +50,16 @@ public interface AssetAgentJobRepository
       nativeQuery = true)
   void deleteAllByInjectIdsAndTenantId(
       @Param("injectIds") List<String> injectIds, @Param("tenantId") String tenantId);
+
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM asset_agent_jobs "
+              + "WHERE asset_agent_inject IN ("
+              + "  SELECT inject_id FROM injects WHERE inject_exercise = :simulationId"
+              + ") "
+              + "AND tenant_id = :tenantId",
+      nativeQuery = true)
+  int deleteAllBySimulationIdAndTenantId(
+      @Param("simulationId") String simulationId, @Param("tenantId") String tenantId);
 }

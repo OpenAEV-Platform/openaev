@@ -3,6 +3,7 @@ package io.openaev.rest.scenario;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
@@ -115,6 +117,68 @@ public class ScenarioExportTest extends IntegrationTest {
               Option.IGNORING_EXTRA_ARRAY_ITEMS)
           .node("scenario_documents")
           .isEqualTo("[{\"document_id\": \"%s\"}]".formatted(docId));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_lessonsEnabledScenario_should_exportLessonsFlags")
+    void given_lessonsEnabledScenario_should_exportLessonsFlags() throws Exception {
+      ScenarioComposer.Composer scenarioComposerRef =
+          scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario());
+      Scenario scenario = scenarioComposerRef.get();
+      scenario.setLessonsEnabled(true);
+      scenario.setLessonsAnonymized(true);
+      scenarioComposerRef.persist();
+      manager.flush();
+      manager.clear();
+
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      String actualJson = getJsonExportFromZip(response, scenario.getName());
+      JsonNode scenarioInfo = mapper.readTree(actualJson).get("scenario_information");
+      assertTrue(scenarioInfo.get("scenario_lessons_enabled").asBoolean());
+      assertTrue(scenarioInfo.get("scenario_lessons_anonymized").asBoolean());
+      JsonNode exportedScenario = mapper.readTree(actualJson);
+      assertTrue(exportedScenario.has("scenario_objectives"));
+      assertTrue(exportedScenario.has("scenario_lessons_categories"));
+      assertTrue(exportedScenario.has("scenario_lessons_questions"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_lessonsDisabledScenario_should_not_exportLessonsContent")
+    void given_lessonsDisabledScenario_should_not_exportLessonsContent() throws Exception {
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .persist()
+              .get();
+      manager.flush();
+      manager.clear();
+
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      JsonNode exportedScenario =
+          mapper.readTree(getJsonExportFromZip(response, scenario.getName()));
+      assertFalse(
+          exportedScenario.get("scenario_information").get("scenario_lessons_enabled").asBoolean());
+      assertFalse(exportedScenario.has("scenario_objectives"));
+      assertFalse(exportedScenario.has("scenario_lessons_categories"));
+      assertFalse(exportedScenario.has("scenario_lessons_questions"));
     }
   }
 

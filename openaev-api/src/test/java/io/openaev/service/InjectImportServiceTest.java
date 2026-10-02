@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.RuleAttribute;
 import io.openaev.database.model.Scenario;
@@ -324,6 +325,8 @@ public class InjectImportServiceTest {
   @Nested
   class ImportConvenience {
 
+    private final TxCtx ctx = TxCtx.forTenant("tenant-1");
+
     @Mock private ScenarioRepository scenarioRepository;
     @Mock private ExerciseRepository exerciseRepository;
     @Mock private ImportService importService;
@@ -360,10 +363,10 @@ public class InjectImportServiceTest {
             .thenReturn(Optional.of(scenario));
 
         // -------- Act --------
-        injectImportService.importInjectsForScenario(file, "sc-1");
+        injectImportService.importInjectsForScenario(ctx, file, "sc-1");
 
         // -------- Assert --------
-        verify(importService).handleFileImport(file, null, scenario);
+        verify(importService).handleFileImport(ctx, file, null, scenario);
       }
     }
 
@@ -377,10 +380,10 @@ public class InjectImportServiceTest {
       MultipartFile file = mock(MultipartFile.class);
 
       // -------- Act --------
-      injectImportService.importInjectsForSimulation(file, "ex-1");
+      injectImportService.importInjectsForSimulation(ctx, file, "ex-1");
 
       // -------- Assert --------
-      verify(importService).handleFileImport(file, exercise, null);
+      verify(importService).handleFileImport(ctx, file, exercise, null);
     }
 
     @Test
@@ -389,10 +392,10 @@ public class InjectImportServiceTest {
       MultipartFile file = mock(MultipartFile.class);
 
       // -------- Act --------
-      injectImportService.importInjectsForAtomicTestings(file);
+      injectImportService.importInjectsForAtomicTestings(ctx, file);
 
       // -------- Assert --------
-      verify(importService).handleFileImport(file, null, null);
+      verify(importService).handleFileImport(ctx, file, null, null);
     }
 
     @Test
@@ -408,7 +411,7 @@ public class InjectImportServiceTest {
         // -------- Act / Assert --------
         assertThrows(
             ElementNotFoundException.class,
-            () -> injectImportService.importInjectsForScenario(file, "missing"));
+            () -> injectImportService.importInjectsForScenario(ctx, file, "missing"));
       }
     }
 
@@ -421,7 +424,7 @@ public class InjectImportServiceTest {
       // -------- Act / Assert --------
       assertThrows(
           ElementNotFoundException.class,
-          () -> injectImportService.importInjectsForSimulation(file, "missing"));
+          () -> injectImportService.importInjectsForSimulation(ctx, file, "missing"));
     }
   }
 

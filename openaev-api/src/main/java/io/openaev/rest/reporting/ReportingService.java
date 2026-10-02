@@ -3,7 +3,8 @@ package io.openaev.rest.reporting;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Reporting;
@@ -14,6 +15,7 @@ import io.openaev.database.model.ReportingGenerationStatus;
 import io.openaev.database.model.ReportingGenerationTrigger;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.ReportingRepository;
@@ -81,6 +83,7 @@ public class ReportingService {
   private final ReportingRenderer reportingRenderer;
   private final PermissionService permissionService;
   private final GrantService grantService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- SEARCH --
 
@@ -126,15 +129,18 @@ public class ReportingService {
   // -- CREATE --
 
   /**
-   * Creates a new {@link Reporting} template; the tenant is set automatically by the tenant
-   * listener.
+   * Creates a new {@link Reporting} template, attributed to the single tenant of the request's
+   * write scope (reportings has no v1 listener attribution left: the tenant must be set explicitly
+   * before save).
    *
+   * @param ctx the request's tenant write scope
    * @param reporting the {@link Reporting} to save
    * @return the saved {@link Reporting}
    */
   @Transactional
-  public Reporting createReporting(@NotNull final Reporting reporting) {
+  public Reporting createReporting(final TxCtx ctx, @NotNull final Reporting reporting) {
     checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    reporting.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
     return this.reportingRepository.save(reporting);
   }
 
@@ -243,6 +249,9 @@ public class ReportingService {
     }
     ReportingGeneration generation = new ReportingGeneration();
     generation.setReporting(reporting);
+    // reporting_generations has no v1 listener attribution left: a generation always belongs to
+    // its parent reporting's tenant, never a possibly different write scope.
+    generation.setTenant(reporting.getTenant());
     generation.setFormat(format != null ? format : reporting.getDefaultFormat());
     generation.setGenerationTrigger(trigger);
     generation.setStatus(ReportingGenerationStatus.PENDING);
@@ -302,6 +311,42 @@ public class ReportingService {
   }
 
   /**
+   * Returns a successful generation ready for its document to be downloaded: it resolves the
+   * generation, checks read access to the subject, and rejects a non-successful or document-less
+   * generation. The download route needs the generation itself (not only its document) to serve the
+   * object under the generation's tenant, the owner of the report output's lifecycle.
+   *
+   * @param generationId the generation id
+   * @return the successful {@link ReportingGeneration} carrying a non-null document
+   * @throws BadRequestException if the generation is not in SUCCESS status
+   * @throws ElementNotFoundException if the generation or its document is missing
+   */
+  @Transactional(readOnly = true)
+  public ReportingGeneration successfulGeneration(@NotBlank final String generationId) {
+    return resolveSuccessfulGeneration(generationId);
+  }
+
+  /**
+   * Shared body of {@link #successfulGeneration(String)} and {@link #generationDocument(String)}.
+   * It carries no {@code @Transactional}: both entry points are annotated, and one calling the
+   * other inside the class would bypass the proxy and run outside the transaction they declare.
+   */
+  private ReportingGeneration resolveSuccessfulGeneration(final String generationId) {
+    ReportingGeneration generation = resolveGeneration(generationId);
+    // The produced document contains the subject's actual data: downloading it requires read
+    // access to the subject, exactly like reading the reporting itself.
+    checkSubjectAccess(
+        generation.getReporting().getContextType(), generation.getReporting().getContextId());
+    if (!ReportingGenerationStatus.SUCCESS.equals(generation.getStatus())) {
+      throw new BadRequestException("Generation is not successful: " + generationId);
+    }
+    if (generation.getDocument() == null) {
+      throw new ElementNotFoundException("Generation has no document: " + generationId);
+    }
+    return generation;
+  }
+
+  /**
    * Returns the stored {@link Document} of a successful generation, for download streaming.
    *
    * @param generationId the generation id
@@ -311,19 +356,7 @@ public class ReportingService {
    */
   @Transactional(readOnly = true)
   public Document generationDocument(@NotBlank final String generationId) {
-    ReportingGeneration generation = resolveGeneration(generationId);
-    // The produced document contains the subject's actual data: downloading it requires read
-    // access to the subject, exactly like reading the reporting itself.
-    checkSubjectAccess(
-        generation.getReporting().getContextType(), generation.getReporting().getContextId());
-    if (!ReportingGenerationStatus.SUCCESS.equals(generation.getStatus())) {
-      throw new BadRequestException("Generation is not successful: " + generationId);
-    }
-    Document document = generation.getDocument();
-    if (document == null) {
-      throw new ElementNotFoundException("Generation has no document: " + generationId);
-    }
-    return document;
+    return resolveSuccessfulGeneration(generationId).getDocument();
   }
 
   // -- SCHEDULES --
@@ -342,6 +375,9 @@ public class ReportingService {
     checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
     ReportingSchedule schedule = new ReportingSchedule();
     schedule.setReporting(reporting);
+    // reporting_schedules has no v1 listener attribution left: a schedule always belongs to its
+    // parent reporting's tenant, never a possibly different write scope.
+    schedule.setTenant(reporting.getTenant());
     schedule.setOwner(this.userService.currentUser());
     applyScheduleInput(schedule, input);
     return this.reportingScheduleRepository.save(schedule);
@@ -467,14 +503,18 @@ public class ReportingService {
   // -- INTERNAL --
 
   private Reporting resolveReporting(final String id) {
+    // Plain findById: reportings is tenant-active, so the statement inspector already scopes
+    // this read to the request's TxCtx on both routes. An explicit tenantId predicate taken from
+    // TenantContext would be wrong on the X-Tenant-Ids route, where that ambient value is never
+    // set by the request and falls back to the default tenant.
     return this.reportingRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id)
         .orElseThrow(() -> new ElementNotFoundException("Reporting not found with id: " + id));
   }
 
   private ReportingGeneration resolveGeneration(final String id) {
     return this.reportingGenerationRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id)
         .orElseThrow(
             () -> new ElementNotFoundException("Reporting generation not found with id: " + id));
   }
@@ -482,7 +522,7 @@ public class ReportingService {
   private ReportingSchedule resolveSchedule(final String reportingId, final String scheduleId) {
     ReportingSchedule schedule =
         this.reportingScheduleRepository
-            .findByIdAndTenantId(scheduleId, TenantContext.getCurrentTenant())
+            .findById(scheduleId)
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(

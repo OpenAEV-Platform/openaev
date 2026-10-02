@@ -29,8 +29,7 @@ public interface RawVulnerableEndpointIndexing extends RawTenant {
 
   List<String> getVulnerable_endpoint_agents_privileges();
 
-  // cannot use Instant class directly because of "Projection type must be an interface"
-  List<java.sql.Timestamp> getVulnerable_endpoint_agents_last_seen();
+  List<String> getVulnerable_endpoint_agents_statuses();
 
   Set<String> getVulnerable_endpoint_findings();
 

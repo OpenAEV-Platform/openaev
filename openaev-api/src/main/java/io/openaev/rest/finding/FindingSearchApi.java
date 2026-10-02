@@ -6,6 +6,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
@@ -50,6 +51,7 @@ public class FindingSearchApi extends RestBehavior {
                   @Schema(
                       oneOf = {PageAggregatedFindingOutput.class, PageRelatedFindingOutput.class})))
   public Page<AggregatedFindingOutput> findings(
+      TxCtx ctx,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
           boolean distinct) {
@@ -81,6 +83,7 @@ public class FindingSearchApi extends RestBehavior {
                   @Schema(
                       oneOf = {PageAggregatedFindingOutput.class, PageRelatedFindingOutput.class})))
   public Page<AggregatedFindingOutput> findingsByInject(
+      TxCtx ctx,
       @PathVariable @NotNull final String injectId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
@@ -117,6 +120,7 @@ public class FindingSearchApi extends RestBehavior {
                   @Schema(
                       oneOf = {PageAggregatedFindingOutput.class, PageRelatedFindingOutput.class})))
   public Page<AggregatedFindingOutput> findingsBySimulation(
+      TxCtx ctx,
       @PathVariable @NotNull final String simulationId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
@@ -153,6 +157,7 @@ public class FindingSearchApi extends RestBehavior {
                   @Schema(
                       oneOf = {PageAggregatedFindingOutput.class, PageRelatedFindingOutput.class})))
   public Page<AggregatedFindingOutput> findingsByScenario(
+      TxCtx ctx,
       @PathVariable @NotNull final String scenarioId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")
@@ -189,6 +194,7 @@ public class FindingSearchApi extends RestBehavior {
                   @Schema(
                       oneOf = {PageAggregatedFindingOutput.class, PageRelatedFindingOutput.class})))
   public Page<AggregatedFindingOutput> findingsByEndpoint(
+      TxCtx ctx,
       @PathVariable @NotNull final String endpointId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput,
       @RequestParam(value = "distinct", required = false, defaultValue = "false")

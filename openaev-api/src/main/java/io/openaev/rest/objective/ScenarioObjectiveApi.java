@@ -8,6 +8,7 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
@@ -43,7 +44,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public Iterable<Objective> getMainObjectives(@PathVariable String scenarioId) {
+  public Iterable<Objective> getMainObjectives(TxCtx ctx, @PathVariable String scenarioId) {
     return objectiveRepository.findAll(ObjectiveSpecification.fromScenario(scenarioId));
   }
 
@@ -57,7 +58,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public Objective createObjective(
-      @PathVariable String scenarioId, @Valid @RequestBody ObjectiveInput input) {
+      TxCtx ctx, @PathVariable String scenarioId, @Valid @RequestBody ObjectiveInput input) {
     Scenario scenario =
         scenarioRepository
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
@@ -78,6 +79,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Objective updateObjective(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @PathVariable String objectiveId,
       @Valid @RequestBody ObjectiveInput input) {
@@ -96,7 +98,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  public void deleteObjective(@PathVariable String scenarioId, @PathVariable String objectiveId) {
+  public void deleteObjective(
+      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String objectiveId) {
     objectiveRepository.deleteById(objectiveId);
   }
 
@@ -113,7 +116,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Evaluation getEvaluation(
-      @PathVariable String scenarioId, @PathVariable String evaluationId) {
+      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String evaluationId) {
     return evaluationRepository.findById(evaluationId).orElseThrow(ElementNotFoundException::new);
   }
 
@@ -127,7 +130,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Iterable<Evaluation> getEvaluations(
-      @PathVariable String scenarioId, @PathVariable String objectiveId) {
+      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String objectiveId) {
     return evaluationRepository.findAll(EvaluationSpecification.fromObjective(objectiveId));
   }
 
@@ -141,6 +144,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public Evaluation createEvaluation(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @PathVariable String objectiveId,
       @Valid @RequestBody EvaluationInput input) {
@@ -174,6 +178,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Evaluation updateEvaluation(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @PathVariable String objectiveId,
       @PathVariable String evaluationId,
@@ -204,7 +209,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  public void deleteEvaluation(@PathVariable String scenarioId, @PathVariable String evaluationId) {
+  public void deleteEvaluation(
+      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String evaluationId) {
     evaluationRepository.deleteById(evaluationId);
   }
   // endregion

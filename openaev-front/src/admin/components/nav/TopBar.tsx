@@ -1,4 +1,4 @@
-import { AccountCircleOutlined, AlarmOnOutlined, ImportantDevicesOutlined } from '@mui/icons-material';
+import { AccountCircleOutlined, ImportantDevicesOutlined } from '@mui/icons-material';
 import { AppBar, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
@@ -12,6 +12,7 @@ import { computeBannerSettings } from '../../../public/components/systembanners/
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
+import useCapabilityGrants from '../../../utils/hooks/useCapabilityGrants';
 import AskArianeButton from '../ariane/AskArianeButton';
 import AskArianePanel from '../ariane/AskArianePanel';
 import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
@@ -38,6 +39,7 @@ const TopBar: FunctionComponent = () => {
   const { t } = useFormatter();
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { holdsCapability } = useCapabilityGrants();
   const dispatch = useAppDispatch();
   const [navOpen, setNavOpen] = useState(
     localStorage.getItem('navOpen') === 'true',
@@ -169,29 +171,19 @@ const TopBar: FunctionComponent = () => {
                 <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} />
               )}
               <BulkOperationsIndicator />
-              {/* OpenCTI-aligned pair: the triggers alarm icon right before the
-                  notifications bell, each leading to its own profile page. */}
-              <Tooltip title={t('Triggers')}>
-                <IconButton
-                  aria-label="triggers"
-                  component={Link}
-                  to="/admin/profile/triggers"
-                  sx={topBarIconButtonSx(location.pathname === '/admin/profile/triggers')}
-                >
-                  <AlarmOnOutlined fontSize="medium" />
-                </IconButton>
-              </Tooltip>
               <TopBarNotifications iconButtonSx={topBarIconButtonSx} />
-              <Tooltip title={t('Install simulation agents')}>
-                <IconButton
-                  aria-haspopup="true"
-                  component={Link}
-                  to="/admin/agents"
-                  sx={topBarIconButtonSx(location.pathname === '/admin/agents')}
-                >
-                  <ImportantDevicesOutlined fontSize="medium" />
-                </IconButton>
-              </Tooltip>
+              {holdsCapability('INSTALL_AGENT') && (
+                <Tooltip title={t('Install simulation agents')}>
+                  <IconButton
+                    aria-haspopup="true"
+                    component={Link}
+                    to="/admin/agents"
+                    sx={topBarIconButtonSx(location.pathname === '/admin/agents')}
+                  >
+                    <ImportantDevicesOutlined fontSize="medium" />
+                  </IconButton>
+                </Tooltip>
+              )}
               <IconButton
                 aria-owns={menuOpen.open ? 'menu-appbar' : undefined}
                 aria-haspopup="true"

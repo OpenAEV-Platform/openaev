@@ -17,6 +17,7 @@ import io.openaev.service.*;
 import io.openaev.service.FileService;
 import io.openaev.service.LessonsService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -65,6 +66,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private DocumentService documentService;
   @Mock private InjectService injectService;
   @Mock private UserService userService;
+  @Mock private ScopeService scopeService;
 
   @Mock private ExerciseMapper exerciseMapper;
   @Mock private InjectMapper injectMapper;
@@ -114,6 +116,7 @@ class ExerciseServiceTest extends IntegrationTest {
             userService,
             grantService,
             exerciseTeamUserService,
+            scopeService,
             exerciseMapper,
             injectMapper,
             resultUtils,

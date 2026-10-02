@@ -1,11 +1,14 @@
 package io.openaev.utils.object;
 
+import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.ResourceType;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -101,6 +104,73 @@ class ObjectRedactionUtilsTest {
 
       // Assert: redaction works on a deep copy
       assertThat(payload.get("azure_client_secret").asText()).isEqualTo(SENSITIVE_VALUE);
+    }
+
+    @Test
+    @DisplayName("given_gcpPrivateKeyJson_should_beRedacted")
+    void given_gcpPrivateKeyJson_should_beRedacted() {
+      // Arrange: the node is built explicitly rather than by serializing a GcpServiceAccountSecret,
+      // whose key field is @JsonIgnore — the assertion would otherwise pass on an absent field
+      ObjectNode payload = MAPPER.createObjectNode();
+      payload.put(
+          "gcp_private_key_json",
+          Base64.getEncoder().encodeToString(SENSITIVE_VALUE.getBytes(StandardCharsets.UTF_8)));
+
+      // Act
+      JsonNode redacted = ObjectRedactionUtils.redact(payload, ResourceType.CREDENTIAL);
+
+      // Assert
+      assertThat(redacted.get("gcp_private_key_json").asText()).isEqualTo(redactionMarker());
+    }
+
+    @Test
+    @DisplayName("given_gcpOauthRefreshToken_should_beRedactedAndNotHashed")
+    void given_gcpOauthRefreshToken_should_beRedactedAndNotHashed() {
+      // Arrange: ".*token.*" would hash it, the anchored redact pattern must win
+      ObjectNode payload = MAPPER.createObjectNode();
+      payload.put("gcp_oauth_refresh_token", SENSITIVE_VALUE);
+
+      // Act
+      JsonNode redacted = ObjectRedactionUtils.redact(payload, ResourceType.CREDENTIAL);
+
+      // Assert: a digest would silently downgrade the protection of a long-lived bearer credential
+      assertThat(redacted.get("gcp_oauth_refresh_token").asText()).isEqualTo(redactionMarker());
+      assertThat(redacted.get("gcp_oauth_refresh_token").asText())
+          .isNotEqualTo(hashWithSHA256(SENSITIVE_VALUE));
+    }
+
+    @Test
+    @DisplayName("given_gcpOauthClientSecret_should_beRedacted")
+    void given_gcpOauthClientSecret_should_beRedacted() {
+      // Arrange
+      ObjectNode payload = MAPPER.createObjectNode();
+      payload.put("gcp_oauth_client_secret", SENSITIVE_VALUE);
+
+      // Act
+      JsonNode redacted = ObjectRedactionUtils.redact(payload, ResourceType.CREDENTIAL);
+
+      // Assert
+      assertThat(redacted.get("gcp_oauth_client_secret").asText()).isEqualTo(redactionMarker());
+    }
+
+    @Test
+    @DisplayName("given_gcpNonSensitiveFields_should_beKept")
+    void given_gcpNonSensitiveFields_should_beKept() {
+      // Arrange: identifiers, not credentials — same logic as azure_environment / azure_client_id
+      ObjectNode payload = MAPPER.createObjectNode();
+      payload.put("gcp_scope", "https://www.googleapis.com/auth/cloud-platform");
+      payload.put("gcp_project_id", "openaev-simulation");
+      payload.put("gcp_oauth_client_id", "1234567890-example.apps.googleusercontent.com");
+
+      // Act
+      JsonNode redacted = ObjectRedactionUtils.redact(payload, ResourceType.CREDENTIAL);
+
+      // Assert
+      assertThat(redacted.get("gcp_scope").asText())
+          .isEqualTo("https://www.googleapis.com/auth/cloud-platform");
+      assertThat(redacted.get("gcp_project_id").asText()).isEqualTo("openaev-simulation");
+      assertThat(redacted.get("gcp_oauth_client_id").asText())
+          .isEqualTo("1234567890-example.apps.googleusercontent.com");
     }
   }
 }

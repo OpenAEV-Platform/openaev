@@ -6,10 +6,12 @@ import static org.mockito.Mockito.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.chaining.ConditionService;
 import java.time.Instant;
 import java.util.List;
@@ -33,7 +35,7 @@ class ConditionApiTest {
 
     when(conditionService.createConditionTree(input)).thenReturn(root);
 
-    EventOutput result = conditionApi.create(input);
+    EventOutput result = conditionApi.create(TxCtx.missing(), input);
 
     assertNotNull(result);
     assertEquals("cond-root", result.getId());
@@ -57,7 +59,7 @@ class ConditionApiTest {
     EventOutput expectedOutput = ConditionMapper.toOutput(root);
     when(conditionService.findEventsByWorkflowId("wf-9")).thenReturn(List.of(expectedOutput));
 
-    List<EventOutput> result = conditionApi.findAllByWorkflow("wf-9");
+    List<EventOutput> result = conditionApi.findAllByWorkflow(TxCtx.missing(), "wf-9");
 
     assertEquals(1, result.size());
     assertEquals("c-wf", result.getFirst().getId());
@@ -70,7 +72,7 @@ class ConditionApiTest {
     Condition root = conditionTree("c-42", "wf-42", "ev-42", "desc");
     when(conditionService.findConditionRootById("c-42")).thenReturn(root);
 
-    EventOutput result = conditionApi.findById("c-42");
+    EventOutput result = conditionApi.findById(TxCtx.missing(), "c-42");
 
     assertNotNull(result);
     assertEquals("c-42", result.getId());
@@ -85,7 +87,7 @@ class ConditionApiTest {
 
     when(conditionService.updateConditionTree("c-upd", input)).thenReturn(updatedRoot);
 
-    EventOutput result = conditionApi.update("c-upd", input);
+    EventOutput result = conditionApi.update(TxCtx.missing(), "c-upd", input);
 
     assertNotNull(result);
     assertEquals("c-upd", result.getId());
@@ -94,8 +96,31 @@ class ConditionApiTest {
   }
 
   @Test
+  void create_shouldPropagateFormatRejectionAsBadRequest() {
+    // Arrange - the service refuses an operand that could never match at runtime
+    EventInput input = eventInput();
+    when(conditionService.createConditionTree(input))
+        .thenThrow(new BadRequestException("Invalid value"));
+
+    // Act & Assert - the controller lets it bubble up to the handler that maps it to a 400
+    assertThrows(BadRequestException.class, () -> conditionApi.create(TxCtx.missing(), input));
+  }
+
+  @Test
+  void update_shouldPropagateFormatRejectionAsBadRequest() {
+    // Arrange
+    EventInput input = eventInput();
+    when(conditionService.updateConditionTree("c-upd", input))
+        .thenThrow(new BadRequestException("Invalid value"));
+
+    // Act & Assert
+    assertThrows(
+        BadRequestException.class, () -> conditionApi.update(TxCtx.missing(), "c-upd", input));
+  }
+
+  @Test
   void delete_shouldDelegateToService() {
-    conditionApi.delete("c-del");
+    conditionApi.delete(TxCtx.missing(), "c-del");
     verify(conditionService).deleteConditionTree("c-del");
   }
 

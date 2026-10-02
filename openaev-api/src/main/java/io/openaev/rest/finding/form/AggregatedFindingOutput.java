@@ -32,7 +32,10 @@ public class AggregatedFindingOutput {
   @NotNull
   private ContractOutputType type;
 
-  @Schema(description = "Finding Value")
+  @Schema(
+      description =
+          "Finding value. Masked when the finding type holds secret material: the API never"
+              + " discloses the cleartext value of a sensitive finding.")
   @JsonProperty("finding_value")
   @NotBlank
   private String value;

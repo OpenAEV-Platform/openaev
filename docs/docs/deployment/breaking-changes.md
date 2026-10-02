@@ -18,6 +18,7 @@ implemented.
 | [URL access token enforcement](#url-access-token-enforcement) | -             | 2.260622.0 |
 | [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
 | [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
+| [Elasticsearch 9](#elasticsearch-9)                            | -             | \[MigrationVersion\]        |
 
 ## OpenAEV 2.2.0
 
@@ -124,3 +125,13 @@ For more details, see [this migration guide](breaking-changes/MigrationVersion-i
 Starting with **OpenAEV \[MigrationVersion\]**, managing a tenant's users, groups and roles is governed by its own *Access / Manage / Delete tenant users, groups and roles* capabilities, instead of the *tenant settings* ones which also cover collectors, injectors and tag rules. Existing roles are migrated automatically and keep the access they had.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md)
+
+<a id="elasticsearch-9"></a>
+
+#### Elasticsearch 9
+
+Starting with **OpenAEV \[MigrationVersion\]**, the platform requires an Elasticsearch 9 cluster. The 9.x client
+tags its requests as `compatible-with=9`, which an 8.x server rejects, so every engine call fails against
+Elasticsearch 8. OpenSearch deployments are unaffected.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-elasticsearch-9.md)

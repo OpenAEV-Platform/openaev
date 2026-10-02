@@ -8,7 +8,9 @@ import static io.openaev.helper.DatabaseHelper.updateRelation;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Token;
@@ -19,6 +21,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.user.form.me.UpdateMeEmailInput;
 import io.openaev.rest.user.form.me.UpdateMePasswordInput;
 import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
@@ -26,17 +29,20 @@ import io.openaev.rest.user.form.user.UpdateUserInfoInput;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.UUID;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@EnableAsync
 @RequiredArgsConstructor
 public class MeApi extends RestBehavior {
 
@@ -44,27 +50,17 @@ public class MeApi extends RestBehavior {
   private static final String TENANT_ME_URI = TENANT_PREFIX + "/me";
 
   private final SessionManager sessionManager;
+  private final OpenAEVConfig openAEVConfig;
   private final OrganizationRepository organizationRepository;
   private final TokenRepository tokenRepository;
   private final UserRepository userRepository;
   private final UserService userService;
   private final TenantService tenantService;
 
-  @GetMapping("/api/logout")
-  @Transactional
-  @AccessControl(skipRBAC = true)
-  public ResponseEntity<Object> logout(HttpServletRequest request) {
-    HttpSession session = request.getSession(false);
-    if (session != null) {
-      session.setAttribute(SessionManager.EXPLICIT_LOGOUT, Boolean.TRUE);
-    }
-    return ResponseEntity.ok().build();
-  }
-
   @GetMapping({ME_URI, TENANT_ME_URI})
   @Transactional
   @AccessControl(skipRBAC = true)
-  public User me() {
+  public User me(TxCtx ctx) {
     return userRepository
         .findById(currentUser().getId())
         .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
@@ -74,7 +70,7 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public User updateProfile(@Valid @RequestBody UpdateProfileInput input) {
+  public User updateProfile(TxCtx ctx, @Valid @RequestBody UpdateProfileInput input) {
     User user =
         userRepository
             .findById(currentUser().getId())
@@ -91,7 +87,7 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public User updateInformation(@Valid @RequestBody UpdateUserInfoInput input) {
+  public User updateInformation(TxCtx ctx, @Valid @RequestBody UpdateUserInfoInput input) {
     User user =
         userRepository
             .findById(currentUser().getId())
@@ -107,18 +103,67 @@ public class MeApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updatePassword(
-      @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
+      TxCtx ctx, @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
+      throws InputValidationException {
+    return doSecuritySensitiveUpdate(
+        currentUser().getId(),
+        input.getCurrentPassword(),
+        user -> {
+          user.setPassword(userService.encodeUserPassword(input.getPassword()));
+          return user;
+        },
+        httpRequest.getSession().getId());
+  }
+
+  @PutMapping(ME_URI + "/email")
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @Transactional
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  public User updateEmail(
+      TxCtx ctx, @Valid @RequestBody UpdateMeEmailInput input, HttpServletRequest httpRequest)
+      throws InputValidationException {
+    return doSecuritySensitiveUpdate(
+        currentUser().getId(),
+        input.getCurrentPassword(),
+        user -> {
+          userService.requestEmailChange(user, input.getEmail());
+          return user;
+        },
+        httpRequest.getSession().getId());
+  }
+
+  @GetMapping(ME_URI + "/confirm-email-change/{confirmationCode}")
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @Transactional
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  public ResponseEntity<Void> confirmEmailChange(
+      TxCtx ctx, HttpServletRequest httpRequest, @PathVariable String confirmationCode) {
+    User user = userService.confirmEmailChange(confirmationCode);
+    sessionManager.invalidateOtherUserSessions(user.getId(), httpRequest.getSession().getId());
+
+    userService.sendEmailChangeConfirmationEmail(user);
+
+    MultiValueMap<String, String> headers = new HttpHeaders();
+    headers.add("Location", openAEVConfig.getBaseUrl());
+    return new ResponseEntity<>(headers, HttpStatus.FOUND);
+  }
+
+  private User doSecuritySensitiveUpdate(
+      String userId,
+      String currentPassword,
+      Function<User, User> updateFunc,
+      String stayAliveSessionId)
       throws InputValidationException {
     User user =
         userRepository
-            .findById(currentUser().getId())
+            .findById(userId)
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-    if (userService.isUserPasswordValid(user, input.getCurrentPassword())) {
-      user.setPassword(userService.encodeUserPassword(input.getPassword()));
-      User savedUser = userRepository.save(user);
-      // Security: a password change kills every other live session of the user; the session
-      // that performed the change stays alive.
-      sessionManager.invalidateOtherUserSessions(user.getId(), httpRequest.getSession().getId());
+    if (userService.isUserPasswordValid(user, currentPassword)) {
+      User moddedUser = updateFunc.apply(user);
+      User savedUser = userRepository.save(moddedUser);
+      // Security: a security sensitive change kills every other live session of the user; the
+      // session that performed the change stays alive.
+      sessionManager.invalidateOtherUserSessions(user.getId(), stayAliveSessionId);
       return savedUser;
     } else {
       throw new InputValidationException("user_current_password", "Bad current password");
@@ -129,24 +174,14 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
-  public Token renewToken(@Valid @RequestBody RenewTokenInput input) {
-    User user =
-        userRepository
-            .findById(currentUser().getId())
-            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-    Token token =
-        tokenRepository.findById(input.getTokenId()).orElseThrow(ElementNotFoundException::new);
-    if (!user.equals(token.getUser())) {
-      throw new AccessDeniedException("You are not allowed to renew this token");
-    }
-    token.setValue(UUID.randomUUID().toString());
-    return tokenRepository.save(token);
+  public Token renewToken(TxCtx ctx, @Valid @RequestBody RenewTokenInput input) {
+    return userService.renewUserToken(input.getTokenId());
   }
 
   @GetMapping(ME_URI + "/tenants")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public List<TenantOutput> myTenants() {
+  public List<TenantOutput> myTenants(TxCtx ctx) {
     return tenantService.findTenantsByUserId(currentUser().getId()).stream()
         .map(TenantMapper::toOutput)
         .toList();
@@ -155,7 +190,7 @@ public class MeApi extends RestBehavior {
   @GetMapping(ME_URI + "/tokens")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public List<Token> tokens() {
+  public List<Token> tokens(TxCtx ctx) {
     return tokenRepository.findAll(fromUser(currentUser().getId()));
   }
 }

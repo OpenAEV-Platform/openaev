@@ -7,6 +7,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.opentelemetry.api.common.Attributes;
 import java.util.Map;
@@ -28,6 +30,7 @@ class PlatformAdoptionMetricCollectorTest {
 
   @Mock private MetricRegistry metricRegistry;
   @Mock private Environment environment;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
 
   @InjectMocks private PlatformAdoptionMetricCollector collector;
@@ -71,6 +74,8 @@ class PlatformAdoptionMetricCollectorTest {
     @Test
     @DisplayName("reports 1 when at least one tenant registration exists")
     void given_existingRegistration_should_reportRegistered() {
+      when(tenantTx.execute(any(TxCtx.class), any(Supplier.class)))
+          .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
       when(tenantXtmHubRegistrationRepository.count()).thenReturn(2L);
 
       collector.init();
@@ -83,6 +88,8 @@ class PlatformAdoptionMetricCollectorTest {
     @Test
     @DisplayName("reports 0 when no registration exists or the lookup fails")
     void given_noRegistrationOrFailure_should_reportZero() {
+      when(tenantTx.execute(any(TxCtx.class), any(Supplier.class)))
+          .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
       when(tenantXtmHubRegistrationRepository.count())
           .thenReturn(0L)
           .thenThrow(new RuntimeException("db unavailable"));

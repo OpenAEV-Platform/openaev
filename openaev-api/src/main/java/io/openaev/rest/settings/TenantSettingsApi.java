@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -51,7 +52,7 @@ public class TenantSettingsApi extends RestBehavior {
       description = "Return the tenant settings with optional platform fallback")
   @Transactional
   @ApiResponses(@ApiResponse(responseCode = "200", description = "The tenant settings"))
-  public TenantSettingsOutput findSettings(@PathVariable String tenantId) {
+  public TenantSettingsOutput findSettings(TxCtx ctx, @PathVariable String tenantId) {
     return tenantSettingsService.findSettings(tenantId);
   }
 
@@ -66,7 +67,9 @@ public class TenantSettingsApi extends RestBehavior {
       description = "Update the tenant settings (home dashboard)")
   @ApiResponses(@ApiResponse(responseCode = "200", description = "The updated tenant settings"))
   public TenantSettingsOutput updateSettings(
-      @PathVariable String tenantId, @Valid @RequestBody TenantSettingsUpdateInput input) {
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @Valid @RequestBody TenantSettingsUpdateInput input) {
     return tenantSettingsService.updateSettings(tenantId, input);
   }
 
@@ -80,7 +83,7 @@ public class TenantSettingsApi extends RestBehavior {
       description = "Update the light theme for this tenant")
   @ApiResponses(@ApiResponse(responseCode = "200", description = "The updated tenant settings"))
   public TenantSettingsOutput updateThemeLight(
-      @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
     tenantSettingsService.updateTheme(tenantId, TenantSettingsService.THEME_TYPE_LIGHT, input);
     return tenantSettingsService.findSettings(tenantId);
   }
@@ -93,7 +96,7 @@ public class TenantSettingsApi extends RestBehavior {
       description = "Update the dark theme for this tenant")
   @ApiResponses(@ApiResponse(responseCode = "200", description = "The updated tenant settings"))
   public TenantSettingsOutput updateThemeDark(
-      @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
     tenantSettingsService.updateTheme(tenantId, TenantSettingsService.THEME_TYPE_DARK, input);
     return tenantSettingsService.findSettings(tenantId);
   }
@@ -106,7 +109,7 @@ public class TenantSettingsApi extends RestBehavior {
       summary = "Get tenant home dashboard",
       description = "Return the home dashboard configured for this tenant")
   @Transactional
-  public ResponseEntity<CustomDashboard> homeDashboard(@PathVariable String tenantId) {
+  public ResponseEntity<CustomDashboard> homeDashboard(TxCtx ctx, @PathVariable String tenantId) {
     return ResponseEntity.ok(
         customDashboardTenantService.findTenantHomeDashboard(tenantId).orElse(null));
   }
@@ -117,10 +120,11 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget count")
   public EsCountInterval homeDashboardCount(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardTenantService.homeDashboardCount(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardCount(ctx, tenantId, widgetId, parameters);
   }
 
   @PostMapping("/home-dashboard/average/{widgetId}")
@@ -129,10 +133,11 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget average")
   public EsAvgs homeDashboardAverage(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardTenantService.homeDashboardAverage(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardAverage(ctx, tenantId, widgetId, parameters);
   }
 
   @PostMapping("/home-dashboard/series/{widgetId}")
@@ -141,10 +146,11 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget series")
   public List<EsSeries> homeDashboardSeries(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardTenantService.homeDashboardSeries(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardSeries(ctx, tenantId, widgetId, parameters);
   }
 
   @PostMapping("/home-dashboard/entities/{widgetId}")
@@ -153,10 +159,11 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget entities")
   public EsEntities homeDashboardEntities(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) EntitiesPaginationInput input) {
-    return customDashboardTenantService.homeDashboardEntities(tenantId, widgetId, input);
+    return customDashboardTenantService.homeDashboardEntities(ctx, tenantId, widgetId, input);
   }
 
   @PostMapping("/home-dashboard/entities-runtime/{widgetId}")
@@ -165,10 +172,12 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget entities runtime")
   public WidgetToEntitiesOutput homeWidgetToEntitiesRuntime(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @Valid @RequestBody WidgetToEntitiesInput input) {
-    return customDashboardTenantService.homeDashboardEntitiesRuntime(tenantId, widgetId, input);
+    return customDashboardTenantService.homeDashboardEntitiesRuntime(
+        ctx, tenantId, widgetId, input);
   }
 
   @PostMapping("/home-dashboard/attack-paths/{widgetId}")
@@ -177,10 +186,12 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget attack paths")
   public List<EsAttackPath> homeDashboardAttackPaths(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return customDashboardTenantService.homeDashboardAttackPaths(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardAttackPaths(
+        ctx, tenantId, widgetId, parameters);
   }
 }

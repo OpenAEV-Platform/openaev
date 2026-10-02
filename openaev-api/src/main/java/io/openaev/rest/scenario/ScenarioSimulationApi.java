@@ -7,6 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Exercise;
@@ -44,7 +45,7 @@ public class ScenarioSimulationApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Iterable<ExerciseSimple> scenarioExercises(
-      @PathVariable @NotBlank final String scenarioId) {
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return exerciseService.scenarioExercises(scenarioId);
   }
 
@@ -59,6 +60,7 @@ public class ScenarioSimulationApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Iterable<ExerciseSimple> scenarioExercises(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
@@ -84,6 +86,7 @@ public class ScenarioSimulationApi {
   })
   @Transactional
   public List<FilterUtilsJpa.Option> optionsByName(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestParam(required = false) final String searchText) {
     return this.exerciseService.findAllAsOptions(fromScenario(scenarioId), searchText);

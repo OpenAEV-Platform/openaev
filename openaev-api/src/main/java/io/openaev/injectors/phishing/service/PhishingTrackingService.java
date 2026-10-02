@@ -4,6 +4,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForTeamManualValidation;
 import static java.time.Instant.now;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
@@ -12,13 +13,17 @@ import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.TableTopInjectExpectation;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.PhishingResultRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.service.InjectExpectationUtils;
+import io.openaev.service.chaining.StepService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.security.SecureRandom;
@@ -35,6 +40,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -194,7 +200,7 @@ public class PhishingTrackingService {
   private static final double COMPROMISED_SCORE = 0.0;
 
   /** Result message stamped on a step the recipient never triggered (GREEN). */
-  private static final String NO_INTERACTION_MESSAGE = "No phishing interaction detected";
+  public static final String NO_INTERACTION_MESSAGE = "No phishing interaction detected";
 
   /**
    * Result message stamped on a step that received an automated probe (mail security scanner /
@@ -236,9 +242,12 @@ public class PhishingTrackingService {
 
   private final PhishingResultRepository phishingResultRepository;
   private final InjectExpectationRepository injectExpectationRepository;
+  private final InjectRepository injectRepository;
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
+  private final StepRepository stepRepository;
   private final FindingService findingService;
+  private final PhishingTrackingPublicLookupService publicLookupService;
 
   /** Generates a URL-safe, unguessable per-recipient tracking token. */
   public static String generateToken() {
@@ -267,16 +276,31 @@ public class PhishingTrackingService {
    * <p>The {@code inject} / {@code landingPage} associations are set from the passed entities and
    * {@code user} / {@code team} from reference proxies: this row is a fresh insert with no cascade,
    * so Hibernate only needs their FK ids and never touches the suspended outer persistence context.
+   *
+   * <p>{@code stepId} is set instead of {@code inject} for a chaining execution: at this point the
+   * inject was just created in the still-uncommitted, suspended ambient transaction, so referencing
+   * it here (in this own {@code REQUIRES_NEW} transaction) would fail the FK check. The step,
+   * unlike the inject, is already persisted, so it is used as the stable reference until {@link
+   * #resolveAndBackfillByToken} backfills the real inject once it is committed.
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public PhishingResult createResult(
       @NotNull final Inject inject,
+      @NotBlank final String tenantId,
       @NotNull final PhishingLandingPage landingPage,
       @NotBlank final String userId,
-      final String teamId) {
+      final String teamId,
+      final String stepId) {
     PhishingResult result = new PhishingResult();
     result.setToken(generateToken());
-    result.setInject(inject);
+    // The caller resolves the tenant from the inject it already holds, outside this REQUIRES_NEW
+    // transaction (see PhishingExecutor).
+    result.setTenant(new Tenant(tenantId));
+    if (stepId != null) {
+      result.setStep(stepRepository.getReferenceById(stepId));
+    } else {
+      result.setInject(inject);
+    }
     result.setLandingPage(landingPage);
     // FK-only association: a reference proxy avoids an N+1 SELECT per recipient at send time.
     result.setUser(userRepository.getReferenceById(userId));
@@ -288,43 +312,151 @@ public class PhishingTrackingService {
   }
 
   /**
-   * Pre-scores every phishing-awareness expectation of the inject to its full expected score
-   * (GREEN, "resisted"). Called once by the executor right after the expectations are built, before
-   * any lure email is sent, so a recipient starts out having resisted every step. A step is only
-   * flipped to RED later, when the recipient actually performs it. Idempotent: a step that already
-   * carries a result (pre-scored or flipped) is left untouched.
+   * Resolves a tracking token, backfilling {@link PhishingResult#getInject} from {@link
+   * PhishingResult#getStep} when the row was created before its inject was committed (chaining
+   * execution, see {@code createResult}). The step's {@code data} JSON carries the inject id once
+   * {@code InjectExecutionStep#run} commits it - see {@code InjectExecutionStep#setInjectId}. Once
+   * backfilled, {@code inject} is kept as the queryable reference going forward; {@code step} is
+   * left untouched (still useful to correlate the producing step attempt).
    */
-  public void initializeExpectationsAsResisted(@NotBlank final String injectId) {
-    injectExpectationRepository.findAllByInjectId(injectId).stream()
-        .filter(PhishingTrackingService::isPhishingStep)
-        .filter(expectation -> hasNoResults(expectation.getResults()))
-        .forEach(
-            expectation -> {
-              boolean team = isTeamRow(expectation);
-              InjectExpectationResult result =
-                  team
-                      ? buildForTeamManualValidation(
-                          NO_INTERACTION_MESSAGE, expectation.getExpectedScore())
-                      : buildForPlayerManualValidation(
-                          NO_INTERACTION_MESSAGE, expectation.getExpectedScore());
-              expectation.setResults(List.of(result));
-              expectation.setScore(expectation.getExpectedScore());
-              expectation.setUpdatedAt(now());
-              injectExpectationRepository.save(expectation);
-            });
+  public Optional<PhishingResult> resolveAndBackfillByToken(@NotBlank final String token) {
+    Optional<PhishingResult> result = phishingResultRepository.findByToken(token);
+    result.ifPresent(this::backfillInjectFromStep);
+    return result;
   }
 
-  public Optional<PhishingResult> resolveByToken(@NotBlank final String token) {
-    return phishingResultRepository.findByToken(token);
+  private void backfillInjectFromStep(final PhishingResult result) {
+    if (result.getInject() != null || result.getStep() == null) {
+      return;
+    }
+    String data = result.getStep().getData();
+    if (data == null) {
+      return;
+    }
+    String injectId = StepService.getField(data, "inject_id");
+    if (injectId == null) {
+      return;
+    }
+    // Existence check first: without it, a stale/invalid inject_id from the step data would end
+    // up wiping this PhishingResult row entirely (ON DELETE CASCADE on phishing_results_inject_fk
+    // is triggered instead of failing safely). Checking first lets us leave the column null
+    // instead, so the rest of the tracking update still persists.
+    if (injectRepository.existsById(injectId)) {
+      result.setInject(injectRepository.getReferenceById(injectId));
+    } else {
+      log.warn(
+          "Inject {} not found yet for step {}, result kept without inject link for now"
+              + " (will be retried on next resolveByToken call)",
+          injectId,
+          result.getStep().getId());
+    }
+
+    PhishingResult saved = phishingResultRepository.save(result);
+
+    // If tracking events were recorded before the inject existed, reconcile expectation scoring
+    // now.
+    if (saved.getSubmittedAt() != null) {
+      compromiseSteps(
+          saved,
+          Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED),
+          "Submitted data on the phishing page",
+          saved.getIp(),
+          saved.getUserAgent());
+    } else if (saved.getClickedAt() != null) {
+      compromiseSteps(
+          saved,
+          Set.of(STEP_OPENED, STEP_CLICKED),
+          "Opened the phishing landing page",
+          saved.getIp(),
+          saved.getUserAgent());
+    } else if (saved.getOpenedAt() != null) {
+      compromiseSteps(
+          saved,
+          Set.of(STEP_OPENED),
+          "Opened the phishing email",
+          saved.getIp(),
+          saved.getUserAgent());
+    }
   }
 
   /**
    * Resolves the owning tenant of a tracking token with no tenant context set. The public landing /
    * tracking endpoints no longer carry the tenant in the URL (the token is globally unique), so the
-   * caller uses this to recover and set the tenant before any tenant-filtered work runs.
+   * caller uses this to recover and set the tenant before any tenant-filtered work runs. Delegates
+   * to {@link PhishingTrackingPublicLookupService}, which reads under an explicit all-tenants
+   * scope: once {@code phishing_results} is tenant-active, an unscoped native read here would fail
+   * closed.
    */
   public Optional<String> resolveTenantIdByToken(@NotBlank final String token) {
-    return phishingResultRepository.findTenantIdByToken(token);
+    return publicLookupService.tenantIdByToken(token);
+  }
+
+  /**
+   * Entry point for the token-only public routes ({@code HostedPublicApi}): the caller has already
+   * resolved the token's owning tenant (via {@link #resolveTenantIdByToken}) and hands it back here
+   * as an explicit {@link TxCtx}. Runs in its own {@code REQUIRES_NEW} transaction so the tenant
+   * scope can be set for it without redefining the scope of the outer HTTP transaction, which
+   * opened with no tenant (the request itself never names one). See {@code
+   * TenantScopeTransactionAspect}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> resolveAndBackfillByToken(
+      final TxCtx ctx, @NotBlank final String token) {
+    Optional<PhishingResult> result = resolveAndBackfillByToken(token);
+    result.ifPresent(this::initializeLandingPage);
+    return result;
+  }
+
+  /**
+   * Scoped entry point for {@code markOpened}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markOpened(
+      final TxCtx ctx, @NotBlank final String token, final String ip, final String userAgent) {
+    return markOpened(token, ip, userAgent);
+  }
+
+  /**
+   * Scoped entry point for {@code markClicked}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markClicked(
+      final TxCtx ctx, @NotBlank final String token, final String ip, final String userAgent) {
+    return markClicked(token, ip, userAgent);
+  }
+
+  /**
+   * Scoped entry point for {@code markSubmitted}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}. {@code resolvedLandingPage} keeps feeding credential capture, as in the unscoped
+   * overload below: the caller resolved it under its own single-tenant scope and {@code
+   * phishing_landing_pages} is tenant-active, so this method must not re-resolve it.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markSubmitted(
+      final TxCtx ctx,
+      @NotBlank final String token,
+      final Map<String, String> fields,
+      final String ip,
+      final String userAgent,
+      final PhishingLandingPage resolvedLandingPage) {
+    Optional<PhishingResult> result =
+        markSubmitted(token, fields, ip, userAgent, resolvedLandingPage);
+    result.ifPresent(this::initializeLandingPage);
+    return result;
+  }
+
+  /**
+   * Initializes the lazy {@code landingPage} proxy before a {@code REQUIRES_NEW} scoped method
+   * returns it: that method's own transaction commits at return, closing the session the proxy is
+   * bound to, so the caller (a different bean, on the outer HTTP transaction) would otherwise hold
+   * a detached proxy with no session. {@code HostedPublicApi} only reads the identifier off it,
+   * which a proxy answers without a session, but the returned entity is a public contract and the
+   * next caller to read a column would get a lazy-initialization failure instead.
+   */
+  private void initializeLandingPage(final PhishingResult result) {
+    Hibernate.initialize(result.getLandingPage());
   }
 
   /**
@@ -337,23 +469,21 @@ public class PhishingTrackingService {
    */
   public Optional<PhishingResult> markOpened(
       @NotBlank final String token, final String ip, final String userAgent) {
-    return phishingResultRepository
-        .findByToken(token)
-        .map(
-            result -> {
-              if (isAutomatedProbe(result, userAgent)) {
-                annotateResistedSteps(result, Set.of(STEP_OPENED), ip, userAgent);
-                return result;
-              }
-              if (result.getOpenedAt() == null) {
-                result.setOpenedAt(now());
-              }
-              applyRequestMetadata(result, ip, userAgent);
-              PhishingResult saved = phishingResultRepository.save(result);
-              compromiseSteps(
-                  saved, Set.of(STEP_OPENED), "Opened the phishing email", ip, userAgent);
-              return saved;
-            });
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    return optResult.map(
+        result -> {
+          if (isAutomatedProbe(result, userAgent)) {
+            annotateResistedSteps(result, Set.of(STEP_OPENED), ip, userAgent);
+            return result;
+          }
+          if (result.getOpenedAt() == null) {
+            result.setOpenedAt(now());
+          }
+          applyRequestMetadata(result, ip, userAgent);
+          PhishingResult saved = phishingResultRepository.save(result);
+          compromiseSteps(saved, Set.of(STEP_OPENED), "Opened the phishing email", ip, userAgent);
+          return saved;
+        });
   }
 
   /**
@@ -366,30 +496,29 @@ public class PhishingTrackingService {
    */
   public Optional<PhishingResult> markClicked(
       @NotBlank final String token, final String ip, final String userAgent) {
-    return phishingResultRepository
-        .findByToken(token)
-        .map(
-            result -> {
-              if (isAutomatedProbe(result, userAgent)) {
-                annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
-                return result;
-              }
-              if (result.getOpenedAt() == null) {
-                result.setOpenedAt(now());
-              }
-              if (result.getClickedAt() == null) {
-                result.setClickedAt(now());
-              }
-              applyRequestMetadata(result, ip, userAgent);
-              PhishingResult saved = phishingResultRepository.save(result);
-              compromiseSteps(
-                  saved,
-                  Set.of(STEP_OPENED, STEP_CLICKED),
-                  "Opened the phishing landing page",
-                  ip,
-                  userAgent);
-              return saved;
-            });
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    return optResult.map(
+        result -> {
+          if (isAutomatedProbe(result, userAgent)) {
+            annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
+            return result;
+          }
+          if (result.getOpenedAt() == null) {
+            result.setOpenedAt(now());
+          }
+          if (result.getClickedAt() == null) {
+            result.setClickedAt(now());
+          }
+          applyRequestMetadata(result, ip, userAgent);
+          PhishingResult saved = phishingResultRepository.save(result);
+          compromiseSteps(
+              saved,
+              Set.of(STEP_OPENED, STEP_CLICKED),
+              "Opened the phishing landing page",
+              ip,
+              userAgent);
+          return saved;
+        });
   }
 
   /**
@@ -408,45 +537,65 @@ public class PhishingTrackingService {
       final Map<String, String> fields,
       final String ip,
       final String userAgent) {
-    return phishingResultRepository
-        .findByToken(token)
-        .map(
-            result -> {
-              // A sandbox detonator auto-submitting the form with synthetic data must not score
-              // the recipient nor pollute findings with fake credentials. A real submit later
-              // still wins the first-submit transition and is captured normally.
-              if (isAutomatedProbe(result, userAgent)) {
-                annotateResistedSteps(
-                    result, Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED), ip, userAgent);
-                return result;
-              }
-              Instant timestamp = now();
-              if (result.getOpenedAt() == null) {
-                result.setOpenedAt(timestamp);
-              }
-              if (result.getClickedAt() == null) {
-                result.setClickedAt(timestamp);
-              }
-              // Capture only on the request that wins the submit transition. A repeat or concurrent
-              // POST (a victim double-submitting) would otherwise re-insert the same Credentials
-              // finding, break its unique constraint at flush and roll back the tracking write.
-              boolean firstSubmit = result.getSubmittedAt() == null;
-              if (firstSubmit) {
-                result.setSubmittedAt(timestamp);
-              }
-              applyRequestMetadata(result, ip, userAgent);
-              if (firstSubmit) {
-                captureCredentials(result, fields);
-              }
-              PhishingResult saved = phishingResultRepository.save(result);
-              compromiseSteps(
-                  saved,
-                  Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED),
-                  "Submitted data on the phishing page",
-                  ip,
-                  userAgent);
-              return saved;
-            });
+    return markSubmitted(token, fields, ip, userAgent, null);
+  }
+
+  /**
+   * Same as {@link #markSubmitted(String, Map, String, String)}, but with {@code
+   * resolvedLandingPage} used for credential capture instead of {@code result.getLandingPage()}
+   * when the caller already resolved it under the correct tenant scope. {@code HostedPublicApi}
+   * (anonymous, no {@code {tenantId}} path segment) must pass its own tenant-scoped lookup here:
+   * the ambient {@code TxCtx} of that request is {@link io.openaev.context.TxCtx#missing()}, so
+   * {@code result.getLandingPage()} - a lazy load of the v2-active {@code phishing_landing_pages}
+   * table - would admit no row if touched from inside this call. The legacy {@code
+   * PhishingPublicApi} (tenant in the path) keeps calling the 4-arg overload: its ambient scope is
+   * already the recipient's own tenant, so {@code result.getLandingPage()} resolves correctly
+   * there.
+   */
+  public Optional<PhishingResult> markSubmitted(
+      @NotBlank final String token,
+      final Map<String, String> fields,
+      final String ip,
+      final String userAgent,
+      final PhishingLandingPage resolvedLandingPage) {
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    return optResult.map(
+        result -> {
+          // A sandbox detonator auto-submitting the form with synthetic data must not score
+          // the recipient nor pollute findings with fake credentials. A real submit later
+          // still wins the first-submit transition and is captured normally.
+          if (isAutomatedProbe(result, userAgent)) {
+            annotateResistedSteps(
+                result, Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED), ip, userAgent);
+            return result;
+          }
+          Instant timestamp = now();
+          if (result.getOpenedAt() == null) {
+            result.setOpenedAt(timestamp);
+          }
+          if (result.getClickedAt() == null) {
+            result.setClickedAt(timestamp);
+          }
+          // Capture only on the request that wins the submit transition. A repeat or concurrent
+          // POST (a victim double-submitting) would otherwise re-insert the same Credentials
+          // finding, break its unique constraint at flush and roll back the tracking write.
+          boolean firstSubmit = result.getSubmittedAt() == null;
+          if (firstSubmit) {
+            result.setSubmittedAt(timestamp);
+          }
+          applyRequestMetadata(result, ip, userAgent);
+          if (firstSubmit) {
+            captureCredentials(result, fields, resolvedLandingPage);
+          }
+          PhishingResult saved = phishingResultRepository.save(result);
+          compromiseSteps(
+              saved,
+              Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED),
+              "Submitted data on the phishing page",
+              ip,
+              userAgent);
+          return saved;
+        });
   }
 
   /**
@@ -526,8 +675,12 @@ public class PhishingTrackingService {
     }
   }
 
-  private void captureCredentials(final PhishingResult result, final Map<String, String> fields) {
-    PhishingLandingPage landingPage = result.getLandingPage();
+  private void captureCredentials(
+      final PhishingResult result,
+      final Map<String, String> fields,
+      final PhishingLandingPage resolvedLandingPage) {
+    PhishingLandingPage landingPage =
+        resolvedLandingPage != null ? resolvedLandingPage : result.getLandingPage();
     if (landingPage == null || !landingPage.isCaptureSubmittedData()) {
       return;
     }

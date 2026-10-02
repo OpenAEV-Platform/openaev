@@ -11,6 +11,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import io.openaev.database.audit.IndexEvent;
+import io.openaev.engine.facade.EngineService;
 import java.util.Collection;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;

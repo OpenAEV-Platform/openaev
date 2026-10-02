@@ -37,6 +37,16 @@ class PortScanOutputProcessorTest {
   }
 
   @Test
+  @DisplayName("Should preserve leading zero in port field of PortsScan")
+  void shouldPreserveLeadingZeroInPortField() throws Exception {
+    JsonNode node =
+        objectMapper.readTree(
+            "{\"host\": \"192.168.1.1\", \"port\": \"05\", \"service\": \"ssh\"}");
+    String result = processor.toFindingValue(node);
+    assertEquals("192.168.1.1:05 (ssh)", result);
+  }
+
+  @Test
   @DisplayName("Should return single asset id when asset_id is present")
   void shouldReturnSingleAssetIdWhenAssetIdPresent() throws Exception {
     JsonNode node =
@@ -111,6 +121,33 @@ class PortScanOutputProcessorTest {
     JsonNode node =
         objectMapper.readTree(
             "{\"host\": \"192.168.1.1\", \"port\": \"22\", \"service\": \"ssh\"}");
+    assertTrue(processor.validate(node));
+  }
+
+  @Test
+  @DisplayName("Should reject PortsScan finding with non numeric port")
+  void shouldRejectPortsScanWithNonNumericPort() throws Exception {
+    JsonNode node =
+        objectMapper.readTree(
+            "{\"host\": \"192.168.1.1\", \"port\": \"abc\", \"service\": \"ssh\"}");
+    assertFalse(processor.validate(node));
+  }
+
+  @Test
+  @DisplayName("Should reject PortsScan finding with out of range port")
+  void shouldRejectPortsScanWithOutOfRangePort() throws Exception {
+    JsonNode node =
+        objectMapper.readTree(
+            "{\"host\": \"192.168.1.1\", \"port\": \"70000\", \"service\": \"ssh\"}");
+    assertFalse(processor.validate(node));
+  }
+
+  @Test
+  @DisplayName("Should accept PortsScan finding with leading zero port")
+  void shouldAcceptPortsScanWithLeadingZeroPort() throws Exception {
+    JsonNode node =
+        objectMapper.readTree(
+            "{\"host\": \"192.168.1.1\", \"port\": \"05\", \"service\": \"ssh\"}");
     assertTrue(processor.validate(node));
   }
 }

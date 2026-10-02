@@ -114,22 +114,38 @@ public class ExpectationsExpirationManagerService {
         expectation -> {
           InjectExpectationUpdateInput input = buildExpirationInput(expectation);
           if (HUMAN_EXPECTATION.contains(expectation.getType())) {
-            updated.add(
+            BaseInjectExpectation updatedExpectation =
                 injectExpectationService.computeInjectExpectationForHumanResponse(
-                    expectation, input, collector));
+                    expectation, input, collector);
+            updated.add(updatedExpectation);
+            injectExpectationService.logAutomaticExpectationResult(updatedExpectation, collector);
           } else if (expectation instanceof TechnicalInjectExpectation technicalExpectation) {
-            updated.add(
+            TechnicalInjectExpectation updatedExpectation =
                 injectExpectationService.computeInjectExpectationForAgentOrAssetAgentless(
-                    technicalExpectation, input, collector));
+                    technicalExpectation, input, collector);
+            updated.add(updatedExpectation);
+            injectExpectationService.logAutomaticExpectationResult(updatedExpectation, collector);
           }
         });
 
     assetParents.forEach(
-        parent ->
-            updated.addAll(injectExpectationService.recomputeParentTechnicalExpectation(parent)));
+        parent -> {
+          List<BaseInjectExpectation> recomputed =
+              injectExpectationService.recomputeParentTechnicalExpectation(parent);
+          updated.addAll(recomputed);
+          recomputed.forEach(
+              expectation ->
+                  injectExpectationService.logAutomaticExpectationResult(expectation, collector));
+        });
     assetGroupParents.forEach(
-        parent ->
-            updated.addAll(injectExpectationService.recomputeParentTechnicalExpectation(parent)));
+        parent -> {
+          List<BaseInjectExpectation> recomputed =
+              injectExpectationService.recomputeParentTechnicalExpectation(parent);
+          updated.addAll(recomputed);
+          recomputed.forEach(
+              expectation ->
+                  injectExpectationService.logAutomaticExpectationResult(expectation, collector));
+        });
   }
 
   /**

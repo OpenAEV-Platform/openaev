@@ -3,10 +3,9 @@ import { expect } from '@playwright/test';
 import TenantApiHelpers from '../../api-helpers/TenantApiHelpers';
 import { test } from '../../fixtures';
 import CatalogPage from '../../model/integrations/CatalogPage';
-import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
-import TenantsPage from '../../model/platform/TenantsPage';
+import InjectorsListPage from '../../model/integrations/InjectorsListPage';
 import { TIMEOUT } from '../../utils/constants';
-import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
+import { tenantUrl } from '../../utils/url';
 
 /**
  * End-to-end test: install an external executor (Tanium) in a new tenant.
@@ -18,38 +17,13 @@ test.describe('Catalog — external executor deployment', () => {
   }
 
   let newTenantId: string | null = null;
-  let tenantName: string;
 
   const TANIUM_DISPLAY_NAME = `Tanium E2E ${Date.now()}`;
 
-  test.beforeEach(async ({ page }) => {
-    tenantName = `Tenant Executor E2E ${Date.now()}`;
-    const tenantsPage = new TenantsPage(page);
-
-    await page.goto(tenantUrl('/admin/settings/security/tenants'));
-    await tenantsPage.waitForLoad();
-    await expect(
-      tenantsPage.createFabButton,
-      'Enterprise Edition / multi-tenancy must be enabled: expected the tenant "Add" button to be visible.',
-    ).toBeVisible({ timeout: TIMEOUT });
-
-    await tenantsPage.openCreateDrawer();
-    await tenantsPage.fillTenantName(tenantName);
-    await tenantsPage.submitCreate();
-
-    const tenantSwitcher = new TenantSwitcherComponent(page);
-    await tenantSwitcher.openSwitcher('Default');
-    await expect(tenantSwitcher.popoverTenantItems.filter({ hasText: tenantName })).toHaveCount(1);
-    await tenantSwitcher.selectTenantByName(tenantName);
-
-    await page.waitForURL(
-      url => !url.toString().includes(DEFAULT_TENANT_UUID),
-      { timeout: TIMEOUT },
-    );
-
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const segments = new URL(page.url()).pathname.split('/').filter(Boolean);
-    newTenantId = segments.find(s => uuidPattern.test(s) && s !== DEFAULT_TENANT_UUID) ?? null;
+  test.beforeEach(async ({ request }) => {
+    const tenantName = `Tenant Executor E2E ${Date.now()}`;
+    const createdTenant = await new TenantApiHelpers(request).createTenant(tenantName);
+    newTenantId = createdTenant.tenant_id;
     expect(newTenantId).not.toBeNull();
   });
 
@@ -67,13 +41,19 @@ test.describe('Catalog — external executor deployment', () => {
     // (API URL, API key and package ids are required, so they render at the top
     // of the form rather than under "Advanced options").
     const catalogPage = new CatalogPage(page);
-    await page.goto(tenantUrl('/admin/integrations/available', newTenantId!));
-    await catalogPage.waitForLoad();
+    await expect(async () => {
+      await page.goto(tenantUrl('/admin/integrations/available', newTenantId!));
+      await catalogPage.waitForLoad();
+      await catalogPage.searchConnector('Tanium');
+      // "Tanium" also matches the "Tanium Threat Response" collector; the catalog
+      // sections collectors before executors, so target the exact executor title.
+      await catalogPage.clickDeployOnConnector('Tanium Executor');
+      await expect(catalogPage.displayNameInput).toBeVisible({ timeout: TIMEOUT });
+    }).toPass({
+      intervals: [1_000, 2_000, 5_000],
+      timeout: 6 * TIMEOUT,
+    });
 
-    await catalogPage.searchConnector('Tanium');
-    // "Tanium" also matches the "Tanium Threat Response" collector; the catalog
-    // sections collectors before executors, so target the exact executor title.
-    await catalogPage.clickDeployOnConnector('Tanium Executor');
     await catalogPage.fillDisplayName(TANIUM_DISPLAY_NAME);
     await catalogPage.fillConfigurationField('Executor Tanium Api Url', 'https://tanium.e2e.invalid');
     await catalogPage.fillConfigurationField('Executor Tanium Api Key', 'e2e-api-key');
@@ -82,14 +62,20 @@ test.describe('Catalog — external executor deployment', () => {
     await catalogPage.submitInstall();
 
     // Step: verify Tanium is installed on executors list
-    await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
-    await page.waitForURL('**/integrations/deployed**');
+    const deployedConnectorsPage = new InjectorsListPage(page);
+    await expect(async () => {
+      await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
+      await deployedConnectorsPage.waitForLoad();
+      await expect(
+        deployedConnectorsPage.getInjectorCard(TANIUM_DISPLAY_NAME).first(),
+        `Expected deployed Tanium executor card "${TANIUM_DISPLAY_NAME}" to be visible`,
+      ).toBeVisible({ timeout: TIMEOUT });
+    }).toPass({
+      intervals: [1_000, 2_000, 5_000],
+      timeout: 6 * TIMEOUT,
+    });
 
-    const taniumCard = page.locator('.MuiCard-root').filter({ hasText: TANIUM_DISPLAY_NAME }).first();
-    await expect(
-      taniumCard,
-      `Expected deployed Tanium executor card "${TANIUM_DISPLAY_NAME}" to be visible`,
-    ).toBeVisible({ timeout: TIMEOUT });
+    const taniumCard = deployedConnectorsPage.getInjectorCard(TANIUM_DISPLAY_NAME).first();
 
     // Step: open executor and ensure it is deployed/running
     await taniumCard.click();

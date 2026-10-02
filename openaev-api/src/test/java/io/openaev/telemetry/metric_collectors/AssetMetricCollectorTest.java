@@ -5,10 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.opentelemetry.api.common.Attributes;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
@@ -20,6 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,6 +34,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class AssetMetricCollectorTest {
 
   @Mock private MetricRegistry metricRegistry;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private EntityManager entityManager;
 
   private AssetMetricCollector collector;
@@ -38,7 +43,13 @@ class AssetMetricCollectorTest {
 
   @BeforeEach
   void setUp() {
-    collector = new AssetMetricCollector(metricRegistry);
+    collector = new AssetMetricCollector(metricRegistry, tenantTx);
+    // The real primitive opens a scoped transaction and runs the supplier. The scope itself is out
+    // of scope for this unit test; AssetMetricTenantScopeTest proves it against a real database.
+    // Here the mock simply runs the supplier so the gauge's own logic stays under test.
+    lenient()
+        .when(tenantTx.execute(any(TxCtx.class), ArgumentMatchers.<Supplier<List<Object[]>>>any()))
+        .thenAnswer(invocation -> invocation.<Supplier<List<Object[]>>>getArgument(1).get());
     // @PersistenceContext field is container-injected in production
     ReflectionTestUtils.setField(collector, "entityManager", entityManager);
   }

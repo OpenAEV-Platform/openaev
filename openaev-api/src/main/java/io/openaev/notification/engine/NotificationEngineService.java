@@ -1,6 +1,8 @@
 package io.openaev.notification.engine;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
@@ -27,6 +29,7 @@ public class NotificationEngineService {
   private final NotificationMatchingService matchingService;
   private final NotificationDispatchService dispatchService;
   private final NotificationEventRecordRepository notificationEventRecordRepository;
+  private final TenantScopedTransaction tenantTx;
 
   /**
    * Processes one entity lifecycle event.
@@ -73,23 +76,29 @@ public class NotificationEngineService {
         if (entityTenantId == null || !entityTenantId.equals(trigger.tenantId())) {
           continue;
         }
-        // The whole matched-trigger processing (filter re-check, outbox records, dispatch)
-        // runs with the trigger's tenant so the Hibernate tenant filter (enabled by
-        // HibernateFilterTransactionAspect) scopes every query correctly.
+        // Run with both scopes on the async thread: TenantContext keeps v1 paths correct,
+        // TenantScopedTransaction/TX ctx scopes v2-active reads.
         TenantContext.setCurrentTenant(trigger.tenantId());
         try {
-          if (!matchingService.matches(trigger, entry, entityId)) {
-            continue;
-          }
-          recordEvents(trigger, entry, entityId, eventType, message);
-          NotificationContent.Group group =
-              new NotificationContent.Group(
-                  trigger.name(),
-                  List.of(
-                      new NotificationContent.Event(
-                          eventType, message, entry.getResourceType(), entityId)));
-          dispatchService.dispatch(
-              trigger, NotificationTriggerType.LIVE, trigger.recipientUserIds(), List.of(group));
+          tenantTx.execute(
+              TxCtx.forTenant(trigger.tenantId()),
+              () -> {
+                if (!matchingService.matches(trigger, entry, entityId)) {
+                  return;
+                }
+                recordEvents(trigger, entry, entityId, eventType, message);
+                NotificationContent.Group group =
+                    new NotificationContent.Group(
+                        trigger.name(),
+                        List.of(
+                            new NotificationContent.Event(
+                                eventType, message, entry.getResourceType(), entityId)));
+                dispatchService.dispatch(
+                    trigger,
+                    NotificationTriggerType.LIVE,
+                    trigger.recipientUserIds(),
+                    List.of(group));
+              });
         } finally {
           TenantContext.clearCurrentTenant();
         }

@@ -106,8 +106,14 @@ public class CrowdstrikeExecutorServiceTest {
     assertEquals(0, agents.getValue().size());
 
     ArgumentCaptor<AssetGroup> assetGroupCaptor = ArgumentCaptor.forClass(AssetGroup.class);
+    ArgumentCaptor<String> tenantCaptor = ArgumentCaptor.forClass(String.class);
     verify(assetGroupService)
-        .createOrUpdateAssetGroupWithoutDynamicAssets(assetGroupCaptor.capture());
+        .createOrUpdateAssetGroupWithoutDynamicAssets(
+            assetGroupCaptor.capture(), tenantCaptor.capture());
+    assertEquals(
+        crowdstrikeExecutor.getTenantId(),
+        tenantCaptor.getValue(),
+        "the asset group must be attributed to the executor's own tenant");
     assertEquals(HOST_GROUP_CS, assetGroupCaptor.getValue().getExternalReference());
   }
 

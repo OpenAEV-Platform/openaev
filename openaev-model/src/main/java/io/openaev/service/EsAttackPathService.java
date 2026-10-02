@@ -1,14 +1,15 @@
 package io.openaev.service;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackPatternRepository;
-import io.openaev.engine.EngineService;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
 import io.openaev.engine.api.StructuralHistogramRuntime;
 import io.openaev.engine.api.StructuralHistogramWidget;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.inject.EsInject;
 import io.openaev.engine.query.EsAttackPath;
 import io.openaev.engine.query.EsSeries;
@@ -42,6 +43,7 @@ public class EsAttackPathService {
    * @throws InterruptedException
    */
   public List<EsAttackPath> attackPaths(
+      TxCtx ctx,
       RawUserAuth user,
       StructuralHistogramRuntime runtime,
       Map<String, String> parameters,
@@ -53,9 +55,10 @@ public class EsAttackPathService {
     CompletableFuture<List<EsInject>> simulationEsInjectsFuture =
         CompletableFuture.supplyAsync(
             () ->
-                fetchSimulationInjectsFromES(user, simulationId, parameters, definitionParameters));
+                fetchSimulationInjectsFromES(
+                    ctx, user, simulationId, parameters, definitionParameters));
     CompletableFuture<List<EsSeries>> simulationSeriesFuture =
-        CompletableFuture.supplyAsync(() -> esService.multiTermHistogram(user, runtime));
+        CompletableFuture.supplyAsync(() -> esService.multiTermHistogram(ctx, user, runtime));
 
     List<EsInject> simulationEsInjects = simulationEsInjectsFuture.get();
     List<EsSeries> simulationSeries = simulationSeriesFuture.get();
@@ -95,6 +98,7 @@ public class EsAttackPathService {
    * @return a list of EsInject objects associated with the simulation
    */
   private List<EsInject> fetchSimulationInjectsFromES(
+      TxCtx ctx,
       RawUserAuth user,
       String simulationId,
       Map<String, String> parameters,
@@ -105,7 +109,7 @@ public class EsAttackPathService {
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
 
     return esService
-        .entities(user, new ListRuntime(config, parameters, definitionParameters, null))
+        .entities(ctx, user, new ListRuntime(config, parameters, definitionParameters, null))
         .getEsDatas()
         .stream()
         .filter(EsInject.class::isInstance)

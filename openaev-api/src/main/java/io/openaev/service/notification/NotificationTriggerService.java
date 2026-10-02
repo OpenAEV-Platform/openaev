@@ -2,12 +2,12 @@ package io.openaev.service.notification;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
 import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationTriggerRepository;
 import io.openaev.notification.engine.NotificationResourceCatalog;
@@ -42,9 +42,7 @@ public class NotificationTriggerService {
   // readOnly transaction keeps the session open for the lazy owner access in canAccess
   @Transactional(readOnly = true)
   public Optional<NotificationTrigger> findById(@NotBlank final String id) {
-    return notificationTriggerRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-        .filter(this::canAccess);
+    return notificationTriggerRepository.findById(id).filter(this::canAccess);
   }
 
   @Transactional
@@ -63,9 +61,11 @@ public class NotificationTriggerService {
   }
 
   @Transactional
-  public NotificationTrigger create(@NotNull final NotificationTrigger trigger) {
+  public NotificationTrigger create(
+      @NotBlank final String tenantId, @NotNull final NotificationTrigger trigger) {
     User currentUser = userService.currentUser();
     trigger.setOwner(currentUser);
+    trigger.setTenant(new Tenant(tenantId));
     enforceRecipientTargeting(trigger, currentUser);
     validate(trigger);
     NotificationTrigger saved = notificationTriggerRepository.save(trigger);
@@ -109,7 +109,7 @@ public class NotificationTriggerService {
   private NotificationTrigger requireOwnedTrigger(String id, String notFoundMessage) {
     NotificationTrigger trigger =
         notificationTriggerRepository
-            .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+            .findById(id)
             .orElseThrow(() -> new ElementNotFoundException(notFoundMessage));
     if (!canAccess(trigger)) {
       // Do not disclose the existence of another user's trigger

@@ -1,3 +1,4 @@
+import { DATA_DELETE_SUCCESS } from '../../constants/ActionTypes';
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import * as schema from '../Schema';
 
@@ -52,9 +53,24 @@ export const updateMePassword = (currentPassword, newPassword) => dispatch => pu
   user_plain_password: newPassword,
 })(dispatch);
 
+export const updateMeEmail = (currentPassword, newEmail) => dispatch => putReferential(schema.user, '/api/me/email', {
+  user_current_password: currentPassword,
+  user_email: newEmail,
+})(dispatch);
+
 export const updateMeProfile = data => dispatch => putReferential(schema.user, '/api/me/profile', data)(dispatch);
 
 export const updateMeInformation = data => dispatch => putReferential(schema.user, '/api/me/information', data)(dispatch);
 
-export const renewToken = tokenId => dispatch => postReferential(schema.token, '/api/me/token/refresh', { token_id: tokenId })(dispatch);
+export const renewToken = tokenId => dispatch => postReferential(schema.token, '/api/me/token/refresh', { token_id: tokenId })(dispatch)
+  .then((data) => {
+    dispatch({
+      type: DATA_DELETE_SUCCESS,
+      payload: {
+        type: 'tokens',
+        id: tokenId,
+      },
+    });
+    return data;
+  });
 // endregion

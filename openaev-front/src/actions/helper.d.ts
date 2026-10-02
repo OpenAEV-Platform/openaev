@@ -26,6 +26,7 @@ export interface LoggedHelper {
   // TODO type logged object
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   logged: () => any;
+  isTenantAccessDenied: () => boolean;
   getMe: () => User;
   getPlatformSettings: () => PlatformSettings;
   getTenantSettings: () => TenantSettingsOutput;

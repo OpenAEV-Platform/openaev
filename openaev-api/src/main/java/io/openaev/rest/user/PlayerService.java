@@ -13,6 +13,7 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 import static java.time.Instant.now;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -77,7 +78,8 @@ public class PlayerService {
    * @param input the bulk processing input
    * @return the ids of the deleted players
    */
-  public List<String> bulkDeletePlayers(@NotNull final PlayerBulkProcessingInput input) {
+  public List<String> bulkDeletePlayers(
+      final TxCtx ctx, @NotNull final PlayerBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getUserIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getUserIdsToProcess())
@@ -88,6 +90,7 @@ public class PlayerService {
     String currentUserId = userService.currentUser().getId();
     List<String> userIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<User> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -119,7 +122,7 @@ public class PlayerService {
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        "players", userIdsToDelete, chunk -> chunk.forEach(userService::delete));
+        ctx, "players", userIdsToDelete, chunk -> chunk.forEach(userService::delete));
   }
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {

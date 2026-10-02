@@ -1,0 +1,81 @@
+{
+  "attributes" : {
+    "cores" : {
+      "type" : "integer_t",
+      "description" : "The number of processing cores or compute units for the component.",
+      "requirement" : "optional",
+      "caption" : "Cores",
+      "type_name" : "Integer"
+    },
+    "cpu_architecture" : {
+      "type" : "string_t",
+      "description" : "The CPU architecture, normalized to the caption of the <code>cpu_architecture_id</code> value. In the case of <code>Other</code>, it is defined by the source.",
+      "requirement" : "optional",
+      "caption" : "CPU Architecture",
+      "type_name" : "String"
+    },
+    "cpu_architecture_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "CPU uses the RISC-V ISA. For bitness, refer to <code>cpu_bits</code>.",
+          "caption" : "RISC-V"
+        },
+        "0" : {
+          "description" : "The CPU architecture is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "CPU uses the x86 ISA. For bitness, refer to <code>cpu_bits</code>.",
+          "caption" : "x86"
+        },
+        "2" : {
+          "description" : "CPU uses the ARM ISA. For bitness, refer to <code>cpu_bits</code>.",
+          "caption" : "ARM"
+        },
+        "99" : {
+          "description" : "The CPU architecture is not mapped. See the <code>cpu_architecture</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized identifier of the CPU architecture.",
+      "requirement" : "optional",
+      "caption" : "CPU Architecture ID",
+      "sibling" : "cpu_architecture",
+      "type_name" : "Integer"
+    },
+    "cpu_bits" : {
+      "type" : "integer_t",
+      "description" : "The number of bits used by the CPU for memory addressing.",
+      "requirement" : "optional",
+      "caption" : "CPU Bits",
+      "type_name" : "Integer"
+    },
+    "model" : {
+      "type" : "string_t",
+      "description" : "The model name of the CPU. For example: <code>Intel Xeon Gold 6348</code>, <code>AMD EPYC 7763</code>, or <code>Apple M3 Max</code>.",
+      "requirement" : "recommended",
+      "caption" : "Model",
+      "type_name" : "String"
+    },
+    "speed_mhz" : {
+      "type" : "integer_t",
+      "description" : "The nominal clock speed of the unit, expressed in megahertz.",
+      "requirement" : "optional",
+      "caption" : "Compute Unit Speed (MHz)",
+      "type_name" : "Integer"
+    },
+    "vendor_name" : {
+      "type" : "string_t",
+      "description" : "The name of the vendor of the CPU. For example: <code>Intel</code>, <code>AMD</code>, or <code>Apple</code>.",
+      "requirement" : "recommended",
+      "caption" : "Vendor Name",
+      "type_name" : "String"
+    }
+  },
+  "name" : "cpu_info",
+  "description" : "The CPU information object contains attributes describing a physical CPU package installed in the device.",
+  "extends" : "object",
+  "caption" : "CPU Information",
+  "_links" : [ ]
+}

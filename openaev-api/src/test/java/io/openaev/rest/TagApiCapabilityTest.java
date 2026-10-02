@@ -143,7 +143,9 @@ public class TagApiCapabilityTest extends IntegrationTest {
   class CreatePermissions {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TAGS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_TAGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given MANAGE_TAGS, should create a tag")
     void given_manageTags_should_createTag() throws Exception {
       // -------- Arrange --------

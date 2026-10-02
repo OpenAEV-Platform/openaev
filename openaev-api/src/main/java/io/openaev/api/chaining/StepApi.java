@@ -1,6 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
 import static io.openaev.api.chaining.StepMapper.toOutput;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
@@ -8,6 +7,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Workflow;
@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Step API", description = "CRUD operations for workflow step templates")
 public class StepApi {
 
-  public static final String TENANT_STEP_URI = TENANT_PREFIX + CHAINING_URI + "/steps";
+  public static final String TENANT_STEP_URI = TENANT_PREFIX + "/steps";
 
   private final StepService stepService;
   private final WorkflowService workflowService;
@@ -52,7 +52,8 @@ public class StepApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional(rollbackFor = Exception.class)
-  public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
+  public StepOutput createStep(TxCtx ctx, @Valid @RequestBody StepInput input)
+      throws ChainingException {
     StepsCreateInput.StepInput createInput =
         StepsCreateInput.StepInput.builder()
             .stepAction(input.getStepAction())
@@ -80,7 +81,7 @@ public class StepApi {
       resourceType = ResourceType.STEP,
       isEnterpriseEdition = true)
   @GetMapping("/{stepId}")
-  public StepOutput findById(@PathVariable String stepId) {
+  public StepOutput findById(TxCtx ctx, @PathVariable String stepId) {
     return toOutput(stepService.findStepTemplateById(stepId));
   }
 
@@ -93,7 +94,8 @@ public class StepApi {
       resourceType = ResourceType.WORKFLOW,
       isEnterpriseEdition = true)
   @GetMapping(params = "workflow_id")
-  public List<StepOutput> findByWorkflowId(@RequestParam("workflow_id") String workflowId) {
+  public List<StepOutput> findByWorkflowId(
+      TxCtx ctx, @RequestParam("workflow_id") String workflowId) {
     return stepService.findAllStepTemplateByWorkflow(workflowId).stream()
         .map(StepMapper::toOutput)
         .toList();
@@ -114,7 +116,8 @@ public class StepApi {
       isEnterpriseEdition = true)
   @PutMapping("/{stepId}")
   @Transactional(rollbackFor = Exception.class)
-  public StepOutput updateStep(@PathVariable String stepId, @Valid @RequestBody StepInput input)
+  public StepOutput updateStep(
+      TxCtx ctx, @PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
     return toOutput(stepService.updateStepTemplate(stepId, input));
   }
@@ -134,7 +137,7 @@ public class StepApi {
   @DeleteMapping("/{stepId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void deleteStep(@PathVariable String stepId) {
+  public void deleteStep(TxCtx ctx, @PathVariable String stepId) {
     stepService.deleteStepTemplate(stepId);
   }
 }

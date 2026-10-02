@@ -10,7 +10,6 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
-import co.elastic.clients.util.TriConsumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,6 +52,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.TriVoid;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -185,13 +185,12 @@ public class InjectorContractService implements DependenciesManager {
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
       @NotNull final Pageable pageable,
-      @NotNull
-          TriConsumer<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector) {
+      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector) {
     CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
     Root<InjectorContract> injectorContractRoot = cq.from(InjectorContract.class);
-    selector.accept(cb, cq, injectorContractRoot);
+    selector.apply(cb, cq, injectorContractRoot);
 
     // Always apply access spec
     Specification<InjectorContract> accessSpec =
@@ -668,7 +667,7 @@ public class InjectorContractService implements DependenciesManager {
 
   // -- CRITERIA BUILDER --
   private record OutputModeConfig(
-      TriConsumer<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector,
+      TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector,
       Function<Tuple, ? extends InjectorContractBaseOutput> mapper) {}
 
   /** Maps each output mode to its criteria selector and tuple mapper. */
@@ -886,6 +885,16 @@ public class InjectorContractService implements DependenciesManager {
    * injector type and name). Grouping by the unselected injector id would split a contract linked
    * to several injectors into one identical projected row per link, making page content disagree
    * with the distinct count.
+   *
+   * <p>{@code payloads} and {@code collector_types} are both tenant-active tables, so {@code
+   * TenantStatementInspector} wraps each joined table in a filtered derived table. A derived table
+   * carries no primary key, so PostgreSQL cannot infer that a projected column is functionally
+   * dependent on the grouped {@code id} the way it can for a real base table; every column a
+   * selector projects off either join (FULL, THREAT_ARSENAL, THREAT_ARSENAL_CONTENT) must be
+   * grouped explicitly or the statement fails with "column must appear in the GROUP BY clause".
+   * That is why the list below groups the three {@code payloads} columns and {@code
+   * collector_types.name} on top of the two ids: dropping any one of them turns {@code
+   * injector_contracts/search} and {@code threat_arsenals/search} into a 500.
    */
   private List<Expression<?>> getCommonGroupBy(
       @NotNull final Root<InjectorContract> injectorContractRoot,
@@ -893,7 +902,11 @@ public class InjectorContractService implements DependenciesManager {
     return Arrays.asList(
         injectorContractRoot.get("compositeId"),
         ctx.payloadJoin().get("id"),
-        ctx.payloadCollectorTypeJoin().get("id"));
+        ctx.payloadJoin().get("type"),
+        ctx.payloadJoin().get("status"),
+        ctx.payloadJoin().get("executionArch"),
+        ctx.payloadCollectorTypeJoin().get("id"),
+        ctx.payloadCollectorTypeJoin().get("name"));
   }
 
   /**

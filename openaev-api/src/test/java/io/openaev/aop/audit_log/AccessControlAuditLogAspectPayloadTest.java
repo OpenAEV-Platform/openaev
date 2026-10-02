@@ -92,7 +92,10 @@ class AccessControlAuditLogAspectPayloadTest {
 
   @BeforeEach
   void setup() {
-    aspect = new AccessControlAuditLogAspect(auditLogger, new ObjectMapper());
+    ObjectMapper objectMapper = new ObjectMapper();
+    aspect =
+        new AccessControlAuditLogAspect(
+            auditLogger, objectMapper, new AuditObjectMapper(objectMapper));
 
     inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
     signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);

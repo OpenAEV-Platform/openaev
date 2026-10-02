@@ -157,7 +157,7 @@ WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
 
 | Diagram Element | Code Implementation |
 |---|---|
-| Creation of Simulation | `ChainingApi.createSimulation()` / `createScenarioChaining()` |
+| Creation of Scenario / Simulation | `ScenarioApi.createScenario()` / `ExerciseApi.createExercise()` |
 | Creation of Step Template | `StepService.createStepTemplate()` |
 | Creation of Workflow Template/RUN | `WorkflowService` (status TEMPLATE → RUN) |
 | Conditions Event Valid? | `ConditionUtils` evaluation against event conditions |
@@ -222,7 +222,8 @@ WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
 
 ```
 io.openaev.api.chaining/              ← API layer (controllers, mappers, DTOs)
-  ├── ChainingApi.java                ← Main REST: create simulation/scenario for chaining, findAll
+  ├── ScenarioApi.java                ← Create/duplicate scenarios
+  ├── ExerciseApi.java                ← Create/duplicate simulations
   ├── StepApi.java                    ← CRUD for step templates (scoped to workflow)
   ├── ConditionApi.java               ← CRUD for condition trees (event payload → conditions)
   ├── WorkflowApi.java                ← Workflow configuration + valid assets
@@ -315,7 +316,7 @@ io.openaev.database.repository/
 
 ```
 openaev-front/src/actions/chaining/
-  ├── chaining-actions.ts             ← API calls: fetchChaining, CRUD steps/conditions
+  ├── chaining-actions.ts             ← API calls: CRUD steps/conditions
   ├── workflow-actions.ts             ← API calls: workflow configuration, valid assets
   ├── workflow-schema.ts              ← Zod schemas for workflow configuration
   └── workflow-helper.d.ts            ← TypeScript type declarations
@@ -450,9 +451,8 @@ openaev-front/src/components/common/chaining/
 
 | Controller | Base Path | Description |
 |---|---|---|
-| `ChainingApi` | `/{tenant}/chaining` | Main chaining: findAll, create simulation/scenario, duplicate |
-| `StepApi` | `/{tenant}/chaining/steps` | CRUD step templates |
-| `ConditionApi` | `/{tenant}/chaining/conditions` | CRUD condition trees |
+| `StepApi` | `/{tenant}/steps` | CRUD step templates |
+| `ConditionApi` | `/{tenant}/conditions` | CRUD condition trees |
 | `WorkflowApi` | `/{tenant}/workflows` | Workflow configuration, valid assets |
 
 All endpoints use `@AccessControl` with appropriate `Action` and `ResourceType`.

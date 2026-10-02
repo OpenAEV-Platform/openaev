@@ -85,26 +85,36 @@ class ScenarioInjectApiTest extends IntegrationTest {
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");
     scenario.setReplyTos(List.of("test@test.com"));
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
+    // class-wide fixture names the default tenant explicitly rather than relying on it.
+    scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     SCENARIO = scenarioService.createScenario(scenario);
 
-    ATTACKPATTERN = attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+    AttackPattern attackPattern = AttackPatternFixture.createDefaultAttackPattern();
+    attackPattern.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    ATTACKPATTERN = attackPatternRepository.save(attackPattern);
     LINUX_X86_64 =
         endpointService.createEndpoint(
-            EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64));
+            EndpointFixture.createDefaultLinuxEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64),
+            Tenant.DEFAULT_TENANT_UUID);
     WINDOWS_X86_64 =
         endpointService.createEndpoint(
-            EndpointFixture.createDefaultWindowsEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64));
+            EndpointFixture.createDefaultWindowsEndpointWithArch(Endpoint.PLATFORM_ARCH.x86_64),
+            Tenant.DEFAULT_TENANT_UUID);
     WINDOWS_ARM64 =
         endpointService.createEndpoint(
-            EndpointFixture.createDefaultWindowsEndpointWithArch(Endpoint.PLATFORM_ARCH.arm64));
+            EndpointFixture.createDefaultWindowsEndpointWithArch(Endpoint.PLATFORM_ARCH.arm64),
+            Tenant.DEFAULT_TENANT_UUID);
     ALL_ASSETGROUP =
         assetGroupService.createAssetGroup(
             AssetGroupFixture.createAssetGroupWithAssets(
-                "all", List.of(LINUX_X86_64, WINDOWS_ARM64, WINDOWS_X86_64)));
+                "all", List.of(LINUX_X86_64, WINDOWS_ARM64, WINDOWS_X86_64)),
+            Tenant.DEFAULT_TENANT_UUID);
     ALL_WINDOWS =
         assetGroupService.createAssetGroup(
             AssetGroupFixture.createAssetGroupWithAssets(
-                "all", List.of(WINDOWS_ARM64, WINDOWS_X86_64)));
+                "all", List.of(WINDOWS_ARM64, WINDOWS_X86_64)),
+            Tenant.DEFAULT_TENANT_UUID);
   }
 
   @AfterAll

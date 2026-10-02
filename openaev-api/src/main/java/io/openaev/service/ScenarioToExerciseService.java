@@ -183,6 +183,7 @@ public class ScenarioToExerciseService {
 
     // Lessons
     exercise.setLessonsAnonymized(scenario.isLessonsAnonymized());
+    exercise.setLessonsEnabled(scenario.isLessonsEnabled());
 
     // Lessons categories
     List<LessonsCategory> scenarioLessonCategories = scenario.getLessonsCategories();

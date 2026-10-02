@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import { TIMEOUT } from '../../utils/constants';
 
@@ -14,6 +14,10 @@ class TenantSwitcherComponent {
     return this.page.getByTestId('tenant-switcher');
   }
 
+  get switcherPopover() {
+    return this.page.getByTestId('tenant-switcher-popover');
+  }
+
   /**
    * Opens the tenant-switcher popover by clicking the icon-based menu item.
    * Works regardless of whether the left bar is expanded or collapsed.
@@ -22,13 +26,25 @@ class TenantSwitcherComponent {
     const switcher = this.switcher;
 
     await switcher.waitFor({
+      state: 'attached',
+      timeout: TIMEOUT,
+    });
+    await switcher.waitFor({
       state: 'visible',
       timeout: TIMEOUT,
     });
-    await switcher.click();
 
-    await this.page.locator('.MuiPopover-root').last().waitFor({
-      state: 'visible',
+    await expect(async () => {
+      if (await this.switcherPopover.isVisible().catch(() => false)) {
+        return;
+      }
+      await switcher.click();
+      await this.switcherPopover.waitFor({
+        state: 'visible',
+        timeout: TIMEOUT,
+      });
+    }).toPass({
+      intervals: [200, 500, 1_000],
       timeout: TIMEOUT,
     });
   }
@@ -38,14 +54,14 @@ class TenantSwitcherComponent {
    * Call {@link openSwitcher} first to open the popover.
    */
   get popoverTenantItems() {
-    return this.page.locator('.MuiPopover-root').last().getByRole('menuitem');
+    return this.switcherPopover.getByRole('menuitem');
   }
 
   /**
    * Clicks a specific tenant by name from the open switcher popover.
    */
   async selectTenantByName(tenantName: string): Promise<void> {
-    const popover = this.page.locator('.MuiPopover-root').last();
+    const popover = this.switcherPopover;
     await popover.waitFor({ state: 'visible' });
     await popover.getByRole('menuitem').filter({ hasText: tenantName }).click();
   }

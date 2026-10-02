@@ -3,6 +3,7 @@ package io.openaev.search;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Base;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -31,7 +32,7 @@ public class FullTextSearchApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public Map<? extends Class<? extends Base>, FullTextSearchService.FullTextSearchCountResult>
-      fullTextSearch(@Valid @RequestBody final SearchTerm searchTerm) {
+      fullTextSearch(TxCtx ctx, @Valid @RequestBody final SearchTerm searchTerm) {
     return this.fullTextSearchService.fullTextSearch(searchTerm.getSearchTerm());
   }
 
@@ -39,6 +40,7 @@ public class FullTextSearchApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public Page<FullTextSearchService.FullTextSearchResult> fullTextSearch(
+      TxCtx ctx,
       @PathVariable @NotBlank final String clazz,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput)
       throws ClassNotFoundException {

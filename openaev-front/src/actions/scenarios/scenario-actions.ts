@@ -88,6 +88,25 @@ export const exportScenarioUri = (scenarioId: Scenario['scenario_id'], exportTea
   return buildTenantApiPath(`${SCENARIO_URI}/${scenarioId}/export?isWithTeams=${exportTeams}&isWithPlayers=${exportPlayers}&isWithVariableValues=${exportVariableValues}&isWithScopeDefinition=${exportScopeDefinition}`);
 };
 
+export const exportScenario = (
+  scenarioId: Scenario['scenario_id'],
+  exportTeams: boolean,
+  exportPlayers: boolean,
+  exportVariableValues: boolean,
+  exportScopeDefinition: boolean,
+) => {
+  return simpleCall(exportScenarioUri(
+    scenarioId,
+    exportTeams,
+    exportPlayers,
+    exportVariableValues,
+    exportScopeDefinition,
+  ), {
+    headers: { Accept: 'application/zip' },
+    responseType: 'blob',
+  });
+};
+
 export const importScenario = (formData: FormData) => (dispatch: Dispatch) => {
   const uri = `${SCENARIO_URI}/import`;
   return postReferential(null, uri, formData)(dispatch);

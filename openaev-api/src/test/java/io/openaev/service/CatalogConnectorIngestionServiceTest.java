@@ -7,12 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ConnectorType;
-import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.service.catalog_connectors.CatalogConnectorIngestionService;
-import io.openaev.service.catalog_connectors.CatalogConnectorService;
-import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,56 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Catalog connectors process tests")
 @Transactional
 public class CatalogConnectorIngestionServiceTest {
-  @Autowired private CatalogConnectorService catalogConnectorService;
-  @Autowired private FileService fileService;
   @Autowired private CatalogConnectorIngestionService catalogConnectorIngestionService;
-  @Autowired private ConnectorInstanceService connectorInstanceService;
-
-  @Autowired
-  private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
-
-  @Test
-  @DisplayName("Should run ingestion catalog")
-  public void shouldRunIngestionCatalog() throws Exception {
-    String mockJson =
-        """
-                        {
-                          "id": "filigran-catalog-id",
-                          "name": "OpenAEV catalog",
-                          "version": "rolling",
-                          "contracts": [
-                            {
-                              "title": "contract1",
-                              "slug": "contract-slug",
-                              "description": "contract description",
-                              "short_description": "contract short description",
-                              "logo": "data:image/png;base64,xxx",
-                              "use_cases": ["UC1", "UC2"],
-                              "verified": true,
-                              "last_verified_date": null,
-                              "playbook_supported": false,
-                              "max_confidence_level": 50,
-                              "support_version": ">=5.5.4",
-                              "subscription_link": null,
-                              "source_code": "https://github.com/xxx",
-                              "manager_supported": false,
-                              "container_version": "rolling",
-                              "container_image": "openaev/connector-cpe",
-                              "container_type": "COLLECTOR"
-                            }
-                          ]
-                        }
-                        """;
-
-    ObjectMapper mapper = new ObjectMapper();
-
-    JsonNode root = mapper.readTree(mockJson);
-
-    List<CatalogConnector> result = catalogConnectorIngestionService.extractCatalog(root);
-
-    assertThat(result).isNotEmpty();
-    assertThat(result).hasSize(1);
-  }
 
   @Test
   @DisplayName("Should upload and return logo name when base64 is valid")
@@ -91,12 +38,7 @@ public class CatalogConnectorIngestionServiceTest {
 
     JsonNode contract = new ObjectMapper().readTree(json);
 
-    CatalogConnectorIngestionService ingestion =
-        new CatalogConnectorIngestionService(
-            catalogConnectorService,
-            fileService,
-            connectorInstanceService,
-            connectorInstanceConfigurationRepository);
+    CatalogConnectorIngestionService ingestion = catalogConnectorIngestionService;
 
     CatalogConnector connector = ingestion.buildCatalogConnector(contract);
 
@@ -119,12 +61,7 @@ public class CatalogConnectorIngestionServiceTest {
 
     JsonNode contract = new ObjectMapper().readTree(json);
 
-    CatalogConnectorIngestionService ingestion =
-        new CatalogConnectorIngestionService(
-            catalogConnectorService,
-            fileService,
-            connectorInstanceService,
-            connectorInstanceConfigurationRepository);
+    CatalogConnectorIngestionService ingestion = catalogConnectorIngestionService;
 
     CatalogConnector connector = ingestion.buildCatalogConnector(contract);
 
@@ -158,12 +95,7 @@ public class CatalogConnectorIngestionServiceTest {
                         """;
     JsonNode contract = new ObjectMapper().readTree(json);
 
-    CatalogConnectorIngestionService ingestion =
-        new CatalogConnectorIngestionService(
-            catalogConnectorService,
-            fileService,
-            connectorInstanceService,
-            connectorInstanceConfigurationRepository);
+    CatalogConnectorIngestionService ingestion = catalogConnectorIngestionService;
 
     CatalogConnector connector = ingestion.buildCatalogConnector(contract);
 
@@ -192,12 +124,7 @@ public class CatalogConnectorIngestionServiceTest {
                         """;
     JsonNode contract = new ObjectMapper().readTree(json);
 
-    CatalogConnectorIngestionService ingestion =
-        new CatalogConnectorIngestionService(
-            catalogConnectorService,
-            fileService,
-            connectorInstanceService,
-            connectorInstanceConfigurationRepository);
+    CatalogConnectorIngestionService ingestion = catalogConnectorIngestionService;
 
     CatalogConnector connector = ingestion.buildCatalogConnector(contract);
 
@@ -218,12 +145,7 @@ public class CatalogConnectorIngestionServiceTest {
 
     JsonNode contract = new ObjectMapper().readTree(json);
 
-    CatalogConnectorIngestionService ingestion =
-        new CatalogConnectorIngestionService(
-            catalogConnectorService,
-            fileService,
-            connectorInstanceService,
-            connectorInstanceConfigurationRepository);
+    CatalogConnectorIngestionService ingestion = catalogConnectorIngestionService;
 
     CatalogConnector connector = ingestion.buildCatalogConnector(contract);
 
@@ -247,12 +169,7 @@ public class CatalogConnectorIngestionServiceTest {
 
     connector.setCatalogConnectorConfigurations(new HashSet<>());
 
-    CatalogConnectorIngestionService ingestion =
-        new CatalogConnectorIngestionService(
-            catalogConnectorService,
-            fileService,
-            connectorInstanceService,
-            connectorInstanceConfigurationRepository);
+    CatalogConnectorIngestionService ingestion = catalogConnectorIngestionService;
 
     Set<CatalogConnectorConfiguration> result =
         ingestion.buildConnectorConfigurations(contract, connector);
@@ -280,12 +197,7 @@ public class CatalogConnectorIngestionServiceTest {
 
     connector.setCatalogConnectorConfigurations(new HashSet<>());
 
-    CatalogConnectorIngestionService ingestion =
-        new CatalogConnectorIngestionService(
-            catalogConnectorService,
-            fileService,
-            connectorInstanceService,
-            connectorInstanceConfigurationRepository);
+    CatalogConnectorIngestionService ingestion = catalogConnectorIngestionService;
 
     Set<CatalogConnectorConfiguration> result =
         ingestion.buildConnectorConfigurations(contract, connector);
@@ -323,12 +235,7 @@ public class CatalogConnectorIngestionServiceTest {
 
     connector.setCatalogConnectorConfigurations(new HashSet<>());
 
-    CatalogConnectorIngestionService ingestion =
-        new CatalogConnectorIngestionService(
-            catalogConnectorService,
-            fileService,
-            connectorInstanceService,
-            connectorInstanceConfigurationRepository);
+    CatalogConnectorIngestionService ingestion = catalogConnectorIngestionService;
 
     Set<CatalogConnectorConfiguration> result =
         ingestion.buildConnectorConfigurations(contract, connector);

@@ -11,6 +11,7 @@ import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -74,7 +75,7 @@ class EndpointServiceTest {
       when(endpointRepository.save(endpoint)).thenReturn(endpoint);
 
       // -------- Act --------
-      Endpoint result = endpointService.createEndpoint(endpoint);
+      Endpoint result = endpointService.createEndpoint(endpoint, Tenant.DEFAULT_TENANT_UUID);
 
       // -------- Assert --------
       assertNotNull(result);
@@ -102,7 +103,7 @@ class EndpointServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // -------- Act --------
-      Endpoint result = endpointService.createEndpoint(input);
+      Endpoint result = endpointService.createEndpoint(input, Tenant.DEFAULT_TENANT_UUID);
 
       // -------- Assert --------
       assertNotNull(result);

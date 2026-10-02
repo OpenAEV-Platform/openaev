@@ -154,6 +154,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
             List.of(),
             inject.getAssets(),
             inject.getAssetGroups(),
+            List.of(),
             List.of());
     Execution execution = new Execution(executableInject.isRuntime());
 
@@ -227,6 +228,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
             List.of(),
             inject.getAssets(),
             inject.getAssetGroups(),
+            List.of(),
             List.of());
     Execution execution = new Execution(executableInject.isRuntime());
 

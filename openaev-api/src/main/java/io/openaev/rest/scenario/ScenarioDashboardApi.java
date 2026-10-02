@@ -4,6 +4,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -45,7 +46,8 @@ public class ScenarioDashboardApi {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public ResponseEntity<CustomDashboard> dashboard(@PathVariable final String scenarioId) {
+  public ResponseEntity<CustomDashboard> dashboard(
+      TxCtx ctx, @PathVariable final String scenarioId) {
     return ResponseEntity.ok(
         this.customDashboardService.findCustomDashboardByResourceId(scenarioId));
   }
@@ -60,10 +62,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsCountInterval dashboardCount(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardCountOnResourceId(scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardCountOnResourceId(
+        ctx, scenarioId, widgetId, parameters);
   }
 
   @PostMapping({
@@ -76,11 +80,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsAvgs dashboardAverage(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.customDashboardService.dashboardAverageOnResourceId(
-        scenarioId, widgetId, parameters);
+        ctx, scenarioId, widgetId, parameters);
   }
 
   @PostMapping({
@@ -93,11 +98,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public List<EsSeries> dashboardSeries(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.customDashboardService.dashboardSeriesOnResourceId(
-        scenarioId, widgetId, parameters);
+        ctx, scenarioId, widgetId, parameters);
   }
 
   @PostMapping({
@@ -110,10 +116,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsEntities dashboardEntities(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody EntitiesPaginationInput input) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(scenarioId, widgetId, input);
+    return this.customDashboardService.dashboardEntitiesOnResourceId(
+        ctx, scenarioId, widgetId, input);
   }
 
   @PostMapping({
@@ -126,11 +134,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
     return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
-        scenarioId, widgetId, input);
+        ctx, scenarioId, widgetId, input);
   }
 
   @PostMapping({
@@ -144,11 +153,12 @@ public class ScenarioDashboardApi {
       resourceType = ResourceType.SCENARIO)
   @Operation(summary = "Search TagRules")
   public List<EsAttackPath> dashboardAttackPaths(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
     return this.customDashboardService.dashboardAttackPathsOnResourceId(
-        scenarioId, widgetId, parameters);
+        ctx, scenarioId, widgetId, parameters);
   }
 }

@@ -44,6 +44,11 @@ public abstract class SecretsProvider extends BaseConnectorEntity implements Ten
         "Retrieve secret main information is not supported for this provider");
   }
 
+  public SecretResolvedValue getResolvedSecret(@NotNull SecretReference secretReference) {
+    throw new UnsupportedOperationException(
+        "Retrieve resolved secret is not supported for this provider");
+  }
+
   public SecretReference store(
       @NotNull SecretReference secretReference, @NotNull SecretStoreRequest request) {
     throw new UnsupportedOperationException(

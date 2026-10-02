@@ -3,6 +3,7 @@ package io.openaev.aop.audit_log;
 import static io.openaev.aop.audit_log.AuditLogTestHelper.setupFileAppender;
 import static io.openaev.aop.audit_log.AuditLogTestHelper.teardownFileAppender;
 import static io.openaev.rest.team.TeamApi.TEAM_URI;
+import static io.openaev.rest.user.MeApi.ME_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -11,10 +12,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
@@ -23,9 +26,11 @@ import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.rest.user.form.login.LoginUserInput;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -64,6 +69,8 @@ class AuditLoggerTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private TeamRepository teamRepository;
   @Autowired private AuditLogger auditLogger;
+  @Autowired private UserService userService;
+  @Autowired private TestUserHolder testUserHolder;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @MockitoBean private PreviewFeatureService previewFeatureService;
@@ -241,6 +248,50 @@ class AuditLoggerTest extends IntegrationTest {
       throws Exception {
     AuditLogTestHelper.assertAuditLogDoesNotContainNewContent(
         AUDIT_LOG_FILE, sizeBefore, unexpectedSnippet);
+  }
+
+  @Nested
+  @DisplayName("Token renewal endpoint")
+  class TokenRenewalEndpoint {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a token renewal should audit both the deletion and the creation")
+    void given_tokenRenewal_should_logDeletionAndCreationEvents() throws Exception {
+      // Arrange — renewing hard-deletes the row and issues a new one, so the rotation must stay
+      // reconstructable from the audit trail alone.
+      Token previousToken =
+          userService.createUserToken(testUserHolder.get(), UUID.randomUUID().toString());
+      String previousTokenId = previousToken.getId();
+      long sizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(ME_URI + "/token/refresh")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content("{\"token_id\":\"" + previousTokenId + "\"}")
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String renewedTokenId = JsonPath.read(response, "$.token_id");
+      assertThat(renewedTokenId).isNotEqualTo(previousTokenId);
+
+      String auditLog =
+          AuditLogTestHelper.assertAuditLogContainsNewContent(
+              AUDIT_LOG_FILE, sizeBefore, "User token deleted", "User token created");
+      assertThat(auditLog).contains("\"event_scope\" : \"delete\"");
+      assertThat(auditLog).contains("\"event_scope\" : \"create\"");
+      // The revoked token is traceable by id...
+      assertThat(auditLog).contains(previousTokenId);
+      assertThat(auditLog).contains(renewedTokenId);
+      // ...but its secret value must never reach the audit trail.
+      assertThat(auditLog).doesNotContain(previousToken.getValue());
+    }
   }
 
   @Nested

@@ -6,7 +6,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
@@ -44,22 +43,15 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
 
   @MockitoBean private XtmHubClient xtmHubClient;
 
-  // Tracks registrationId → tenantId so cleanup can switch to the right context per row.
+  // Tracks registrationId → tenantId so cleanup can delete committed rows by tenant_id.
   private final Map<String, String> createdRegistrationIdToTenantId = new LinkedHashMap<>();
   private final List<String> createdTenantIds = new ArrayList<>();
 
   @AfterEach
   void cleanup() {
-    // Delete each registration while the tenant context matches its tenant_id.
     createdRegistrationIdToTenantId.forEach(
-        (registrationId, tenantId) -> {
-          TenantContext.setCurrentTenant(tenantId);
-          try {
-            tenantXtmHubRegistrationRepository.deleteById(registrationId);
-          } finally {
-            TenantContext.clearCurrentTenant();
-          }
-        });
+        (registrationId, tenantId) ->
+            tenantXtmHubRegistrationRepository.deleteByTenantId(tenantId));
     createdTenantIds.forEach(tenantRepository::deleteById);
     createdRegistrationIdToTenantId.clear();
     createdTenantIds.clear();
@@ -111,16 +103,12 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
   }
 
   private void saveRegistration(String token, Tenant tenant) {
-    TenantContext.setCurrentTenant(tenant.getId());
-    try {
-      TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
-      registration.setToken(token);
-      registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
-      registration.setConnectivityEmailEligible(true);
-      TenantXtmHubRegistration saved = tenantXtmHubRegistrationRepository.save(registration);
-      createdRegistrationIdToTenantId.put(saved.getId(), tenant.getId());
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+    TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
+    registration.setToken(token);
+    registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+    registration.setConnectivityEmailEligible(true);
+    registration.setTenant(tenant);
+    TenantXtmHubRegistration saved = tenantXtmHubRegistrationRepository.save(registration);
+    createdRegistrationIdToTenantId.put(saved.getId(), tenant.getId());
   }
 }

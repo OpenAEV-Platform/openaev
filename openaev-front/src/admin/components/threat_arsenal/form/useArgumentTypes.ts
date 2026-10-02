@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
-import fetchArgumentTypes from '../../../../actions/payloads/payload-argument-actions';
+import usePrimitiveTypeDescriptors from '../../chaining/logic/usePrimitiveTypeDescriptors';
 
 type UseArgumentTypesResult = {
   argumentTypes: string[];
@@ -9,48 +9,22 @@ type UseArgumentTypesResult = {
   error: Error | null;
 };
 
-let argumentTypesPromise: Promise<string[]> | null = null;
-
-const getArgumentTypes = (): Promise<string[]> => {
-  argumentTypesPromise ??= fetchArgumentTypes()
-    .then(data => [...data].sort((a, b) => a.localeCompare(b)))
-    .catch((error) => {
-      argumentTypesPromise = null;
-      throw error;
-    });
-  return argumentTypesPromise;
-};
-
+/**
+ * Primitive types offered as payload argument types.
+ *
+ * Reads the same backend descriptors as the chaining condition editor: both need the exhaustive
+ * list of primitive types, so they share a single memoized fetch instead of two endpoints.
+ */
 const useArgumentTypes = (): UseArgumentTypesResult => {
-  const [argumentTypes, setArgumentTypes] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const { primitiveTypes, isLoading, error } = usePrimitiveTypeDescriptors();
 
-  useEffect(() => {
-    const loadArgumentTypes = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await getArgumentTypes();
-        setArgumentTypes(data);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch argument types'));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void loadArgumentTypes();
-  }, []);
-
-  const argumentWithDefaultValueTypes = useMemo(() => {
-    return new Set(
-      argumentTypes.filter(type => type !== 'targeted-asset'),
-    );
-  }, [argumentTypes]);
+  const argumentWithDefaultValueTypes = useMemo(
+    () => new Set(primitiveTypes.filter(type => type !== 'targeted-asset')),
+    [primitiveTypes],
+  );
 
   return {
-    argumentTypes,
+    argumentTypes: primitiveTypes,
     argumentWithDefaultValueTypes,
     isLoading,
     error,

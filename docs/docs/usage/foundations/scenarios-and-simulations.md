@@ -29,4 +29,5 @@ By running Simulations with recurrence, you can track your security posture over
 - [Scenario](../build/scenario/scenario.md) -- Create and manage Scenarios
 - [Simulation](../evaluate/simulation/simulation.md) -- Run and monitor Simulations
 - [Inject overview](../evaluate/injects/inject-overview.md) -- Define the events in a Scenario
+- [Inject chaining and transfer](../inject-chaining.md) -- Link Injects together with conditions or reuse them across Scenarios and instances
 - [Getting started](../getting-started.md) -- Platform usage overview

@@ -3,12 +3,14 @@ package io.openaev.injectors.phishing.api;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.custom_domain.CustomDomainService;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.injectors.phishing.form.PhishingSubmitInput;
 import io.openaev.injectors.phishing.response.PhishingLandingPageReader;
 import io.openaev.injectors.phishing.service.PhishingTrackingService;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Base64;
 import java.util.Collections;
@@ -31,7 +33,17 @@ import org.springframework.web.bind.annotation.RestController;
  * shape so the address bar and email link read like {@code https://&lt;host&gt;/auth/&lt;token&gt;}
  * rather than exposing the word "phishing" and a duplicated tenant id. Every route is authenticated
  * solely by the opaque, globally-unique per-recipient token: the owning tenant is recovered from
- * the token and set on the {@link TenantContext} before any tenant-filtered work runs.
+ * the token and set on the legacy {@link TenantContext} before any {@code TenantBaseListener}-era
+ * work runs.
+ *
+ * <p>{@code TenantContext} is NOT the v2 {@link TxCtx}: none of these routes carry a {@code
+ * {tenantId}} path segment, so {@code TxCtxArgumentResolver} resolves every {@code ctx} parameter
+ * here to {@link TxCtx#missing()} regardless of {@link #bindTenant}, and the transaction aspect
+ * locks that empty scope for the whole request. A lazy load of {@code phishing_landing_pages} (v2
+ * isolation) must therefore never be touched directly from these methods: {@link #page} and {@link
+ * #submit} resolve it explicitly through {@link PhishingLandingPagePublicLookupService}, scoped to
+ * the one tenant {@link #bindTenant} already recovered from the token - same shape as {@code
+ * domain-check} below, but narrowed to that single tenant since the token already resolved it.
  *
  * <p>Registered under the {@code /api/hosted/**} prefix that {@code AppSecurityConfig} permits and
  * exempts from CSRF. The legacy {@code /api/phishing/tracking/**} endpoints remain for links in
@@ -52,16 +64,20 @@ public class HostedPublicApi extends RestBehavior {
 
   private final PhishingTrackingService phishingTrackingService;
   private final CustomDomainService customDomainService;
+  private final PhishingLandingPagePublicLookupService phishingLandingPageLookupService;
 
   /** Open-tracking pixel embedded (invisibly) in the lure email. */
   @GetMapping(HOSTED_URI + "/o/{token}")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<byte[]> open(@PathVariable String token, HttpServletRequest request) {
-    if (!bindTenant(token)) {
+  public ResponseEntity<byte[]> open(
+      TxCtx ctx, @PathVariable String token, HttpServletRequest request) {
+    Optional<String> tenantId = bindTenant(token);
+    if (tenantId.isEmpty()) {
       return pixelResponse();
     }
-    phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
+    phishingTrackingService.markOpened(
+        TxCtx.forTenant(tenantId.get()), token, clientIp(request), request.getHeader("User-Agent"));
     return pixelResponse();
   }
 
@@ -73,16 +89,28 @@ public class HostedPublicApi extends RestBehavior {
   @GetMapping(HOSTED_URI + "/page/{token}")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public PhishingLandingPageReader page(@PathVariable String token, HttpServletRequest request) {
-    if (!bindTenant(token)) {
+  public PhishingLandingPageReader page(
+      TxCtx ctx, @PathVariable String token, HttpServletRequest request) {
+    Optional<String> tenantId = bindTenant(token);
+    if (tenantId.isEmpty()) {
       return null;
     }
-    PhishingResult result = phishingTrackingService.resolveByToken(token).orElse(null);
-    if (result == null || result.getLandingPage() == null) {
+    TxCtx resolved = TxCtx.forTenant(tenantId.get());
+    PhishingResult result =
+        phishingTrackingService.resolveAndBackfillByToken(resolved, token).orElse(null);
+    if (result == null) {
       return null;
     }
-    phishingTrackingService.markClicked(token, clientIp(request), request.getHeader("User-Agent"));
-    PhishingLandingPage landingPage = result.getLandingPage();
+    // Id-only access on the lazy proxy: never triggers a DB load (same idiom as MonoIdSerializer),
+    // so it is safe to read here even though this request's own scope is TxCtx.missing().
+    String landingPageId = result.getLandingPage() == null ? null : result.getLandingPage().getId();
+    PhishingLandingPage landingPage =
+        phishingLandingPageLookupService.byId(tenantId.get(), landingPageId).orElse(null);
+    if (landingPage == null) {
+      return null;
+    }
+    phishingTrackingService.markClicked(
+        resolved, token, clientIp(request), request.getHeader("User-Agent"));
     return new PhishingLandingPageReader(landingPage);
   }
 
@@ -91,20 +119,31 @@ public class HostedPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public Map<String, String> submit(
+      TxCtx ctx,
       @PathVariable String token,
       @RequestBody PhishingSubmitInput input,
       HttpServletRequest request) {
-    if (!bindTenant(token)) {
+    Optional<String> tenantId = bindTenant(token);
+    if (tenantId.isEmpty()) {
       return Collections.singletonMap("redirect_url", null);
     }
-    Optional<PhishingResult> result =
-        phishingTrackingService.markSubmitted(
-            token, submittedFields(input), clientIp(request), request.getHeader("User-Agent"));
-    String redirectUrl =
-        result
-            .map(PhishingResult::getLandingPage)
-            .map(PhishingLandingPage::getRedirectUrl)
-            .orElse(null);
+    TxCtx resolved = TxCtx.forTenant(tenantId.get());
+    PhishingResult result =
+        phishingTrackingService.resolveAndBackfillByToken(resolved, token).orElse(null);
+    // Id-only access on the lazy proxy: never triggers a DB load (same idiom as MonoIdSerializer),
+    // so it is safe to read here even though this request's own scope is TxCtx.missing().
+    String landingPageId =
+        result == null || result.getLandingPage() == null ? null : result.getLandingPage().getId();
+    PhishingLandingPage landingPage =
+        phishingLandingPageLookupService.byId(tenantId.get(), landingPageId).orElse(null);
+    phishingTrackingService.markSubmitted(
+        resolved,
+        token,
+        submittedFields(input),
+        clientIp(request),
+        request.getHeader("User-Agent"),
+        landingPage);
+    String redirectUrl = landingPage != null ? landingPage.getRedirectUrl() : null;
     return Collections.singletonMap("redirect_url", redirectUrl);
   }
 
@@ -116,16 +155,26 @@ public class HostedPublicApi extends RestBehavior {
   @GetMapping(HOSTED_URI + "/domain-check")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<Void> domainCheck(@RequestParam("domain") String domain) {
+  public ResponseEntity<Void> domainCheck(TxCtx ctx, @RequestParam("domain") String domain) {
     return customDomainService.isHostnameVerified(domain)
         ? ResponseEntity.ok().build()
         : ResponseEntity.notFound().build();
   }
 
-  private boolean bindTenant(final String token) {
+  /**
+   * Resolves the token's owning tenant and sets it on the legacy {@link TenantContext}: some of the
+   * tables the tracking transitions still touch through {@code PhishingTrackingService}
+   * (expectations, findings) are not tenant-active yet and still read that thread-local. The tables
+   * that ARE tenant-active ({@code phishing_results}, {@code phishing_landing_pages}) get their own
+   * scope from the resolved id instead, since {@code TenantContext} does not reach the v2 {@code
+   * app.current_tenants} scope: {@code phishing_results} through the {@link TxCtx} passed
+   * explicitly to the tracking calls, {@code phishing_landing_pages} through {@link
+   * PhishingLandingPagePublicLookupService}.
+   */
+  private Optional<String> bindTenant(final String token) {
     Optional<String> tenantId = phishingTrackingService.resolveTenantIdByToken(token);
     tenantId.ifPresent(TenantContext::setCurrentTenant);
-    return tenantId.isPresent();
+    return tenantId;
   }
 
   private ResponseEntity<byte[]> pixelResponse() {

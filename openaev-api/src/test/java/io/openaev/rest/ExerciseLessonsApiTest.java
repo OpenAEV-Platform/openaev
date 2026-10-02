@@ -16,6 +16,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.LessonsCategory;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.LessonsCategoryRepository;
@@ -81,10 +82,17 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
   }
 
   private LessonsCategory getLessonCategory() {
-    USER = this.userRepository.save(getUser());
-    TEAM = teamRepository.save(getTeam(USER, "My team", false));
-    EXERCISE = this.exerciseService.createExercise(getExercise(List.of(TEAM)));
-    return this.lessonsCategoryRepository.save(getLessonsCategory(EXERCISE, List.of(TEAM)));
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
+    // class-wide fixture names the default tenant explicitly rather than relying on it.
+    TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+    try {
+      USER = this.userRepository.save(getUser());
+      TEAM = teamRepository.save(getTeam(USER, "My team", false));
+      EXERCISE = this.exerciseService.createExercise(getExercise(List.of(TEAM)));
+      return this.lessonsCategoryRepository.save(getLessonsCategory(EXERCISE, List.of(TEAM)));
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   @DisplayName("Send surveys for exercise lessons")

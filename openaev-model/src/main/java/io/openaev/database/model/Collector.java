@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
+import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
@@ -30,7 +32,7 @@ import org.hibernate.annotations.Type;
 @Table(name = "collectors")
 @EntityListeners({ModelBaseListener.class})
 @IdClass(ConnectorCompositeId.class)
-public class Collector extends BaseConnectorEntity implements TenantIdBase {
+public class Collector extends BaseConnectorEntity implements TenantIdBase, AuditStateCapturable {
 
   @Id
   @Column(name = "collector_id")
@@ -78,11 +80,13 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase {
   @Column(name = "collector_created_at")
   @JsonProperty("collector_created_at")
   @NotNull
+  @AuditStateIgnore
   private Instant createdAt = now();
 
   @Column(name = "collector_updated_at")
   @JsonProperty("collector_updated_at")
   @NotNull
+  @AuditStateIgnore
   private Instant updatedAt = now();
 
   @Column(name = "collector_last_execution")
@@ -94,6 +98,7 @@ public class Collector extends BaseConnectorEntity implements TenantIdBase {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "collector_security_platform")
   @JsonProperty("collector_security_platform")
+  @AuditStateIgnore
   private SecurityPlatform securityPlatform;
 
   @JsonProperty("collector_state")

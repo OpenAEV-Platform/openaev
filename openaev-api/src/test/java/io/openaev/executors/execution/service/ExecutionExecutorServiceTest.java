@@ -306,6 +306,7 @@ public class ExecutionExecutorServiceTest {
       Agent agent = AgentFixture.createDefaultAgentSession(executor);
       agent.setAsset(endpoint);
       agent.setLastSeen(Instant.now());
+      agent.setStatus(AgentStatus.ACTIVE);
       endpoint.setAgents(List.of(agent));
 
       Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
@@ -515,12 +516,14 @@ public class ExecutionExecutorServiceTest {
       Agent agent1 = AgentFixture.createDefaultAgentSession(executor1);
       agent1.setAsset(endpoint1);
       agent1.setLastSeen(Instant.now());
+      agent1.setStatus(AgentStatus.ACTIVE);
 
       Endpoint endpoint2 = EndpointFixture.createEndpoint();
       endpoint2.setId("endpoint-2");
       Agent agent2 = AgentFixture.createDefaultAgentSession(executor2);
       agent2.setAsset(endpoint2);
       agent2.setLastSeen(Instant.now());
+      agent2.setStatus(AgentStatus.ACTIVE);
 
       Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
       Injector injector = InjectorFixture.createDefaultPayloadInjector();

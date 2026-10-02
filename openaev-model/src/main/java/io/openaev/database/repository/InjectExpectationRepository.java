@@ -247,17 +247,22 @@ public interface InjectExpectationRepository
       @Param("exerciseId") @NotBlank final String exerciseId,
       @Param("injectId") @NotBlank final String injectId);
 
+  // JOIN FETCH i.challenge: challenge is now v2-active, and ChallengeService reads/mutates
+  // (setVirtualPublication, getMaxAttempts) the returned challenge in-session. Left as a plain
+  // LAZY nav, the setter call would force a second, separate SELECT on challenges outside this
+  // query's own tenant-scoped read shape. Fetching it here keeps the challenge scoped by the same
+  // statement the inspector already rewrites, instead of an unguarded later proxy initialization.
   @Query(
       value =
-          "select i from InjectExpectation i where i.exercise.id = :exerciseId "
+          "select i from InjectExpectation i JOIN FETCH i.challenge where i.exercise.id = :exerciseId "
               + "and i.type = 'CHALLENGE' and i.user.id = :userId ")
   List<ChallengeInjectExpectation> findChallengeExpectationsByExerciseAndUser(
       @Param("exerciseId") String exerciseId, @Param("userId") String userId);
 
   @Query(
       value =
-          "select i from InjectExpectation i where i.user.id = :userId and i.exercise.id = :exerciseId "
-              + "and i.challenge.id = :challengeId and i.type = 'CHALLENGE' ")
+          "select i from InjectExpectation i JOIN FETCH i.challenge where i.user.id = :userId "
+              + "and i.exercise.id = :exerciseId and i.challenge.id = :challengeId and i.type = 'CHALLENGE' ")
   List<ChallengeInjectExpectation> findByUserAndExerciseAndChallenge(
       @Param("userId") String userId,
       @Param("exerciseId") String exerciseId,

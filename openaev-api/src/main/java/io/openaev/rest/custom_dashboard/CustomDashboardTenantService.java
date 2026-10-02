@@ -2,6 +2,7 @@ package io.openaev.rest.custom_dashboard;
 
 import static io.openaev.config.SessionHelper.currentUser;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.CustomDashboardRepository;
@@ -20,11 +21,26 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+/**
+ * Home dashboard queries for a tenant.
+ *
+ * <p>The methods below take both a {@code tenantId} and a {@link TxCtx}, which reads as a duplicate
+ * and is not. {@code tenantId} comes from the request path and says WHOSE home dashboard is being
+ * asked for, so it selects the dashboard definition. {@code TxCtx} is the caller's resolved scope
+ * and says WHICH ROWS may be read when the widgets are evaluated. On the current routes the two
+ * name the same tenant, which is why they look interchangeable.
+ *
+ * <p>They are kept apart on purpose. A scope can hold several tenants, so deriving the id from it
+ * would mean picking one and guessing when there is more than one. A home dashboard aggregated
+ * across tenants is not supported today and would want its own contract rather than this one
+ * stretched.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
@@ -51,51 +67,58 @@ public class CustomDashboardTenantService {
             .filter(StringUtils::hasText)
             // tenant-scoped lookup: a preference set in another tenant must not leak here,
             // it simply falls back to the tenant setting below
-            .flatMap(id -> customDashboardRepository.findByIdAndTenantId(id, tenantId));
+            .flatMap(customDashboardRepository::findById)
+            .map(this::withWidgetsInitialized);
     if (userDashboard.isPresent()) {
       return userDashboard;
     }
     return tenantSettingsService
         .findHomeDashboardId(tenantId)
-        .flatMap(customDashboardRepository::findById);
+        .flatMap(customDashboardRepository::findById)
+        .map(this::withWidgetsInitialized);
   }
 
   // -- HOME DASHBOARD WIDGET QUERIES --
 
   @Transactional(readOnly = true)
   public EsCountInterval homeDashboardCount(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.count(widgetId, parameters);
+    return dashboardService.count(ctx, widgetId, parameters);
   }
 
   @Transactional(readOnly = true)
   public EsAvgs homeDashboardAverage(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.average(widgetId, parameters);
+    return dashboardService.average(ctx, widgetId, parameters);
   }
 
   @Transactional(readOnly = true)
   public List<EsSeries> homeDashboardSeries(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.series(widgetId, parameters);
+    return dashboardService.series(ctx, widgetId, parameters);
   }
 
   @Transactional(readOnly = true)
   public EsEntities homeDashboardEntities(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       @Nullable final EntitiesPaginationInput input) {
     isWidgetInHomeDashboard(tenantId, widgetId);
     return dashboardService.entities(
+        ctx,
         widgetId,
         input == null ? new HashMap<>() : input.getParameters(),
         input == null ? null : input.getPagination());
@@ -103,21 +126,23 @@ public class CustomDashboardTenantService {
 
   @Transactional(readOnly = true)
   public WidgetToEntitiesOutput homeDashboardEntitiesRuntime(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       @NotBlank WidgetToEntitiesInput input) {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.widgetToEntitiesRuntime(widgetId, input);
+    return dashboardService.widgetToEntitiesRuntime(ctx, widgetId, input);
   }
 
   @Transactional(readOnly = true)
   public List<EsAttackPath> homeDashboardAttackPaths(
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
     isWidgetInHomeDashboard(tenantId, widgetId);
-    return dashboardService.attackPaths(widgetId, parameters);
+    return dashboardService.attackPaths(ctx, widgetId, parameters);
   }
 
   // -- PRIVATE HELPERS --
@@ -131,5 +156,10 @@ public class CustomDashboardTenantService {
     if (!found) {
       throw new AccessDeniedException("Access denied");
     }
+  }
+
+  private CustomDashboard withWidgetsInitialized(CustomDashboard customDashboard) {
+    Hibernate.initialize(customDashboard.getWidgets());
+    return customDashboard;
   }
 }

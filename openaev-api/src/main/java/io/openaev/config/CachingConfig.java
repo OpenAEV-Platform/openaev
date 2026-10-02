@@ -1,6 +1,7 @@
 package io.openaev.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.openaev.config.cache.CommitAwareCacheManager;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
@@ -27,7 +28,12 @@ public class CachingConfig {
      */
     CaffeineCacheManager cacheManager =
         new CaffeineCacheManager(
-            "license", "global", "adminUsers", "tenantMembership", "userTenantIds");
+            "license",
+            "global",
+            "adminUsers",
+            "tenantMembership",
+            "userTenantIds",
+            "markingClearance");
 
     cacheManager.setCaffeine(
         Caffeine.newBuilder().expireAfterWrite(Duration.ofDays(1)).maximumSize(100));
@@ -42,7 +48,14 @@ public class CachingConfig {
         "userTenantIds",
         Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
 
-    return cacheManager;
+    // Marking clearance: keyed by userId:tenantId:bypass. The TTL is a backstop, not the
+    // invalidation strategy — a stale clearance is larger than the data justifies, so it fails
+    // OPEN. Every reduction must evict explicitly (see MarkingClearanceCacheManager).
+    cacheManager.registerCustomCache(
+        "markingClearance",
+        Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
+
+    return new CommitAwareCacheManager(cacheManager);
   }
 
   /** Emptying the cache every second to avoid old data on the admin users being persisted */

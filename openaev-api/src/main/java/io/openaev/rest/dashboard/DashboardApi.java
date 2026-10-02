@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.dashboard.dto.AdHocWidgetInput;
 import io.openaev.api.dashboard.dto.AdHocWidgetToEntitiesInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.engine.model.EsSearch;
@@ -39,9 +40,10 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public EsCountInterval count(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.dashboardService.count(widgetId, parameters);
+    return this.dashboardService.count(ctx, widgetId, parameters);
   }
 
   @PostMapping("/average/{widgetId}")
@@ -51,9 +53,10 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public EsAvgs average(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.dashboardService.average(widgetId, parameters);
+    return this.dashboardService.average(ctx, widgetId, parameters);
   }
 
   @PostMapping("/series/{widgetId}")
@@ -63,9 +66,10 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public List<EsSeries> series(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.dashboardService.series(widgetId, parameters);
+    return this.dashboardService.series(ctx, widgetId, parameters);
   }
 
   @PostMapping("/entities/{widgetId}")
@@ -75,9 +79,11 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public EsEntities entities(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) EntitiesPaginationInput input) {
     return this.dashboardService.entities(
+        ctx,
         widgetId,
         input == null ? new HashMap<>() : input.getParameters(),
         input == null ? null : input.getPagination());
@@ -90,8 +96,10 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
-      @PathVariable final String widgetId, @Valid @RequestBody WidgetToEntitiesInput input) {
-    return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
+      TxCtx ctx,
+      @PathVariable final String widgetId,
+      @Valid @RequestBody WidgetToEntitiesInput input) {
+    return this.dashboardService.widgetToEntitiesRuntime(ctx, widgetId, input);
   }
 
   @PostMapping("/attack-paths/{widgetId}")
@@ -101,17 +109,18 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public List<EsAttackPath> attackPaths(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return this.dashboardService.attackPaths(widgetId, parameters);
+    return this.dashboardService.attackPaths(ctx, widgetId, parameters);
   }
 
   @GetMapping("/search/{search}")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
-  public List<EsSearch> search(@PathVariable final String search) {
-    return this.dashboardService.search(search);
+  public List<EsSearch> search(TxCtx ctx, @PathVariable final String search) {
+    return this.dashboardService.search(ctx, search);
   }
 
   // -- AD-HOC (non-persisted) WIDGET QUERIES --
@@ -123,39 +132,41 @@ public class DashboardApi extends RestBehavior {
   @PostMapping("/adhoc/series")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
-  public List<EsSeries> adHocSeries(@Valid @RequestBody AdHocWidgetInput input) {
-    return this.dashboardService.adHocSeries(input.getWidgetConfiguration(), input.getParameters());
+  public List<EsSeries> adHocSeries(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
+    return this.dashboardService.adHocSeries(
+        ctx, input.getWidgetConfiguration(), input.getParameters());
   }
 
   @PostMapping("/adhoc/count")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
-  public EsCountInterval adHocCount(@Valid @RequestBody AdHocWidgetInput input) {
-    return this.dashboardService.adHocCount(input.getWidgetConfiguration(), input.getParameters());
+  public EsCountInterval adHocCount(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
+    return this.dashboardService.adHocCount(
+        ctx, input.getWidgetConfiguration(), input.getParameters());
   }
 
   @PostMapping("/adhoc/average")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
-  public EsAvgs adHocAverage(@Valid @RequestBody AdHocWidgetInput input) {
+  public EsAvgs adHocAverage(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
     return this.dashboardService.adHocAverage(
-        input.getWidgetConfiguration(), input.getParameters());
+        ctx, input.getWidgetConfiguration(), input.getParameters());
   }
 
   @PostMapping("/adhoc/entities")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
-  public EsEntities adHocEntities(@Valid @RequestBody AdHocWidgetInput input) {
+  public EsEntities adHocEntities(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
     return this.dashboardService.adHocEntities(
-        input.getWidgetConfiguration(), input.getParameters(), input.getPagination());
+        ctx, input.getWidgetConfiguration(), input.getParameters(), input.getPagination());
   }
 
   @PostMapping("/adhoc/entities-runtime")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   public WidgetToEntitiesOutput adHocEntitiesRuntime(
-      @Valid @RequestBody AdHocWidgetToEntitiesInput input) {
+      TxCtx ctx, @Valid @RequestBody AdHocWidgetToEntitiesInput input) {
     return this.dashboardService.adHocEntitiesRuntime(
-        input.getWidgetType(), input.getWidgetConfiguration(), input);
+        ctx, input.getWidgetType(), input.getWidgetConfiguration(), input);
   }
 }

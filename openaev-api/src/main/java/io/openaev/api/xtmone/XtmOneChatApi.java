@@ -1,7 +1,9 @@
 package io.openaev.api.xtmone;
 
+import com.fasterxml.jackson.databind.node.NullNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
@@ -42,6 +44,7 @@ public class XtmOneChatApi extends RestBehavior {
       Pattern.compile(
           "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
   private static final Pattern CONVERSATION_ID_PATTERN = FILE_ID_PATTERN;
+  private static final Pattern MESSAGE_ID_PATTERN = FILE_ID_PATTERN;
 
   private static final String REJECT_VERDICT = "reject";
   private static final Set<String> ALLOWED_VERDICTS =
@@ -49,13 +52,16 @@ public class XtmOneChatApi extends RestBehavior {
   private static final int MAX_DECISIONS_PER_REQUEST = 50;
   private static final int MAX_REJECTION_REASON_LENGTH = 2000;
 
+  private static final Set<String> ALLOWED_RATINGS = Set.of("positive", "negative");
+  private static final int MAX_FEEDBACK_COMMENT_LENGTH = 2000;
+
   private final XtmOneClient client;
   private final XtmOneConfig config;
   private final AiMetricCollector aiMetricCollector;
 
   @GetMapping(XTM_ONE_URI + "/chat/agents")
   @Transactional(propagation = Propagation.NEVER)
-  public ResponseEntity<List<ChatbotAgentOutput>> listAgents() {
+  public ResponseEntity<List<ChatbotAgentOutput>> listAgents(TxCtx ctx) {
     if (!config.isConfigured()) {
       return ResponseEntity.ok(List.of());
     }
@@ -64,7 +70,8 @@ public class XtmOneChatApi extends RestBehavior {
 
   @PostMapping(XTM_ONE_URI + "/chat/sessions")
   @Transactional(propagation = Propagation.NEVER)
-  public ResponseEntity<Map<String, Object>> createSession(@RequestBody Map<String, Object> body) {
+  public ResponseEntity<Map<String, Object>> createSession(
+      TxCtx ctx, @RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -85,7 +92,7 @@ public class XtmOneChatApi extends RestBehavior {
   // XtmOneClient — there is no OpenAEV resource to check grants against. The EE gate matches the
   // Ariane feature gating (see AskArianeButton) and XtmOneProxyApi.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public ResponseEntity<Map<String, Object>> listSessions() {
+  public ResponseEntity<Map<String, Object>> listSessions(TxCtx ctx) {
     if (!config.isConfigured()) {
       return ResponseEntity.ok(Map.of("conversations", List.of()));
     }
@@ -102,7 +109,7 @@ public class XtmOneChatApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public ResponseEntity<Void> deleteSession(@PathVariable String conversationId) {
+  public ResponseEntity<Void> deleteSession(TxCtx ctx, @PathVariable String conversationId) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -124,7 +131,8 @@ public class XtmOneChatApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public ResponseEntity<Map<String, Object>> steerMessage(@RequestBody Map<String, Object> body) {
+  public ResponseEntity<Map<String, Object>> steerMessage(
+      TxCtx ctx, @RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -144,7 +152,7 @@ public class XtmOneChatApi extends RestBehavior {
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> approveToolCalls(
-      @RequestBody Map<String, Object> body) {
+      TxCtx ctx, @RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -196,7 +204,8 @@ public class XtmOneChatApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public ResponseEntity<Map<String, Object>> pendingApprovals(@PathVariable String conversationId) {
+  public ResponseEntity<Map<String, Object>> pendingApprovals(
+      TxCtx ctx, @PathVariable String conversationId) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -206,11 +215,97 @@ public class XtmOneChatApi extends RestBehavior {
     return ResponseEntity.ok(client.getPendingApprovals(conversationId));
   }
 
+  /** The prompt library of the user's XTM One web chat, offered by the chatbot prompt picker. */
+  @GetMapping(XTM_ONE_URI + "/chat/prompts")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Map<String, Object>> listPrompts(TxCtx ctx) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.ok(Map.of("prompts", List.of()));
+    }
+    return ResponseEntity.ok(client.getChatPrompts());
+  }
+
+  /**
+   * The user's agentic quota for the chatbot quota indicator: the XTM One payload as-is, or a JSON
+   * {@code null} when there is nothing to show (the chatbot then hides the indicator).
+   */
+  @GetMapping(XTM_ONE_URI + "/chat/quota")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Object> getQuota(TxCtx ctx) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.ok(NullNode.getInstance());
+    }
+    return ResponseEntity.ok(client.getChatQuota());
+  }
+
+  /** Rates an assistant message (thumbs up / down with an optional comment). */
+  @PostMapping(XTM_ONE_URI + "/chat/conversations/{conversationId}/messages/{messageId}/feedback")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Map<String, Object>> submitMessageFeedback(
+      TxCtx ctx,
+      @PathVariable String conversationId,
+      @PathVariable String messageId,
+      @RequestBody Map<String, Object> body) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (!isValidMessagePath(conversationId, messageId)) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (!(body.get("rating") instanceof String rating) || !ALLOWED_RATINGS.contains(rating)) {
+      return ResponseEntity.badRequest().build();
+    }
+    String comment = null;
+    Object rawComment = body.get("comment");
+    if (rawComment != null) {
+      // XTM One caps the comment in characters (code points), not UTF-16 units: a comment it
+      // would store must not be refused here.
+      if (!(rawComment instanceof String text)
+          || text.codePointCount(0, text.length()) > MAX_FEEDBACK_COMMENT_LENGTH) {
+        return ResponseEntity.badRequest().build();
+      }
+      comment = text;
+    }
+    return ResponseEntity.ok(
+        client.submitMessageFeedback(conversationId, messageId, rating, comment));
+  }
+
+  /** Removes the user's rating of an assistant message. */
+  @DeleteMapping(XTM_ONE_URI + "/chat/conversations/{conversationId}/messages/{messageId}/feedback")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Void> retractMessageFeedback(
+      TxCtx ctx, @PathVariable String conversationId, @PathVariable String messageId) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (!isValidMessagePath(conversationId, messageId)) {
+      return ResponseEntity.badRequest().build();
+    }
+    client.retractMessageFeedback(conversationId, messageId);
+    return ResponseEntity.noContent().build();
+  }
+
+  private static boolean isValidMessagePath(String conversationId, String messageId) {
+    return conversationId != null
+        && CONVERSATION_ID_PATTERN.matcher(conversationId).matches()
+        && messageId != null
+        && MESSAGE_ID_PATTERN.matcher(messageId).matches();
+  }
+
   @PostMapping(path = XTM_ONE_URI + "/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @Transactional(propagation = Propagation.NEVER)
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public ResponseEntity<StreamingResponseBody> sendMessage(@RequestBody Map<String, Object> body) {
+  public ResponseEntity<StreamingResponseBody> sendMessage(
+      TxCtx ctx, @RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -279,7 +374,9 @@ public class XtmOneChatApi extends RestBehavior {
   @PostMapping(path = XTM_ONE_URI + "/chat/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<Map<String, Object>> uploadFiles(
-      @RequestParam("conversation_id") String conversationId, MultipartHttpServletRequest request) {
+      TxCtx ctx,
+      @RequestParam("conversation_id") String conversationId,
+      MultipartHttpServletRequest request) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -319,7 +416,7 @@ public class XtmOneChatApi extends RestBehavior {
    */
   @GetMapping(XTM_ONE_URI + "/chat/files/{fileId}/download")
   @Transactional(propagation = Propagation.NEVER)
-  public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) {
+  public ResponseEntity<byte[]> downloadFile(TxCtx ctx, @PathVariable String fileId) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }

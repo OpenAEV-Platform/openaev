@@ -1,6 +1,7 @@
 package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.Channel;
+import io.openaev.database.model.Tenant;
 import java.util.UUID;
 
 public class ChannelFixture {
@@ -28,6 +29,7 @@ public class ChannelFixture {
     String new_name = name == null ? "channel-%s".formatted(UUID.randomUUID()) : name;
     Channel channel = new Channel();
     channel.setName(new_name);
+    channel.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     return channel;
   }
 }

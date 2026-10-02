@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.*;
@@ -282,6 +283,8 @@ public class OpenCTIService {
    * @param uri of the file
    * @param name of the file to download
    * @param mimeType of the file to download
+   * @param tenantId the tenant the OpenCTI lookup runs under and the created document is attributed
+   *     to
    * @return the document created from downloaded file
    */
   public Document downloadAndSaveFile(String uri, String name, String mimeType, String tenantId) {
@@ -289,7 +292,7 @@ public class OpenCTIService {
       ResponseFile octiResponseFile = downloadFile(uri, tenantId);
 
       if (octiResponseFile != null) {
-        Tag openCtiTag = getOpenCTITag();
+        Tag openCtiTag = getOpenCTITag(tenantId);
         DocumentCreateInput documentCreateInput = new DocumentCreateInput();
         documentCreateInput.setDescription(name);
         if (openCtiTag != null) {
@@ -301,7 +304,8 @@ public class OpenCTIService {
             octiResponseFile.getInputStream(),
             octiResponseFile.getSize(),
             mimeType,
-            documentCreateInput);
+            documentCreateInput,
+            tenantId);
       }
     } catch (Exception e) {
       log.error(
@@ -323,10 +327,10 @@ public class OpenCTIService {
         config.getToken());
   }
 
-  private Tag getOpenCTITag() {
+  private Tag getOpenCTITag(String tenantId) {
     TagCreateInput tagCreateInput = new TagCreateInput();
     tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
-    return tagService.upsertTag(tagCreateInput);
+    return tagService.upsertTag(TxCtx.forTenant(tenantId), tagCreateInput);
   }
 
   private OpenCTIConfig resolveConfig(final String tenantId) throws ConnectorError {

@@ -1,5 +1,7 @@
 package io.openaev.aop;
 
+import io.openaev.context.MarkingCtx;
+import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
 import java.util.Arrays;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -34,6 +37,27 @@ import org.springframework.stereotype.Component;
  * never reach the method. The integration test pins this down for the propagations the application
  * actually uses (REQUIRED, REQUIRES_NEW, read-only).
  *
+ * <p>It must equally run <em>before</em> the RBAC aspect, which is why the order is explicit rather
+ * than {@code LOWEST_PRECEDENCE}. {@code AccessControlAspect} resolves a resource's parent by
+ * loading the entity itself, inside this same transaction; tied on {@code LOWEST_PRECEDENCE} the
+ * two advices had an undefined relative order, and when RBAC won the tie its read ran with no
+ * scope. Rows of v2-scoped tables then failed {@code can_access_tenant} (fail-closed) and were
+ * hydrated as null into the persistence context, which the controller happily served afterwards -
+ * an authorized user silently reading a partial entity (e.g. {@code inject_type} coming back null
+ * on an atomic testing).
+ *
+ * <p>Both scope dimensions are written here, together: {@code app.current_tenants} from the {@link
+ * TxCtx} argument, and {@code app.current_markings} derived from the caller through {@link
+ * MarkingScopeSupplier}. Tenant is passed because a caller legitimately chooses which of their
+ * tenants to act in; clearance is derived because nobody chooses their own. Writing both in one
+ * place is what keeps "a transaction's scope is set once" a single rule rather than two that have
+ * to agree.
+ *
+ * <p>⚠️ A {@code @Transactional} method with no {@link TxCtx} parameter writes <b>neither</b>
+ * setting. For marking that means the transaction sees only <i>unmarked</i> rows of any
+ * marking-active table — a partial, silent narrowing rather than an obvious empty result. Harmless
+ * while no table is marking-active; it is the blast radius that activating one has to account for.
+ *
  * <p>Within one transaction the scope is set once. A nested {@code @Transactional} method that
  * would <em>change</em> an already-set scope is refused (a programming error), while one that
  * repeats the same set of tenants is tolerated. A nested method that needs a different scope must
@@ -42,11 +66,19 @@ import org.springframework.stereotype.Component;
 @Aspect
 @Component
 @RequiredArgsConstructor
-// Innermost of the chain: it runs as a @Before once the transaction advisor has opened the tx.
-@Order(Ordered.LOWEST_PRECEDENCE)
+// Inside the transaction advisor (LP-4) so it runs as a @Before once the tx is open, and outside
+// the RBAC aspect (LP) so the scope exists before the permission check reads anything.
+@Order(Ordered.LOWEST_PRECEDENCE - 2)
 public class TenantScopeTransactionAspect {
 
   private final EntityManager entityManager;
+
+  /**
+   * Optional so the aspect keeps working in contexts that do not wire the API layer (model tests,
+   * and any slice without it). Absent means no marking scope is written at all, which leaves the
+   * setting empty — see the class javadoc for what that implies once a table is marking-active.
+   */
+  private final ObjectProvider<MarkingScopeSupplier> markingScopeSupplier;
 
   @Before(
       "@annotation(org.springframework.transaction.annotation.Transactional) || "
@@ -70,6 +102,20 @@ public class TenantScopeTransactionAspect {
               .formatted(current, joinPoint.getSignature().toShortString(), desired));
     }
     setScope(desired);
+    setMarkingScope(markingScopeFor(ctx));
+  }
+
+  /**
+   * Derives the caller's clearance. Deliberately fail-closed on both the absent-supplier and the
+   * absent-principal paths: an empty setting still admits unmarked rows, so the failure mode is a
+   * narrower result set, never a wider one.
+   */
+  private String markingScopeFor(TxCtx ctx) {
+    MarkingScopeSupplier supplier = markingScopeSupplier.getIfAvailable();
+    if (supplier == null) {
+      return MarkingCtx.none().toGuc();
+    }
+    return supplier.clearanceFor(ctx).toGuc();
   }
 
   private static Set<String> tenants(String guc) {
@@ -86,6 +132,13 @@ public class TenantScopeTransactionAspect {
   private void setScope(String scope) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
+        .setParameter("scope", scope)
+        .getSingleResult();
+  }
+
+  private void setMarkingScope(String scope) {
+    entityManager
+        .createNativeQuery("SELECT set_config('app.current_markings', :scope, true)")
         .setParameter("scope", scope)
         .getSingleResult();
   }

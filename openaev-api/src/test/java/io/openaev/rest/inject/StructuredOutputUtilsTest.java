@@ -1,7 +1,9 @@
 package io.openaev.rest.inject;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -189,7 +191,7 @@ class StructuredOutputUtilsTest extends IntegrationTest {
         ContractOutputType.PortsScan,
         "PortScan",
         "^\\s*(TCP|UDP)\\s+([\\d\\.]+|\\*)?:?(\\d+)\\s+\\S+\\s+(\\S+)",
-        "[{\"asset_id\":null,\"host\":\"192.168.1.10\",\"port\":135,\"service\":\"LISTENING\"},{\"asset_id\":null,\"host\":\"176.125.125.10\",\"port\":445,\"service\":\"LISTENING\"},{\"asset_id\":null,\"host\":\"192.168.12.12\",\"port\":902,\"service\":\"LISTENING\"}]");
+        "[{\"asset_id\":null,\"host\":\"192.168.1.10\",\"port\":\"135\",\"service\":\"LISTENING\"},{\"asset_id\":null,\"host\":\"176.125.125.10\",\"port\":\"445\",\"service\":\"LISTENING\"},{\"asset_id\":null,\"host\":\"192.168.12.12\",\"port\":\"902\",\"service\":\"LISTENING\"}]");
   }
 
   @Test
@@ -205,7 +207,86 @@ class StructuredOutputUtilsTest extends IntegrationTest {
         ContractOutputType.Port,
         "Port",
         "(?:TCP|UDP)\\s+[\\d\\.]+:(\\d+)",
-        "[135,445,902]");
+        "[\"135\",\"445\",\"902\"]");
+  }
+
+  @Test
+  @DisplayName("Should preserve leading zero for port in structured output")
+  void given_raw_output_netstat_should_preserve_leading_zero_for_port() {
+    String rawOutput =
+        "\n"
+            + "Active Connections\n"
+            + "\n"
+            + "  Proto  Local Address          Foreign Address        State\n"
+            + "  TCP    192.168.1.10:05            0.0.0.0:0              LISTENING\n";
+
+    RegexGroup regexGroup = new RegexGroup();
+    regexGroup.setField("port");
+    regexGroup.setIndexValues("$1");
+
+    ContractOutputElement contractOutputElement = new ContractOutputElement();
+    contractOutputElement.setType(ContractOutputType.Port);
+    contractOutputElement.setRule("(?:TCP|UDP)\\s+[\\d\\.]+:(\\d+)");
+    contractOutputElement.setKey("Port");
+    contractOutputElement.setRegexGroups(Set.of(regexGroup));
+
+    OutputParser outputParser = new OutputParser();
+    outputParser.setType(ParserType.REGEX);
+    outputParser.setMode(ParserMode.STDOUT);
+    outputParser.setContractOutputElements(Set.of(contractOutputElement));
+
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode stdoutNode = mapper.createObjectNode();
+    stdoutNode.put("stdout", rawOutput);
+
+    Optional<ObjectNode> result =
+        structuredOutputUtils.computeStructuredOutputFromOutputParsers(
+            Set.of(outputParser), stdoutNode.toString());
+
+    assertTrue(result.isPresent());
+    String structuredPort = result.get().get("Port").toString();
+    assertTrue(structuredPort.contains("\"05\""));
+    assertFalse(structuredPort.contains("[5]"));
+  }
+
+  @Test
+  @DisplayName("Should filter invalid Port values from structured output")
+  void given_raw_output_with_invalid_port_should_filter_port_result() {
+    RegexGroup regexGroup = new RegexGroup();
+    regexGroup.setField("port");
+    regexGroup.setIndexValues("$1");
+
+    testRegexExtraction(
+        "TCP 192.168.1.10:abc 0.0.0.0:0 LISTENING\n",
+        Set.of(regexGroup),
+        ContractOutputType.Port,
+        "Port",
+        "(?:TCP|UDP)\\s+[\\d\\.]+:([A-Za-z0-9-]+)",
+        "[]");
+  }
+
+  @Test
+  @DisplayName("Should filter invalid PortsScan values from structured output")
+  void given_raw_output_with_invalid_portscan_port_should_filter_portscan_result() {
+    RegexGroup regexGroup1 = new RegexGroup();
+    regexGroup1.setField("host");
+    regexGroup1.setIndexValues("$2");
+
+    RegexGroup regexGroup2 = new RegexGroup();
+    regexGroup2.setField("port");
+    regexGroup2.setIndexValues("$3");
+
+    RegexGroup regexGroup3 = new RegexGroup();
+    regexGroup3.setField("service");
+    regexGroup3.setIndexValues("$4");
+
+    testRegexExtraction(
+        "TCP 192.168.1.10:70000 0.0.0.0:0 LISTENING\n",
+        Set.of(regexGroup1, regexGroup2, regexGroup3),
+        ContractOutputType.PortsScan,
+        "PortScan",
+        "^\\s*(TCP|UDP)\\s+([\\d\\.]+|\\*)?:?([A-Za-z0-9-]+)\\s+\\S+\\s+(\\S+)",
+        "[]");
   }
 
   @Test

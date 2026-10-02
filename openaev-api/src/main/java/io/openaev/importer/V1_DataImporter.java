@@ -17,10 +17,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
+import io.openaev.database.raw.RawUserIdentity;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -30,6 +34,7 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.inject.form.InjectDependencyInput;
+import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
 import io.openaev.rest.payload.form.DetectionRemediationInput;
 import io.openaev.rest.payload.form.PayloadCreateInput;
@@ -47,6 +52,7 @@ import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -65,6 +71,8 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 @Slf4j
 @RequiredArgsConstructor
 public class V1_DataImporter implements Importer {
+  private static final String WORKFLOW_SCOPE_RULE_TEAM_MEMBERS = "workflow_scope_rule_team_members";
+  private static final String WORKFLOW_SCOPE_RULE_TEAM_MEMBER = "workflow_scope_rule_team_member";
 
   // region variables
   @Resource protected ObjectMapper mapper;
@@ -73,10 +81,11 @@ public class V1_DataImporter implements Importer {
   private final DocumentRepository documentRepository;
   private final TagRepository tagRepository;
   private final AttackPatternRepository attackPatternRepository;
-  private final KillChainPhaseRepository killChainPhaseRepository;
+  private final KillChainPhaseService killChainPhaseService;
   private final ExerciseRepository exerciseRepository;
   private final ScenarioService scenarioService;
   private final TeamRepository teamRepository;
+  private final TenantRepository tenantRepository;
   private final ObjectiveRepository objectiveRepository;
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
@@ -107,6 +116,11 @@ public class V1_DataImporter implements Importer {
   private final PermissionService permissionService;
 
   private final InjectorService injectorService;
+
+  private final TenantWriteScopeResolver tenantWriteScopeResolver;
+
+  private final AmbientTenantBridge ambientTenantBridge;
+  private final EntityManager entityManager;
 
   // endregion
 
@@ -207,6 +221,7 @@ public class V1_DataImporter implements Importer {
   @Override
   @Transactional
   public ImportResult importData(
+      TxCtx ctx,
       JsonNode importNode,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
@@ -214,6 +229,89 @@ public class V1_DataImporter implements Importer {
       Asset asset,
       AssetGroup assetGroup,
       String suffix) {
+    // Resolve the write tenant once. A bundle imported into an existing simulation or scenario is
+    // written in the tenant of that parent, which must lie inside the request scope; a bundle with
+    // no parent takes the single tenant of the scope. Documents, tags, challenges and channels are
+    // attributed to it explicitly; the roots that are not tenant-active yet (exercise, scenario,
+    // injects, teams, payloads) are still stamped from the ambient tenant and matched against
+    // existing rows through it. Running the whole import with the ambient tenant aligned on the
+    // write tenant keeps the bundle in one tenant on every route.
+    String writeTenant =
+        tenantWriteScopeResolver.tenantForWrite(ctx, parentTenantId(exercise, scenario));
+    // The nested importers resolve the tenant of the rows they create (tags, challenges, channels,
+    // kill chain phases, security platforms) from the scope they are given: hand them the resolved
+    // tenant so every row follows it even when the request scope holds several tenants.
+    return ambientTenantBridge.callInTenant(
+        writeTenant,
+        () -> {
+          ImportResult result =
+              importBundle(
+                  TxCtx.forTenant(writeTenant),
+                  importNode,
+                  docReferences,
+                  exercise,
+                  scenario,
+                  asset,
+                  assetGroup,
+                  suffix,
+                  writeTenant);
+          // The rows saved above are only queued: a row reached through a cascade is stamped from
+          // the ambient tenant when it is flushed, so the flush must happen before the bridge
+          // restores the ambient tenant, not at the next query or at commit.
+          entityManager.flush();
+          return result;
+        });
+  }
+
+  private static String parentTenantId(Exercise exercise, Scenario scenario) {
+    if (exercise != null && exercise.getTenant() != null) {
+      return exercise.getTenant().getId();
+    }
+    if (scenario != null && scenario.getTenant() != null) {
+      return scenario.getTenant().getId();
+    }
+    return null;
+  }
+
+  /**
+   * Reads back the tenant scope already active on this transaction (set by {@code
+   * TenantScopeTransactionAspect} from the request's own {@link TxCtx} at the top of the call
+   * chain), rather than the narrower {@code TxCtx.forTenant(writeTenant)} this importer builds
+   * locally to confine its own lookups to the write tenant. A call into another
+   * {@code @Transactional} bean (e.g. {@link PayloadCreationService#createPayload}) must carry a
+   * {@link TxCtx} matching what is already set: the aspect refuses to narrow an active
+   * transaction's scope. The write tenant itself is passed alongside as an explicit argument,
+   * validated against this wider scope the same way any other explicit tenant is.
+   *
+   * <p>{@code fallback} covers the case where nothing has claimed the scope yet (empty GUC): the
+   * aspect itself accepts any desired scope from an unset one, so narrowing is safe there too, and
+   * a caller that reaches this method with no ambient scope set (e.g. a test driving {@code
+   * resolveStepData} directly, bypassing every {@code @Transactional} entry point above it) still
+   * gets a valid, single-tenant ctx instead of {@link TxCtx#missing()}.
+   */
+  private TxCtx currentAmbientTxCtx(TxCtx fallback) {
+    String guc =
+        (String)
+            entityManager
+                .createNativeQuery(
+                    "SELECT coalesce(current_setting('app.current_tenants', true), '')")
+                .getSingleResult();
+    if (guc.isBlank()) {
+      return fallback;
+    }
+    return TxCtx.forTenants(Arrays.asList(guc.split(",")));
+  }
+
+  private ImportResult importBundle(
+      TxCtx ctx,
+      JsonNode importNode,
+      Map<String, ImportEntry> docReferences,
+      Exercise exercise,
+      Scenario scenario,
+      Asset asset,
+      AssetGroup assetGroup,
+      String suffix,
+      String writeTenant) {
     Map<String, Base> baseIds = new HashMap<>();
 
     String prefix = "inject_";
@@ -224,24 +322,29 @@ public class V1_DataImporter implements Importer {
     } else if (importNode.has("payload_information")) {
       prefix = "payload_";
     }
-    importTags(importNode, prefix, baseIds);
+    importTags(ctx, importNode, prefix, baseIds);
+    // The imported documents are created off the write tenant and stored under it, so a removed
+    // TenantBaseListener never has to stamp them, and the create/update decision is scoped to the
+    // write tenant rather than the ambient filter.
     Exercise savedExercise =
         Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
     Scenario savedScenario =
         Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
-    importDocuments(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
-    importDocument(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
+    importDocuments(
+        importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
+    importDocument(
+        importNode, prefix, docReferences, writeTenant, savedExercise, savedScenario, baseIds);
 
     // Should be done after tags & documents
     if (prefix.equals("payload_")) {
-      importPayloadAsMain(importNode, baseIds);
+      importPayloadAsMain(ctx, importNode, baseIds);
     }
 
     importOrganizations(importNode, prefix, baseIds);
     importUsers(importNode, prefix, baseIds);
-    importTeams(importNode, prefix, savedExercise, savedScenario, baseIds);
-    importChallenges(importNode, prefix, baseIds);
-    importChannels(importNode, prefix, baseIds);
+    importTeams(importNode, prefix, savedExercise, savedScenario, baseIds, writeTenant);
+    importChallenges(ctx, importNode, prefix, baseIds);
+    importChannels(ctx, importNode, prefix, baseIds);
     importArticles(importNode, prefix, savedExercise, savedScenario, baseIds);
     importObjectives(importNode, prefix, savedExercise, savedScenario, baseIds);
     importLessons(importNode, prefix, savedExercise, savedScenario, baseIds);
@@ -251,6 +354,7 @@ public class V1_DataImporter implements Importer {
     Map<String, String> resolvedContracts = new HashMap<>();
     if (!hasWorkflowImport(importNode, prefix)) {
       importInjects(
+          ctx,
           importNode,
           prefix,
           savedExercise,
@@ -263,7 +367,7 @@ public class V1_DataImporter implements Importer {
     importVariables(importNode, savedExercise, savedScenario, baseIds);
     List<SkippedWorkflowStep> skippedSteps =
         importWorkflow(
-            importNode, prefix, savedExercise, savedScenario, baseIds, resolvedContracts);
+            ctx, importNode, prefix, savedExercise, savedScenario, baseIds, resolvedContracts);
     List<MissingImportedAction> missingActions =
         skippedSteps.stream().map(V1_DataImporter::toMissingImportedAction).toList();
     return new ImportResult(new ArrayList<>(missingActions));
@@ -292,7 +396,9 @@ public class V1_DataImporter implements Importer {
 
   // -- TAGS --
 
-  private void importTags(JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+  private void importTags(
+      TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     resolveJsonElements(importNode, prefix + "tags")
         .forEach(
             nodeTag -> {
@@ -303,19 +409,21 @@ public class V1_DataImporter implements Importer {
               }
               String name = nodeTag.get("tag_name").textValue();
 
-              List<Tag> existingTags = this.tagRepository.findByNameIgnoreCase(name);
-              if (!existingTags.isEmpty()) {
-                baseIds.put(id, existingTags.getFirst());
+              Optional<Tag> existingTag =
+                  this.tagRepository.findByNameAndTenantId(name.toLowerCase(), writeTenant);
+              if (existingTag.isPresent()) {
+                baseIds.put(id, existingTag.get());
               } else {
-                baseIds.put(id, this.tagRepository.save(createTag(nodeTag)));
+                baseIds.put(id, this.tagRepository.save(createTag(nodeTag, writeTenant)));
               }
             });
   }
 
-  private Tag createTag(JsonNode jsonNode) {
+  private Tag createTag(JsonNode jsonNode, String tenantId) {
     Tag tag = new Tag();
     tag.setName(jsonNode.get("tag_name").textValue());
     tag.setColor(jsonNode.get("tag_color").textValue());
+    tag.setTenant(new Tenant(tenantId));
     return tag;
   }
 
@@ -355,11 +463,9 @@ public class V1_DataImporter implements Importer {
                 return;
               }
 
-              // Tenant-scoped on purpose: the id comes from the import file and a PK load bypasses
-              // the Hibernate tenant filter, so a foreign tenant's domain must never be reused.
-              Optional<Domain> existingDomain =
-                  this.domainService.findOptionalByIdAndTenantId(
-                      id, TenantContext.getCurrentTenant());
+              // Tenant-scoped by the transaction scope (TxCtx): the id comes from the import file,
+              // so a foreign tenant's domain must never be reused.
+              Optional<Domain> existingDomain = this.domainService.findOptionalById(id);
               if (existingDomain.isPresent()) {
                 baseIds.put(id, existingDomain.get());
                 domains.add(existingDomain.get());
@@ -432,7 +538,7 @@ public class V1_DataImporter implements Importer {
               // first, then upsert by name (cross-instance).
               Domain resolved =
                   this.domainService
-                      .findOptionalByIdAndTenantId(id, TenantContext.getCurrentTenant())
+                      .findOptionalById(id)
                       .orElseGet(() -> upsertDomainFromNode(nodeDomain));
               baseIds.put(id, resolved);
             });
@@ -449,7 +555,7 @@ public class V1_DataImporter implements Importer {
    * there is no name/external id to recreate them from.
    */
   private List<AttackPattern> importAttackPattern(
-      JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+      TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
     ArrayList<AttackPattern> attackPatterns = new ArrayList<>();
     String tenantId = TenantContext.getCurrentTenant();
     resolveJsonElements(importNode, prefix + "attack_patterns")
@@ -496,7 +602,8 @@ public class V1_DataImporter implements Importer {
                     this.attackPatternRepository.save(
                         createAttackPattern(
                             nodeAttackPattern,
-                            importKillChainPhase(nodeAttackPattern, "attack_pattern_", baseIds)));
+                            importKillChainPhase(
+                                ctx, nodeAttackPattern, "attack_pattern_", baseIds)));
                 baseIds.put(id, attackPatternCreated);
                 attackPatterns.add(attackPatternCreated);
               }
@@ -571,6 +678,8 @@ public class V1_DataImporter implements Importer {
    * @param prefix1 field prefix for the first node (e.g. "payload_")
    * @param node2 second JSON node (may be {@code null})
    * @param prefix2 field prefix for the second node (e.g. "injector_contract_")
+   * @param writeTenant tenant whose preset domain is the fallback when no domain resolves; a lookup
+   *     by name alone is ambiguous when the request scope holds several tenants
    * @return a deduplicated set of resolved domains, never empty
    */
   protected Set<Domain> mergeDomains(
@@ -578,14 +687,17 @@ public class V1_DataImporter implements Importer {
       JsonNode node1,
       String prefix1,
       @Nullable JsonNode node2,
-      @Nullable String prefix2) {
+      @Nullable String prefix2,
+      String writeTenant) {
     Set<Domain> domains = new LinkedHashSet<>(importDomains(node1, prefix1, baseIds));
     if (node2 != null) {
       domains.addAll(importDomains(node2, prefix2, baseIds));
     }
     if (domains.isEmpty()) {
       domains.add(
-          domainService.findOptionalByName(PresetDomain.getToClassify().getName()).orElseThrow());
+          domainService
+              .findOptionalByName(PresetDomain.getToClassify().getName(), writeTenant)
+              .orElseThrow());
     }
     return domains;
   }
@@ -601,14 +713,16 @@ public class V1_DataImporter implements Importer {
    * @return a deduplicated set of resolved attack patterns
    */
   private Set<AttackPattern> mergeAttackPatterns(
+      TxCtx ctx,
       Map<String, Base> baseIds,
       JsonNode node1,
       String prefix1,
       @Nullable JsonNode node2,
       @Nullable String prefix2) {
-    Set<AttackPattern> patterns = new LinkedHashSet<>(importAttackPattern(node1, prefix1, baseIds));
+    Set<AttackPattern> patterns =
+        new LinkedHashSet<>(importAttackPattern(ctx, node1, prefix1, baseIds));
     if (node2 != null) {
-      patterns.addAll(importAttackPattern(node2, prefix2, baseIds));
+      patterns.addAll(importAttackPattern(ctx, node2, prefix2, baseIds));
     }
     return patterns;
   }
@@ -625,8 +739,9 @@ public class V1_DataImporter implements Importer {
   }
 
   private List<KillChainPhase> importKillChainPhase(
-      JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+      TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
     List<KillChainPhase> killChainPhases = new ArrayList<>();
+    String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     resolveJsonElements(importNode, prefix + "kill_chain_phases")
         .forEach(
             nodeKillChainPhase -> {
@@ -640,25 +755,18 @@ public class V1_DataImporter implements Importer {
                 // Already imported
                 return;
               }
-              String name = nodeKillChainPhase.get("phase_external_id").textValue();
-
-              List<KillChainPhase> existingKillChainPhases =
-                  this.killChainPhaseRepository.findAllByExternalIdInIgnoreCase(List.of(name));
-              if (!existingKillChainPhases.isEmpty()) {
-                baseIds.put(id, existingKillChainPhases.getFirst());
-                killChainPhases.add(existingKillChainPhases.getFirst());
-              } else {
-                KillChainPhase killChainPhaseCreated =
-                    this.killChainPhaseRepository.save(createKillChainPhase(nodeKillChainPhase));
-                baseIds.put(id, killChainPhaseCreated);
-                killChainPhases.add(killChainPhaseCreated);
-              }
+              KillChainPhase killChainPhase =
+                  this.killChainPhaseService.resolveOrCreateForImport(
+                      tenantId, createKillChainPhase(nodeKillChainPhase, tenantId));
+              baseIds.put(id, killChainPhase);
+              killChainPhases.add(killChainPhase);
             });
     return killChainPhases;
   }
 
-  private KillChainPhase createKillChainPhase(JsonNode killChainPhaseNode) {
+  private KillChainPhase createKillChainPhase(JsonNode killChainPhaseNode, String tenantId) {
     KillChainPhase killChainPhase = new KillChainPhase();
+    killChainPhase.setTenant(new Tenant(tenantId));
     killChainPhase.setKillChainName(killChainPhaseNode.get("phase_kill_chain_name").textValue());
     killChainPhase.setShortName(killChainPhaseNode.get("phase_shortname").textValue());
     killChainPhase.setDescription(killChainPhaseNode.get("phase_description").textValue());
@@ -696,6 +804,14 @@ public class V1_DataImporter implements Importer {
     exercise.setHeader(exerciseNode.get("exercise_message_header").textValue());
     exercise.setFooter(exerciseNode.get("exercise_message_footer").textValue());
     exercise.setFrom(exerciseNode.get("exercise_mail_from").textValue());
+    exercise.setLessonsAnonymized(
+        ofNullable(exerciseNode.get("exercise_lessons_anonymized"))
+            .map(node -> node.asBoolean(false))
+            .orElse(false));
+    exercise.setLessonsEnabled(
+        ofNullable(exerciseNode.get("exercise_lessons_enabled"))
+            .map(node -> node.asBoolean(false))
+            .orElse(false));
     exercise.setTags(
         resolveJsonIds(exerciseNode, "exercise_tags").stream()
             .map(baseIds::get)
@@ -737,6 +853,14 @@ public class V1_DataImporter implements Importer {
     scenario.setHeader(scenarioNode.get("scenario_message_header").textValue());
     scenario.setFooter(scenarioNode.get("scenario_message_footer").textValue());
     scenario.setFrom(scenarioNode.get("scenario_mail_from").textValue());
+    scenario.setLessonsAnonymized(
+        ofNullable(scenarioNode.get("scenario_lessons_anonymized"))
+            .map(node -> node.asBoolean(false))
+            .orElse(false));
+    scenario.setLessonsEnabled(
+        ofNullable(scenarioNode.get("scenario_lessons_enabled"))
+            .map(node -> node.asBoolean(false))
+            .orElse(false));
     scenario.setTags(
         resolveJsonIds(scenarioNode, "scenario_tags").stream()
             .map(baseIds::get)
@@ -759,6 +883,7 @@ public class V1_DataImporter implements Importer {
       JsonNode importNode,
       String prefix,
       Map<String, ImportEntry> docReferences,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       Map<String, Base> baseIds) {
@@ -769,7 +894,8 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(
+                nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, baseIds);
           }
         });
     // Handle argument documents
@@ -781,7 +907,8 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(
+                nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, baseIds);
           }
         });
   }
@@ -790,6 +917,7 @@ public class V1_DataImporter implements Importer {
       JsonNode importNode,
       String prefix,
       Map<String, ImportEntry> docReferences,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       Map<String, Base> baseIds) {
@@ -804,7 +932,8 @@ public class V1_DataImporter implements Importer {
     if (target != null) {
       ImportEntry entry = docReferences.get(target);
       if (entry != null) {
-        handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+        handleDocumentWithEntry(
+            nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, baseIds);
       }
     }
   }
@@ -813,17 +942,22 @@ public class V1_DataImporter implements Importer {
       JsonNode nodeDoc,
       ImportEntry entry,
       String target,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       Map<String, Base> baseIds) {
     String contentType = new MimetypesFileTypeMap().getContentType(entry.getEntry().getName());
+    // Scope the create/update decision to the write tenant: an unscoped lookup runs under the
+    // ambient filter, so a document with the same target in another tenant would be reused and
+    // re-linked here instead of a fresh one being created for the import's tenant.
     Optional<Document> targetDocument =
-        this.documentRepository.findFirstByTargetOrderByIdAsc(target);
+        this.documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(target, writeTenant);
 
     if (targetDocument.isPresent()) {
       updateExistingDocument(nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);
     } else {
-      uploadNewDocument(nodeDoc, entry, target, savedExercise, savedScenario, contentType, baseIds);
+      uploadNewDocument(
+          nodeDoc, entry, target, writeTenant, savedExercise, savedScenario, contentType, baseIds);
     }
   }
 
@@ -853,18 +987,22 @@ public class V1_DataImporter implements Importer {
       JsonNode nodeDoc,
       ImportEntry entry,
       String target,
+      String writeTenant,
       Exercise savedExercise,
       Scenario savedScenario,
       String contentType,
       Map<String, Base> baseIds) {
     try {
+      // Store the object under the write tenant, the same tenant the row below is attributed to, so
+      // it is retrievable whatever the ambient TenantContext (the header route sets none).
       this.documentService.uploadFile(
-          target, entry.getData(), entry.getContentLength(), contentType);
+          writeTenant, target, entry.getData(), entry.getContentLength(), contentType);
     } catch (Exception e) {
       throw new ImportException(e);
     }
 
     Document document = new Document();
+    document.setTenant(new Tenant(writeTenant));
     document.setTarget(target);
     document.setName(nodeDoc.get("document_name").textValue());
     document.setDescription(nodeDoc.get("document_description").textValue());
@@ -975,9 +1113,10 @@ public class V1_DataImporter implements Importer {
       String prefix,
       Exercise savedExercise,
       Scenario savedScenario,
-      Map<String, Base> baseIds) {
+      Map<String, Base> baseIds,
+      String writeTenant) {
     Map<String, Team> baseTeams =
-        handlingTeams(importNode, prefix, baseIds, savedExercise, savedScenario);
+        handlingTeams(importNode, prefix, baseIds, savedExercise, savedScenario, writeTenant);
     baseTeams
         .values()
         .forEach(
@@ -1000,7 +1139,8 @@ public class V1_DataImporter implements Importer {
       String prefix,
       Map<String, Base> baseIds,
       Exercise savedExercise,
-      Scenario savedScenario) {
+      Scenario savedScenario,
+      String writeTenant) {
     Map<String, Team> baseTeams = new HashMap<>();
 
     resolveJsonElements(importNode, prefix + "teams")
@@ -1029,6 +1169,7 @@ public class V1_DataImporter implements Importer {
                 }
 
                 Team team = createTeam(nodeTeam, baseIds);
+                team.setTenant(new Tenant(writeTenant));
                 // Tags
                 List<String> teamTagIds = resolveJsonIds(nodeTeam, "team_tags");
                 Set<Tag> tagsForTeam =
@@ -1072,7 +1213,9 @@ public class V1_DataImporter implements Importer {
 
   // -- CHALLENGES --
 
-  private void importChallenges(JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+  private void importChallenges(
+      TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     resolveJsonElements(importNode, prefix + "challenges")
         .forEach(
             nodeChallenge -> {
@@ -1084,18 +1227,22 @@ public class V1_DataImporter implements Importer {
               String name = nodeChallenge.get("challenge_name").textValue();
 
               List<Challenge> existingChallenges =
-                  this.challengeRepository.findByNameIgnoreCase(name);
+                  this.challengeRepository.findByNameIgnoreCaseAndTenantId(name, writeTenant);
               if (!existingChallenges.isEmpty()) {
                 baseIds.put(id, existingChallenges.getFirst());
               } else {
                 baseIds.put(
-                    id, this.challengeRepository.save(createChallenge(nodeChallenge, baseIds)));
+                    id,
+                    this.challengeRepository.save(
+                        createChallenge(nodeChallenge, baseIds, writeTenant)));
               }
             });
   }
 
-  private Challenge createChallenge(JsonNode nodeChallenge, Map<String, Base> baseIds) {
+  private Challenge createChallenge(
+      JsonNode nodeChallenge, Map<String, Base> baseIds, String tenantId) {
     Challenge challenge = new Challenge();
+    challenge.setTenant(new Tenant(tenantId));
     challenge.setName(nodeChallenge.get("challenge_name").textValue());
     challenge.setCategory(nodeChallenge.get("challenge_category").textValue());
     challenge.setContent(nodeChallenge.get("challenge_content").textValue());
@@ -1129,7 +1276,9 @@ public class V1_DataImporter implements Importer {
 
   // -- CHANNELS --
 
-  private void importChannels(JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+  private void importChannels(
+      TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+    String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     resolveJsonElements(importNode, prefix + "channels")
         .forEach(
             nodeChannel -> {
@@ -1141,17 +1290,19 @@ public class V1_DataImporter implements Importer {
               String channelName = nodeChannel.get("channel_name").textValue();
 
               List<Channel> existingChannels =
-                  this.channelRepository.findByNameIgnoreCase(channelName);
+                  this.channelRepository.findByNameIgnoreCaseAndTenantId(channelName, tenantId);
               if (!existingChannels.isEmpty()) {
                 baseIds.put(id, existingChannels.getFirst());
               } else {
-                baseIds.put(id, this.channelRepository.save(createChannel(nodeChannel, baseIds)));
+                baseIds.put(
+                    id, this.channelRepository.save(createChannel(nodeChannel, baseIds, tenantId)));
               }
             });
   }
 
-  private Channel createChannel(JsonNode nodeChannel, Map<String, Base> baseIds) {
+  private Channel createChannel(JsonNode nodeChannel, Map<String, Base> baseIds, String tenantId) {
     Channel channel = new Channel();
+    channel.setTenant(new Tenant(tenantId));
     channel.setName(nodeChannel.get("channel_name").textValue());
     channel.setType(nodeChannel.get("channel_type").textValue());
     channel.setDescription(nodeChannel.get("channel_description").textValue());
@@ -1310,6 +1461,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private void importInjects(
+      TxCtx ctx,
       JsonNode importNode,
       String prefix,
       Exercise savedExercise,
@@ -1356,6 +1508,7 @@ public class V1_DataImporter implements Importer {
             .filter(jsonNode -> !children.contains(jsonNode.get("inject_id").asText()));
 
     importInjects(
+        ctx,
         baseIds,
         savedExercise,
         savedScenario,
@@ -1367,6 +1520,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private void importInjects(
+      TxCtx ctx,
       Map<String, Base> baseIds,
       Exercise exercise,
       Scenario scenario,
@@ -1411,7 +1565,7 @@ public class V1_DataImporter implements Importer {
           if (injectorContract.isPresent()) {
             injectorContractId = injectorContract.get().getId();
           } else {
-            resolvedContract = resolveInjectorContract(injectContractNode, baseIds);
+            resolvedContract = resolveInjectorContract(ctx, injectContractNode, baseIds);
             injectorContractId = resolvedContract != null ? resolvedContract.getId() : null;
           }
 
@@ -1437,7 +1591,8 @@ public class V1_DataImporter implements Importer {
               Payload createdPayload =
                   resolvedContract != null ? resolvedContract.getPayload() : null;
               injectorContractId =
-                  importInjectorContractFromStarterPack(injectContractNode, createdPayload, baseIds)
+                  importInjectorContractFromStarterPack(
+                          ctx, injectContractNode, createdPayload, baseIds)
                       .getId();
             } else {
               log.warn(
@@ -1597,6 +1752,7 @@ public class V1_DataImporter implements Importer {
             .toList();
     if (!childInjects.isEmpty()) {
       importInjects(
+          ctx,
           baseIds,
           exercise,
           scenario,
@@ -1618,7 +1774,7 @@ public class V1_DataImporter implements Importer {
    * @return
    */
   private InjectorContract importInjectorContractFromStarterPack(
-      JsonNode importNode, Payload payload, Map<String, Base> baseIds) {
+      TxCtx ctx, JsonNode importNode, Payload payload, Map<String, Base> baseIds) {
     InjectorContract injectorContract = new InjectorContract();
 
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
@@ -1644,12 +1800,14 @@ public class V1_DataImporter implements Importer {
             importNode,
             "injector_contract_",
             importNode.get("injector_contract_payload"),
-            "payload_"));
+            "payload_",
+            tenantWriteScopeResolver.tenantForWrite(ctx, null)));
 
     // Attack patterns
     injectorContract.setAttackPatterns(
         new ArrayList<>(
             mergeAttackPatterns(
+                ctx,
                 baseIds,
                 importNode,
                 "injector_contract_",
@@ -1681,7 +1839,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private ContractOutputElementInput buildOuputElementFromJsonNode(
-      JsonNode node, Map<String, Base> baseIds) {
+      TxCtx ctx, JsonNode node, Map<String, Base> baseIds) {
     ContractOutputElementInput outputElement = new ContractOutputElementInput();
     outputElement.setFinding(node.get("contract_output_element_is_finding").asBoolean());
     outputElement.setRule(node.get("contract_output_element_rule").textValue());
@@ -1689,7 +1847,7 @@ public class V1_DataImporter implements Importer {
     outputElement.setKey(node.get("contract_output_element_key").textValue());
     outputElement.setType(
         formatStringToContractOutputType(node.get("contract_output_element_type").textValue()));
-    importTags(node, "contract_output_element_", baseIds);
+    importTags(ctx, node, "contract_output_element_", baseIds);
     outputElement.setTagIds(
         resolveJsonIds(node, "contract_output_element_tags").stream()
             .filter(baseIds::containsKey)
@@ -1706,7 +1864,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private OutputParserInput buildOutputParserFromJsonNode(
-      JsonNode node, Map<String, Base> baseIds) {
+      TxCtx ctx, JsonNode node, Map<String, Base> baseIds) {
     OutputParserInput parser = new OutputParserInput();
     parser.setType(ParserType.valueOf(node.get("output_parser_type").textValue()));
     parser.setMode(ParserMode.valueOf(node.get("output_parser_mode").textValue()));
@@ -1714,13 +1872,13 @@ public class V1_DataImporter implements Importer {
     for (JsonNode outputElementNode : outputElementNodes) {
       parser
           .getContractOutputElements()
-          .add(buildOuputElementFromJsonNode(outputElementNode, baseIds));
+          .add(buildOuputElementFromJsonNode(ctx, outputElementNode, baseIds));
     }
     return parser;
   }
 
   private Set<OutputParserInput> buildOutputParsersFromPayloadJsonNode(
-      JsonNode payloadNode, Map<String, Base> baseIds) {
+      TxCtx ctx, JsonNode payloadNode, Map<String, Base> baseIds) {
     Set<OutputParserInput> outputParserInputs = new HashSet<>();
     if (!payloadNode.has("payload_output_parsers")) {
       return outputParserInputs;
@@ -1728,17 +1886,21 @@ public class V1_DataImporter implements Importer {
 
     ArrayNode outputParserNodes = (ArrayNode) payloadNode.get("payload_output_parsers");
     for (JsonNode outputParserNode : outputParserNodes) {
-      outputParserInputs.add(buildOutputParserFromJsonNode(outputParserNode, baseIds));
+      outputParserInputs.add(buildOutputParserFromJsonNode(ctx, outputParserNode, baseIds));
     }
     return outputParserInputs;
   }
 
   private PayloadCreateInput buildPayloadCreateInput(
-      Map<String, Base> baseIds, JsonNode payloadNode, @Nullable JsonNode injectorContractNode) {
+      TxCtx ctx,
+      Map<String, Base> baseIds,
+      JsonNode payloadNode,
+      @Nullable JsonNode injectorContractNode) {
     PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
     payloadCreateInput.setOutputParsers(
-        buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
-    payloadCreateInput.setDetectionRemediations(buildDetectionRemediationsJsonNode(payloadNode));
+        buildOutputParsersFromPayloadJsonNode(ctx, payloadNode, baseIds));
+    payloadCreateInput.setDetectionRemediations(
+        buildDetectionRemediationsJsonNode(ctx, payloadNode));
 
     // Tags — merge from payload and injector contract nodes
     Set<Tag> tags =
@@ -1748,14 +1910,20 @@ public class V1_DataImporter implements Importer {
 
     // Domains — merge from payload and injector contract nodes, fallback to ToClassify
     Set<Domain> domains =
-        mergeDomains(baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
+        mergeDomains(
+            baseIds,
+            payloadNode,
+            "payload_",
+            injectorContractNode,
+            "injector_contract_",
+            tenantWriteScopeResolver.tenantForWrite(ctx, null));
     payloadCreateInput.setDomainIds(
         domains.stream().map(Domain::getId).collect(Collectors.toList()));
 
     // Attack patterns — merge from payload and injector contract nodes
     Set<AttackPattern> attackPatterns =
         mergeAttackPatterns(
-            baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
+            ctx, baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
     payloadCreateInput.setAttackPatternsIds(
         attackPatterns.stream().map(AttackPattern::getId).collect(Collectors.toList()));
 
@@ -1763,7 +1931,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private String importPayloadAsMain(
-      @NotNull final JsonNode importNode, Map<String, Base> baseIds) {
+      TxCtx ctx, @NotNull final JsonNode importNode, Map<String, Base> baseIds) {
     JsonNode payloadNode = importNode.get("payload_information");
     if (payloadNode == null) {
       return null;
@@ -1794,10 +1962,14 @@ public class V1_DataImporter implements Importer {
         }
       }
     }
-    PayloadCreateInput payloadCreateInput = buildPayloadCreateInput(baseIds, payloadNode, null);
+    PayloadCreateInput payloadCreateInput =
+        buildPayloadCreateInput(ctx, baseIds, payloadNode, null);
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(payloadCreateInput);
+        this.payloadCreationService.createPayload(
+            currentAmbientTxCtx(ctx),
+            tenantWriteScopeResolver.tenantForWrite(ctx, null),
+            payloadCreateInput);
     if (result.injectorContract() != null) {
       return result.injectorContract().getId();
     } else {
@@ -1824,7 +1996,7 @@ public class V1_DataImporter implements Importer {
    *     if resolution failed
    */
   private InjectorContract resolveInjectorContract(
-      @NotNull JsonNode injectContractNode, Map<String, Base> baseIds) {
+      TxCtx ctx, @NotNull JsonNode injectContractNode, Map<String, Base> baseIds) {
     JsonNode payloadNode = injectContractNode.get("injector_contract_payload");
     if (payloadNode == null || payloadNode.isNull() || payloadNode.isEmpty()) {
       return null;
@@ -1854,7 +2026,7 @@ public class V1_DataImporter implements Importer {
     }
 
     // Not found then create the payload and its contract
-    return importPayload(payloadNode, injectContractNode, baseIds);
+    return importPayload(ctx, payloadNode, injectContractNode, baseIds);
   }
 
   /**
@@ -1896,6 +2068,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private InjectorContract importPayload(
+      TxCtx ctx,
       @NotNull final JsonNode payloadNode,
       @NotNull final JsonNode injectContractNode,
       Map<String, Base> baseIds) {
@@ -1923,9 +2096,12 @@ public class V1_DataImporter implements Importer {
     }
 
     PayloadCreateInput payloadCreateInput =
-        buildPayloadCreateInput(baseIds, payloadNode, injectContractNode);
+        buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(payloadCreateInput);
+        this.payloadCreationService.createPayload(
+            currentAmbientTxCtx(ctx),
+            tenantWriteScopeResolver.tenantForWrite(ctx, null),
+            payloadCreateInput);
 
     if (result.injectorContract() != null) {
       return result.injectorContract();
@@ -2358,7 +2534,8 @@ public class V1_DataImporter implements Importer {
     return (fieldNode != null && !fieldNode.isNull()) ? fieldNode.intValue() : null;
   }
 
-  private List<DetectionRemediationInput> buildDetectionRemediationsJsonNode(JsonNode payloadNode) {
+  private List<DetectionRemediationInput> buildDetectionRemediationsJsonNode(
+      TxCtx ctx, JsonNode payloadNode) {
     List<DetectionRemediationInput> detectionRemediationInputs = new ArrayList<>();
 
     JsonNode remediationsNode = payloadNode.get("payload_detection_remediations");
@@ -2374,7 +2551,7 @@ public class V1_DataImporter implements Importer {
       }
 
       Optional<SecurityPlatform> securityPlatform =
-          resolveDetectionRemediationSecurityPlatform(detectionNode);
+          resolveDetectionRemediationSecurityPlatform(ctx, detectionNode);
       if (securityPlatform.isPresent()) {
         DetectionRemediationInput detectionRemediation = new DetectionRemediationInput();
         detectionRemediation.setValues(valuesText);
@@ -2393,13 +2570,21 @@ public class V1_DataImporter implements Importer {
    * platform id ({@code detection_remediation_security_platform}); legacy exports carry a collector
    * type name ({@code detection_remediation_collector_type}, e.g. {@code openaev_crowdstrike})
    * which is humanized to a platform name, resolved case-insensitively and created as a manual
-   * platform when absent - so old exports keep importing without any collector installed.
+   * platform when absent - so old exports keep importing without any collector installed. Both
+   * lookups are confined to the tenant the import writes into: the id and the name come from the
+   * import file, and the request scope the statement inspector applies may hold several tenants of
+   * the caller (the injects import endpoints take no tenant selector), so a lookup scoped only by
+   * the inspector could bind a platform of another of the caller's tenants to the imported
+   * remediation.
    */
   private Optional<SecurityPlatform> resolveDetectionRemediationSecurityPlatform(
-      JsonNode detectionNode) {
+      TxCtx ctx, JsonNode detectionNode) {
+    // ctx is the single-tenant write scope threaded down from importData.
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     String platformId = getTextValue(detectionNode, "detection_remediation_security_platform");
     if (!platformId.isEmpty()) {
-      Optional<SecurityPlatform> byId = securityPlatformRepository.findById(platformId);
+      Optional<SecurityPlatform> byId =
+          securityPlatformRepository.findByIdAndTenantId(platformId, writeTenant);
       if (byId.isPresent()) {
         return byId;
       }
@@ -2411,11 +2596,15 @@ public class V1_DataImporter implements Importer {
     CollectorTypeHumanizer.HumanizedPlatform humanized =
         CollectorTypeHumanizer.humanize(collectorTypeName);
     Optional<SecurityPlatform> byName =
-        securityPlatformRepository.findFirstByNameIgnoreCaseOrderByIdAsc(humanized.name());
+        securityPlatformRepository.findFirstByNameIgnoreCaseAndTenantIdOrderByIdAsc(
+            humanized.name(), writeTenant);
     if (byName.isPresent()) {
       return byName;
     }
     SecurityPlatform created = new SecurityPlatform();
+    // The platform is a row of the tenant-active assets table, so the fallback creation needs the
+    // write tenant explicitly rather than the v1 thread-local.
+    created.setTenant(new Tenant(writeTenant));
     created.setName(humanized.name());
     created.setSecurityPlatformType(humanized.type());
     return Optional.of(securityPlatformRepository.save(created));
@@ -2456,6 +2645,7 @@ public class V1_DataImporter implements Importer {
   // -- WORKFLOW (CHAINING) --
 
   private List<SkippedWorkflowStep> importWorkflow(
+      TxCtx ctx,
       JsonNode importNode,
       String prefix,
       Exercise savedExercise,
@@ -2525,40 +2715,34 @@ public class V1_DataImporter implements Importer {
         workflow.setSimulation(savedExercise);
       }
 
-      // Import scope rules
+      // -- chained scope import --
+      //
+      // Scope rules are imported before steps so the workflow can rebuild TEAM/PLAYER references
+      // and rehydrate the companion membership payload in the same pass.
       if (workflowNode.has("workflow_scope_rules")) {
+        // Team scope rules need both the scoped team identity and the exported companion members,
+        // so resolve the player lookup cache once and reuse it for all rules in this workflow.
+        Map<String, List<String>> workflowScopePlayersByLabel = loadWorkflowScopePlayersByLabel();
+        // The companion payload is exported separately from the rule itself; index it by the rule
+        // value so each TEAM rule can restore its users without a second pass over the JSON.
+        Map<String, JsonNode> teamMembersByRuleValue =
+            extractWorkflowScopeRuleTeamMembers(workflowNode);
         List<WorkflowScopeRule> scopeRules = new ArrayList<>();
         for (JsonNode ruleNode : workflowNode.get("workflow_scope_rules")) {
-          ScopeRuleSource ruleSource =
-              ruleNode.has("workflow_scope_rule_source")
-                      && !ruleNode.get("workflow_scope_rule_source").isNull()
-                  ? ScopeRuleSource.valueOf(ruleNode.get("workflow_scope_rule_source").asText())
-                  : null;
-          ScopeRuleValueType ruleValueType =
-              ruleNode.has("workflow_scope_rule_value_type")
-                      && !ruleNode.get("workflow_scope_rule_value_type").isNull()
-                  ? ScopeRuleValueType.valueOf(
-                      ruleNode.get("workflow_scope_rule_value_type").asText())
-                  : null;
+          ScopeRuleSource ruleSource = resolveWorkflowScopeRuleSource(ruleNode);
+          ScopeRuleValueType ruleValueType = resolveWorkflowScopeRuleValueType(ruleNode);
           if (WorkflowScopeRuleUtils.isAssetScopeRule(ruleSource, ruleValueType)) {
             continue;
           }
           WorkflowScopeRule rule =
-              WorkflowScopeRule.builder()
-                  .selectedMode(
-                      ruleNode.has("workflow_scope_rule_selected_mode")
-                              && !ruleNode.get("workflow_scope_rule_selected_mode").isNull()
-                          ? ScopeRuleSelectedMode.valueOf(
-                              ruleNode.get("workflow_scope_rule_selected_mode").asText())
-                          : null)
-                  .ruleSource(ruleSource)
-                  .ruleValue(
-                      ruleNode.has("workflow_scope_rule_value")
-                          ? ruleNode.get("workflow_scope_rule_value").asText()
-                          : null)
-                  .valueType(ruleValueType)
-                  .workflow(workflow)
-                  .build();
+              buildWorkflowScopeRule(
+                  ruleNode,
+                  workflow,
+                  baseIds,
+                  ruleSource,
+                  ruleValueType,
+                  teamMembersByRuleValue,
+                  workflowScopePlayersByLabel);
           scopeRules.add(rule);
         }
         workflow.setWorkflowScopeRules(scopeRules);
@@ -2602,7 +2786,7 @@ public class V1_DataImporter implements Importer {
       if (workflowNode.has("workflow_steps")) {
         skippedSteps =
             importWorkflowSteps(
-                workflowNode.get("workflow_steps"), workflow, resolvedContracts, baseIds);
+                ctx, workflowNode.get("workflow_steps"), workflow, resolvedContracts, baseIds);
       }
       if (!skippedSteps.isEmpty()) {
         // Unresolvable steps are surfaced to the caller (importData -> ImportResult) so the API can
@@ -2628,7 +2812,367 @@ public class V1_DataImporter implements Importer {
     }
   }
 
+  // -- workflow-scope rule resolution --
+  //
+  // These helpers turn exported chained scope rows back into persisted TEAM/PLAYER entities and
+  // preserve the rule labels that the export captured for round-tripping.
+  private WorkflowScopeRule buildWorkflowScopeRule(
+      JsonNode ruleNode,
+      Workflow workflow,
+      Map<String, Base> baseIds,
+      ScopeRuleSource ruleSource,
+      ScopeRuleValueType ruleValueType,
+      Map<String, JsonNode> teamMembersByRuleValue,
+      Map<String, List<String>> workflowScopePlayersByLabel) {
+    ScopeRuleSelectedMode selectedMode = resolveWorkflowScopeRuleSelectedMode(ruleNode);
+    String rawValue = getTextValue(ruleNode, "workflow_scope_rule_value");
+    String importedLabel = getTextValue(ruleNode, "workflow_scope_rule_value_label");
+
+    if (ScopeRuleSource.TEAM.equals(ruleSource)) {
+      // TEAM rules preserve the team identity and, when available, the reconstructed membership
+      // list so chained imports round-trip the same audience context as the export.
+      WorkflowScopeTeamResolution teamResolution =
+          resolveWorkflowScopeTeam(rawValue, importedLabel, baseIds);
+      List<User> teamUsers =
+          resolveWorkflowScopeTeamMembers(
+              teamMembersByRuleValue.get(rawValue), baseIds, workflowScopePlayersByLabel);
+      if (teamResolution.created()) {
+        teamResolution.team().setUsers(teamUsers);
+        teamRepository.save(teamResolution.team());
+      }
+      return WorkflowScopeRule.builder()
+          .selectedMode(selectedMode)
+          .ruleSource(ruleSource)
+          .ruleValue(teamResolution.team().getId())
+          .ruleValueLabel(teamResolution.team().getName())
+          .valueType(ScopeRuleValueType.TEAM_ID)
+          .workflow(workflow)
+          .build();
+    }
+
+    if (ScopeRuleSource.PLAYER.equals(ruleSource)) {
+      User player =
+          resolveWorkflowScopePlayer(
+              rawValue, importedLabel, baseIds, null, workflowScopePlayersByLabel);
+      return WorkflowScopeRule.builder()
+          .selectedMode(selectedMode)
+          .ruleSource(ruleSource)
+          .ruleValue(player.getId())
+          .ruleValueLabel(player.getNameOrEmail())
+          .valueType(ScopeRuleValueType.PLAYER_ID)
+          .workflow(workflow)
+          .build();
+    }
+
+    return WorkflowScopeRule.builder()
+        .selectedMode(selectedMode)
+        .ruleSource(ruleSource)
+        .ruleValue(rawValue)
+        .ruleValueLabel(importedLabel)
+        .valueType(ruleValueType)
+        .workflow(workflow)
+        .build();
+  }
+
+  private Map<String, JsonNode> extractWorkflowScopeRuleTeamMembers(JsonNode workflowNode) {
+    // Scope-rule companions are exported as a separate collection to keep the rule payload small
+    // while still preserving team membership details for import.
+    Map<String, JsonNode> teamMembersByRuleValue = new HashMap<>();
+    JsonNode membersNode = workflowNode.get(WORKFLOW_SCOPE_RULE_TEAM_MEMBERS);
+    if (membersNode == null || !membersNode.isArray()) {
+      return teamMembersByRuleValue;
+    }
+
+    for (JsonNode memberNode : membersNode) {
+      if (memberNode == null || memberNode.isNull()) {
+        continue;
+      }
+      String ruleValue = getTextValue(memberNode, "workflow_scope_rule_value");
+      JsonNode teamUsersNode = memberNode.get(WORKFLOW_SCOPE_RULE_TEAM_MEMBER);
+      if (hasText(ruleValue) && teamUsersNode != null && teamUsersNode.isArray()) {
+        teamMembersByRuleValue.put(ruleValue, teamUsersNode);
+      }
+    }
+    return teamMembersByRuleValue;
+  }
+
+  private List<User> resolveWorkflowScopeTeamMembers(
+      @Nullable JsonNode companionMembersNode,
+      Map<String, Base> baseIds,
+      Map<String, List<String>> workflowScopePlayersByLabel) {
+    JsonNode membersNode = companionMembersNode;
+    if (membersNode == null || !membersNode.isArray()) {
+      return new ArrayList<>();
+    }
+
+    List<User> users = new ArrayList<>();
+    for (JsonNode memberNode : membersNode) {
+      if (memberNode == null || memberNode.isNull()) {
+        continue;
+      }
+      String rawValue =
+          memberNode.isTextual() ? memberNode.asText() : getTextValue(memberNode, "user_id");
+      String label = resolveWorkflowScopePlayerLabel(memberNode, rawValue);
+      users.add(
+          resolveWorkflowScopePlayer(
+              rawValue, label, baseIds, memberNode, workflowScopePlayersByLabel));
+    }
+    return users;
+  }
+
+  private ScopeRuleSelectedMode resolveWorkflowScopeRuleSelectedMode(JsonNode ruleNode) {
+    return ruleNode.has("workflow_scope_rule_selected_mode")
+            && !ruleNode.get("workflow_scope_rule_selected_mode").isNull()
+        ? ScopeRuleSelectedMode.valueOf(ruleNode.get("workflow_scope_rule_selected_mode").asText())
+        : null;
+  }
+
+  private ScopeRuleSource resolveWorkflowScopeRuleSource(JsonNode ruleNode) {
+    return ruleNode.has("workflow_scope_rule_source")
+            && !ruleNode.get("workflow_scope_rule_source").isNull()
+        ? ScopeRuleSource.valueOf(ruleNode.get("workflow_scope_rule_source").asText())
+        : null;
+  }
+
+  private ScopeRuleValueType resolveWorkflowScopeRuleValueType(JsonNode ruleNode) {
+    return ruleNode.has("workflow_scope_rule_value_type")
+            && !ruleNode.get("workflow_scope_rule_value_type").isNull()
+        ? ScopeRuleValueType.valueOf(ruleNode.get("workflow_scope_rule_value_type").asText())
+        : null;
+  }
+
+  private WorkflowScopeTeamResolution resolveWorkflowScopeTeam(
+      String rawValue, String label, Map<String, Base> baseIds) {
+    if (hasText(rawValue) && baseIds.get(rawValue) instanceof Team cachedTeam) {
+      return new WorkflowScopeTeamResolution(cachedTeam, false);
+    }
+
+    String tenantId = TenantContext.getCurrentTenant();
+    if (hasText(rawValue)) {
+      Optional<Team> existingTeam = teamRepository.findByIdAndTenantId(rawValue, tenantId);
+      if (existingTeam.isPresent()) {
+        baseIds.put(rawValue, existingTeam.get());
+        return new WorkflowScopeTeamResolution(existingTeam.get(), false);
+      }
+    }
+
+    if (hasText(label)) {
+      List<Team> existingTeams = teamRepository.findByNameIgnoreCaseAndNotContextual(label);
+      if (!existingTeams.isEmpty()) {
+        Team existingTeam = existingTeams.getFirst();
+        if (hasText(rawValue)) {
+          baseIds.put(rawValue, existingTeam);
+        }
+        return new WorkflowScopeTeamResolution(existingTeam, false);
+      }
+    }
+
+    Team team = new Team();
+    team.setName(hasText(label) ? label : rawValue);
+    team.setContextual(false);
+    team.setTenant(new Tenant(tenantId));
+    Team savedTeam = teamRepository.save(team);
+    if (hasText(rawValue)) {
+      baseIds.put(rawValue, savedTeam);
+    }
+    return new WorkflowScopeTeamResolution(savedTeam, true);
+  }
+
+  // -- workflow-scope player lookup --
+  //
+  private User resolveWorkflowScopePlayer(
+      String rawValue,
+      String label,
+      Map<String, Base> baseIds,
+      @Nullable JsonNode sourceNode,
+      Map<String, List<String>> workflowScopePlayersByLabel) {
+    if (hasText(rawValue) && baseIds.get(rawValue) instanceof User cachedUser) {
+      return cachedUser;
+    }
+
+    String tenantId = TenantContext.getCurrentTenant();
+    String sourceEmail = sourceNode == null ? null : getTextValue(sourceNode, "user_email");
+    if (hasText(sourceEmail)) {
+      Optional<User> bySourceEmail = userRepository.findByEmailIgnoreCase(sourceEmail);
+      if (bySourceEmail.isPresent()) {
+        attachUserToTenant(bySourceEmail.get(), tenantId);
+        if (hasText(rawValue)) {
+          baseIds.put(rawValue, bySourceEmail.get());
+        }
+        return bySourceEmail.get();
+      }
+    }
+
+    String email = resolveWorkflowScopePlayerEmail(label, rawValue);
+    Optional<User> globalUser = userRepository.findByEmailIgnoreCase(email);
+    if (globalUser.isPresent()) {
+      attachUserToTenant(globalUser.get(), tenantId);
+      if (hasText(rawValue)) {
+        baseIds.put(rawValue, globalUser.get());
+      }
+      return globalUser.get();
+    }
+
+    if (hasText(rawValue)) {
+      Optional<User> existingUser =
+          userRepository.findAllByIdInAndTenantId(List.of(rawValue), tenantId).stream().findFirst();
+      if (existingUser.isPresent()) {
+        attachUserToTenant(existingUser.get(), tenantId);
+        baseIds.put(rawValue, existingUser.get());
+        return existingUser.get();
+      }
+      Optional<User> globalById = userRepository.findById(rawValue);
+      if (globalById.isPresent()) {
+        attachUserToTenant(globalById.get(), tenantId);
+        baseIds.put(rawValue, globalById.get());
+        return globalById.get();
+      }
+    }
+
+    if (hasText(label)) {
+      Optional<User> existingUser =
+          resolveWorkflowScopePlayerByLabel(label, tenantId, workflowScopePlayersByLabel);
+      if (existingUser.isPresent()) {
+        attachUserToTenant(existingUser.get(), tenantId);
+        if (hasText(rawValue)) {
+          baseIds.put(rawValue, existingUser.get());
+        }
+        return existingUser.get();
+      }
+    }
+    User player = createWorkflowScopePlayer(label, rawValue, sourceNode);
+    User savedPlayer = userRepository.save(player);
+    if (hasText(rawValue)) {
+      baseIds.put(rawValue, savedPlayer);
+    }
+    return savedPlayer;
+  }
+
+  private Optional<User> resolveWorkflowScopePlayerByLabel(
+      String label, String tenantId, Map<String, List<String>> workflowScopePlayersByLabel) {
+    String normalizedLabel = label.trim().toLowerCase(Locale.ROOT);
+    List<String> matchingIds = workflowScopePlayersByLabel.getOrDefault(normalizedLabel, List.of());
+    if (matchingIds.isEmpty()) {
+      return Optional.empty();
+    }
+    Optional<User> tenantScoped =
+        userRepository.findAllByIdInAndTenantId(matchingIds, tenantId).stream().findFirst();
+    if (tenantScoped.isPresent()) {
+      return tenantScoped;
+    }
+    return userRepository.findById(matchingIds.getFirst());
+  }
+
+  private Map<String, List<String>> loadWorkflowScopePlayersByLabel() {
+    // Build one global label index up front so chained imports can resolve repeated team member
+    // labels without repeating the same projection query for every unresolved rule.
+    Map<String, List<String>> playersByLabel = new HashMap<>();
+    for (RawUserIdentity player : userRepository.rawAllIdentities()) {
+      String userId = player.getUser_id();
+      String email = player.getUser_email();
+      if (hasText(email)) {
+        playersByLabel
+            .computeIfAbsent(email.toLowerCase(Locale.ROOT), ignored -> new ArrayList<>())
+            .add(userId);
+      }
+      String displayName = resolvePlayerDisplayName(player);
+      if (hasText(displayName)) {
+        playersByLabel
+            .computeIfAbsent(displayName.toLowerCase(Locale.ROOT), ignored -> new ArrayList<>())
+            .add(userId);
+      }
+    }
+    return playersByLabel;
+  }
+
+  private static String resolvePlayerDisplayName(RawUserIdentity player) {
+    if (hasText(player.getUser_firstname()) && hasText(player.getUser_lastname())) {
+      return player.getUser_firstname() + " " + player.getUser_lastname();
+    }
+    return player.getUser_email();
+  }
+
+  private User createWorkflowScopePlayer(
+      String label, String rawValue, @Nullable JsonNode sourceNode) {
+    User player = new User();
+    String sourceEmail = sourceNode == null ? null : getTextValue(sourceNode, "user_email");
+    player.setEmail(
+        hasText(sourceEmail) ? sourceEmail : resolveWorkflowScopePlayerEmail(label, rawValue));
+    if (sourceNode != null) {
+      String firstname = getTextValue(sourceNode, "user_firstname");
+      String lastname = getTextValue(sourceNode, "user_lastname");
+      if (hasText(firstname)) {
+        player.setFirstname(firstname);
+      }
+      if (hasText(lastname)) {
+        player.setLastname(lastname);
+      }
+    }
+    player.setTenants(new ArrayList<>(List.of(new Tenant(TenantContext.getCurrentTenant()))));
+
+    if ((sourceNode == null
+            || (!hasText(getTextValue(sourceNode, "user_firstname"))
+                && !hasText(getTextValue(sourceNode, "user_lastname"))))
+        && hasText(label)
+        && !label.contains("@")) {
+      String[] nameParts = label.trim().split("\\s+", 2);
+      if (nameParts.length == 2) {
+        player.setFirstname(nameParts[0]);
+        player.setLastname(nameParts[1]);
+      }
+    }
+
+    return player;
+  }
+
+  private void attachUserToTenant(User user, String tenantId) {
+    if (user == null || !hasText(user.getId())) {
+      return;
+    }
+    tenantRepository.addUserToTenant(user.getId(), tenantId);
+  }
+
+  private String resolveWorkflowScopePlayerEmail(String label, String rawValue) {
+    if (hasText(label) && label.contains("@")) {
+      return label.trim().toLowerCase(Locale.ROOT);
+    }
+
+    String seed = hasText(label) ? label : rawValue;
+    String normalized =
+        seed == null
+            ? "imported-player"
+            : seed.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", ".");
+    normalized = normalized.replaceAll("^\\.+|\\.+$", "");
+    if (!hasText(normalized)) {
+      normalized = "imported-player";
+    }
+    return normalized + "@openaev.import";
+  }
+
+  private String resolveWorkflowScopePlayerLabel(JsonNode memberNode, String rawValue) {
+    if (memberNode == null || memberNode.isNull()) {
+      return rawValue;
+    }
+    if (memberNode.isTextual()) {
+      return rawValue;
+    }
+
+    String firstname = getTextValue(memberNode, "user_firstname");
+    String lastname = getTextValue(memberNode, "user_lastname");
+    if (hasText(firstname) && hasText(lastname)) {
+      return firstname + " " + lastname;
+    }
+
+    String email = getTextValue(memberNode, "user_email");
+    if (hasText(email)) {
+      return email;
+    }
+
+    return rawValue;
+  }
+
   private List<SkippedWorkflowStep> importWorkflowSteps(
+      TxCtx ctx,
       JsonNode stepsNode,
       Workflow workflow,
       Map<String, String> resolvedContracts,
@@ -2670,7 +3214,7 @@ public class V1_DataImporter implements Importer {
       // surfaced here as a skip, so the step is treated EXACTLY like one rejected upfront by
       // evaluateChainingStepResolvability: no saveStep, no stepIdMap entry, added to skippedSteps.
       StepDataResolution stepDataResolution =
-          resolveStepData(stepNode, resolvedContracts, baseIds, workflow);
+          resolveStepData(ctx, stepNode, resolvedContracts, baseIds, workflow);
       if (stepDataResolution.isFailed()) {
         SkippedWorkflowStep skipped = stepDataResolution.skipped();
         skippedSteps.add(skipped);
@@ -2747,6 +3291,8 @@ public class V1_DataImporter implements Importer {
     }
     return skippedSteps;
   }
+
+  private record WorkflowScopeTeamResolution(Team team, boolean created) {}
 
   /**
    * Evaluates whether a chaining workflow step can be materialised on the target instance. A step
@@ -3042,6 +3588,7 @@ public class V1_DataImporter implements Importer {
    * injector_contract_id.
    */
   private StepDataResolution resolveStepData(
+      TxCtx ctx,
       JsonNode stepNode,
       Map<String, String> resolvedContracts,
       Map<String, Base> baseIds,
@@ -3080,13 +3627,13 @@ public class V1_DataImporter implements Importer {
     JsonNode injectContractNode = dataJson.get("inject_injector_contract");
     if (injectContractNode == null || injectContractNode.isNull()) {
       return StepDataResolution.resolved(
-          sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+          sanitizateStepData(ctx, dataJson, stepDataRaw, workflow, baseIds));
     }
 
     String injectorContractId = extractInjectorContractId(injectContractNode);
     if (!hasText(injectorContractId)) {
       return StepDataResolution.resolved(
-          sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+          sanitizateStepData(ctx, dataJson, stepDataRaw, workflow, baseIds));
     }
 
     // Contract already exists in DB (tenant-scoped: the composite PK is (tenant_id, id), so the
@@ -3095,7 +3642,7 @@ public class V1_DataImporter implements Importer {
             injectorContractId, TenantContext.getCurrentTenant())
         && !shouldResolveContractFromStepData(injectContractNode, injectorContractId)) {
       return StepDataResolution.resolved(
-          sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+          sanitizateStepData(ctx, dataJson, stepDataRaw, workflow, baseIds));
     }
 
     // Already resolved by a previous step or by importInjects — reuse
@@ -3105,7 +3652,7 @@ public class V1_DataImporter implements Importer {
         return StepDataResolution.resolved(stepDataRaw);
       }
       return StepDataResolution.resolved(
-          sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+          sanitizateStepData(ctx, dataJson, stepDataRaw, workflow, baseIds));
     }
 
     if (!(injectContractNode instanceof ObjectNode injectContractObject)) {
@@ -3113,7 +3660,7 @@ public class V1_DataImporter implements Importer {
           "Step data references missing injector contract {} in textual form with no payload to recreate",
           injectorContractId);
       return StepDataResolution.resolved(
-          sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+          sanitizateStepData(ctx, dataJson, stepDataRaw, workflow, baseIds));
     }
 
     // Contract is missing then resolve using the same logic as importInjects
@@ -3123,7 +3670,7 @@ public class V1_DataImporter implements Importer {
           "Step data references missing injector contract {} with no payload to recreate",
           injectorContractId);
       return StepDataResolution.resolved(
-          sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+          sanitizateStepData(ctx, dataJson, stepDataRaw, workflow, baseIds));
     }
 
     // A partial payload shape (e.g. only a stale payload_id, missing the fields buildPayload()
@@ -3141,7 +3688,7 @@ public class V1_DataImporter implements Importer {
 
     InjectorContract resolvedStepContract;
     try {
-      resolvedStepContract = resolveInjectorContract(injectContractObject, baseIds);
+      resolvedStepContract = resolveInjectorContract(ctx, injectContractObject, baseIds);
     } catch (Exception e) {
       // Recreation failed on unexpected embedded data BEFORE any transactional work (e.g. a
       // malformed field slipping past hasEmbeddedPayloadData in buildPayloadCreateInput, which
@@ -3172,7 +3719,7 @@ public class V1_DataImporter implements Importer {
         return StepDataResolution.resolved(stepDataRaw);
       }
       return StepDataResolution.resolved(
-          sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+          sanitizateStepData(ctx, dataJson, stepDataRaw, workflow, baseIds));
     }
 
     // Creation was attempted (embedded payload present) but failed silently: importPayload returned
@@ -3193,7 +3740,7 @@ public class V1_DataImporter implements Importer {
     }
 
     return StepDataResolution.resolved(
-        sanitizateStepData(dataJson, stepDataRaw, workflow, baseIds));
+        sanitizateStepData(ctx, dataJson, stepDataRaw, workflow, baseIds));
   }
 
   /**
@@ -3309,14 +3856,13 @@ public class V1_DataImporter implements Importer {
   }
 
   private String sanitizateStepData(
-      JsonNode dataJson, String fallback, Workflow workflow, Map<String, Base> baseIds) {
+      TxCtx ctx, JsonNode dataJson, String fallback, Workflow workflow, Map<String, Base> baseIds) {
     if (!(dataJson instanceof ObjectNode dataObject) || workflow == null) {
       return fallback;
     }
     rewriteInjectInjector(dataObject);
     dataObject.remove("inject_assets");
     dataObject.remove("inject_asset_groups");
-    dataObject.remove("inject_teams");
     dataObject.remove("inject_exercise");
     dataObject.remove("inject_scenario");
     // A simulation can be imported on a different instance: the source creator user UUID is
@@ -3342,15 +3888,23 @@ public class V1_DataImporter implements Importer {
     // (exercise_tags / scenario_tags / payload_tags), so every exported tag is already resolved
     // here; any unresolved id is dropped (degraded but non-blocking) rather than left dangling.
     rewriteImportedTagIds(dataObject, "inject_tags", baseIds);
+    // Audience-centric chaining steps consume Inject#teams at run time, so the imported
+    // step_data must keep its team targets. Like tags and documents, team ids are rewritten
+    // through baseIds when possible and dropped only when they resolve to nothing on the target.
+    rewriteImportedTeamIds(dataObject, baseIds);
+    seedWorkflowScopeTeamTargets(dataObject, workflow);
     // Rewrite the inject_documents attachment references: documents are recreated with a NEW UUID
     // on the target instance, so the source ids serialized in step_data must be mapped to the
     // resolved target documents or the imported step silently loses valid attachments at run time.
-    rewriteImportedInjectDocuments(dataObject, baseIds);
+    // An id the bundle does not carry is resolved in the tenant the import writes into, never in
+    // the whole request scope: ctx is the single-tenant write scope threaded down from importData.
+    rewriteImportedInjectDocuments(
+        dataObject, baseIds, tenantWriteScopeResolver.tenantForWrite(ctx, null));
     JsonNode injectContractNode = dataObject.get("inject_injector_contract");
     if (injectContractNode instanceof ObjectNode injectContractObject) {
       rewriteImportedTagIds(injectContractObject, "injector_contract_tags", baseIds);
       rewriteInjectorContractDomains(injectContractObject, baseIds);
-      rewriteInjectorContractAttackPatterns(injectContractObject, baseIds);
+      rewriteInjectorContractAttackPatterns(ctx, injectContractObject, baseIds);
     }
     buildStepTtpFromInjectorContract(dataObject);
     if (workflow.getSimulation() != null) {
@@ -3423,6 +3977,86 @@ public class V1_DataImporter implements Importer {
   }
 
   /**
+   * Rewrites the {@code inject_teams} array of a serialized step_data inject in place, mapping each
+   * SOURCE-instance team id to the resolved TARGET team id via {@code baseIds}. When an id is not
+   * seeded in {@code baseIds} but already exists on the target tenant (re-import on the same
+   * instance without a bundled team object), it is kept as-is. Unresolvable ids are dropped so the
+   * step does not keep a dead audience reference.
+   */
+  private void rewriteImportedTeamIds(ObjectNode dataObject, Map<String, Base> baseIds) {
+    JsonNode teamsNode = dataObject.get("inject_teams");
+    if (teamsNode == null || !teamsNode.isArray()) {
+      return;
+    }
+    String tenantId = TenantContext.getCurrentTenant();
+    ArrayNode rewritten = mapper.createArrayNode();
+    for (JsonNode teamIdNode : teamsNode) {
+      if (teamIdNode == null || teamIdNode.isNull() || !teamIdNode.isTextual()) {
+        continue;
+      }
+      String rawId = teamIdNode.asText();
+      if (!hasText(rawId)) {
+        continue;
+      }
+      if (baseIds.get(rawId) instanceof Team resolvedTeam && resolvedTeam.getId() != null) {
+        rewritten.add(resolvedTeam.getId());
+        continue;
+      }
+      if (baseIds.get(rawId) != null) {
+        continue;
+      }
+      boolean resolved =
+          teamRepository
+              .findByIdAndTenantId(rawId, tenantId)
+              .map(
+                  existing -> {
+                    baseIds.put(rawId, existing);
+                    rewritten.add(existing.getId());
+                    return true;
+                  })
+              .orElse(false);
+      if (!resolved) {
+        log.debug("Dropped unresolved team id {} while rewriting step_data teams", rawId);
+      }
+    }
+    if (rewritten.isEmpty()) {
+      dataObject.remove("inject_teams");
+    } else {
+      dataObject.set("inject_teams", rewritten);
+    }
+  }
+
+  /**
+   * Seeds audience steps from workflow TEAM scope rules when the step itself does not already carry
+   * explicit team targets.
+   */
+  private void seedWorkflowScopeTeamTargets(ObjectNode dataObject, Workflow workflow) {
+    if (workflow == null || workflow.getWorkflowScopeRules() == null) {
+      return;
+    }
+    JsonNode teamsNode = dataObject.get("inject_teams");
+    if (teamsNode != null && teamsNode.isArray() && !teamsNode.isEmpty()) {
+      return;
+    }
+
+    ArrayNode seededTeams = mapper.createArrayNode();
+    for (WorkflowScopeRule rule : workflow.getWorkflowScopeRules()) {
+      if (rule == null
+          || !ScopeRuleSource.TEAM.equals(rule.getRuleSource())
+          || !hasText(rule.getRuleValue())) {
+        continue;
+      }
+      seededTeams.add(rule.getRuleValue());
+    }
+
+    if (seededTeams.isEmpty()) {
+      dataObject.remove("inject_teams");
+    } else {
+      dataObject.set("inject_teams", seededTeams);
+    }
+  }
+
+  /**
    * Rewrites the {@code inject_documents} array of a serialized step_data inject in place, mapping
    * each SOURCE-instance document id to the resolved TARGET document id via {@code baseIds}
    * (populated by {@link #importDocuments} before the workflow import). Documents are recreated
@@ -3432,13 +4066,14 @@ public class V1_DataImporter implements Importer {
    * <p>Elements keep their serialized shape: link objects ({@code MultiModelSerializer} output,
    * matched on {@code document_id}) are rewritten in place, scalar id entries (the defensive shape
    * also accepted by {@code InjectDocumentDeserializer}) are replaced by the resolved id. An id not
-   * seeded in {@code baseIds} but already present on the target tenant (re-import on the same
+   * seeded in {@code baseIds} but already present in the write tenant (re-import on the same
    * instance without a bundled file) is kept as-is. An id that resolves to nothing is dropped: the
    * run-time lookup in {@code InjectExecutionStep#getInjectFromDataStep} is tenant-filtered and
    * would drop the attachment anyway, so dropping here keeps the persisted step data free of dead
    * references.
    */
-  private void rewriteImportedInjectDocuments(ObjectNode dataObject, Map<String, Base> baseIds) {
+  private void rewriteImportedInjectDocuments(
+      ObjectNode dataObject, Map<String, Base> baseIds, String writeTenant) {
     JsonNode documentsNode = dataObject.get("inject_documents");
     if (documentsNode == null || !documentsNode.isArray()) {
       return;
@@ -3455,7 +4090,7 @@ public class V1_DataImporter implements Importer {
       if (!hasText(rawId)) {
         continue;
       }
-      String resolvedId = resolveImportedDocumentId(rawId, baseIds);
+      String resolvedId = resolveImportedDocumentId(rawId, baseIds, writeTenant);
       if (resolvedId == null) {
         continue;
       }
@@ -3471,20 +4106,24 @@ public class V1_DataImporter implements Importer {
 
   /**
    * Resolves a step_data document reference to a TARGET-instance document id: the {@code baseIds}
-   * mapping seeded by the document import first, then a tenant-scoped lookup (re-import on the same
-   * instance where the export did not bundle the file), {@code null} when the id resolves to
-   * nothing. The fallback is tenant-scoped on purpose: the raw id comes from the import file and a
-   * bare {@code findById} could match another tenant's document. A successful fallback is cached
-   * back into {@code baseIds}, so an id referenced by several links or steps costs at most one
-   * query per import instead of one per occurrence.
+   * mapping seeded by the document import first, then a lookup confined to the tenant the import
+   * writes into (re-import on the same instance where the export did not bundle the file), {@code
+   * null} when the id resolves to nothing. The raw id comes from the import file, and the request
+   * scope the statement inspector applies may hold several tenants of the caller (the injects
+   * import endpoints take no tenant selector), so a lookup scoped only by the inspector could bind
+   * a document of another of the caller's tenants into the imported step. The explicit tenant
+   * predicate keeps the link inside the write tenant; the inspector still applies on top. A
+   * successful fallback is cached back into {@code baseIds}, so an id referenced by several links
+   * or steps costs at most one query per import instead of one per occurrence.
    */
-  private String resolveImportedDocumentId(String rawId, Map<String, Base> baseIds) {
+  private String resolveImportedDocumentId(
+      String rawId, Map<String, Base> baseIds, String writeTenant) {
     if (baseIds.get(rawId) instanceof Document resolvedDocument
         && resolvedDocument.getId() != null) {
       return resolvedDocument.getId();
     }
     return documentRepository
-        .findByIdAndTenantId(rawId, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(rawId, writeTenant)
         .map(
             document -> {
               baseIds.put(rawId, document);
@@ -3506,7 +4145,7 @@ public class V1_DataImporter implements Importer {
    * discarded and re-read fresh from the DB a few lines later.
    *
    * <p>Resolution reuses {@link #importDomains} (no duplicated logic): baseIds cache first, then
-   * {@code domainService.findOptionalByIdAndTenantId} (same id present on target), then {@code
+   * {@code domainService.findOptionalById} (same id present on target), then {@code
    * domainService.upsert} (find-by-name or create) for object-shaped entries. Bare source ids that
    * resolve to nothing are dropped rather than kept dangling (degraded but non-blocking; the field
    * is never used at run time after deserialization). The array is then replaced with the resolved
@@ -3554,11 +4193,11 @@ public class V1_DataImporter implements Importer {
    * the DB right after in getInjectFromDataStep()).
    */
   private void rewriteInjectorContractAttackPatterns(
-      ObjectNode contractNode, Map<String, Base> baseIds) {
-    rewriteAttackPatternArray(contractNode, "injector_contract_", baseIds);
+      TxCtx ctx, ObjectNode contractNode, Map<String, Base> baseIds) {
+    rewriteAttackPatternArray(ctx, contractNode, "injector_contract_", baseIds);
     JsonNode payloadNode = contractNode.get("injector_contract_payload");
     if (payloadNode instanceof ObjectNode payloadObject) {
-      rewriteAttackPatternArray(payloadObject, "payload_", baseIds);
+      rewriteAttackPatternArray(ctx, payloadObject, "payload_", baseIds);
     }
   }
 
@@ -3600,14 +4239,14 @@ public class V1_DataImporter implements Importer {
   }
 
   private void rewriteAttackPatternArray(
-      ObjectNode node, String prefix, Map<String, Base> baseIds) {
+      TxCtx ctx, ObjectNode node, String prefix, Map<String, Base> baseIds) {
     JsonNode attackPatternsNode = node.get(prefix + "attack_patterns");
     if (attackPatternsNode == null || !attackPatternsNode.isArray()) {
       return;
     }
     // importAttackPattern resolves both OBJECT entries (baseIds cache, external id, creation) and
     // SCALAR entries (baseIds cache, tenant-scoped existence check) — see its javadoc.
-    List<AttackPattern> resolvedAttackPatterns = importAttackPattern(node, prefix, baseIds);
+    List<AttackPattern> resolvedAttackPatterns = importAttackPattern(ctx, node, prefix, baseIds);
     LinkedHashSet<String> ids = new LinkedHashSet<>();
     for (AttackPattern attackPattern : resolvedAttackPatterns) {
       if (attackPattern != null && attackPattern.getId() != null) {

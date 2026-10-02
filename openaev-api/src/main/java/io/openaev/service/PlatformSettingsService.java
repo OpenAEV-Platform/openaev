@@ -22,7 +22,7 @@ import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;
@@ -34,6 +34,7 @@ import io.openaev.rest.stream.ai.AiConfig;
 import io.openaev.xtmhub.XtmHubConnectivityService;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import io.openaev.xtmone.XtmOneConfig;
+import io.openaev.xtmone.XtmOneIdentity;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -68,6 +69,7 @@ public class PlatformSettingsService {
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
   private final XtmOneConfig xtmOneConfig;
+  private final XtmOneIdentity xtmOneIdentity;
 
   @Value("${server.servlet.session.timeout:1440m}")
   private java.time.Duration sessionTimeout;
@@ -312,7 +314,8 @@ public class PlatformSettingsService {
     platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
     platformSettings.setPlatformVersion(openAEVConfig.getVersion());
     platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
-    platformSettings.setXtmOneUrl(xtmOneConfig.getUrl());
+    // Where the browser opens XTM One: its published identity, not an internal address.
+    platformSettings.setXtmOneUrl(xtmOneIdentity.browserUrl());
 
     platformSettings.setAiHasToken(StringUtils.hasText(aiConfig.getToken()));
     platformSettings.setAiType(aiConfig.getType());

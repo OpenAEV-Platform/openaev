@@ -24,7 +24,9 @@ import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.PhishingResultRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
@@ -45,8 +47,10 @@ class PhishingTrackingServiceTest {
 
   @Mock private PhishingResultRepository phishingResultRepository;
   @Mock private InjectExpectationRepository injectExpectationRepository;
+  @Mock private InjectRepository injectRepository;
   @Mock private UserRepository userRepository;
   @Mock private TeamRepository teamRepository;
+  @Mock private StepRepository stepRepository;
   @Mock private FindingService findingService;
 
   @InjectMocks private PhishingTrackingService phishingTrackingService;
@@ -117,26 +121,6 @@ class PhishingTrackingServiceTest {
     assertNotNull(a);
     assertNotEquals(a, b);
     assertTrue(a.matches("[A-Za-z0-9_-]+"), "token must be URL-safe base64 without padding");
-  }
-
-  @Test
-  @DisplayName(
-      "initializeExpectationsAsResisted should pre-score every phishing step to its expected score")
-  void initializeExpectationsAsResisted_should_preScoreStepsGreen() {
-    // -- ARRANGE --
-    ManualInjectExpectation opened = new ManualInjectExpectation();
-    opened.setName(PhishingTrackingService.STEP_OPENED);
-    opened.setUser(new User());
-    opened.setExpectedScore(100.0);
-    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(opened));
-
-    // -- ACT --
-    phishingTrackingService.initializeExpectationsAsResisted("inject-1");
-
-    // -- ASSERT --
-    assertEquals(100.0, opened.getScore(), "a never-interacted step must stay GREEN (resisted)");
-    assertNotNull(opened.getResults());
-    verify(injectExpectationRepository).save(opened);
   }
 
   @Test

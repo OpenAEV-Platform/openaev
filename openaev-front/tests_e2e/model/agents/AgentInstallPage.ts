@@ -15,6 +15,12 @@ class AgentInstallPage {
 
   async waitForLoad(): Promise<void> {
     await this.page.waitForURL('**/agents**');
+    await expect(async () => {
+      await expect(this.installButton).toBeVisible({ timeout: 5_000 });
+    }).toPass({
+      intervals: [5_000],
+      timeout: 60_000,
+    });
   }
 
   /**

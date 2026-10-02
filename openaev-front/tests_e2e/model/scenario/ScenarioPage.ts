@@ -42,7 +42,10 @@ class ScenarioPage {
   // -- Get Locator methods
 
   getAllTeamItems() {
-    return this.teamListSection.locator('li:nth-child(n+2)'); // Skip the first item which is the header
+    // Team rows expose a per-row kebab action; the header row does not.
+    return this.teamListSection
+      .getByRole('listitem')
+      .filter({ has: this.page.getByRole('button', { name: 'More actions' }) });
   }
 
   getTeam(teamName: string) {
@@ -60,9 +63,22 @@ class ScenarioPage {
     await this.teamAddBtn.click({ trial: true });
     await this.teamAddBtn.click();
     await expect(this.updateTeamDialog.searchField).toBeVisible();
-    await this.updateTeamDialog.searchField.clear();
-    await MuiListHelpers.searchAndSelectItemInList(this.updateTeamDialog.listContainer, existingTeamName);
+    const [searchResponse] = await Promise.all([
+      this.page.waitForResponse(response =>
+        response.request().method() === 'POST'
+        && new URL(response.url()).pathname.endsWith('/teams/search')
+        && response.request().postDataJSON()?.textSearch === existingTeamName,
+      ),
+      this.updateTeamDialog.searchField.fill(existingTeamName),
+    ]);
+    expect(searchResponse.ok()).toBeTruthy();
+    const teamRow = this.updateTeamDialog.listContainer
+      .getByRole('button')
+      .filter({ hasText: existingTeamName })
+      .first();
+    await teamRow.getByRole('checkbox').check();
     await this.updateTeamDialog.save();
+    await expect(this.updateTeamDialog.listContainer).toBeHidden();
   }
 
   async addIndividualMailInject() {

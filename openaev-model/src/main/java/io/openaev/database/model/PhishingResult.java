@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -17,7 +16,6 @@ import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.DynamicUpdate;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
@@ -31,14 +29,27 @@ import org.hibernate.annotations.UuidGenerator;
  * markSubmitted} would rewrite {@code clickedAt}/{@code submittedAt} back to null. Emitting an
  * UPDATE for only the columns a transition actually dirties removes that cross-field clobbering: a
  * {@code markOpened} update never references the click/submit columns, so it cannot overwrite them.
+ *
+ * <p>Fully switched to v2 tenant isolation ({@code phishing_results} is in {@code
+ * openaev.tenant.active-tables}): no {@code @Filter}, no {@code TenantBaseListener}. Keep both
+ * removed.
+ *
+ * <p>{@code phishing_result_token} keeps a GLOBAL unique index ({@code
+ * phishing_results_token_unique}, not composite with {@code tenant_id}), a documented exception to
+ * the activation skill's Phase 0.3 gate, class "capability token": the token is 192 bits of {@link
+ * java.security.SecureRandom} (see {@code PhishingTrackingService#generateToken}) and is the SOLE
+ * authenticator of the anonymous tracking routes in {@code HostedPublicApi} - possession grants
+ * access, with no other selector to disambiguate. Scoping the uniqueness per tenant would let two
+ * tenants mint the same token, which is exactly the ambiguity {@code
+ * PhishingTrackingPublicLookupService#tenantIdByToken} resolves from and would defeat: the bug it
+ * is meant to fix. Same reasoning as {@code custom_domains_hostname}.
  */
 @Getter
 @Setter
 @Entity
 @DynamicUpdate
 @Table(name = "phishing_results")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
 public class PhishingResult implements TenantBase {
 
   @Id
@@ -70,6 +81,19 @@ public class PhishingResult implements TenantBase {
   @JsonProperty("phishing_result_inject")
   @Schema(implementation = String.class)
   private Inject inject;
+
+  /**
+   * The chaining step that produced this result, set instead of {@link #inject} when the row is
+   * created before its inject is committed (see {@code PhishingTrackingService#createResult}): the
+   * step is already persisted at that point, unlike the inject. Backfilled to {@link #inject} once
+   * the inject is committed and read (see {@code PhishingTrackingService#resolveByToken}).
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "phishing_result_step")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("phishing_result_step")
+  @Schema(implementation = String.class)
+  private Step step;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "phishing_result_landing_page")

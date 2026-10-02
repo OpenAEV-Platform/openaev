@@ -10,6 +10,11 @@ public enum Action {
   // DELETE on the article resource.
   DELETE,
   SEARCH,
+  /**
+   * TEMPORARY: introduced to scope service-account document access without SEARCH capability. See
+   * #294 for the durable per-document scoping solution. Remove once #294 is implemented.
+   */
+  AGENT_DOCUMENT_READ,
   CREATE,
   DUPLICATE,
 
@@ -18,6 +23,9 @@ public enum Action {
 
   // specific to stix bundle processing
   PROCESS,
+
+  // specific for resolve credential from injectors
+  RESOLVE,
 
   // specific to login/logout
   LOGIN,

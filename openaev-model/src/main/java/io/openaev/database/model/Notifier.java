@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +14,6 @@ import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -27,13 +25,18 @@ import org.hibernate.annotations.UuidGenerator;
  * the type-specific settings (email subject/body templates, webhook URL/verb/headers/body
  * template). Built-in notifiers ("User interface", "Default mailer") are seeded per tenant and are
  * read-only.
+ *
+ * <p>Fully on v2 tenant isolation: reads are scoped by {@code TenantStatementInspector} and writes
+ * are attributed explicitly through {@code TenantWriteScopeResolver}. The v1 {@code @Filter} and
+ * {@code TenantBaseListener} must NOT come back - the filter would AND with the inspector's
+ * predicate and hide rows, and the listener would silently re-attribute writes from the ambient
+ * {@code TenantContext}, masking a missing scope instead of failing closed.
  */
 @Entity
 @Getter
 @Setter
 @Table(name = "notifiers")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
 public class Notifier implements TenantBase {
 
   @Id

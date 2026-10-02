@@ -3,8 +3,11 @@ package io.openaev.rest.finding;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
@@ -13,6 +16,7 @@ import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.utils.mapper.FindingMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -34,13 +38,20 @@ public class FindingService {
   private final InjectService injectService;
 
   private final FindingRepository findingRepository;
+  private final FindingMapper findingMapper;
   private final FindingWriter findingWriter;
+  private final TenantWriteScopeResolver tenantWriteScopeResolver;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
 
   // -- CRUD --
 
+  /**
+   * No production caller: only tests reach this. Kept because two tenant-isolation suites use it as
+   * their subject, but it is a trap for the next person - an unscoped {@code findAll} on an
+   * activated table returns nothing in production. Tracked for removal with its test callers.
+   */
   public List<Finding> findings() {
     return fromIterable(this.findingRepository.findAll());
   }
@@ -52,10 +63,9 @@ public class FindingService {
   }
 
   /**
-   * Group-wide summary of a finding, deduplicated by (type, value) across every occurrence in the
-   * tenant. The finding overview hero relies on this instead of the picked representative row, so
-   * the first/last seen and impact counts reflect the whole group rather than one arbitrary
-   * occurrence.
+   * Resolves the group-wide data backing the summary of a finding - the group being every
+   * occurrence sharing its (type, value) in the tenant - and delegates the assembly of the output
+   * to the mapper.
    */
   public FindingSummaryOutput findingSummary(@NotNull final String id) {
     Finding finding = finding(id);
@@ -66,23 +76,28 @@ public class FindingService {
     FindingRepository.FindingSeenAggregate seen =
         this.findingRepository.findSeenAggregate(type, value, tenantId);
 
-    return FindingSummaryOutput.builder()
-        .id(finding.getId())
-        .type(type)
-        .value(value)
-        .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
-        .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())
-        .occurrences(seen != null ? seen.getOccurrences() : 1)
-        .assetsCount(this.findingRepository.countDistinctAssets(type, value, tenantId))
-        .teamsCount(this.findingRepository.countDistinctTeams(type, value, tenantId))
-        .usersCount(this.findingRepository.countDistinctUsers(type, value, tenantId))
-        .assetGroupsCount(this.findingRepository.countDistinctAssetGroups(type, value, tenantId))
-        .build();
+    FindingMapper.FindingImpactCounts counts =
+        new FindingMapper.FindingImpactCounts(
+            this.findingRepository.countDistinctAssets(type, value, tenantId),
+            this.findingRepository.countDistinctTeams(type, value, tenantId),
+            this.findingRepository.countDistinctUsers(type, value, tenantId),
+            this.findingRepository.countDistinctAssetGroups(type, value, tenantId));
+
+    return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
   }
 
-  public Finding createFinding(@NotNull final Finding finding, @NotBlank final String injectId) {
+  public Finding createFinding(
+      @NotNull final TxCtx ctx, @NotNull final Finding finding, @NotBlank final String injectId) {
     Inject inject = this.injectService.inject(injectId);
     finding.setInject(inject);
+    // The inject's tenant is validated against the request scope, not trusted: inject() is a
+    // primary key load that no tenant predicate filters, and the endpoint's @AccessControl checks a
+    // capability with no resourceId, so a caller could otherwise attribute a finding to a tenant
+    // that does not own the inject.
+    String tenantId =
+        this.tenantWriteScopeResolver.tenantForWrite(
+            ctx, inject.getTenant() != null ? inject.getTenant().getId() : null);
+    finding.setTenant(new Tenant(tenantId));
     return this.findingRepository.save(finding);
   }
 
@@ -184,7 +199,10 @@ public class FindingService {
   public void saveAgentFinding(
       Inject inject, Asset asset, ContractOutputContext contractOutputContext, String value) {
 
+    String tenantId = inject.getTenant() != null ? inject.getTenant().getId() : null;
+
     findingWriter.saveCompleteFinding(
+        tenantId == null ? TxCtx.missing() : TxCtx.forTenant(tenantId),
         contractOutputContext.key(),
         contractOutputContext.type().name(),
         value,
@@ -192,8 +210,7 @@ public class FindingService {
         inject.getId(),
         contractOutputContext.name(),
         asset.getId(),
-        contractOutputContext.tagIds(),
-        inject.getTenant() != null ? inject.getTenant().getId() : null);
+        contractOutputContext.tagIds());
   }
 
   private Optional<Asset> resolveAssetFromStructuredOutput(

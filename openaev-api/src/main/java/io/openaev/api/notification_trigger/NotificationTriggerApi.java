@@ -5,6 +5,8 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -38,6 +40,7 @@ public class NotificationTriggerApi {
 
   private final NotificationTriggerService notificationTriggerService;
   private final NotificationTriggerMapper notificationTriggerMapper;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @LogExecutionTime
   @GetMapping({
@@ -54,6 +57,7 @@ public class NotificationTriggerApi {
         @ApiResponse(responseCode = "404", description = "Trigger not found")
       })
   public NotificationTriggerOutput notificationTrigger(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the trigger") final String triggerId) {
     return notificationTriggerService
         .findById(triggerId)
@@ -73,7 +77,7 @@ public class NotificationTriggerApi {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The paginated triggers")})
   public Page<NotificationTriggerOutput> searchNotificationTriggers(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return notificationTriggerService
         .search(searchPaginationInput)
         .map(notificationTriggerMapper::toNotificationTriggerOutput);
@@ -88,9 +92,13 @@ public class NotificationTriggerApi {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Trigger created")})
   public NotificationTriggerOutput createNotificationTrigger(
-      @Valid @RequestBody final NotificationTriggerInput input) {
+      TxCtx ctx, @Valid @RequestBody final NotificationTriggerInput input) {
+    // Resolved before the input is mapped: an ambiguous scope must be refused before any id is
+    // looked up, and the same tenant that owns the new row is the one its children resolve in.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return notificationTriggerMapper.toNotificationTriggerOutput(
-        notificationTriggerService.create(notificationTriggerMapper.toNotificationTrigger(input)));
+        notificationTriggerService.create(
+            tenantId, notificationTriggerMapper.toNotificationTrigger(tenantId, input)));
   }
 
   @LogExecutionTime
@@ -108,11 +116,15 @@ public class NotificationTriggerApi {
         @ApiResponse(responseCode = "404", description = "Trigger not found")
       })
   public NotificationTriggerOutput updateNotificationTrigger(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the trigger") final String triggerId,
       @Valid @RequestBody final NotificationTriggerInput input) {
+    // The row already carries its tenant (tenant_id is not updatable); the resolver runs for the
+    // child triggers the input may compose, which must belong to the tenant being written.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return notificationTriggerMapper.toNotificationTriggerOutput(
         notificationTriggerService.update(
-            triggerId, notificationTriggerMapper.toNotificationTrigger(input)));
+            triggerId, notificationTriggerMapper.toNotificationTrigger(tenantId, input)));
   }
 
   @LogExecutionTime
@@ -130,6 +142,7 @@ public class NotificationTriggerApi {
         @ApiResponse(responseCode = "404", description = "Trigger not found")
       })
   public void deleteNotificationTrigger(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the trigger") final String triggerId) {
     notificationTriggerService.delete(triggerId);
   }

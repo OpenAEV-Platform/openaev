@@ -137,7 +137,7 @@ const Mails = () => {
   // Mail count chips: theme-driven tones (read = primary, not read = error).
   const comChipSx = color => ({
     fontSize: 12,
-    height: 20,
+    height: 'fit-content',
     textTransform: 'uppercase',
     borderRadius: 1,
     color,

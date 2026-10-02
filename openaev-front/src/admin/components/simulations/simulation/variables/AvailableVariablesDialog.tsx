@@ -192,6 +192,7 @@ const AvailableVariablesDialog: FunctionComponent<
                   variant="text"
                   size="small"
                   className={classes.button}
+                  onClick={handleClose}
                 >
                   {me.user_is_planner
                     ? t('manage custom variables')

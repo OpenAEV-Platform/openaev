@@ -2,9 +2,12 @@ package io.openaev.utils.mockUser;
 
 import static io.openaev.service.UserService.buildAuthenticationToken;
 
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityScope;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.utils.fixtures.PlatformRoleFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
@@ -25,7 +28,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.TestContext;
 import org.springframework.test.context.support.AbstractTestExecutionListener;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 public class WithMockUserTestExecutionListener extends AbstractTestExecutionListener {
 
@@ -102,6 +107,32 @@ public class WithMockUserTestExecutionListener extends AbstractTestExecutionList
 
     User testUser = composer.persist().get();
     userComposer.reset(); // reset to avoid side effects in following tests
+
+    // Mirror production membership: every real user belongs to at least one tenant via
+    // users_tenants. Without this, TxCtxArgumentResolver resolves an empty authorized set for the
+    // mock user, so any endpoint that attributes a tenant for writes (TenantWriteScopeResolver)
+    // fails closed with a 400, even though the test never cares about multi-tenancy. Tests that
+    // need a different/explicit tenant membership can still call
+    // tenantRepository.addUserToTenant(...) themselves (idempotent, ON CONFLICT DO NOTHING), or opt
+    // out entirely via @WithMockUser(autoJoinDefaultTenant = false) when they assert behavior for a
+    // user with NO membership, or manage their own precise single-tenant membership set.
+    //
+    // The @Modifying membership insert needs an active transaction to execute at all (not just to
+    // flush), but this listener also runs for test classes that are NOT @Transactional (e.g.
+    // ImportExportMapperApiTest), where no test-managed transaction exists yet at this point. A
+    // TransactionTemplate joins the current test transaction when one is active, or opens and
+    // commits a short-lived one of its own otherwise, so this works for both kinds of test classes.
+    if (annotation.autoJoinDefaultTenant()) {
+      TenantRepository tenantRepository = ctx.getBean(TenantRepository.class);
+      TenantMembershipCacheManager tenantMembershipCacheManager =
+          ctx.getBean(TenantMembershipCacheManager.class);
+      PlatformTransactionManager transactionManager = ctx.getBean(PlatformTransactionManager.class);
+      new TransactionTemplate(transactionManager)
+          .executeWithoutResult(
+              status ->
+                  tenantRepository.addUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID));
+      tenantMembershipCacheManager.evict(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
 
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
       entityManager.flush();

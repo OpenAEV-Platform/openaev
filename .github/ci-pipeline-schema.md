@@ -39,8 +39,8 @@ itself, so their colour and dash pattern cannot drift from what they describe.
 
 ## The one thing to understand
 
-Almost nothing in this pipeline waits. Of the 16 job definitions in `_ci-pipeline.yml`,
-**12 launch at t = 0 with no `needs:` at all**; only 4 declare a dependency.
+Almost nothing in this pipeline waits. Of the 20 job definitions in `_ci-pipeline.yml`,
+**14 launch at t = 0 with no `needs:` at all**; only 6 declare a dependency.
 
 `needs:` waits for the *entire* upstream job to finish — including the artifact
 gzip / validate / upload tail, roughly 2.5 min the consumer never actually reads. So
@@ -52,14 +52,16 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The four real `needs:` edges
+### The six real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
 | **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
 | **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
-| **Coverage Merge & Upload** | API Tests, Frontend Quality, E2E Tests, API Types Check | Must see every shard's result; runs `if: !cancelled()` |
-| **Pipeline Gate** | 14 jobs (see below) | Aggregates results; runs `if: always()` |
+| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure |
+| **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
+| **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
+| **Pipeline Gate** | 16 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
 
@@ -120,7 +122,9 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 |-----|-------------------|---------|
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
-| 📊 **Coverage Merge & Upload** | 15 min | Merges JaCoCo shards + Vitest + Playwright → Codecov |
+| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → Codecov flag `backend` |
+| 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
+| 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
 | ✅ **Pipeline Gate** | 10 min | Branch-protection status check |
 
 ---
@@ -130,10 +134,10 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 14 jobs:
+It `needs:` these 16 jobs:
 
-`migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
-`spotless-check`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
+`ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
+`spotless-check`, `bom-override-guard`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
 `backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `container-vulnerability-scan`
 
 **Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
@@ -166,22 +170,23 @@ Shard patterns live in `.github/shards/api-<n>.txt`, balanced from measured per-
 runtimes. The `remaining` shard runs whatever no shard file claims, so a newly added
 package is never silently untested.
 
-| | Core CI | Nightly CI |
-|-|---------|------------|
-| Elasticsearch | 7 shards + `remaining` | 7 shards + `remaining` |
-| OpenSearch | ✗ | 7 shards + `remaining` |
-| **Total cells** | **8** | **16** |
+|                 | Core CI | Nightly CI             |
+|-----------------|---------|------------------------|
+| Elasticsearch 8 | 7 shards + `remaining` | 7 shards + `remaining` |
+| Elasticsearch 9 | ✗ | 7 shards + `remaining` |
+| OpenSearch      | ✗ | 7 shards + `remaining` |
+| **Total cells** | **8** | **24**                 |
 
 ### E2E Tests matrix
 
-| | Core CI | Nightly CI |
-|-|---------|------------|
-| Images | standard only (amd64 + arm64) | standard + ubi9, amd64 + arm64 |
-| Browsers | chrome (amd64), chromium (arm64) | chrome, chromium, webkit, firefox, edge |
-| Search engines | Elasticsearch only | Elasticsearch + OpenSearch |
-| Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites |
-| Infra tests | 4 cells, `infra-chromium` | 7 cells across chrome, chromium, firefox, webkit, edge |
-| **Total cells** | **10** | **25** |
+| | Core CI                                          | Nightly CI                                             |
+|-|--------------------------------------------------|--------------------------------------------------------|
+| Images | standard only (amd64 + arm64)                    | standard + ubi9, amd64 + arm64                         |
+| Browsers | chrome (amd64), chromium (arm64)                 | chrome, chromium, webkit, firefox, edge                |
+| Search engines | Elasticsearch 8 only                             | Elasticsearch 8 & 9 + OpenSearch                       |
+| Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites                                  |
+| Infra tests | 4 cells, `infra-chromium`                        | 7 cells across chrome, chromium, firefox, webkit, edge |
+| **Total cells** | **10**                                           | **25**                                                 |
 
 `ubi9` and `webkit` are nightly-only: they exercise the same JAR and were doubling the
 critical path. `artifact_suffix` must stay unique per cell — the report artifact is named

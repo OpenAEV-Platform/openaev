@@ -1,8 +1,6 @@
 package io.openaev.scheduler.jobs;
 
 import static io.openaev.aop.audit_log.AuditEventOrigin.SYSTEM;
-import static io.openaev.database.model.CollectExecutionStatus.COMPLETED;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.hasValidResults;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
@@ -12,9 +10,6 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.audit_log.AuditEvent;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
-import io.openaev.context.TenantContext;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
@@ -26,19 +21,15 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
 import io.openaev.injector_contract.variables.contract.UserContract;
-import io.openaev.notification.model.NotificationEvent;
-import io.openaev.notification.model.NotificationEventType;
-import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
-import io.openaev.service.NotificationEventService;
-import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.AgentUtils;
-import io.openaev.utils.ExecutionTraceUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -60,7 +51,6 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
 import org.springframework.expression.Expression;
@@ -83,13 +73,6 @@ public class InjectsExecutionJob implements Job {
 
   private static final String ATOMIC_BATCH_KEY = "atomic";
 
-  @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
-  private long delayForSimulationCompletedEvent;
-
-  @Value(
-      "${inject.execution.threshold.minutes:" + DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES + "}")
-  private Integer injectExecutionThreshold;
-
   private final InjectHelper injectHelper;
   private final InjectService injectService;
   private final ExerciseRepository exerciseRepository;
@@ -99,10 +82,9 @@ public class InjectsExecutionJob implements Job {
   private final InjectStatusService injectStatusService;
   private final io.openaev.executors.Executor executor;
   private final ActionMetricCollector actionMetricCollector;
-  private final NotificationEventService notificationEventService;
-  private final SecurityCoverageSendJobService securityCoverageSendJobService;
+  private final WorkflowService workflowService;
   private final EntityManager entityManager;
-  private final TenantScopedTransaction tenantTx;
+  private final TenantScopedJobRunner tenantScopedJobRunner;
 
   private final List<ExecutionStatus> executionStatusesNotReady =
       List.of(
@@ -114,16 +96,19 @@ public class InjectsExecutionJob implements Job {
   private final List<BaseInjectExpectation.EXPECTATION_STATUS> expectationStatusesSuccess =
       List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
-  private final WorkflowService workflowService;
   private final HealthCheckUtils healthCheckUtils;
   private final Optional<AuditLogger> auditLogger;
 
-  public void handleAutoStartExercises() {
+  public List<Exercise> autoStartDueExercises() {
     // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+    return promoteDueExercisesToRunning();
+  }
+
+  private List<Exercise> promoteDueExercisesToRunning() {
     List<Exercise> exercises = exerciseRepository.findAllShouldBeInRunningState(now());
     if (exercises.isEmpty()) {
-      return;
+      return List.of();
     }
     actionMetricCollector.addSimulationPlayedCount(exercises.size());
     List<Exercise> startedExercises = new ArrayList<>(exercises);
@@ -134,110 +119,7 @@ public class InjectsExecutionJob implements Job {
         });
     exerciseRepository.saveAll(startedExercises);
     startedExercises.forEach(this::logScheduledLaunch);
-  }
-
-  public void handleAutoClosingSimulations() {
-    // Change status of finished simulations.
-    List<Exercise> mustBeFinishedSimulations = exerciseRepository.thatMustBeFinished();
-    // Filter out the simulations using the new chaining engine.
-    mustBeFinishedSimulations =
-        mustBeFinishedSimulations.stream()
-            .filter(simulation -> !workflowService.existsBySimulationId(simulation.getId()))
-            .toList();
-    if (mustBeFinishedSimulations.isEmpty()) {
-      return;
-    }
-
-    Map<String, List<String>> simulationIdsByTenant = new LinkedHashMap<>();
-    mustBeFinishedSimulations.forEach(
-        simulation ->
-            simulationIdsByTenant
-                .computeIfAbsent(simulation.getTenant().getId(), key -> new ArrayList<>())
-                .add(simulation.getId()));
-
-    simulationIdsByTenant.forEach(
-        (tenantId, simulationIds) ->
-            executeInTenant(
-                tenantId,
-                () -> {
-                  // Refetch in tenant scope so eager securityCoverage is resolved under multitenant
-                  // v2.
-                  List<Exercise> exercisesToFinish =
-                      new ArrayList<>(exerciseRepository.findAllById(simulationIds));
-                  exercisesToFinish.forEach(
-                      exercise -> {
-                        exercise.setStatus(ExerciseStatus.FINISHED);
-                        exercise.setEnd(now());
-                        exercise.setUpdatedAt(now());
-                      });
-                  List<Exercise> exercisesFinished = exerciseRepository.saveAll(exercisesToFinish);
-
-                  // maybe trigger stix coverage background job
-                  securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
-                      exercisesFinished);
-
-                  // send notification
-                  exercisesFinished.stream()
-                      .filter(
-                          ex ->
-                              ex.getScenario()
-                                  != null) // only send notification for exercise associated to a
-                      // scenario
-                      .forEach(
-                          ex ->
-                              notificationEventService.sendNotificationEventWithDelay(
-                                  NotificationEvent.builder()
-                                      .eventType(NotificationEventType.SIMULATION_COMPLETED)
-                                      .resourceType(ResourceType.SCENARIO)
-                                      .resourceId(ex.getScenario().getId())
-                                      .timestamp(Instant.now())
-                                      .build(),
-                                  delayForSimulationCompletedEvent));
-                }));
-  }
-
-  public void handlePendingInject() {
-    List<Inject> pendingInjects =
-        injectHelper.getAllPendingInjectsWithThresholdMinutes(this.injectExecutionThreshold);
-
-    if (pendingInjects.isEmpty()) {
-      return;
-    }
-
-    for (Inject inject : pendingInjects) {
-      InjectStatus status = inject.getStatus().orElseThrow(ElementNotFoundException::new);
-      // Find agents that already have a COMPLETE trace
-      Set<String> completedAgentIds = ExecutionTraceUtils.getCompletedAgentIds(status.getTraces());
-
-      // Get all agents expected to execute this inject
-      List<Agent> allAgents = injectService.getAgentsByInject(inject);
-
-      if (allAgents.isEmpty()) {
-        // Agentless inject: network scanners (e.g. Nuclei) target assets that have no agent, so the
-        // per-agent timeout loop below can never record anything. Without an explicit trace,
-        // updateFinalInjectStatus finalizes the inject ERROR from an empty COMPLETE-trace list and
-        // the execution details show only the initial "waiting to be consumed" info trace - a red
-        // inject with no reason. Add a clear agentless timeout trace instead, unless a terminal
-        // COMPLETE trace was already recorded (e.g. the injector reported the timeout itself).
-        boolean hasCompleteTrace =
-            status.getTraces().stream()
-                .anyMatch(t -> ExecutionTraceAction.COMPLETE.equals(t.getAction()));
-        if (!hasCompleteTrace) {
-          ExecutionTraceUtils.addAgentlessTimeoutTrace(status, this.injectExecutionThreshold);
-        }
-      } else {
-        // Add a COMPLETE/TIMEOUT trace for each agent that never responded
-        for (Agent agent : allAgents) {
-          if (!completedAgentIds.contains(agent.getId())) {
-            ExecutionTraceUtils.addTimeoutTrace(status, agent, this.injectExecutionThreshold);
-          }
-        }
-      }
-      injectStatusService.updateFinalInjectStatus(status);
-      // Save + stream one by one: the timeout finalization must reach the execution screens in
-      // real time (an inject stuck PENDING would otherwise stay "in flight" until a reload).
-      injectStatusService.saveAndStreamInject(status);
-    }
+    return startedExercises;
   }
 
   @VisibleForTesting
@@ -265,10 +147,11 @@ public class InjectsExecutionJob implements Job {
               + ")");
     }
     List<AssetToExecute> resolvedAssets = injectService.resolveAllAssetsToExecute(inject);
+    executableInject.cacheAssetsToExecute(resolvedAssets);
     List<Map<String, Object>> endpointResolutions = buildEndpointResolutions(resolvedAssets);
     log.info("Executing inject {}", inject.getInject().getTitle());
     try {
-      this.executor.execute(executableInject, resolvedAssets);
+      this.executor.execute(executableInject);
     } finally {
       logTargetResolution(inject, executableInject, endpointResolutions);
     }
@@ -441,185 +324,125 @@ public class InjectsExecutionJob implements Job {
     exerciseRepository.save(exercise);
   }
 
-  /**
-   * Runs an inject execution under BOTH tenant scopes of the platform, set to the inject's tenant:
-   * the v2 primitive (transaction GUC, read by the inspector for activated tables such as
-   * collectors) and the v1 thread-local {@link TenantContext}, which {@link
-   * io.openaev.aop.HibernateFilterTransactionAspect} turns into the Hibernate {@code tenantFilter}
-   * on every {@code @Transactional} method it enters.
-   *
-   * <p>The v1 bridge is not optional: executing an inject resolves asset groups, endpoints and
-   * agents through Criteria queries, all still {@code @Filter} entities. {@link
-   * TenantContext#getCurrentTenant()} falls back to the DEFAULT tenant when the thread-local is
-   * unset, so without this a customer's simulation resolved the default tenant's endpoints and
-   * created its expectations against them - cross-tenant rows, and none for the real targets. It
-   * stayed invisible in single-tenant deployments, where that fallback happens to be the right
-   * tenant. Every other background executor (ScenarioExecutionJob, AtomicTestingExecutionJob,
-   * ExpectationsExpirationManagerJob, StepEventService...) already carries the same bridge.
-   *
-   * <p>Unlike those, this job runs on the shared {@code ForkJoinPool.commonPool} (nested {@code
-   * parallelStream}), which also borrows the calling thread: restore the previous value instead of
-   * clearing, so the scope of whatever else runs on that thread survives.
-   */
-  private void executeInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {
-    String previousTenant =
-        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
-    TenantContext.setCurrentTenant(tenantId);
-    try {
-      tenantTx.execute(TxCtx.forTenant(tenantId), work);
-    } finally {
-      if (previousTenant == null) {
-        TenantContext.clearCurrentTenant();
-      } else {
-        TenantContext.setCurrentTenant(previousTenant);
-      }
-    }
-  }
-
   @Override
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
-      // Handle starting exercises if needed.
-      handleAutoStartExercises();
-      // Get all injects to execute grouped by exercise.
-      List<ExecutableInject> injects = injectHelper.getInjectsToRun();
-
-      // Computed once for the whole batch instead of once per inject (was O(n^2))
-      Set<String> batchInjectIds =
-          injects.stream()
-              .map(execInject -> execInject.getInjection().getId())
-              .collect(Collectors.toSet());
-
-      // We're grouping the injects to run by exercises but also making sure no injects
-      // run in the same batch as it's parents
-      Map<String, List<ExecutableInject>> byExercises =
-          injects.stream()
-              .filter(
-                  executableInject -> {
-                    Inject inject = executableInject.getInjection().getInject();
-                    if (inject.getTenant() != null) {
-                      return true;
-                    }
-                    String message =
-                        "Inject " + inject.getId() + " has no tenant, cannot be executed";
-                    log.warn(message);
-                    injectStatusService.failInjectStatus(inject.getId(), message);
-                    return false;
-                  })
-              .filter(
-                  executableInject ->
-                      // If we got dependencies, we check that the parents are not part of the
-                      // current batch of injects running. If so, we're filtering them out and
-                      // they'll be part of the next batch of launched injects. Do note that this is
-                      // an edge case as it's not allowed to add a dependency less than a minute
-                      // after a parent but can happen if the platform was restarted after some time
-                      // out. It'll then start the injects that were not started because the
-                      // platform was down.
-                      executableInject.getInjection().getInject().getDependsOn() == null
-                          || executableInject.getInjection().getInject().getDependsOn().stream()
-                              .map(
-                                  injectDependency ->
-                                      injectDependency
-                                          .getCompositeId()
-                                          .getInjectParent()
-                                          .getInject()
-                                          .getId())
-                              .noneMatch(batchInjectIds::contains))
-              .collect(
-                  groupingBy(
-                      ex ->
-                          ex.getInjection().getExercise() == null
-                              // Atomic injects have no exercise to group by.
-                              ? ATOMIC_BATCH_KEY
-                              : ex.getInjection().getExercise().getId()));
-
-      // Execute exercise batches in parallel. Each inject execution resolves and opens its own
-      // tenant scope - a plain field lookup, not a DB call - so nested parallel workers never
-      // share or leak tenant context, and the correctness of the scope no longer depends on a
-      // batch being single-tenant.
-      byExercises.entrySet().parallelStream()
-          .forEach(
-              entry -> {
-                entry.getValue().parallelStream()
-                    .forEach(
-                        executableInject -> {
-                          Inject inject = executableInject.getInjection().getInject();
-                          executeInTenant(
-                              inject.getTenant().getId(),
-                              () -> {
-                                try {
-                                  this.executeInject(executableInject);
-                                } catch (RuntimeException e) {
-                                  Throwable cause = e.getCause() != null ? e.getCause() : e;
-                                  log.warn(cause.getMessage(), cause);
-                                  injectStatusService.failInjectStatus(
-                                      inject.getId(), cause.getMessage());
-                                } catch (Exception e) {
-                                  log.warn(e.getMessage(), e);
-                                  injectStatusService.failInjectStatus(
-                                      inject.getId(), e.getMessage());
-                                }
-                              });
-                        });
-
-                // Update the exercise once all injects of the batch are processed.
-                if (!entry.getKey().equals(ATOMIC_BATCH_KEY)) {
-                  entry.getValue().stream()
-                      .findFirst()
-                      .map(
-                          executableInject ->
-                              executableInject.getInjection().getInject().getTenant().getId())
-                      .ifPresent(
-                          tenantId ->
-                              executeInTenant(tenantId, () -> updateExercise(entry.getKey())));
-                }
-              });
-      // Change status of finished simulations.
-      handleInjectExpectationCollectStatus();
-      handleAutoClosingSimulations();
-      handlePendingInject();
+      List<Exercise> startedExercises = autoStartDueExercises();
+      executeChainedSimulations(startedExercises);
+      executeClassicalInjects();
     } catch (Exception e) {
       log.error(e.getMessage(), e);
       throw new JobExecutionException(e);
     }
   }
 
-  @VisibleForTesting
-  void handleInjectExpectationCollectStatus() {
-    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-    List<Inject> injects = injectService.getExecutedAndNotFinished();
-    if (injects.isEmpty()) {
-      return;
-    }
-    List<Inject> fulfilled = new ArrayList<>();
-    for (Inject inject : injects) {
-      // An expectation is done collecting when it has nothing to collect (no result
-      // placeholders), when every result has been filled, or when its collection window has
-      // expired. The expiration escape is critical: partially filled expectations (one collector
-      // reported, another never did) keep empty placeholder rows forever and are not picked up by
-      // the expiration manager (their score is already set). Without it, a single silent
-      // collector leaves the inject COLLECTING and the simulation RUNNING indefinitely.
-      boolean collectDone =
-          inject.getExpectations().stream()
-              .allMatch(
-                  expectation -> {
-                    // Legacy expectation rows can carry a SQL NULL results column (see
-                    // InjectExpectationMapper): treat it as "nothing to collect" instead of
-                    // NPE-ing the job and blocking simulation auto-close.
-                    List<InjectExpectationResult> results = expectation.getResults();
-                    return results == null
-                        || results.isEmpty()
-                        || hasValidResults(results)
-                        || expectation.isExpired();
-                  });
-      if (collectDone) {
-        inject.setCollectExecutionStatus(COMPLETED);
-        fulfilled.add(inject);
-      }
-    }
-    injectService.saveAll(fulfilled);
+  private void executeChainedSimulations(List<Exercise> startedExercises) {
+    // Chained simulations do not execute injects here; they only start their workflow run.
+    startedExercises.forEach(
+        exercise -> {
+          try {
+            workflowService.startWorkflowBySimulationIdIfPresent(exercise.getId());
+          } catch (ChainingException e) {
+            throw new IllegalStateException(
+                "Could not start workflow for scheduled simulation " + exercise.getId(), e);
+          }
+        });
+  }
+
+  private void executeClassicalInjects() throws Exception {
+    // Get all injects to execute grouped by exercise.
+    List<ExecutableInject> injects = injectHelper.getInjectsToRun();
+
+    // Computed once for the whole batch instead of once per inject (was O(n^2))
+    Set<String> batchInjectIds =
+        injects.stream()
+            .map(execInject -> execInject.getInjection().getId())
+            .collect(Collectors.toSet());
+
+    // We're grouping the injects to run by exercises but also making sure no injects
+    // run in the same batch as it's parents
+    Map<String, List<ExecutableInject>> byExercises =
+        injects.stream()
+            .filter(
+                executableInject -> {
+                  Inject inject = executableInject.getInjection().getInject();
+                  if (inject.getTenant() != null) {
+                    return true;
+                  }
+                  String message =
+                      "Inject " + inject.getId() + " has no tenant, cannot be executed";
+                  log.warn(message);
+                  injectStatusService.failInjectStatus(inject.getId(), message);
+                  return false;
+                })
+            .filter(
+                executableInject ->
+                    // If we got dependencies, we check that the parents are not part of the
+                    // current batch of injects running. If so, we're filtering them out and
+                    // they'll be part of the next batch of launched injects. Do note that this is
+                    // an edge case as it's not allowed to add a dependency less than a minute
+                    // after a parent but can happen if the platform was restarted after some time
+                    // out. It'll then start the injects that were not started because the
+                    // platform was down.
+                    executableInject.getInjection().getInject().getDependsOn() == null
+                        || executableInject.getInjection().getInject().getDependsOn().stream()
+                            .map(
+                                injectDependency ->
+                                    injectDependency
+                                        .getCompositeId()
+                                        .getInjectParent()
+                                        .getInject()
+                                        .getId())
+                            .noneMatch(batchInjectIds::contains))
+            .collect(
+                groupingBy(
+                    ex ->
+                        ex.getInjection().getExercise() == null
+                            // Atomic injects have no exercise to group by.
+                            ? ATOMIC_BATCH_KEY
+                            : ex.getInjection().getExercise().getId()));
+
+    // Classical inject execution only applies to non-chained simulations; chained ones are driven
+    // by the workflow engine after the run is created.
+    byExercises.entrySet().parallelStream()
+        .forEach(
+            entry -> {
+              entry.getValue().parallelStream()
+                  .forEach(
+                      executableInject -> {
+                        Inject inject = executableInject.getInjection().getInject();
+                        tenantScopedJobRunner.runInTenant(
+                            inject.getTenant().getId(),
+                            () -> {
+                              try {
+                                this.executeInject(executableInject);
+                              } catch (RuntimeException e) {
+                                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                                log.warn(cause.getMessage(), cause);
+                                injectStatusService.failInjectStatus(
+                                    inject.getId(), cause.getMessage());
+                              } catch (Exception e) {
+                                log.warn(e.getMessage(), e);
+                                injectStatusService.failInjectStatus(
+                                    inject.getId(), e.getMessage());
+                              }
+                            });
+                      });
+
+              // Update the exercise once all injects of the batch are processed.
+              if (!entry.getKey().equals(ATOMIC_BATCH_KEY)) {
+                entry.getValue().stream()
+                    .findFirst()
+                    .map(
+                        executableInject ->
+                            executableInject.getInjection().getInject().getTenant().getId())
+                    .ifPresent(
+                        tenantId ->
+                            tenantScopedJobRunner.runInTenant(
+                                tenantId, () -> updateExercise(entry.getKey())));
+              }
+            });
   }
 
   // -- AUDIT LOGGING --
