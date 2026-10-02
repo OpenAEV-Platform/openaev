@@ -44,8 +44,6 @@ public class PermissionService {
           // and notifier_configuration is masked in outputs for users without those capabilities
           // (see NotifierApi).
           ResourceType.NOTIFIER,
-          // NEWS_FEED is open for READ/SEARCH so any user can see their own news feed items;
-          // isolation relies on the queries always filtering on the current user.
           ResourceType.NEWS_FEED);
 
   private static final EnumSet<ResourceType> RESOURCES_MANAGED_BY_GRANTS =
