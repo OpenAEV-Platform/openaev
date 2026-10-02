@@ -1813,7 +1813,7 @@
   "healthcheck.description.ASSET_GROUPS.MANDATORY_CONTENT": "Groupe d'actifs",
   "healthcheck.description.ASSETS.MANDATORY_CONTENT": "Actif",
   "healthcheck.description.BODY.MANDATORY_CONTENT": "Corps",
-  "healthcheck.description.CREDENTIAL_REFERENCE.MANDATORY_CONTENT": "Certificat",
+  "healthcheck.description.CREDENTIAL_REFERENCE.MANDATORY_CONTENT": "Identifiant",
   "healthcheck.description.IMAP.SERVICE_UNAVAILABLE": "services IMAP manquants, veuillez vérifier votre configuration ou vos informations d'identification",
   "healthcheck.description.INJECT.NOT_READY": "Des stimulis ont un statut de contenu manquant, veuillez les mettre à jour",
   "healthcheck.description.INJECTOR_CONTRACT.MANDATORY_CONTENT": "Action",

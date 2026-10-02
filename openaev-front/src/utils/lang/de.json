@@ -1813,7 +1813,7 @@
   "healthcheck.description.ASSET_GROUPS.MANDATORY_CONTENT": "Vermögensgruppe",
   "healthcheck.description.ASSETS.MANDATORY_CONTENT": "Asset",
   "healthcheck.description.BODY.MANDATORY_CONTENT": "Körper",
-  "healthcheck.description.CREDENTIAL_REFERENCE.MANDATORY_CONTENT": "Zertifikat",
+  "healthcheck.description.CREDENTIAL_REFERENCE.MANDATORY_CONTENT": "Anmeldeinformation",
   "healthcheck.description.IMAP.SERVICE_UNAVAILABLE": "fehlende IMAP-Dienste, bitte überprüfen Sie Ihre Konfiguration oder Anmeldedaten",
   "healthcheck.description.INJECT.NOT_READY": "Injects haben den Status \"fehlender Inhalt\", bitte aktualisieren Sie sie",
   "healthcheck.description.INJECTOR_CONTRACT.MANDATORY_CONTENT": "Aktion",
