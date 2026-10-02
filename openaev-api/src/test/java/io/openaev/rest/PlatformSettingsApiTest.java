@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.ResultActions;
 class PlatformSettingsApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private OpenAEVConfig openAEVConfig;
 
   private static final List<String> PUBLIC_FIELDS =
       List.of(
@@ -156,6 +158,32 @@ class PlatformSettingsApiTest extends IntegrationTest {
       result
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.default_tenant_id").value(Tenant.DEFAULT_TENANT_UUID));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a build commit should return it to authenticated users only")
+    void given_build_commit_should_return_it_to_authenticated_users_only() throws Exception {
+      // -- ARRANGE --
+      String previous = openAEVConfig.getCommit();
+      openAEVConfig.setCommit("a59197d8c");
+      try {
+        // -- ACT --
+        ResultActions result = mvc.perform(get("/api/settings").accept(MediaType.APPLICATION_JSON));
+        ResultActions publicResult =
+            mvc.perform(
+                get("/api/settings/public").with(csrf()).accept(MediaType.APPLICATION_JSON));
+
+        // -- ASSERT --
+        result
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.platform_commit").value("a59197d8c"));
+        publicResult
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.platform_commit").doesNotExist());
+      } finally {
+        openAEVConfig.setCommit(previous);
+      }
     }
   }
 }
