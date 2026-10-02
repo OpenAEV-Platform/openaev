@@ -8,9 +8,12 @@ import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,7 +51,12 @@ public class BatchQueueService<T extends Queueable> {
   // every future tick for this instance, permanently stalling the queue with no error logged.
   private final Map<Integer, BlockingQueue<T>> queue;
 
-  private final Map<T, DeliveryContext> deliveryTable = new ConcurrentHashMap<>();
+  // One entry per RabbitMQ delivery, keyed by instance rather than equals(): a re-published copy
+  // of an element (same id) arrives as a separate delivery, and must not overwrite the delivery
+  // tag of the original, which would then never be acknowledged. Synchronized wrapper because the
+  // AMQP delivery threads and the batch workers write to it concurrently.
+  private final Map<T, DeliveryContext> deliveryTable =
+      Collections.synchronizedMap(new IdentityHashMap<>());
 
   private final QueueConfig queueConfig;
   private final ScheduledExecutorService reconnectionExecutor;
@@ -369,16 +377,18 @@ public class BatchQueueService<T extends Queueable> {
 
     // 4. Reject any remaining unacknowledged messages (consumed from RabbitMQ but never batched)
     //    to free the consumer's prefetch (QOS) slots
-    for (DeliveryContext context : deliveryTable.values()) {
-      try {
-        if (context.getDeliveryChannel().isOpen()) {
-          context.getDeliveryChannel().basicReject(context.getTag(), false);
+    synchronized (deliveryTable) {
+      for (DeliveryContext context : deliveryTable.values()) {
+        try {
+          if (context.getDeliveryChannel().isOpen()) {
+            context.rejectWithoutRequeue();
+          }
+        } catch (Exception e) {
+          log.warn("Failed to reject message during purge: {}", e.getMessage());
         }
-      } catch (Exception e) {
-        log.warn("Failed to reject message during purge: {}", e.getMessage());
       }
+      deliveryTable.clear();
     }
-    deliveryTable.clear();
     insertInProgress.values().forEach(a -> a.set(false));
   }
 
@@ -422,37 +432,30 @@ public class BatchQueueService<T extends Queueable> {
                 }
               }
 
-              // Sending Ack for all the processed element in the batch
-              for (T element : processedElement) {
-                try {
-                  DeliveryContext elementToAck = deliveryTable.remove(element);
-                  if (elementToAck != null) {
-                    elementToAck.getDeliveryChannel().basicAck(elementToAck.getTag(), false);
-                    currentBatch.remove(element);
-                  }
-                } catch (IOException e) {
-                  log.error(
-                      String.format(
-                          "Error processing batch - Cannot Ack the message: %s", e.getMessage()),
-                      e);
-                }
-              }
-
-              // The elements that were not successfully processed are rejected
+              // Every delivery of the batch is either acked (processed) or rejected (not
+              // processed), matched by instance: two equal elements are two deliveries
+              Set<T> processed = Collections.newSetFromMap(new IdentityHashMap<>());
+              processed.addAll(processedElement);
               for (T element : currentBatch) {
+                // Null when a purge or a reconnection already dropped the delivery
+                DeliveryContext context = deliveryTable.remove(element);
+                if (context == null) {
+                  continue;
+                }
+                boolean ack = processed.contains(element);
                 try {
-                  DeliveryContext elementToReject = deliveryTable.remove(element);
-                  if (elementToReject != null) {
+                  if (ack) {
+                    context.ack();
+                  } else {
                     // To avoid having elements that are not properly processed but can never be,
                     // we're not requeueing them.
-                    elementToReject
-                        .getDeliveryChannel()
-                        .basicReject(elementToReject.getTag(), false);
+                    context.rejectWithoutRequeue();
                   }
-                } catch (IOException e) {
+                } catch (IOException | ShutdownSignalException e) {
                   log.error(
                       String.format(
-                          "Error processing batch - Cannot Nack the message: %s", e.getMessage()),
+                          "Error processing batch - Cannot %s the message: %s",
+                          ack ? "Ack" : "Nack", e.getMessage()),
                       e);
                 }
               }
