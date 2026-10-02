@@ -685,6 +685,7 @@ public class InjectSearchService {
         assetGroupIdsExpression.alias("inject_asset_groups"));
 
     // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
+    // Tenant-wrapped joins lose their PK, so group every column they project
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
@@ -692,6 +693,7 @@ public class InjectSearchService {
             injectorJoin.get("id"),
             injectorJoin.get("type"),
             payloadJoin.get("id"),
+            payloadJoin.get("type"),
             collectorTypeJoin.get("name"),
             statusJoin.get("id"),
             exerciseJoin.get("id")));
