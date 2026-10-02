@@ -30,8 +30,7 @@ public class ExecutableInjectDTOMapper {
     List<AssetToExecute> assetsToExecute = executableInject.getAssetsToExecute();
     if (assetsToExecute == null) {
       assetsToExecute =
-          injectService.resolveAllAssetsToExecute(
-              executableInject.getInjection().getInject());
+          injectService.resolveAllAssetsToExecute(executableInject.getInjection().getInject());
     }
     return ExecutableInjectDTO.builder()
         .injection(executableInject.getInjection())

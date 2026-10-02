@@ -313,7 +313,9 @@ public class AtomicTestingService {
       // AtomicTestingExecutionJob fires it later with no live user present. Re-stamped
       // on every recurrence configuration call, not just the first.
       inject.setScheduledBy(
-          userRepository.findById(currentUser().getId()).orElseThrow(ElementNotFoundException::new));
+          userRepository
+              .findById(currentUser().getId())
+              .orElseThrow(ElementNotFoundException::new));
     }
     inject.setRecurrence(recurrence);
     inject.setRecurrenceStart(input.getRecurrenceStart());

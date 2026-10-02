@@ -1592,7 +1592,8 @@ class InjectServiceTest {
     }
 
     @Test
-    @DisplayName("null actor (deleted user, or an old row never stamped): marked target skipped, never throws")
+    @DisplayName(
+        "null actor (deleted user, or an old row never stamped): marked target skipped, never throws")
     void given_nullActor_should_skipMarkedTarget_andNeverThrow() {
       Asset assetRed = assetWithMarking("asset-red", "m-red");
       Inject inject = injectTargeting(null, assetRed);
@@ -1610,7 +1611,8 @@ class InjectServiceTest {
           + "(getAgentsAndAgentlessAssetsByInject, the real dispatch decision)")
   class AgentRoutingDispatchFilterTests {
 
-    private Endpoint endpointWithAgent(String assetId, String agentExternalRef, String... markingIds) {
+    private Endpoint endpointWithAgent(
+        String assetId, String agentExternalRef, String... markingIds) {
       Endpoint endpoint = EndpointFixture.createEndpoint(assetId);
       endpoint.setId(assetId);
       if (markingIds.length > 0) {

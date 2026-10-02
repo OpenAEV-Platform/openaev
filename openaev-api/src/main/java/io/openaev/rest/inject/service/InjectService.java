@@ -472,7 +472,9 @@ public class InjectService {
    */
   private MarkingCtx resolveLaunchedByClearance(Inject inject) {
     User launchedBy =
-        inject.getExercise() != null ? inject.getExercise().getLaunchedBy() : inject.getLaunchedBy();
+        inject.getExercise() != null
+            ? inject.getExercise().getLaunchedBy()
+            : inject.getLaunchedBy();
     if (launchedBy == null) {
       return MarkingCtx.none();
     }

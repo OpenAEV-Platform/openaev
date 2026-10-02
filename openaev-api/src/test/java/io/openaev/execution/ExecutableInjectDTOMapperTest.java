@@ -19,9 +19,9 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 /**
- * {@code ExecutableInjectDTOMapper} is the external-push dispatch path for non-agent connectors - it
- * must consume the marking-filtered {@code assetsToExecute}, never the original, unfiltered {@code
- * executableInject.getAssets()}.
+ * {@code ExecutableInjectDTOMapper} is the external-push dispatch path for non-agent connectors -
+ * it must consume the marking-filtered {@code assetsToExecute}, never the original, unfiltered
+ * {@code executableInject.getAssets()}.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -72,7 +72,9 @@ class ExecutableInjectDTOMapperTest {
 
     ExecutableInjectDTO dto = mapper.toExecutableInjectDTO(executableInject, null);
 
-    assertThat(dto.getAssets()).extracting(EndpointTargetOutput::getId).containsExactly("endpoint-green");
+    assertThat(dto.getAssets())
+        .extracting(EndpointTargetOutput::getId)
+        .containsExactly("endpoint-green");
     verifyNoInteractions(injectService);
   }
 
@@ -94,7 +96,9 @@ class ExecutableInjectDTOMapperTest {
 
     ExecutableInjectDTO dto = mapper.toExecutableInjectDTO(executableInject, null);
 
-    assertThat(dto.getAssets()).extracting(EndpointTargetOutput::getId).containsExactly("endpoint-green");
+    assertThat(dto.getAssets())
+        .extracting(EndpointTargetOutput::getId)
+        .containsExactly("endpoint-green");
     verify(injectService).resolveAllAssetsToExecute(inject);
     verify(endpointMapper, never()).toEndpointTargetOutput(endpointRed);
   }

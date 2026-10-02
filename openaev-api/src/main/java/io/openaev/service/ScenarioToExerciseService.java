@@ -51,9 +51,9 @@ public class ScenarioToExerciseService {
   @Resource protected ObjectMapper mapper;
 
   /**
-   * @param launchedBy the actor whose marking clearance this Exercise's inject dispatch is
-   *     filtered against — the live caller for a manual/operator-triggered launch, or
-   *     {@code scenario.getScheduledBy()} when called with no live user present ({@code
+   * @param launchedBy the actor whose marking clearance this Exercise's inject dispatch is filtered
+   *     against — the live caller for a manual/operator-triggered launch, or {@code
+   *     scenario.getScheduledBy()} when called with no live user present ({@code
    *     ScenarioExecutionJob}). Resolved by the caller, not here: this method has no way to know
    *     its own calling context (HTTP, cron, or autonomous).
    */

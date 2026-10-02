@@ -112,8 +112,10 @@ class AutonomousRunServiceTest {
     lenient().when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn("tenant-1");
     // resolveLaunchedBy() reads the live caller via SessionHelper.currentUser() - not every test
     // reaches it (only restart(), via stubRestartCollaborators()), so both stubs are lenient.
-    DefaultOpenAEVPrincipal principal = new DefaultOpenAEVPrincipal("operator-1", List.of(), false, "en");
-    SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(principal, null));
+    DefaultOpenAEVPrincipal principal =
+        new DefaultOpenAEVPrincipal("operator-1", List.of(), false, "en");
+    SecurityContextHolder.getContext()
+        .setAuthentication(new TestingAuthenticationToken(principal, null));
     lenient().when(userRepository.findById("operator-1")).thenReturn(Optional.of(new User()));
   }
 

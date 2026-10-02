@@ -679,7 +679,9 @@ public class ScenarioApi extends RestBehavior {
     Exercise simulation;
     // The live caller's clearance gates this Exercise's inject dispatch.
     User launchedBy =
-        this.userRepository.findById(currentUser().getId()).orElseThrow(ElementNotFoundException::new);
+        this.userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(ElementNotFoundException::new);
 
     if (workflowService.isScenarioChaining(scenarioId)) {
       // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario

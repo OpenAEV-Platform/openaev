@@ -352,12 +352,14 @@ public class AutonomousRunService {
   // region lifecycle
 
   /**
-   * The live operator's clearance gates dispatch on every simulation this service creates (Task
-   * 4) - {@code create}/{@code restart}/{@code promoteToRealRun} are all reached only through an
+   * The live operator's clearance gates dispatch on every simulation this service creates (Task 4)
+   * - {@code create}/{@code restart}/{@code promoteToRealRun} are all reached only through an
    * {@code accessControl.assertCanManage*} gate, so a real user is always present here.
    */
   private User resolveLaunchedBy() {
-    return userRepository.findById(currentUser().getId()).orElseThrow(ElementNotFoundException::new);
+    return userRepository
+        .findById(currentUser().getId())
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   /**

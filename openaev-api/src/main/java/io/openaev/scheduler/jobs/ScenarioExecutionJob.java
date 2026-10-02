@@ -114,7 +114,8 @@ public class ScenarioExecutionJob implements Job {
     // instead. May be null if the scenario's recurrence was never (re)configured through
     // ScenarioApi.updateScenarioRecurrence - resolves to zero clearance at dispatch time.
     Exercise exercise =
-        this.scenarioToExerciseService.toExercise(scenario, start, false, scenario.getScheduledBy());
+        this.scenarioToExerciseService.toExercise(
+            scenario, start, false, scenario.getScheduledBy());
     // Chained scenarios need the workflow template now; the workflow run is created later when
     // the scheduled exercise is auto-started.
     provisionChainedWorkflowTemplateIfNeeded(scenario.getId(), exercise);

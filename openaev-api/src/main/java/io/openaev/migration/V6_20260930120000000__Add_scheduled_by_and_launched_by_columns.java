@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
  * inferred from a "last edited" field.
  *
  * <p>{@code scheduled_by} = who owns/last confirmed a recurring schedule (Scenario recurrence,
- * Atomic Testing recurrence) — written at recurrence-configuration time, when a live user is
- * always present. {@code launched_by} = the actor a run's dispatch is filtered against (Exercise,
- * Atomic Testing inject) — written at launch/relaunch/scheduled-creation time.
+ * Atomic Testing recurrence) — written at recurrence-configuration time, when a live user is always
+ * present. {@code launched_by} = the actor a run's dispatch is filtered against (Exercise, Atomic
+ * Testing inject) — written at launch/relaunch/scheduled-creation time.
  *
  * <p>All four columns are nullable, {@code ON DELETE SET NULL}, mirroring the existing {@code
  * inject_user} FK: a deleted or never-stamped actor resolves to zero clearance at dispatch time,
