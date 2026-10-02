@@ -20,6 +20,8 @@ import {
 import { type CSSProperties } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
+import RequiredMark from './RequiredMark';
+
 export interface Item<T extends string = string> {
   value: T;
   label: string;
@@ -87,7 +89,10 @@ const SelectFieldController = ({
                 disabled={disabled}
                 error={!!error}
               >
-                <ComboboxLabel required={required}>{label}</ComboboxLabel>
+                <ComboboxLabel>
+                  {label}
+                  {required && <RequiredMark />}
+                </ComboboxLabel>
                 <ComboboxField>
                   <ComboboxChips />
                   <ComboboxInput name={field.name} onBlur={field.onBlur} />
@@ -112,7 +117,10 @@ const SelectFieldController = ({
               required={required}
               error={!!error}
             >
-              <SelectLabel required={required}>{label}</SelectLabel>
+              <SelectLabel>
+                {label}
+                {required && <RequiredMark />}
+              </SelectLabel>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={label} />
               </SelectTrigger>
