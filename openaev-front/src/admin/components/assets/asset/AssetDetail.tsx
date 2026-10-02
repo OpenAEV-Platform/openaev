@@ -21,6 +21,7 @@ import useRoutedTabs from '../../../../components/common/tabs/useRoutedTabs';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCriticality from '../../../../components/ItemCriticality';
+import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
@@ -32,8 +33,10 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
 import FindingList from '../../findings/FindingList';
@@ -48,15 +51,17 @@ import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
 
-// The backend's EndpointOverviewOutput now also carries the AI target connection metadata; until
-// the API types are regenerated (needs a backend restart) they are declared here so the page can
-// render them. Regenerating later makes these redundant but harmless.
+// The backend's EndpointOverviewOutput now also carries the AI target connection metadata and the
+// asset's markings; until the API types are regenerated (needs a backend restart) they are
+// declared here so the page can render them. Regenerating later makes these redundant but
+// harmless.
 type AssetOverview = EndpointOverviewOutput & {
   ai_target_provider?: string;
   ai_target_modality?: string;
   ai_target_endpoint?: string;
   ai_target_model?: string;
   ai_target_system_prompt?: string;
+  asset_markings?: string[];
 };
 
 const AssetDetail = () => {
@@ -86,6 +91,11 @@ const AssetDetail = () => {
   useEffect(() => {
     loadAsset();
   }, [loadAsset]);
+
+  // Gates the Markings field (and its data fetch below) so the flag-off platform looks exactly as
+  // it does today - mirrors the Endpoints list convention.
+  const markingEnabled = isFeatureEnabled('MARKING');
+  const markingDefinitions = useMarkingDefinitions({ skip: !markingEnabled });
 
   // Resolve the linked person (identity assets) to a readable name.
   const { usersMap } = useHelper((helper: UserHelper) => ({ usersMap: helper.getUsersMap() }));
@@ -292,6 +302,11 @@ const AssetDetail = () => {
               <Field label={t('Tags')}>
                 <ItemTags variant="list" tags={asset.asset_tags} />
               </Field>
+              {markingEnabled && (
+                <Field label={t('Markings')}>
+                  <ItemMarkings variant="list" markingIds={asset.asset_markings} definitions={markingDefinitions} />
+                </Field>
+              )}
             </InformationGrid>
 
             {isAiTarget && (

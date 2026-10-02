@@ -19,6 +19,9 @@ public class PresetTenantData {
 
   public record MarkingSeed(String type, String definition, String color, int order) {}
 
+  // `definition` stores the type baked in for TLP (e.g. `"TLP:CLEAR"`), matching the historical
+  // seed values already present for existing tenants - see issue #7635 for why this differs from
+  // a tenant-created custom type (whose definition is stored bare, e.g. "AMBER").
   public static List<MarkingSeed> createDefaultMarkings() {
     return List.of(
         new MarkingSeed("TLP", "TLP:CLEAR", "#E6E7E8", 1),

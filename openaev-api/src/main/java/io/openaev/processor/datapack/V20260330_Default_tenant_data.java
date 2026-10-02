@@ -52,8 +52,11 @@ public class V20260330_Default_tenant_data extends DataPack {
         PresetTenantData.createDefaultVulnerabilityCwes()
             .forEach(
                 input -> {
-                  Cwe cwe = cweRepository.save(input.cwe());
+                  Cwe cwe = input.cwe();
+                  cwe.setTenant(entityManager.getReference(Tenant.class, tenant.getId()));
+                  cweRepository.save(cwe);
                   Vulnerability vulnerability = input.vulnerability();
+                  vulnerability.setTenant(entityManager.getReference(Tenant.class, tenant.getId()));
                   vulnerability.setCwes(new ArrayList<>(List.of(cwe)));
                   vulnerabilityRepository.save(vulnerability);
                 });

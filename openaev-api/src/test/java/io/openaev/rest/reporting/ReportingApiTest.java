@@ -53,11 +53,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
+@TestPropertySource(
+    properties =
+        "openaev.tenant.active-tables=reportings,reporting_generations,reporting_schedules")
 class ReportingApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -73,6 +77,11 @@ class ReportingApiTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() {
+    // reportings is tenant-active: a caller with no real tenant membership resolves an empty
+    // scope (fail-closed), where v1 silently fell back to the default tenant. Every test in this
+    // class but TenantIsolation (which provisions its own tenants) expects that v1 fallback shape,
+    // so give the mock user real membership in the default tenant here.
+    tenantIsolationHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
     reportingComposer.reset();
   }
 

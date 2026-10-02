@@ -72,10 +72,12 @@ public class HostedPublicApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public ResponseEntity<byte[]> open(
       TxCtx ctx, @PathVariable String token, HttpServletRequest request) {
-    if (bindTenant(token).isEmpty()) {
+    Optional<String> tenantId = bindTenant(token);
+    if (tenantId.isEmpty()) {
       return pixelResponse();
     }
-    phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
+    phishingTrackingService.markOpened(
+        TxCtx.forTenant(tenantId.get()), token, clientIp(request), request.getHeader("User-Agent"));
     return pixelResponse();
   }
 
@@ -93,7 +95,9 @@ public class HostedPublicApi extends RestBehavior {
     if (tenantId.isEmpty()) {
       return null;
     }
-    PhishingResult result = phishingTrackingService.resolveAndBackfillByToken(token).orElse(null);
+    TxCtx resolved = TxCtx.forTenant(tenantId.get());
+    PhishingResult result =
+        phishingTrackingService.resolveAndBackfillByToken(resolved, token).orElse(null);
     if (result == null) {
       return null;
     }
@@ -105,7 +109,8 @@ public class HostedPublicApi extends RestBehavior {
     if (landingPage == null) {
       return null;
     }
-    phishingTrackingService.markClicked(token, clientIp(request), request.getHeader("User-Agent"));
+    phishingTrackingService.markClicked(
+        resolved, token, clientIp(request), request.getHeader("User-Agent"));
     return new PhishingLandingPageReader(landingPage);
   }
 
@@ -122,7 +127,9 @@ public class HostedPublicApi extends RestBehavior {
     if (tenantId.isEmpty()) {
       return Collections.singletonMap("redirect_url", null);
     }
-    PhishingResult result = phishingTrackingService.resolveAndBackfillByToken(token).orElse(null);
+    TxCtx resolved = TxCtx.forTenant(tenantId.get());
+    PhishingResult result =
+        phishingTrackingService.resolveAndBackfillByToken(resolved, token).orElse(null);
     // Id-only access on the lazy proxy: never triggers a DB load (same idiom as MonoIdSerializer),
     // so it is safe to read here even though this request's own scope is TxCtx.missing().
     String landingPageId =
@@ -130,6 +137,7 @@ public class HostedPublicApi extends RestBehavior {
     PhishingLandingPage landingPage =
         phishingLandingPageLookupService.byId(tenantId.get(), landingPageId).orElse(null);
     phishingTrackingService.markSubmitted(
+        resolved,
         token,
         submittedFields(input),
         clientIp(request),
@@ -153,6 +161,16 @@ public class HostedPublicApi extends RestBehavior {
         : ResponseEntity.notFound().build();
   }
 
+  /**
+   * Resolves the token's owning tenant and sets it on the legacy {@link TenantContext}: some of the
+   * tables the tracking transitions still touch through {@code PhishingTrackingService}
+   * (expectations, findings) are not tenant-active yet and still read that thread-local. The tables
+   * that ARE tenant-active ({@code phishing_results}, {@code phishing_landing_pages}) get their own
+   * scope from the resolved id instead, since {@code TenantContext} does not reach the v2 {@code
+   * app.current_tenants} scope: {@code phishing_results} through the {@link TxCtx} passed
+   * explicitly to the tracking calls, {@code phishing_landing_pages} through {@link
+   * PhishingLandingPagePublicLookupService}.
+   */
   private Optional<String> bindTenant(final String token) {
     Optional<String> tenantId = phishingTrackingService.resolveTenantIdByToken(token);
     tenantId.ifPresent(TenantContext::setCurrentTenant);
