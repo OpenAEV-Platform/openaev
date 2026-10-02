@@ -19,7 +19,7 @@ import {
   generateWeeklyCronExpression,
 } from '../../../../utils/period/Cron';
 import handle from '../../../../utils/period/Period';
-import { minutesInFuture } from '../../../../utils/Time';
+import { minutesInFuture, toUtcMidnightIso } from '../../../../utils/Time';
 import { zodImplement } from '../../../../utils/Zod';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -444,6 +444,7 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                   name="startDate"
                   label={t('Start date')}
                   minDate={new Date(new Date().setUTCHours(0, 0, 0, 0))}
+                  toStorage={toUtcMidnightIso}
                   onAccept={() => clearErrors(['hour', 'minute'])}
                 />
                 {frequency !== 'noRepeat' && (
@@ -452,7 +453,7 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                     name="endDate"
                     label={t('End date (optional)')}
                     minDate={new Date(new Date().setUTCHours(24, 0, 0, 0))}
-                    toStorage={endDate => new Date(new Date(endDate).setUTCHours(0, 0, 0, 0)).toISOString()}
+                    toStorage={toUtcMidnightIso}
                   />
                 )}
               </Box>
