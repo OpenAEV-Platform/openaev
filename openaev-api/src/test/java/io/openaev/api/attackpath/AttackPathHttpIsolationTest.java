@@ -99,13 +99,14 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("under another tenant's path: the delta carries none of the owner's rows")
+  @DisplayName("under another tenant's path with no counter of its own: the delta short-circuits")
   void deltaUnderOtherTenantIsHidden() throws Exception {
-    // The delta is a second, polled path into the same projection, so it needs its own proof: the
-    // cursor reads and the affected-endpoint aggregations are all separate queries from the
-    // snapshot's. The version counter is tenant-scoped too (its table is keyed by (simulation,
-    // tenant) and every statement carries the tenant), so the foreign tenant reads no counter at
-    // all: version 0, no rows, and no counters to recompute.
+    // The version counter is tenant-keyed (its table is keyed by (simulation, tenant) and every
+    // statement carries the tenant), so a foreign tenant reads no counter at all and buildDelta
+    // answers with an empty tick before any row query runs. That is what this asserts, and it is
+    // why it is green with the projection tables disarmed: the empty node and edge lists below are
+    // the short-circuit, not a filtered read. The row reads of the delta are proved by
+    // given_otherTenantWithACounterOfItsOwn_should_readNoneOfTheOwnerRows below, where it exists.
     mvc.perform(get(DELTA, tenantB, SIM).param("since", "0"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.resyncRequired").value(false))
@@ -123,7 +124,8 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   void deltaUnderOtherTenantWithACursorResyncs() throws Exception {
     // The owner's counter sits at 1. A foreign tenant claiming that cursor must not be told that
     // nothing changed since 1: from its own scope the simulation has no attack-path data at all, so
-    // the only answerable reply is a resync, and a resync carries no rows.
+    // the only answerable reply is a resync, and a resync carries no rows. Produced by the
+    // counter's (simulation, tenant) key, so green with the projection tables disarmed too.
     mvc.perform(get(DELTA, tenantB, SIM).param("since", "1"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.resyncRequired").value(true))
@@ -132,8 +134,31 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "under another tenant's path, counter of its own: the delta reads none of the owner's rows")
+  void given_otherTenantWithACounterOfItsOwn_should_readNoneOfTheOwnerRows() throws Exception {
+    // With a counter of its own, tenant B's delta no longer short-circuits: buildDelta compares
+    // since=0 against B's current version and runs the row queries, countChangedSince and
+    // findGraphRowsSince, neither of which carries a tenant predicate. The scope is therefore the
+    // only thing between B and the owner's rows, and this assertion goes red with
+    // attackpath_execution and attackpath_finding disarmed.
+    seedGraphVersion(tenantB);
+
+    mvc.perform(get(DELTA, tenantB, SIM).param("since", "0"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.newVersion").value(1))
+        .andExpect(jsonPath("$.attackPathNodes").isEmpty())
+        .andExpect(jsonPath("$.attackPathEdges").isEmpty())
+        .andExpect(jsonPath("$.attackPathExecutions").isEmpty())
+        .andExpect(jsonPath("$.staticAttackPathFindings").isEmpty());
+  }
+
+  @Test
   @DisplayName("under another tenant's path: the graph carries no version of the owner's counter")
   void graphUnderOtherTenantCarriesNoVersion() throws Exception {
+    // The counter alone, read with the request's tenants passed explicitly: green with the
+    // projection tables disarmed, because this table is not one of them. The graph's rows are
+    // covered by graphUnderOtherTenantIsHidden, which does depend on the activation.
     mvc.perform(get(GRAPH, tenantB, SIM))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.graphVersion").value(0));
