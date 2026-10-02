@@ -33,6 +33,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
+import org.hibernate.type.SqlTypes;
 
 @Data
 @Entity
@@ -169,7 +170,7 @@ public class Payload implements GrantableBase, TenantBase {
    * when this payload's predefined expectations are instantiated on an inject.
    */
   @Setter
-  @Type(JsonType.class)
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "payload_expected_security_platforms", columnDefinition = "jsonb")
   @JsonProperty("payload_expected_security_platforms")
   private Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
