@@ -11,6 +11,19 @@ const markingIdSetsEqual = (a: string[], b: string[]): boolean => {
   return setA.size === setB.size && [...setA].every(id => setB.has(id));
 };
 
+// Seeded definitions already store the display value with its type baked in, e.g.
+// `marking_definition_definition: "TLP:RED"` for a `marking_definition_type: "TLP"`. Prefixing
+// unconditionally would render `TLP:TLP:RED`, so the type is only prepended when the definition
+// does not already carry it. Always rendered uppercase (e.g. `TLP:GREEN`), regardless of how the
+// type/definition were cased when the marking was created.
+// Shared by every marking display (MarkingChip, MarkingField's picker, ItemMarkings' tooltip) so
+// they all render the exact same label instead of re-deriving their own "type:definition" format.
+export const markingLabel = (marking: MarkingDefinitionOutput) => {
+  const type = marking.marking_definition_type.toUpperCase();
+  const definition = marking.marking_definition_definition.toUpperCase();
+  return definition.startsWith(`${type}:`) ? definition : `${type}:${definition}`;
+};
+
 // Keeps only the highest-order marking per type (e.g. TLP:CLEAR/GREEN/AMBER collapse to
 // TLP:AMBER): holding a level already implies holding every less restrictive level of the same
 // type (see MarkingScopeResolver), so there is never a product reason to show or keep more than

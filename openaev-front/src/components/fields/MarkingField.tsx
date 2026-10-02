@@ -1,17 +1,16 @@
 import { Lens } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, Chip, TextField } from '@mui/material';
+import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useContext, useMemo } from 'react';
 import { type GlobalError } from 'react-hook-form';
 
 import { type MarkingDefinitionOutput } from '../../utils/api-types';
-import { hexToRGB } from '../../utils/Colors';
 import { MESSAGING$ } from '../../utils/Environment';
 import useMarkingDefinitions from '../../utils/hooks/useMarkingDefinitions';
-import { collapseToHighestPerType } from '../../utils/markings';
+import { collapseToHighestPerType, markingLabel } from '../../utils/markings';
 import { AbilityContext } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
+import MarkingChip from '../common/MarkingChip';
 import { useFormatter } from '../i18n';
-import { markingLabel } from '../ItemMarkings';
 
 interface Props {
   label?: string;
@@ -159,17 +158,11 @@ const MarkingField: FunctionComponent<Props> = ({
         renderTags={(markingValue, getMarkingProps) => markingValue.map((option, index) => {
           const { key, ...markingProps } = getMarkingProps({ index });
           return (
-            <Chip
+            <MarkingChip
               key={key}
               {...markingProps}
-              variant="outlined"
               size="small"
-              label={markingLabel(option)}
-              sx={{
-                color: option.marking_definition_color,
-                borderColor: option.marking_definition_color,
-                backgroundColor: option.marking_definition_color ? hexToRGB(option.marking_definition_color) : undefined,
-              }}
+              marking={option}
             />
           );
         })}
