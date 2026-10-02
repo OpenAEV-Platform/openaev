@@ -1,6 +1,6 @@
 package io.openaev.utilstest;
 
-import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectExecutionCallbackService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.queue.BatchQueueService;
 import lombok.extern.slf4j.Slf4j;
@@ -22,14 +22,11 @@ public class RabbitMQTestListener implements TestExecutionListener {
     if (testClass.isAnnotationPresent(KeepRabbit.class)) {
       ApplicationContext context = testContext.getApplicationContext();
       // Reinitialize consumers that were stopped by a previous test class
-      context.getBean(InjectService.class).initInjectTraceQueue();
+      context.getBean(InjectExecutionCallbackService.class).init();
       context.getBean(QueueChainingService.class).init();
       // Purge stale messages that were requeued by RabbitMQ after the previous connection close
       // Safe because the scheduler's initial delay (workerFrequency) hasn't elapsed yet
-      BatchQueueService<?> queueService = injectTraceQueue(context);
-      if (queueService != null) {
-        queueService.purge();
-      }
+      context.getBean(InjectExecutionCallbackService.class).getInjectTraceQueueService().purge();
       consumersStopped = false;
       log.info("RabbitMQ consumers reinitialized for class: {}", testClass.getSimpleName());
     }
@@ -40,7 +37,8 @@ public class RabbitMQTestListener implements TestExecutionListener {
     Class<?> testClass = testContext.getTestClass();
     if (testClass.isAnnotationPresent(KeepRabbit.class)) {
       ApplicationContext context = testContext.getApplicationContext();
-      BatchQueueService<?> queueService = injectTraceQueue(context);
+      BatchQueueService<?> queueService =
+          context.getBean(InjectExecutionCallbackService.class).getInjectTraceQueueService();
       if (queueService != null) {
         queueService.purge();
       }
@@ -59,21 +57,10 @@ public class RabbitMQTestListener implements TestExecutionListener {
 
     // Closing RabbitMQ consumers
     ApplicationContext context = testContext.getApplicationContext();
-    BatchQueueService<?> queueService = injectTraceQueue(context);
-    if (queueService != null) {
-      queueService.stop();
-    }
+    context.getBean(InjectExecutionCallbackService.class).getInjectTraceQueueService().stop();
     context.getBean(QueueChainingService.class).destroy();
     consumersStopped = true;
 
     log.info("RabbitMQ consumers closed for class: {}", testClass.getSimpleName());
-  }
-
-  /**
-   * The inject trace queue lives on InjectService, which some test classes replace with a mock
-   * ({@code @MockitoBean}): their context has no queue, so there is nothing to purge or stop.
-   */
-  private static BatchQueueService<?> injectTraceQueue(ApplicationContext context) {
-    return context.getBean(InjectService.class).getInjectTraceQueueService();
   }
 }

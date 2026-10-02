@@ -7,7 +7,6 @@ import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTEN
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.database.specification.InjectSpecification.*;
 import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -26,7 +25,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
@@ -53,7 +51,6 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
-import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -63,11 +60,8 @@ import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
-import io.openaev.service.inject.BatchingInjectStatusService;
-import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
@@ -85,23 +79,18 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
-import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
@@ -117,7 +106,7 @@ import org.springframework.util.CollectionUtils;
 @RequiredArgsConstructor
 @Service
 @Slf4j
-public class InjectService implements SmartInitializingSingleton {
+public class InjectService {
   private static final String CREDENTIAL_ACCESS_DENIED = "CREDENTIAL_ACCESS_DENIED";
   private static final String CREDENTIAL_INACTIVE = "CREDENTIAL_INACTIVE";
   static final String AGENT_ACCESS_DENIED = "Agent is not allowed to act on this inject";
@@ -147,9 +136,6 @@ public class InjectService implements SmartInitializingSingleton {
   private final DocumentRepository documentRepository;
   private final PayloadRepository payloadRepository;
   private final AgentService agentService;
-  private final RabbitmqService rabbitmqService;
-  private final OpenAEVConfig openAEVConfig;
-  private final PreviewFeatureService previewFeatureService;
   private final SmtpService smtpService;
   private final ImapService imapService;
   private final HealthCheckUtils healthCheckUtils;
@@ -164,53 +150,6 @@ public class InjectService implements SmartInitializingSingleton {
   @Autowired
   public void setInjectStatusService(@Lazy InjectStatusService injectStatusService) {
     this.injectStatusService = injectStatusService;
-  }
-
-  // Execution callback services depend back on InjectService, hence the lazy injection.
-  private InjectExecutionService injectExecutionService;
-  private BatchExecutionTraceExecutor batchExecutionTraceExecutor;
-  private BatchingInjectStatusService batchingInjectStatusService;
-
-  @Autowired
-  public void setInjectExecutionCallbackServices(
-      @Lazy InjectExecutionService injectExecutionService,
-      @Lazy BatchExecutionTraceExecutor batchExecutionTraceExecutor,
-      @Lazy BatchingInjectStatusService batchingInjectStatusService) {
-    this.injectExecutionService = injectExecutionService;
-    this.batchExecutionTraceExecutor = batchExecutionTraceExecutor;
-    this.batchingInjectStatusService = batchingInjectStatusService;
-  }
-
-  // For testing purpose, we add a setter
-  @Getter @Setter private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
-
-  /**
-   * Initializes the inject trace queue on startup. Not a {@code @PostConstruct}: it resolves the
-   * lazy callback services above, which depend back on this bean, so it must run once every
-   * singleton is created (still before the web server starts).
-   */
-  @Override
-  public void afterSingletonsInstantiated() {
-    try {
-      initInjectTraceQueue();
-    } catch (IOException | TimeoutException e) {
-      throw new IllegalStateException("Cannot initialize the inject trace queue", e);
-    }
-  }
-
-  /** Initializes the queue batching the inject execution traces, when it is configured. */
-  public void initInjectTraceQueue() throws IOException, TimeoutException {
-    if (openAEVConfig.getQueueConfig().get("inject-trace") != null) {
-      injectTraceQueueService =
-          rabbitmqService.createBatchQueueService(
-              InjectExecutionCallback.class,
-              batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
-              mapper,
-              openAEVConfig.getQueueConfig().get("inject-trace"),
-              DEFAULT_TENANT_UUID);
-      // Share the queue with the batching service so it can requeue delayed callbacks
-      batchingInjectStatusService.setInjectTraceQueueService(injectTraceQueueService);
-    }
   }
 
   private final LicenseCacheManager licenseCacheManager;
@@ -384,39 +323,6 @@ public class InjectService implements SmartInitializingSingleton {
       throw new ForbiddenException(AGENT_ACCESS_DENIED);
     }
     return inject;
-  }
-
-  /**
-   * Handles an execution callback sent by an implant ({@code agentId} set) or an injector ({@code
-   * agentId} null). The implant's agent is checked synchronously, before the callback is queued, so
-   * the implant gets the 403. The callback is then published to the inject trace queue for batched
-   * ingestion, or processed right away when the queue is off or legacy ingestion is enabled.
-   *
-   * @param agentId the agent reported by the implant, or {@code null} for an injector
-   * @param injectId the inject the callback is about
-   * @param input the execution result
-   * @throws ForbiddenException if the agent is not a target of the inject
-   */
-  public void injectExecutionCallback(
-      @Nullable String agentId, String injectId, InjectExecutionInput input) throws IOException {
-    if (agentId != null) {
-      resolveInjectTargetingAgent(injectId, agentId);
-    }
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
-        && injectTraceQueueService != null) {
-      InjectExecutionCallback injectExecutionCallback =
-          InjectExecutionCallback.builder()
-              .injectExecutionInput(input)
-              .agentId(agentId)
-              .injectId(injectId)
-              .emissionDate(Instant.now().toEpochMilli())
-              .build();
-
-      // Publishing the parameters into a queue for later ingestion
-      injectTraceQueueService.publish(injectExecutionCallback);
-    } else {
-      injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
-    }
   }
 
   private boolean isInjectTarget(Inject inject, Agent agent) {

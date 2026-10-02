@@ -28,6 +28,7 @@ import io.openaev.rest.helper.ValidationErrorBag;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
+import io.openaev.rest.inject.service.InjectExecutionCallbackService;
 import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
@@ -81,6 +82,7 @@ public class InjectApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
+  private final InjectExecutionCallbackService injectExecutionCallbackService;
   private final CredentialService credentialService;
   private final InjectExportService injectExportService;
   private final TargetService targetService;
@@ -374,7 +376,7 @@ public class InjectApi extends RestBehavior {
   public void injectExecutionCallback(
       TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    injectService.injectExecutionCallback(null, injectId, input);
+    injectExecutionCallbackService.injectExecutionCallback(null, injectId, input);
   }
 
   @PostMapping({
@@ -415,7 +417,7 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    injectService.injectExecutionCallback(agentId, injectId, input);
+    injectExecutionCallbackService.injectExecutionCallback(agentId, injectId, input);
   }
 
   @GetMapping({
