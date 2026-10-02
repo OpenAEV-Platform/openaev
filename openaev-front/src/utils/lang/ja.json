@@ -67,6 +67,7 @@
   "{met} of {total} validated expectations were met on this asset.": "このアセットでは、{total}件の検証済み期待値のうち{met}件が達成されました。",
   "{percent}% full": "{percent}% 満杯",
   "{quota} (shared across all users)": "{quota}（全ユーザーで共有）",
+  "{rejected} was not added: {kept} is already selected and takes precedence for this marking type.": "{rejected} は追加されませんでした：{kept} はすでに選択されており、このマーク付けタイプではそちらが優先されます。",
   "{selected}/{total} selected": "{selected}/{total} 選択済み",
   "{stopped} stopped - {breached} breached": "{stopped} 件阻止 - {breached} 件突破",
   "{summary} — click for details": "{summary} — クリックで詳細を表示",
