@@ -313,6 +313,8 @@ public class PlatformSettingsService {
     platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
     platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
     platformSettings.setPlatformVersion(openAEVConfig.getVersion());
+    platformSettings.setPlatformCommit(
+        StringUtils.hasText(openAEVConfig.getCommit()) ? openAEVConfig.getCommit() : null);
     platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
     // Where the browser opens XTM One: its published identity, not an internal address.
     platformSettings.setXtmOneUrl(xtmOneIdentity.browserUrl());
