@@ -118,8 +118,8 @@ class CollectorServiceMultiTenantScopeTest extends IntegrationTest {
     assertEquals(
         2,
         rawCollectorTypeCount(typeName),
-        "nothing may be inserted: a lookup that misses A's row re-inserts it and collides on"
-            + " collector_types_name_tenant_unique");
+        "nothing may be inserted: the dedup must resolve A's own row by (name, tenant) and leave"
+            + " the two rows as they are");
   }
 
   private int rawCollectorTypeCount(String typeName) {
