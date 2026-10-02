@@ -75,7 +75,6 @@ jobs:
           tags: ${{ steps.image-tag.outputs.value }}
           context: pr
           dockerfile: pr/Dockerfile
-          build-args: OPENAEV_COMMIT=${{ inputs.head_sha }}
           platform: linux/amd64
           download-release-assets: "true"
           allow-registry: "false"

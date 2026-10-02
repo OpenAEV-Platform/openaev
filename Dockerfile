@@ -44,8 +44,5 @@ RUN DEBIAN_FRONTEND=noninteractive java -Dloader.main=com.microsoft.playwright.C
     && rm -rf /var/lib/apt/lists/* \
     && chmod -R a+rX /ms-playwright
 
-ARG OPENAEV_COMMIT
-ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
-
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["java", "-jar", "openaev-api.jar"]
