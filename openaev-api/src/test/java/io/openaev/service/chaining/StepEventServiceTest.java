@@ -410,6 +410,60 @@ class StepEventServiceTest {
       assertEquals(1, event.getRetryCount());
       verify(queueChainingService).republishReadyEvent(event);
     }
+
+    @Test
+    void given_republishFails_should_endReadyStep() throws IOException {
+      // Arrange: the event transaction fails, its re-publication fails, ending the step succeeds
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      Step step = new Step();
+      step.setStatus(StepStatus.READY);
+      when(stepRepository.findForUpdateById(event.getStepId())).thenReturn(Optional.of(step));
+
+      doThrow(new RuntimeException("DB error"))
+          .doAnswer(
+              invocation -> {
+                Runnable work = invocation.getArgument(1);
+                work.run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+      doThrow(new IOException("RabbitMQ down"))
+          .when(queueChainingService)
+          .republishReadyEvent(any());
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert: the step ends instead of staying READY with no event left to carry it
+      assertEquals(StepStatus.END, step.getStatus());
+      verify(stepService).saveStep(step);
+    }
+
+    @Test
+    void given_republishThrowsRuntimeException_should_notStopTheBatch() throws IOException {
+      // Arrange: every event transaction fails, and the first re-publication hits a closed channel
+      StepEvent first = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      StepEvent second = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+
+      doAnswer(
+              invocation -> {
+                throw new RuntimeException("DB error");
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+      doThrow(new IllegalStateException("channel is already closed"))
+          .doNothing()
+          .when(queueChainingService)
+          .republishReadyEvent(any());
+
+      // Act — should not throw
+      stepEventService.handleReadyEvent(List.of(first, second));
+
+      // Assert: the second event is still handled
+      verify(queueChainingService).republishReadyEvent(first);
+      verify(queueChainingService).republishReadyEvent(second);
+    }
   }
 
   @Nested

@@ -108,11 +108,14 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
             e);
         try {
           queueChainingService.republishReadyEvent(stepEvent);
-        } catch (IOException ioEx) {
+        } catch (IOException | RuntimeException republishEx) {
+          // RuntimeException too (e.g. AlreadyClosedException on a closed channel): escaping here
+          // would stop the batch and reject all its messages.
           log.error(
-              "[Chaining] Failed to re-queue StepEvent {} after transactional failure. Event is lost.",
+              "[Chaining] Failed to re-queue StepEvent {} after transactional failure. Event is lost, step moved to (END).",
               stepEvent.getStepId(),
-              ioEx);
+              republishEx);
+          endReadyStepWithoutEvent(stepEvent, tenantId);
         }
       } else {
         log.error(
