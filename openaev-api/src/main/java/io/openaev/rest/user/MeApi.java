@@ -38,7 +38,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -143,7 +142,7 @@ public class MeApi extends RestBehavior {
 
     userService.sendEmailChangeConfirmationEmail(user);
 
-    MultiValueMap<String, String> headers = new HttpHeaders();
+    HttpHeaders headers = new HttpHeaders();
     headers.add("Location", openAEVConfig.getBaseUrl());
     return new ResponseEntity<>(headers, HttpStatus.FOUND);
   }
