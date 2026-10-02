@@ -457,16 +457,12 @@ public enum Capability {
       MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
 
   // Marking assignment
-  ACCESS_MARKING_ASSIGNMENT(
+  ASSIGN_MARKING(
       null,
       CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.MARKING_ASSIGNMENT, Action.READ),
-      pair(ResourceType.MARKING_ASSIGNMENT, Action.SEARCH)),
-  ASSIGN_MARKING(
-      ACCESS_MARKING_ASSIGNMENT, pair(ResourceType.MARKING_ASSIGNMENT, Action.WRITE)),
-  DELETE_MARKING_ASSIGNMENT(
-      ASSIGN_MARKING, pair(ResourceType.MARKING_ASSIGNMENT, Action.DELETE)),
+      pair(ResourceType.MARKING_ASSIGNMENT, Action.WRITE)),
+  DELETE_MARKING_ASSIGNMENT(ASSIGN_MARKING, pair(ResourceType.MARKING_ASSIGNMENT, Action.DELETE)),
 
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(

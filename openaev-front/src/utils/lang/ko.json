@@ -2387,6 +2387,7 @@
   "Missed expectations": "놓친 기대값",
   "Missed injects by week": "주별 미탐지 인젝트",
   "Missing content": "누락된 콘텐츠",
+  "Missing the ASSIGN_MARKING capability": "ASSIGN_MARKING 기능이 누락되었습니다.",
   "Missing token": "누락된 토큰",
   "Mission": "미션",
   "Mission (planned)": "미션(계획됨)",
