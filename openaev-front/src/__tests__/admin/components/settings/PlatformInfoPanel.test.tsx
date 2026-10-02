@@ -27,7 +27,14 @@ vi.mock('../../../../utils/utils', async (importOriginal) => {
 
 const COMMIT = 'a59197d8cc0123456789abcdef0123456789abcd';
 
-const theme = createTheme();
+const theme = createTheme({
+  palette: {
+    ee: {
+      main: '#6b4fff',
+      lightBackground: 'rgba(107, 79, 255, 0.08)',
+    },
+  },
+});
 
 const renderPanel = (settings: Partial<PlatformSettings>) => {
   const wrapper = ({ children }: { children: ReactNode }) => (
