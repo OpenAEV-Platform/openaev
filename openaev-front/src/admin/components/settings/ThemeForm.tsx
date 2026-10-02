@@ -1,42 +1,52 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField as MuiTextField } from '@mui/material';
 import { type FunctionComponent, useEffect } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
 import ColorPickerField from '../../../components/ColorPickerField';
+import TextFieldFds from '../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../components/i18n';
 import { type ThemeInput } from '../../../utils/api-types';
+import { type FdsThemeMode } from '../../../utils/hooks/useFdsThemeScope';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { CONTRAST_FLOOR, themeContrastWarnings } from '../../../utils/themeContrast';
 import { zodImplement } from '../../../utils/Zod';
 
 interface Props {
   onSubmit: SubmitHandler<ThemeInput>;
   initialValues?: ThemeInput;
   canNotManage: boolean;
+  /** The mode this form edits: an unset colour is judged against that mode's token. */
+  mode: FdsThemeMode;
 }
 
 const useStyles = makeStyles()(() => ({ field: { marginBottom: 20 } }));
 
+/** Every field this form owns, empty: what "default" means for a theme. */
+const EMPTY_THEME: ThemeInput = {
+  accent_color: '',
+  background_color: '',
+  login_aside_color: '',
+  login_aside_gradient_end: '',
+  login_aside_gradient_start: '',
+  login_aside_image: '',
+  logo_login_url: '',
+  logo_url: '',
+  logo_url_collapsed: '',
+  navigation_color: '',
+  paper_color: '',
+  primary_color: '',
+  secondary_color: '',
+  text_color: '',
+};
+
 const ThemeForm: FunctionComponent<Props> = ({
   onSubmit,
-  initialValues = {
-    accent_color: '',
-    background_color: '',
-    login_aside_color: '',
-    login_aside_gradient_end: '',
-    login_aside_gradient_start: '',
-    login_aside_image: '',
-    logo_login_url: '',
-    logo_url: '',
-    logo_url_collapsed: '',
-    navigation_color: '',
-    paper_color: '',
-    primary_color: '',
-    secondary_color: '',
-  },
+  mode,
+  initialValues = EMPTY_THEME,
   canNotManage,
 }) => {
   // Standard hooks
@@ -48,6 +58,7 @@ const ThemeForm: FunctionComponent<Props> = ({
     control,
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
+    watch,
     reset,
   } = useForm<ThemeInput>({
     mode: 'onTouched',
@@ -66,6 +77,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         paper_color: z.string().optional(),
         primary_color: z.string().optional(),
         secondary_color: z.string().optional(),
+        text_color: z.string().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -75,184 +87,170 @@ const ThemeForm: FunctionComponent<Props> = ({
     reset(initialValues);
   }, [initialValues, reset]);
 
+  // Warning only: a stored theme is never rewritten, and nothing is blocked.
+  const [background, paper, primary, textColor] = watch([
+    'background_color', 'paper_color', 'primary_color', 'text_color',
+  ]);
+  const hasAnyValue = Object.values(watch()).some(value => !!value);
+  const warnings = themeContrastWarnings(
+    {
+      background,
+      paper,
+      primary,
+      text: textColor,
+    },
+    mode,
+  );
+  const belowFloor = (ratio: number) => t('Contrast below the accessibility floor')
+    + ` (${ratio.toFixed(2)}:1 < ${CONTRAST_FLOOR}:1)`;
+
   return (
     <form id="themeForm" onSubmit={handleSubmit(onSubmit)}>
 
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Background color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
-        error={!!errors.background_color}
-        helperText={errors.background_color && errors.background_color?.message}
         control={control}
         name="background_color"
         disabled={canNotManage}
+        helperText={warnings.background !== undefined ? belowFloor(warnings.background) : undefined}
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Paper color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
-        error={!!errors.paper_color}
-        helperText={errors.paper_color && errors.paper_color?.message}
         control={control}
         name="paper_color"
         disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Navigation color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
-        error={!!errors.navigation_color}
-        helperText={errors.navigation_color && errors.navigation_color?.message}
         control={control}
         name="navigation_color"
         disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Primary color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
-        error={!!errors.primary_color}
-        helperText={errors.primary_color && errors.primary_color?.message}
         control={control}
         name="primary_color"
         disabled={canNotManage}
+        helperText={warnings.primary !== undefined ? belowFloor(warnings.primary) : undefined}
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Secondary color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
-        error={!!errors.secondary_color}
-        helperText={errors.secondary_color && errors.secondary_color?.message}
         control={control}
         name="secondary_color"
         disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Accent color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
-        error={!!errors.accent_color}
-        helperText={errors.accent_color && errors.accent_color?.message}
         control={control}
         name="accent_color"
         disabled={canNotManage}
       />
-      <MuiTextField
+      <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
+        label={t('Text color')}
+        placeholder={t('Default')}
+        control={control}
+        name="text_color"
+        disabled={canNotManage}
+        helperText={warnings.text !== undefined ? belowFloor(warnings.text) : undefined}
+      />
+      <TextFieldFds
+        className={classes.field}
         label={t('Logo URL')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+
         error={!!errors.logo_url}
         helperText={errors.logo_url && errors.logo_url?.message}
-        inputProps={register('logo_url')}
+        {...register('logo_url')}
         disabled={canNotManage}
       />
-      <MuiTextField
+      <TextFieldFds
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Logo URL (collapsed)')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+
         error={!!errors.logo_url_collapsed}
         helperText={errors.logo_url_collapsed && errors.logo_url_collapsed?.message}
-        inputProps={register('logo_url_collapsed')}
+        {...register('logo_url_collapsed')}
         disabled={canNotManage}
       />
-      <MuiTextField
+      <TextFieldFds
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Logo URL (login)')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+
         error={!!errors.logo_login_url}
         helperText={errors.logo_login_url && errors.logo_login_url?.message}
-        inputProps={register('logo_login_url')}
+        {...register('logo_login_url')}
         disabled={canNotManage}
       />
       {/* Login page aside customization (aligned with OpenCTI):
           priority is image > gradient > color > default Filigran gradient. */}
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Login aside color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
-        error={!!errors.login_aside_color}
-        helperText={errors.login_aside_color && errors.login_aside_color?.message}
         control={control}
         name="login_aside_color"
         disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Login aside gradient start color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
-        error={!!errors.login_aside_gradient_start}
-        helperText={errors.login_aside_gradient_start && errors.login_aside_gradient_start?.message}
         control={control}
         name="login_aside_gradient_start"
         disabled={canNotManage}
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Login aside gradient end color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
-        error={!!errors.login_aside_gradient_end}
-        helperText={errors.login_aside_gradient_end && errors.login_aside_gradient_end?.message}
         control={control}
         name="login_aside_gradient_end"
         disabled={canNotManage}
       />
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Login aside image URL')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+
         error={!!errors.login_aside_image}
         helperText={errors.login_aside_image && errors.login_aside_image?.message}
-        inputProps={register('login_aside_image')}
+        {...register('login_aside_image')}
         disabled={canNotManage}
       />
 
-      <div style={{ marginTop: 20 }}>
+      <div style={{
+        marginTop: 20,
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 8,
+      }}
+      >
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+          {/* Clears the block back to the library's own values. Nothing is stored
+              until Update, so the choice stays reversible. */}
           <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={!isDirty || isSubmitting}
+            type="button"
+            priority="secondary"
+            disabled={isSubmitting || !hasAnyValue}
+            onClick={() => reset(EMPTY_THEME, { keepDefaultValues: true })}
           >
+            {t('Reset')}
+          </Button>
+          <Button type="submit" disabled={!isDirty || isSubmitting}>
             {t('Update')}
           </Button>
         </Can>

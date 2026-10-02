@@ -1,3 +1,4 @@
+import { type ChipSeverity } from '@filigran/design-system';
 import { type Theme } from '@mui/material';
 
 import { HUMAN_EXPECTATION } from '../admin/components/common/injects/expectations/ExpectationUtils';
@@ -47,6 +48,73 @@ export function computeInjectExpectationLabel(
 
   return undefined;
 }
+
+// The product's chip palette expressed on the library severity axis, one table for every status chip.
+// Green reads "low" (the system green), blue "info", orange "medium" for a status (partial, paused),
+// red "critical", greys and the brown "canceled" neutral, the violets "info". Ruled on 2026-09-17.
+export const colorStyleSeverity: Record<keyof typeof colorStyles, ChipSeverity> = {
+  green: 'low',
+  blue: 'info',
+  red: 'critical',
+  orange: 'medium',
+  yellow: 'medium',
+  purple: 'info',
+  lightPurple: 'info',
+  blueGrey: 'neutral',
+  grey: 'neutral',
+  canceled: 'neutral',
+};
+
+const STATUS_COLOR_STYLE: Record<string, keyof typeof colorStyles> = {
+  // -- Common --
+  'SUCCESS': 'green',
+  'EXECUTED': 'green',
+  'ERROR': 'red',
+  // -- ExecutionTraceStatus --
+  'EXECUTED_WITH_CLEANUP_FAILURE': 'orange',
+  'WARNING': 'green',
+  'ACCESS_DENIED': 'green',
+  'COMMAND_NOT_FOUND': 'red',
+  'COMMAND_CANNOT_BE_EXECUTED': 'red',
+  'PREREQUISITE_FAILED': 'red',
+  'INVALID_USAGE': 'red',
+  'TIMEOUT': 'red',
+  'INTERRUPTED': 'red',
+  'MAYBE_PREVENTED': 'red',
+  'MAYBE_PARTIAL_PREVENTED': 'red',
+  'ASSET_AGENTLESS': 'blueGrey',
+  'AGENT_INACTIVE': 'blueGrey',
+  'INFO': 'blue',
+  // -- ExecutionStatus --
+  'PARTIAL': 'orange',
+  'EXECUTING': 'blue',
+  'PENDING': 'blue',
+  'QUEUING': 'yellow',
+  'DRAFT': 'blueGrey',
+  'DISABLED': 'blueGrey',
+  // Expectation display labels
+  'FAILED': 'red',
+  'ASSET_INACTIVE': 'red',
+  'NOT PREVENTED': 'red',
+  'NOT DETECTED': 'red',
+  'VULNERABLE': 'red',
+  'PARTIALLY PREVENTED': 'orange',
+  'PARTIALLY DETECTED': 'orange',
+  'PREVENTED': 'green',
+  'DETECTED': 'green',
+  'NOT VULNERABLE': 'green',
+  // Simulation statuses
+  'RUNNING': 'green',
+  'SCHEDULED': 'blue',
+  'PAUSED': 'orange',
+  'CANCELED': 'canceled',
+  'FINISHED': 'grey',
+  'NOT_PLANNED': 'grey',
+};
+
+/** The library severity for a status chip; unknown statuses read neutral, like the grey they had. */
+export const statusSeverity = (status: string | undefined | null): ChipSeverity =>
+  colorStyleSeverity[STATUS_COLOR_STYLE[(status ?? '').toUpperCase()] ?? 'blueGrey'];
 
 export const computeStatusStyle = (status: string | undefined | null) => {
   const normalized = (status ?? '').toUpperCase();

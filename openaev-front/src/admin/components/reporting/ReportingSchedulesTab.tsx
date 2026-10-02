@@ -1,5 +1,6 @@
+import { Button, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined, EditOutlined, ScheduleOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, List, ListItem, ListItemIcon, ListItemText, Switch, Tooltip, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -185,15 +186,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
       label: 'Recurrence',
       isSortable: true,
       value: (schedule: ReportingSchedule) => (
-        <Chip
-          label={periodSummary(schedule)}
-          variant="outlined"
-          sx={{
-            height: 20,
-            fontSize: 12,
-            borderRadius: 0.5,
-          }}
-        />
+        <Chip label={periodSummary(schedule)} />
       ),
     },
     {
@@ -230,14 +223,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                 hint={t('Schedules generate this report on a recurring basis and email it to recipients.')}
               />
               {canManage && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<AddOutlined />}
-                  onClick={() => setDrawer('create')}
-                  // Pull the CTA into the empty state's bottom padding.
-                  sx={{ marginTop: -3 }}
-                >
+                <Button type="button" startIcon={<AddOutlined fontSize="small" />} onClick={() => setDrawer('create')} style={{ marginTop: -3 }}>
                   {t('Add schedule')}
                 </Button>
               )}
@@ -260,7 +246,9 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                 />
                 {canManage && <ButtonCreate label={t('Add schedule')} onClick={() => setDrawer('create')} />}
               </Box>
-              <List>
+              {/* 16px between the toolbar row and the list, the same gap every
+                  other datatable-looking list keeps. */}
+              <List sx={{ marginTop: 2 }}>
                 <ListItem
                   classes={{ root: classes.itemHead }}
                   divider={false}
@@ -288,25 +276,45 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                     classes={{ root: classes.item }}
                     secondaryAction={(
                       <Box display="flex" alignItems="center" gap={0.5}>
-                        <Tooltip title={schedule.reporting_schedule_enabled ? t('Disable') : t('Enable')}>
-                          <Switch
-                            size="small"
-                            checked={schedule.reporting_schedule_enabled}
-                            disabled={!canManage}
-                            onChange={(_, checked) => toggleEnabled(schedule, checked)}
-                          />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Switch
+                                size="small"
+                                checked={schedule.reporting_schedule_enabled}
+                                disabled={!canManage}
+                                onChange={(_, checked) => toggleEnabled(schedule, checked)}
+                              />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>{schedule.reporting_schedule_enabled ? t('Disable') : t('Enable')}</TooltipContent>
                         </Tooltip>
                         {canManage && (
                           <>
-                            <Tooltip title={t('Update')}>
-                              <IconButton size="small" color="primary" onClick={() => setDrawer(schedule)}>
-                                <EditOutlined fontSize="small" />
-                              </IconButton>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <IconButton
+                                  icon={<EditOutlined fontSize="small" />}
+                                  aria-label={t('Update')}
+                                  onClick={() => setDrawer(schedule)}
+                                  priority="tertiary"
+                                  size="sm"
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent>{t('Update')}</TooltipContent>
                             </Tooltip>
-                            <Tooltip title={t('Delete')}>
-                              <IconButton size="small" color="primary" onClick={() => setScheduleToDelete(schedule)}>
-                                <DeleteOutlined fontSize="small" />
-                              </IconButton>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <IconButton
+                                  icon={<DeleteOutlined fontSize="small" />}
+                                  variant="destructive"
+                                  aria-label={t('Delete')}
+                                  onClick={() => setScheduleToDelete(schedule)}
+                                  priority="tertiary"
+                                  size="sm"
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent>{t('Delete')}</TooltipContent>
                             </Tooltip>
                           </>
                         )}

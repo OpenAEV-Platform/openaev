@@ -1,4 +1,4 @@
-import { Button } from '@mui/material';
+import { Button } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import arrayMutators from 'final-form-arrays';
 import { type FunctionComponent, useContext } from 'react';
@@ -125,19 +125,10 @@ const UpdateInjectLogicalChains: FunctionComponent<Props> = ({ inject, handleClo
               marginBottom: theme.spacing(2),
             }}
             >
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={handleClose}
-              >
+              <Button type="button" priority="secondary" onClick={handleClose}>
                 {t('Cancel')}
               </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={(errors !== undefined && Object.keys(errors).length > 0) || permissions.readOnly}
-              >
+              <Button type="submit" disabled={(errors !== undefined && Object.keys(errors).length > 0) || permissions.readOnly}>
                 {t('Update')}
               </Button>
             </div>

@@ -1,4 +1,3 @@
-import { Box, Checkbox } from '@mui/material';
 import type { CSSProperties } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -49,33 +48,15 @@ const DomainFieldController = ({
           <AutocompleteField
             style={style}
             label={label}
-            variant="standard"
             multiple
             required={required}
             disabled={disabled}
             options={options}
             value={currentIds}
             error={!!error}
-            onInputChange={() => {
-            }}
+            onInputChange={() => {}}
             onChange={onChange}
-            renderOption={(props, option) => {
-              if (option.label === TO_CLASSIFY) return null;
-              return (
-                <Box
-                  component="li"
-                  {...props}
-                  key={option.id}
-                  sx={{
-                    px: 2,
-                    py: 1,
-                  }}
-                >
-                  <Checkbox checked={currentIds.includes(option.id)} sx={{ mr: 1 }} />
-                  {option.label}
-                </Box>
-              );
-            }}
+            hideOption={option => option.label === TO_CLASSIFY}
           />
         );
       }}

@@ -1,5 +1,5 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Button, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
@@ -12,12 +12,14 @@ import { useFormatter } from '../../../../components/i18n';
 import { type PayloadArgument } from '../../../../utils/api-types';
 import InjectFormSection from '../../common/injects/form/InjectFormSection';
 import PayloadArgumentsField from './PayloadArgumentsField';
+import useArgumentRowStyles from './useArgumentRowStyles';
 
 interface Props { disabledActionType?: boolean }
 
 const CommandsFormTab = ({ disabledActionType = false }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { classes } = useArgumentRowStyles();
   const { control, setValue, getValues, watch } = useFormContext();
   const actionType = watch('action_type');
 
@@ -123,7 +125,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           required
         >
           <SelectFieldController name="command_executor" label={t('Executor')} items={executorsItems} required />
-          <TextFieldController variant="outlined" multiline rows={3} name="command_content" />
+          <TextFieldController multiline rows={3} name="command_content" />
         </InjectFormSection>
       )}
 
@@ -185,7 +187,8 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
               />
             ))}
             <Button
-              variant="outlined"
+              type="button"
+              priority="secondary"
               onClick={() => {
                 argumentsAppend({
                   type: 'text',
@@ -210,26 +213,31 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           >
             {prerequisitesFields.map((prerequisitesField, prerequisitesIndex) => (
               <div
-                style={{
-                  display: 'flex',
-                  gap: theme.spacing(1),
-                }}
+                className={classes.alignedRow}
+                style={{ display: 'flex' }}
                 key={prerequisitesField.id}
               >
                 <SelectFieldController name={`action_prerequisites.${prerequisitesIndex}.executor` as const} label={t('Executor')} items={executorsItems} required />
                 <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.get_command` as const} label={t('Get command')} required />
                 <TextFieldController name={`action_prerequisites.${prerequisitesIndex}.check_command` as const} label={t('Check command')} />
-                <IconButton
-                  onClick={() => prerequisitesRemove(prerequisitesIndex)}
-                  size="small"
-                  color="primary"
-                >
-                  <DeleteOutlined />
-                </IconButton>
+                <div className={classes.deleteCell}>
+                  <span aria-hidden className={classes.deleteLabelSpacer}>&nbsp;</span>
+                  <div className={classes.deleteControl}>
+                    <IconButton
+                      icon={<DeleteOutlined />}
+                      variant="destructive"
+                      aria-label={t('Delete')}
+                      onClick={() => prerequisitesRemove(prerequisitesIndex)}
+                      priority="tertiary"
+                      size="sm"
+                    />
+                  </div>
+                </div>
               </div>
             ))}
             <Button
-              variant="outlined"
+              type="button"
+              priority="secondary"
               onClick={() => {
                 prerequisitesAppend({
                   executor: 'psh',
@@ -253,7 +261,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
             helper={t('Executed after the action to restore the asset to its initial state.')}
           >
             <SelectFieldController name="action_cleanup_executor" label={t('Executor')} items={executorsItems} />
-            <TextFieldController variant="outlined" multiline rows={3} name="action_cleanup_command" />
+            <TextFieldController multiline rows={3} name="action_cleanup_command" />
           </InjectFormSection>
         </>
       )}

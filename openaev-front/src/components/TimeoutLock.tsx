@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Button } from '@filigran/design-system';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 
 import { logout } from '../actions/Application';
@@ -130,8 +131,8 @@ const TimeoutLock = () => {
         </DialogContentText>
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="primary" onClick={handleLogout}>{t('Logout')}</Button>
-        <Button variant="contained" color="primary" onClick={handleContinue}>{t('Continue session')}</Button>
+        <Button type="button" priority="secondary" onClick={handleLogout}>{t('Logout')}</Button>
+        <Button type="button" onClick={handleContinue}>{t('Continue session')}</Button>
       </DialogActions>
     </Dialog>
   );

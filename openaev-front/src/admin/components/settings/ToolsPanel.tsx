@@ -1,4 +1,5 @@
-import { List, ListItem, ListItemText, Paper } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { List, ListItem, ListItemText } from '@mui/material';
 
 import { useFormatter } from '../../../components/i18n';
 import ItemBoolean from '../../../components/ItemBoolean';
@@ -10,10 +11,7 @@ const ToolsPanel = ({ settings }: ToolsPanelProps) => {
   const { t } = useFormatter();
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{ padding: theme => `${theme.spacing(1)}` }}
-    >
+    <Paper padding={8}>
       <List sx={{ padding: 0 }}>
         <ListItem divider>
           <ListItemText primary={t('JAVA Virtual Machine')} />

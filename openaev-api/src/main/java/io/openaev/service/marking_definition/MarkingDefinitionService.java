@@ -7,6 +7,7 @@ import io.openaev.api.marking_definition.MarkingDefinitionMapper;
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.config.AllTablesWithMarkingIds;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
@@ -79,11 +80,53 @@ public class MarkingDefinitionService {
    */
   @Transactional(readOnly = true)
   public List<MarkingDefinition> list(@NotNull TxCtx ctx) {
+    return listInternal(ctx);
+  }
+
+  // Non-transactional body shared by every @Transactional entry point that needs "every
+  // definition in scope" - an intra-class call to a @Transactional method bypasses the Spring
+  // proxy (self-invocation), so neither the transaction nor tenant-scope activation runs for the
+  // inner call. list() and listAssignable() both call this instead of calling each other.
+  private List<MarkingDefinition> listInternal(@NotNull TxCtx ctx) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     if (tenantIds.isEmpty()) {
       return List.of();
     }
     return repository.findAll(tenantSpecification(tenantIds), Sort.by("order").ascending());
+  }
+
+  /**
+   * Lists the tenant's marking definitions narrowed to what the caller is cleared to assign - the
+   * same clearance {@link io.openaev.service.marking.MarkingEscalationValidator} enforces when an
+   * assignment is actually attempted (cumulative per type: holding {@code TLP:AMBER} also clears
+   * {@code TLP:GREEN} and {@code TLP:CLEAR}, see {@link io.openaev.config.MarkingScopeResolver}).
+   * Meant for populating an assignment picker with only the options a submission would actually be
+   * allowed to include, instead of offering every definition and rejecting the ones the caller
+   * doesn't hold at submit time.
+   *
+   * @param ctx transaction context containing tenant scope
+   * @param tenantId the single tenant whose definitions and clearance are being read
+   * @param userId the caller, whose clearance narrows the result
+   * @param bypass whether the caller is an admin/bypass identity - resolves to every tenant id
+   * @return marking definitions the caller may assign, ascending by order
+   */
+  @Transactional(readOnly = true)
+  public List<MarkingDefinition> listAssignable(
+      @NotNull TxCtx ctx, @NotBlank String tenantId, @NotBlank String userId, boolean bypass) {
+    List<MarkingDefinition> all = listInternal(ctx);
+    MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId, bypass);
+    return switch (clearance) {
+      case MarkingCtx.None ignored -> List.of();
+      case MarkingCtx.Restricted restricted -> {
+        Set<String> held = Set.copyOf(restricted.markingIds());
+        yield all.stream().filter(definition -> held.contains(definition.getId())).toList();
+      }
+      // All is an unresolved, background-only intention (see MarkingCtx's javadoc) that
+      // findClearance never actually returns on the HTTP path - bypass resolves to a Restricted
+      // set of every tenant id instead. Handled defensively as "sees everything" to keep this
+      // switch exhaustive without assuming that invariant holds forever.
+      case MarkingCtx.All ignored -> all;
+    };
   }
 
   private MarkingDefinition findByIdOrThrow(

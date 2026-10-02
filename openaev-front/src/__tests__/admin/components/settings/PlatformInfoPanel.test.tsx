@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -34,7 +35,9 @@ const renderPanel = (settings: Partial<PlatformSettings>) => {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <ThemeProvider theme={theme}>
       <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
-        {children}
+        <TooltipProvider>
+          {children}
+        </TooltipProvider>
       </IntlProvider>
     </ThemeProvider>
   );
@@ -64,7 +67,7 @@ describe('PlatformInfoPanel', () => {
   it('details the version and the full commit in the tooltip', async () => {
     renderPanel({ platform_commit: COMMIT });
 
-    fireEvent.mouseOver(screen.getByRole('button', { name: '2.4.0' }));
+    fireEvent.pointerMove(screen.getByRole('button', { name: '2.4.0' }));
 
     expect(await screen.findByText('Version: 2.4.0')).toBeDefined();
     expect(screen.getByText(`Commit hash: ${COMMIT}`)).toBeDefined();

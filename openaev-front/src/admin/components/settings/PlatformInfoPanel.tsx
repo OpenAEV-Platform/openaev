@@ -1,4 +1,5 @@
-import { Box, ButtonBase, List, ListItem, ListItemText, Paper, Tooltip } from '@mui/material';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { List, ListItem, ListItemText } from '@mui/material';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -39,13 +40,7 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
     : t('The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.');
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        padding: theme => `${theme.spacing(1)}`,
-        flex: 1,
-      }}
-    >
+    <Paper padding={8} style={{ flex: 1 }}>
       <List sx={{ padding: 0 }}>
         {topContent}
         <ListItem divider>
@@ -63,22 +58,15 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
         <ListItem divider>
           <ListItemText primary={t('Version')} />
           {commit ? (
-            <Tooltip
-              slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
-              title={(
-                // The theme lowercases tooltip text, which would mangle the labels
-                <Box sx={{ textTransform: 'none' }}>
-                  <div>{`${t('Version')}: ${version}`}</div>
-                  <div>{`${t('Commit hash')}: ${commit}`}</div>
-                </Box>
-              )}
-            >
-              <ButtonBase
-                onClick={() => copyToClipboard(t, `${version}#${commit}`)}
-                sx={{ '& .MuiChip-root': { cursor: 'pointer' } }}
-              >
+            <Tooltip>
+              <TooltipTrigger onClick={() => copyToClipboard(t, `${version}#${commit}`)}>
                 <ItemBoolean variant="large" status={null} neutralLabel={version} />
-              </ButtonBase>
+              </TooltipTrigger>
+              {/* The default width would wrap the full commit hash */}
+              <TooltipContent style={{ maxWidth: 'none' }}>
+                <div>{`${t('Version')}: ${version}`}</div>
+                <div>{`${t('Commit hash')}: ${commit}`}</div>
+              </TooltipContent>
             </Tooltip>
           ) : (
             <ItemBoolean variant="large" status={null} neutralLabel={version} />

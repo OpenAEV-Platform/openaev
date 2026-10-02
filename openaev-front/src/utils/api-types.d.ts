@@ -4508,6 +4508,11 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_mac_addresses?: string[];
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /** Free-form category-specific attributes */
   asset_metadata?: Record<string, any>;
   /**
@@ -12464,6 +12469,8 @@ export interface ThemeInput {
   primary_color?: string;
   /** Secondary color of the theme */
   secondary_color?: string;
+  /** Text color of the theme */
+  text_color?: string;
 }
 
 export interface ThreatArsenalAction {
