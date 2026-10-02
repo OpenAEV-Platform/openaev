@@ -61,9 +61,10 @@ public class MeApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public User me(TxCtx ctx) {
-    return userRepository
-        .findById(currentUser().getId())
-        .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    return hydrateUserForResponse(
+        userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
   }
 
   @PutMapping(ME_URI + "/profile")
@@ -80,7 +81,7 @@ public class MeApi extends RestBehavior {
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
-    return savedUser;
+    return hydrateUserForResponse(savedUser);
   }
 
   @PutMapping(ME_URI + "/information")
@@ -95,7 +96,7 @@ public class MeApi extends RestBehavior {
     user.setUpdateAttributes(input);
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
-    return savedUser;
+    return hydrateUserForResponse(savedUser);
   }
 
   @PutMapping(ME_URI + "/password")
@@ -105,14 +106,15 @@ public class MeApi extends RestBehavior {
   public User updatePassword(
       TxCtx ctx, @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
-    return doSecuritySensitiveUpdate(
-        currentUser().getId(),
-        input.getCurrentPassword(),
-        user -> {
-          user.setPassword(userService.encodeUserPassword(input.getPassword()));
-          return user;
-        },
-        httpRequest.getSession().getId());
+    return hydrateUserForResponse(
+        doSecuritySensitiveUpdate(
+            currentUser().getId(),
+            input.getCurrentPassword(),
+            user -> {
+              user.setPassword(userService.encodeUserPassword(input.getPassword()));
+              return user;
+            },
+            httpRequest.getSession().getId()));
   }
 
   @PutMapping(ME_URI + "/email")
@@ -122,14 +124,15 @@ public class MeApi extends RestBehavior {
   public User updateEmail(
       TxCtx ctx, @Valid @RequestBody UpdateMeEmailInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
-    return doSecuritySensitiveUpdate(
-        currentUser().getId(),
-        input.getCurrentPassword(),
-        user -> {
-          userService.requestEmailChange(user, input.getEmail());
-          return user;
-        },
-        httpRequest.getSession().getId());
+    return hydrateUserForResponse(
+        doSecuritySensitiveUpdate(
+            currentUser().getId(),
+            input.getCurrentPassword(),
+            user -> {
+              userService.requestEmailChange(user, input.getEmail());
+              return user;
+            },
+            httpRequest.getSession().getId()));
   }
 
   @GetMapping(ME_URI + "/confirm-email-change/{confirmationCode}")

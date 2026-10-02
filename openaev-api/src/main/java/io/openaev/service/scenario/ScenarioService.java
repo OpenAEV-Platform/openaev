@@ -1066,13 +1066,11 @@ public class ScenarioService {
   }
 
   public Scenario addScenarioPlayer(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
@@ -1084,13 +1082,11 @@ public class ScenarioService {
   }
 
   public Scenario enableAddScenarioTeamPlayer(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     return this.enablePlayers(scenarioId, team, playerIds);
   }
 

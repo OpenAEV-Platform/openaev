@@ -180,14 +180,22 @@ public class ProductInventoryMetricCollector {
     return result;
   }
 
-  private Map<Attributes, Long> collectTeams() {
+  /** Package-private: the tenant-scope regression test calls it without the OTel plumbing. */
+  Map<Attributes, Long> collectTeams() {
     Map<Attributes, Long> result = new HashMap<>();
     try {
+      // Platform-wide like every gauge here, and explicitly scoped so it keeps counting once
+      // teams is v2-active: with app.current_tenants unset the inspector denies every row and the
+      // gauge silently reports zero. Same treatment as collectPayloads/collectSecurityPlatforms.
       List<Object[]> rows =
-          entityManager
-              .createQuery(
-                  "select t.contextual, count(t) from Team t group by t.contextual", Object[].class)
-              .getResultList();
+          tenantTx.execute(
+              TxCtx.allTenants(),
+              () ->
+                  entityManager
+                      .createQuery(
+                          "select t.contextual, count(t) from Team t group by t.contextual",
+                          Object[].class)
+                      .getResultList());
       for (Object[] row : rows) {
         boolean contextual = Boolean.TRUE.equals(row[0]);
         result.merge(Attributes.of(booleanKey("contextual"), contextual), (Long) row[1], Long::sum);
