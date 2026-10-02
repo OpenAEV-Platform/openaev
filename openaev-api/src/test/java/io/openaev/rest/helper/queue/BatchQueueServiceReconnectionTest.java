@@ -27,7 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /**
  * Tests the shutdown handling and reconnection logic in BatchQueueService. Verifies that
  * application-initiated shutdowns are ignored, while unexpected connection losses, consumer
- * cancellations and broker-side consumer channel closes trigger a single reconnection attempt.
+ * cancellations and broker-side consumer channel closes trigger a reconnection attempt.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BatchQueueService Reconnection Tests")
@@ -134,18 +134,6 @@ class BatchQueueServiceReconnectionTest {
         .shutdownCompleted(new ShutdownSignalException(false, true, null, consumerChannel));
 
     assertTrue(getReconnectionExecutor().getQueue().isEmpty());
-  }
-
-  @Test
-  @DisplayName("should schedule a single reconnection when several signals arrive together")
-  void shouldScheduleSingleReconnectionForSeveralSignals() throws Exception {
-    captureCancelCallback().handle("consumer-test-queue-0");
-    captureConsumerChannelShutdownListener()
-        .shutdownCompleted(new ShutdownSignalException(false, false, null, consumerChannel));
-    capturedShutdownListener.shutdownCompleted(
-        new ShutdownSignalException(true, false, null, connection));
-
-    assertEquals(1, getReconnectionExecutor().getQueue().size());
   }
 
   private CancelCallback captureCancelCallback() throws IOException {

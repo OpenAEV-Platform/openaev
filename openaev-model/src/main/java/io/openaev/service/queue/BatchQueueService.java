@@ -52,7 +52,6 @@ public class BatchQueueService<T extends Queueable> {
 
   private final QueueConfig queueConfig;
   private final ScheduledExecutorService reconnectionExecutor;
-  private final AtomicBoolean reconnectionScheduled = new AtomicBoolean(false);
   private final ScheduledExecutorService scheduledExecutor;
   private final ShutdownListener shutdownListener;
 
@@ -272,14 +271,9 @@ public class BatchQueueService<T extends Queueable> {
     scheduleReconnection();
   }
 
-  /**
-   * Schedule a single reconnection, however many signals (consumer cancel, channel close,
-   * connection loss) arrive for the same failure
-   */
+  /** Schedule a reconnection, unless the service is stopping */
   private void scheduleReconnection() {
-    if (reconnectionExecutor == null
-        || reconnectionExecutor.isShutdown()
-        || !reconnectionScheduled.compareAndSet(false, true)) {
+    if (reconnectionExecutor == null || reconnectionExecutor.isShutdown()) {
       return;
     }
     reconnectionExecutor.schedule(this::attemptReconnection, 10, TimeUnit.SECONDS);
@@ -300,7 +294,6 @@ public class BatchQueueService<T extends Queueable> {
 
       // Trying to reestablish connection
       establishConnection();
-      reconnectionScheduled.set(false);
 
       log.info("Reconnection successful");
 
