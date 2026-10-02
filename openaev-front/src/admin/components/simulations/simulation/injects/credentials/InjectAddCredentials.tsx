@@ -1,25 +1,10 @@
 import { ControlPointOutlined } from '@mui/icons-material';
 import { FormHelperText, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../../components/i18n';
 import { type CredentialOutput } from '../../../../../../utils/api-types';
 import CredentialsPicker from '../../../../assets/credentials/CredentialsPicker';
-
-const useStyles = makeStyles()(theme => ({
-  icon: { minWidth: 30 },
-  text: {
-    fontSize: 15,
-    color: theme.palette.primary.main,
-    fontWeight: 500,
-  },
-  textError: {
-    fontSize: 15,
-    color: theme.palette.error.main,
-    fontWeight: 500,
-  },
-}));
 
 interface Props {
   disabled?: boolean;
@@ -41,7 +26,6 @@ const InjectAddCredentials: FunctionComponent<Props> = ({
   credentialType,
 }) => {
   // Standard hooks
-  const { classes } = useStyles();
   const { t } = useFormatter();
 
   // Dialog
@@ -49,19 +33,28 @@ const InjectAddCredentials: FunctionComponent<Props> = ({
   const handleOpen = () => setOpenDialog(true);
   const handleClose = () => setOpenDialog(false);
 
+  const color = errorLabel ? 'error' : 'primary';
+
   return (
     <>
       <ListItemButton
-        divider={true}
+        divider
         onClick={handleOpen}
         disabled={disabled}
       >
-        <ListItemIcon classes={{ root: classes.icon }}>
-          <ControlPointOutlined color={errorLabel ? 'error' : 'primary'} fontSize="small" />
+        <ListItemIcon sx={{ minWidth: theme => theme.spacing(3.75) }}>
+          <ControlPointOutlined color={color} fontSize="small" />
         </ListItemIcon>
         <ListItemText
           primary={multiple ? t('Update credentials') : t('Update credential')}
-          classes={{ primary: errorLabel ? classes.textError : classes.text }}
+          slotProps={{
+            primary: {
+              sx: {
+                color: `${color}.main`,
+                fontWeight: 'fontWeightMedium',
+              },
+            },
+          }}
         />
       </ListItemButton>
       {!errorLabel && label && (

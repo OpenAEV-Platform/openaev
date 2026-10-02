@@ -1,10 +1,10 @@
 import { HelpOutlineOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type ReactElement } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import { type SortHelpers } from '../../../../components/common/queryable/sort/SortHelpers';
+import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type CredentialOutput } from '../../../../utils/api-types';
@@ -22,23 +22,13 @@ const NOOP_SORT_HELPERS: SortHelpers = {
   getSortAsc: () => true,
 };
 
-const useStyles = makeStyles()(() => ({
-  item: { height: 50 },
-  bodyItem: {
-    fontSize: 13,
-    float: 'left',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  typeChip: {
-    height: 20,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 100,
-    marginBottom: 5,
-  },
-}));
+const inlineStyles: Record<string, CSSProperties> = {
+  credential_name: { width: '30%' },
+  credential_type: { width: '15%' },
+  credential_auth_method: { width: '20%' },
+  credential_status: { width: '15%' },
+  credential_tags_ids: { width: '20%' },
+};
 
 interface Props<T extends CredentialOutput> {
   credentials: T[];
@@ -58,19 +48,7 @@ const CredentialsList = <T extends CredentialOutput>({
   sortHelpers,
 }: Props<T>) => {
   // Standard hooks
-  const { classes } = useStyles();
-
-  const component = (credential: T) => {
-    return renderActions(credential);
-  };
-
-  const inlineStyles: Record<string, CSSProperties> = {
-    credential_name: { width: '30%' },
-    credential_type: { width: '15%' },
-    credential_auth_method: { width: '20%' },
-    credential_status: { width: '15%' },
-    credential_tags_ids: { width: '20%' },
-  };
+  const bodyItemsStyles = useBodyItemsStyles();
 
   const headers = [
     {
@@ -136,45 +114,45 @@ const CredentialsList = <T extends CredentialOutput>({
       </>
     );
   }
-  if (credentials == undefined || credentials?.length == 0) {
+  if (!credentials?.length) {
     return null;
   }
   return (
     <List>
       {headersRow}
-      { credentials?.map((credential) => {
-        return (
-          <ListItem
-            key={credential.credential_id}
-            classes={{ root: classes.item }}
-            divider={true}
-            secondaryAction={component(credential)}
-          >
-            <ListItemIcon>
-              <AssetCategoryIcon
-                scope="credential"
-                category={credential.credential_type ?? null}
-                color="primary"
-              />
-            </ListItemIcon>
-            <ListItemText
-              primary={(
-                <>
-                  {headers.map(header => (
-                    <div
-                      key={header.field}
-                      className={classes.bodyItem}
-                      style={inlineStyles[header.field]}
-                    >
-                      {header.value(credential)}
-                    </div>
-                  ))}
-                </>
-              )}
+      {credentials.map(credential => (
+        <ListItem
+          key={credential.credential_id}
+          divider
+          secondaryAction={renderActions(credential)}
+          sx={{ height: theme => theme.spacing(6.25) }}
+        >
+          <ListItemIcon>
+            <AssetCategoryIcon
+              scope="credential"
+              category={credential.credential_type ?? null}
+              color="primary"
             />
-          </ListItem>
-        );
-      })}
+          </ListItemIcon>
+          <ListItemText
+            primary={(
+              <div style={bodyItemsStyles.bodyItems}>
+                {headers.map(header => (
+                  <div
+                    key={header.field}
+                    style={{
+                      ...bodyItemsStyles.bodyItem,
+                      ...inlineStyles[header.field],
+                    }}
+                  >
+                    {header.value(credential)}
+                  </div>
+                ))}
+              </div>
+            )}
+          />
+        </ListItem>
+      ))}
     </List>
   );
 };
