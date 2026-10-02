@@ -154,7 +154,7 @@ const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: Exec
     }
   };
 
-  const teamContext = teamContextForExercise(exerciseId, exercise?.exercise_teams_users, exercise?.exercise_all_users_number, exercise?.exercise_users_number);
+  const teamContext = teamContextForExercise(exerciseId);
   const articleContext = articleContextForExercise(exerciseId);
   const endpointContext = endpointContextForExercise(exerciseId);
   const challengeContext = { fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) };
