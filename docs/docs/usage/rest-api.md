@@ -202,7 +202,16 @@ When multi-tenancy is enabled, the API exposes two sets of endpoints:
 Most resource endpoints (Scenarios, Simulations, Assets, Teams) support both patterns. The Tenant ID determines which workspace the request operates on. Accessing a Tenant you are not authorized for returns a `403` response.
 
 ## Rate limiting
-The API is globally rate limited (TODO: complete this section)
+The API is globally rate limited by default. There are different allowances whether the request is authenticated or not.
+
+- Not authenticated requests (anonymous): limited to 10 requests per seconds by default (configurable, per originating IP address).
+- Authenticated requests: limited to 300 requests per second by default (configurable, per user account).
+
+Some endpoints may individually have a different maximum authenticated requests per seconds cap, overriding the default global described
+above. However, the unauthenticated cap remains the same always. If the unauthenticated cap is set higher than an individual endpoint
+cap, then the lower bound wins.
+
+Note: the rate limiting function can be disabled by server configuration.
 
 ## What's next?
 
