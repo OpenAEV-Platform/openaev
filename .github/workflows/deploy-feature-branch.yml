@@ -1,126 +1,286 @@
 name: "[Core] Deploy Feature Branch"
 
-# Handles the /deploy command on PRs. Posts an in-progress comment, then
-# dispatches the unprivileged build workflow (deploy-feature-branch-build.yml).
-# Once that build succeeds, downstream automation promotes and deploys the image.
+# Entry point for feature branch deployments. Progress is reported through the
+# GitHub Deployments API (environment `feature-pr-<number>`), which renders on
+# the PR timeline and in the branch deployment panel — no PR comments.
 #
-# SECURITY: This workflow NEVER checks out PR code. It only does API calls.
+# The "Deployment" checkbox in the PR description is the opt-in:
+#   - Ticking it deploys the PR head. While it stays ticked, every new commit
+#     is redeployed. Unticking it stops redeploys.
+#   - `/deploy` comment: same as ticking the box (the workflow ticks it).
+#   - PR closed: marks the environment's deployments inactive.
+#   - Same-repo PRs opened without the template get the Deployment section
+#     appended.
+#
+# Security:
+#   - Fork PRs are never deployed, since anyone can push to a fork: a ticked
+#     box is unticked and `/deploy` is ignored. Only branches of this
+#     repository, which need write access to push, are built.
+#   - Only users with write access to the repository can deploy. The API
+#     permission of whoever ticked the box, commented or pushed is checked; a
+#     box ticked by anyone else is unticked again, and so is the box of a PR
+#     that anyone else (bots included) pushes to. Bot edits are ignored.
+#   - Only an unticked -> ticked change deploys, so other description edits
+#     never trigger a build.
+#   - This workflow NEVER checks out PR code. It only does API calls.
+#     pull_request_target is used so same-repo and fork PRs get a write token;
+#     it runs the workflow from the base branch. PR-controlled values (branch
+#     name, body) only reach scripts through env or the event payload.
+#
+# A newer deploy request for the same PR cancels the older dispatch here, and
+# the build workflow's own concurrency group cancels the older build.
 
 on:
   issue_comment:
     types: [created]
-
-concurrency:
-  group: feature-deploy-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  pull_request_target:
+    types: [opened, reopened, edited, synchronize, closed]
 
 permissions:
   contents: read
-  actions: write # needed to dispatch the build workflow
-  pull-requests: write # needed to create and minimize PR comments
 
 jobs:
-  dispatch-build:
-    name: "🚀 Dispatch feature build"
+  decide:
+    name: "🔐 Check deploy request"
     if: >-
-      github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '/deploy') &&
       (
-        github.event.comment.author_association == 'OWNER' ||
-        github.event.comment.author_association == 'MEMBER' ||
-        github.event.comment.author_association == 'COLLABORATOR'
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        (github.event.comment.body == '/deploy' || startsWith(github.event.comment.body, '/deploy ')) &&
+        (
+          github.event.comment.author_association == 'OWNER' ||
+          github.event.comment.author_association == 'MEMBER' ||
+          github.event.comment.author_association == 'COLLABORATOR'
+        )
+      ) || (
+        github.event_name == 'pull_request_target' && (
+          github.event.action == 'opened' ||
+          github.event.action == 'reopened' ||
+          (
+            (github.event.action == 'edited' || github.event.action == 'synchronize') &&
+            contains(github.event.pull_request.body, 'feature-deploy')
+          )
+        )
       )
+    permissions:
+      pull-requests: write # tick, untick or append the Deployment checkbox
     runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.decide.outputs.deploy }}
+      head_sha: ${{ steps.decide.outputs.head_sha }}
+      head_ref: ${{ steps.decide.outputs.head_ref }}
     steps:
-      - name: Minimize previous deploy comments
+      - name: Decide whether to deploy
+        id: decide
         uses: actions/github-script@v9
         with:
           script: |
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              per_page: 100
-            });
-            const markers = [
-              '🚀 Feature branch deploy',
-              '✅ Feature branch build',
-              '❌ Feature branch build',
-              '⏳ Feature branch deployment',
-              '### ✅ Feature branch deployed',
-              '### ❌ Feature branch deploy',
-              '### 🧪 Feature branch deploy'
-            ];
-            const deployComments = comments.filter(c =>
-              markers.some(m => c.body.startsWith(m))
-            );
-            for (const c of deployComments) {
-              try {
-                await github.graphql(`
-                  mutation($id: ID!) {
-                    minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
-                      minimizedComment { isMinimized }
-                    }
-                  }
-                `, { id: c.node_id });
-              } catch (e) {
-                core.warning(`Could not minimize comment ${c.id}: ${e.message}`);
+            const { owner, repo } = context.repo;
+            const prNumber = context.issue.number;
+            const action = context.payload.action;
+            const sender = context.payload.sender;
+
+            // Keep in sync with the Deployment section of .github/PULL_REQUEST_TEMPLATE.md
+            const BOX = /^([ \t]*[-*+][ \t]+\[)([ xX])(\][^\n]*<!--\s*feature-deploy\s*-->)/m;
+            const LABEL = '🚀 Deploy this branch to a staging environment <!-- feature-deploy -->';
+            const hasBox = body => BOX.test(body || '');
+            const isChecked = body => {
+              const m = (body || '').match(BOX);
+              return !!m && m[2].toLowerCase() === 'x';
+            };
+            const setBox = (body, checked) => hasBox(body)
+              ? body.replace(BOX, `$1${checked ? 'x' : ' '}$3`)
+              : `${(body || '').trimEnd()}\n\n### Deployment\n\n- [${checked ? 'x' : ' '}] ${LABEL}\n`;
+
+            // Re-read the body right before writing so a concurrent human edit is kept
+            async function updateBox(checked) {
+              const { data: fresh } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+              const body = fresh.body || '';
+              const next = setBox(body, checked);
+              if (next !== body) {
+                await github.rest.pulls.update({ owner, repo, pull_number: prNumber, body: next });
               }
             }
 
-      - name: Post in-progress comment
-        id: comment
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const { data } = await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: '🚀 Feature branch deploy is in progress — build will start shortly.'
-            });
-            core.setOutput('comment_id', data.id);
+            // Write access is required; `permission` maps maintain to write and triage to read
+            async function canDeploy(user) {
+              if (!user || user.type === 'Bot') return false;
+              try {
+                const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner, repo, username: user.login
+                });
+                return ['admin', 'write'].includes(data.permission);
+              } catch (error) {
+                if (error.status === 404) return false;
+                throw error;
+              }
+            }
 
-      - name: Get PR details
-        id: pr
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
-            });
-            core.setOutput('head_ref', pr.data.head.ref);
-            core.setOutput('head_sha', pr.data.head.sha);
+            const pr = context.payload.pull_request
+              ?? (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
+            // Only branches of this repository are deployed: pushing to them needs write
+            // access, while anyone can push to a fork. A deleted fork has no head repo.
+            const isFork = pr.head.repo?.full_name !== `${owner}/${repo}`;
 
-      - name: Dispatch unprivileged build
+            let deploy = false;
+            if (isFork) {
+              if (context.eventName === 'issue_comment') {
+                core.warning('Fork PRs cannot be deployed, /deploy ignored. Push the branch to this repository instead.');
+              } else if (isChecked(pr.body)) {
+                core.warning('Fork PRs cannot be deployed, unticking the Deployment box.');
+                await updateBox(false);
+              }
+            } else if (context.eventName === 'issue_comment') {
+              if (await canDeploy(sender)) {
+                deploy = true;
+                await updateBox(true);
+              } else {
+                core.warning(`${sender.login} has no write access, /deploy ignored.`);
+              }
+            } else if (action === 'opened' || action === 'reopened') {
+              if (isChecked(pr.body)) {
+                if (await canDeploy(sender)) {
+                  deploy = true;
+                } else {
+                  core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
+                  await updateBox(false);
+                }
+              } else if (!hasBox(pr.body) && pr.user.type !== 'Bot') {
+                await updateBox(false);
+              }
+            } else if (action === 'edited') {
+              const change = context.payload.changes?.body;
+              if (!change || sender.type === 'Bot') {
+                core.info('No body change by a user, nothing to do.');
+              } else if (!isChecked(change.from) && isChecked(pr.body)) {
+                if (await canDeploy(sender)) {
+                  deploy = true;
+                } else {
+                  core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
+                  await updateBox(false);
+                }
+              }
+            } else if (action === 'synchronize' && isChecked(pr.body)) {
+              // Only commits pushed by a user with write access are redeployed; a push by
+              // anyone else (bots and apps included) waits for a maintainer to tick again.
+              if (await canDeploy(sender)) {
+                deploy = true;
+              } else {
+                core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
+                await updateBox(false);
+              }
+            }
+
+            core.info(`deploy=${deploy} (event=${context.eventName}/${action}, fork=${isFork})`);
+            core.setOutput('deploy', String(deploy));
+            // Build the commit seen at request time, not whatever the head is later
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('head_ref', pr.head.ref);
+
+  dispatch-build:
+    name: "🚀 Dispatch feature build"
+    needs: decide
+    if: needs.decide.outputs.deploy == 'true'
+    concurrency:
+      group: feature-deploy-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      actions: write # needed to dispatch the build workflow
+      deployments: write # needed to create deployments and statuses
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create deployment and dispatch build
         uses: actions/github-script@v9
         env:
-          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
-          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
-          COMMENT_ID: ${{ steps.comment.outputs.comment_id }}
+          HEAD_SHA: ${{ needs.decide.outputs.head_sha }}
+          HEAD_REF: ${{ needs.decide.outputs.head_ref }}
         with:
           script: |
+            const { owner, repo } = context.repo;
+            const prNumber = context.issue.number;
+            const environment = `feature-pr-${prNumber}`;
+            const { HEAD_SHA: headSha, HEAD_REF: headRef } = process.env;
+
+            // Newest first, listed before the new deployment is created
+            const { data: previous } = await github.rest.repos.listDeployments({
+              owner, repo, environment, per_page: 10
+            });
+
+            // The environment URL is stable per branch and the previous version keeps
+            // serving until the redeploy lands, so reuse the last successful URL to keep
+            // the "View deployment" button while the new build is in progress.
+            let environmentUrl;
+            for (const d of previous) {
+              const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
+                owner, repo, deployment_id: d.id, per_page: 100
+              });
+              environmentUrl = statuses.find(s => s.state === 'success' && s.environment_url)?.environment_url;
+              if (environmentUrl) break;
+            }
+
+            const { data: deployment } = await github.rest.repos.createDeployment({
+              owner, repo,
+              ref: headSha,
+              environment,
+              description: `Feature branch ${headRef}`,
+              transient_environment: true,
+              production_environment: false,
+              auto_merge: false,
+              required_contexts: [],
+              payload: { pr_number: prNumber, head_ref: headRef }
+            });
+
             const { data: run } = await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner, repo,
               workflow_id: 'deploy-feature-branch-build.yml',
               ref: 'main',
               headers: {
                 'X-GitHub-Api-Version': '2026-03-10'
               },
               inputs: {
-                pr_number: String(context.issue.number),
-                head_ref: process.env.HEAD_REF,
-                head_sha: process.env.HEAD_SHA,
-                comment_id: process.env.COMMENT_ID
+                pr_number: String(prNumber),
+                head_ref: headRef,
+                head_sha: headSha,
+                deployment_id: String(deployment.id)
               }
             });
 
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: parseInt(process.env.COMMENT_ID, 10),
-              body: `🚀 Feature branch deploy is in progress — [view build workflow](${run.html_url}).`
+            // The done workflow matches the build run against this log_url
+            await github.rest.repos.createDeploymentStatus({
+              owner, repo,
+              deployment_id: deployment.id,
+              state: 'in_progress',
+              log_url: run.html_url,
+              environment_url: environmentUrl,
+              description: environmentUrl ? 'Building image, previous version still live' : 'Building image',
+              auto_inactive: false
             });
+
+  deactivate:
+    name: "🧹 Deactivate feature deployments"
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
+    concurrency:
+      group: feature-deploy-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      deployments: write # needed to mark deployments inactive
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark deployments inactive
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner, repo,
+              environment: `feature-pr-${context.issue.number}`,
+              per_page: 100
+            });
+            for (const d of deployments) {
+              await github.rest.repos.createDeploymentStatus({
+                owner, repo,
+                deployment_id: d.id,
+                state: 'inactive',
+                description: 'PR closed'
+              });
+            }

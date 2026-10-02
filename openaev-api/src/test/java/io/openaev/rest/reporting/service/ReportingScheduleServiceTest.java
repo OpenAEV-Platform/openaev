@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -27,6 +28,7 @@ import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.rest.reporting.ReportingService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.FileService;
 import io.openaev.service.UserService;
 import java.io.ByteArrayInputStream;
@@ -36,6 +38,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,6 +58,7 @@ class ReportingScheduleServiceTest {
   private EmailService emailService;
   private FileService fileService;
   private OpenAEVConfig openAEVConfig;
+  private TenantScopedJobRunner tenantScopedJobRunner;
   private ReportingScheduleService scheduleService;
 
   @BeforeEach
@@ -66,6 +70,7 @@ class ReportingScheduleServiceTest {
     emailService = mock(EmailService.class);
     fileService = mock(FileService.class);
     openAEVConfig = mock(OpenAEVConfig.class);
+    tenantScopedJobRunner = mock(TenantScopedJobRunner.class);
     scheduleService =
         new ReportingScheduleService(
             scheduleLoader,
@@ -74,8 +79,25 @@ class ReportingScheduleServiceTest {
             userService,
             emailService,
             fileService,
-            openAEVConfig);
+            openAEVConfig,
+            tenantScopedJobRunner);
     when(openAEVConfig.getDefaultMailer()).thenReturn("noreply@filigran.io");
+    // The poll re-read runs inside supplyInTenant; here it just runs the supplied work so these
+    // unit tests keep exercising the schedule logic (the scope itself is pinned on the real stack
+    // in ReportingScheduleDocumentScopeTest).
+    when(tenantScopedJobRunner.supplyInTenant(anyString(), any()))
+        .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
+    // markLastRun and requestGeneration now run inside runInTenant too (reporting_schedules and
+    // reportings are tenant-active): run the wrapped work so these unit tests keep exercising the
+    // schedule logic (the scope itself is pinned on the real stack in
+    // ReportingScheduleDocumentScopeTest).
+    doAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantScopedJobRunner)
+        .runInTenant(anyString(), any());
   }
 
   // -- FIXTURES --
@@ -163,7 +185,7 @@ class ReportingScheduleServiceTest {
             "reporting-id", ReportingFormat.PDF, ReportingGenerationTrigger.SCHEDULED))
         .thenReturn(pendingGeneration());
     stubTerminalGeneration(successfulGeneration());
-    when(fileService.getFile(any(Document.class)))
+    when(fileService.getFile(any(Document.class), any()))
         .thenReturn(
             Optional.of(new ByteArrayInputStream("pdf-bytes".getBytes(StandardCharsets.UTF_8))));
 
@@ -220,7 +242,7 @@ class ReportingScheduleServiceTest {
     scheduleService.runDueSchedules(DUE);
 
     // -- Assert -- no report file is touched, the owner alone gets the failure notice
-    verify(fileService, never()).getFile(any(Document.class));
+    verify(fileService, never()).getFile(any(Document.class), any());
     ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
     @SuppressWarnings("unchecked")
@@ -277,7 +299,7 @@ class ReportingScheduleServiceTest {
             "reporting-id", ReportingFormat.PDF, ReportingGenerationTrigger.SCHEDULED))
         .thenReturn(pendingGeneration());
     stubTerminalGeneration(successfulGeneration());
-    when(fileService.getFile(any(Document.class)))
+    when(fileService.getFile(any(Document.class), any()))
         .thenReturn(
             Optional.of(new ByteArrayInputStream("pdf-bytes".getBytes(StandardCharsets.UTF_8))));
 
@@ -330,7 +352,7 @@ class ReportingScheduleServiceTest {
             "reporting-id", ReportingFormat.PDF, ReportingGenerationTrigger.SCHEDULED))
         .thenReturn(pendingGeneration());
     stubTerminalGeneration(successfulGeneration());
-    when(fileService.getFile(any(Document.class)))
+    when(fileService.getFile(any(Document.class), any()))
         .thenReturn(
             Optional.of(new ByteArrayInputStream("pdf-bytes".getBytes(StandardCharsets.UTF_8))));
 

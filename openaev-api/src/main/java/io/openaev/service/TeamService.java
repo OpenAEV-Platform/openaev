@@ -142,6 +142,7 @@ public class TeamService {
    */
   public Team copyContextualTeam(Team teamToCopy) {
     Team newTeam = new Team();
+    newTeam.setTenant(teamToCopy.getTenant());
     newTeam.setName(teamToCopy.getName());
     newTeam.setDescription(teamToCopy.getDescription());
     newTeam.setTags(CopyObjectListUtils.copy(teamToCopy.getTags(), Tag.class));

@@ -52,6 +52,10 @@ inputs:
       per-class activation needs a context customizer and is tracked separately.
     required: false
     default: ""
+  no-cache:
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -67,7 +71,16 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-        cache: maven
+
+    - name: Restore API test Maven dependencies
+      id: maven-cache
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-api-tests-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-api-tests-v2-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Wait for compiled artifacts
       uses: ./.github/actions/wait-for-artifacts
@@ -81,18 +94,17 @@ runs:
     - name: Clear cached OpenAEV artifacts
       shell: bash
       run: |
-        # Remove any cached openaev artifacts to prevent "file exists"
-        # errors when extracting the freshly compiled artifact.
+        # Remove cached artifacts before extracting this run's compiled output.
         rm -rf ~/.m2/repository/io/openaev/
 
     - name: Download backend-compiled artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
 
     - name: Download api-build-output artifact
-      uses: actions/download-artifact@v8
+      uses: ./.github/actions/download-artifact-retry
       with:
         name: api-build-output
         path: openaev-api/target
@@ -104,20 +116,15 @@ runs:
         find openaev-api/target/ -maxdepth 5 -type d 2>/dev/null | head -40 || echo "  openaev-api/target/ does not exist"
         echo "---"
 
-        # ── Fix double-nesting from gh run download ──
-        # upload-artifact@v7 may store paths with the full prefix inside
-        # the zip, so gh run download -D openaev-api/target can produce
-        # openaev-api/target/openaev-api/target/classes/ instead of
-        # openaev-api/target/classes/.  Detect and flatten.
+        # Artifact extraction can nest openaev-api/target; flatten it.
         if [ -d "openaev-api/target/openaev-api/target" ]; then
-          echo "⚠️ Detected double-nested artifact path — flattening..."
+          echo "⚠️ Detected double-nested artifact path, flattening..."
           cp -rn openaev-api/target/openaev-api/target/* openaev-api/target/ 2>/dev/null || true
           rm -rf openaev-api/target/openaev-api
           echo "✅ Flattened double-nested paths"
         fi
 
-        # Note: use "|| true" after "head" to prevent SIGPIPE from
-        # propagating under bash -eo pipefail (GitHub Actions default).
+        # `head` can return SIGPIPE under bash -eo pipefail.
         MVN_JARS=$(find ~/.m2/repository/io/openaev/ -name '*.jar' 2>/dev/null | head -5 || true)
         if [ -z "$MVN_JARS" ]; then
           echo "❌ No Maven JARs found in ~/.m2/repository/io/openaev/"
@@ -193,9 +200,9 @@ runs:
         SHARD_DIR=.github/shards
 
         if [ "$SHARD_INCLUDES" = "catchall" ]; then
-          # Excludes are derived from the shard files, so they can never drift
-          # out of sync and silently drop a package from the run.
+          # Derive catch-all exclusions from shard files to avoid gaps.
           cat "$SHARD_DIR"/api-*.txt > /tmp/surefire-excludes.txt
+          printf '%s\n' '**/*$*' >> /tmp/surefire-excludes.txt
           echo "surefire_arg=-Dsurefire.excludesFile=/tmp/surefire-excludes.txt" >> "$GITHUB_OUTPUT"
           echo "🔄 Catch-all shard: everything not claimed by $SHARD_DIR/api-*.txt"
           cat /tmp/surefire-excludes.txt
@@ -215,6 +222,7 @@ runs:
           ARGS="-Dsurefire.includesFile=/tmp/surefire-includes.txt"
           if [ -n "$SHARD_EXCLUDES" ]; then
             echo "$SHARD_EXCLUDES" > /tmp/surefire-excludes.txt
+            printf '%s\n' '**/*$*' >> /tmp/surefire-excludes.txt
             ARGS="$ARGS -Dsurefire.excludesFile=/tmp/surefire-excludes.txt"
             echo "📋 Include patterns:"
             cat /tmp/surefire-includes.txt
@@ -267,21 +275,34 @@ runs:
         # an empty tenant-mode they take the early return above (args=, exit 0) and never reach this
         # line, so they never receive the flag and still fail on a red test. Only shadow modes get it.
         # Single-quoted so '*' reaches the JVM instead of being glob-expanded by the shell below.
-        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dmaven.test.failure.ignore=true" >> "$GITHUB_OUTPUT"
+        # The write-attribution detector rides the same shadow run as the fail-closed one: both
+        # report and never gate, since failure.ignore keeps the job green.
+        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dopenaev.writeattr.detector=on -Dmaven.test.failure.ignore=true" >> "$GITHUB_OUTPUT"
 
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
       shell: bash
-      # Run the 'test' lifecycle phase so that JaCoCo's prepare-agent
-      # execution (bound to 'initialize' in pom.xml) fires through the
-      # normal lifecycle and properly sets the argLine property BEFORE
-      # Surefire reads it.  Compilation is skipped because the classes
-      # are already downloaded from the backend-compile job.
-      run: >-
-        mvn -B -ntp -pl openaev-api test
-        -Dmaven.compiler.skip=true
-        ${{ steps.suite.outputs.surefire_arg }}
-        ${{ steps.tenant.outputs.args }}
+      # Run test goals directly to avoid recompiling downloaded classes.
+      run: |
+        mvn -B -ntp -pl openaev-api \
+          initialize surefire:test@default-test jacoco:report@report \
+          ${{ steps.suite.outputs.surefire_arg }} \
+          ${{ steps.tenant.outputs.args }}
+
+    - name: Remove compiled OpenAEV artifacts before caching
+      if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
+      run: rm -rf ~/.m2/repository/io/openaev/
+      shell: bash
+
+    # A single main-branch shard writes the shared dependency cache.
+    # Resolved dependencies are still saved after test failures.
+    - name: Save API test Maven dependencies
+      if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-api-tests-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+
     - name: Diagnose surefire dump files (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
       shell: bash
@@ -309,7 +330,7 @@ runs:
         REPORTS=openaev-api/target/surefire-reports
         S="$GITHUB_STEP_SUMMARY"
         {
-          echo "## 🔐 Tenant shadow \`$MODE\` — shard $SHARD"
+          echo "## Tenant shadow \`$MODE\`, shard $SHARD"
           echo
           echo "_Classes carrying their own \`@TestPropertySource\` activation keep it: inlined test"
           echo "properties win over the system property this mode sets. Those are the isolation suites,"
@@ -319,7 +340,7 @@ runs:
         # A broken instrument must stay visible without turning the job red. Two shapes go unnoticed
         # otherwise: no surefire report at all (the suite never ran), and a Spring context that fails
         # to load (every test errors, yet the JaCoCo agent still writes jacoco.exec at JVM exit and
-        # -Dmaven.test.failure.ignore=true leaves the build green — the 12 Sep shadow-all state). Emit
+        # -Dmaven.test.failure.ignore=true leaves the build green, the 12 Sep shadow-all state). Emit
         # a GitHub warning annotation, never an error and never a non-zero exit: it shows on the run
         # page and in the job without failing either, and the on-call alert keys off the run
         # conclusion, so it stays quiet.
@@ -366,6 +387,94 @@ runs:
           } >> "$S"
         else
           echo "No unscoped production read." >> "$S"
+          echo >> "$S"
+        fi
+
+        # Wrong-tenant production writes the write-attribution gate refused: a tenant_id written
+        # outside the request or job scope, or a null one on a strict table. Same extraction shape as
+        # the block above; a signature is "<table> <DEFAULT|OTHER|NULL> <entry frame>".
+        WSIGS=$(awk '
+            /Write-attribution: production code wrote/ { inblock = 1; next }
+            inblock && /^Attribute the write/ { inblock = 0; next }
+            inblock {
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+              if ($0 ~ /^[a-z_]+ (DEFAULT|OTHER|NULL) [A-Za-z0-9_.$()]+$/) print
+            }
+          ' "$REPORTS"/*.txt 2>/dev/null | sort -u)
+        if [ -n "$WSIGS" ]; then
+          {
+            echo "### Wrong-tenant production writes ($(echo "$WSIGS" | wc -l))"
+            echo
+            echo "Attribute each one from the request's write scope, or waive it in \`writeattr-baseline.txt\` with a reason."
+            echo
+            echo '```'
+            echo "$WSIGS"
+            echo '```'
+            echo
+          } >> "$S"
+        else
+          echo "No wrong-tenant production write." >> "$S"
+          echo >> "$S"
+        fi
+
+        # The write-attribution gate writes its per-JVM waiver report next to the surefire reports.
+        # A shard sees only its own classes, so it can only say what it did not produce; a waiver
+        # is stale only when no shard produced it.
+        WAIVERS="$REPORTS/writeattr-waivers.txt"
+        if [ -f "$WAIVERS" ]; then
+          NOTPRODUCED=$(grep -c '^not-produced ' "$WAIVERS" || true)
+          {
+            echo "$(head -n1 "$WAIVERS" | sed 's/^# //'); $NOTPRODUCED not produced by this shard (stale only if no shard produces it)."
+            echo
+          } >> "$S"
+        fi
+
+        # Writes made under a deny-all scope (no v2 scope set at all): reported by the gate, never
+        # gated, since sweeping the current flood of test-driven signatures is its own follow-up.
+        # This file's name is WriteAttrGateExtension.EMPTY_SCOPE_REPORT_FILE verbatim, pinned by
+        # WriteAttrSummaryMarkerTest; the header text itself is read back from the file, not
+        # hardcoded here, so it needs no matching pin.
+        EMPTYSCOPE="$REPORTS/writeattr-emptyscope.txt"
+        if [ -f "$EMPTYSCOPE" ]; then
+          {
+            echo "### Empty-scope writes ($(head -n1 "$EMPTYSCOPE" | sed 's/^# //'))"
+            echo
+            echo "Writes made under a deny-all scope (no v2 scope set): reported, never gated, expected"
+            echo "to be numerous today because tests drive production services directly, tracked by its"
+            echo "own sweep."
+            echo
+            echo '```'
+            tail -n +2 "$EMPTYSCOPE"
+            echo '```'
+            echo
+          } >> "$S"
+        fi
+
+        # Statements whose JDBC warning chain could not be read: the trigger may have raised a
+        # [WRITEATTR] warning on any of them and the listener never saw it. This file's name is
+        # WriteAttrGateExtension.INSTRUMENTATION_FAILURE_REPORT_FILE verbatim; the header text is
+        # read back from the file, not hardcoded here.
+        INSTRFAIL="$REPORTS/writeattr-instrumentation-failures.txt"
+        if [ -f "$INSTRFAIL" ] && [ "$(grep -c '^' "$INSTRFAIL")" -gt 1 ]; then
+          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::$(head -n1 "$INSTRFAIL" | sed 's/^# //'). The detector may have missed a wrong-tenant write on each of those statements."
+          {
+            echo "### $(head -n1 "$INSTRFAIL" | sed 's/^# //')"
+            echo
+            echo "A broken bridge from the trigger to the listener, not a pass."
+            echo
+            echo '```'
+            tail -n +2 "$INSTRFAIL"
+            echo '```'
+            echo
+          } >> "$S"
+        fi
+
+        # A shard whose trigger could not be installed ran with no write-attribution signal at all:
+        # its Spring contexts failed to refresh on the install and every later context retried.
+        # Loud, never a job failure (same rule as the context-load warning above).
+        if grep -q 'cannot install the write-attribution trigger' "$REPORTS"/* 2>/dev/null; then
+          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::The write-attribution trigger could not be installed: this shard reports no wrong-tenant write, which is not a pass."
+          echo "The write-attribution trigger could not be installed in this shard: no write signal." >> "$S"
           echo >> "$S"
         fi
 

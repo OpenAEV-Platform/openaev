@@ -841,21 +841,14 @@ class BackgroundEntrypointDetectionTest {
     // they reach outside the primitive would turn their reads/writes into wrong-tenant accesses.
     // Each must carry an until-active tag for every such table so the day it activates the guard
     // fails and forces conversion. A revert to an incomplete reason fails here.
+    // PlaywrightReportingRenderer and ReportingScheduleJob are no longer listed at all: every
+    // documents/reporting_schedules/reportings/reporting_generations read or write on both paths
+    // now goes through the primitive (TxCtx.forTenant / TxCtx.allTenants() via
+    // TenantScopedJobRunner
+    // and TenantScopedTransaction), so neither reaches any table outside it any more.
     Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
     assertUntilActive(baseline, "io.openaev.service.EsAttackPathService", "attack_patterns");
     assertUntilActive(baseline, "io.openaev.rest.stream.StreamApi", "injects");
-    assertUntilActive(
-        baseline,
-        "io.openaev.rest.reporting.service.PlaywrightReportingRenderer",
-        "reporting_generations",
-        "documents");
-    assertUntilActive(
-        baseline,
-        "io.openaev.scheduler.jobs.reporting.ReportingScheduleJob",
-        "reporting_schedules",
-        "reportings",
-        "reporting_generations",
-        "documents");
   }
 
   private static void assertUntilActive(

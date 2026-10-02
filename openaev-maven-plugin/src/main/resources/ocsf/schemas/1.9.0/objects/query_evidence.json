@@ -1,0 +1,340 @@
+{
+  "attributes" : {
+    "module" : {
+      "type" : "object_t",
+      "description" : "The module that pertains to the event when query_type_id indicates a Module query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Module",
+      "object_type" : "module",
+      "object_name" : "Module"
+    },
+    "process" : {
+      "type" : "object_t",
+      "description" : "The process that pertains to the event when query_type_id indicates a Process query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Process",
+      "object_type" : "process",
+      "object_name" : "Process"
+    },
+    "session" : {
+      "type" : "object_t",
+      "description" : "The authenticated user or service session when query_type_id indicates a Session query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Session",
+      "object_type" : "session",
+      "object_name" : "Session"
+    },
+    "file" : {
+      "type" : "object_t",
+      "description" : "The file that is the target of the query when query_type_id indicates a File query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "File",
+      "object_type" : "file",
+      "object_name" : "File"
+    },
+    "state" : {
+      "type" : "string_t",
+      "description" : "The state of the socket, normalized to the caption of the state_id value. In the case of 'Other', it is defined by the event source.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Network Connection State",
+      "type_name" : "String"
+    },
+    "user" : {
+      "type" : "object_t",
+      "description" : "The user that pertains to the event when query_type_id indicates a User query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "User",
+      "object_type" : "user",
+      "object_name" : "User"
+    },
+    "kernel" : {
+      "type" : "object_t",
+      "description" : "The kernel object that pertains to the event when query_type_id indicates a Kernel query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Kernel",
+      "object_type" : "kernel",
+      "object_name" : "Kernel Resource"
+    },
+    "service" : {
+      "type" : "object_t",
+      "description" : "The service that pertains to the event when query_type_id indicates a Service query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Service",
+      "object_type" : "service",
+      "object_name" : "Service"
+    },
+    "group" : {
+      "type" : "object_t",
+      "description" : "The administrative group that is the target of the query when query_type_id indicates an Admin Group query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Group",
+      "object_type" : "group",
+      "object_name" : "Group"
+    },
+    "users" : {
+      "type" : "object_t",
+      "description" : "The users that belong to the administrative group when query_type_id indicates a Users query.",
+      "group" : "context",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Users",
+      "object_type" : "user",
+      "object_name" : "User"
+    },
+    "connection_info" : {
+      "type" : "object_t",
+      "description" : "The network connection information related to a Network Connection query type.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Connection Info",
+      "object_type" : "network_connection_info",
+      "object_name" : "Network Connection Information"
+    },
+    "folder" : {
+      "type" : "object_t",
+      "description" : "The folder that is the target of the query when query_type_id indicates a Folder query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Folder",
+      "object_type" : "file",
+      "object_name" : "File"
+    },
+    "job" : {
+      "type" : "object_t",
+      "description" : "The job object that pertains to the event when query_type_id indicates a Job query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Job",
+      "object_type" : "job",
+      "object_name" : "Job"
+    },
+    "network_interfaces" : {
+      "type" : "object_t",
+      "description" : "The physical or virtual network interfaces that are associated with the device when query_type_id indicates a Network Interfaces query.",
+      "group" : "primary",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Network Interfaces",
+      "object_type" : "network_interface",
+      "object_name" : "Network Interface"
+    },
+    "peripheral_device" : {
+      "type" : "object_t",
+      "description" : "The peripheral device that triggered the event when query_type_id indicates a Peripheral Device query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Peripheral Device",
+      "object_type" : "peripheral_device",
+      "object_name" : "Peripheral Device"
+    },
+    "query_type" : {
+      "type" : "string_t",
+      "description" : "The normalized caption of query_type_id or the source-specific query type.",
+      "group" : "classification",
+      "requirement" : "optional",
+      "caption" : "Query Type",
+      "type_name" : "String"
+    },
+    "query_type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "A query about folder attributes, metadata, content, or structure.",
+          "caption" : "Folder"
+        },
+        "6" : {
+          "description" : "A query about loaded modules, their base addresses, load types, or function entry points.",
+          "caption" : "Module"
+        },
+        "0" : {
+          "description" : "The query type was unknown or not specified.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "A query about kernel resources including system calls, shared mutex, or other kernel components.",
+          "caption" : "Kernel"
+        },
+        "2" : {
+          "description" : "A query about file attributes, metadata, content, hash values, or properties.",
+          "caption" : "File"
+        },
+        "99" : {
+          "description" : "The query type was not mapped to a standard category. See the query_type attribute for source-specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "A query about group membership, privileges, domain, or group properties.",
+          "caption" : "Admin Group"
+        },
+        "5" : {
+          "description" : "A query about scheduled jobs, their command lines, run states, or execution times.",
+          "caption" : "Job"
+        },
+        "7" : {
+          "description" : "A query about active network connections, boundaries, protocols, or TCP states.",
+          "caption" : "Network Connection"
+        },
+        "8" : {
+          "description" : "A query about physical or virtual network interfaces, their IP/MAC addresses, or types.",
+          "caption" : "Network Interfaces"
+        },
+        "9" : {
+          "description" : "A query about attached peripheral devices, their classes, models, or vendor information.",
+          "caption" : "Peripheral Device"
+        },
+        "10" : {
+          "description" : "A query about running processes, command lines, ancestry, loaded modules, or execution context.",
+          "caption" : "Process"
+        },
+        "11" : {
+          "description" : "A query about system services, their names, versions, labels, or properties.",
+          "caption" : "Service"
+        },
+        "12" : {
+          "description" : "A query about authenticated user or service sessions, their creation times, or issuer details.",
+          "caption" : "Session"
+        },
+        "14" : {
+          "description" : "A query about multiple users belonging to an administrative group.",
+          "caption" : "Users"
+        },
+        "15" : {
+          "description" : "A query about startup configuration items, their run modes, start types, or current states.",
+          "caption" : "Startup Item"
+        },
+        "16" : {
+          "description" : "A Windows-specific query about registry keys, their paths, security descriptors, or modification times.",
+          "caption" : "Registry Key"
+        },
+        "17" : {
+          "description" : "A Windows-specific query about registry values, their data types, content, or names.",
+          "caption" : "Registry Value"
+        },
+        "18" : {
+          "description" : "A Windows-specific query about prefetch files, their run counts, last execution times, or existence.",
+          "caption" : "Prefetch"
+        },
+        "13" : {
+          "description" : "A query about user accounts, their properties, credentials, or domain information.",
+          "caption" : "User"
+        }
+      },
+      "description" : "The normalized type of system query performed against a device or system component.",
+      "group" : "classification",
+      "requirement" : "required",
+      "caption" : "Query Type ID",
+      "sibling" : "query_type",
+      "type_name" : "Integer"
+    },
+    "startup_item" : {
+      "type" : "object_t",
+      "description" : "The startup item object that pertains to the event when query_type_id indicates a Startup Item query.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Startup Item",
+      "object_type" : "startup_item",
+      "object_name" : "Startup Item"
+    },
+    "tcp_state_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The socket has passively received a connection request from a remote peer.",
+          "caption" : "SYN-RECEIVED"
+        },
+        "6" : {
+          "description" : "The socket connection has been closed by the local application, the remote peer has closed its half of the connection, and the system is waiting to be sure that the remote peer received the last acknowledgement.",
+          "caption" : "TIME-WAIT"
+        },
+        "0" : {
+          "description" : "The socket state is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The socket has an established connection between a local application and a remote peer.",
+          "caption" : "ESTABLISHED"
+        },
+        "2" : {
+          "description" : "The socket is actively trying to establish a connection to a remote peer.",
+          "caption" : "SYN-SENT"
+        },
+        "4" : {
+          "description" : "The socket connection has been closed by the local application, the remote peer has not yet acknowledged the close, and the system is waiting for it to close its half of the connection.",
+          "caption" : "FIN-WAIT-1"
+        },
+        "5" : {
+          "description" : "The socket connection has been closed by the local application, the remote peer has acknowledged the close, and the system is waiting for it to close its half of the connection.",
+          "caption" : "FIN-WAIT-2"
+        },
+        "7" : {
+          "description" : "The socket is not in use.",
+          "caption" : "CLOSED"
+        },
+        "8" : {
+          "description" : "The socket connection has been closed by the remote peer, and the system is waiting for the local application to close its half of the connection.",
+          "caption" : "CLOSE-WAIT"
+        },
+        "9" : {
+          "description" : "The socket connection has been closed by the remote peer, the local application has closed its half of the connection, and the system is waiting for the remote peer to acknowledge the close.",
+          "caption" : "LAST-ACK"
+        },
+        "10" : {
+          "description" : "The socket is listening for incoming connections.",
+          "caption" : "LISTEN"
+        },
+        "11" : {
+          "description" : "The socket connection has been closed by the local application and the remote peer simultaneously, and the remote peer has not yet acknowledged the close attempt of the local application.",
+          "caption" : "CLOSING"
+        }
+      },
+      "description" : "The state of the TCP socket for the network connection.",
+      "group" : "context",
+      "references" : [ {
+        "description" : "RFC 9293",
+        "url" : "https://datatracker.ietf.org/doc/html/rfc9293"
+      } ],
+      "requirement" : "optional",
+      "caption" : "TCP State ID",
+      "type_name" : "Integer"
+    },
+    "reg_key" : {
+      "type" : "object_t",
+      "description" : "The registry key object describes a Windows registry key.",
+      "group" : "primary",
+      "extension" : "win",
+      "requirement" : "recommended",
+      "extension_id" : 2,
+      "caption" : "Registry Key",
+      "object_type" : "win/reg_key",
+      "object_name" : "Registry Key"
+    },
+    "reg_value" : {
+      "type" : "object_t",
+      "description" : "The registry value object describes a Windows registry value.",
+      "group" : "primary",
+      "extension" : "win",
+      "requirement" : "recommended",
+      "extension_id" : 2,
+      "caption" : "Registry Value",
+      "object_type" : "win/reg_value",
+      "object_name" : "Registry Value"
+    }
+  },
+  "name" : "query_evidence",
+  "description" : "The specific resulting evidence information that was queried or discovered. When mapping raw telemetry data users should select the appropriate child object that best matches the evidence type as defined by query_type_id.",
+  "constraints" : {
+    "just_one" : [ "connection_info", "file", "folder", "group", "job", "kernel", "module", "network_interfaces", "peripheral_device", "process", "reg_key", "reg_value", "service", "session", "startup_item", "user" ]
+  },
+  "caption" : "Query Evidence",
+  "profiles" : [ "container", "data_classification", "linux/linux_users", "macos/macos_users" ],
+  "_links" : [ ]
+}

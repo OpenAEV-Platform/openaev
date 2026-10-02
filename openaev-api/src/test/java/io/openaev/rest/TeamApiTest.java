@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseTeamUserRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -97,6 +98,37 @@ class TeamApiTest extends IntegrationTest {
     // --ASSERT--
     assertEquals(teamInput.getName(), JsonPath.read(response, "$.team_name"));
     assertEquals(teamInput.getDescription(), JsonPath.read(response, "$.team_description"));
+  }
+
+  @DisplayName(
+      "Given no ambient tenant on the non-prefixed route, should create the team under the default tenant")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_noAmbientTenantOnNonPrefixedRoute_should_createTeamUnderDefaultTenant()
+      throws Exception {
+    // --PREPARE--
+    // TenantInterceptor never sets an ambient tenant for this route: reproduce that thread state
+    // instead of relying on the test fixture's DefaultTenantExtension.
+    TenantContext.clearCurrentTenant();
+    TeamCreateInput teamInput = createTeam();
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(TEAM_URI)
+                    .content(asJsonString(teamInput))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    String newTeamId = JsonPath.read(response, "$.team_id");
+    Team newTeam = this.teamRepository.findById(newTeamId).orElseThrow();
+    assertEquals(Tenant.DEFAULT_TENANT_UUID, newTeam.getTenant().getId());
   }
 
   @DisplayName("Given existing team name input, should throw an exception")

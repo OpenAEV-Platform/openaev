@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import MuiFormHelpers from '../../utils/MuiFormHelpers';
 
@@ -8,6 +8,7 @@ class ThreatArsenalFormComponent {
   // Form tabs
   readonly generalTab: Locator;
   readonly commandsTab: Locator;
+  readonly outputTab: Locator;
 
   // General tab fields
   readonly nameField: Locator;
@@ -37,6 +38,7 @@ class ThreatArsenalFormComponent {
     // Tabs
     this.generalTab = page.getByRole('tab', { name: 'General' });
     this.commandsTab = page.getByRole('tab', { name: 'Commands' });
+    this.outputTab = page.getByRole('tab', { name: 'Output' });
 
     // General fields
     this.nameField = page.getByRole('textbox', { name: 'Name*' });
@@ -79,6 +81,30 @@ class ThreatArsenalFormComponent {
   async switchToGeneralTab() {
     await this.generalTab.click();
   };
+
+  async addTextOutput(name: string, key: string, rule: string) {
+    await this.outputTab.click();
+    await this.page.getByRole('button', { name: 'Add attribute' }).click();
+
+    const outputPrefix = 'action_output_parsers.0.output_parser_contract_output_elements.0';
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_name"]`).fill(name);
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_key"]`).fill(key);
+    const typeSelect = this.page.getByRole('combobox', { name: 'Type *' }).last();
+    await expect(typeSelect).toBeVisible();
+    await MuiFormHelpers.selectSingleOption(
+      this.page,
+      typeSelect,
+      'Text',
+    );
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_rule"]`).fill(rule);
+    // The regex group row is rendered from the selected type, so it only exists
+    // once that select has actually applied.
+    const regexGroupValue = this.page.getByPlaceholder('$1');
+    await expect(regexGroupValue, 'Output type "Text" was not applied').toBeVisible();
+    await regexGroupValue.fill('$1');
+    // Without this the parser extracts the value but never raises a finding.
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_is_finding"]`).check();
+  }
 
   async selectDomain(domains: string | string[]) {
     const values = Array.isArray(domains) ? domains : [domains];

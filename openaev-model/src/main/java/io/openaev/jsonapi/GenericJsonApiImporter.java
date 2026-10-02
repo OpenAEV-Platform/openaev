@@ -12,16 +12,22 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.DualScopeBase;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.TenantBase;
 import io.openaev.service.FileService;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.Id;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.metamodel.EntityType;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -42,18 +48,31 @@ public class GenericJsonApiImporter<T extends Base> {
   private final EntityManager entityManager;
   @Resource private final ObjectMapper objectMapper;
   private final FileService fileService;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   @Transactional
   public T handleImportEntity(
       JsonApiDocument<ResourceObject> doc,
       IncludeOptions includeOptions,
-      Function<T, T> sanityCheck) {
+      Function<T, T> sanityCheck,
+      String writeTenantId) {
     if (doc == null || doc.data() == null) {
       throw new IllegalArgumentException("Data is required to import document");
     }
-    if (includeOptions == null) {
-      includeOptions = IncludeOptions.of(emptyMap());
-    }
+    IncludeOptions options =
+        includeOptions == null ? IncludeOptions.of(emptyMap()) : includeOptions;
+    // The built entities are attributed explicitly below, but existing rows are still matched
+    // through the ambient tenant, as are the rows a cascade creates, so the whole import runs with
+    // the ambient tenant aligned on the write tenant: one request, one tenant.
+    return ambientTenantBridge.callInTenant(
+        writeTenantId, () -> importEntity(doc, options, sanityCheck, writeTenantId));
+  }
+
+  private T importEntity(
+      JsonApiDocument<ResourceObject> doc,
+      IncludeOptions includeOptions,
+      Function<T, T> sanityCheck,
+      String writeTenantId) {
     Map<String, ResourceObject> includedMap = toMap(doc.included());
     // Cache keyed by id, with a boolean indicating whether the entity should be persisted or not at
     // the end
@@ -68,8 +87,15 @@ public class GenericJsonApiImporter<T extends Base> {
             entitiesNeedingRemapping,
             includeOptions,
             true,
-            false);
+            false,
+            writeTenantId);
     T toPersist = Optional.ofNullable(sanityCheck).map(check -> check.apply(entity)).orElse(entity);
+
+    // An activated table has a non-nullable tenant_id and no TenantBaseListener to fill it, so a
+    // row built reflectively here would insert with a null tenant. Attribute every built entity to
+    // the resolved write tenant (the request scope), which the bundle has no say in.
+    stampTenant(toPersist, writeTenantId);
+    entityCache.values().forEach(value -> stampTenant(value.getLeft(), writeTenantId));
 
     // Persist included entities that not inner relationship
     for (Pair<T, Boolean> value : entityCache.values()) {
@@ -104,7 +130,7 @@ public class GenericJsonApiImporter<T extends Base> {
   }
 
   public void handleImportDocument(
-      JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras) {
+      JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras, String writeTenantId) {
     if (doc.included() != null) {
       for (Object o : doc.included()) {
         if (o instanceof ResourceObject ro && "document".equals(ro.type())) {
@@ -114,8 +140,15 @@ public class GenericJsonApiImporter<T extends Base> {
             byte[] fileBytes = extras.get(target);
             if (fileBytes != null) {
               try (InputStream in = new ByteArrayInputStream(fileBytes)) {
-                fileService.uploadFile(
-                    target, in, fileBytes.length, Files.probeContentType(Path.of(target)));
+                String contentType = Files.probeContentType(Path.of(target));
+                // Store the object under the resolved write tenant, so it stays co-located with the
+                // document row attributed to the same tenant and a later read resolves it whatever
+                // the ambient TenantContext. A null write tenant keeps the ambient-path upload.
+                if (writeTenantId != null) {
+                  fileService.uploadFile(writeTenantId, target, in, fileBytes.length, contentType);
+                } else {
+                  fileService.uploadFile(target, in, fileBytes.length, contentType);
+                }
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
@@ -123,6 +156,19 @@ public class GenericJsonApiImporter<T extends Base> {
           }
         }
       }
+    }
+  }
+
+  /**
+   * Attributes a reflectively built tenant-scoped entity with no tenant to the resolved write
+   * tenant. Only an unset tenant is stamped: an entity whose tenant a {@code sanityCheck} already
+   * set (the imported root) or that was loaded from the database is left untouched.
+   */
+  private void stampTenant(Object entity, String writeTenantId) {
+    if (writeTenantId != null
+        && entity instanceof TenantBase tenantScoped
+        && tenantScoped.getTenant() == null) {
+      tenantScoped.setTenant(new Tenant(writeTenantId));
     }
   }
 
@@ -164,6 +210,8 @@ public class GenericJsonApiImporter<T extends Base> {
    *     from {@link IncludeOptions.IncludeMode#IF_EXISTS_IN_DB} and allows skipping entire
    *     relationship subtrees when a required dependency does not exist in the target database
    *     (e.g. skip a DetectionRemediation if its Collector is not installed).
+   * @param writeTenantId the tenant the import writes into; a relationship id that is not in the
+   *     bundle is bound only to a row of that tenant
    * @return the resolved or newly created entity, or {@code null} if the resource is null
    * @throws IllegalArgumentException if {@code ifExistsOnly} is true and the entity is not found
    */
@@ -174,7 +222,8 @@ public class GenericJsonApiImporter<T extends Base> {
       List<CanRemapWeakRelationships> entitiesNeedingRemapping,
       IncludeOptions includeOptions,
       boolean rootEntity,
-      boolean ifExistsOnly) {
+      boolean ifExistsOnly,
+      String writeTenantId) {
     // Sanity check
     if (resource == null) {
       return null;
@@ -254,7 +303,8 @@ public class GenericJsonApiImporter<T extends Base> {
         includedMap,
         entityCache,
         entitiesNeedingRemapping,
-        includeOptions);
+        includeOptions,
+        writeTenantId);
 
     return entity;
   }
@@ -284,7 +334,8 @@ public class GenericJsonApiImporter<T extends Base> {
       Map<String, ResourceObject> includedMap,
       Map<String, Pair<T, Boolean>> entityCache,
       List<CanRemapWeakRelationships> entitiesNeedingRemapping,
-      IncludeOptions includeOptions) {
+      IncludeOptions includeOptions,
+      String writeTenantId) {
     if (entity == null || rels == null || rels.isEmpty()) {
       return;
     }
@@ -297,7 +348,7 @@ public class GenericJsonApiImporter<T extends Base> {
       }
 
       Field f = relations.get(e.getKey());
-      if (f == null) {
+      if (f == null || targetsTenant(f)) {
         continue;
       }
 
@@ -317,7 +368,8 @@ public class GenericJsonApiImporter<T extends Base> {
                     entityCache,
                     entitiesNeedingRemapping,
                     includeOptions,
-                    ifExistsOnly);
+                    ifExistsOnly,
+                    writeTenantId);
             if (child != null) {
               target.add(child);
               setInverseRelation(child, entity);
@@ -346,7 +398,8 @@ public class GenericJsonApiImporter<T extends Base> {
                     entityCache,
                     entitiesNeedingRemapping,
                     includeOptions,
-                    ifExistsOnly)
+                    ifExistsOnly,
+                    writeTenantId)
                 : null;
         setField(entity, f, child);
         if (child != null) {
@@ -356,13 +409,28 @@ public class GenericJsonApiImporter<T extends Base> {
     }
   }
 
+  /**
+   * A bundle never chooses a tenant. The exporter does not emit these relations, which are all
+   * {@code @JsonIgnore}, so a genuine bundle carries none and is re-imported into the write tenant
+   * of the request. Ignoring them leaves the tenant of every built entity to the importer, and
+   * keeps a bundle from creating a tenant or attaching a user to one.
+   */
+  private static boolean targetsTenant(Field field) {
+    if (Tenant.class.isAssignableFrom(field.getType())) {
+      return true;
+    }
+    return field.getGenericType() instanceof ParameterizedType parameterized
+        && Arrays.asList(parameterized.getActualTypeArguments()).contains(Tenant.class);
+  }
+
   private T resolveOrBuildEntity(
       ResourceIdentifier resourceIdentifier,
       Map<String, ResourceObject> includedMap,
       Map<String, Pair<T, Boolean>> entityCache,
       List<CanRemapWeakRelationships> entitiesNeedingRemapping,
       IncludeOptions includeOptions,
-      boolean ifExistsOnly) {
+      boolean ifExistsOnly,
+      String writeTenantId) {
     if (resourceIdentifier == null) {
       return null;
     }
@@ -380,17 +448,62 @@ public class GenericJsonApiImporter<T extends Base> {
           entitiesNeedingRemapping,
           includeOptions,
           false,
-          ifExistsOnly);
+          ifExistsOnly,
+          writeTenantId);
     }
 
-    // Not present in the bundle
+    // Not present in the bundle: a reference to a row of the target instance
+    Class<T> clazz;
     try {
-      Class<T> clazz = classForTypeOrThrow(type);
-      return hasText(id) ? entityManager.getReference(clazz, id) : null;
+      clazz = classForTypeOrThrow(type);
     } catch (IllegalArgumentException e) {
       log.warn("Skipping reference to unknown entity type '{}' (id='{}')", type, id);
       return null;
     }
+    if (!hasText(id)) {
+      return null;
+    }
+    if (!isTenantScoped(clazz)) {
+      return entityManager.getReference(clazz, id);
+    }
+    return existingRowOfWriteTenant(clazz, id, type, ifExistsOnly, writeTenantId);
+  }
+
+  private static boolean isTenantScoped(Class<?> clazz) {
+    return TenantBase.class.isAssignableFrom(clazz) || DualScopeBase.class.isAssignableFrom(clazz);
+  }
+
+  /**
+   * Binds a tenant-scoped row referenced by id only when it belongs to the write tenant. The id
+   * comes from the file, so a guessed or replayed id must not bind a row of another tenant: the
+   * lookup runs under the request scope, which hides the other tenants' rows of an active table,
+   * and the row's tenant is checked explicitly for the tables the scope does not cover yet. A
+   * platform row (no tenant) of a dual-scope table is shared and binds as is. A reference that
+   * resolves to nothing refuses the import instead of binding blind, unless the relationship is
+   * imported in {@code IF_EXISTS_IN_DB} mode, where the child is skipped like any missing row.
+   */
+  private T existingRowOfWriteTenant(
+      Class<T> clazz, String id, String type, boolean ifExistsOnly, String writeTenantId) {
+    T existing = entityManager.find(clazz, id);
+    if (existing != null && belongsToWriteTenant(existing, writeTenantId)) {
+      return existing;
+    }
+    if (ifExistsOnly) {
+      throw new IllegalArgumentException(
+          "Entity of type '"
+              + clazz.getSimpleName()
+              + "' not found in database, skipped (IF_EXISTS_IN_DB mode)");
+    }
+    throw new EntityNotFoundException("Referenced " + type + " '" + id + "' not found");
+  }
+
+  private static boolean belongsToWriteTenant(Object entity, String writeTenantId) {
+    if (entity instanceof DualScopeBase dualScope) {
+      Tenant tenant = dualScope.getTenant();
+      return tenant == null || tenant.getId() == null || tenant.getId().equals(writeTenantId);
+    }
+    Tenant tenant = ((TenantBase) entity).getTenant();
+    return tenant != null && tenant.getId() != null && tenant.getId().equals(writeTenantId);
   }
 
   private final Map<String, Class<T>> typeToClassCache = new HashMap<>();

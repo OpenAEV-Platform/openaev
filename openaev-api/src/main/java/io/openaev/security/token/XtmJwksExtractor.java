@@ -11,17 +11,16 @@ import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.UserService;
 import io.openaev.utils.StringUtils;
 import io.openaev.xtmone.XtmOneConfig;
+import io.openaev.xtmone.XtmOneIdentity;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
@@ -36,10 +35,13 @@ import org.springframework.stereotype.Component;
  *
  * <ol>
  *   <li>Peeks at the unverified payload to extract the {@code iss} claim
- *   <li>Checks that the issuer matches the configured XTM One URL (trusted issuer)
- *   <li>Fetches (and caches) the issuer's JWKS from {@code {iss}/xtm/auth/jwks}
+ *   <li>Checks that the issuer names XTM One: its configured URL or the identity it publishes
+ *       ({@link XtmOneIdentity})
+ *   <li>Fetches (and caches) XTM One's JWKS from {@code {configured url}/xtm/auth/jwks}, the URL
+ *       OpenAEV reaches it on whatever its issuer says
  *   <li>Resolves the signing key by {@code kid} from the cached JWKS
- *   <li>Validates the JWT signature and expiration
+ *   <li>Validates the JWT signature, expiration and audience (OpenAEV's base URL, compared
+ *       normalized)
  *   <li>Resolves the user by the {@code email} claim
  * </ol>
  *
@@ -67,6 +69,7 @@ public class XtmJwksExtractor implements ExtractorBase {
   private final HttpClientFactory httpClientFactory;
   private final ObjectMapper objectMapper;
   private final OpenAEVConfig openAEVConfig;
+  private final XtmOneIdentity xtmOneIdentity;
 
   private final ConcurrentHashMap<String, CachedJwks> jwksCache = new ConcurrentHashMap<>();
 
@@ -83,19 +86,18 @@ public class XtmJwksExtractor implements ExtractorBase {
     }
 
     String issuer = extractUnverifiedIssuer(value);
-    List<String> trustedIssuers = buildTrustedIssuers();
-
-    if (!trustedIssuers.contains(issuer)) {
+    if (!xtmOneIdentity.isXtmOneIssuer(issuer)) {
       throw new AuthenticationError("Untrusted JWKS issuer: " + issuer);
     }
 
-    Claims claims =
+    String jwksUrl = xtmOneConfig.getUrl() + "/xtm/auth/jwks";
+    Jws<Claims> jws =
         Jwts.parser()
-            .keyLocator(header -> resolveKey(issuer, (String) header.get("kid")))
-            .requireAudience(openAEVConfig.getBaseUrl())
+            .keyLocator(header -> resolveKey(jwksUrl, (String) header.get("kid")))
             .build()
-            .parseSignedClaims(value)
-            .getPayload();
+            .parseSignedClaims(value);
+    requireOwnAudience(jws);
+    Claims claims = jws.getPayload();
 
     String email = claims.get("email", String.class);
     if (StringUtils.isBlank(email)) {
@@ -113,40 +115,49 @@ public class XtmJwksExtractor implements ExtractorBase {
 
   // -- PRIVATE --
 
-  /**
-   * Builds the list of trusted JWKS issuers from configuration. Currently, includes the XTM One
-   * URL; additional trusted URLs can be appended here as the platform evolves (e.g. peer
-   * instances).
-   */
-  private List<String> buildTrustedIssuers() {
-    return Stream.of(xtmOneConfig.getUrl())
-        .filter(Objects::nonNull)
-        .filter(url -> !url.isEmpty())
-        .toList();
+  /** Refuses a token none of whose audiences is OpenAEV's base URL (compared normalized). */
+  private void requireOwnAudience(Jws<Claims> jws) {
+    String expected = openAEVConfig.getBaseUrl();
+    Optional<String> canonicalExpected = XtmOneIdentity.canonical(expected);
+    Set<String> audiences = jws.getPayload().getAudience();
+    boolean matches =
+        canonicalExpected.isPresent()
+            && audiences != null
+            && audiences.stream()
+                .map(XtmOneIdentity::canonical)
+                .anyMatch(canonicalExpected::equals);
+    if (!matches) {
+      throw new IncorrectClaimException(
+          jws.getHeader(),
+          jws.getPayload(),
+          Claims.AUDIENCE,
+          expected,
+          "Expected aud claim to contain " + expected + " but was " + audiences);
+    }
   }
 
-  private Key resolveKey(String issuer, String kid) {
+  private Key resolveKey(String jwksUrl, String kid) {
     // First attempt: look in cache
-    Key key = findKeyInCache(issuer, kid);
+    Key key = findKeyInCache(jwksUrl, kid);
     if (key != null) {
       return key;
     }
 
     // Force-refresh on unknown kid
-    refreshJwks(issuer);
-    key = findKeyInCache(issuer, kid);
+    refreshJwks(jwksUrl);
+    key = findKeyInCache(jwksUrl, kid);
     if (key != null) {
       return key;
     }
 
-    throw new JwtException("No matching key found for kid: " + kid + " from issuer: " + issuer);
+    throw new JwtException("No matching key found for kid: " + kid + " at " + jwksUrl);
   }
 
-  private Key findKeyInCache(String issuer, String kid) {
-    CachedJwks cached = jwksCache.get(issuer);
+  private Key findKeyInCache(String jwksUrl, String kid) {
+    CachedJwks cached = jwksCache.get(jwksUrl);
     if (cached == null) {
-      refreshJwks(issuer);
-      cached = jwksCache.get(issuer);
+      refreshJwks(jwksUrl);
+      cached = jwksCache.get(jwksUrl);
     }
     if (cached == null) {
       return null;
@@ -154,8 +165,8 @@ public class XtmJwksExtractor implements ExtractorBase {
 
     // Refresh if TTL expired
     if (cached.fetchedAt().plus(JWKS_CACHE_TTL).isBefore(Instant.now())) {
-      refreshJwks(issuer);
-      cached = jwksCache.get(issuer);
+      refreshJwks(jwksUrl);
+      cached = jwksCache.get(jwksUrl);
     }
     if (cached == null) {
       return null;
@@ -168,8 +179,7 @@ public class XtmJwksExtractor implements ExtractorBase {
         .orElse(null);
   }
 
-  private void refreshJwks(String issuer) {
-    String jwksUrl = issuer + "/xtm/auth/jwks";
+  private void refreshJwks(String jwksUrl) {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HttpGet httpGet = new HttpGet(jwksUrl);
       String jwksJson =
@@ -183,11 +193,11 @@ public class XtmJwksExtractor implements ExtractorBase {
                 return EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
               });
       if (jwksJson != null) {
-        jwksCache.put(issuer, new CachedJwks(Instant.now(), jwksJson));
-        log.debug("Refreshed JWKS cache for issuer {}", issuer);
+        jwksCache.put(jwksUrl, new CachedJwks(Instant.now(), jwksJson));
+        log.debug("Refreshed JWKS cache from {}", jwksUrl);
       }
     } catch (Exception e) {
-      log.warn("Failed to fetch JWKS from {}", issuer, e);
+      log.warn("Failed to fetch JWKS from {}", jwksUrl, e);
     }
   }
 

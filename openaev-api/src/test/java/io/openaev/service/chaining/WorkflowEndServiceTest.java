@@ -55,6 +55,7 @@ class WorkflowEndServiceTest {
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
+      simulation.setTenant(new Tenant(UUID.randomUUID().toString()));
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
 
       Inject activeInject = buildInjectWithStatus(ExecutionStatus.PENDING);
@@ -75,7 +76,7 @@ class WorkflowEndServiceTest {
               injectService,
               injectStatusService,
               workflowRepository);
-      inOrder.verify(scopeSnapshotService).freezeEnd(workflowRun);
+      inOrder.verify(scopeSnapshotService).freezeEnd(workflowRun, cause);
 
       inOrder.verify(exerciseRepository).save(simulation);
 
@@ -111,6 +112,7 @@ class WorkflowEndServiceTest {
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
+      simulation.setTenant(new Tenant(UUID.randomUUID().toString()));
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
 
       Inject queuingInject = buildInjectWithStatus(ExecutionStatus.QUEUING);
@@ -139,6 +141,7 @@ class WorkflowEndServiceTest {
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
+      simulation.setTenant(new Tenant(UUID.randomUUID().toString()));
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
 
       Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
@@ -187,6 +190,7 @@ class WorkflowEndServiceTest {
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
+      simulation.setTenant(new Tenant(UUID.randomUUID().toString()));
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
       Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
       when(injectService.findBySimulationId(simulation.getId()))
@@ -209,6 +213,7 @@ class WorkflowEndServiceTest {
       Exercise simulation = new Exercise();
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
+      simulation.setTenant(new Tenant(UUID.randomUUID().toString()));
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
       Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
       when(injectService.findBySimulationId(simulation.getId()))

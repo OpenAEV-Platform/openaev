@@ -139,6 +139,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
                 savedInjectorContract, INJECTION_NAME, savedAssetGroup));
 
     CollectorType collectorType1 = new CollectorType(UUID.randomUUID().toString());
+    collectorType1.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     collectorTypeRepository.save(collectorType1);
     Collector collector = new Collector();
     collector.setId(UUID.randomUUID().toString());

@@ -1,0 +1,190 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the analytic that generated the finding.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The analytic type.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The analytic version. For example: <code>1.1</code>.",
+      "requirement" : "optional",
+      "caption" : "Version",
+      "type_name" : "String"
+    },
+    "state" : {
+      "type" : "string_t",
+      "description" : "The Analytic state.",
+      "requirement" : "optional",
+      "caption" : "State",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The description of the analytic that generated the finding.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the analytic that generated the finding.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "category" : {
+      "type" : "string_t",
+      "description" : "The analytic category.",
+      "requirement" : "optional",
+      "caption" : "Category",
+      "type_name" : "String"
+    },
+    "algorithm" : {
+      "type" : "string_t",
+      "description" : "The algorithm used by the underlying analytic to generate the finding.",
+      "requirement" : "optional",
+      "caption" : "Algorithm",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Statistical analytics pertains to analyzing data patterns and anomalies using statistical models to predict, detect, and respond to potential threats, enhancing overall security posture through informed decision-making.",
+          "caption" : "Statistical"
+        },
+        "6" : {
+          "description" : "Tagging refers to the practice of assigning labels or identifiers to data, users, assets, or activities to monitor, control access, and facilitate incident response across various security domains such as DLP and EDR.",
+          "caption" : "Tagging"
+        },
+        "0" : {
+          "description" : "The type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "A Rule in security analytics refers to predefined criteria or conditions set to monitor, alert, or enforce policies, playing a crucial role in access control, threat detection, and regulatory compliance across security systems.",
+          "caption" : "Rule"
+        },
+        "2" : {
+          "description" : "Behavioral analytics focus on monitoring and analyzing user or system actions to identify deviations from established patterns, aiding in the detection of insider threats, fraud, and advanced persistent threats (APTs).",
+          "caption" : "Behavioral"
+        },
+        "99" : {
+          "description" : "The type is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Learning (ML/DL) encompasses techniques that can \"learn\" from known data to create analytics that generalize to new data. There may be a statistical component to these techniques, but it is not a requirement.",
+          "caption" : "Learning (ML/DL)"
+        },
+        "5" : {
+          "description" : "Fingerprinting is the technique of collecting detailed system data, including software versions and configurations, to enhance threat detection, data loss prevention (DLP), and endpoint detection and response (EDR) capabilities.",
+          "caption" : "Fingerprinting"
+        },
+        "7" : {
+          "description" : "Keyword Match involves scanning content for specific terms to identify sensitive information, potential threats, or policy violations, aiding in DLP and compliance monitoring.",
+          "caption" : "Keyword Match"
+        },
+        "8" : {
+          "description" : "Regular Expressions are used to define complex search patterns for identifying, validating, and extracting specific data sets or threats within digital content, enhancing DLP, EDR, and threat detection mechanisms.",
+          "caption" : "Regular Expressions"
+        },
+        "9" : {
+          "description" : "Exact Data Match is a precise comparison technique used to detect the unauthorized use or exposure of specific, sensitive information, crucial for enforcing DLP policies and protecting against data breaches.",
+          "caption" : "Exact Data Match"
+        },
+        "10" : {
+          "description" : "Partial Data Match involves identifying instances where segments of sensitive information or patterns match, facilitating nuanced DLP and threat detection without requiring complete data conformity.",
+          "caption" : "Partial Data Match"
+        },
+        "11" : {
+          "description" : "Indexed Data Match refers to comparing content against a pre-compiled index of sensitive information to efficiently detect and prevent unauthorized access or breaches, streamlining DLP and compliance efforts.",
+          "caption" : "Indexed Data Match"
+        }
+      },
+      "description" : "The analytic type ID.",
+      "requirement" : "required",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "related_analytics" : {
+      "type" : "object_t",
+      "description" : "Other analytics related to this analytic.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Related Analytics",
+      "object_type" : "analytic",
+      "@deprecated" : {
+        "message" : "Related Analytics has been decoupled from this object, instead use <code>finding_info.related_analytics</code>.",
+        "since" : "1.0.0",
+        "superseded_by" : [ "finding_info.related_analytics" ]
+      },
+      "object_name" : "Analytic"
+    },
+    "sensor_info_list" : {
+      "type" : "object_t",
+      "description" : "An array of <code>sensor_info</code> objects, each describing a sensor control point analyzed or correlated by the analytic. Each element typically represents a source of <code>related_events</code> that contributed to the finding. An individual sensor control point may also directly originate the finding, though more commonly it emits alerts that a downstream consumer treats as findings.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Sensor Information List",
+      "object_type" : "sensor_info",
+      "object_name" : "Sensor Information"
+    },
+    "state_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The Analytic is still under development and considered experimental.",
+          "caption" : "Experimental"
+        },
+        "0" : {
+          "description" : "The state is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The Analytic is active.",
+          "caption" : "Active"
+        },
+        "2" : {
+          "description" : "The Analytic is suppressed. For example, a user/customer has suppressed a particular detection signature in a security product.",
+          "caption" : "Suppressed"
+        },
+        "99" : {
+          "description" : "The state is not mapped. See the <code>state</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The Analytic state identifier.",
+      "requirement" : "optional",
+      "caption" : "State ID",
+      "sibling" : "state",
+      "type_name" : "Integer"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "analytic",
+  "description" : "The Analytic object contains details about the analytic technique used to analyze and derive insights from the data or information that led to the creation of a finding or conclusion.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Analytic",
+  "_links" : [ ]
+}

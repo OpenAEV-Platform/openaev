@@ -555,6 +555,7 @@ export interface Asset {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -767,6 +768,24 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
+export interface AssetMarkingsOutput {
+  /**
+   * Asset Id
+   * @minLength 1
+   */
+  asset_id: string;
+  /**
+   * Markings currently carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
+   * Asset name
+   * @minLength 1
+   */
+  asset_name: string;
+}
+
 export interface AssetOptionOutput {
   /** Product-facing asset category, used to group options in pickers */
   category?: string;
@@ -936,6 +955,10 @@ export interface AssetSnapshotOutput {
   asset_snapshot_id?: string;
   /** Frozen asset name. */
   asset_snapshot_name?: string;
+}
+
+export interface AssetUpdateMarkingsInput {
+  asset_markings: string[];
 }
 
 export interface AtomicInjectorContractOutput {
@@ -3991,6 +4014,7 @@ export interface Endpoint {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -4281,6 +4305,11 @@ export interface EndpointOutput {
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
   /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
    * Asset name
    * @minLength 1
    */
@@ -4479,6 +4508,11 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_mac_addresses?: string[];
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /** Free-form category-specific attributes */
   asset_metadata?: Record<string, any>;
   /**
@@ -6131,6 +6165,7 @@ export interface Group {
   group_grants?: Grant[];
   /** @minLength 1 */
   group_id: string;
+  group_markings?: string[];
   /** @minLength 1 */
   group_name: string;
   group_roles?: string[];
@@ -6148,6 +6183,10 @@ export interface GroupGrantInput {
     | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
+}
+
+export interface GroupUpdateMarkingsInput {
+  group_markings: string[];
 }
 
 export interface GroupUpdateRolesInput {
@@ -8128,6 +8167,7 @@ export interface NotificationTriggerInput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -8236,6 +8276,7 @@ export interface NotificationTriggerOutput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -9944,6 +9985,8 @@ export interface PlatformSettings {
   platform_banner_by_level?: Record<string, string[]>;
   /** Base URL of the platform */
   platform_base_url?: string;
+  /** Git commit the platform was built from, when the build provides it */
+  platform_commit?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
   /** id of the platform */
@@ -9994,7 +10037,7 @@ export interface PlatformSettings {
   platform_whitemark?: string;
   /** True if XTM One is configured (url and token set) */
   platform_xtm_one_configured?: boolean;
-  /** XTM One platform URL */
+  /** URL a browser opens XTM One on: the identity it publishes, else its configured URL */
   platform_xtm_one_url?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
@@ -10760,6 +10803,7 @@ export interface RoleInput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -10842,6 +10886,7 @@ export interface RoleOutput {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11460,6 +11505,7 @@ export interface SecurityPlatform {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -12334,6 +12380,24 @@ export interface TenantGroupCreateInput {
   group_name: string;
 }
 
+export interface TenantGroupMarkingsOutput {
+  /**
+   * Group Id
+   * @minLength 1
+   */
+  group_id: string;
+  /**
+   * Markings currently granted by the group
+   * @uniqueItems true
+   */
+  group_markings?: string[];
+  /**
+   * Group name
+   * @minLength 1
+   */
+  group_name: string;
+}
+
 export interface TenantInput {
   tenant_description?: string;
   /** @minLength 1 */
@@ -13006,6 +13070,7 @@ export interface User {
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"

@@ -124,6 +124,12 @@ class DashboardApiTest extends IntegrationTest {
     for (EsModel<?> model : engineContext.getModels()) {
       engineService.cleanUpIndex(model.getName());
     }
+
+    // The mock admin user carries no users_tenants row by default (see
+    // TenantIsolationTestHelper#attachCurrentUserToTenant), so the engine read's TxCtx would
+    // resolve to missing() and every widget query below would see nothing. Every fixture in this
+    // class is stamped with the ambient default tenant, so grant real membership there.
+    tenantIsolationHelper.attachCurrentUserToTenant(TenantContext.getCurrentTenant());
   }
 
   @Nested
