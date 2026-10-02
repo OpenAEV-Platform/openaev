@@ -3,11 +3,15 @@ name: "[Core] Deploy Feature Branch Build"
 # Unprivileged build workflow dispatched by deploy-feature-branch.yml.
 # SECURITY: This workflow has read-only contents/actions access — no secrets
 # and no write-capable token.
-# It checks out and builds untrusted PR code in a safe sandbox.
+# It builds untrusted PR code. The run is on main's ref, so every job can write
+# main's Actions cache: PR code may only run inside containers, never directly on
+# the runner. Actions and scripts come from main's checkout at the workspace root;
+# the PR is checked out under pr/ and only used as the Docker build context.
 #
 # The application is built from source via a multi-stage Dockerfile. Agent,
-# implant, and catalog assets are prepared once and included in both platform
-# images. On success, the OCI archive is uploaded for downstream promotion.
+# implant, and catalog assets are prepared once and included in the image.
+# Feature environments only run linux/amd64, so arm64 is not built. On success,
+# the OCI archive is uploaded for downstream promotion.
 
 on:
   workflow_dispatch:
@@ -40,73 +44,60 @@ permissions:
   actions: read
 
 jobs:
-  prepare-build:
-    name: "📦 Prepare feature build"
+  docker-build:
+    name: "🐳 Docker Build (amd64)"
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      image-tag: ${{ steps.image-tag.outputs.value }}
+    timeout-minutes: 20
     steps:
+      # Trusted: the main commit this run was dispatched on
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github
+            scripts
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.head_sha }}
+          path: pr
+          # prepare-bundled-assets derives the local asset version from `git describe`
           fetch-depth: 0
+          filter: blob:none
+          # The checkout is the build context, which RUN steps can bind-mount
+          persist-credentials: false
       - name: Compute immutable Docker tag
         id: image-tag
         env:
           HEAD_SHA: ${{ inputs.head_sha }}
-        run: echo "value=openaev:feat-${HEAD_SHA:0:12}" >> "$GITHUB_OUTPUT"
-      - uses: ./.github/actions/prepare-bundled-assets
-
-  docker-build:
-    name: "🐳 Docker Build (${{ matrix.arch }})"
-    needs: prepare-build
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-latest
-            platform: linux/amd64
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            platform: linux/arm64
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.head_sha }}
-          # prepare-bundled-assets derives the local asset version from `git describe`
-          fetch-depth: 0
-          filter: blob:none
+        run: echo "value=openaev:${HEAD_SHA:0:12}" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/docker-build
+        id: docker-build
         with:
-          tags: ${{ needs.prepare-build.outputs.image-tag }}
-          platform: ${{ matrix.platform }}
+          tags: ${{ steps.image-tag.outputs.value }}
+          context: pr
+          dockerfile: pr/Dockerfile
+          platform: linux/amd64
           download-release-assets: "true"
           allow-registry: "false"
-
-  docker-merge:
-    name: "🐳 Merge Platforms"
-    needs: docker-build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v7
+          untrusted-context: "true"
+          upload-artifact: "false"
+      # Promotion expects one openaev-image artifact holding openaev-image.tar.gz.
+      # The single-platform OCI archive already carries an image index, so no merge is needed.
+      - name: Rename image archive for promotion
+        env:
+          ARCHIVE: ${{ steps.docker-build.outputs.artifact-name }}.tar.gz
+        run: mv "$ARCHIVE" openaev-image.tar.gz
+      - uses: actions/upload-artifact@v7
         with:
-          ref: ${{ inputs.head_sha }}
-      - uses: ./.github/actions/docker-merge-platforms
-        with:
-          artifact-name: openaev-image
-          allow-registry: "false"
+          name: openaev-image
+          path: openaev-image.tar.gz
+          retention-days: 1
+          # The archive is already compressed.
+          compression-level: 0
 
   # Save metadata as artifact for the workflow_run follow-up
   save-metadata:
     name: "💾 Save metadata"
-    needs: docker-merge
+    needs: docker-build
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -116,7 +107,7 @@ jobs:
           HEAD_REF: ${{ inputs.head_ref }}
           HEAD_SHA: ${{ inputs.head_sha }}
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
-          BUILD_RESULT: ${{ needs.docker-merge.result }}
+          BUILD_RESULT: ${{ needs.docker-build.result }}
         run: |
           mkdir -p metadata
           jq -n \

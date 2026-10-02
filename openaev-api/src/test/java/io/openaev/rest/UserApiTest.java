@@ -1,8 +1,12 @@
 package io.openaev.rest;
 
+import static io.openaev.config.SpringSessionConfig.SESSION_COOKIE_NAME;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.UserFixture.EMAIL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -22,6 +26,8 @@ import io.openaev.service.MailingService;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
+import io.openaev.utils.helpers.SessionTestHelper;
+import jakarta.servlet.http.Cookie;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.awaitility.Awaitility;
@@ -48,6 +54,8 @@ class UserApiTest extends IntegrationTest {
   @MockitoBean private RandomUtils randomUtils;
 
   @Autowired private UserComposer userComposer;
+
+  @Autowired private SessionTestHelper sessionTestHelper;
 
   @Nested
   @DisplayName("Logging in")
@@ -133,6 +141,84 @@ class UserApiTest extends IntegrationTest {
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("user_email").value(EMAIL));
+      }
+    }
+
+    @Nested
+    @DisplayName("Session fixation")
+    class SessionFixation {
+      @DisplayName("Successful login rotates the pre-login session id")
+      @Test
+      void given_preLoginSession_should_rotateSessionIdOnSuccessfulLogin() throws Exception {
+        // Arrange
+        String preLoginSessionId = sessionTestHelper.createSession();
+
+        // Act
+        mvc.perform(
+                post("/api/login")
+                    .cookie(sessionTestHelper.cookieFor(preLoginSessionId))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(UserFixture.getLoginUserInput()))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // Assert
+        assertFalse(sessionTestHelper.exists(preLoginSessionId));
+      }
+
+      @DisplayName("Failed login keeps the pre-login session id")
+      @Test
+      void given_preLoginSession_should_keepSessionIdOnFailedLogin() throws Exception {
+        // Arrange
+        String preLoginSessionId = sessionTestHelper.createSession();
+
+        // Act
+        mvc.perform(
+                post("/api/login")
+                    .cookie(sessionTestHelper.cookieFor(preLoginSessionId))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(UserFixture.getLoginUserInputWithWrongPassword()))
+                    .with(csrf()))
+            .andExpect(status().is4xxClientError());
+
+        // Assert
+        assertTrue(sessionTestHelper.exists(preLoginSessionId));
+      }
+    }
+
+    @Nested
+    @DisplayName("Session revocation")
+    class SessionRevocation {
+      @DisplayName("Logout deletes the logged-in session and clears its cookie")
+      @Test
+      void given_loggedInSession_should_revokeSessionOnLogout() throws Exception {
+        // Arrange
+        Cookie loggedInCookie =
+            mvc.perform(
+                    post("/api/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(UserFixture.getLoginUserInput()))
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getCookie(SESSION_COOKIE_NAME);
+        assertNotNull(loggedInCookie);
+        String loggedInSessionId = sessionTestHelper.sessionIdOf(loggedInCookie);
+        assertTrue(sessionTestHelper.exists(loggedInSessionId));
+
+        // Act
+        Cookie clearedCookie =
+            mvc.perform(post("/logout").cookie(loggedInCookie).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andReturn()
+                .getResponse()
+                .getCookie(SESSION_COOKIE_NAME);
+
+        // Assert
+        assertFalse(sessionTestHelper.exists(loggedInSessionId));
+        assertNotNull(clearedCookie);
+        assertEquals(0, clearedCookie.getMaxAge());
       }
     }
   }
