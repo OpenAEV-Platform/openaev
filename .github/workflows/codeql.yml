@@ -1,13 +1,7 @@
 name: "CodeQL"
 
-# Advanced setup mirroring GitHub's default setup for this repository: same languages,
-# build modes, query suite, threat model, job names and analysis categories, so alert
-# history carries over. It only differs in cache handling and PR hygiene:
-#   - Java restores the shared maven-v2 cache read-only instead of CodeQL's own dependency
-#     cache, a ~500 MB copy of ~/.m2/repository that default setup also wrote on PR refs.
-#   - Overlay (incremental) analysis is off: it stored a ~160 MB database per push to main.
-#   - Superseded PR runs are cancelled and documentation-only PRs are skipped.
-# Uploads from this workflow are rejected while code scanning default setup is enabled.
+# Uploads from this workflow are rejected while code scanning default setup is enabled:
+# turn default setup off before enabling this workflow.
 
 on:
   push:
@@ -32,6 +26,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
+# Overlay (incremental) analysis is off: it saves a ~160 MB database cache on every push to main.
 env:
   CODEQL_OVERLAY_DATABASE_MODE: none
 
@@ -47,8 +42,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Same language names and build modes as default setup, which keeps the categories
-        # /language:actions, /language:java and /language:javascript.
+        # Each language name sets the analysis category (/language:<name>). Code scanning tracks
+        # alerts per category, so renaming a language starts a new set of alerts.
         include:
           - language: actions
             build-mode: none
@@ -61,7 +56,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      # Read-only: backend-compile is the sole writer of maven-v2.
+      # Read-only: backend-compile is the sole writer of maven-v2. CodeQL's own dependency
+      # caching stays off (its default here): it would store another ~500 MB copy of ~/.m2.
       - name: Restore Maven dependencies
         if: matrix.language == 'java'
         uses: actions/cache/restore@v6
@@ -76,7 +72,6 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-          dependency-caching: none
 
       # Selects the highest Java version declared in the POMs among the runner's JDKs.
       - name: Autobuild
