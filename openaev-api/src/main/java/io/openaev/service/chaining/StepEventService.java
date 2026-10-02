@@ -116,13 +116,41 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
         }
       } else {
         log.error(
-            "[Chaining] Transaction failed for StepEvent {} after {} retries. Event is dropped.",
+            "[Chaining] Transaction failed for StepEvent {} after {} retries. Event is dropped, step moved to (END).",
             stepEvent.getStepId(),
             chainingConfig.getMaxRetryCount(),
             e);
+        endReadyStepWithoutEvent(stepEvent, tenantId);
       }
     } finally {
       TenantContext.clearCurrentTenant();
+    }
+  }
+
+  /**
+   * Ends a READY step whose event is dropped, so it no longer counts as active and the workflow can
+   * end. Runs in a new transaction (the failed one was rolled back), under a row lock, and only if
+   * the step is still READY: a step another event moved on is left untouched. If this fails too,
+   * the step stays READY.
+   */
+  private void endReadyStepWithoutEvent(StepEvent stepEvent, String tenantId) {
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(tenantId),
+          () ->
+              stepRepository
+                  .findForUpdateById(stepEvent.getStepId())
+                  .filter(step -> step.getStatus() == StepStatus.READY)
+                  .ifPresent(
+                      step -> {
+                        step.setStatus(StepStatus.END);
+                        stepService.saveStep(step);
+                      }));
+    } catch (Exception e) {
+      log.error(
+          "[Chaining] Could not end step {} after its event was dropped, it stays READY.",
+          stepEvent.getStepId(),
+          e);
     }
   }
 

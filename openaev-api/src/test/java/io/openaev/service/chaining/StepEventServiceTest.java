@@ -327,8 +327,64 @@ class StepEventServiceTest {
       // Act
       stepEventService.handleReadyStepEvent(event);
 
-      // Assert — event is dropped, not re-queued
+      // Assert — event is dropped, not re-queued; ending the step failed too, so it stays READY
       verify(queueChainingService, never()).republishReadyEvent(any());
+      verify(stepService, never()).saveStep(any());
+    }
+
+    @Test
+    void given_maxRetriesReached_should_endReadyStep() throws IOException {
+      // Arrange: the event transaction fails, the transaction ending the step succeeds
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      event.setRetryCount(chainingConfig.getMaxRetryCount());
+      Step step = new Step();
+      step.setStatus(StepStatus.READY);
+      when(stepRepository.findForUpdateById(event.getStepId())).thenReturn(Optional.of(step));
+
+      doThrow(new RuntimeException("DB error"))
+          .doAnswer(
+              invocation -> {
+                Runnable work = invocation.getArgument(1);
+                work.run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert: the step ends instead of staying READY with no event left to carry it
+      assertEquals(StepStatus.END, step.getStatus());
+      verify(stepService).saveStep(step);
+      verify(queueChainingService, never()).republishReadyEvent(any());
+    }
+
+    @Test
+    void given_maxRetriesReached_andStepNoLongerReady_should_leaveStepUntouched() {
+      // Arrange: another event moved the step to RUN in the meantime
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      event.setRetryCount(chainingConfig.getMaxRetryCount());
+      Step step = new Step();
+      step.setStatus(StepStatus.RUN);
+      when(stepRepository.findForUpdateById(event.getStepId())).thenReturn(Optional.of(step));
+
+      doThrow(new RuntimeException("DB error"))
+          .doAnswer(
+              invocation -> {
+                Runnable work = invocation.getArgument(1);
+                work.run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert
+      assertEquals(StepStatus.RUN, step.getStatus());
+      verify(stepService, never()).saveStep(any());
     }
 
     @Test
