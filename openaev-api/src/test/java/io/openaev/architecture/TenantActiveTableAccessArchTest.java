@@ -349,7 +349,7 @@ class TenantActiveTableAccessArchTest {
           "reporting_generations",
           "datapacks",
           "teams",
-          "attack_patterns");
+          "attack_patterns",
           "agents");
 
   @ArchTest
