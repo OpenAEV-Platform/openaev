@@ -3390,6 +3390,7 @@
   "Should not be empty": "Ne doit pas être vide",
   "Should not exceed {max_length} characters": "Ne doit pas dépasser {max_length} caractères",
   "Show alerts": "Afficher les alertes",
+  "Show all actions again": "Afficher à nouveau toutes les actions",
   "Show all assets": "Afficher tous les actifs",
   "Show conversations": "Afficher les conversations",
   "Show covered TTP only": "Afficher uniquement les TTP couverts",
