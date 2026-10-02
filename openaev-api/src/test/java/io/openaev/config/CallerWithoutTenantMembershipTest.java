@@ -90,8 +90,13 @@ class CallerWithoutTenantMembershipTest extends IntegrationTest {
         membershipCache.findTenantIdsByUserId(callerId).isEmpty(),
         "precondition: the caller must belong to no tenant, else this test proves nothing");
 
-    // The ambient v1 tenant is set by other fixtures and never cleared before a request, so the
-    // non-prefixed route would run with whatever was left behind instead of production's empty one.
+    // The v1 thread-local plays no part in what this test measures: `import_mappers` is v2-active
+    // and
+    // this route's TxCtx comes from the selector and the membership cache, not from TenantContext.
+    // The
+    // empty-membership precondition above is what guarantees TxCtx.missing(). Cleared only so a
+    // value
+    // left behind by another fixture cannot confuse someone reading a failure here.
     TenantContext.clearCurrentTenant();
 
     mapperId = UUID.randomUUID().toString();
@@ -150,9 +155,14 @@ class CallerWithoutTenantMembershipTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      // Assert
-      assertFalse(
-          response.contains(mapperId), "a caller with no membership must not list the seeded row");
+      // Assert: the page must be empty, not merely free of the seeded row. Checking one id would
+      // still pass if a regression exposed some other tenant's rows instead, which is the
+      // fail-closed
+      // contract this test exists for.
+      assertTrue(
+          response.contains("\"totalElements\":0"),
+          "a caller with no membership must get an empty page, got: " + response);
+      assertFalse(response.contains(mapperId), "and in particular not the seeded row");
     }
   }
 
