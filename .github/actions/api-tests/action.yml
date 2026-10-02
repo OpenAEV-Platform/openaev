@@ -408,9 +408,10 @@ runs:
             VERDICT=1
           fi
         else
-          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::The fail-closed gate wrote no shadow report: it was not armed, or it never ran. This shard reports no unscoped production read, which is not a pass."
-          echo "No fail-closed shadow report: the gate did not run in this shard." >> "$S"
+          echo "::error title=Tenant shadow $MODE (shard $SHARD)::The fail-closed gate wrote no shadow report: it was not armed, it never ran, or it could not write. None of those is a clean signature set, so this is a failure and not a silent pass."
+          echo "No fail-closed shadow report: the gate did not run in this shard, so this shard has no signature set. Failing rather than reporting nothing." >> "$S"
           echo >> "$S"
+          VERDICT=1
         fi
 
         # A run armed by hand with the detector on but no shadow mode still fails per test, so its

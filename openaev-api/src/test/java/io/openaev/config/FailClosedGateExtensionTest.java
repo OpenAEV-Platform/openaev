@@ -131,14 +131,27 @@ class FailClosedGateExtensionTest {
     }
 
     @Test
-    @DisplayName("the running test JVM arms no shadow mode, so the gate asserts")
-    void given_thisJvm_should_armNoShadowMode() {
-      // Arrange + Act: the live value, not a crafted one - the normal suite sets no property.
+    @DisplayName("the running JVM's own mode and the gate's decision agree, in either pipeline")
+    void given_thisJvm_should_decideFromItsOwnArmedMode() {
+      // Arrange + Act: the live value, not a crafted one. It is empty in the normal pipeline and a
+      // shadow mode in the nightly, which runs this very class in shard 9, so asserting emptiness
+      // here would make the instrument fail its own nightly. What must hold in both is that the
+      // decision follows the mode actually armed.
       String armed = FailClosedGateExtension.armedShadowMode();
 
       // Assert
-      assertEquals("", armed, "no suite may arm a shadow mode by default");
-      assertTrue(FailClosedGateExtension.failsPerTest(armed));
+      assertEquals(
+          armed.isEmpty(),
+          FailClosedGateExtension.failsPerTest(armed),
+          "the per-test assertion must fire exactly when no shadow mode is armed, and this JVM's"
+              + " armed mode is '"
+              + armed
+              + "'");
+      if (!armed.isEmpty()) {
+        assertTrue(
+            FailClosedGateExtension.SHADOW_MODES.contains(armed),
+            "a shadow run must arm a mode the gate accepts, got '" + armed + "'");
+      }
     }
 
     @Test
