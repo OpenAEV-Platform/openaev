@@ -1,4 +1,4 @@
-import { Link, List, ListItem, ListItemText, Paper, Tooltip } from '@mui/material';
+import { Box, ButtonBase, List, ListItem, ListItemText, Paper, Tooltip } from '@mui/material';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -20,6 +20,8 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
   const isEnterpriseEditionValid = settings.platform_license?.license_is_validated;
 
   const editionLabel = isEnterpriseEditionValid ? t('Enterprise') : t('Community');
+  const version = settings.platform_version?.replace('-SNAPSHOT', '');
+  const commit = settings.platform_commit;
 
   const resolveAiLabel = () => {
     if (!aiEnabled) {
@@ -60,26 +62,27 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
         </ListItem>
         <ListItem divider>
           <ListItemText primary={t('Version')} />
-          {/* Kept muted and left of the chip so the version column stays aligned */}
-          {settings.platform_commit && (
-            <Tooltip title={settings.platform_commit}>
-              <Link
-                component="button"
-                type="button"
-                variant="caption"
-                color="text.secondary"
-                underline="hover"
-                onClick={() => copyToClipboard(t, settings.platform_commit ?? '')}
-                sx={{
-                  fontFamily: 'Consolas, monaco, monospace',
-                  marginRight: 1,
-                }}
+          {commit ? (
+            <Tooltip
+              slotProps={{ tooltip: { sx: { maxWidth: 'none' } } }}
+              title={(
+                // The theme lowercases tooltip text, which would mangle the labels
+                <Box sx={{ textTransform: 'none' }}>
+                  <div>{`${t('Version')}: ${version}`}</div>
+                  <div>{`${t('Commit hash')}: ${commit}`}</div>
+                </Box>
+              )}
+            >
+              <ButtonBase
+                onClick={() => copyToClipboard(t, `${version}#${commit}`)}
+                sx={{ '& .MuiChip-root': { cursor: 'pointer' } }}
               >
-                {settings.platform_commit.slice(0, 7)}
-              </Link>
+                <ItemBoolean variant="large" status={null} neutralLabel={version} />
+              </ButtonBase>
             </Tooltip>
+          ) : (
+            <ItemBoolean variant="large" status={null} neutralLabel={version} />
           )}
-          <ItemBoolean variant="large" status={null} neutralLabel={settings?.platform_version?.replace('-SNAPSHOT', '')} />
         </ListItem>
         <ListItem divider>
           <ListItemText primary={t('Edition')} />

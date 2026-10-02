@@ -734,6 +734,7 @@
   "Commands run beforehand to make sure the arsenal item can execute.": "Commandes exécutées au préalable pour s'assurer que l'élément d'arsenal peut s'exécuter.",
   "Comment (optional)": "Commentaire (optionnel)",
   "Comments": "Commentaires",
+  "Commit hash": "Hash du commit",
   "Communication check": "Vérification des moyens de communication",
   "Community": "Communauté",
   "COMMUNITY": "Community",
