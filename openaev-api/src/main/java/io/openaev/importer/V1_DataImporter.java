@@ -603,7 +603,7 @@ public class V1_DataImporter implements Importer {
                         createAttackPattern(
                             nodeAttackPattern,
                             importKillChainPhase(
-                                ctx, nodeAttackPattern, "attack_pattern_", baseIds),
+                                tenantId, nodeAttackPattern, "attack_pattern_", baseIds),
                             tenantId));
                 baseIds.put(id, attackPatternCreated);
                 attackPatterns.add(attackPatternCreated);
@@ -741,9 +741,8 @@ public class V1_DataImporter implements Importer {
   }
 
   private List<KillChainPhase> importKillChainPhase(
-      TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+      String tenantId, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
     List<KillChainPhase> killChainPhases = new ArrayList<>();
-    String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     resolveJsonElements(importNode, prefix + "kill_chain_phases")
         .forEach(
             nodeKillChainPhase -> {
