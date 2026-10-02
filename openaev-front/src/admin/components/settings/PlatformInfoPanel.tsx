@@ -1,5 +1,5 @@
 import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { Link, List, ListItem, ListItemText } from '@mui/material';
+import { List, ListItem, ListItemText } from '@mui/material';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -21,6 +21,8 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
   const isEnterpriseEditionValid = settings.platform_license?.license_is_validated;
 
   const editionLabel = isEnterpriseEditionValid ? t('Enterprise') : t('Community');
+  const version = settings.platform_version?.replace('-SNAPSHOT', '');
+  const commit = settings.platform_commit;
 
   const resolveAiLabel = () => {
     if (!aiEnabled) {
@@ -55,30 +57,20 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
         </ListItem>
         <ListItem divider>
           <ListItemText primary={t('Version')} />
-          {/* Kept muted and left of the chip so the version column stays aligned */}
-          {settings.platform_commit && (
+          {commit ? (
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  component="button"
-                  type="button"
-                  aria-label={settings.platform_commit}
-                  variant="caption"
-                  color="text.secondary"
-                  underline="hover"
-                  onClick={() => copyToClipboard(t, settings.platform_commit ?? '')}
-                  sx={{
-                    fontFamily: 'Consolas, monaco, monospace',
-                    marginRight: 1,
-                  }}
-                >
-                  {settings.platform_commit.slice(0, 7)}
-                </Link>
+              <TooltipTrigger onClick={() => copyToClipboard(t, `${version}#${commit}`)}>
+                <ItemBoolean variant="large" status={null} neutralLabel={version} />
               </TooltipTrigger>
-              <TooltipContent>{settings.platform_commit}</TooltipContent>
+              {/* The default width would wrap the full commit hash */}
+              <TooltipContent style={{ maxWidth: 'none' }}>
+                <div>{`${t('Version')}: ${version}`}</div>
+                <div>{`${t('Commit hash')}: ${commit}`}</div>
+              </TooltipContent>
             </Tooltip>
+          ) : (
+            <ItemBoolean variant="large" status={null} neutralLabel={version} />
           )}
-          <ItemBoolean variant="large" status={null} neutralLabel={settings?.platform_version?.replace('-SNAPSHOT', '')} />
         </ListItem>
         <ListItem divider>
           <ListItemText primary={t('Edition')} />

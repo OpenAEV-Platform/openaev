@@ -748,6 +748,7 @@
   "Commands run beforehand to make sure the arsenal item can execute.": "アーセナルアイテムが実行できることを確認するために事前に実行されるコマンド。",
   "Comment (optional)": "コメント（任意）",
   "Comments": "コメント",
+  "Commit hash": "コミットハッシュ",
   "Communication check": "コミュニケーション・チェック",
   "Community": "コミュニティ",
   "COMMUNITY": "コミュニティ",

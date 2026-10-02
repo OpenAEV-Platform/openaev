@@ -55,15 +55,22 @@ describe('PlatformInfoPanel', () => {
     vi.clearAllMocks();
   });
 
-  it('shows the short commit next to the version and copies the full one', () => {
+  it('copies the version with the full commit when the version is clicked', () => {
     renderPanel({ platform_commit: COMMIT });
 
-    expect(screen.getByText('2.4.0')).toBeDefined();
-    const commit = screen.getByRole('button', { name: COMMIT });
-    expect(commit.textContent).toBe('a59197d');
+    const version = screen.getByRole('button', { name: '2.4.0' });
 
-    fireEvent.click(commit);
-    expect(mockCopyToClipboard).toHaveBeenCalledWith(expect.any(Function), COMMIT);
+    fireEvent.click(version);
+    expect(mockCopyToClipboard).toHaveBeenCalledWith(expect.any(Function), `2.4.0#${COMMIT}`);
+  });
+
+  it('details the version and the full commit in the tooltip', async () => {
+    renderPanel({ platform_commit: COMMIT });
+
+    fireEvent.pointerMove(screen.getByRole('button', { name: '2.4.0' }));
+
+    expect(await screen.findByText('Version: 2.4.0')).toBeDefined();
+    expect(screen.getByText(`Commit hash: ${COMMIT}`)).toBeDefined();
   });
 
   it('shows no commit when the build has none', () => {

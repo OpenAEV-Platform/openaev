@@ -748,6 +748,7 @@
   "Commands run beforehand to make sure the arsenal item can execute.": "아스널 항목이 실행될 수 있도록 사전에 실행되는 명령입니다.",
   "Comment (optional)": "댓글(선택 사항)",
   "Comments": "댓글",
+  "Commit hash": "커밋 해시",
   "Communication check": "커뮤니케이션 확인",
   "Community": "커뮤니티",
   "COMMUNITY": "커뮤니티",

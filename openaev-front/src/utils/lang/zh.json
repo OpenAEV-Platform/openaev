@@ -748,6 +748,7 @@
   "Commands run beforehand to make sure the arsenal item can execute.": "事先运行的命令，以确保武器库条目可以执行。",
   "Comment (optional)": "评论 (可选)",
   "Comments": "评论",
+  "Commit hash": "提交哈希",
   "Communication check": "通信检查",
   "Community": "社区版",
   "COMMUNITY": "社区",
