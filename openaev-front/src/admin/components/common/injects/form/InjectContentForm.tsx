@@ -11,6 +11,7 @@ import type { Article, Variable } from '../../../../../utils/api-types';
 import { type ContractElement, type EnhancedContractElement } from '../../../../../utils/api-types-custom';
 import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../../utils/utils';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
 import InjectAddAssetGroups from '../../../simulations/simulation/injects/asset_groups/InjectAddAssetGroups';
@@ -19,6 +20,7 @@ import type { ExpectationInput } from '../expectations/Expectation';
 import InjectExpectations from '../expectations/InjectExpectations';
 import InjectArticlesList from './articles/InjectArticlesList';
 import InjectChallengesList from './challenges/InjectChallengesList';
+import InjectCredentialReferencesList from './credential-references/InjectCredentialReferencesList';
 import InjectDocumentsList from './documents/InjectDocumentsList';
 import InjectEndpointsList from './endpoints/InjectEndpointsList';
 import InjectContentFieldComponent from './InjectContentFieldComponent';
@@ -44,6 +46,7 @@ const InjectContentForm = ({
   injectorContractVariables,
   injectId,
   isAtomic,
+  isCreation,
   readOnly,
   articles = [],
   uriVariable = '',
@@ -53,6 +56,7 @@ const InjectContentForm = ({
   const theme = useTheme();
   const { control, setValue, getValues, formState: { errors } } = useFormContext();
   const ability = useContext(AbilityContext);
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
   // -- TEAMS --
   const renderTeams = (err?: string | null) => (
@@ -178,6 +182,30 @@ const InjectContentForm = ({
       });
   };
 
+  // -- CREDENTIAL REFERENCES --
+  const injectSecretReferenceIds = useWatch({
+    control,
+    name: 'inject_secret_references',
+  }) as string[] | undefined;
+  // Visual-only error, flagged in update mode like the other mandatory fields: a missing credential
+  // must never block saving the inject (reported at execution time), so no zod rule is declared.
+  const getCredentialReferencesError = () => {
+    const isRequired = enhancedFieldsMapByType.get('credential-reference')?.settings?.required;
+    return !isCreation && isRequired && !injectSecretReferenceIds?.length ? t('Required') : null;
+  };
+
+  const renderCredentialReferences = (err?: string | null) => (
+    <div key="credential-reference">
+      <InputLabel required={enhancedFieldsMapByType.get('credential-reference')?.settings?.required} error={!!err}>{t(enhancedFieldsMapByType.get('credential-reference')?.label || 'Credential reference')}</InputLabel>
+      <InjectCredentialReferencesList
+        errorLabel={err}
+        disabled={enhancedFieldsMapByType.get('credential-reference')?.readOnly || readOnly}
+        multiple={enhancedFieldsMapByType.get('credential-reference')?.multiple}
+        credentialType={enhancedFieldsMapByType.get('credential-reference')?.credential_reference_type}
+      />
+    </div>
+  );
+
   const renderDynamicFields = () => (
     <div style={{
       display: 'flex',
@@ -193,6 +221,11 @@ const InjectContentForm = ({
           } else if (field.type === 'asset-group') {
             const key = enhancedFieldsMapByType.get('asset-group')?.key;
             return renderSourceAssetGroups(key ? errors[key]?.message as string : null, enhancedFieldsMapByType.get('asset-group')?.isInMandatoryGroup, enhancedFieldsMapByType.get('asset-group')?.mandatoryGroupContractElementLabels);
+          } else if (field.type === 'credential-reference') {
+            if (!isCredentialAssetEnabled) {
+              return null;
+            }
+            return renderCredentialReferences(getCredentialReferencesError());
           }
 
           return (

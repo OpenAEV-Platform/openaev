@@ -35,6 +35,7 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.TagRuleService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ConditionService;
@@ -85,6 +86,8 @@ class InjectServiceTest {
   @Mock private AssetGroupService assetGroupService;
 
   @Mock private TeamRepository teamRepository;
+  @Mock private SecretReferenceRepository secretReferenceRepository;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
@@ -164,7 +167,10 @@ class InjectServiceTest {
         injectService,
         "healthCheckUtils",
         new HealthCheckUtils(
-            new ExecutorUtils(assetAgentJobRepository), stepTargetingService, conditionService));
+            new ExecutorUtils(assetAgentJobRepository),
+            stepTargetingService,
+            conditionService,
+            previewFeatureService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -176,7 +182,8 @@ class InjectServiceTest {
             new HealthCheckUtils(
                 new ExecutorUtils(assetAgentJobRepository),
                 stepTargetingService,
-                conditionService)));
+                conditionService,
+                previewFeatureService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -1356,6 +1363,57 @@ class InjectServiceTest {
 
       assertThat(code).isNull();
       verifyNoInteractions(injectAuthorisationRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("updateInject credential references")
+  class UpdateInjectCredentialReferencesTests {
+
+    @Test
+    @DisplayName("given_requestedCredentials_should_setTheResolvedReferencesOnTheInject")
+    void given_requestedCredentials_should_setTheResolvedReferencesOnTheInject() {
+      // Arrange
+      Inject inject = new Inject();
+      inject.setId(INJECT_ID);
+      when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
+      CredentialSecretReference credential = new CredentialSecretReference();
+      credential.setId("credential-1");
+      InjectInput input = new InjectInput();
+      input.setTitle("inject");
+      input.setDependsDuration(0L);
+      input.setSecretReferences(List.of("credential-1"));
+      when(secretReferenceRepository.findAllById(List.of("credential-1")))
+          .thenReturn(List.of(credential));
+
+      // Act
+      Inject result = injectService.updateInject(INJECT_ID, input);
+
+      // Assert
+      assertThat(result.getSecretReferences()).containsExactly(credential);
+    }
+
+    @Test
+    @DisplayName("given_noRequestedCredential_should_detachTheExistingOnes")
+    void given_noRequestedCredential_should_detachTheExistingOnes() {
+      // Arrange
+      CredentialSecretReference credential = new CredentialSecretReference();
+      credential.setId("credential-1");
+      Inject inject = new Inject();
+      inject.setId(INJECT_ID);
+      inject.setSecretReferences(new ArrayList<>(List.of(credential)));
+      when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
+      InjectInput input = new InjectInput();
+      input.setTitle("inject");
+      input.setDependsDuration(0L);
+      input.setSecretReferences(List.of());
+
+      // Act
+      Inject result = injectService.updateInject(INJECT_ID, input);
+
+      // Assert
+      assertThat(result.getSecretReferences()).isEmpty();
+      verify(secretReferenceRepository).findAllById(List.of());
     }
   }
 }

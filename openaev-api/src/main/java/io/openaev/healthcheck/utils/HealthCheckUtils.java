@@ -16,6 +16,8 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import jakarta.validation.constraints.NotNull;
@@ -47,6 +49,7 @@ public class HealthCheckUtils {
   private final ExecutorUtils executorUtils;
   private final StepTargetingService stepTargetingService;
   private final ConditionService conditionService;
+  private final PreviewFeatureService previewFeatureService;
 
   /**
    * Run all mail service checks for one inject
@@ -278,6 +281,20 @@ public class HealthCheckUtils {
   }
 
   /**
+   * Credential reference fields are only rendered while the {@code CREDENTIAL_ASSET} preview
+   * feature is enabled: checking them when it is disabled would report a mandatory field the user
+   * has no way to fill, and block the inject at execution time.
+   *
+   * @param jsonField the contract field to check
+   * @return {@code false} when the field must be ignored by the content checks
+   */
+  private boolean isContractFieldEnabled(JsonNode jsonField) {
+    return !CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE.equals(
+            jsonField.path(CONTRACT_ELEMENT_CONTENT_TYPE).asText())
+        || previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET);
+  }
+
+  /**
    * Run content checks by inject
    *
    * @param inject to verify
@@ -296,6 +313,9 @@ public class HealthCheckUtils {
             .orElse(new ArrayList<>()),
         ofNullable(inject.getAssetGroups())
             .map(assetGroups -> assetGroups.stream().map(AssetGroup::getId).toList())
+            .orElse(new ArrayList<>()),
+        ofNullable(inject.getSecretReferences())
+            .map(assetGroups -> assetGroups.stream().map(SecretReference::getId).toList())
             .orElse(new ArrayList<>()));
   }
 
@@ -316,7 +336,8 @@ public class HealthCheckUtils {
       boolean allTeams,
       @NotNull final List<String> teams,
       @NotNull final List<String> assets,
-      @NotNull final List<String> assetGroups) {
+      @NotNull final List<String> assetGroups,
+      @NotNull final List<String> secretReferences) {
     List<HealthCheck> result = new ArrayList<>();
 
     if (injectorContract == null) {
@@ -352,14 +373,23 @@ public class HealthCheckUtils {
       return result;
     }
     List<JsonNode> contractFields =
-        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false).toList();
+        stream(contractContent.get(CONTRACT_CONTENT_FIELDS).spliterator(), false)
+            .filter(this::isContractFieldEnabled)
+            .toList();
 
     for (JsonNode jsonField : contractFields) {
 
       // If field is mandatory
       if (jsonField.get(CONTRACT_ELEMENT_CONTENT_MANDATORY).asBoolean()
           && !InjectModelHelper.isFieldSet(
-              allTeams, teams, assets, assetGroups, jsonField, content, injectContractFields)) {
+              allTeams,
+              teams,
+              assets,
+              assetGroups,
+              secretReferences,
+              jsonField,
+              content,
+              injectContractFields)) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.fromValue(jsonField.get(CONTRACT_ELEMENT_CONTENT_KEY).asText()),
@@ -389,6 +419,7 @@ public class HealthCheckUtils {
                     teams,
                     assets,
                     assetGroups,
+                    secretReferences,
                     groupField.get(),
                     content,
                     injectContractFields)) {
@@ -471,6 +502,7 @@ public class HealthCheckUtils {
                   teams,
                   assets,
                   assetGroups,
+                  secretReferences,
                   fieldOpt.get(),
                   content,
                   injectContractFields)) {

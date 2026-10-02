@@ -49,6 +49,10 @@ public class InjectResultOverviewOutput {
   @JsonProperty("injects_documents")
   private List<String> documentIds;
 
+  @Schema(description = "Secret references")
+  @JsonProperty("inject_secret_references")
+  private List<String> secretReferences;
+
   @Schema(description = "Full contract")
   @JsonProperty("inject_injector_contract")
   private AtomicInjectorContractOutput injectorContract;

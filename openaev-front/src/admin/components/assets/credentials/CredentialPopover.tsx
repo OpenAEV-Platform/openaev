@@ -1,3 +1,4 @@
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 
 import {
@@ -7,6 +8,7 @@ import {
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
+import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type CredentialOutput } from '../../../../utils/api-types';
@@ -15,12 +17,13 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CredentialForm from './CredentialForm';
 import { type CredentialFormInitialValues } from './credentialUtils';
 
-interface CredentialPopoverProps {
+export interface CredentialPopoverProps {
   credentialId: string;
   credentialName: string;
   resolveInitialValues?: () => Promise<CredentialFormInitialValues>;
-  onUpdate: (result: CredentialOutput) => void;
-  onDelete: (credentialId: string) => void;
+  onUpdate?: (result: CredentialOutput) => void;
+  onDelete?: (credentialId: string) => void;
+  onRemove?: (credentialId: string) => void;
   disabled?: boolean;
 }
 
@@ -30,12 +33,14 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
   resolveInitialValues,
   onUpdate,
   onDelete,
+  onRemove,
   disabled = false,
 }) => {
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
 
   const [openDelete, setOpenDelete] = useState(false);
+  const [openRemove, setOpenRemove] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [isLoadingEditValues, setIsLoadingEditValues] = useState(false);
   const [editValues, setEditValues] = useState<CredentialFormInitialValues>();
@@ -76,17 +81,36 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
     });
   };
 
+  const handleOpenRemove = () => setOpenRemove(true);
+  const handleCloseRemove = () => setOpenRemove(false);
+
+  const submitRemove = () => {
+    onRemove?.(credentialId);
+    handleCloseRemove();
+  };
+
   const entries: PopoverEntry[] = [
-    {
-      label: 'Update',
-      action: handleOpenEdit,
-      userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.CREDENTIALS),
-    },
-    {
-      label: 'Delete',
-      action: handleOpenDelete,
-      userRight: ability.can(ACTIONS.DELETE, SUBJECTS.CREDENTIALS),
-    },
+    ...(onUpdate
+      ? [{
+          label: 'Update',
+          action: handleOpenEdit,
+          userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.CREDENTIALS),
+        }]
+      : []),
+    ...(onRemove
+      ? [{
+          label: 'Remove from the inject',
+          action: handleOpenRemove,
+          userRight: true,
+        }]
+      : []),
+    ...(onDelete
+      ? [{
+          label: 'Delete',
+          action: handleOpenDelete,
+          userRight: ability.can(ACTIONS.DELETE, SUBJECTS.CREDENTIALS),
+        }]
+      : []),
   ];
 
   return (
@@ -116,6 +140,24 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
         handleSubmit={submitDelete}
         text={`${t('Do you want to delete the credential:')} ${credentialName}?`}
       />
+      <Dialog
+        open={openRemove}
+        slots={{ transition: Transition }}
+        onClose={handleCloseRemove}
+        slotProps={{ paper: { elevation: 1 } }}
+      >
+        <DialogContent>
+          <DialogContentText>
+            {t('Do you want to remove this credential from the inject?')}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" color="primary" onClick={handleCloseRemove}>{t('Cancel')}</Button>
+          <Button variant="contained" color="primary" onClick={submitRemove}>
+            {t('Remove')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
