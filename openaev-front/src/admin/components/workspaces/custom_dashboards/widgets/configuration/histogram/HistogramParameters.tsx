@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { type Control, Controller, useFormContext, type UseFormSetValue, useWatch } from 'react-hook-form';
 
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
+import RequiredMark from '../../../../../../../components/fields/RequiredMark';
 import TextFieldFds from '../../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { type PropertySchemaDTO, type Widget } from '../../../../../../../utils/api-types';
@@ -226,7 +227,10 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
                     required
                     error={!!fieldState.error}
                   >
-                    <ComboboxLabel>{mode === 'temporal' ? t('Date attribute') : t('Breakdown by')}</ComboboxLabel>
+                    <ComboboxLabel>
+                      {mode === 'temporal' ? t('Date attribute') : t('Breakdown by')}
+                      <RequiredMark />
+                    </ComboboxLabel>
                     <ComboboxField>
                       <ComboboxInput />
                       <ComboboxControls>

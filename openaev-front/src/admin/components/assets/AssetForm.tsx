@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { resolveHostnameToIps } from '../../../actions/assets/endpoint-actions';
 import AddressesFieldComponent from '../../../components/fields/AddressesFieldComponent';
 import PersonFieldController from '../../../components/fields/PersonFieldController';
+import RequiredMark from '../../../components/fields/RequiredMark';
 import SelectFieldController from '../../../components/fields/SelectFieldController';
 import SwitchFieldController from '../../../components/fields/SwitchFieldController';
 import TagFieldController from '../../../components/fields/TagFieldController';
@@ -113,7 +114,10 @@ const CloudNativeTypeField: FunctionComponent = () => {
           required
           error={!!error}
         >
-          <ComboboxLabel>{t('Native type')}</ComboboxLabel>
+          <ComboboxLabel>
+            {t('Native type')}
+            <RequiredMark />
+          </ComboboxLabel>
           <ComboboxField>
             <ComboboxInput />
             <ComboboxControls>

@@ -13,6 +13,7 @@ import {
 } from '@filigran/design-system';
 import { type FunctionComponent, useMemo } from 'react';
 
+import RequiredMark from '../../../../components/fields/RequiredMark';
 import { useFormatter } from '../../../../components/i18n';
 import { type Option } from '../../../../utils/Option';
 
@@ -95,6 +96,7 @@ const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
       } : undefined}
       >
         {label}
+        {required && <RequiredMark />}
       </ComboboxLabel>
       <ComboboxField>
         {props.multiple === true ? <ComboboxChips /> : null}

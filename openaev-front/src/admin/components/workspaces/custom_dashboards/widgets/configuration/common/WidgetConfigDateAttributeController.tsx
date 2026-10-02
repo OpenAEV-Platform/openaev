@@ -13,6 +13,7 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
+import RequiredMark from '../../../../../../../components/fields/RequiredMark';
 import { useFormatter } from '../../../../../../../components/i18n';
 import {
   type FilterGroup,
@@ -71,7 +72,10 @@ const WidgetConfigDateAttributeController: FunctionComponent<Props> = ({ widgetT
               required
               error={!!fieldState.error}
             >
-              <ComboboxLabel>{t('Date attribute')}</ComboboxLabel>
+              <ComboboxLabel>
+                {t('Date attribute')}
+                <RequiredMark />
+              </ComboboxLabel>
               <ComboboxField>
                 <ComboboxInput />
                 <ComboboxControls>

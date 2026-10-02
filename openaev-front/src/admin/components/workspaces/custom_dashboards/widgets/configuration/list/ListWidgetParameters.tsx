@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { type Control, Controller, type UseFormSetValue, useWatch } from 'react-hook-form';
 
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
+import RequiredMark from '../../../../../../../components/fields/RequiredMark';
 import { useFormatter } from '../../../../../../../components/i18n';
 import type { PropertySchemaDTO, Widget } from '../../../../../../../utils/api-types';
 import { type WidgetInputWithoutLayout } from '../../../../../../../utils/api-types-custom';
@@ -121,7 +122,10 @@ const ListWidgetParameters = (props: Props) => {
               required
               error={!!fieldState.error}
             >
-              <ComboboxLabel>{t('Sort field')}</ComboboxLabel>
+              <ComboboxLabel>
+                {t('Sort field')}
+                <RequiredMark />
+              </ComboboxLabel>
               <ComboboxField>
                 <ComboboxInput />
                 <ComboboxControls>

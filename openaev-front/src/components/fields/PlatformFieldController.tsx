@@ -17,6 +17,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type Option } from '../../utils/Option';
 import { useFormatter } from '../i18n';
 import PlatformIcon from '../PlatformIcon';
+import RequiredMark from './RequiredMark';
 
 const useStyles = makeStyles()(theme => ({
   icon: { display: 'inline-block' },
@@ -88,7 +89,10 @@ const PlatformFieldController: FunctionComponent<Props> = ({
             </>
           )}
         >
-          <ComboboxLabel>{t(label)}</ComboboxLabel>
+          <ComboboxLabel>
+            {t(label)}
+            {required && <RequiredMark />}
+          </ComboboxLabel>
           <ComboboxField>
             <ComboboxChips />
             <ComboboxInput className="min-w-0" />

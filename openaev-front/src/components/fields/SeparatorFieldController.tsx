@@ -11,6 +11,7 @@ import {
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { useFormatter } from '../i18n';
+import RequiredMark from './RequiredMark';
 
 interface Props {
   name: string;
@@ -74,7 +75,10 @@ const SeparatorFieldController = ({ name, label, disabled, defaultValue, require
           required={required}
           error={!!error}
         >
-          <ComboboxLabel>{t(label)}</ComboboxLabel>
+          <ComboboxLabel>
+            {t(label)}
+            {required && <RequiredMark />}
+          </ComboboxLabel>
           <ComboboxField>
             <ComboboxInput />
             <ComboboxControls>

@@ -12,6 +12,7 @@ import { type FunctionComponent, useState } from 'react';
 import { type FieldError } from 'react-hook-form';
 
 import alphabet from '../admin/components/settings/data_ingestion/AttributeUtils';
+import RequiredMark from './fields/RequiredMark';
 import { useFormatter } from './i18n';
 
 interface Props {
@@ -47,7 +48,10 @@ const RegexComponent: FunctionComponent<Props> = ({
         onChange(newValue as string | null);
       }}
     >
-      <ComboboxLabel>{t(label)}</ComboboxLabel>
+      <ComboboxLabel>
+        {t(label)}
+        {required && <RequiredMark />}
+      </ComboboxLabel>
       <ComboboxField>
         <ComboboxInput />
         <ComboboxControls>

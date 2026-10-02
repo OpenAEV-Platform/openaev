@@ -18,6 +18,7 @@ import { type FilterGroup, type InjectorContract } from '../utils/api-types';
 import { isNotEmptyField } from '../utils/utils';
 import { generateFilterId } from './common/queryable/filter/FilterUtils';
 import { initSorting, type Page } from './common/queryable/Page';
+import RequiredMark from './fields/RequiredMark';
 import { useFormatter } from './i18n';
 
 const useStyles = makeStyles()(() => ({
@@ -123,7 +124,10 @@ const InjectContractComponent: FunctionComponent<Props> = ({
           </>
         )}
       >
-        <ComboboxLabel>{t(label)}</ComboboxLabel>
+        <ComboboxLabel>
+          {t(label)}
+          <RequiredMark />
+        </ComboboxLabel>
         <ComboboxField>
           <ComboboxInput />
           <ComboboxControls>
