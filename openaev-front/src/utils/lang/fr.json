@@ -79,6 +79,7 @@
   "{met} of {total} validated expectations were met on this asset.": "{met} des {total} attentes validées ont été remplies sur cet actif.",
   "{percent}% full": "{percent} % plein",
   "{quota} (shared across all users)": "{quota} (partagé entre tous les utilisateurs)",
+  "{rejected} was not added: {kept} is already selected and takes precedence for this marking type.": "{rejected} n'a pas été ajouté : {kept} est déjà sélectionné et a la priorité pour ce type de marquage.",
   "{selected}/{total} selected": "{selected}/{total} selectionnes",
   "{stopped} stopped - {breached} breached": "{stopped} arrêtées - {breached} compromises",
   "{summary} — click for details": "{summary} — cliquez pour plus de détails",

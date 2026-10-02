@@ -79,6 +79,7 @@
   "{met} of {total} validated expectations were met on this asset.": "이 자산에서 검증된 기대치 {total}개 중 {met}개가 충족되었습니다.",
   "{percent}% full": "{percent}% 가득 찼습니다",
   "{quota} (shared across all users)": "{quota}(모든 사용자가 공유)",
+  "{rejected} was not added: {kept} is already selected and takes precedence for this marking type.": "{rejected}이(가) 추가되지 않았습니다: {kept}이(가) 이미 선택되어 있으며, 이 표시 유형에 대해서는 undefined이(가) 우선 적용됩니다.",
   "{selected}/{total} selected": "{selected}/{total} 선택됨",
   "{stopped} stopped - {breached} breached": "{stopped}건 차단 - {breached}건 침해",
   "{summary} — click for details": "{summary} — 자세히 보려면 클릭",

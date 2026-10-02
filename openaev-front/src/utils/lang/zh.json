@@ -79,6 +79,7 @@
   "{met} of {total} validated expectations were met on this asset.": "此资产上{total}个已验证预期中有{met}个已达成。",
   "{percent}% full": "{percent}% 已满",
   "{quota} (shared across all users)": "{quota}（所有用户共享）",
+  "{rejected} was not added: {kept} is already selected and takes precedence for this marking type.": "未添加 {rejected}：{kept} 已被选中，且在此标记类型中具有优先权。",
   "{selected}/{total} selected": "已选 {selected}/{total}",
   "{stopped} stopped - {breached} breached": "{stopped} 已阻止 - {breached} 被突破",
   "{summary} — click for details": "{summary} — 点击查看详情",

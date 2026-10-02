@@ -1,10 +1,9 @@
-import { LensOutlined } from '@mui/icons-material';
 import { Chip, Tooltip } from '@mui/material';
 import { useMemo } from 'react';
 
 import { type MarkingDefinitionOutput } from '../utils/api-types';
-import { hexToRGB } from '../utils/Colors';
-import { truncate } from '../utils/String';
+import { collapseToHighestPerType, markingLabel } from '../utils/markings';
+import MarkingChip from './common/MarkingChip';
 
 interface Props {
   /** Marking definition ids carried by the entity, as returned in `asset_markings`. */
@@ -18,33 +17,23 @@ interface Props {
   limit?: number;
 }
 
-// Seeded definitions already store the display value with its type baked in, e.g.
-// `marking_definition_definition: "TLP:RED"` for a `marking_definition_type: "TLP"`. Prefixing
-// unconditionally would render `TLP:TLP:RED`, so the type is only prepended when the definition
-// does not already carry it.
-const markingLabel = (marking: MarkingDefinitionOutput) => (
-  marking.marking_definition_definition.startsWith(`${marking.marking_definition_type}:`)
-    ? marking.marking_definition_definition
-    : `${marking.marking_definition_type}:${marking.marking_definition_definition}`
-);
-
 const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) => {
-  const chipSx = {
+  // Sized like MarkingChip so the overflow counter lines up with the markings next to it.
+  const remainingChipSx = {
     height: variant === 'list' ? 20 : 25,
     fontSize: 12,
     margin: 0,
     borderRadius: 1,
   };
 
-  // An id with no matching definition is dropped rather than rendered raw: marking ids are stored
-  // inline as text[] with no foreign key, so a deleted definition can leave a dangling id behind.
-  // Highest order (most restrictive, e.g. TLP:RED) first - same convention as the assign-marking
-  // picker, so the most sensitive grant is always the first thing a reader sees.
+  // Only the highest-order marking of each type is kept (e.g. TLP:CLEAR/GREEN/AMBER collapse to
+  // TLP:AMBER) - see collapseToHighestPerType.
   const resolved = useMemo(
-    () => (markingIds ?? [])
-      .map(id => definitions[id])
-      .filter((marking): marking is MarkingDefinitionOutput => !!marking)
-      .sort((a, b) => b.marking_definition_order - a.marking_definition_order),
+    () => collapseToHighestPerType(
+      (markingIds ?? [])
+        .map(id => definitions[id])
+        .filter((marking): marking is MarkingDefinitionOutput => !!marking),
+    ),
     [markingIds, definitions],
   );
 
@@ -52,7 +41,7 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
   // nullable inputs and so return nullable results, which `resolved` never is.
   const visible = resolved.slice(0, limit);
   const remaining = resolved.length - visible.length;
-  const tooltipLabel = resolved.slice(limit).map(marking => marking.marking_definition_definition).join(', ');
+  const tooltipLabel = resolved.slice(limit).map(marking => markingLabel(marking)).join(', ');
 
   if (resolved.length === 0) {
     return <span>-</span>;
@@ -67,32 +56,17 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
     }}
     >
       {visible.map((marking: MarkingDefinitionOutput) => (
-        <Tooltip key={marking.marking_definition_id} title={markingLabel(marking)}>
-          <Chip
-            variant="outlined"
-            // The dot mirrors the "Color" column of the marking definitions admin list, so a
-            // marking reads the same way wherever it is shown - definition list, group list, or
-            // here on the entity it is attached to.
-            icon={(
-              <LensOutlined sx={{
-                color: `${marking.marking_definition_color} !important`,
-                fontSize: variant === 'list' ? 12 : 14,
-              }}
-              />
-            )}
-            sx={{
-              ...chipSx,
-              color: marking.marking_definition_color,
-              borderColor: marking.marking_definition_color,
-              backgroundColor: marking.marking_definition_color ? hexToRGB(marking.marking_definition_color) : undefined,
-            }}
-            label={truncate(marking.marking_definition_definition, variant === 'list' ? 15 : 20)}
+        <Tooltip key={marking.marking_definition_id} title={<span style={{ textTransform: 'none' }}>{markingLabel(marking)}</span>}>
+          <MarkingChip
+            marking={marking}
+            variant={variant}
+            maxLabelLength={variant === 'list' ? 15 : 20}
           />
         </Tooltip>
       ))}
       {remaining > 0 && (
-        <Tooltip title={tooltipLabel}>
-          <Chip variant="outlined" sx={chipSx} label={`+${remaining}`} />
+        <Tooltip title={<span style={{ textTransform: 'none' }}>{tooltipLabel}</span>}>
+          <Chip variant="outlined" sx={remainingChipSx} label={`+${remaining}`} />
         </Tooltip>
       )}
     </div>

@@ -1,5 +1,5 @@
-import { Paper } from '@filigran/design-system';
-import { List, ListItem, ListItemText } from '@mui/material';
+import { Paper, Tooltip, TooltipTrigger } from '@filigran/design-system';
+import { Link, List, ListItem, ListItemText } from '@mui/material';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -7,6 +7,7 @@ import ItemBoolean from '../../../components/ItemBoolean';
 import ItemCopy from '../../../components/ItemCopy';
 import type { PlatformSettings } from '../../../utils/api-types';
 import useAI from '../../../utils/hooks/useAI';
+import { copyToClipboard } from '../../../utils/utils';
 
 interface PlatformInfoPanelProps {
   settings: PlatformSettings;
@@ -54,6 +55,27 @@ const PlatformInfoPanel = ({ settings, topContent, bottomContent }: PlatformInfo
         </ListItem>
         <ListItem divider>
           <ListItemText primary={t('Version')} />
+          {/* Kept muted and left of the chip so the version column stays aligned */}
+          {!settings.platform_commit && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  component="button"
+                  type="button"
+                  variant="caption"
+                  color="text.secondary"
+                  underline="hover"
+                  onClick={() => copyToClipboard(t, settings.platform_commit ?? '')}
+                  sx={{
+                    fontFamily: 'Consolas, monaco, monospace',
+                    marginRight: 1,
+                  }}
+                >
+                  {settings.platform_commit ? settings.platform_commit.slice(0, 7) : ''}
+                </Link>
+              </TooltipTrigger>
+            </Tooltip>
+          )}
           <ItemBoolean variant="large" status={null} neutralLabel={settings?.platform_version?.replace('-SNAPSHOT', '')} />
         </ListItem>
         <ListItem divider>

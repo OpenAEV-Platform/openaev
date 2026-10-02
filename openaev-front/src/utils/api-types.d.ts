@@ -4508,6 +4508,11 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_mac_addresses?: string[];
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /** Free-form category-specific attributes */
   asset_metadata?: Record<string, any>;
   /**
@@ -9980,6 +9985,8 @@ export interface PlatformSettings {
   platform_banner_by_level?: Record<string, string[]>;
   /** Base URL of the platform */
   platform_base_url?: string;
+  /** Git commit the platform was built from, when the build provides it */
+  platform_commit?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
   /** id of the platform */
