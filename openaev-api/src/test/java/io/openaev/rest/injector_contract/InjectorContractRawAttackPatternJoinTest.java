@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
@@ -36,15 +37,16 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * {@code GET /injector_contracts} is served by the native query at {@code
- * InjectorContractRepository#getAllRawInjectorsContracts}, which scopes the contract rows ({@code
- * WHERE injcon.tenant_id = :tenantContext.currentTenant}) but joins {@code
- * injectors_contracts_attack_patterns} on {@code injector_contract_id} alone, without {@code
- * tenant_id}.
+ * InjectorContractRepository#getAllRawInjectorsContracts}. That query scopes the contract rows and
+ * now also correlates {@code injectors_contracts_attack_patterns} on {@code tenant_id}; this class
+ * is the regression cover for why that correlation has to stay, not a description of a current
+ * defect.
  *
  * <p>Contract ids are shared across tenants by design: {@code InjectorContract}'s primary key is
  * {@code (injector_contract_id, tenant_id)} and every tenant registers the same built-in contract
- * declarations, so the same id exists in every tenant. A join that drops {@code tenant_id}
- * therefore picks up another tenant's mapping rows for the same contract id.
+ * declarations, so the same id exists in every tenant. A join that drops {@code tenant_id} would
+ * therefore pick up another tenant's mapping rows for the same contract id, which is what these
+ * tests fail on if the correlation is removed.
  *
  * <p>Deliberately NOT {@code @Transactional}: the rows of both tenants have to be committed before
  * the request reads them, and the endpoint opens its own transaction.
@@ -83,6 +85,11 @@ class InjectorContractRawAttackPatternJoinTest extends IntegrationTest {
   void cleanup() {
     cleanupTenant(tenantAId);
     cleanupTenant(tenantBId);
+    // The class is not @Transactional, so the two tenants and their membership rows are committed.
+    // Deleting only the test entities would leave them in the shared integration database for every
+    // later class, so the onboarded tenants go too, and the ambient tenant is cleared after them.
+    tenantHelper.deleteCommittedTenants(tenantAId, tenantBId);
+    TenantContext.clearCurrentTenant();
   }
 
   @Test

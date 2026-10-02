@@ -3,6 +3,7 @@ package io.openaev.rest.injector_contract;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Injector;
@@ -70,6 +71,10 @@ class InjectorContractExternalIdTenantScopeTest extends IntegrationTest {
   void cleanup() {
     deleteContract(tenantAId, contractAId, injectorAId);
     deleteContract(tenantBId, contractBId, injectorBId);
+    // Not @Transactional, so the tenants are committed: remove them after the table-specific
+    // cleanup, or every later class in the fork inherits them.
+    tenantHelper.deleteCommittedTenants(tenantAId, tenantBId);
+    TenantContext.clearCurrentTenant();
   }
 
   @Test

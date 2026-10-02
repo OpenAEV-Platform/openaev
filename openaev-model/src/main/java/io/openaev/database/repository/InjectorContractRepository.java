@@ -218,16 +218,19 @@ public interface InjectorContractRepository
           SELECT array_remove(array_agg(icap.attack_pattern_id), NULL) AS attack_pattern_ids
           FROM injectors_contracts_attack_patterns icap
           WHERE icap.injector_contract_id = ic.injector_contract_id
+            AND icap.tenant_id = ic.tenant_id
       ) ap ON true
       LEFT JOIN LATERAL (
           SELECT array_remove(array_agg(icd.domain_id), NULL) AS domain_ids
           FROM injectors_contracts_domains icd
           WHERE icd.injector_contract_id = ic.injector_contract_id
+            AND icd.tenant_id = ic.tenant_id
       ) d ON true
       LEFT JOIN LATERAL (
           SELECT array_remove(array_agg(ict.tag_id), NULL) AS tag_ids
           FROM injector_contract_tags ict
           WHERE ict.injector_contract_id = ic.injector_contract_id
+            AND ict.tenant_id = ic.tenant_id
       ) t ON true
       WHERE ic.injector_contract_payload = :payloadId
       """,
