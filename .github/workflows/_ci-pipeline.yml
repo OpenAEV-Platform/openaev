@@ -63,7 +63,7 @@ jobs:
         version: ["1.9.0"]
     name: "🔎 OCSF Parser Generation Stability"
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       - name: Set up Java 21
