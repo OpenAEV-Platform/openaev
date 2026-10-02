@@ -32,6 +32,7 @@ import io.openaev.utils.fixtures.ExerciseTeamUserFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -53,11 +54,16 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
+// Arms teams for this class so the main team API is exercised on v2 isolation, which the test
+// classpath otherwise switches off entirely (it declares no active-tables line). Only teams is
+// armed: the control for any measurement on this class is the same list minus teams.
+@TestPropertySource(properties = "openaev.tenant.active-tables=teams")
 class TeamApiTest extends IntegrationTest {
 
   private static final String SEARCH_INPUT = "search input";
@@ -138,7 +144,7 @@ class TeamApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_existingTeamNameInput_should_throwAnException() throws Exception {
     // --PREPARE--
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName(TEAM_NAME);
     this.teamRepository.save(team);
 
@@ -197,7 +203,7 @@ class TeamApiTest extends IntegrationTest {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();
     exercise = this.exerciseService.createExercise(exercise);
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName(CONTEXTUAL_TEAM_NAME);
     team.setContextual(true);
     team.setExercises(List.of(exercise));
@@ -231,7 +237,7 @@ class TeamApiTest extends IntegrationTest {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
 
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setUpdateAttributes(teamInput);
     team = teamRepository.save(team);
     String newName = "updatedName";
@@ -340,7 +346,7 @@ class TeamApiTest extends IntegrationTest {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
 
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setUpdateAttributes(teamInput);
     teamRepository.save(team);
     String newName = "updatedName";
@@ -489,16 +495,16 @@ class TeamApiTest extends IntegrationTest {
 
   private Inject prepareOptionsEndpointTestData() {
     // Teams
-    Team team1input = new Team();
+    Team team1input = TeamFixture.getEmptyTeam();
     team1input.setName(TEAM_NAME + "1");
     Team team1 = this.teamRepository.save(team1input);
-    Team team2input = new Team();
+    Team team2input = TeamFixture.getEmptyTeam();
     team2input.setName(TEAM_NAME + "2");
     Team team2 = this.teamRepository.save(team2input);
-    Team team3input = new Team();
+    Team team3input = TeamFixture.getEmptyTeam();
     team3input.setName(TEAM_NAME + "3");
     Team team3 = this.teamRepository.save(team3input);
-    Team team4input = new Team();
+    Team team4input = TeamFixture.getEmptyTeam();
     team4input.setName(TEAM_NAME + "4");
     Team team4 = this.teamRepository.save(team4input);
     Exercise exInput = ExerciseFixture.getExercise();
@@ -953,13 +959,15 @@ class TeamApiTest extends IntegrationTest {
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
-      // Reference the team from an inject (in tenant X) so it matches the EXISTS clause
+      // Reference the team from an inject (in tenant X) so it matches the EXISTS clause. The link
+      // is written with a native insert rather than through inject.setTeams(teamRepository
+      // .findById(...)): on an active teams table that read runs on the bare test thread, which
+      // has no scope, so the row the test just seeded is invisible to it.
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
-      Team team = teamRepository.findById(teamId).orElseThrow();
       Inject inject =
           getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
-      inject.setTeams(new ArrayList<>(List.of(team)));
       injectRepository.save(inject);
+      linkTeamToInject(teamId, inject.getId());
 
       entityManager.flush();
       entityManager.clear();
@@ -1003,12 +1011,15 @@ class TeamApiTest extends IntegrationTest {
           .setParameter("tenant", tenantX.getId())
           .executeUpdate();
 
+      // Reference the team from an inject (in tenant X) so it matches the EXISTS clause. The link
+      // is written with a native insert rather than through inject.setTeams(teamRepository
+      // .findById(...)): on an active teams table that read runs on the bare test thread, which
+      // has no scope, so the row the test just seeded is invisible to it.
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
-      Team team = teamRepository.findById(teamId).orElseThrow();
       Inject inject =
           getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
-      inject.setTeams(new ArrayList<>(List.of(team)));
       injectRepository.save(inject);
+      linkTeamToInject(teamId, inject.getId());
 
       entityManager.flush();
       entityManager.clear();
@@ -1125,5 +1136,19 @@ class TeamApiTest extends IntegrationTest {
               .setParameter("id", teamId)
               .getSingleResult();
     }
+  }
+
+  /**
+   * Links a seeded team to an inject with a native insert. Going through the entity would need a
+   * scoped read of teams, which the bare test thread does not have.
+   */
+  private void linkTeamToInject(String teamId, String injectId) {
+    entityManager.flush();
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO injects_teams (inject_id, team_id) VALUES (:injectId, :teamId)")
+        .setParameter("injectId", injectId)
+        .setParameter("teamId", teamId)
+        .executeUpdate();
   }
 }
