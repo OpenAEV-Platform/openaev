@@ -67,6 +67,7 @@
   "{met} of {total} validated expectations were met on this asset.": "{met} из {total} проверенных ожиданий были выполнены на этом активе.",
   "{percent}% full": "{percent}% заполнено",
   "{quota} (shared across all users)": "{quota} (общая для всех пользователей)",
+  "{rejected} was not added: {kept} is already selected and takes precedence for this marking type.": "{rejected} не был добавлен: {kept} уже выбран и имеет приоритет для данного типа маркировки.",
   "{selected}/{total} selected": "{selected}/{total} выбрано",
   "{stopped} stopped - {breached} breached": "{stopped} остановлено - {breached} пропущено",
   "{summary} — click for details": "{summary} — нажмите для подробностей",

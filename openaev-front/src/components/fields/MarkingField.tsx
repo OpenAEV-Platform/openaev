@@ -5,9 +5,12 @@ import { type GlobalError } from 'react-hook-form';
 
 import { type MarkingDefinitionOutput } from '../../utils/api-types';
 import { hexToRGB } from '../../utils/Colors';
+import { MESSAGING$ } from '../../utils/Environment';
 import useMarkingDefinitions from '../../utils/hooks/useMarkingDefinitions';
+import { collapseToHighestPerType } from '../../utils/markings';
 import { AbilityContext } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
+import { useFormatter } from '../i18n';
 import { markingLabel } from '../ItemMarkings';
 
 interface Props {
@@ -43,6 +46,8 @@ const MarkingField: FunctionComponent<Props> = ({
   disabled = false,
   required = false,
 }) => {
+  const { t } = useFormatter();
+
   // The backend's GET /api/marking_definitions/assignable requires ACCESS_MARKING_DEFINITION
   // (Action.SEARCH/READ + ResourceType.MARKING_DEFINITION - see Capability.java); a caller without
   // it would just get a 403. Checked here too, client-side, so the picker never fires that request
@@ -64,13 +69,58 @@ const MarkingField: FunctionComponent<Props> = ({
   const options = useMemo(() => sortMarkings(Object.values(definitions)), [definitions]);
 
   // An id with no matching definition (e.g. a marking deleted after being assigned) is dropped
-  // rather than rendered raw - same convention as ItemMarkings.
+  // rather than rendered raw - same convention as ItemMarkings. Also collapsed to the highest
+  // level per type: a level implies every less restrictive level of the same type, so there is
+  // never a reason to hold more than one per type - this is a defensive fallback for a value that
+  // predates that rule (or was written some other way), since handleChange below prevents a new
+  // one from ever entering through this field.
   const value = useMemo(
-    () => fieldValue
-      .map(id => definitions[id])
-      .filter((marking): marking is MarkingDefinitionOutput => !!marking),
+    () => collapseToHighestPerType(
+      fieldValue
+        .map(id => definitions[id])
+        .filter((marking): marking is MarkingDefinitionOutput => !!marking),
+    ),
     [fieldValue, definitions],
   );
+
+  // Enforces "at most one marking per type" on the selection itself, not just its display:
+  // adding a level of a type already selected either replaces the lower one (silently - picking a
+  // stronger level is an unsurprising upgrade) or, if it is the weaker one, is rejected outright
+  // with an explanation - a type can only ever be covered by one level at a time, so there is
+  // nothing to add otherwise.
+  const handleChange = (_: unknown, newValue: MarkingDefinitionOutput[]) => {
+    const removed = value.filter(
+      current => !newValue.some(n => n.marking_definition_id === current.marking_definition_id),
+    );
+    const added = newValue.filter(
+      candidate => !value.some(current => current.marking_definition_id === candidate.marking_definition_id),
+    );
+
+    let next = value.filter(
+      current => !removed.some(r => r.marking_definition_id === current.marking_definition_id),
+    );
+    added.forEach((candidate) => {
+      const existing = next.find(
+        current => current.marking_definition_type === candidate.marking_definition_type,
+      );
+      if (!existing) {
+        next = [...next, candidate];
+        return;
+      }
+      if (candidate.marking_definition_order > existing.marking_definition_order) {
+        next = next.filter(current => current !== existing).concat(candidate);
+        return;
+      }
+      MESSAGING$.notifyError(
+        t('{rejected} was not added: {kept} is already selected and takes precedence for this marking type.', {
+          rejected: markingLabel(candidate),
+          kept: markingLabel(existing),
+        }),
+      );
+    });
+
+    fieldOnChange(next.map(marking => marking.marking_definition_id));
+  };
 
   if (!canAccessMarkingDefinitions) {
     return null;
@@ -92,9 +142,7 @@ const MarkingField: FunctionComponent<Props> = ({
         disabled={disabled}
         options={options}
         value={value}
-        onChange={(_, newValue) => {
-          fieldOnChange(newValue.map(v => v.marking_definition_id));
-        }}
+        onChange={handleChange}
         isOptionEqualToValue={(option, val) => option.marking_definition_id === val.marking_definition_id}
         getOptionLabel={option => markingLabel(option)}
         renderOption={(props, option) => (

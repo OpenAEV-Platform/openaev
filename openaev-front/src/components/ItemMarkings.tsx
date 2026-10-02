@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 import { type MarkingDefinitionOutput } from '../utils/api-types';
 import { hexToRGB } from '../utils/Colors';
+import { collapseToHighestPerType } from '../utils/markings';
 import { truncate } from '../utils/String';
 
 interface Props {
@@ -51,21 +52,13 @@ const ItemMarkings = ({ markingIds, definitions, variant, limit = 2 }: Props) =>
   };
 
   // Only the highest-order marking of each type is kept (e.g. TLP:CLEAR/GREEN/AMBER collapse to
-  // TLP:AMBER)
+  // TLP:AMBER) - see collapseToHighestPerType.
   const resolved = useMemo(
-    () => {
-      const sorted = (markingIds ?? [])
+    () => collapseToHighestPerType(
+      (markingIds ?? [])
         .map(id => definitions[id])
-        .filter((marking): marking is MarkingDefinitionOutput => !!marking)
-        .sort((a, b) => b.marking_definition_order - a.marking_definition_order);
-      const highestByType = new Map<string, MarkingDefinitionOutput>();
-      sorted.forEach((marking) => {
-        if (!highestByType.has(marking.marking_definition_type)) {
-          highestByType.set(marking.marking_definition_type, marking);
-        }
-      });
-      return Array.from(highestByType.values());
-    },
+        .filter((marking): marking is MarkingDefinitionOutput => !!marking),
+    ),
     [markingIds, definitions],
   );
 
