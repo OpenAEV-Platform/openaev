@@ -62,6 +62,7 @@ public enum ResourceType {
   PLATFORM_GROUP,
   PLATFORM_USER,
   XTM_HUB_REGISTRATION,
+  NEWS_FEED,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.
