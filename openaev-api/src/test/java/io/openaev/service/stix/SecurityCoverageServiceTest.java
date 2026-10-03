@@ -53,6 +53,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
   @Autowired private SecurityCoverageComposer securityCoverageComposer;
   @Autowired private SecurityCoverageSendJobComposer securityCoverageSendJobComposer;
   @Autowired private InjectorFixture injectorFixture;
@@ -1366,6 +1367,113 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           entry(edr, "PREVENTION", 100),
           entry(edr, "DETECTION", 100),
           entry(siem, "DETECTION", 0));
+    }
+
+    /** An expectation of an agent of the endpoint, answered by the given collector results. */
+    private InjectExpectationComposer.Composer agentExpectation(
+        BaseInjectExpectation.EXPECTATION_TYPE type,
+        AgentComposer.Composer agent,
+        Double score,
+        InjectExpectationResult... results) {
+      BaseInjectExpectation expectation =
+          InjectExpectationFixture.createExpectationWithTypeAndStatus(
+              type, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      expectation.setResults(new ArrayList<>(List.of(results)));
+      expectation.setScore(score);
+      return injectExpectationComposer.forExpectation(expectation).withAgent(agent);
+    }
+
+    /**
+     * The asset expectation of the endpoint: it only carries the score rolled up from its agents.
+     */
+    private InjectExpectationComposer.Composer assetExpectation(
+        BaseInjectExpectation.EXPECTATION_TYPE type,
+        EndpointComposer.Composer endpoint,
+        Double score) {
+      BaseInjectExpectation expectation =
+          InjectExpectationFixture.createExpectationWithTypeAndStatus(
+              type, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      expectation.setResults(new ArrayList<>());
+      expectation.setScore(score);
+      return injectExpectationComposer.forExpectation(expectation).withEndpoint(endpoint);
+    }
+
+    @Test
+    @DisplayName(
+        "Agent-backed collector results are attributed through the asset expectation they roll up to")
+    void given_collectorResultsOnAgentExpectations_should_attributeThePlatformThroughTheAsset()
+        throws ParsingException, JsonProcessingException {
+      // Arrange
+      AttackPatternComposer.Composer technique = persistedAttackPattern("T9108");
+      SecurityPlatform edr =
+          persistedPlatform("Agent-backed EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+      EndpointComposer.Composer endpoint =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      AgentComposer.Composer firstAgent =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      AgentComposer.Composer secondAgent =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpoint.withAgent(firstAgent).withAgent(secondAgent);
+      InjectorContractComposer.Composer contract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withAttackPattern(technique);
+      // Collectors answer the agent expectations; the asset expectations only get the roll-up
+      InjectComposer.Composer inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(contract)
+              .withEndpoint(endpoint)
+              .withExpectation(
+                  assetExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, endpoint, 100.0))
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      firstAgent,
+                      100.0,
+                      createCollectorResult(edr, 100.0)))
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      secondAgent,
+                      100.0,
+                      createCollectorResult(edr, 100.0)))
+              .withExpectation(
+                  assetExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, endpoint, 0.0))
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                      firstAgent,
+                      0.0,
+                      createCollectorResult(edr, 0.0)))
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                      secondAgent,
+                      0.0,
+                      createCollectorResult(edr, 0.0)));
+      ExerciseComposer.Composer simulation = finishedSimulationCovering(List.of(technique), inject);
+
+      // Act
+      Bundle bundle = buildBundle(simulation);
+
+      // Assert
+      RelationshipObject sro = coveredObjectSro(bundle, "T9108");
+      assertCoveragePlatforms(
+          bundle, sro, entry(edr, "PREVENTION", 0), entry(edr, "DETECTION", 100));
+      RelationshipObject platformSro =
+          bundle.findRelationshipsByTargetRef(identityIdOf(edr)).getFirst();
+      assertThatJson(platformSro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .isEqualTo(
+              toList(
+                      List.of(
+                          new Complex<>(new CoverageResult("PREVENTION", 0)),
+                          new Complex<>(new CoverageResult("DETECTION", 100))))
+                  .toStix(mapper));
     }
 
     @Test
