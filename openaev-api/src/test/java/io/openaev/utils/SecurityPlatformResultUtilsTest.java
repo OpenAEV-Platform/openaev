@@ -9,12 +9,21 @@ import static io.openaev.utils.fixtures.InjectExpectationResultFixture.createMan
 import static io.openaev.utils.fixtures.InjectExpectationResultFixture.createSecurityPlatformResult;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
+import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.AssetGroupFixture;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectExpectationFixture;
+import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import java.util.ArrayList;
 import java.util.List;
@@ -150,6 +159,185 @@ class SecurityPlatformResultUtilsTest {
       // Assert
       assertThat(view.getResults()).hasSize(1);
       assertThat(view.getScore()).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Collector results on agent expectations roll up to their parents")
+  class AgentResultsRollUp {
+
+    private final Inject inject = InjectFixture.getDefaultInject();
+
+    private Endpoint createEndpointWithAgents(int agentCount) {
+      Endpoint endpoint = EndpointFixture.createEndpoint();
+      endpoint.setId(UUID.randomUUID().toString());
+      List<Agent> agents = new ArrayList<>();
+      for (int i = 0; i < agentCount; i++) {
+        Agent agent = AgentFixture.createDefaultAgentService();
+        agent.setId(UUID.randomUUID().toString());
+        agent.setAsset(endpoint);
+        agents.add(agent);
+      }
+      endpoint.setAgents(agents);
+      return endpoint;
+    }
+
+    private TechnicalInjectExpectation addTechnicalExpectation(
+        AssetGroup assetGroup,
+        Endpoint asset,
+        Agent agent,
+        BaseInjectExpectation.EXPECTATION_STATUS globalStatus,
+        InjectExpectationResult... results) {
+      TechnicalInjectExpectation expectation =
+          (TechnicalInjectExpectation) createExpectation(DETECTION, globalStatus, results);
+      expectation.setInject(inject);
+      expectation.setAssetGroup(assetGroup);
+      expectation.setAsset(asset);
+      expectation.setAgent(agent);
+      inject.getExpectations().add(expectation);
+      return expectation;
+    }
+
+    @Test
+    @DisplayName("An asset whose agents all detected is detected for the platform")
+    void given_platformResultsOnEveryAgent_should_scoreTheAssetExpectationForThePlatform() {
+      // Arrange
+      SecurityPlatform edr = createPlatform("EDR", "EDR");
+      Endpoint endpoint = createEndpointWithAgents(2);
+      TechnicalInjectExpectation assetExpectation =
+          addTechnicalExpectation(null, endpoint, null, SUCCESS);
+      endpoint
+          .getAgents()
+          .forEach(
+              agent ->
+                  addTechnicalExpectation(
+                      null, endpoint, agent, SUCCESS, createCollectorResult(edr, 100.0)));
+
+      // Act
+      boolean reported =
+          SecurityPlatformResultUtils.hasResultFromSecurityPlatform(assetExpectation, edr.getId());
+      BaseInjectExpectation view =
+          SecurityPlatformResultUtils.toSecurityPlatformView(assetExpectation, edr.getId());
+      Map<String, List<ExpectationResultsByType>> resultsByPlatform =
+          SecurityPlatformResultUtils.computeResultsBySecurityPlatform(
+              List.of(assetExpectation), Set.of(edr.getId()));
+
+      // Assert
+      assertThat(assetExpectation.getResults()).isEmpty();
+      assertThat(reported).isTrue();
+      assertThat(view.getScore()).isEqualTo(100.0);
+      assertThat(
+              resultOfType(resultsByPlatform.get(edr.getId()), ExpectationType.DETECTION)
+                  .getSuccessRate())
+          .isEqualTo(1.0);
+    }
+
+    @Test
+    @DisplayName("An asset with one undetected agent is not detected for the platform")
+    void given_oneAgentNotDetected_should_failTheAssetExpectationForThePlatform() {
+      // Arrange
+      SecurityPlatform edr = createPlatform("EDR", "EDR");
+      Endpoint endpoint = createEndpointWithAgents(2);
+      TechnicalInjectExpectation assetExpectation =
+          addTechnicalExpectation(null, endpoint, null, SUCCESS);
+      addTechnicalExpectation(
+          null, endpoint, endpoint.getAgents().get(0), SUCCESS, createCollectorResult(edr, 100.0));
+      addTechnicalExpectation(
+          null, endpoint, endpoint.getAgents().get(1), SUCCESS, createCollectorResult(edr, 0.0));
+
+      // Act
+      BaseInjectExpectation view =
+          SecurityPlatformResultUtils.toSecurityPlatformView(assetExpectation, edr.getId());
+
+      // Assert
+      assertThat(view.getScore()).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("An asset with an agent the platform has not answered yet stays pending")
+    void given_agentStillPendingForThePlatform_should_keepTheAssetExpectationPending() {
+      // Arrange
+      SecurityPlatform edr = createPlatform("EDR", "EDR");
+      Endpoint endpoint = createEndpointWithAgents(2);
+      TechnicalInjectExpectation assetExpectation =
+          addTechnicalExpectation(null, endpoint, null, SUCCESS);
+      addTechnicalExpectation(
+          null, endpoint, endpoint.getAgents().get(0), SUCCESS, createCollectorResult(edr, 100.0));
+      addTechnicalExpectation(
+          null, endpoint, endpoint.getAgents().get(1), PENDING, createCollectorResult(edr, null));
+
+      // Act
+      BaseInjectExpectation view =
+          SecurityPlatformResultUtils.toSecurityPlatformView(assetExpectation, edr.getId());
+
+      // Assert
+      assertThat(view.getScore()).isNull();
+    }
+
+    @Test
+    @DisplayName("An asset group follows its validation mode for the platform")
+    void given_assetGroup_should_rollUpThePlatformVerdictsOfItsAssets() {
+      // Arrange
+      SecurityPlatform edr = createPlatform("EDR", "EDR");
+      AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("Workstations");
+      assetGroup.setId(UUID.randomUUID().toString());
+      Endpoint detectedEndpoint = createEndpointWithAgents(1);
+      Endpoint missedEndpoint = createEndpointWithAgents(1);
+      TechnicalInjectExpectation groupExpectation =
+          addTechnicalExpectation(assetGroup, null, null, SUCCESS);
+      addTechnicalExpectation(assetGroup, detectedEndpoint, null, SUCCESS);
+      addTechnicalExpectation(
+          assetGroup,
+          detectedEndpoint,
+          detectedEndpoint.getAgents().getFirst(),
+          SUCCESS,
+          createCollectorResult(edr, 100.0));
+      addTechnicalExpectation(assetGroup, missedEndpoint, null, SUCCESS);
+      addTechnicalExpectation(
+          assetGroup,
+          missedEndpoint,
+          missedEndpoint.getAgents().getFirst(),
+          SUCCESS,
+          createCollectorResult(edr, 0.0));
+
+      // Act
+      groupExpectation.setExpectationGroup(true);
+      Double atLeastOneAssetScore =
+          SecurityPlatformResultUtils.toSecurityPlatformView(groupExpectation, edr.getId())
+              .getScore();
+      groupExpectation.setExpectationGroup(false);
+      Double allAssetsScore =
+          SecurityPlatformResultUtils.toSecurityPlatformView(groupExpectation, edr.getId())
+              .getScore();
+
+      // Assert
+      assertThat(atLeastOneAssetScore).isEqualTo(100.0);
+      assertThat(allAssetsScore).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("Agents answered only by another platform leave the asset unattributed")
+    void given_agentResultsOfAnotherPlatform_should_notAttributeTheAssetExpectation() {
+      // Arrange
+      SecurityPlatform edr = createPlatform("EDR", "EDR");
+      SecurityPlatform siem = createPlatform("SIEM", "SIEM");
+      Endpoint endpoint = createEndpointWithAgents(1);
+      TechnicalInjectExpectation assetExpectation =
+          addTechnicalExpectation(null, endpoint, null, SUCCESS);
+      addTechnicalExpectation(
+          null,
+          endpoint,
+          endpoint.getAgents().getFirst(),
+          SUCCESS,
+          createCollectorResult(siem, 100.0));
+
+      // Act
+      Map<String, List<ExpectationResultsByType>> resultsByPlatform =
+          SecurityPlatformResultUtils.computeResultsBySecurityPlatform(
+              List.of(assetExpectation), Set.of(edr.getId(), siem.getId()));
+
+      // Assert
+      assertThat(resultsByPlatform).containsOnlyKeys(siem.getId());
     }
   }
 
