@@ -1,6 +1,8 @@
 package io.openaev.service.stix;
 
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
+import static io.openaev.utils.fixtures.InjectExpectationResultFixture.createCollectorResult;
+import static io.openaev.utils.fixtures.InjectExpectationResultFixture.createManualResult;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -16,6 +18,7 @@ import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
+import io.openaev.stix.objects.ObjectBase;
 import io.openaev.stix.objects.RelationshipObject;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.objects.constants.ExtendedProperties;
@@ -34,6 +37,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
+import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +53,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
   @Autowired private SecurityCoverageComposer securityCoverageComposer;
   @Autowired private SecurityCoverageSendJobComposer securityCoverageSendJobComposer;
   @Autowired private InjectorFixture injectorFixture;
@@ -1154,6 +1159,508 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .isEqualTo(new io.openaev.stix.types.Boolean(true));
     assertThatJson(indicatorSro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
         .isEqualTo(predictCoverageFromInjects(List.of(dnsInjectWrapper.get())).toStix(mapper));
+  }
+
+  @Nested
+  @DisplayName("Per-platform attribution of covered objects (coverage_platforms)")
+  class CoveragePlatforms {
+
+    private AttackPatternComposer.Composer persistedAttackPattern(String externalId) {
+      return attackPatternComposer
+          .forAttackPattern(AttackPatternFixture.createAttackPatternsWithExternalId(externalId))
+          .persist();
+    }
+
+    private SecurityPlatform persistedPlatform(
+        String name, SecurityPlatform.SECURITY_PLATFORM_TYPE type) {
+      return securityPlatformComposer
+          .forSecurityPlatform(SecurityPlatformFixture.createDefault(name, type.name()))
+          .persist()
+          .get();
+    }
+
+    /**
+     * An inject covering the attack patterns, with one detection and one prevention expectation.
+     */
+    private InjectComposer.Composer injectCovering(
+        AttackPatternComposer.Composer... attackPatterns) {
+      InjectorContractComposer.Composer contract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
+      for (AttackPatternComposer.Composer attackPattern : attackPatterns) {
+        contract.withAttackPattern(attackPattern);
+      }
+      return injectComposer
+          .forInject(InjectFixture.getDefaultInject())
+          .withInjectorContract(contract)
+          .withExpectation(
+              injectExpectationComposer
+                  .forExpectation(
+                      InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                          BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                  .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+          .withExpectation(
+              injectExpectationComposer
+                  .forExpectation(
+                      InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                          BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                  .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())));
+    }
+
+    private ExerciseComposer.Composer finishedSimulationCovering(
+        List<AttackPatternComposer.Composer> attackPatterns, InjectComposer.Composer... injects) {
+      ExerciseComposer.Composer exerciseWrapper =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withSecurityCoverage(
+                  securityCoverageComposer.forSecurityCoverage(
+                      SecurityCoverageFixture.createSecurityCoverageWithDomainObjects(
+                          attackPatterns.stream().map(AttackPatternComposer.Composer::get).toList(),
+                          List.of())));
+      for (InjectComposer.Composer inject : injects) {
+        exerciseWrapper.withInject(inject);
+      }
+      exerciseWrapper.get().setStart(Instant.parse("2024-09-23T14:09:43Z"));
+      exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
+      return exerciseWrapper;
+    }
+
+    /** Sets the results of the inject's expectation of the given type, and its global score. */
+    private void answer(
+        InjectComposer.Composer inject,
+        BaseInjectExpectation.EXPECTATION_TYPE type,
+        Double globalScore,
+        InjectExpectationResult... results) {
+      inject.get().getExpectations().stream()
+          .filter(expectation -> expectation.getType() == type)
+          .forEach(
+              expectation -> {
+                expectation.setResults(new ArrayList<>(List.of(results)));
+                expectation.setScore(globalScore);
+              });
+    }
+
+    private Bundle buildBundle(ExerciseComposer.Composer exerciseWrapper)
+        throws ParsingException, JsonProcessingException {
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+          .withSimulation(exerciseWrapper)
+          .persist();
+      entityManager.flush();
+      entityManager.refresh(exerciseWrapper.get());
+      Optional<SecurityCoverageSendJob> job =
+          securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
+              exerciseWrapper.get());
+      assertThat(job).isNotEmpty();
+      return securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
+    }
+
+    private RelationshipObject coveredObjectSro(Bundle bundle, String attackPatternExternalId) {
+      StixRefToExternalRef ref =
+          securityCoverageComposer.generatedItems.getFirst().getAttackPatternRefs().stream()
+              .filter(stixRef -> stixRef.getExternalRefs().contains(attackPatternExternalId))
+              .findFirst()
+              .orElseThrow();
+      List<RelationshipObject> sros =
+          bundle.findRelationshipsByTargetRef(new Identifier(ref.getStixRef()));
+      assertThat(sros).hasSize(1);
+      return sros.getFirst();
+    }
+
+    private void assertCoveragePlatforms(
+        Bundle bundle, RelationshipObject sro, PlatformCoverageResult... expected)
+        throws ParsingException {
+      assertThatJson(
+              sro.getProperty(ExtendedProperties.COVERAGE_PLATFORMS.toString()).toStix(mapper))
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .isEqualTo(toList(Arrays.stream(expected).map(Complex::new).toList()).toStix(mapper));
+      // every referenced platform is a security platform identity of the same bundle
+      for (PlatformCoverageResult entry : expected) {
+        ObjectBase identity = bundle.findById(new Identifier(entry.platformRef()));
+        assertThat(identity.getProperty("identity_class"))
+            .isEqualTo(new StixString("securityplatform"));
+      }
+    }
+
+    private Identifier identityIdOf(SecurityPlatform platform) {
+      return new Identifier(SecurityPlatform.stixIdentityId(platform.getName()));
+    }
+
+    private PlatformCoverageResult entry(SecurityPlatform platform, String name, int score) {
+      return new PlatformCoverageResult(identityIdOf(platform).getValue(), name, score);
+    }
+
+    @Test
+    @DisplayName("One platform: the covered object lists the results of that platform")
+    void given_onePlatformResult_should_attributeTheCoveredObjectToThatPlatform()
+        throws ParsingException, JsonProcessingException {
+      // Arrange
+      AttackPatternComposer.Composer technique = persistedAttackPattern("T9101");
+      SecurityPlatform edr =
+          persistedPlatform("Attribution EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+      InjectComposer.Composer inject = injectCovering(technique);
+      ExerciseComposer.Composer simulation = finishedSimulationCovering(List.of(technique), inject);
+      answer(
+          inject,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+          100.0,
+          createCollectorResult(edr, 100.0));
+      answer(
+          inject,
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          100.0,
+          createCollectorResult(edr, 100.0));
+
+      // Act
+      Bundle bundle = buildBundle(simulation);
+
+      // Assert
+      RelationshipObject sro = coveredObjectSro(bundle, "T9101");
+      assertCoveragePlatforms(
+          bundle, sro, entry(edr, "PREVENTION", 100), entry(edr, "DETECTION", 100));
+      // the overall per-platform relationship attributes the collector results too
+      RelationshipObject platformSro =
+          bundle.findRelationshipsByTargetRef(identityIdOf(edr)).getFirst();
+      assertThatJson(platformSro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+          .isEqualTo(
+              toList(
+                      List.of(
+                          new Complex<>(new CoverageResult("PREVENTION", 100)),
+                          new Complex<>(new CoverageResult("DETECTION", 100))))
+                  .toStix(mapper));
+    }
+
+    @Test
+    @DisplayName("Several platforms: each platform is listed with its own scores")
+    void given_severalPlatforms_should_listEachPlatformWithItsOwnScores()
+        throws ParsingException, JsonProcessingException {
+      // Arrange
+      AttackPatternComposer.Composer technique = persistedAttackPattern("T9102");
+      SecurityPlatform edr =
+          persistedPlatform("Attribution EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+      SecurityPlatform siem =
+          persistedPlatform("Attribution SIEM", SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
+      InjectComposer.Composer inject = injectCovering(technique);
+      ExerciseComposer.Composer simulation = finishedSimulationCovering(List.of(technique), inject);
+      answer(
+          inject,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+          100.0,
+          createCollectorResult(edr, 100.0),
+          createCollectorResult(siem, 0.0));
+      answer(
+          inject,
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          100.0,
+          createCollectorResult(edr, 100.0));
+
+      // Act
+      Bundle bundle = buildBundle(simulation);
+
+      // Assert
+      assertCoveragePlatforms(
+          bundle,
+          coveredObjectSro(bundle, "T9102"),
+          entry(edr, "PREVENTION", 100),
+          entry(edr, "DETECTION", 100),
+          entry(siem, "DETECTION", 0));
+    }
+
+    /** An expectation of an agent of the endpoint, answered by the given collector results. */
+    private InjectExpectationComposer.Composer agentExpectation(
+        BaseInjectExpectation.EXPECTATION_TYPE type,
+        AgentComposer.Composer agent,
+        Double score,
+        InjectExpectationResult... results) {
+      BaseInjectExpectation expectation =
+          InjectExpectationFixture.createExpectationWithTypeAndStatus(
+              type, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      expectation.setResults(new ArrayList<>(List.of(results)));
+      expectation.setScore(score);
+      return injectExpectationComposer.forExpectation(expectation).withAgent(agent);
+    }
+
+    /**
+     * The asset expectation of the endpoint: it only carries the score rolled up from its agents.
+     */
+    private InjectExpectationComposer.Composer assetExpectation(
+        BaseInjectExpectation.EXPECTATION_TYPE type,
+        EndpointComposer.Composer endpoint,
+        Double score) {
+      BaseInjectExpectation expectation =
+          InjectExpectationFixture.createExpectationWithTypeAndStatus(
+              type, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
+      expectation.setResults(new ArrayList<>());
+      expectation.setScore(score);
+      return injectExpectationComposer.forExpectation(expectation).withEndpoint(endpoint);
+    }
+
+    @Test
+    @DisplayName(
+        "Agent-backed collector results are attributed through the asset expectation they roll up to")
+    void given_collectorResultsOnAgentExpectations_should_attributeThePlatformThroughTheAsset()
+        throws ParsingException, JsonProcessingException {
+      // Arrange
+      AttackPatternComposer.Composer technique = persistedAttackPattern("T9108");
+      SecurityPlatform edr =
+          persistedPlatform("Agent-backed EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+      EndpointComposer.Composer endpoint =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      AgentComposer.Composer firstAgent =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      AgentComposer.Composer secondAgent =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpoint.withAgent(firstAgent).withAgent(secondAgent);
+      InjectorContractComposer.Composer contract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withAttackPattern(technique);
+      // Collectors answer the agent expectations; the asset expectations only get the roll-up
+      InjectComposer.Composer inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(contract)
+              .withEndpoint(endpoint)
+              .withExpectation(
+                  assetExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, endpoint, 100.0))
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      firstAgent,
+                      100.0,
+                      createCollectorResult(edr, 100.0)))
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      secondAgent,
+                      100.0,
+                      createCollectorResult(edr, 100.0)))
+              .withExpectation(
+                  assetExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, endpoint, 0.0))
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                      firstAgent,
+                      0.0,
+                      createCollectorResult(edr, 0.0)))
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                      secondAgent,
+                      0.0,
+                      createCollectorResult(edr, 0.0)));
+      ExerciseComposer.Composer simulation = finishedSimulationCovering(List.of(technique), inject);
+
+      // Act
+      Bundle bundle = buildBundle(simulation);
+
+      // Assert
+      RelationshipObject sro = coveredObjectSro(bundle, "T9108");
+      assertCoveragePlatforms(
+          bundle, sro, entry(edr, "PREVENTION", 0), entry(edr, "DETECTION", 100));
+      RelationshipObject platformSro =
+          bundle.findRelationshipsByTargetRef(identityIdOf(edr)).getFirst();
+      assertThatJson(platformSro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .isEqualTo(
+              toList(
+                      List.of(
+                          new Complex<>(new CoverageResult("PREVENTION", 0)),
+                          new Complex<>(new CoverageResult("DETECTION", 100))))
+                  .toStix(mapper));
+    }
+
+    @Test
+    @DisplayName("No platform result: coverage_platforms is omitted, coverage is still computed")
+    void given_noPlatformResult_should_omitCoveragePlatforms()
+        throws ParsingException, JsonProcessingException {
+      // Arrange
+      AttackPatternComposer.Composer technique = persistedAttackPattern("T9103");
+      InjectComposer.Composer inject = injectCovering(technique);
+      ExerciseComposer.Composer simulation = finishedSimulationCovering(List.of(technique), inject);
+      // a manual validation and a source asset that is no security platform: nothing attributable
+      InjectExpectationResult notAPlatform = createManualResult(100.0);
+      notAPlatform.setSourceAssetId(UUID.randomUUID().toString());
+      answer(
+          inject,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+          100.0,
+          createManualResult(100.0));
+      answer(inject, BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, 100.0, notAPlatform);
+
+      // Act
+      Bundle bundle = buildBundle(simulation);
+
+      // Assert
+      RelationshipObject sro = coveredObjectSro(bundle, "T9103");
+      assertThat(sro.hasProperty(ExtendedProperties.COVERAGE_PLATFORMS.toString())).isFalse();
+      assertThat(sro.getProperty(ExtendedProperties.COVERED.toString()))
+          .isEqualTo(new io.openaev.stix.types.Boolean(true));
+      assertThatJson(sro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+          .isEqualTo(predictCoverageFromInjects(List.of(inject.get())).toStix(mapper));
+      assertThat(bundle.findByType(ObjectTypes.IDENTITY)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Mixed results: detection and prevention are scored separately per platform")
+    void given_mixedDetectionAndPreventionResults_should_scoreEachExpectationTypeSeparately()
+        throws ParsingException, JsonProcessingException {
+      // Arrange
+      AttackPatternComposer.Composer technique = persistedAttackPattern("T9104");
+      SecurityPlatform edr =
+          persistedPlatform("Attribution EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+      InjectComposer.Composer inject = injectCovering(technique);
+      ExerciseComposer.Composer simulation = finishedSimulationCovering(List.of(technique), inject);
+      answer(
+          inject,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+          100.0,
+          createCollectorResult(edr, 100.0));
+      answer(
+          inject,
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          0.0,
+          createCollectorResult(edr, 0.0));
+
+      // Act
+      Bundle bundle = buildBundle(simulation);
+
+      // Assert
+      RelationshipObject sro = coveredObjectSro(bundle, "T9104");
+      assertCoveragePlatforms(
+          bundle, sro, entry(edr, "PREVENTION", 0), entry(edr, "DETECTION", 100));
+      assertThatJson(sro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+          .isEqualTo(
+              toList(
+                      List.of(
+                          new Complex<>(new CoverageResult("PREVENTION", 0)),
+                          new Complex<>(new CoverageResult("DETECTION", 100))))
+                  .toStix(mapper));
+    }
+
+    @Test
+    @DisplayName(
+        "Technique covered by several injects: each platform is scored on its own injects only")
+    void
+        given_techniqueCoveredByInjectsWithDifferentPlatforms_should_attributeEachPlatformItsInjects()
+            throws ParsingException, JsonProcessingException {
+      // Arrange
+      AttackPatternComposer.Composer sharedTechnique = persistedAttackPattern("T9105");
+      AttackPatternComposer.Composer serverTechnique = persistedAttackPattern("T9106");
+      SecurityPlatform workstationEdr =
+          persistedPlatform("Workstation EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+      SecurityPlatform ndr =
+          persistedPlatform("Attribution NDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.NDR);
+      InjectComposer.Composer workstationInject = injectCovering(sharedTechnique);
+      InjectComposer.Composer serverInject = injectCovering(sharedTechnique, serverTechnique);
+      ExerciseComposer.Composer simulation =
+          finishedSimulationCovering(
+              List.of(sharedTechnique, serverTechnique), workstationInject, serverInject);
+      answer(
+          workstationInject,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+          100.0,
+          createCollectorResult(workstationEdr, 100.0));
+      answer(
+          workstationInject,
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          100.0,
+          createCollectorResult(workstationEdr, 100.0));
+      answer(
+          serverInject,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+          0.0,
+          createCollectorResult(ndr, 0.0));
+      answer(serverInject, BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, 0.0);
+
+      // Act
+      Bundle bundle = buildBundle(simulation);
+
+      // Assert: the shared technique attributes each platform only the inject it reported on
+      RelationshipObject sharedSro = coveredObjectSro(bundle, "T9105");
+      assertCoveragePlatforms(
+          bundle,
+          sharedSro,
+          entry(workstationEdr, "PREVENTION", 100),
+          entry(workstationEdr, "DETECTION", 100),
+          entry(ndr, "DETECTION", 0));
+      assertThatJson(sharedSro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+          .isEqualTo(
+              predictCoverageFromInjects(List.of(workstationInject.get(), serverInject.get()))
+                  .toStix(mapper));
+      // the server-only technique never sees the workstation platform
+      assertCoveragePlatforms(
+          bundle, coveredObjectSro(bundle, "T9106"), entry(ndr, "DETECTION", 0));
+    }
+
+    @Test
+    @DisplayName("Existing has-covered properties are unchanged, coverage_platforms is only added")
+    void given_platformResults_should_keepEveryExistingPropertyOfTheCoveredObject()
+        throws ParsingException, JsonProcessingException {
+      // Arrange
+      AttackPatternComposer.Composer technique = persistedAttackPattern("T9107");
+      SecurityPlatform edr =
+          persistedPlatform("Attribution EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+      InjectComposer.Composer inject = injectCovering(technique);
+      ExerciseComposer.Composer simulation = finishedSimulationCovering(List.of(technique), inject);
+      answer(
+          inject,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+          100.0,
+          createCollectorResult(edr, 100.0));
+      answer(
+          inject,
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          0.0,
+          createCollectorResult(edr, 0.0));
+
+      // Act
+      Bundle bundle = buildBundle(simulation);
+
+      // Assert
+      SecurityCoverage generatedCoverage = securityCoverageComposer.generatedItems.getFirst();
+      StixRefToExternalRef ref = generatedCoverage.getAttackPatternRefs().iterator().next();
+      RelationshipObject sro = coveredObjectSro(bundle, "T9107");
+      RelationshipObject expectedLegacySro =
+          new RelationshipObject(
+              Map.of(
+                  CommonProperties.ID.toString(),
+                  new Identifier(ObjectTypes.RELATIONSHIP.toString(), UUID.randomUUID().toString()),
+                  CommonProperties.TYPE.toString(),
+                  new StixString(ObjectTypes.RELATIONSHIP.toString()),
+                  RelationshipObject.Properties.RELATIONSHIP_TYPE.toString(),
+                  new StixString("has-covered"),
+                  RelationshipObject.Properties.SOURCE_REF.toString(),
+                  new Identifier(generatedCoverage.getExternalId()),
+                  RelationshipObject.Properties.TARGET_REF.toString(),
+                  new Identifier(ref.getStixRef()),
+                  RelationshipObject.Properties.START_TIME.toString(),
+                  new Timestamp(Instant.parse("2024-09-23T14:09:43Z")),
+                  ExtendedProperties.COVERED.toString(),
+                  new io.openaev.stix.types.Boolean(true),
+                  ExtendedProperties.COVERAGE.toString(),
+                  predictCoverageFromInjects(List.of(inject.get()))));
+      assertThatJson(sro.toStix(mapper))
+          .whenIgnoringPaths(
+              CommonProperties.ID.toString(),
+              CommonProperties.EXTERNAL_URI.toString(),
+              RelationshipObject.Properties.STOP_TIME.toString(),
+              ExtendedProperties.COVERAGE_PLATFORMS.toString())
+          .isEqualTo(expectedLegacySro.toStix(mapper));
+      assertThat(sro.hasProperty(ExtendedProperties.COVERAGE_PLATFORMS.toString())).isTrue();
+      // the main coverage object is untouched
+      assertThat(
+              bundle
+                  .findById(new Identifier(generatedCoverage.getExternalId()))
+                  .hasProperty(ExtendedProperties.COVERAGE_PLATFORMS.toString()))
+          .isFalse();
+    }
   }
 
   private List<DomainObject> getExpectedPlatformIdentities() {
