@@ -121,6 +121,12 @@ public class IocValidationService {
         .orElseThrow(() -> new ElementNotFoundException("IOC validation not found"));
   }
 
+  private IocValidation lockedIocValidation(@NotBlank final String id) {
+    return iocValidationRepository
+        .findByIdForUpdate(id)
+        .orElseThrow(() -> new ElementNotFoundException("IOC validation not found"));
+  }
+
   // -- CREATE --
 
   /**
@@ -193,7 +199,7 @@ public class IocValidationService {
   @Transactional(rollbackFor = Exception.class)
   public IocValidation approve(TxCtx ctx, @NotBlank final String id, @NotNull final User decider) {
     String tenantId = singleTenant(ctx);
-    IocValidation validation = iocValidation(id);
+    IocValidation validation = lockedIocValidation(id);
     requireAwaitingApproval(validation);
 
     IocValidationSettings settings = settingsService.settings(tenantId);
@@ -278,7 +284,7 @@ public class IocValidationService {
   public IocValidation reject(
       TxCtx ctx, @NotBlank final String id, final String reason, @NotNull final User decider) {
     singleTenant(ctx);
-    IocValidation validation = iocValidation(id);
+    IocValidation validation = lockedIocValidation(id);
     requireAwaitingApproval(validation);
     Instant now = Instant.now();
     String trimmedReason = reason == null ? "" : reason.trim();

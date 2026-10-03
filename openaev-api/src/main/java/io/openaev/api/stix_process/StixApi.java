@@ -178,10 +178,10 @@ public class StixApi extends RestBehavior {
           entityId,
           workId,
           e);
+      // Internal details stay in the server log: OpenCTI only learns that recording failed.
       openCTIService.acknowledgeProcessedOfIocValidation(
           workId,
-          "An error occurred while recording the IOC validation request: %s"
-              .formatted(e.getMessage()),
+          "An error occurred while recording the IOC validation request, see the OpenAEV logs",
           true,
           tenantId);
       throw e;
