@@ -60,9 +60,10 @@ public class XtmOneEntitlementService {
    * @param answer the registration answer, or {@code null} when XTM One gave none
    * @param platformId the platform id sent in the registration request
    * @param instanceCreationDate this instance's creation date, or {@code null} when unknown
-   * @param ownLicenseValidated whether this platform's own Enterprise Edition license validated: an
-   *     XTM One that predates the certificate then explains its {@code ee_enabled} with that
-   *     license, and there is nothing to warn about
+   * @param ownLicenseActive whether this platform's own Enterprise Edition license grants it now,
+   *     as the gates decide (an expired trial still reads as validated): an XTM One that predates
+   *     the certificate then explains its {@code ee_enabled} with that license, and there is
+   *     nothing to warn about
    * @return whether the license in force changed (granted, renewed, ended or lapsed since the
    *     previous answer), so that the Enterprise Edition decision can be refreshed
    */
@@ -70,9 +71,9 @@ public class XtmOneEntitlementService {
       Map<String, Object> answer,
       String platformId,
       Instant instanceCreationDate,
-      boolean ownLicenseValidated) {
+      boolean ownLicenseActive) {
     if (answer != null) {
-      apply(answer, platformId, instanceCreationDate, ownLicenseValidated);
+      apply(answer, platformId, instanceCreationDate, ownLicenseActive);
     }
     XtmLicense active = activeLicense().orElse(null);
     boolean changed = !Objects.equals(active, lastActive);
@@ -84,7 +85,7 @@ public class XtmOneEntitlementService {
       Map<String, Object> answer,
       String platformId,
       Instant instanceCreationDate,
-      boolean ownLicenseValidated) {
+      boolean ownLicenseActive) {
     XtmLicense previous = license;
     if (answer.get(XTM_LICENSE_PEM) instanceof String pem && !pem.isBlank()) {
       verify(pem, platformId, instanceCreationDate, previous);
@@ -99,7 +100,7 @@ public class XtmOneEntitlementService {
                 + " through XTM One.");
         return;
       }
-    } else if (Boolean.TRUE.equals(answer.get(EE_ENABLED)) && !ownLicenseValidated) {
+    } else if (Boolean.TRUE.equals(answer.get(EE_ENABLED)) && !ownLicenseActive) {
       warn(
           "[XTM One] XTM One reports ee_enabled=true but returned no Filigran-signed license"
               + " certificate (xtm_license_pem): ee_enabled is advisory and never grants Enterprise"

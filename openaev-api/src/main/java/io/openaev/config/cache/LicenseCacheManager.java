@@ -53,7 +53,7 @@ public class LicenseCacheManager {
     return xtmOneEntitlementService
         .activeLicense()
         .map(xtmLicense -> xtmLicense.toLicense(Instant.now()))
-        .orElseGet(() -> own.isLicenseValidated() ? noLongerGranting(own) : own);
+        .orElseGet(() -> own != null && own.isLicenseValidated() ? noLongerGranting(own) : own);
   }
 
   /** Whether Enterprise Edition is in force now, as every gate decides it. */

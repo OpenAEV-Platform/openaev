@@ -80,7 +80,7 @@ public class Pem {
    * XTM_CA_PEM} in XTM One's {@code backend/app/enterprise/xtm_ca.py}; certificate SHA-256
    * 43:6E:0B:82:14:0F:43:CA:0E:15:3F:1B:27:AC:E3:B3:88:F1:9F:24:BC:6C:36:6E:C1:24:91:87:45:BC:40:64,
    * SubjectPublicKeyInfo SHA-256 9ef09cc6ab116344afd1a47ae5b777842b8c44fae78d223440d19bb7bc7d84ec.
-   * Only its RSA public key is used, its own validity dates included.
+   * Only its RSA public key is used, as in XTM One: its own validity dates are not checked.
    */
   private static final String XTM_CA_PEM =
       "-----BEGIN CERTIFICATE-----\n"

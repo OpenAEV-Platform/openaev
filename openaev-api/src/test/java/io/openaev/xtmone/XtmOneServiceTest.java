@@ -20,6 +20,7 @@ import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.settings.TenantSettingsService;
 import java.lang.reflect.Method;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -182,14 +183,16 @@ class XtmOneServiceTest {
   }
 
   @Test
-  @DisplayName("Given a validated own license should tell the XTM One entitlement about it")
-  void given_validatedOwnLicense_should_tellTheEntitlement() {
+  @DisplayName("Given an active own license should tell the XTM One entitlement about it")
+  void given_activeOwnLicense_should_tellTheEntitlement() {
     // -- ARRANGE --
     arrangeConfigured("OpenAEV");
     License license = new License();
     license.setLicenseValidated(true);
     license.setType(LicenseTypeEnum.standard);
+    license.setExpirationDate(Instant.now().plus(100, ChronoUnit.DAYS));
     when(eeService.getEnterpriseEditionInfo()).thenReturn(license);
+    when(eeService.isLicenseActive(license)).thenCallRealMethod();
     Map<String, Object> answer = Map.of("ee_enabled", true);
     when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
         .thenReturn(answer);
@@ -199,5 +202,28 @@ class XtmOneServiceTest {
 
     // -- ASSERT --
     verify(entitlementService).onRegistrationAnswer(answer, "platform-instance-id", null, true);
+  }
+
+  @Test
+  @DisplayName("Given an expired own trial license should tell the entitlement it does not grant")
+  void given_expiredOwnTrialLicense_should_tellTheEntitlementItDoesNotGrant() {
+    // -- ARRANGE --
+    // A trial has no grace period: its parse keeps it validated once expired, the gate refuses it.
+    arrangeConfigured("OpenAEV");
+    License license = new License();
+    license.setLicenseValidated(true);
+    license.setType(LicenseTypeEnum.trial);
+    license.setExpirationDate(Instant.now().minus(1, ChronoUnit.DAYS));
+    when(eeService.getEnterpriseEditionInfo()).thenReturn(license);
+    when(eeService.isLicenseActive(license)).thenCallRealMethod();
+    Map<String, Object> answer = Map.of("ee_enabled", true);
+    when(client.register(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(answer);
+
+    // -- ACT --
+    xtmOneService.autoRegister();
+
+    // -- ASSERT --
+    verify(entitlementService).onRegistrationAnswer(answer, "platform-instance-id", null, false);
   }
 }

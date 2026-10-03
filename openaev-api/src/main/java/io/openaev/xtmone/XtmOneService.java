@@ -92,12 +92,12 @@ public class XtmOneService {
         // CE platform or NFR — certificate not available as PEM
       }
 
-      boolean ownLicenseValidated = false;
+      boolean ownLicenseActive = false;
       String licenseType = null;
       try {
         var license = eeService.getEnterpriseEditionInfo();
-        ownLicenseValidated = license != null && license.isLicenseValidated();
-        if (ownLicenseValidated) {
+        ownLicenseActive = license != null && eeService.isLicenseActive(license);
+        if (license != null && license.isLicenseValidated()) {
           licenseType =
               license.getType() != null ? license.getType().name().toLowerCase() : "enterprise";
         }
@@ -139,7 +139,7 @@ public class XtmOneService {
           result,
           platformId,
           platformSettingsService.findInstanceCreationDate().orElse(null),
-          ownLicenseValidated)) {
+          ownLicenseActive)) {
         licenseCacheManager.refreshAndNotify();
       }
       if (result != null) {
