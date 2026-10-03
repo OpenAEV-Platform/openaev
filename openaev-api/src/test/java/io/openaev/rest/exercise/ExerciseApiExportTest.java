@@ -44,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 class ExerciseApiExportTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private ArticleComposer articleComposer;
@@ -89,9 +90,10 @@ class ExerciseApiExportTest extends IntegrationTest {
     tagComposer.reset();
     exerciseComposer.reset();
     payloadComposer.reset();
-    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        channelInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        challengeInjectorIntegrationFactory, TenantContext.getCurrentTenant());
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {

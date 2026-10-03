@@ -50,6 +50,7 @@ import org.springframework.util.CollectionUtils;
 public class InjectorContractFixture {
 
   @Autowired private InjectorContractRepository injectorContractRepository;
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
@@ -60,7 +61,8 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      builtinConnectorRegistration.register(
+          emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
       return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -73,7 +75,8 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      builtinConnectorRegistration.register(
+          emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
       return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -415,7 +418,8 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      builtinConnectorRegistration.register(
+          manualInjectorIntegrationFactory, TenantContext.getCurrentTenant());
       return injectorContractRepository.findById(MANUAL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
