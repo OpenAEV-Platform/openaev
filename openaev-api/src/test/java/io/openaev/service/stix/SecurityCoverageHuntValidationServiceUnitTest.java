@@ -12,10 +12,10 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.AttackPattern;
@@ -36,8 +36,6 @@ import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SecurityCoverageHuntValidationRepository;
 import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
-import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.opencti.errors.ConnectorUnavailableError;
@@ -55,7 +53,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 import org.apache.hc.client5.http.ClientProtocolException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -622,10 +619,11 @@ class SecurityCoverageHuntValidationServiceUnitTest {
     }
 
     @Test
-    @DisplayName("given OpenCTI unreachable should stop the batch at the first failure")
+    @DisplayName("given OpenCTI unreachable should stop calling and postpone the rest of the batch")
     void given_unreachable_should_stopTheBatch() throws Exception {
       // Arrange
       when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
+          .thenReturn(huntValidation(1, 1))
           .thenThrow(new ClientProtocolException("Connection refused"));
 
       // Act
@@ -635,8 +633,31 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       // Assert
       assertThat(outcomes)
           .containsExactly(
+              new HuntValidationOutcome("1", HuntValidationOutcome.Kind.VALIDATED, 1, 1, null),
               new HuntValidationOutcome(
-                  "1", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused"));
+                  "2", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused"),
+              new HuntValidationOutcome(
+                  "3", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused"));
+      verify(openCTIConnectorService, times(2)).validateHuntFromEmulation(any(), any(), any());
+      verify(resultsMetricCollector).recordCoverageHuntValidationsSent(1L);
+    }
+
+    @Test
+    @DisplayName("given OpenCTI unreachable from the first call should send nothing")
+    void given_unreachableFromFirstCall_should_sendNothing() throws Exception {
+      // Arrange
+      when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
+          .thenThrow(new ClientProtocolException("Connection refused"));
+
+      // Act
+      List<HuntValidationOutcome> outcomes =
+          service.send(TENANT_ID, List.of(request("1"), request("2")));
+
+      // Assert
+      assertThat(outcomes)
+          .extracting(HuntValidationOutcome::kind)
+          .containsOnly(HuntValidationOutcome.Kind.UNREACHABLE)
+          .hasSize(2);
       verify(openCTIConnectorService, times(1)).validateHuntFromEmulation(any(), any(), any());
       verify(resultsMetricCollector).recordCoverageHuntValidationsSent(0L);
     }
@@ -661,6 +682,12 @@ class SecurityCoverageHuntValidationServiceUnitTest {
                   HuntValidationOutcome.Kind.UNREACHABLE,
                   null,
                   null,
+                  "connector hasn't registered yet"),
+              new HuntValidationOutcome(
+                  "2",
+                  HuntValidationOutcome.Kind.UNREACHABLE,
+                  null,
+                  null,
                   "connector hasn't registered yet"));
       verify(openCTIConnectorService, times(1)).validateHuntFromEmulation(any(), any(), any());
     }
@@ -677,6 +704,80 @@ class SecurityCoverageHuntValidationServiceUnitTest {
           .hasMessageContaining("must not run inside a transaction");
       verify(openCTIConnectorService, never()).validateHuntFromEmulation(any(), any(), any());
       verify(resultsMetricCollector, never()).recordCoverageHuntValidationsSent(anyLong());
+    }
+  }
+
+  @Nested
+  @DisplayName("Collecting due validations")
+  class CollectingDueValidations {
+
+    private static final Instant NOW = Instant.parse("2026-10-03T11:00:00Z");
+
+    @BeforeEach
+    void setUp() {
+      insideTransaction();
+    }
+
+    private void givenDue(SecurityCoverageHuntValidation... validations) {
+      List<SecurityCoverageHuntValidation> due = List.of(validations);
+      when(huntValidationRepository
+              .findByStatusAndNextAttemptAtLessThanEqualOrderByNextAttemptAtAsc(
+                  eq(Status.PENDING), eq(NOW), any()))
+          .thenReturn(due);
+    }
+
+    @Test
+    @DisplayName("given fresh due validations should return them without writing")
+    void given_freshDueValidations_should_returnThem() {
+      // Arrange
+      SecurityCoverageHuntValidation fresh = pendingValidation("1", 0);
+      fresh.setCreatedAt(NOW.minus(Duration.ofHours(1)));
+      givenDue(fresh);
+
+      // Act
+      List<HuntValidationRequest> requests = service.collectDueRequests(NOW);
+
+      // Assert
+      assertThat(requests).extracting(HuntValidationRequest::id).containsExactly("1");
+      verify(huntValidationRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given a due validation past the maximum age should give it up before sending")
+    void given_expiredDueValidation_should_giveUpBeforeSending() {
+      // Arrange
+      SecurityCoverageHuntValidation expired = pendingValidation("1", 2);
+      expired.setCreatedAt(NOW.minus(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE));
+      expired.setLastError("Connection refused");
+      SecurityCoverageHuntValidation fresh = pendingValidation("2", 0);
+      fresh.setCreatedAt(NOW.minus(Duration.ofHours(1)));
+      givenDue(expired, fresh);
+
+      // Act
+      List<HuntValidationRequest> requests = service.collectDueRequests(NOW);
+
+      // Assert
+      assertThat(requests).extracting(HuntValidationRequest::id).containsExactly("2");
+      assertThat(expired.getStatus()).isEqualTo(Status.FAILED);
+      assertThat(expired.getAttempts()).isEqualTo(2);
+      assertThat(expired.getLastError())
+          .startsWith(
+              "Not delivered within " + SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE)
+          .endsWith("last error: Connection refused");
+      assertThat(fresh.getStatus()).isEqualTo(Status.PENDING);
+      verify(huntValidationRepository).saveAll(List.of(expired));
+    }
+
+    @Test
+    @DisplayName("given no transaction should refuse to read the tenant-active table")
+    void given_noTransaction_should_refuse() {
+      // Arrange
+      TransactionSynchronizationManager.setActualTransactionActive(false);
+
+      // Act + Assert
+      assertThatThrownBy(() -> service.collectDueRequests(NOW))
+          .isInstanceOf(IllegalStateException.class);
+      verifyNoInteractions(huntValidationRepository);
     }
   }
 
@@ -898,8 +999,8 @@ class SecurityCoverageHuntValidationServiceUnitTest {
   }
 
   @Nested
-  @DisplayName("Configuration and tenants")
-  class ConfigurationAndTenants {
+  @DisplayName("Configuration")
+  class Configuration {
 
     @Test
     @DisplayName("given the default configuration should be disabled")
@@ -916,32 +1017,6 @@ class SecurityCoverageHuntValidationServiceUnitTest {
 
       // Act + Assert
       assertThat(service.isEnabled()).isTrue();
-    }
-
-    @Test
-    @DisplayName(
-        "given registered connectors should list the distinct tenants of the coverage ones")
-    void given_registeredConnectors_should_listDistinctTenants() {
-      // Arrange
-      Function<String, ConnectorBase> coverageConnectorOf =
-          tenant -> {
-            SecurityCoverageConnector connector = new SecurityCoverageConnector();
-            connector.setTenantId(tenant);
-            return connector;
-          };
-      ConnectorBase otherConnector = org.mockito.Mockito.mock(ConnectorBase.class);
-      lenient().when(otherConnector.getTenantId()).thenReturn("c");
-      List<ConnectorBase> connectors =
-          List.of(
-              coverageConnectorOf.apply("a"),
-              coverageConnectorOf.apply(null),
-              otherConnector,
-              coverageConnectorOf.apply("b"),
-              coverageConnectorOf.apply("a"));
-      when(openCTIConnectorService.getRegisterConnectors()).thenReturn(connectors);
-
-      // Act + Assert
-      assertThat(service.tenantsWithRegisteredConnector()).containsExactly("a", "b");
     }
   }
 }

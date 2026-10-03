@@ -178,7 +178,7 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
   }
 
   private List<HuntValidationRequest> dueRequestsOf(String injectId) {
-    return huntValidationService.findDueRequests(Instant.now()).stream()
+    return huntValidationService.collectDueRequests(Instant.now()).stream()
         .filter(request -> request.injectId().equals(injectId))
         .toList();
   }
@@ -398,6 +398,51 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
           .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS);
       assertThat(validation.getLastError()).isEqualTo("Enterprise edition is not enabled");
       assertThat(dueRequestsOf(seeded.injectId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given a due validation older than the maximum age should give it up unsent")
+    void given_dueValidationPastMaxAge_should_giveUpUnsent() {
+      // Arrange
+      Seeded seeded =
+          seedFinishedSimulation(
+              platform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR),
+              ExecutionStatus.EXECUTED,
+              100.0,
+              1);
+      huntValidationService.planForSimulation(seeded.simulationId());
+      entityManager.flush();
+      entityManager
+          .createNativeQuery(
+              "UPDATE security_coverage_hunt_validations"
+                  + " SET security_coverage_hunt_validation_created_at = :createdAt"
+                  + " WHERE security_coverage_hunt_validation_inject_id = :injectId")
+          .setParameter(
+              "createdAt",
+              java.sql.Timestamp.from(
+                  Instant.now()
+                      .minus(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE)
+                      .minusSeconds(60)))
+          .setParameter("injectId", seeded.injectId())
+          .executeUpdate();
+      entityManager.clear();
+
+      // Act
+      List<HuntValidationRequest> due = dueRequestsOf(seeded.injectId());
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertThat(due).isEmpty();
+      assertThat(validationsOf(seeded.injectId()))
+          .singleElement()
+          .satisfies(
+              validation -> {
+                assertThat(validation.getStatus()).isEqualTo(Status.FAILED);
+                assertThat(validation.getAttempts()).isZero();
+                assertThat(validation.getValidatedAt()).isNull();
+                assertThat(validation.getLastError()).startsWith("Not delivered within");
+              });
     }
   }
 

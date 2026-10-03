@@ -149,7 +149,7 @@ Once an inject emulating an ATT&CK technique has a computed verdict from a secur
 | openaev.security-coverage.hunt-validation.request-timeout | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_REQUEST-TIMEOUT | `PT30S`       | ISO-8601 bound of the connect, the TLS handshake and every read of one OpenCTI call.                                           |
 | openaev.security-coverage.hunt-validation.batch-size      | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_BATCH-SIZE      | `50`          | Maximum number of validations sent per tenant by one run of the delivery job, which runs every minute.                         |
 | openaev.security-coverage.hunt-validation.max-attempts    | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_MAX-ATTEMPTS    | `5`           | Attempts OpenCTI refuses before a validation is given up, retried after 5, 10, 20, 40... minutes (at most 6 hours). An unreachable or rate-limiting OpenCTI postpones the validation by 5 minutes without counting an attempt. |
-| openaev.security-coverage.hunt-validation.max-age         | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_MAX-AGE         | `P7D`         | ISO-8601 duration after which a validation still not delivered since it was planned is given up, even when the attempts are not used up (an OpenCTI outage included). |
+| openaev.security-coverage.hunt-validation.max-age         | OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_MAX-AGE         | `P7D`         | ISO-8601 duration after which a validation still not delivered since it was planned is given up without being sent, even when the attempts are not used up (an OpenCTI outage or an unregistered connector included). |
 
 #### XTM Suite: XTM Hub
 

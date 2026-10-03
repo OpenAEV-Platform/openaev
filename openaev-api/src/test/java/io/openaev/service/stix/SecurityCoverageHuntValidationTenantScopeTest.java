@@ -21,8 +21,8 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SecurityCoverageHuntValidationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
-import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.opencti.errors.ConnectorUnavailableError;
 import io.openaev.scheduler.jobs.SecurityCoverageHuntValidationJob;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationOutcome;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationRequest;
@@ -182,7 +182,7 @@ class SecurityCoverageHuntValidationTenantScopeTest extends IntegrationTest {
 
       // Act
       List<HuntValidationRequest> due =
-          inTenant(tenantA, () -> huntValidationService.findDueRequests(Instant.now()));
+          inTenant(tenantA, () -> huntValidationService.collectDueRequests(Instant.now()));
 
       // Assert
       assertThat(rawCount(idA, idB)).isEqualTo(2L);
@@ -200,7 +200,7 @@ class SecurityCoverageHuntValidationTenantScopeTest extends IntegrationTest {
       // Act: a raw TransactionTemplate opens a transaction carrying no TxCtx at all.
       List<HuntValidationRequest> due =
           new TransactionTemplate(transactionManager)
-              .execute(status -> huntValidationService.findDueRequests(Instant.now()));
+              .execute(status -> huntValidationService.collectDueRequests(Instant.now()));
 
       // Assert
       assertThat(rawCount(idA, idB)).isEqualTo(2L);
@@ -245,12 +245,6 @@ class SecurityCoverageHuntValidationTenantScopeTest extends IntegrationTest {
       Map<String, SecurityCoverageHuntValidation> seeded = seedOneValidationPerTenant();
       SecurityCoverageHuntValidation validationA = seeded.get(tenantA);
       SecurityCoverageHuntValidation validationB = seeded.get(tenantB);
-      SecurityCoverageConnector connectorA = new SecurityCoverageConnector();
-      connectorA.setTenantId(tenantA);
-      SecurityCoverageConnector connectorB = new SecurityCoverageConnector();
-      connectorB.setTenantId(tenantB);
-      when(openCTIConnectorService.getRegisterConnectors())
-          .thenReturn(List.of(connectorA, connectorB));
       ValidateHuntFromEmulation.HuntValidation accepted =
           new ValidateHuntFromEmulation.HuntValidation();
       accepted.setHuntsCount(1);
@@ -278,6 +272,42 @@ class SecurityCoverageHuntValidationTenantScopeTest extends IntegrationTest {
               any(Duration.class));
       assertThat(rawRow(validationA.getId()).get("status")).isEqualTo("VALIDATED");
       assertThat(rawRow(validationB.getId()).get("status")).isEqualTo("VALIDATED");
+    }
+
+    @Test
+    @DisplayName("given a tenant whose connector is not registered should postpone its validations")
+    void given_connectorNotRegistered_should_postponeTenantValidations() throws Exception {
+      // Arrange
+      Map<String, SecurityCoverageHuntValidation> seeded = seedOneValidationPerTenant();
+      SecurityCoverageHuntValidation validationA = seeded.get(tenantA);
+      SecurityCoverageHuntValidation validationB = seeded.get(tenantB);
+      ValidateHuntFromEmulation.HuntValidation accepted =
+          new ValidateHuntFromEmulation.HuntValidation();
+      accepted.setHuntsCount(1);
+      when(openCTIConnectorService.validateHuntFromEmulation(anyString(), any(), any()))
+          .thenReturn(accepted);
+      when(openCTIConnectorService.validateHuntFromEmulation(eq(tenantB), any(), any()))
+          .thenThrow(new ConnectorUnavailableError("connector hasn't registered yet"));
+      Instant before = Instant.now();
+
+      // Act
+      huntValidationJob.execute(null);
+
+      // Assert
+      assertThat(rawRow(validationA.getId()).get("status")).isEqualTo("VALIDATED");
+      Map<String, Object> rowB = rawRow(validationB.getId());
+      assertThat(rowB.get("status")).isEqualTo("PENDING");
+      assertThat(((Number) rowB.get("attempts")).intValue()).isZero();
+      Instant nextAttemptB =
+          jdbcTemplate
+              .queryForObject(
+                  "SELECT security_coverage_hunt_validation_next_attempt_at"
+                      + " FROM security_coverage_hunt_validations"
+                      + " WHERE security_coverage_hunt_validation_id = ?",
+                  java.sql.Timestamp.class,
+                  validationB.getId())
+              .toInstant();
+      assertThat(nextAttemptB).isAfter(before);
     }
   }
 }

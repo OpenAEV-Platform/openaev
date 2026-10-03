@@ -61,13 +61,12 @@ public class V6_20261003120000000__Add_security_coverage_hunt_validations
           "CREATE INDEX IF NOT EXISTS idx_security_coverage_hunt_validations_security_platform"
               + " ON security_coverage_hunt_validations"
               + " (security_coverage_hunt_validation_security_platform_id)");
+      // Polling cursor of the delivery job, which always reads within one tenant: due PENDING rows,
+      // oldest first. Its leading column also serves the tenant foreign key.
       statement.execute(
-          "CREATE INDEX IF NOT EXISTS idx_security_coverage_hunt_validations_tenant"
-              + " ON security_coverage_hunt_validations (tenant_id)");
-      // Polling cursor of the delivery job: due PENDING rows, oldest first.
-      statement.execute(
-          "CREATE INDEX IF NOT EXISTS idx_security_coverage_hunt_validations_due"
-              + " ON security_coverage_hunt_validations (security_coverage_hunt_validation_status,"
+          "CREATE INDEX IF NOT EXISTS idx_security_coverage_hunt_validations_tenant_due"
+              + " ON security_coverage_hunt_validations (tenant_id,"
+              + " security_coverage_hunt_validation_status,"
               + " security_coverage_hunt_validation_next_attempt_at)");
     }
   }

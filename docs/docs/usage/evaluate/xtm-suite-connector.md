@@ -121,8 +121,8 @@ See the [configuration reference](../../deployment/configuration.md#xtm-suite-op
 A hunt validation never blocks the simulation results: they are pushed to OpenCTI first, and the validations are sent by a separate job, at most 50 per tenant and per run by default.
 
 - When OpenCTI refuses a validation (Enterprise Edition not enabled, unknown technique or security platform, OpenCTI version without hunts), OpenAEV logs one warning per tenant and per run, and retries after 5, 10, 20 and 40 minutes before giving the validation up (5 attempts by default).
-- When OpenCTI cannot be reached, answers a server error, rate limits the call, or the tenant's OpenCTI connector is not registered, the job stops sending for that tenant until its next run (every minute) and postpones the validation by 5 minutes without counting an attempt: an outage does not use up the attempts.
-- A validation still not delivered 7 days after it was planned (the maximum age) is given up, whatever the reason, so no outage keeps it retried forever.
+- When OpenCTI cannot be reached, answers a server error, rate limits the call, or the tenant's OpenCTI connector is not registered, the job stops sending for that tenant and postpones the validations of the run by 5 minutes without counting an attempt: an outage does not use up the attempts.
+- A validation still not delivered 7 days after it was planned (the maximum age) is given up before it is sent, whatever the reason, so no outage keeps it retried forever and OpenCTI never receives a stale validation.
 
 ## Example workflow
 

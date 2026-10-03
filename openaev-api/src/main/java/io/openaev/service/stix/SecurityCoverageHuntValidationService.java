@@ -16,8 +16,6 @@ import io.openaev.database.model.SecurityCoverageHuntValidation.Status;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.SecurityCoverageHuntValidationRepository;
 import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
-import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -32,7 +30,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -58,8 +55,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *   <li>{@link #planForSimulation}: the security coverage job, right after the simulation coverage
  *       was pushed, plans one row per new (inject, technique, security platform) triple. DB only,
  *       inside the caller's tenant-scoped transaction.
- *   <li>{@link #findDueRequests} then {@link #send}: the delivery job reads the due rows in a short
- *       transaction, then calls OpenCTI with no transaction open.
+ *   <li>{@link #collectDueRequests} then {@link #send}: the delivery job reads the due rows in a
+ *       short transaction (giving up those older than the maximum age), then calls OpenCTI with no
+ *       transaction open.
  *   <li>{@link #recordOutcomes}: the delivery job records each outcome in a second short
  *       transaction; a refused delivery is retried with an exponential backoff until the attempts
  *       run out, one that could not reach OpenCTI is postponed, and both are given up once older
@@ -112,39 +110,43 @@ public class SecurityCoverageHuntValidationService {
     return config.isEnabled();
   }
 
-  // -- LIST --
-
-  /**
-   * The tenants whose Security Coverage connector is registered: the only ones a delivery can
-   * reach, the others keep their validations due until their connector registers.
-   *
-   * @return the distinct tenant ids
-   */
-  public List<String> tenantsWithRegisteredConnector() {
-    return openCTIConnectorService.getRegisterConnectors().stream()
-        .filter(SecurityCoverageConnector.class::isInstance)
-        .map(ConnectorBase::getTenantId)
-        .filter(Objects::nonNull)
-        .distinct()
-        .toList();
-  }
+  // -- UPDATE --
 
   /**
    * The validations of the current tenant scope due for delivery, oldest first and bounded by the
    * batch size, materialized so they can be sent once the transaction is closed.
    *
+   * <p>A due validation older than the maximum age is given up here, before any OpenCTI call, so it
+   * is never sent late. Every pending validation becomes due within {@link #RETRY_MAX_DELAY}, so
+   * this check reaches all of them.
+   *
    * <p>Must run inside a tenant-scoped transaction: the table is tenant-active, an unscoped read
    * returns nothing.
    *
    * @param now the delivery time
-   * @return the due validations
+   * @return the due validations still worth sending
    */
-  public List<HuntValidationRequest> findDueRequests(Instant now) {
-    requireActiveTransaction("findDueRequests");
-    return huntValidationRepository
-        .findByStatusAndNextAttemptAtLessThanEqualOrderByNextAttemptAtAsc(
-            Status.PENDING, now, PageRequest.of(0, config.getBatchSize()))
-        .stream()
+  public List<HuntValidationRequest> collectDueRequests(Instant now) {
+    requireActiveTransaction("collectDueRequests");
+    List<SecurityCoverageHuntValidation> due =
+        huntValidationRepository.findByStatusAndNextAttemptAtLessThanEqualOrderByNextAttemptAtAsc(
+            Status.PENDING, now, PageRequest.of(0, config.getBatchSize()));
+    List<SecurityCoverageHuntValidation> expired =
+        due.stream().filter(validation -> isExpired(validation, now)).toList();
+    if (!expired.isEmpty()) {
+      String reason = "Not delivered within " + config.getMaxAge();
+      for (SecurityCoverageHuntValidation validation : expired) {
+        validation.setStatus(Status.FAILED);
+        validation.setLastError(
+            validation.getLastError() == null
+                ? reason
+                : StringUtils.abbreviate(
+                    reason + "; last error: " + validation.getLastError(), MAX_ERROR_LENGTH));
+      }
+      huntValidationRepository.saveAll(expired);
+    }
+    return due.stream()
+        .filter(validation -> !isExpired(validation, now))
         .map(HuntValidationRequest::from)
         .toList();
   }
@@ -234,12 +236,13 @@ public class SecurityCoverageHuntValidationService {
    * through the tenant's security coverage connector and bounded by the request timeout.
    *
    * <p>Must run with no transaction open, so that no pooled connection waits on OpenCTI. Stops at
-   * the first call that cannot reach OpenCTI: the rest of the batch is left untouched and stays due
-   * for the next run, instead of burning one attempt per row against a host that is down.
+   * the first call that cannot reach OpenCTI (or whose connector is not registered): that request
+   * and the rest of the batch are reported unreachable without being sent, so they are postponed
+   * without costing an attempt instead of hammering a host that is down.
    *
    * @param tenantId the tenant whose OpenCTI connection is used
-   * @param requests the due validations, from {@link #findDueRequests}
-   * @return one outcome per request that was actually sent
+   * @param requests the due validations, from {@link #collectDueRequests}
+   * @return one outcome per request
    */
   public List<HuntValidationOutcome> send(String tenantId, List<HuntValidationRequest> requests) {
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -248,7 +251,8 @@ public class SecurityCoverageHuntValidationService {
               + " be held for the whole HTTP call");
     }
     List<HuntValidationOutcome> outcomes = new ArrayList<>();
-    for (HuntValidationRequest request : requests) {
+    for (int index = 0; index < requests.size(); index++) {
+      HuntValidationRequest request = requests.get(index);
       try {
         ValidateHuntFromEmulation.HuntValidation validation =
             openCTIConnectorService.validateHuntFromEmulation(
@@ -265,7 +269,11 @@ public class SecurityCoverageHuntValidationService {
             request.injectId(),
             request.securityPlatformName());
       } catch (IOException e) {
-        outcomes.add(HuntValidationOutcome.unreachable(request.id(), describe(e)));
+        String error = describe(e);
+        requests
+            .subList(index, requests.size())
+            .forEach(
+                pending -> outcomes.add(HuntValidationOutcome.unreachable(pending.id(), error)));
         break;
       } catch (ConnectorError | RuntimeException e) {
         outcomes.add(HuntValidationOutcome.refused(request.id(), describe(e)));
