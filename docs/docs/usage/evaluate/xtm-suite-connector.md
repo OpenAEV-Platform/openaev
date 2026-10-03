@@ -67,15 +67,15 @@ OPENAEV_XTM_OPENCTI_{id}_TOKEN=<your-opencti-api-token>
 
 After updating the configuration, restart the OpenAEV platform for the changes to take effect.
 
-#### Step 3: Verify the connector in OpenCTI
+#### Step 3: How to check the OpenAEV - OpenCTI connection
 
-The connector is now up and running and should be visible in OpenCTI as **OpenAEV Coverage**.
+To confirm the connector is running correctly you should see **OpenAEV Coverage** in OpenCTI > Data > Ingestion > Monitoring view.
 
 ![Active OpenAEV Coverage connector in OpenCTI](../assets/active_openaev_connector_in_opencti.png)
 
 ### Trigger security coverage enrichments from OpenCTI
 
-Once the connector appears in OpenCTI, you can trigger it to run security coverage enrichments. Refer to the [OpenCTI documentation](https://docs.opencti.io/latest/) for how to trigger the enabled connector to get automated enriched security posture assessments with OpenAEV.
+Once the connector appears in OpenCTI, you can trigger it to run security coverage enrichments. Refer to the [OpenCTI Security Coverage documentation](https://docs.opencti.io/latest/usage/security-coverage/) for how to trigger the enabled connector to get automated enriched security posture assessments with OpenAEV.
 
 ## Example workflow
 
