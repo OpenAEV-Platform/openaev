@@ -23,6 +23,10 @@ export const fetchIocValidationSettings = () => {
   return simpleCall(`${IOC_VALIDATION_URI}/settings`);
 };
 
+export const searchIocValidationAssetGroupOptions = (searchText: string = '') => {
+  return simpleCall(`${IOC_VALIDATION_URI}/settings/asset-group-options`, { params: { searchText } });
+};
+
 export const updateIocValidationSettings = (data: IocValidationSettingsInput) => {
   return simplePutCall(`${IOC_VALIDATION_URI}/settings`, data);
 };

@@ -18,6 +18,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.ioc_validation.dto.IocValidationSettingsInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.stix.IocValidationBundleParser;
@@ -30,6 +31,7 @@ import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -399,6 +401,85 @@ class IocValidationApiTest extends IntegrationTest {
           .containsExactlyInAnyOrder("DNS_RESOLUTION", "HTTP_HEAD", "NETWORK_TRAFFIC");
       assertThat((String) JsonPath.read(response, "$.ioc_validation_sinkhole_address"))
           .isEqualTo("192.0.2.10");
+    }
+
+    private AssetGroup persistAssetGroup(String name) {
+      return persistAssetGroup(tenantId, name);
+    }
+
+    private AssetGroup persistAssetGroup(String tenant, String name) {
+      TenantContext.setCurrentTenant(tenant);
+      try {
+        return assetGroupComposer
+            .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup(name))
+            .persist()
+            .get();
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+
+    private String assetGroupOptions(String tenant, String searchText) throws Exception {
+      return mvc.perform(
+              get(TENANT_IOC_VALIDATION_URI + "/settings/asset-group-options", tenant)
+                  .param("searchText", searchText))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("lists the asset groups by name, the configured one first")
+    void given_assetGroups_should_listThemConfiguredFirst() throws Exception {
+      AssetGroup configured = persistAssetGroup("Configured targets");
+      AssetGroup matching = persistAssetGroup("IOC validation targets");
+      persistAssetGroup("Unrelated group");
+      mvc.perform(
+              putSettings(
+                  mapper.writeValueAsString(
+                      new IocValidationSettingsInput(
+                          List.of(IocValidationTestKind.DNS_RESOLUTION),
+                          "",
+                          "",
+                          443,
+                          configured.getId()))))
+          .andExpect(status().isOk());
+
+      String response = assetGroupOptions(tenantId, "validation");
+
+      assertThat((List<String>) JsonPath.read(response, "$[*].id"))
+          .containsExactly(configured.getId(), matching.getId());
+      assertThat((String) JsonPath.read(response, "$[1].label"))
+          .isEqualTo("IOC validation targets");
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("lists the asset groups with the settings access only")
+    void given_settingsAccessOnly_should_listAssetGroups() throws Exception {
+      otherTenantId =
+          tenantHelper
+              .createTenantWithCapabilities(
+                  "ioc-validation-" + UUID.randomUUID(), Set.of(Capability.ACCESS_TENANT_SETTINGS))
+              .getId();
+      AssetGroup group = persistAssetGroup(otherTenantId, "IOC validation targets");
+
+      String response = assetGroupOptions(otherTenantId, "");
+
+      assertThat((List<String>) JsonPath.read(response, "$[*].id")).contains(group.getId());
+    }
+
+    @Test
+    @DisplayName("does not list the asset groups of another tenant")
+    void given_otherTenant_should_notListAssetGroups() throws Exception {
+      AssetGroup group = persistAssetGroup("IOC validation targets");
+      otherTenantId =
+          tenantHelper.createTenantWithCurrentUser("ioc-validation-" + UUID.randomUUID()).getId();
+
+      String response = assetGroupOptions(otherTenantId, "");
+
+      assertThat((List<String>) JsonPath.read(response, "$[*].id")).doesNotContain(group.getId());
     }
   }
 

@@ -5,8 +5,11 @@ import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { searchAssetGroupAsOption } from '../../../../actions/asset_groups/assetgroup-action';
-import { fetchIocValidationSettings, updateIocValidationSettings } from '../../../../actions/ioc_validations/ioc-validation-actions';
+import {
+  fetchIocValidationSettings,
+  searchIocValidationAssetGroupOptions,
+  updateIocValidationSettings,
+} from '../../../../actions/ioc_validations/ioc-validation-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
@@ -265,7 +268,7 @@ const IocValidationSettings = () => {
 
   useEffect(() => {
     fetchIocValidationSettings().then((result: { data: IocValidationSettingsOutput }) => setSettings(result.data));
-    searchAssetGroupAsOption('').then((result: { data: AssetGroupOption[] }) => setAssetGroups(result.data ?? []));
+    searchIocValidationAssetGroupOptions('').then((result: { data: AssetGroupOption[] }) => setAssetGroups(result.data ?? []));
   }, []);
 
   if (!settings) {

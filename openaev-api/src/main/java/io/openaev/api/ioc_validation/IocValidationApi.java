@@ -22,6 +22,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.UserService;
 import io.openaev.service.stix.IocValidationService;
 import io.openaev.service.stix.IocValidationSettingsService;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -29,6 +30,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +40,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -102,6 +105,21 @@ public class IocValidationApi extends RestBehavior {
         settingsService.settings(tenantId),
         iocValidationService.isOpenCtiConfigured(tenantId),
         iocValidationService.isIocValidationConnectorRegistered(tenantId));
+  }
+
+  @GetMapping("/settings/asset-group-options")
+  @Transactional(readOnly = true)
+  @LogExecutionTime
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
+  @Operation(
+      summary = "List the asset groups the IOC validation tests can run on",
+      description =
+          "Readable with the tenant settings access, so configuring the validation does not need"
+              + " the asset group search capability. The configured group comes first.")
+  public List<FilterUtilsJpa.Option> iocValidationAssetGroupOptions(
+      @RequireTenantSelector TxCtx ctx, @RequestParam(required = false) final String searchText) {
+    return settingsService.assetGroupOptions(
+        writeScopeResolver.tenantForWrite(ctx, null), searchText);
   }
 
   // -- UPDATE --
