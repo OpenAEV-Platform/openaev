@@ -37,6 +37,12 @@ describe('AtomicTestingsTabs', () => {
     expect(screen.getByRole('tab', { name: 'Atomic testings' }).getAttribute('aria-current')).toBeNull();
   });
 
+  it('keeps the IOC validations tab current on an IOC validation detail page', () => {
+    renderTabs('/admin/atomic_testings/ioc_validations/2c9a7d4e-0000-4000-8000-000000000001');
+    expect(screen.getByRole('tab', { name: 'IOC validations' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('tab', { name: 'Atomic testings' }).getAttribute('aria-current')).toBeNull();
+  });
+
   it('hides the IOC validations tab without access to assessments', () => {
     renderTabs('/admin/atomic_testings', false);
     expect(screen.queryByRole('tab', { name: 'IOC validations' })).toBeNull();

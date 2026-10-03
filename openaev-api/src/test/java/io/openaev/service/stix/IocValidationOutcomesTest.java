@@ -118,17 +118,17 @@ class IocValidationOutcomesTest {
     }
 
     @Test
-    @DisplayName("results of another security platform never count")
-    void given_resultsOfAnotherPlatform_should_beMissed() {
+    @DisplayName("results of another security platform never count nor decide the pair")
+    void given_resultsOfAnotherPlatform_should_waitThenBeMissed() {
+      List<BaseInjectExpectation> expectations =
+          List.of(
+              expectation(
+                  new DetectionInjectExpectation(), 100.0, result(OTHER_PLATFORM_ID, 100.0)),
+              expectation(
+                  new PreventionInjectExpectation(), 100.0, result(OTHER_PLATFORM_ID, 100.0)));
+      assertThat(IocValidationOutcomes.evaluate(expectations, PLATFORM_ID, false)).isEmpty();
       Optional<IocValidationOutcomes.Evaluation> evaluation =
-          IocValidationOutcomes.evaluate(
-              List.of(
-                  expectation(
-                      new DetectionInjectExpectation(), 100.0, result(OTHER_PLATFORM_ID, 100.0)),
-                  expectation(
-                      new PreventionInjectExpectation(), 100.0, result(OTHER_PLATFORM_ID, 100.0))),
-              PLATFORM_ID,
-              false);
+          IocValidationOutcomes.evaluate(expectations, PLATFORM_ID, true);
       assertThat(evaluation)
           .map(IocValidationOutcomes.Evaluation::outcome)
           .contains(IocValidationOutcome.MISSED);

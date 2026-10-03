@@ -583,7 +583,7 @@ public class IocValidationService {
         validation.getIocs().stream()
             .flatMap(ioc -> ioc.getInjectIds().stream())
             .collect(Collectors.toSet());
-    return injectExpectationService.findPrimaryExpectationsByInjectIds(injectIds).stream()
+    return injectExpectationService.findTechnicalLeafExpectationsByInjectIds(injectIds).stream()
         .filter(expectation -> expectation.getInject() != null)
         .collect(Collectors.groupingBy(expectation -> expectation.getInject().getId()));
   }

@@ -439,6 +439,18 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findAllForGlobalScoreByInjects(
       @Param("injectIds") Set<String> injectIds);
 
+  // Leaf technical rows (agents, and assets without agent rows): collectors write their per-source
+  // results there, asset and asset group parents only receive the rolled-up scores.
+  @Query(
+      value =
+          "select i from InjectExpectation i where i.inject.id in :injectIds"
+              + " and i.user is null and i.team is null"
+              + " and (i.agent is not null or (i.asset is not null and not exists"
+              + "   (select c.id from InjectExpectation c where c.inject.id = i.inject.id"
+              + "     and c.asset.id = i.asset.id and c.agent is not null)))")
+  List<BaseInjectExpectation> findAllTechnicalLeavesByInjects(
+      @Param("injectIds") Set<String> injectIds);
+
   // -- INDEXING --
 
   @Query(

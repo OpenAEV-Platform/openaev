@@ -206,15 +206,16 @@ public class InjectExpectationService {
   }
 
   /**
-   * The primary expectations (the ones attached to the inject's own targets, not the per-agent
-   * children) of the given injects, in one query. Same selection as the global score computation.
+   * The leaf technical expectations (agents, and assets without agent rows) of the given injects,
+   * in one query: the rows collectors write their per-source results on. Asset and asset group
+   * parents only carry rolled-up scores, so they are not returned.
    */
-  public List<BaseInjectExpectation> findPrimaryExpectationsByInjectIds(
+  public List<BaseInjectExpectation> findTechnicalLeafExpectationsByInjectIds(
       @NotNull final Set<String> injectIds) {
     if (injectIds.isEmpty()) {
       return List.of();
     }
-    return this.injectExpectationRepository.findAllForGlobalScoreByInjects(injectIds);
+    return this.injectExpectationRepository.findAllTechnicalLeavesByInjects(injectIds);
   }
 
   // -- UPDATE FROM UI --

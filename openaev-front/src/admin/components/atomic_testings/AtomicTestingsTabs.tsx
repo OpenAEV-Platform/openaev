@@ -14,7 +14,8 @@ const AtomicTestingsTabs = () => {
   const location = useLocation();
   const ability = useContext(AbilityContext);
 
-  const tabValue = location.pathname;
+  const onIocValidations = location.pathname === IOC_VALIDATION_BASE_URL || location.pathname.startsWith(`${IOC_VALIDATION_BASE_URL}/`);
+  const tabValue = onIocValidations ? IOC_VALIDATION_BASE_URL : ATOMIC_TESTINGS_BASE_URL;
   const current = (path: string) => (tabValue === path ? 'page' : undefined);
 
   // Route-based tabs: the panels are the routed pages, so every tab is a real link.

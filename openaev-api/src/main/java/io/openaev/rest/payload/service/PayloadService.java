@@ -666,6 +666,9 @@ public class PayloadService {
       TxCtx ctx, IocValidationTestKind kind, String executor) {
     String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     String payloadId = iocValidationPayloadId(kind, executor, writeTenant);
+    UUID payloadUuid = UUID.fromString(payloadId);
+    payloadRepository.lockPayloadCreation(
+        payloadUuid.getMostSignificantBits() ^ payloadUuid.getLeastSignificantBits());
     return payloadRepository
         .findById(payloadId)
         .map(Command.class::cast)
@@ -680,7 +683,6 @@ public class PayloadService {
         .toString();
   }
 
-  @Lock(type = LockResourceType.PAYLOAD, key = "#tenantId")
   private Command createIocValidationCommandPayload(
       TxCtx ctx, IocValidationTestKind kind, String executor, String tenantId) {
     boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
@@ -820,7 +822,9 @@ public class PayloadService {
               + port
               + "; fi; true";
       case HTTP_HEAD ->
-          "curl -sS -I -o /dev/null --connect-timeout 5 --max-time 10 --proxy "
+          // --noproxy '' overrides NO_PROXY / no_proxy: the request never bypasses the egress
+          // proxy.
+          "curl -sS -I -o /dev/null --connect-timeout 5 --max-time 10 --noproxy '' --proxy "
               + proxy
               + " "
               + url

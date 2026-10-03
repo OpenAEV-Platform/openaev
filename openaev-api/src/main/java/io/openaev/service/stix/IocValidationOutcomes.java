@@ -15,12 +15,14 @@ import java.util.Optional;
  * Turns the expectations of the injects built for one indicator into the outcome of one (indicator,
  * security platform) pair. Pure: the caller loads the expectations, this class only reads them.
  *
- * <p>Only the results reported by the pair's security platform count ({@code sourceId} equals its
- * asset id), the same filter the security coverage uses per platform. Precedence: {@link
- * IocValidationOutcome#PREVENTED} over {@link IocValidationOutcome#DETECTED} over {@link
- * IocValidationOutcome#MISSED}. A pair is decided as soon as it is prevented (nothing can outrank
- * it); otherwise only once every relevant expectation is evaluated or expired, so a detection is
- * never reported while a prevention could still arrive.
+ * <p>Only the results reported for the pair's security platform count: {@code sourceAssetId} equals
+ * its asset id ({@code sourceId} names the collector), falling back to {@code sourceId} for results
+ * entered for the platform itself. Precedence: {@link IocValidationOutcome#PREVENTED} over {@link
+ * IocValidationOutcome#DETECTED} over {@link IocValidationOutcome#MISSED}. A pair is decided as
+ * soon as it is prevented (nothing can outrank it); otherwise only once the platform's own results
+ * of every relevant expectation are scored (an expiration scores them too), so a detection is never
+ * reported while a prevention could still arrive. The expectation score is shared by every platform
+ * of a multi-platform request and never decides a pair before the simulation ends.
  */
 public final class IocValidationOutcomes {
 
@@ -32,7 +34,8 @@ public final class IocValidationOutcomes {
   /**
    * Evaluates one pair.
    *
-   * @param expectations primary expectations of every inject built for the pair's indicator
+   * @param expectations leaf technical expectations (agents, agentless assets) of every inject
+   *     built for the pair's indicator: the rows carrying the collectors' per-source results
    * @param securityPlatformId the OpenAEV security platform asset matched for the pair
    * @param finalizing whether the simulation is over: pending expectations are then decided
    * @return the evaluation, or empty while the pair cannot be decided yet
@@ -60,14 +63,20 @@ public final class IocValidationOutcomes {
       return Optional.of(new Evaluation(IocValidationOutcome.PREVENTED, null));
     }
     boolean allEvaluated =
-        relevant.stream().allMatch(expectation -> expectation.getScore() != null);
+        relevant.stream().allMatch(expectation -> evaluatedFor(expectation, securityPlatformId));
     if (!allEvaluated && !finalizing) {
       return Optional.empty();
     }
     if (succeeded(relevant, EXPECTATION_TYPE.DETECTION, securityPlatformId)) {
       return Optional.of(new Evaluation(IocValidationOutcome.DETECTED, null));
     }
-    if (!allEvaluated) {
+    boolean windowClosed =
+        relevant.stream()
+            .allMatch(
+                expectation ->
+                    evaluatedFor(expectation, securityPlatformId)
+                        || expectation.getScore() != null);
+    if (!windowClosed) {
       return Optional.of(
           new Evaluation(
               IocValidationOutcome.ERROR,
@@ -110,6 +119,12 @@ public final class IocValidationOutcomes {
             expectation ->
                 platformResults(expectation, securityPlatformId).stream()
                     .anyMatch(result -> isSuccess(result, expectation)));
+  }
+
+  private static boolean evaluatedFor(
+      BaseInjectExpectation expectation, String securityPlatformId) {
+    return platformResults(expectation, securityPlatformId).stream()
+        .anyMatch(result -> result.getScore() != null);
   }
 
   private static List<InjectExpectationResult> platformResults(
