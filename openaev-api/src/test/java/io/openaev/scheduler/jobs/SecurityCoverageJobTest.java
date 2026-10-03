@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
@@ -186,10 +185,11 @@ class SecurityCoverageJobTest {
     }
 
     @Test
-    @DisplayName("given the planning fails should still consume the pushed job")
-    void given_planningFails_should_stillConsumePushedJob() throws Exception {
+    @DisplayName("given the planning fails should push the bundle but keep the job pending")
+    void given_planningFails_should_pushButKeepJobPending() throws Exception {
       // Arrange
-      givenRegisteredConnectorAndBuiltBundle(org.mockito.Mockito.mock(Bundle.class));
+      Bundle bundle = org.mockito.Mockito.mock(Bundle.class);
+      givenRegisteredConnectorAndBuiltBundle(bundle);
       when(huntValidationService.isEnabled()).thenReturn(true);
       when(huntValidationService.planForSimulation(SIMULATION_ID))
           .thenThrow(new IllegalStateException("database hiccup"));
@@ -198,7 +198,8 @@ class SecurityCoverageJobTest {
       job.execute(null);
 
       // Assert
-      verify(securityCoverageSendJobService).consumeJobs(argThat(jobs -> jobs.size() == 1));
+      verify(openCTIConnectorService).pushSecurityCoverageStixBundle(eq(bundle), eq(TENANT_ID));
+      verify(securityCoverageSendJobService, never()).consumeJobs(anyList());
     }
 
     @Test

@@ -88,8 +88,9 @@ public class SecurityCoverageJob implements Job {
             securityCoverageSendJob.getId(),
             tenantId);
         openCTIConnectorService.pushSecurityCoverageStixBundle(resultBundle, tenantId);
-        successfulJobs.add(securityCoverageSendJob);
-        planHuntValidations(tenantId, securityCoverageSendJob);
+        if (planHuntValidations(tenantId, securityCoverageSendJob)) {
+          successfulJobs.add(securityCoverageSendJob);
+        }
       } catch (Exception e) {
         // don't crash the job; getSimulation() can be null (that very case throws above)
         if (e instanceof ConnectorError
@@ -139,13 +140,18 @@ public class SecurityCoverageJob implements Job {
   /**
    * Plans the OpenCTI hunt validations of a simulation whose coverage was just pushed, so the
    * has-covered relationships they enrich exist on the OpenCTI side first. Database only (the
-   * delivery runs in {@link SecurityCoverageHuntValidationJob}), and a failure here never affects
-   * the coverage push or the consumption of the send job.
+   * delivery runs in {@link SecurityCoverageHuntValidationJob}).
+   *
+   * <p>A failure never affects the coverage push, but keeps the send job pending: its next run
+   * pushes the (idempotent) bundle again and retries the planning, which is the only trigger left
+   * once the simulation has finished.
+   *
+   * @return whether the send job can be consumed
    */
-  private void planHuntValidations(
+  private boolean planHuntValidations(
       String tenantId, SecurityCoverageSendJob securityCoverageSendJob) {
     if (!huntValidationService.isEnabled()) {
-      return;
+      return true;
     }
     String simulationId = securityCoverageSendJob.getSimulation().getId();
     try {
@@ -160,12 +166,15 @@ public class SecurityCoverageJob implements Job {
             simulationId,
             tenantId);
       }
+      return true;
     } catch (Exception e) {
       log.warn(
-          "Could not plan the OpenCTI hunt validations of simulation {} for tenant {}: {}",
+          "Could not plan the OpenCTI hunt validations of simulation {} for tenant {}, its"
+              + " security coverage job stays pending to retry: {}",
           simulationId,
           tenantId,
           e.getMessage());
+      return false;
     }
   }
 
