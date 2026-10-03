@@ -13,7 +13,8 @@ when adding or renaming a shared label.
 
 Every commit, pull request and issue title follows the
 [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
-specification, with a GitHub issue reference appended:
+specification. Pull request titles append a GitHub issue reference unless the
+related issue is in a private repository:
 
 ```
 type(scope?)!?: description (#issue)
@@ -30,9 +31,12 @@ type(scope?)!?: description (#issue)
 - `description` **starts with a lowercase letter** and has **no trailing period**.
   Preserve acronyms and proper nouns: `OpenCTI`, `OpenAEV`, `XTM One`, `OpenGRC`,
   `STIX`, `LLM`, `Docker`, `Redis`.
-- `(#issue)` is a **required reference on pull request titles** (the PR title
-  becomes the squash-merge commit, so the reference lands on `master`/`main`).
-  Issue titles omit it (the issue *is* the reference).
+- `(#issue)` is a **required reference on pull request titles** when the related
+  issue is public (the PR title becomes the squash-merge commit, so the
+  reference lands on `master`/`main`). Issue titles omit it (the issue *is* the
+  reference). Pull requests tracked by an issue in a private repository also
+  omit it: never expose a private issue reference in a public pull request; link
+  the public pull request from the private issue instead.
 
 Enforcement is preventive and lives at the organization (enterprise) level; the
 [`FiligranHQ/filigran-ci-tools` `pr-title-check`](https://github.com/FiligranHQ/filigran-ci-tools/tree/main/actions/pr-title-check)
@@ -120,7 +124,8 @@ taxonomy stands out consistently across every Filigran repository.
 ## 6. Quick checklist for a new issue / PR
 
 - [ ] Title follows `type(scope?)!?: description` (lowercase, no trailing period)
-- [ ] Pull request titles end with the `(#issue)` reference
+- [ ] Pull request titles end with the `(#issue)` reference, unless the related
+      issue is in a private repository
 - [ ] **Issues only:** exactly one primary type label (`feature` / `bug` /
       `documentation`) matches the title prefix, and the GitHub **Type** field
       (Feature / Bug / Task) is set to match
@@ -129,4 +134,5 @@ taxonomy stands out consistently across every Filigran repository.
       and **no other label** (type, area/scope and workflow labels are issue-only)
 - [ ] Issues: area labels added where useful
 - [ ] No deprecated labels
-- [ ] Commits are signed and the PR is linked to an issue
+- [ ] Commits are signed and the PR is linked to a public issue, or the public PR
+      is linked from its related private issue
