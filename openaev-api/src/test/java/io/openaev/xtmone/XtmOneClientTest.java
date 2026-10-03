@@ -30,10 +30,15 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Nested;
@@ -100,15 +105,34 @@ class XtmOneClientTest {
    */
   private ArgumentCaptor<Object> mockExchange(int statusCode) throws Exception {
     ArgumentCaptor<Object> requestCaptor = ArgumentCaptor.forClass(Object.class);
-    when(httpClient.execute(
-            (ClassicHttpRequest) requestCaptor.capture(), any(HttpClientResponseHandler.class)))
+    // A chat relay passes its timeout in a context (relayChatRequest), the other calls on the
+    // request: both forms answer, whichever the call under test uses.
+    lenient()
+        .when(
+            httpClient.execute(
+                (ClassicHttpRequest) requestCaptor.capture(), any(HttpClientResponseHandler.class)))
         .thenAnswer(
             invocation -> {
               HttpClientResponseHandler<?> handler = invocation.getArgument(1);
               return handler.handleResponse(answer(statusCode, "{}"));
             });
+    lenient()
+        .when(
+            httpClient.execute(
+                (ClassicHttpRequest) requestCaptor.capture(),
+                contextCaptor.capture(),
+                any(HttpClientResponseHandler.class)))
+        .thenAnswer(
+            invocation -> {
+              HttpClientResponseHandler<?> handler = invocation.getArgument(2);
+              return handler.handleResponse(answer(statusCode, "{}"));
+            });
     return requestCaptor;
   }
+
+  /** The context of the last chat relay, captured by {@link #mockExchange}. */
+  private final ArgumentCaptor<HttpContext> contextCaptor =
+      ArgumentCaptor.forClass(HttpContext.class);
 
   /** Every chat call relaying XTM One's answer, by name. */
   static Stream<Arguments> relayingCalls() {
@@ -303,7 +327,15 @@ class XtmOneClientTest {
     void given_connectionFails_should_throwInternalServerError(
         Function<XtmOneClient, XtmOneClient.RelayedResponse> call) throws Exception {
       configureClientLeniently();
-      when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
+      lenient()
+          .when(httpClient.execute(any(), any(HttpClientResponseHandler.class)))
+          .thenThrow(new IOException("Connection refused"));
+      lenient()
+          .when(
+              httpClient.execute(
+                  any(ClassicHttpRequest.class),
+                  any(HttpContext.class),
+                  any(HttpClientResponseHandler.class)))
           .thenThrow(new IOException("Connection refused"));
 
       ResponseStatusException ex =
@@ -743,6 +775,35 @@ class XtmOneClientTest {
       ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
       assertEquals("POST", request.getMethod());
       assertTrue(request.getUri().toString().endsWith("/api/v1/platform/chat/workspaces"));
+    }
+
+    @Test
+    @DisplayName(
+        "Given a body should send it as JSON with the chat headers and a 10 second response timeout")
+    void given_body_should_sendJsonWithHeadersAndTimeout() throws Exception {
+      // -- ARRANGE --
+      configureClientCommon();
+      ArgumentCaptor<Object> requestCaptor = mockExchange(201);
+      when(objectMapper.writeValueAsString(any())).thenReturn("{\"name\":\"Red team\"}");
+      when(objectMapper.readTree(anyString())).thenReturn(JsonNodeFactory.instance.objectNode());
+
+      // -- ACT --
+      xtmOneClient.createChatWorkspace(Map.of("name", "Red team"));
+
+      // -- ASSERT --
+      ClassicHttpRequest request = (ClassicHttpRequest) requestCaptor.getValue();
+      assertEquals("POST", request.getMethod());
+      assertEquals("{\"name\":\"Red team\"}", EntityUtils.toString(request.getEntity()));
+      assertEquals(
+          ContentType.APPLICATION_JSON.getMimeType(),
+          ContentType.parse(request.getEntity().getContentType()).getMimeType());
+      assertEquals(1, request.getHeaders("Authorization").length);
+      assertEquals("openaev", request.getFirstHeader("X-Platform-Product").getValue());
+      assertEquals(
+          Timeout.ofSeconds(10),
+          HttpClientContext.castOrCreate(contextCaptor.getValue())
+              .getRequestConfig()
+              .getResponseTimeout());
     }
 
     @Test
