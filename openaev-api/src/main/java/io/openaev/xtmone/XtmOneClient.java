@@ -40,11 +40,14 @@ import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpMessage;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -408,12 +411,20 @@ public class XtmOneClient {
       String jwt = issueJwtForCurrentUser();
       HttpUriRequestBase request = method.apply(config.getUrl() + path);
       addChatHeaders(request, jwt);
-      if (body != null) {
-        request.setEntity(
-            new StringEntity(objectMapper.writeValueAsString(body), ContentType.APPLICATION_JSON));
-      }
-      request.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
-      return httpClient.execute(request, response -> relayed(response, action));
+      // The body is added through the request builder, which copies the method, URL and headers:
+      // a request's own setEntity is also the HTTP response's, so a static analyser reads a JSON
+      // body sent to XTM One as HTML written to the browser (CodeQL java/xss). The timeout rides
+      // on the context, since the built request carries no configuration of its own.
+      ClassicHttpRequest outbound =
+          body == null
+              ? request
+              : ClassicRequestBuilder.copy(request)
+                  .setEntity(objectMapper.writeValueAsString(body), ContentType.APPLICATION_JSON)
+                  .build();
+      HttpClientContext context = HttpClientContext.create();
+      context.setRequestConfig(
+          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+      return httpClient.execute(outbound, context, response -> relayed(response, action));
     } catch (Exception e) {
       log.error("[XTM One] Error while {}: ", action, e);
       throw new ResponseStatusException(
