@@ -12,6 +12,7 @@ import io.openaev.api.ioc_validation.dto.IocValidationRejectInput;
 import io.openaev.api.ioc_validation.dto.IocValidationSettingsInput;
 import io.openaev.api.ioc_validation.dto.IocValidationSettingsOutput;
 import io.openaev.api.ioc_validation.dto.IocValidationSimpleOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -95,7 +96,7 @@ public class IocValidationApi extends RestBehavior {
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Get the IOC validation safety settings")
-  public IocValidationSettingsOutput iocValidationSettings(TxCtx ctx) {
+  public IocValidationSettingsOutput iocValidationSettings(@RequireTenantSelector TxCtx ctx) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return toSettingsOutput(
         settingsService.settings(tenantId),
@@ -125,7 +126,7 @@ public class IocValidationApi extends RestBehavior {
     @ApiResponse(responseCode = "404", description = "IOC validation not found")
   })
   public IocValidationOutput approveIocValidation(
-      TxCtx ctx, @PathVariable @NotBlank final String iocValidationId) {
+      @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String iocValidationId) {
     return toOutput(iocValidationService.approve(ctx, iocValidationId, userService.currentUser()));
   }
 
@@ -145,7 +146,7 @@ public class IocValidationApi extends RestBehavior {
     @ApiResponse(responseCode = "404", description = "IOC validation not found")
   })
   public IocValidationOutput rejectIocValidation(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank final String iocValidationId,
       @RequestBody @Valid final IocValidationRejectInput input) {
     return toOutput(
@@ -163,7 +164,7 @@ public class IocValidationApi extends RestBehavior {
     @ApiResponse(responseCode = "400", description = "A value is unsafe or inconsistent")
   })
   public IocValidationSettingsOutput updateIocValidationSettings(
-      TxCtx ctx, @RequestBody @Valid final IocValidationSettingsInput input)
+      @RequireTenantSelector TxCtx ctx, @RequestBody @Valid final IocValidationSettingsInput input)
       throws InputValidationException {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return toSettingsOutput(
