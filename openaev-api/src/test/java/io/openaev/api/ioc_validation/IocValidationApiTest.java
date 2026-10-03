@@ -385,20 +385,75 @@ class IocValidationApiTest extends IntegrationTest {
       assertThat(runOf(firstInject)).matches("[0-9a-f]{32}");
       assertThat(commandOf(payloadId)).contains("openaev-ioc-validation-");
 
-      // A payload still carrying an earlier template is brought back to the current one
+      // A payload still carrying an earlier template (command, cleanup, arguments without the run
+      // and an injector contract without its field) is brought back to the current one
       jdbc.update(
-          "UPDATE payloads SET command_content = ?, payload_cleanup_command = ?"
-              + " WHERE payload_id = ?",
+          "UPDATE payloads SET command_content = ?, payload_cleanup_command = ?,"
+              + " payload_arguments = ?::jsonb WHERE payload_id = ?",
           "Set-Content -Path (Join-Path ([System.IO.Path]::GetTempPath()) #{"
               + IOC_VALIDATION_FILE_NAME_KEY
               + "}) -Value 'legacy'",
           "Remove-Item -Force -Path legacy",
+          "[{\"type\":\"text\",\"key\":\""
+              + IOC_VALIDATION_FILE_NAME_KEY
+              + "\",\"default_value\":\"benign.txt\"}]",
           payloadId);
+      jdbc.update(
+          "UPDATE injectors_contracts SET injector_contract_content = ?"
+              + " WHERE injector_contract_payload = ?",
+          withoutRunField(contractContentOf(payloadId)),
+          payloadId);
+      assertThat(argumentKeysOf(payloadId)).doesNotContain(IOC_VALIDATION_RUN_KEY);
+      assertThat(contractFieldKeysOf(payloadId)).doesNotContain(IOC_VALIDATION_RUN_KEY);
+
       String secondInject = approveFileDrop();
 
       assertThat(payloadOf(secondInject)).isEqualTo(payloadId);
       assertThat(commandOf(payloadId)).contains("openaev-ioc-validation-");
+      assertThat(argumentKeysOf(payloadId))
+          .contains(IOC_VALIDATION_FILE_NAME_KEY, IOC_VALIDATION_RUN_KEY);
+      assertThat(contractFieldKeysOf(payloadId)).contains(IOC_VALIDATION_RUN_KEY);
       assertThat(runOf(secondInject)).isNotEqualTo(runOf(firstInject));
+    }
+
+    private String contractContentOf(String payloadId) {
+      return jdbc.queryForObject(
+          "SELECT injector_contract_content FROM injectors_contracts"
+              + " WHERE injector_contract_payload = ?",
+          String.class,
+          payloadId);
+    }
+
+    private List<String> contractFieldKeysOf(String payloadId) throws Exception {
+      List<String> keys = new ArrayList<>();
+      mapper
+          .readTree(contractContentOf(payloadId))
+          .path("fields")
+          .forEach(field -> keys.add(field.path("key").asText()));
+      return keys;
+    }
+
+    private String withoutRunField(String contractContent) throws Exception {
+      ObjectNode contract = (ObjectNode) mapper.readTree(contractContent);
+      ArrayNode fields = mapper.createArrayNode();
+      contract
+          .path("fields")
+          .forEach(
+              field -> {
+                if (!IOC_VALIDATION_RUN_KEY.equals(field.path("key").asText())) {
+                  fields.add(field);
+                }
+              });
+      contract.set("fields", fields);
+      return mapper.writeValueAsString(contract);
+    }
+
+    private List<String> argumentKeysOf(String payloadId) {
+      return jdbc.queryForList(
+          "SELECT jsonb_array_elements(payload_arguments) ->> 'key' FROM payloads"
+              + " WHERE payload_id = ?",
+          String.class,
+          payloadId);
     }
 
     private String approveFileDrop() throws Exception {

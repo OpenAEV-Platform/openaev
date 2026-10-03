@@ -675,8 +675,9 @@ public class IocValidationService {
   }
 
   /**
-   * The inject content values of a plan. A file-drop inject also gets its own run id, naming the
-   * temporary directory its surrogate is written to and removed from.
+   * The inject content values of a plan. A file-drop inject also gets its own run seed, from which
+   * the server names the temporary directory its surrogate is written to and removed from (see
+   * {@link PayloadService#iocValidationExecutionContent}).
    */
   static Map<String, String> injectArguments(IocValidationPlanner.Plan plan) {
     if (plan.testKind() != IocValidationTestKind.FILE_DROP) {

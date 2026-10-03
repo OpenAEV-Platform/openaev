@@ -5,11 +5,15 @@ import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_RUN_
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Command;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.utils.command.CommandArgumentBinder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -52,6 +56,55 @@ class IocValidationCommandContentTest {
             .findFirst()
             .orElseThrow();
     assertThat(run.getDefaultValue()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("the run directory is named on the server after the inject, whatever its content")
+  void given_executionContent_should_bindTheRunToTheInject() {
+    Command payload = new Command();
+    payload.setArguments(
+        new ArrayList<>(PayloadService.iocValidationArguments(IocValidationTestKind.FILE_DROP)));
+    ObjectNode content = JsonNodeFactory.instance.objectNode();
+    content.put(IOC_VALIDATION_RUN_KEY, "0123456789abcdef0123456789abcdef");
+    content.put(IOC_VALIDATION_FILE_NAME_KEY, "invoice.pdf");
+
+    String run =
+        PayloadService.iocValidationExecutionContent(content, payload, "inject-a")
+            .get(IOC_VALIDATION_RUN_KEY)
+            .asText();
+    // Another inject whose content was given the same run
+    String copied =
+        PayloadService.iocValidationExecutionContent(content, payload, "inject-b")
+            .get(IOC_VALIDATION_RUN_KEY)
+            .asText();
+
+    assertThat(run).matches("[0-9a-f]{32}").isNotEqualTo(copied);
+    assertThat(
+            PayloadService.iocValidationExecutionContent(content, payload, "inject-a")
+                .get(IOC_VALIDATION_RUN_KEY)
+                .asText())
+        .isEqualTo(run);
+    assertThat(content.get(IOC_VALIDATION_RUN_KEY).asText())
+        .isEqualTo("0123456789abcdef0123456789abcdef");
+    assertThat(
+            PayloadService.iocValidationExecutionContent(
+                    JsonNodeFactory.instance.objectNode(), payload, "inject-a")
+                .get(IOC_VALIDATION_RUN_KEY)
+                .asText())
+        .matches("[0-9a-f]{32}");
+  }
+
+  @Test
+  @DisplayName("the other payloads are executed with their inject content unchanged")
+  void given_payloadWithoutRun_should_keepTheContent() {
+    Command payload = new Command();
+    payload.setArguments(
+        new ArrayList<>(PayloadService.iocValidationArguments(IocValidationTestKind.HTTP_HEAD)));
+    ObjectNode content = JsonNodeFactory.instance.objectNode();
+    content.put(IOC_VALIDATION_RUN_KEY, "../../escape");
+
+    assertThat(PayloadService.iocValidationExecutionContent(content, payload, "inject-a"))
+        .isSameAs(content);
   }
 
   @Test

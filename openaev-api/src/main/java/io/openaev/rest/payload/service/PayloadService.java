@@ -19,6 +19,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
@@ -56,6 +57,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
@@ -794,6 +796,40 @@ public class PayloadService {
       case DNS_RESOLUTION ->
           throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
     };
+  }
+
+  /**
+   * The inject content an IOC validation file drop is executed with. The run stored on the inject
+   * is only a seed: the run directory is named on the server after the seed and the inject id, so
+   * an inject can never address the directory of another one, whatever its content says, and its
+   * drop and its cleanup always meet in the same directory. Other payloads run with the content
+   * unchanged.
+   */
+  public static ObjectNode iocValidationExecutionContent(
+      ObjectNode content, Payload payload, String injectId) {
+    boolean bindsRun =
+        payload.getArguments() != null
+            && payload.getArguments().stream()
+                .anyMatch(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()));
+    if (!bindsRun) {
+      return content;
+    }
+    ObjectNode bound = content == null ? JsonNodeFactory.instance.objectNode() : content.deepCopy();
+    String seed =
+        content != null && content.hasNonNull(IOC_VALIDATION_RUN_KEY)
+            ? content.get(IOC_VALIDATION_RUN_KEY).asText()
+            : "";
+    bound.put(IOC_VALIDATION_RUN_KEY, iocValidationRunDirectory(injectId, seed));
+    return bound;
+  }
+
+  /** 32 lowercase hexadecimal characters, distinct per inject. */
+  static String iocValidationRunDirectory(String injectId, String seed) {
+    return UUID.nameUUIDFromBytes(
+            ("openaev-ioc-validation-run|" + injectId + "|" + seed)
+                .getBytes(StandardCharsets.UTF_8))
+        .toString()
+        .replace("-", "");
   }
 
   private static String argumentSignature(PayloadArgument argument) {
