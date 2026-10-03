@@ -3,6 +3,8 @@ package io.openaev.api.ioc_validation;
 import static io.openaev.api.ioc_validation.IocValidationApi.IOC_VALIDATION_URI;
 import static io.openaev.api.ioc_validation.IocValidationApi.TENANT_IOC_VALIDATION_URI;
 import static io.openaev.api.stix_process.StixApi.TENANT_STIX_URI;
+import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_FILE_NAME_KEY;
+import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_RUN_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -115,6 +117,11 @@ class IocValidationApiTest extends IntegrationTest {
   }
 
   private String ctiEvent(String requestId, String observableType, String value, String testKind) {
+    return ctiEvent(requestId, observableType, value, testKind, null);
+  }
+
+  private String ctiEvent(
+      String requestId, String observableType, String value, String testKind, String fileName) {
     ObjectNode request = mapper.createObjectNode();
     request.put("type", IocValidationBundleParser.REQUEST_TYPE);
     request.put("id", IocValidationBundleParser.REQUEST_TYPE + "--" + requestId);
@@ -126,6 +133,9 @@ class IocValidationApiTest extends IntegrationTest {
     ioc.put("observable_type", observableType);
     ioc.put("value", value);
     ioc.put("test_kind", testKind);
+    if (fileName != null) {
+      ioc.put("file_name", fileName);
+    }
     ObjectNode pair = request.putArray("pairs").addObject();
     pair.put("indicator_ref", INDICATOR);
     pair.put("platform_ref", PLATFORM);
@@ -348,29 +358,7 @@ class IocValidationApiTest extends IntegrationTest {
     @Test
     @DisplayName("an approval builds and launches the validation simulation")
     void given_assetGroup_should_launchSimulation() throws Exception {
-      injectorFixture.getWellKnownOaevImplantInjector();
-      AssetGroup assetGroup;
-      TenantContext.setCurrentTenant(tenantId);
-      try {
-        assetGroup =
-            assetGroupComposer
-                .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"))
-                .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
-                .persist()
-                .get();
-      } finally {
-        TenantContext.clearCurrentTenant();
-      }
-      mvc.perform(
-              putSettings(
-                  mapper.writeValueAsString(
-                      new IocValidationSettingsInput(
-                          List.of(IocValidationTestKind.DNS_RESOLUTION),
-                          "",
-                          "",
-                          443,
-                          assetGroup.getId()))))
-          .andExpect(status().isOk());
+      allowTestKindOnValidationTargets(IocValidationTestKind.DNS_RESOLUTION);
       String id = receiveDnsRequest();
 
       String response =
@@ -386,6 +374,96 @@ class IocValidationApiTest extends IntegrationTest {
       assertThat((List<String>) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_inject_ids"))
           .isNotEmpty();
     }
+
+    @Test
+    @DisplayName("a file drop runs in a directory owned by its inject, with an up-to-date payload")
+    void given_fileDrop_should_runInADirectoryOwnedByTheInject() throws Exception {
+      allowTestKindOnValidationTargets(IocValidationTestKind.FILE_DROP);
+
+      String firstInject = approveFileDrop();
+      String payloadId = payloadOf(firstInject);
+      assertThat(runOf(firstInject)).matches("[0-9a-f]{32}");
+      assertThat(commandOf(payloadId)).contains("openaev-ioc-validation-");
+
+      // A payload still carrying an earlier template is brought back to the current one
+      jdbc.update(
+          "UPDATE payloads SET command_content = ?, payload_cleanup_command = ?"
+              + " WHERE payload_id = ?",
+          "Set-Content -Path (Join-Path ([System.IO.Path]::GetTempPath()) #{"
+              + IOC_VALIDATION_FILE_NAME_KEY
+              + "}) -Value 'legacy'",
+          "Remove-Item -Force -Path legacy",
+          payloadId);
+      String secondInject = approveFileDrop();
+
+      assertThat(payloadOf(secondInject)).isEqualTo(payloadId);
+      assertThat(commandOf(payloadId)).contains("openaev-ioc-validation-");
+      assertThat(runOf(secondInject)).isNotEqualTo(runOf(firstInject));
+    }
+
+    private String approveFileDrop() throws Exception {
+      String id =
+          receive(
+              ctiEvent(
+                  UUID.randomUUID().toString(),
+                  "StixFile",
+                  "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+                  "file_drop",
+                  "invoice.pdf"));
+      String response =
+          mvc.perform(decide(id, "approve"))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      List<String> injectIds = JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_inject_ids");
+      assertThat(injectIds).hasSize(1);
+      return injectIds.get(0);
+    }
+
+    private String payloadOf(String injectId) {
+      return jdbc.queryForObject(
+          "SELECT c.injector_contract_payload FROM injects i JOIN injectors_contracts c"
+              + " ON c.injector_contract_id = i.inject_injector_contract"
+              + " AND c.tenant_id = i.tenant_id WHERE i.inject_id = ?",
+          String.class,
+          injectId);
+    }
+
+    private String runOf(String injectId) {
+      return jdbc.queryForObject(
+          "SELECT inject_content::jsonb ->> ? FROM injects WHERE inject_id = ?",
+          String.class,
+          IOC_VALIDATION_RUN_KEY,
+          injectId);
+    }
+
+    private String commandOf(String payloadId) {
+      return jdbc.queryForObject(
+          "SELECT command_content FROM payloads WHERE payload_id = ?", String.class, payloadId);
+    }
+  }
+
+  private void allowTestKindOnValidationTargets(IocValidationTestKind kind) throws Exception {
+    injectorFixture.getWellKnownOaevImplantInjector();
+    AssetGroup assetGroup;
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      assetGroup =
+          assetGroupComposer
+              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"))
+              .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+              .persist()
+              .get();
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+    mvc.perform(
+            putSettings(
+                mapper.writeValueAsString(
+                    new IocValidationSettingsInput(
+                        List.of(kind), "", "", 443, assetGroup.getId()))))
+        .andExpect(status().isOk());
   }
 
   @Nested

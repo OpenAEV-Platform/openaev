@@ -87,6 +87,8 @@ public class PayloadService {
   public static final String IOC_VALIDATION_PROXY_KEY = "ioc_validation_proxy";
   public static final String IOC_VALIDATION_VALUE_KEY = "ioc_validation_value";
   public static final String IOC_VALIDATION_FILE_NAME_KEY = "ioc_validation_file_name";
+  // Names the temporary directory the file-drop surrogate is written to, owned by one inject.
+  public static final String IOC_VALIDATION_RUN_KEY = "ioc_validation_run";
   public static final String IOC_VALIDATION_WINDOWS_EXECUTOR = "psh";
   public static final String IOC_VALIDATION_POSIX_EXECUTOR = "sh";
   private static final String IOC_VALIDATION_PAYLOAD_NAMESPACE =
@@ -672,7 +674,33 @@ public class PayloadService {
     return payloadRepository
         .findById(payloadId)
         .map(Command.class::cast)
+        .map(existing -> refreshIocValidationCommandPayload(ctx, existing, kind, executor))
         .orElseGet(() -> createIocValidationCommandPayload(ctx, kind, executor, writeTenant));
+  }
+
+  /**
+   * A payload created by an earlier version keeps running its old command: it is brought back to
+   * the current template (content, cleanup and arguments) the next time a validation uses it.
+   */
+  private Command refreshIocValidationCommandPayload(
+      TxCtx ctx, Command existing, IocValidationTestKind kind, String executor) {
+    boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
+    List<String> argumentKeys =
+        iocValidationArguments(kind).stream().map(PayloadArgument::getKey).toList();
+    List<String> existingArgumentKeys =
+        existing.getArguments() == null
+            ? List.of()
+            : existing.getArguments().stream().map(PayloadArgument::getKey).toList();
+    boolean upToDate =
+        iocValidationCommandContent(kind, windows).equals(existing.getContent())
+            && Objects.equals(
+                iocValidationCleanupCommand(kind, windows), existing.getCleanupCommand())
+            && argumentKeys.equals(existingArgumentKeys);
+    if (upToDate) {
+      return existing;
+    }
+    applyIocValidationCommandTemplate(existing, kind, executor);
+    return saveIocValidationCommandPayload(ctx, existing, existing.getTenant().getId());
   }
 
   private String iocValidationPayloadId(
@@ -690,17 +718,7 @@ public class PayloadService {
     payload.setId(iocValidationPayloadId(kind, executor, tenantId));
     payload.setTenant(new Tenant(tenantId));
     payload.setExecutor(executor);
-    payload.setContent(iocValidationCommandContent(kind, windows));
-    if (kind == IocValidationTestKind.FILE_DROP) {
-      payload.setCleanupExecutor(executor);
-      payload.setCleanupCommand(
-          windows
-              ? "Remove-Item -Force -ErrorAction SilentlyContinue -Path (Join-Path"
-                  + " ([System.IO.Path]::GetTempPath()) #{"
-                  + IOC_VALIDATION_FILE_NAME_KEY
-                  + "})"
-              : "rm -f \"${TMPDIR:-/tmp}/\"#{" + IOC_VALIDATION_FILE_NAME_KEY + "}");
-    }
+    applyIocValidationCommandTemplate(payload, kind, executor);
     payload.setName(iocValidationPayloadName(kind, executor));
     payload.setDescription(
         "Benign OpenCTI IOC validation test (" + kind.toStix() + ") run via " + executor);
@@ -713,13 +731,25 @@ public class PayloadService {
               Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
             });
     payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
-    payload.setArguments(new ArrayList<>(iocValidationArguments(kind)));
     payload.setExpectations(
         new BaseInjectExpectation.EXPECTATION_TYPE[] {
           BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
           BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
+    return saveIocValidationCommandPayload(ctx, payload, tenantId);
+  }
 
+  private void applyIocValidationCommandTemplate(
+      Command payload, IocValidationTestKind kind, String executor) {
+    boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
+    payload.setContent(iocValidationCommandContent(kind, windows));
+    String cleanup = iocValidationCleanupCommand(kind, windows);
+    payload.setCleanupExecutor(cleanup == null ? null : executor);
+    payload.setCleanupCommand(cleanup);
+    payload.setArguments(new ArrayList<>(iocValidationArguments(kind)));
+  }
+
+  private Command saveIocValidationCommandPayload(TxCtx ctx, Command payload, String tenantId) {
     Command saved = payloadRepository.save(payload);
     synchroniseInjectorContractBasedOnPayload(
         saved,
@@ -752,7 +782,10 @@ public class PayloadService {
               textArgument(IOC_VALIDATION_URL_KEY, "http://localhost"),
               textArgument(IOC_VALIDATION_PROXY_KEY, ""));
       case LOG_INJECTION -> List.of(textArgument(IOC_VALIDATION_VALUE_KEY, "benign"));
-      case FILE_DROP -> List.of(textArgument(IOC_VALIDATION_FILE_NAME_KEY, "benign.txt"));
+      case FILE_DROP ->
+          List.of(
+              textArgument(IOC_VALIDATION_FILE_NAME_KEY, "benign.txt"),
+              textArgument(IOC_VALIDATION_RUN_KEY, "manual"));
       case DNS_RESOLUTION ->
           throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
     };
@@ -769,9 +802,11 @@ public class PayloadService {
   /**
    * The benign command template per kind. Every action is read-only or writes a short marker: a TCP
    * connect-and-close (no payload), an HTTP HEAD through the configured egress proxy, one log line,
-   * or a small text file named after the IOC in the temp directory. Placeholders are bound as shell
-   * variables by {@link io.openaev.utils.command.CommandArgumentBinder}, never substituted
-   * verbatim.
+   * or a small text file named after the IOC. The file is written in a temporary directory owned by
+   * the inject ({@code openaev-ioc-validation-<run>}), never directly in the temp directory, so it
+   * can neither overwrite nor, at cleanup, delete a file of another application. Placeholders are
+   * bound as shell variables by {@link io.openaev.utils.command.CommandArgumentBinder}, never
+   * substituted verbatim.
    */
   static String iocValidationCommandContent(IocValidationTestKind kind, boolean windows) {
     String host = placeholder(IOC_VALIDATION_HOST_KEY);
@@ -803,7 +838,9 @@ public class PayloadService {
                 + " 4242) } catch { Add-Content -Path (Join-Path ([System.IO.Path]::GetTempPath())"
                 + " 'openaev-ioc-validation.log') -Value $message }";
         case FILE_DROP ->
-            "Set-Content -Path (Join-Path ([System.IO.Path]::GetTempPath()) "
+            windowsRunDirectory()
+                + "; [void][System.IO.Directory]::CreateDirectory($oaevIocDir);"
+                + " Set-Content -LiteralPath (Join-Path $oaevIocDir "
                 + fileName
                 + ") -Value 'OpenAEV IOC validation benign surrogate'";
         case DNS_RESOLUTION ->
@@ -836,12 +873,49 @@ public class PayloadService {
               + " || printf '%s\\n' \"$OAEV_IOC_MESSAGE\""
               + " >> \"${TMPDIR:-/tmp}/openaev-ioc-validation.log\"; true";
       case FILE_DROP ->
-          "printf 'OpenAEV IOC validation benign surrogate\\n' > \"${TMPDIR:-/tmp}/\""
+          posixRunDirectory()
+              + "; mkdir -p -m 700 \"$OAEV_IOC_DIR\""
+              + " && printf 'OpenAEV IOC validation benign surrogate\\n' > \"$OAEV_IOC_DIR/\""
               + fileName
               + "; true";
       case DNS_RESOLUTION ->
           throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
     };
+  }
+
+  /**
+   * The cleanup of a kind, {@code null} when the test leaves nothing behind. The file-drop cleanup
+   * removes the surrogate, then the run directory only when it is empty: it never deletes anything
+   * it did not create, even with a crafted run argument.
+   */
+  static String iocValidationCleanupCommand(IocValidationTestKind kind, boolean windows) {
+    if (kind != IocValidationTestKind.FILE_DROP) {
+      return null;
+    }
+    String fileName = placeholder(IOC_VALIDATION_FILE_NAME_KEY);
+    if (windows) {
+      return windowsRunDirectory()
+          + "; Remove-Item -LiteralPath (Join-Path $oaevIocDir "
+          + fileName
+          + ") -Force -ErrorAction SilentlyContinue;"
+          + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { }";
+    }
+    return posixRunDirectory()
+        + "; rm -f \"$OAEV_IOC_DIR/\""
+        + fileName
+        + "; rmdir \"$OAEV_IOC_DIR\" 2>/dev/null; true";
+  }
+
+  private static String windowsRunDirectory() {
+    return "$oaevIocDir = Join-Path ([System.IO.Path]::GetTempPath())"
+        + " ('openaev-ioc-validation-' + "
+        + placeholder(IOC_VALIDATION_RUN_KEY)
+        + ")";
+  }
+
+  private static String posixRunDirectory() {
+    return "OAEV_IOC_DIR=\"${TMPDIR:-/tmp}/openaev-ioc-validation-\""
+        + placeholder(IOC_VALIDATION_RUN_KEY);
   }
 
   private static String placeholder(String argumentKey) {

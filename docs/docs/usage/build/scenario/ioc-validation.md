@@ -35,7 +35,7 @@ IOC validation is designed so that nothing dangerous ever runs:
 | DNS resolution   | Domain names, host names    | Resolves the name. No connection is made to the resolved address.                              |
 | Network traffic  | IPv4 and IPv6 addresses     | Opens a TCP connection, to the sinkhole when one is set, and closes it at once without payload. |
 | HTTP HEAD request| URLs                        | Sends an HTTP HEAD request through the egress proxy. No content is downloaded.                 |
-| Benign file drop | Files and artifacts         | Writes a benign text file named after the indicator file name.                                 |
+| Benign file drop | Files and artifacts         | Writes a benign text file named after the indicator file name, in a temporary directory created for the test (`openaev-ioc-validation-<run>`), and removes both at cleanup. Files of other applications are never touched. |
 | Benign log line  | Any indicator, such as hashes | Writes a log line containing the indicator value.                                            |
 
 Each test carries a **Detection** and a **Prevention** expectation for every security platform of the request.
