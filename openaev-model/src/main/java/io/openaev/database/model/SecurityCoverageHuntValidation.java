@@ -127,7 +127,7 @@ public class SecurityCoverageHuntValidation implements TenantBase, Auditable {
   @JsonProperty("security_coverage_hunt_validation_validated_at")
   private Instant validatedAt;
 
-  @ManyToOne
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   private Tenant tenant;
