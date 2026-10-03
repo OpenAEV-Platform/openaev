@@ -23,6 +23,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.apache.hc.core5.util.Timeout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -109,6 +110,37 @@ public class OpenCTIClientTest extends IntegrationTest {
         List<Error> expectedErrors = List.of(err);
         assertThat(response.getErrors()).isEqualTo(expectedErrors);
         assertThat(response.getData()).isNull();
+      }
+    }
+
+    @Nested
+    @DisplayName("When endpoint answers without a body")
+    public class WhenEndpointAnswersWithoutABody {
+      @Test
+      @DisplayName("It returns the status of a blank body for the caller to classify")
+      public void itReturnsTheStatusOfABlankBody() throws IOException {
+        when(mockHttpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler) any()))
+            .thenReturn(getMockResponse(HttpStatus.SC_SERVICE_UNAVAILABLE, "  "));
+        Response response = client.execute(baseUrl, authToken, "fake mutation", null);
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_SERVICE_UNAVAILABLE);
+        assertThat(response.isError()).isTrue();
+        assertThat(response.getErrors().getFirst().getMessage())
+            .isEqualTo("Empty response body (HTTP 503)");
+      }
+
+      @Test
+      @DisplayName("It returns the status of a response without entity")
+      public void itReturnsTheStatusOfAResponseWithoutEntity() throws IOException {
+        when(mockHttpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler) any()))
+            .thenAnswer(
+                invocation ->
+                    ((HttpClientResponseHandler<?>) invocation.getArgument(1))
+                        .handleResponse(
+                            new BasicClassicHttpResponse(HttpStatus.SC_TOO_MANY_REQUESTS)));
+        Response response = client.execute(baseUrl, authToken, "fake mutation", null);
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_TOO_MANY_REQUESTS);
+        assertThat(response.getErrors().getFirst().getMessage())
+            .isEqualTo("Empty response body (HTTP 429)");
       }
     }
 
