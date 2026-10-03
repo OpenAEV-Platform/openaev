@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 /**
@@ -27,13 +25,20 @@ import org.hibernate.annotations.UuidGenerator;
  * landing page auto-synthesizes its own {@link InjectorContract} (a Threat Arsenal action) so a
  * phishing campaign is a normal inject targeting Teams/Players. Themed with the platform theme and
  * per-page branding; renders sanitized HTML/CSS and captures submitted credentials as Findings.
+ *
+ * <p>This entity is fully switched to v2 tenant isolation (statement inspector + {@code
+ * can_access_tenant}). Keep the v1 {@code @Filter} and {@code TenantBaseListener} removed to avoid
+ * mixed isolation/write-attribution modes; every create path stamps {@code tenant} explicitly. Its
+ * lazy {@code logoDark}/{@code logoLight}/{@code customDomain} references are serialized through
+ * {@link MonoIdSerializer}, which reads the proxy's id without initializing it, so activating
+ * {@code documents} or {@code custom_domains} does not change what this entity's own serialization
+ * does with them.
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "phishing_landing_pages")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
 public class PhishingLandingPage implements TenantBase {
 
   @Id

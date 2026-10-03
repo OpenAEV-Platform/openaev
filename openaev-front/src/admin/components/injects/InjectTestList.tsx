@@ -24,7 +24,7 @@ const useStyles = makeStyles()(() => ({
     alignItems: 'center',
   },
   bodyItem: {
-    height: 20,
+    minHeight: 20,
     fontSize: 13,
     whiteSpace: 'nowrap',
     overflow: 'hidden',

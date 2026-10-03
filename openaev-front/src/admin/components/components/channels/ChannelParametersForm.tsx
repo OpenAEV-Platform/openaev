@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -101,7 +101,7 @@ const ChannelParametersForm: FunctionComponent<Props> = ({
 
   return (
     <FormProvider {...methods}>
-      <form id="channelParametersForm" onSubmit={handleSubmit(submit)}>
+      <form noValidate id="channelParametersForm" onSubmit={handleSubmit(submit)}>
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
@@ -122,50 +122,40 @@ const ChannelParametersForm: FunctionComponent<Props> = ({
             disabled={disabled}
           />
           <TextFieldController
-            variant="standard"
             name="channel_name"
             label={t('Name')}
             required
             disabled={disabled}
           />
           <TextFieldController
-            variant="standard"
             name="channel_description"
             label={t('Subtitle')}
             required
             disabled={disabled}
           />
           <ColorPickerField
-            variant="standard"
             control={control}
             name="channel_primary_color_dark"
             label={t('Primary color (dark)')}
             disabled={disabled}
-            fullWidth
           />
           <ColorPickerField
-            variant="standard"
             control={control}
             name="channel_primary_color_light"
             label={t('Primary color (light)')}
             disabled={disabled}
-            fullWidth
           />
           <ColorPickerField
-            variant="standard"
             control={control}
             name="channel_secondary_color_dark"
             label={t('Secondary color (dark)')}
             disabled={disabled}
-            fullWidth
           />
           <ColorPickerField
-            variant="standard"
             control={control}
             name="channel_secondary_color_light"
             label={t('Secondary color (light)')}
             disabled={disabled}
-            fullWidth
           />
         </div>
         {!disabled && (
@@ -175,12 +165,7 @@ const ChannelParametersForm: FunctionComponent<Props> = ({
             marginTop: 20,
           }}
           >
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={!isDirty || isSubmitting}
-            >
+            <Button type="submit" disabled={!isDirty || isSubmitting}>
               {t('Update')}
             </Button>
           </div>

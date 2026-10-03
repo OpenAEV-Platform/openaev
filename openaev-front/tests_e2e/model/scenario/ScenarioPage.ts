@@ -63,9 +63,25 @@ class ScenarioPage {
     await this.teamAddBtn.click({ trial: true });
     await this.teamAddBtn.click();
     await expect(this.updateTeamDialog.searchField).toBeVisible();
-    await this.updateTeamDialog.searchField.clear();
-    await MuiListHelpers.searchAndSelectItemInList(this.updateTeamDialog.listContainer, existingTeamName);
+    const [searchResponse] = await Promise.all([
+      this.page.waitForResponse(response =>
+        response.request().method() === 'POST'
+        && new URL(response.url()).pathname.endsWith('/teams/search')
+        && response.request().postDataJSON()?.textSearch === existingTeamName,
+      ),
+      this.updateTeamDialog.searchField.fill(existingTeamName),
+    ]);
+    expect(searchResponse.ok()).toBeTruthy();
+    const teamRow = this.updateTeamDialog.listContainer
+      .getByRole('button')
+      .filter({ hasText: existingTeamName })
+      .first();
+    // The row owns the selection: its design-system checkbox is presentational (an aria-hidden
+    // span without the checkbox role), so the row is clicked and the box state asserted instead.
+    await teamRow.click();
+    await expect(teamRow.locator('[data-state="checked"]')).toBeVisible();
     await this.updateTeamDialog.save();
+    await expect(this.updateTeamDialog.listContainer).toBeHidden();
   }
 
   async addIndividualMailInject() {

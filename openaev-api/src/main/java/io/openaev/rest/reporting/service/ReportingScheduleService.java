@@ -17,6 +17,7 @@ import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.rest.reporting.ReportingService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.FileService;
 import io.openaev.service.UserService;
 import java.io.InputStream;
@@ -63,6 +64,7 @@ public class ReportingScheduleService {
   private final EmailService emailService;
   private final FileService fileService;
   private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedJobRunner tenantScopedJobRunner;
 
   /**
    * Fires every enabled schedule due at the current minute. Each schedule is guarded against
@@ -113,15 +115,23 @@ public class ReportingScheduleService {
     String tenantId = schedule.getTenant().getId();
     try {
       // Generations run under the owner's identity so RBAC and tenant checks apply as if the
-      // owner had requested the report manually.
+      // owner had requested the report manually. This ambient tenant is unrelated to the v2
+      // primitive below: RBAC/session lookups still read it, while every read or write of the
+      // now-active reporting_schedules/reportings/reporting_generations tables carries its own
+      // scope through TenantScopedJobRunner, which a table read via findByIdAndTenantId's own
+      // predicate needs in addition to (not instead of) that explicit predicate.
       TenantContext.setCurrentTenant(tenantId);
       userService.createUserSession(schedule.getOwner());
-      reportingScheduleLoader.markLastRun(schedule.getId(), dueMinute);
+      tenantScopedJobRunner.runInTenant(
+          tenantId, () -> reportingScheduleLoader.markLastRun(schedule.getId(), dueMinute));
       ReportingGeneration generation =
-          reportingService.requestGeneration(
-              schedule.getReporting().getId(),
-              schedule.getFormat(),
-              ReportingGenerationTrigger.SCHEDULED);
+          tenantScopedJobRunner.supplyInTenant(
+              tenantId,
+              () ->
+                  reportingService.requestGeneration(
+                      schedule.getReporting().getId(),
+                      schedule.getFormat(),
+                      ReportingGenerationTrigger.SCHEDULED));
       ReportingGeneration terminal = awaitTerminalStatus(generation.getId(), tenantId);
       if (terminal != null && ReportingGenerationStatus.SUCCESS.equals(terminal.getStatus())) {
         deliverReport(schedule, terminal);
@@ -146,14 +156,23 @@ public class ReportingScheduleService {
    * by contract): re-reads the row every {@link #POLL_INTERVAL} for up to {@link #POLL_TIMEOUT}.
    * Returns the last observed state, which may still be non-terminal on timeout, or null when the
    * row disappeared.
+   *
+   * <p>The re-read fetches the produced document with a JOIN FETCH on the now-active {@code
+   * documents} table, and {@code reporting_generations} is itself tenant-active too, so both sides
+   * of the join need the v2 primitive scope of the schedule's tenant ({@code TxCtx.forTenant}
+   * through {@link TenantScopedJobRunner}); without it the inspector fail-closes the read and the
+   * delivery is skipped with no generation found at all.
    */
-  private ReportingGeneration awaitTerminalStatus(String generationId, String tenantId) {
+  ReportingGeneration awaitTerminalStatus(String generationId, String tenantId) {
     Instant deadline = Instant.now().plus(POLL_TIMEOUT);
     while (true) {
       ReportingGeneration generation =
-          reportingGenerationRepository
-              .findWithDocumentByIdAndTenantId(generationId, tenantId)
-              .orElse(null);
+          tenantScopedJobRunner.supplyInTenant(
+              tenantId,
+              () ->
+                  reportingGenerationRepository
+                      .findWithDocumentByIdAndTenantId(generationId, tenantId)
+                      .orElse(null));
       if (generation == null || isTerminal(generation.getStatus())) {
         return generation;
       }
@@ -205,9 +224,11 @@ public class ReportingScheduleService {
       return;
     }
     byte[] fileBytes;
+    // Serve the produced document under the generation's tenant, the parent this delivery runs for.
+    String owningTenantId = generation.getTenant() == null ? null : generation.getTenant().getId();
     try (InputStream stream =
         fileService
-            .getFile(document)
+            .getFile(document, owningTenantId)
             .orElseThrow(
                 () ->
                     new IllegalStateException(

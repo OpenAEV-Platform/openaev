@@ -9,7 +9,7 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import jakarta.validation.constraints.NotNull;
-import java.util.Comparator;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,42 +57,75 @@ public class ResultUtils {
   }
 
   /**
+   * Loads the primary expectations of the given injects, the ones the global score is computed from
+   * (agent-level and player-level expectations are rolled up into them and excluded).
+   *
+   * <p>Callers computing several results over the same injects load them once with this method and
+   * pass them to {@link #computeGlobalExpectationResultsForPlatform} instead of querying once per
+   * platform.
+   *
+   * @param injectIds the set of inject IDs to load the expectations of
+   * @return the primary expectations of the injects, or an empty list if no injects are provided
+   */
+  public List<BaseInjectExpectation> findExpectationsForGlobalScore(Set<String> injectIds) {
+    if (injectIds == null || injectIds.isEmpty()) {
+      return emptyList();
+    }
+    return injectExpectationRepository.findAllForGlobalScoreByInjects(injectIds);
+  }
+
+  /**
    * Computes global expectation results filtered by a specific security platform.
    *
-   * <p>Similar to {@link #computeGlobalExpectationResults(Set)} but filters expectation results to
-   * only include those from the specified security platform. Results are cloned to avoid modifying
-   * the original expectations, and scores are recalculated based on platform-specific results.
+   * <p>Similar to {@link #computeGlobalExpectationResults(Set)} but every expectation is scored
+   * only with the results of the platform ({@link
+   * SecurityPlatformResultUtils#toSecurityPlatformView}), on detached copies so the original
+   * expectations are never modified: an expectation the platform did not report on counts as
+   * pending. Results are attributed to the platform through their source asset, see {@link
+   * SecurityPlatformResultUtils}.
    *
-   * @param injectIds the set of inject IDs to compute results for
+   * @param injectIds the set of inject IDs the expectations belong to
+   * @param expectations the primary expectations of those injects, loaded with {@link
+   *     #findExpectationsForGlobalScore(Set)}
    * @param securityPlatform the security platform to filter results by
    * @return a list of aggregated results filtered to the specified platform
    */
   public List<ExpectationResultsByType> computeGlobalExpectationResultsForPlatform(
-      Set<String> injectIds, SecurityPlatform securityPlatform) {
+      Set<String> injectIds,
+      List<BaseInjectExpectation> expectations,
+      SecurityPlatform securityPlatform) {
+    return computeGlobalExpectationResultsForPlatforms(
+        injectIds, expectations, Set.of(securityPlatform.getId()));
+  }
+
+  /**
+   * Computes global expectation results filtered by a group of security platforms, see {@link
+   * #computeGlobalExpectationResultsForPlatform}: every expectation carries the best verdict of the
+   * platforms of the group. Used for the platforms that share one STIX identity.
+   *
+   * @param injectIds the set of inject IDs the expectations belong to
+   * @param expectations the primary expectations of those injects
+   * @param securityPlatformIds the ids of the security platforms of the group
+   * @return a list of aggregated results filtered to the platforms of the group
+   */
+  public List<ExpectationResultsByType> computeGlobalExpectationResultsForPlatforms(
+      Set<String> injectIds,
+      List<BaseInjectExpectation> expectations,
+      Collection<String> securityPlatformIds) {
 
     if (injectIds == null || injectIds.isEmpty()) {
       return emptyList();
     }
 
-    List<BaseInjectExpectation> expectations =
-        injectExpectationRepository.findAllForGlobalScoreByInjects(injectIds).stream()
-            .map(BaseInjectExpectation::clone)
+    List<BaseInjectExpectation> platformViews =
+        expectations.stream()
+            .map(
+                expectation ->
+                    SecurityPlatformResultUtils.toSecurityPlatformView(
+                        expectation, securityPlatformIds))
             .toList();
-    expectations.forEach(
-        exp -> {
-          exp.setResults(
-              exp.getResults().stream()
-                  .filter(r -> r.getSourceId().equals(securityPlatform.getId()))
-                  .toList());
 
-          exp.setScore(
-              exp.getResults().stream()
-                  .max(Comparator.comparing(InjectExpectationResult::getScore))
-                  .map(InjectExpectationResult::getScore)
-                  .orElse(null));
-        });
-
-    return injectExpectationMapper.extractExpectationResultByTypes(injectIds, expectations);
+    return injectExpectationMapper.extractExpectationResultByTypes(injectIds, platformViews);
   }
 
   /**

@@ -114,7 +114,7 @@ public class ProductInventoryMetricCollector {
     metricRegistry.registerGauge(
         "challenges_total", "Number of challenges", () -> safeCount(this::countChallenges));
     metricRegistry.registerGauge(
-        "documents_total", "Number of documents", () -> safeCount(documentRepository::count));
+        "documents_total", "Number of documents", () -> safeCount(this::countDocuments));
     metricRegistry.registerGauge(
         "channels_total", "Number of media channels", () -> safeCount(this::countChannels));
     metricRegistry.registerGauge(
@@ -124,7 +124,7 @@ public class ProductInventoryMetricCollector {
         "Number of custom dashboards",
         () -> safeCount(this::countCustomDashboards));
     metricRegistry.registerGauge(
-        "reports_total", "Number of reports", () -> safeCount(reportingRepository::count));
+        "reports_total", "Number of reports", () -> safeCount(this::countReportings));
     metricRegistry.registerGauge(
         "mappers_total", "Number of XLS import mappers", () -> safeCount(this::countImportMappers));
     metricRegistry.registerGauge(
@@ -140,7 +140,7 @@ public class ProductInventoryMetricCollector {
     metricRegistry.registerGauge(
         "vulnerabilities_total",
         "Number of vulnerabilities",
-        () -> safeCount(vulnerabilityRepository::count));
+        () -> safeCount(this::countVulnerabilities));
     metricRegistry.registerGauge(
         "vulnerable_endpoints_total",
         "Number of vulnerable endpoints",
@@ -148,19 +148,24 @@ public class ProductInventoryMetricCollector {
     metricRegistry.registerGauge(
         "attack_patterns_total",
         "Number of attack patterns",
-        () -> safeCount(attackPatternRepository::count));
+        () -> safeCount(this::countAttackPatterns));
   }
 
   private Map<Attributes, Long> collectPayloads() {
     Map<Attributes, Long> result = new HashMap<>();
     try {
+      // payloads is v2-active: with app.current_tenants unset the count is silently zero, same
+      // treatment as collectSecurityPlatforms/collectEndpoints.
       List<Object[]> rows =
-          entityManager
-              .createQuery(
-                  "select p.type, p.source, p.status, count(p) from Payload p"
-                      + " group by p.type, p.source, p.status",
-                  Object[].class)
-              .getResultList();
+          tenantTx.execute(
+              TxCtx.allTenants(),
+              () ->
+                  entityManager
+                      .createQuery(
+                          "select p.type, p.source, p.status, count(p) from Payload p"
+                              + " group by p.type, p.source, p.status",
+                          Object[].class)
+                      .getResultList());
       for (Object[] row : rows) {
         Attributes attributes =
             Attributes.of(
@@ -175,14 +180,22 @@ public class ProductInventoryMetricCollector {
     return result;
   }
 
-  private Map<Attributes, Long> collectTeams() {
+  /** Package-private: the tenant-scope regression test calls it without the OTel plumbing. */
+  Map<Attributes, Long> collectTeams() {
     Map<Attributes, Long> result = new HashMap<>();
     try {
+      // Platform-wide like every gauge here, and explicitly scoped so it keeps counting once
+      // teams is v2-active: with app.current_tenants unset the inspector denies every row and the
+      // gauge silently reports zero. Same treatment as collectPayloads/collectSecurityPlatforms.
       List<Object[]> rows =
-          entityManager
-              .createQuery(
-                  "select t.contextual, count(t) from Team t group by t.contextual", Object[].class)
-              .getResultList();
+          tenantTx.execute(
+              TxCtx.allTenants(),
+              () ->
+                  entityManager
+                      .createQuery(
+                          "select t.contextual, count(t) from Team t group by t.contextual",
+                          Object[].class)
+                      .getResultList());
       for (Object[] row : rows) {
         boolean contextual = Boolean.TRUE.equals(row[0]);
         result.merge(Attributes.of(booleanKey("contextual"), contextual), (Long) row[1], Long::sum);
@@ -288,6 +301,11 @@ public class ProductInventoryMetricCollector {
     return countAcrossAllTenants(channelRepository::count);
   }
 
+  /** Counts documents across the whole platform (documents is v2-active). */
+  long countDocuments() {
+    return countAcrossAllTenants(documentRepository::count);
+  }
+
   /** Counts challenges across the whole platform (challenges is v2-active, #6416). */
   long countChallenges() {
     return countAcrossAllTenants(challengeRepository::count);
@@ -308,6 +326,21 @@ public class ProductInventoryMetricCollector {
   /** Counts custom dashboards across the whole platform (custom_dashboards is v2-active). */
   long countCustomDashboards() {
     return countAcrossAllTenants(customDashboardRepository::count);
+  }
+
+  /** Counts vulnerabilities across the whole platform (vulnerabilities is v2-active). */
+  long countVulnerabilities() {
+    return countAcrossAllTenants(vulnerabilityRepository::count);
+  }
+
+  /** Counts attack patterns across the whole platform (attack_patterns is v2-active). */
+  long countAttackPatterns() {
+    return countAcrossAllTenants(attackPatternRepository::count);
+  }
+
+  /** Counts reportings across the whole platform (reportings is v2-active). */
+  long countReportings() {
+    return countAcrossAllTenants(reportingRepository::count);
   }
 
   private long countAcrossAllTenants(Supplier<Long> counter) {

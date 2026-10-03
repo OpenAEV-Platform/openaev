@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -13,14 +12,19 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
+/**
+ * asset_agent_jobs is v2-active (openaev.tenant.active-tables): isolation runs through {@code
+ * TenantStatementInspector} + {@code can_access_tenant}, not the v1 Hibernate filter, so both the
+ * filter and {@code TenantBaseListener} are removed here. Every write already sets {@code tenant}
+ * explicitly (see {@code AssetAgentJobRepository} callers), so removing the listener's
+ * fallback-from-thread-local does not change write attribution.
+ */
 @Data
 @Entity
 @Table(name = "asset_agent_jobs")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 public class AssetAgentJob implements TenantBase {
 
   @Id

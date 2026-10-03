@@ -205,6 +205,19 @@ public class InjectExpectationService {
         injectId, tenantId);
   }
 
+  /**
+   * The leaf technical expectations (agents, and assets without agent rows) of the given injects,
+   * in one query: the rows collectors write their per-source results on. Asset and asset group
+   * parents only carry rolled-up scores, so they are not returned.
+   */
+  public List<BaseInjectExpectation> findTechnicalLeafExpectationsByInjectIds(
+      @NotNull final Set<String> injectIds) {
+    if (injectIds.isEmpty()) {
+      return List.of();
+    }
+    return this.injectExpectationRepository.findAllTechnicalLeavesByInjects(injectIds);
+  }
+
   // -- UPDATE FROM UI --
 
   /**

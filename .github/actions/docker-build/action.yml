@@ -6,6 +6,8 @@ description: >
   archive as an artifact.  A separate merge step combines per-platform
   archives into the final multi-arch image.
   The calling job MUST run actions/checkout before this action.
+  This action and the scripts it runs come from the workspace root checkout;
+  only `context` is built.
 
 inputs:
   tags:
@@ -17,6 +19,12 @@ inputs:
     description: Docker image labels (from docker/metadata-action)
     required: false
     default: ""
+  context:
+    description: >
+      Directory holding the code to build. A caller building untrusted code
+      checks out trusted code at the workspace root and the untrusted code here.
+    required: false
+    default: "."
   dockerfile:
     description: Path to the Dockerfile to build
     required: false
@@ -25,6 +33,12 @@ inputs:
     description: Name for the uploaded artifact (platform suffix is appended automatically)
     required: false
     default: "openaev-image"
+  upload-artifact:
+    description: >
+      Upload the OCI archive as the `<artifact-name>-<arch>` artifact. Set to
+      "false" when the caller uploads the archive itself.
+    required: false
+    default: "true"
   platform:
     description: "Target platform (e.g. linux/amd64 or linux/arm64)"
     required: false
@@ -51,6 +65,19 @@ inputs:
       is then handed to downstream jobs as an artifact only.
     required: false
     default: "true"
+  no-cache:
+    description: "true bypasses every cache in this action; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
+  untrusted-context:
+    description: >
+      Set to "true" when `context` holds untrusted code in a run on main's ref
+      (feature deploys of PR code), where any cache write lands in main's scope.
+      The layer cache is then read but never exported, and the Dockerfile
+      frontend is pinned: a `# syntax=` image would receive the cache settings,
+      including the token that can write the cache.
+    required: false
+    default: "false"
 
 outputs:
   digest:
@@ -93,6 +120,7 @@ runs:
       uses: ./.github/actions/prepare-bundled-assets
       with:
         upload-artifact: "false"
+        working-directory: ${{ inputs.context }}
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
@@ -117,24 +145,28 @@ runs:
           | timeout --kill-after=5s 15s \
               docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
 
+    - name: Resolve built commit
+      id: commit
+      env:
+        CONTEXT: ${{ inputs.context }}
+      run: echo "sha=$(git -C "$CONTEXT" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      shell: bash
+
     - name: Record build start time
       id: build-timer
       run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
       shell: bash
 
-    # Only main writes the layer cache: a mode=max export costs ~6 min and blocks every
-    # E2E job, while a PR-scoped cache is unreadable from any other PR. PRs read main's
-    # cache through cache-from for free.
-    #
-    # Build the required artifact first. The optional registry handoff is a separate
-    # best-effort copy so a GHCR outage cannot discard an otherwise valid OCI archive.
+    # Only main writes shared layer caches; PR cache entries cannot warm other PRs.
+    # An empty cache scope opts out image variants without PR consumers.
+    # Produce the OCI artifact before the optional registry handoff so GHCR failures do not discard it.
     - name: Build image (single-platform OCI archive)
       id: docker-build
       uses: docker/build-push-action@v7
       env:
         BUILDKIT_PROGRESS: plain
       with:
-        context: .
+        context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile }}
         platforms: ${{ inputs.platform }}
         push: false
@@ -142,8 +174,12 @@ runs:
         outputs: |
           type=oci,dest=${{ steps.names.outputs.artifact_name }}.tar,name=${{ inputs.tags }}
         labels: ${{ inputs.labels }}
-        cache-from: type=gha,scope=${{ steps.names.outputs.cache_scope }}
-        cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
+        # BUILDKIT_SYNTAX overrides the Dockerfile's `# syntax=` directive
+        build-args: |
+          OPENAEV_COMMIT=${{ steps.commit.outputs.sha }}
+          ${{ inputs.untrusted-context == 'true' && 'BUILDKIT_SYNTAX=docker/dockerfile:1' || '' }}
+        cache-from: ${{ inputs.no-cache != 'true' && inputs.cache-scope != '' && format('type=gha,scope={0}', steps.names.outputs.cache_scope) || '' }}
+        cache-to: ${{ inputs.no-cache != 'true' && inputs.untrusted-context != 'true' && inputs.cache-scope != '' && github.ref == 'refs/heads/main' && format('type=gha,mode=max,scope={0}', steps.names.outputs.cache_scope) || '' }}
 
     - name: Push image to CI registry
       id: registry-push
@@ -281,10 +317,11 @@ runs:
       shell: bash
 
     - name: Upload Docker image artifact
+      if: ${{ inputs.upload-artifact == 'true' }}
       uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.names.outputs.artifact_name }}
         path: ${{ steps.names.outputs.artifact_name }}.tar.gz
         retention-days: 1
-        # Already gzipped — re-zipping costs CPU on both upload and download for ~0% gain
+        # The archive is already compressed.
         compression-level: 0

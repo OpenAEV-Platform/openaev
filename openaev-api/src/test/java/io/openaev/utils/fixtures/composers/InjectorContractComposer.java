@@ -7,6 +7,7 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -186,6 +187,11 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
           if (!entityManager.contains(injector)) {
             entityManager.persist(injector);
           }
+        }
+        // The listener now fails fast on an unattributed write; stamp the ambient tenant here
+        // when the caller left it unset, mirroring EndpointComposer and SecurityPlatformComposer.
+        if (injectorContract.getTenant() == null) {
+          injectorContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
         }
         entityManager.persist(injectorContract);
         for (Injector injector : new ArrayList<>(injectorContract.getInjectors())) {

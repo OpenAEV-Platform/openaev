@@ -20,12 +20,7 @@ import { buildOccurrencesFilter, occurrenceTargetLink, occurrenceTargets } from 
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
-  item: {
-    'height': 50,
-    // Slightly larger pivot chips (inject / context / targets) than the ultra-dense 20px table
-    // default, so they read as tappable buttons without breaking the row rhythm.
-    '& .MuiChip-root': { height: 24 },
-  },
+  item: { height: 50 },
 }));
 
 interface Props {

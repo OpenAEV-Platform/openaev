@@ -1,5 +1,5 @@
 import { LabelOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
@@ -8,6 +8,7 @@ import { withStyles } from 'tss-react/mui';
 import { storeHelper } from '../actions/Schema';
 import { addTag } from '../actions/tags/tag-action';
 import TagForm from '../admin/components/settings/tags/TagForm';
+import { validHexColor } from '../utils/Colors';
 import { Can } from '../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
 import Autocomplete from './Autocomplete';
@@ -23,7 +24,6 @@ const styles = () => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 });
 
 class TagFieldComponent extends Component {
@@ -52,7 +52,7 @@ class TagFieldComponent extends Component {
           {
             id: newTag.tag_id,
             label: newTag.tag_name,
-            color: newTag.tag_color,
+            color: validHexColor(newTag.tag_color),
           },
           values[name],
         );
@@ -79,7 +79,7 @@ class TagFieldComponent extends Component {
       n => ({
         id: n.tag_id,
         label: n.tag_name,
-        color: n.tag_color,
+        color: validHexColor(n.tag_color),
       }),
       tags,
     );
@@ -99,15 +99,14 @@ class TagFieldComponent extends Component {
           style={style}
           openCreate={!disabled ? this.handleOpenTagCreation.bind(this) : null}
           onKeyDown={onKeyDown}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
+          renderOption={option => (
+            <>
               <div className={classes.icon} style={{ color: option.color }}>
                 <LabelOutlined />
               </div>
               <div className={classes.text}>{option.label}</div>
-            </Box>
+            </>
           )}
-          classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
           <Dialog

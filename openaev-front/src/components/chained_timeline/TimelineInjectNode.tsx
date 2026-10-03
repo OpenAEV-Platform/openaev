@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AccountTreeOutlined, ScheduleOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position, type XYPosition } from '@xyflow/react';
 import moment from 'moment';
@@ -142,22 +143,25 @@ const TimelineInjectNodeComponent = ({ data, selected }: NodeProps<NodeInject>) 
             }
           />
         </Box>
-        <Tooltip title={inject.inject_title}>
-          <Typography sx={{
-            fontSize: 13,
-            fontWeight: 600,
-            lineHeight: 1.35,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            wordBreak: 'break-word',
-            minHeight: 36,
-            flexGrow: 1,
-          }}
-          >
-            {inject.inject_title}
-          </Typography>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Typography sx={{
+              fontSize: 13,
+              fontWeight: 600,
+              lineHeight: 1.35,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              wordBreak: 'break-word',
+              minHeight: 36,
+              flexGrow: 1,
+            }}
+            >
+              {inject.inject_title}
+            </Typography>
+          </TooltipTrigger>
+          {inject.inject_title && <TooltipContent>{inject.inject_title}</TooltipContent>}
         </Tooltip>
         {/* The popover must never bubble its click into the card (which opens
             the update drawer). */}
@@ -207,12 +211,15 @@ const TimelineInjectNodeComponent = ({ data, selected }: NodeProps<NodeInject>) 
           </Typography>
         </Box>
         {chained && (
-          <Tooltip title={t('Triggered by a parent inject')}>
-            <AccountTreeOutlined sx={{
-              fontSize: 14,
-              color: theme.palette.text.secondary,
-            }}
-            />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <AccountTreeOutlined sx={{
+                fontSize: 14,
+                color: theme.palette.text.secondary,
+              }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{t('Triggered by a parent inject')}</TooltipContent>
           </Tooltip>
         )}
       </Box>
@@ -223,46 +230,52 @@ const TimelineInjectNodeComponent = ({ data, selected }: NodeProps<NodeInject>) 
         padding: theme.spacing(0.75, 1, 1, 1.5),
       }}
       >
-        <Tooltip title={targetsPreview.join(', ')}>
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            minWidth: 0,
-            flexGrow: 1,
-            opacity: dimmed ? 0.4 : 1,
-          }}
-          >
-            <TrackChangesOutlined sx={{
-              fontSize: 13,
-              flexShrink: 0,
-              color: theme.palette.text.secondary,
-            }}
-            />
-            <Typography sx={{
-              fontSize: 11,
-              color: theme.palette.text.secondary,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              minWidth: 0,
+              flexGrow: 1,
+              opacity: dimmed ? 0.4 : 1,
             }}
             >
-              {targetsPreview.length > 0
-                ? `${shownTargets.join(', ')}${hiddenTargets > 0 ? ` +${hiddenTargets}` : ''}`
-                : t('No target')}
-            </Typography>
-          </Box>
+              <TrackChangesOutlined sx={{
+                fontSize: 13,
+                flexShrink: 0,
+                color: theme.palette.text.secondary,
+              }}
+              />
+              <Typography sx={{
+                fontSize: 11,
+                color: theme.palette.text.secondary,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              >
+                {targetsPreview.length > 0
+                  ? `${shownTargets.join(', ')}${hiddenTargets > 0 ? ` +${hiddenTargets}` : ''}`
+                  : t('No target')}
+              </Typography>
+            </Box>
+          </TooltipTrigger>
+          {targetsPreview.join(', ') && <TooltipContent>{targetsPreview.join(', ')}</TooltipContent>}
         </Tooltip>
-        <Tooltip title={statusLabel}>
-          <Box sx={{
-            width: 8,
-            height: 8,
-            flexShrink: 0,
-            borderRadius: '50%',
-            backgroundColor: statusColor,
-            boxShadow: `0 0 6px ${alpha(statusColor, 0.7)}`,
-          }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Box sx={{
+              width: 8,
+              height: 8,
+              flexShrink: 0,
+              borderRadius: '50%',
+              backgroundColor: statusColor,
+              boxShadow: `0 0 6px ${alpha(statusColor, 0.7)}`,
+            }}
+            />
+          </TooltipTrigger>
+          {statusLabel && <TooltipContent>{statusLabel}</TooltipContent>}
         </Tooltip>
       </Box>
       <Handle

@@ -22,6 +22,14 @@ on:
         type: boolean
         required: false
         default: false
+      no-cache:
+        description: >
+          Bypass every Maven, Yarn, Playwright, buildx and scanner cache, for both reads and
+          writes. Set by Nightly, which may run slow and whose entries would only evict the
+          ones Core CI PRs read.
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -49,6 +57,31 @@ jobs:
         with:
           last-release-number: ${{ steps.latest-tag.outputs.latest-tag }}
 
+  ocsf-parser-generation-stability:
+    strategy:
+      matrix:
+        version: [ "1.9.0" ]
+    name: "🔎 OCSF Parser Generation Stability"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Java 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+      - name: "Install OpenAEV maven plugin"
+        run: |
+          mvn -B clean install -pl openaev-maven-plugin
+      - uses: ./.github/actions/generate-ocsf-parser
+        with:
+          version: ${{ matrix.version }}
+        id: generate-ocsf-parser
+      - uses: ./.github/actions/ensure-no-git-diff
+        id: ensure-no-git-diff
+
   backend-compile:
     name: "🔨 Backend Compile"
     runs-on: ubuntu-latest
@@ -56,6 +89,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-compile
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   frontend-build:
     name: "🎨 Frontend Build"
@@ -64,6 +99,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   prepare-bundled-assets:
     name: "📦 Prepare Bundled Assets"
@@ -88,6 +125,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/spotless-check
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   # Reported through the Pipeline Gate as advisory, never blocking, until it has run clean for a while
   # on real PRs. Making it blocking means taking the job out of the advisory list in the gate below.
@@ -100,6 +139,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/bom-override-guard
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
@@ -108,6 +149,32 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-quality
+        with:
+          no-cache: ${{ inputs.no-cache }}
+
+  fds-conformity:
+    name: "🎨 FDS Conformity"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/fds-conformity
+
+  # Pull requests only: the gate reads what a PR adds against its target branch, and a push or a
+  # scheduled run has no target branch. Skipped counts as passed in the Pipeline Gate.
+  fds-mui-regression:
+    name: "🎨 FDS MUI Regression"
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The gate diffs against the merge base with the target branch.
+          fetch-depth: 0
+      - uses: ./.github/actions/fds-mui-regression
+        with:
+          base: origin/${{ github.base_ref }}
 
   # ════════════════════════════════════════════════════════════════════
   # API Tests — matrix passed from caller
@@ -145,6 +212,7 @@ jobs:
           search-engine: ${{ matrix.search_engine }}
           artifact-suffix: ${{ matrix.artifact_suffix }}
           tenant-mode: ${{ matrix.tenant_mode }}
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # E2E Tests — matrix passed from caller
@@ -188,6 +256,7 @@ jobs:
           includes: ${{ matrix.includes }}
           excludes: ${{ matrix.excludes }}
           artifact-suffix: ${{ matrix.artifact_suffix }}
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # API Types Check
@@ -217,15 +286,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/api-types-check
+        with:
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
-  # Coverage Merge & Upload
+  # Coverage Upload — one job per Codecov flag, each starting as soon as its own tests finish
   # ════════════════════════════════════════════════════════════════════
+  # One upload per flag with explicit files: a single upload tags every file with every flag,
+  # and .codecov.yml counts uploads (after_n_builds) before it reports on the PR.
 
-  codecov:
-    name: "📊 Coverage Merge & Upload"
-    needs: [api-tests, frontend-quality, e2e-tests, api-types-check]
-    if: ${{ !cancelled() }}
+  coverage-backend:
+    name: "📊 Coverage Upload (backend)"
+    needs: [api-tests]
+    if: ${{ !cancelled() && (needs.api-tests.result == 'success' || needs.api-tests.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -236,10 +309,18 @@ jobs:
         with:
           java-version: "21"
           distribution: temurin
-          cache: maven
+
+      # Read-only: backend-compile is the sole writer of maven-v2.
+      - name: Restore Maven dependencies
+        if: ${{ !inputs.no-cache }}
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-v2-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Download compiled Maven artifacts
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           name: backend-compiled
@@ -247,7 +328,6 @@ jobs:
         continue-on-error: true
 
       - name: Download API build output
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           name: api-build-output
@@ -255,7 +335,6 @@ jobs:
         continue-on-error: true
 
       - name: Download all JaCoCo exec shards
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           pattern: jacoco-exec-shard-*
@@ -264,52 +343,100 @@ jobs:
 
       - name: Merge JaCoCo exec files
         id: jacoco-merge
-        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         run: |
           echo "📦 Merging JaCoCo exec files from all shards..."
           EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
           if [ -z "$EXEC_FILES" ]; then
-            echo "⚠️ No JaCoCo exec files found"
-            exit 1
+            # Expected when a shard failed before uploading: report no coverage rather than
+            # turning one red shard into a second red job.
+            echo "⚠️ No JaCoCo exec files found — skipping coverage report"
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           SHARD_COUNT=$(echo "$EXEC_FILES" | wc -l)
           cat jacoco-exec/jacoco-exec-shard-*/jacoco.exec > openaev-api/target/jacoco.exec
+          echo "merged=true" >> "$GITHUB_OUTPUT"
           echo "✅ Merged $SHARD_COUNT shard(s)"
 
       - name: Coverage report & threshold check
-        if: steps.jacoco-merge.outcome == 'success'
+        if: steps.jacoco-merge.outputs.merged == 'true'
         run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage threshold check ⚠️"
 
       - name: Upload API coverage
-        if: ${{ !cancelled() && steps.jacoco-merge.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.jacoco-merge.outputs.merged == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-api
           path: openaev-api/target/site/jacoco/jacoco.xml
           if-no-files-found: warn
 
+      - name: Upload backend coverage to Codecov
+        if: ${{ hashFiles('openaev-api/target/site/jacoco/jacoco.xml') != '' }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: openaev-api/target/site/jacoco/jacoco.xml
+          flags: backend
+          disable_search: true
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  coverage-frontend:
+    name: "📊 Coverage Upload (frontend)"
+    needs: [frontend-quality]
+    if: ${{ !cancelled() && needs.frontend-quality.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
       - name: Download vitest coverage
-        if: ${{ needs.frontend-quality.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
           name: vitest-coverage
           path: coverage/frontend
         continue-on-error: true
 
+      - name: Upload frontend coverage to Codecov
+        if: ${{ hashFiles('coverage/frontend/lcov.info') != '' }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/frontend/lcov.info
+          flags: frontend
+          disable_search: true
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  coverage-e2e:
+    name: "📊 Coverage Upload (e2e)"
+    needs: [e2e-tests]
+    if: ${{ !cancelled() && needs.e2e-tests.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      # One directory per shard: every shard writes lcov.info, so merging would keep only the last one.
       - name: Download playwright coverage
-        if: ${{ needs.e2e-tests.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
           pattern: playwright-coverage-*
           path: coverage/e2e
-          merge-multiple: true
         continue-on-error: true
 
-      - name: Upload to Codecov
+      - name: List E2E coverage files
+        id: e2e-coverage
+        run: echo "files=$(find coverage/e2e -name lcov.info 2>/dev/null | paste -sd, -)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload E2E coverage to Codecov
+        if: ${{ steps.e2e-coverage.outputs.files != '' }}
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          flags: backend,frontend,e2e
+          files: ${{ steps.e2e-coverage.outputs.files }}
+          flags: e2e
+          disable_search: true
           fail_ci_if_error: false
         continue-on-error: true
 
@@ -334,6 +461,7 @@ jobs:
       - uses: ./.github/actions/backend-package
         with:
           download-release-assets: ${{ needs.prepare-bundled-assets.result == 'success' }}
+          no-cache: ${{ inputs.no-cache }}
 
   backend-package-musl:
     name: "📦 Backend Package (musl)"
@@ -350,8 +478,7 @@ jobs:
   # Docker
   # ════════════════════════════════════════════════════════════════════
 
-  # No `needs: [prepare-bundled-assets]`: the assets are fetched inline instead,
-  # which removes ~1.4 min of serial wait from the head of the critical path.
+  # Docker builds fetch bundled assets inline, avoiding a serial dependency.
   # fetch-depth 0 is required because the asset version comes from `git describe`.
   docker-build:
     name: "🐳 Docker Build (${{ matrix.variant }} ${{ matrix.arch }})"
@@ -378,7 +505,7 @@ jobs:
             dockerfile: ./Dockerfile
             artifact-name: openaev-image
             jar-path: /openaev-api.jar
-            cache-scope: docker-standard
+            cache-scope: ""
             tags: openaev:ci-${{ github.run_id }}
           - variant: ubi9
             arch: amd64
@@ -387,7 +514,7 @@ jobs:
             dockerfile: ./Dockerfile_ubi9
             artifact-name: openaev-ubi9-image
             jar-path: /opt/openaev/openaev-api.jar
-            cache-scope: docker-ubi9
+            cache-scope: ""
             tags: openaev-ubi9:ci-${{ github.run_id }}
           - variant: ubi9
             arch: arm64
@@ -396,7 +523,7 @@ jobs:
             dockerfile: ./Dockerfile_ubi9
             artifact-name: openaev-ubi9-image
             jar-path: /opt/openaev/openaev-api.jar
-            cache-scope: docker-ubi9
+            cache-scope: ""
             tags: openaev-ubi9:ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7
@@ -412,10 +539,9 @@ jobs:
           jar-path: ${{ matrix.jar-path }}
           cache-scope: ${{ matrix.cache-scope }}
           tags: ${{ matrix.tags }}
+          no-cache: ${{ inputs.no-cache }}
 
-  # No `needs: [docker-build]`: that waits for job completion, i.e. ~2.5 min of
-  # gzip/validate/upload this job never consumes. Build jobs publish tiny registry
-  # markers after a successful push, so consumers do not poll GHCR while waiting.
+  # Consumers wait for registry markers or artifacts, not the complete build job.
   docker-merge:
     name: "🐳 Merge Platforms (${{ matrix.variant }})"
     if: ${{ !cancelled() }}
@@ -440,10 +566,7 @@ jobs:
             Docker Build (${{ matrix.variant }} amd64)
             Docker Build (${{ matrix.variant }} arm64)
 
-  # Reported through the Pipeline Gate, but only enforced there when
-  # vulnerability-scan-fail-on-error is set — advisory in Core CI, blocking in Nightly.
-  # Like docker-merge, it waits for registry markers or image artifacts rather than
-  # the whole docker-build job, which it would otherwise trail by ~2.5 min.
+  # The scan is advisory in Core CI and enforced in Nightly.
   container-vulnerability-scan:
     name: "🔒 Container Vulnerability Scan"
     if: ${{ !cancelled() }}
@@ -457,23 +580,19 @@ jobs:
       - uses: ./.github/actions/container-vulnerability-scan
         with:
           fail-on-error: ${{ inputs.vulnerability-scan-fail-on-error }}
+          no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate
   #
-  # ⚠️  REQUIRED status check for branch protection.
-  #     The vulnerability scan is included but only enforced when
-  #     vulnerability-scan-fail-on-error is set, so a
-  #     finding blocks Nightly and stays advisory in Core.
-  #     Codecov is excluded: coverage upload is best-effort and must not
-  #     hold the gate (and therefore the merge) behind a reporting step.
-  #     The full check name is "<caller-job> / ✅ Pipeline Gate".
-  #     If the caller job key changes, update the branch-protection rule.
+  # Required branch-protection check: "<caller-job> / ✅ Pipeline Gate".
+  # Coverage upload is best-effort; scan enforcement is controlled by the caller.
   # ════════════════════════════════════════════════════════════════════
 
   pipeline-gate:
     name: "✅ Pipeline Gate"
     needs:
+      - ocsf-parser-generation-stability
       - migrations-guard
       - backend-compile
       - frontend-build
@@ -481,6 +600,8 @@ jobs:
       - spotless-check
       - bom-override-guard
       - frontend-quality
+      - fds-conformity
+      - fds-mui-regression
       - api-tests
       - e2e-tests
       - api-types-check
@@ -511,10 +632,8 @@ jobs:
             result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
             TOTAL=$((TOTAL + 1))
 
-            # The vulnerability scan is reported but not enforced unless the caller
-            # asks for it, so a finding blocks Nightly and never blocks Core. Decided
-            # here rather than relying on job-level continue-on-error, whose mapping
-            # onto needs.<job>.result is not documented.
+            # Apply the caller's scan policy here because `continue-on-error` does not define
+            # the value of `needs.<job>.result`.
             advisory=0
             case "$job" in
               container-vulnerability-scan)

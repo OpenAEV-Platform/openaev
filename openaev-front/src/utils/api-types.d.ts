@@ -4508,6 +4508,11 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_mac_addresses?: string[];
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /** Free-form category-specific attributes */
   asset_metadata?: Record<string, any>;
   /**
@@ -5292,6 +5297,8 @@ export interface EvaluationInput {
 }
 
 export interface Event {
+  entity_id?: string;
+  entity_type?: string;
   /** @minLength 1 */
   stix_objects: string;
 }
@@ -7501,6 +7508,246 @@ export interface Internal {
   work_id: string;
 }
 
+export interface IocValidationImportReport {
+  iocValidationId?: string;
+  summary?: string;
+}
+
+export interface IocValidationIocOutput {
+  /** File name of a StixFile IOC */
+  ioc_file_name?: string;
+  /** Hashes of a StixFile IOC (algorithm -> value) */
+  ioc_hashes?: Record<string, string>;
+  /** Indicator name */
+  ioc_indicator_name?: string;
+  /**
+   * STIX id of the OpenCTI indicator
+   * @minLength 1
+   */
+  ioc_indicator_ref: string;
+  /** Ids of the benign injects built for this IOC */
+  ioc_inject_ids: string[];
+  /** Why the IOC was skipped or how it was adapted (sinkhole...) */
+  ioc_message?: string;
+  /**
+   * OpenCTI observable type (Domain-Name, Hostname, IPv4-Addr, IPv6-Addr, Url, StixFile)
+   * @minLength 1
+   */
+  ioc_observable_type: string;
+  /** Test kind requested by OpenCTI */
+  ioc_requested_test_kind?:
+    | "DNS_RESOLUTION"
+    | "NETWORK_TRAFFIC"
+    | "HTTP_HEAD"
+    | "FILE_DROP"
+    | "LOG_INJECTION";
+  /** Test kind OpenAEV actually runs (absent when the IOC is skipped) */
+  ioc_test_kind?:
+    | "DNS_RESOLUTION"
+    | "NETWORK_TRAFFIC"
+    | "HTTP_HEAD"
+    | "FILE_DROP"
+    | "LOG_INJECTION";
+  /**
+   * Observable value
+   * @minLength 1
+   */
+  ioc_value: string;
+}
+
+export interface IocValidationOutput {
+  /** Tenant allow-list snapshot applied when the scenario was built */
+  ioc_validation_allowed_test_kinds: (
+    | "DNS_RESOLUTION"
+    | "NETWORK_TRAFFIC"
+    | "HTTP_HEAD"
+    | "FILE_DROP"
+    | "LOG_INJECTION"
+  )[];
+  /** @format date-time */
+  ioc_validation_completed_at?: string;
+  /** @format date-time */
+  ioc_validation_created_at: string;
+  /** @format date-time */
+  ioc_validation_decided_at?: string;
+  /** Id of the user who approved or rejected */
+  ioc_validation_decided_by?: string;
+  /** Name of the user who approved or rejected */
+  ioc_validation_decided_by_name?: string;
+  ioc_validation_description?: string;
+  /**
+   * OpenCTI Ioc-Validation-Request internal id
+   * @minLength 1
+   */
+  ioc_validation_external_id: string;
+  /** @minLength 1 */
+  ioc_validation_id: string;
+  ioc_validation_iocs: IocValidationIocOutput[];
+  /** @minLength 1 */
+  ioc_validation_name: string;
+  /** Link to the request in OpenCTI */
+  ioc_validation_opencti_url?: string;
+  ioc_validation_pairs: IocValidationPairOutput[];
+  ioc_validation_requested_by?: string;
+  ioc_validation_requested_test_kinds: (
+    | "DNS_RESOLUTION"
+    | "NETWORK_TRAFFIC"
+    | "HTTP_HEAD"
+    | "FILE_DROP"
+    | "LOG_INJECTION"
+  )[];
+  /** Validation scenario id (link: /admin/scenarios/{id}) */
+  ioc_validation_scenario_id?: string;
+  /** Simulation id once approved (link: /admin/simulations/{id}) */
+  ioc_validation_simulation_id?: string;
+  ioc_validation_status:
+    | "AWAITING_APPROVAL"
+    | "RUNNING"
+    | "COMPLETED"
+    | "PARTIAL"
+    | "FAILED"
+    | "REJECTED";
+  ioc_validation_status_message?: string;
+  /** @format date-time */
+  ioc_validation_updated_at: string;
+}
+
+export interface IocValidationPairOutput {
+  /**
+   * STIX id of the deployed-on relationship
+   * @minLength 1
+   */
+  pair_deployed_on_ref: string;
+  /** @format date-time */
+  pair_evaluated_at?: string;
+  /**
+   * STIX id of the indicator
+   * @minLength 1
+   */
+  pair_indicator_ref: string;
+  /** Validation outcome (absent while pending) */
+  pair_outcome?: "PREVENTED" | "DETECTED" | "MISSED" | "ERROR";
+  /** Why the outcome was reached (mainly for ERROR) */
+  pair_outcome_reason?: string;
+  /** Security platform name received from OpenCTI */
+  pair_platform_name?: string;
+  /**
+   * STIX id of the OpenCTI security platform identity
+   * @minLength 1
+   */
+  pair_platform_ref: string;
+  /** Id of the matched OpenAEV security platform asset (absent when not matched) */
+  pair_security_platform_id?: string;
+}
+
+export interface IocValidationRejectInput {
+  /**
+   * Optional reason reported back to OpenCTI (max 2000 chars)
+   * @minLength 0
+   * @maxLength 2000
+   */
+  ioc_validation_reason?: string;
+}
+
+export interface IocValidationSettingsInput {
+  ioc_validation_allowed_test_kinds: (
+    | "DNS_RESOLUTION"
+    | "NETWORK_TRAFFIC"
+    | "HTTP_HEAD"
+    | "FILE_DROP"
+    | "LOG_INJECTION"
+  )[];
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  ioc_validation_asset_group_id?: string;
+  /**
+   * @minLength 0
+   * @maxLength 2048
+   */
+  ioc_validation_http_proxy_url?: string;
+  /**
+   * @format int32
+   * @min 1
+   * @max 65535
+   */
+  ioc_validation_network_port: number;
+  /**
+   * @minLength 0
+   * @maxLength 64
+   */
+  ioc_validation_sinkhole_address?: string;
+}
+
+export interface IocValidationSettingsOutput {
+  /** Test kinds the tenant allows (default: DNS_RESOLUTION only) */
+  ioc_validation_allowed_test_kinds: (
+    | "DNS_RESOLUTION"
+    | "NETWORK_TRAFFIC"
+    | "HTTP_HEAD"
+    | "FILE_DROP"
+    | "LOG_INJECTION"
+  )[];
+  /** Default asset group targeted by validation injects */
+  ioc_validation_asset_group_id?: string;
+  /** Whether the OpenAEV IOC validation connector is registered in OpenCTI */
+  ioc_validation_connector_registered: boolean;
+  /** Egress proxy URL for HTTP HEAD tests (required to allow HTTP_HEAD) */
+  ioc_validation_http_proxy_url?: string;
+  /**
+   * TCP port used by network tests (default 443)
+   * @format int32
+   */
+  ioc_validation_network_port: number;
+  /** Whether an OpenCTI connection is configured for this tenant */
+  ioc_validation_opencti_enabled: boolean;
+  /** Sinkhole IP: when set, network tests connect to it instead of the IOC address */
+  ioc_validation_sinkhole_address?: string;
+}
+
+export interface IocValidationSimpleOutput {
+  /** @format date-time */
+  ioc_validation_created_at: string;
+  /** @format int32 */
+  ioc_validation_detected_count: number;
+  /** @format int32 */
+  ioc_validation_error_count: number;
+  /** @minLength 1 */
+  ioc_validation_external_id: string;
+  /** @minLength 1 */
+  ioc_validation_id: string;
+  /** @format int32 */
+  ioc_validation_iocs_count: number;
+  /** @format int32 */
+  ioc_validation_missed_count: number;
+  /** @minLength 1 */
+  ioc_validation_name: string;
+  /** @format int32 */
+  ioc_validation_pairs_count: number;
+  /** @format int32 */
+  ioc_validation_prevented_count: number;
+  ioc_validation_requested_by?: string;
+  ioc_validation_requested_test_kinds: (
+    | "DNS_RESOLUTION"
+    | "NETWORK_TRAFFIC"
+    | "HTTP_HEAD"
+    | "FILE_DROP"
+    | "LOG_INJECTION"
+  )[];
+  ioc_validation_scenario_id?: string;
+  ioc_validation_simulation_id?: string;
+  ioc_validation_status:
+    | "AWAITING_APPROVAL"
+    | "RUNNING"
+    | "COMPLETED"
+    | "PARTIAL"
+    | "FAILED"
+    | "REJECTED";
+  /** @format date-time */
+  ioc_validation_updated_at: string;
+}
+
 export interface JsonApiDocumentResourceObject {
   data?: ResourceObject;
   included?: any[];
@@ -8218,6 +8465,7 @@ export interface NotificationTriggerInput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "IOC_VALIDATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -8327,6 +8575,7 @@ export interface NotificationTriggerOutput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "IOC_VALIDATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -8825,6 +9074,25 @@ export interface PageInjectTestStatusOutput {
 
 export interface PageInjectorContractBaseOutput {
   content?: InjectorContractBaseOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageIocValidationSimpleOutput {
+  content?: IocValidationSimpleOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -9981,6 +10249,8 @@ export interface PlatformSettings {
   platform_banner_by_level?: Record<string, string[]>;
   /** Base URL of the platform */
   platform_base_url?: string;
+  /** Git commit the platform was built from, when the build provides it */
+  platform_commit?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
   /** id of the platform */
@@ -10031,7 +10301,7 @@ export interface PlatformSettings {
   platform_whitemark?: string;
   /** True if XTM One is configured (url and token set) */
   platform_xtm_one_configured?: boolean;
-  /** XTM One platform URL */
+  /** URL a browser opens XTM One on: the identity it publishes, else its configured URL */
   platform_xtm_one_url?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
@@ -12463,6 +12733,8 @@ export interface ThemeInput {
   primary_color?: string;
   /** Secondary color of the theme */
   secondary_color?: string;
+  /** Text color of the theme */
+  text_color?: string;
 }
 
 export interface ThreatArsenalAction {

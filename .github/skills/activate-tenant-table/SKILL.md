@@ -120,6 +120,34 @@ incident. Do not trade them away to make a test pass.
     to `JpaRepository` if the repository genuinely needs one of those extras,
     and then scope every call site through a tenant-aware `Specification`.
 
+13. **A handled error that returns success must not cross an inner
+    `@Transactional`.** Every controller entrypoint is already wrapped in a
+    transaction, which is what carries the tenant scope. If the endpoint
+    catches an exception and returns 200 (or any success status), and that
+    exception escaped another `@Transactional` bean method on the way, that
+    inner interceptor has already marked the shared transaction rollback-only.
+    The catch then returns success, and the commit throws
+    `UnexpectedRollbackException`: a 500 the caller cannot distinguish from a
+    real server error, and a queue-backed caller retries it for ever.
+
+    This bit `POST /api/stix/process-bundle` (#8102): the bundle is rejected on
+    purpose with a 200 and an error acknowledgement for OpenCTI, but
+    `SecurityCoverageService.handleSecurityCoverageProcessing` declares
+    `@Transactional(rollbackFor = Exception.class)`, so even a checked business
+    exception marks the transaction. Note that Spring does NOT roll back on a
+    checked exception by default; a broad `rollbackFor` is what turns a handled
+    rejection into a failed transaction.
+
+    When you activate a table, check every entrypoint on its paths that catches
+    and returns success. The fix is on the INNER boundary, not the outer one
+    (the outer interceptor never sees an exception caught inside the method it
+    wraps): `noRollbackFor` on the inner method, a narrower `rollbackFor`, or
+    validating before anything writes. Removing the wrapping `@Transactional`
+    is not an option, it is the tenant scope.
+
+    The background equivalent of this rule is in Phase 5b: never catch and
+    continue inside one transaction.
+
 ## Baseline: controller entrypoints already carry `TxCtx`
 
 Every `@Transactional` method under `io.openaev.api/**` and
@@ -293,12 +321,32 @@ blanket wiring cannot fix by construction:
    Spot-check the entrypoints this activation actually needs rather than
    assuming full coverage.
 6. **Query shapes that stop being valid SQL once the table is wrapped.** The
-   inspector rewrites `FROM {table} t` into a derived table. PostgreSQL's
+   inspector rewrites `FROM {table} t` into a derived table, and it does the
+   same to the table on the other side of a JOIN. PostgreSQL's
    functional-dependency rule — selecting ungrouped columns is legal when the
    `GROUP BY` covers the table's primary key — applies to BASE TABLES only, so
    any `GROUP BY` relying on it becomes invalid SQL. See the GROUP BY section
    below; this one is not a `TxCtx` problem at all and no amount of wiring
    fixes it.
+
+   **The table-name grep below cannot find this shape.** A Criteria query joins
+   by association name, so the table name never appears in the Java source:
+   `InjectorContractService` reaches `collector_types` through
+   `payloadJoin.join("collectorType", JoinType.LEFT)` and `grep -rn
+   "collector_types"` over that file returns nothing. Grep for the ENTITY name
+   and for the association name as well:
+
+   ```bash
+   # Two stages, and the order matters: the join and the GROUP BY are usually tens of lines apart,
+   # so a single pipeline that keeps only lines containing the association name finds nothing.
+   # First the FILES that reach the table, then the grouping sites inside those files.
+   files=$(grep -rl "join(\"{association}\"\|{Entity}\b" openaev-api/src/main/java --include="*.java")
+   echo "$files" | xargs -r grep -n "groupBy(\|GROUP BY"
+   ```
+
+   Then read each query that groups by that table's id: every other column of
+   it that the SELECT projects must be in the `GROUP BY` too, or the statement
+   stops being valid the moment the table activates.
 
 ```bash
 grep -rln "{EntityRepository}" openaev-api/src/main/java openaev-model/src/main/java
@@ -480,17 +528,35 @@ normal way list and search endpoints are written here.
 `active-tables`, so the inspector never fires and the query keeps its base-table
 form. The symptom is a 500 on a search or list endpoint, after go-live.
 
+**The site is often NOT in your table's own service.** The query that breaks may
+be rooted on a different entity and reach your table through an association, in
+which case neither the table name nor its entity name appears near the
+`groupBy`. On the `collector_types` activation (#7933) the 500 came from
+`InjectorContractService`: it joins `payloadJoin.join("collectorType",
+JoinType.LEFT)`, projects `collector_types.name`, and groups by
+`collector_types.id` alone. Nothing in that file mentions `collector_types`, and
+the service belongs to another feature entirely. Follow the INCOMING
+associations to your table, then read the queries of whatever owns them.
+
 Find every site before activating:
 
 ```bash
 # every GROUP BY in code that can reach the table, then read each one:
-# does it group on the id alone while multiselecting other columns?
+# does it group on an id alone while multiselecting other columns of the same table?
 grep -rn "groupBy(" openaev-api/src/main/java --include="*.java"
+# and, for a table reached by association rather than by name, the files that join it first,
+# then the grouping sites inside them (the two are rarely on neighbouring lines)
+grep -rl "join(\"{association}\"" openaev-api/src/main/java --include="*.java" \
+  | xargs -r grep -n "groupBy(\|GROUP BY"
 ```
 
 Fix by listing every non-aggregated projected column in the `GROUP BY`. It is
 equivalent for the planner and does not depend on the FROM item being a base
-table. Worked example, `AssetGroupQueryHelper` in the `asset_groups`
+table. The codebase already does this correctly next door, which is the quickest
+way to see the difference: `InjectSearchService` joins `collectorType` the same
+way and groups by `collectorTypeJoin.get("name")`, the column it projects, so
+that query survives the activation untouched while `InjectorContractService`'s
+does not. Worked example, `AssetGroupQueryHelper` in the `asset_groups`
 activation (#6435):
 
 ```java

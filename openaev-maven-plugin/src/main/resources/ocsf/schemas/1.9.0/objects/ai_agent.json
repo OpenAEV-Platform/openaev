@@ -1,0 +1,105 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "Human-readable name for the agent. For example: <code>Q4 Analysis Agent</code> or <code>Model Tester Agent</code>.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The agent framework, normalized to the caption of the <code>type_id</code> value.",
+      "requirement" : "optional",
+      "caption" : "Agent Type",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The version of the agent: the agent's own code or configuration revision (e.g., <code>1.4.2</code>), distinct from the version of the model backing it (carried on <code>ai_model.version</code>). Enables correlation of behavioral changes with charter or configuration revisions across agent versions.",
+      "requirement" : "recommended",
+      "caption" : "AI Agent Version",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The stable logical identifier for the agent, assigned by the agent's authoritative source (e.g., its control plane, registry, or issuing identity provider). Persists across restarts and instances. Producers populate this from whatever identity they observe: for a runtime that owns the agent, this is its issued ID; for a gateway or proxy, it is typically derived from the agent's credential. Multiple producers logging the same agent should converge on the same <code>uid</code> when they share an authoritative source.",
+      "requirement" : "recommended",
+      "caption" : "AI Agent ID",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "An agent built with the AutoGen framework for multi-agent conversation and orchestration.",
+          "caption" : "AutoGen"
+        },
+        "0" : {
+          "description" : "The agent framework is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "A first-party or proprietary agent built without a third-party agent framework. For example, a custom orchestrator or an LLM provider's own agent SDK.",
+          "caption" : "Native"
+        },
+        "2" : {
+          "description" : "An agent built with the LangChain framework.",
+          "caption" : "LangChain"
+        },
+        "99" : {
+          "description" : "The agent framework is not listed. Use the <code>type</code> attribute to describe it.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "An agent built with the CrewAI framework for role-based multi-agent collaboration.",
+          "caption" : "CrewAI"
+        }
+      },
+      "description" : "The normalized identifier for the agent framework. Different agent frameworks have different identity, tool-call, and delegation semantics, so recording the framework enables cross-framework normalization. Communication protocols (e.g., MCP, A2A) are a property of individual operations rather than the agent itself, and are surfaced on the relevant operation rather than here.",
+      "requirement" : "recommended",
+      "caption" : "Agent Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "ai_model" : {
+      "type" : "object_t",
+      "description" : "The AI model backing this agent at the time of the recorded event. An agent's model may change across instances or versions; this captures the model in use for the specific logged activity or delegation.",
+      "requirement" : "recommended",
+      "caption" : "AI Model",
+      "object_type" : "ai_model",
+      "object_name" : "AI Model"
+    },
+    "charter" : {
+      "type" : "object_t",
+      "description" : "A document that defines an AI agent's durable role, responsibilities, constraints, and operating boundaries. When available, populate <code>hashes</code> on the file for content integrity and <code>signatures</code> for provenance. Integrity of the event that reports this agent is provided separately by the <code>record_integrity</code> profile.",
+      "requirement" : "optional",
+      "caption" : "Agent Charter",
+      "object_type" : "file",
+      "object_name" : "File"
+    },
+    "instance_uid" : {
+      "type" : "string_t",
+      "description" : "Identifier for a specific running instance or session of the agent, distinct from the stable logical <code>uid</code>. An instance is a single materialization of the agent: a conversation, session, or run. It may persist across restarts (a session that is suspended and later resumed keeps the same <code>instance_uid</code>) and may span multiple cooperating runtime components, so several events can share one <code>instance_uid</code>. Enables attribution of actions to a particular instance of the agent rather than to the agent generally.",
+      "requirement" : "recommended",
+      "caption" : "AI Agent Instance ID",
+      "type_name" : "String"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "ai_agent",
+  "description" : "An autonomous AI agent that performs tasks under delegated authority. Distinguished from the OCSF agent object (which describes security sensors such as EDR and DLP tools) and from human principals. An AI agent has a stable logical identity across runs and a restart-sensitive instance identity. The agent owns its model; the ai_model attribute captures which model was backing the agent at the time of action.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "AI Agent",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}

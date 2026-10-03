@@ -976,7 +976,12 @@ public class ScenarioService {
         .forEach(
             docId -> {
               Document doc = this.documentRepository.findById(docId).orElseThrow();
-              Optional<InputStream> docStream = this.fileService.getFile(doc);
+              // Include a document's bytes only when it belongs to the scenario's tenant: a
+              // document
+              // bound from another tenant is skipped, as if the object were missing.
+              Optional<InputStream> docStream =
+                  this.fileService.getFile(
+                      doc, scenario.getTenant() == null ? null : scenario.getTenant().getId());
               if (docStream.isPresent()) {
                 try {
                   ZipEntry zipDoc = new ZipEntry(doc.getTarget());
@@ -1061,13 +1066,11 @@ public class ScenarioService {
   }
 
   public Scenario addScenarioPlayer(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
@@ -1079,13 +1082,11 @@ public class ScenarioService {
   }
 
   public Scenario enableAddScenarioTeamPlayer(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     return this.enablePlayers(scenarioId, team, playerIds);
   }
 
@@ -1194,6 +1195,7 @@ public class ScenarioService {
 
   private Scenario copyScenario(Scenario scenario) {
     Scenario scenarioDuplicate = new Scenario();
+    scenarioDuplicate.setTenant(scenario.getTenant());
     scenarioDuplicate.setName(duplicateString(scenario.getName()));
     scenarioDuplicate.setCategory(scenario.getCategory());
     scenarioDuplicate.setDescription(scenario.getDescription());

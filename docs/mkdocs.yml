@@ -189,6 +189,7 @@ nav:
     - Build your own Threat Scenario:
       - Scenario: usage/build/scenario/scenario.md
       - Scenario Generation from OpenCTI Security Coverage: usage/build/scenario/security-coverage.md
+      - IOC Validation from OpenCTI Dissemination Assurance: usage/build/scenario/ioc-validation.md
       - Importing injects into a Scenario: usage/build/scenario/scenario-import.md
       - Assets: usage/build/assets.md
       - People: usage/build/people.md
@@ -235,6 +236,7 @@ nav:
   - Reference:
       - APIs:
           - Filters: reference/apis/filters.md
+          - Security Coverage result bundle: reference/apis/security-coverage-results.md
       - Deployment and stack:
           - Telemetry: reference/deployment/telemetry.md
   - Development:

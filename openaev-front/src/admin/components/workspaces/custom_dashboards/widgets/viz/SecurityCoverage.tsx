@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { Box, Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, memo, useCallback } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -43,13 +44,12 @@ const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetConfig, wi
       >
         <DialogTitle className={classes.headerFull}>
           <IconButton
+            icon={<Close fontSize="small" />}
             aria-label="Close"
             onClick={handleClose}
-            size="large"
-            color="primary"
-          >
-            <Close fontSize="small" color="primary" />
-          </IconButton>
+            priority="tertiary"
+            size="md"
+          />
           {widgetTitle}
         </DialogTitle>
         <DialogContent>

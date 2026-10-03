@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Document;
 import io.openaev.database.raw.RawDocument;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -22,23 +23,31 @@ public interface DocumentRepository
   Optional<Document> findById(@NotNull String id);
 
   /**
-   * Tenant-scoped primary-key lookup. Hibernate's {@code tenantFilter} does not apply to {@code
-   * findById} (filters never apply to primary-key loads), so callers resolving an id received from
-   * user input (e.g. import files) must use this method to avoid reading another tenant's document.
+   * Primary-key lookup confined to one tenant. The statement inspector scopes {@code findById} to
+   * the request scope, which may hold several tenants of the caller; a caller resolving an id that
+   * comes from user input (an import file) into a row written in one tenant must name that tenant,
+   * so the lookup cannot match a document of another in-scope tenant. The inspector still applies
+   * on top, so the row must also lie inside the request scope.
    */
   @NotNull
   Optional<Document> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   List<Document> removeById(@NotNull String id);
 
-  // document_target and document_name are not unique (concurrent uploads can create
-  // duplicates), so lookups must be duplicate-tolerant and deterministic instead of
-  // failing with a NonUniqueResultException.
+  // Confined to the explicit write tenant: the statement inspector scopes these lookups to the
+  // request scope, which may hold several tenants of the caller (an injects import into a parent
+  // of one tenant by a caller of two), so a lookup by target or name alone could find and reuse
+  // another in-scope tenant's document for a row written elsewhere. document_target and
+  // document_name are not unique (concurrent uploads can create duplicates), so the lookups are
+  // duplicate-tolerant and deterministic (first by id) instead of failing with a
+  // NonUniqueResultException.
   @NotNull
-  Optional<Document> findFirstByTargetOrderByIdAsc(@NotNull String target);
+  Optional<Document> findFirstByTargetAndTenantIdOrderByIdAsc(
+      @NotNull String target, @NotNull String tenantId);
 
   @NotNull
-  Optional<Document> findFirstByNameOrderByIdAsc(@NotNull String name);
+  Optional<Document> findFirstByNameAndTenantIdOrderByIdAsc(
+      @NotNull String name, @NotNull String tenantId);
 
   @Query(
       value =
@@ -52,12 +61,16 @@ public interface DocumentRepository
               + "left join scenarios sc on sc.scenario_id = scdoc.scenario_id "
               + "left join documents_tags tagdoc on d.document_id = tagdoc.document_id "
               + "left join tags tg on tg.tag_id = tagdoc.tag_id "
-              + "where d.tenant_id = :#{#tenantContext.currentTenant} "
               + "group by d.document_id "
               + "order by document_id desc ",
       nativeQuery = true)
   List<RawDocument> rawAllDocuments();
 
+  /**
+   * Tenant-scoped: adds the {@code tenant_id} predicate so a caller cannot read another tenant's
+   * documents by supplying a cross-tenant {@code channelId} (native SQL is never covered by the
+   * Hibernate {@code tenantFilter}). Callers must always supply a non-empty tenant scope.
+   */
   @Query(
       value =
           """
@@ -74,14 +87,21 @@ public interface DocumentRepository
         left join tags tg on tg.tag_id = tagdoc.tag_id
         left join channels chl_light on d.document_id = chl_light.channel_logo_light
         left join channels chl_dark  on d.document_id = chl_dark.channel_logo_dark
-        where chl_light.channel_id = :channelId
-           or chl_dark.channel_id  = :channelId
+        where (chl_light.channel_id = :channelId
+           or chl_dark.channel_id  = :channelId)
+           and d.tenant_id in (:tenantIds)
         group by d.document_id
         order by d.document_id desc
         """,
       nativeQuery = true)
-  List<RawDocument> rawAllDocumentsByChannelId(@Param("channelId") String channelId);
+  List<RawDocument> rawAllDocumentsByChannelIdAndTenantIds(
+      @Param("channelId") String channelId, @Param("tenantIds") Collection<String> tenantIds);
 
+  /**
+   * Tenant-scoped: adds the {@code tenant_id} predicate so a caller cannot read another tenant's
+   * documents by supplying a cross-tenant {@code securityPlatformId}. Callers must always supply a
+   * non-empty tenant scope.
+   */
   @Query(
       value =
           """
@@ -98,15 +118,22 @@ public interface DocumentRepository
                 left join tags tg on tg.tag_id = tagdoc.tag_id
                 left join assets sp_light on d.document_id = sp_light.security_platform_logo_light
                 left join assets sp_dark  on d.document_id = sp_dark.security_platform_logo_dark
-                where sp_light.asset_id = :securityPlatformId
-                   or sp_dark.asset_id  = :securityPlatformId
+                where (sp_light.asset_id = :securityPlatformId
+                   or sp_dark.asset_id  = :securityPlatformId)
+                   and d.tenant_id in (:tenantIds)
                 group by d.document_id
                 order by d.document_id desc
                 """,
       nativeQuery = true)
-  List<RawDocument> rawAllDocumentsBySecurityPlatformId(
-      @Param("securityPlatformId") String securityPlatformId);
+  List<RawDocument> rawAllDocumentsBySecurityPlatformIdAndTenantIds(
+      @Param("securityPlatformId") String securityPlatformId,
+      @Param("tenantIds") Collection<String> tenantIds);
 
+  /**
+   * Tenant-scoped: adds the {@code tenant_id} predicate so a caller cannot read another tenant's
+   * documents by supplying a cross-tenant {@code challengeId}. Callers must always supply a
+   * non-empty tenant scope.
+   */
   @Query(
       value =
           """
@@ -123,12 +150,19 @@ public interface DocumentRepository
                         left join tags tg on tg.tag_id = tagdoc.tag_id
                         left join challenges_documents chdoc on d.document_id = chdoc.document_id
                         where chdoc.challenge_id = :challengeId
+                           and d.tenant_id in (:tenantIds)
                         group by d.document_id
                         order by d.document_id desc
                         """,
       nativeQuery = true)
-  List<RawDocument> rawAllDocumentsByChallengeId(@Param("challengeId") String challengeId);
+  List<RawDocument> rawAllDocumentsByChallengeIdAndTenantIds(
+      @Param("challengeId") String challengeId, @Param("tenantIds") Collection<String> tenantIds);
 
+  /**
+   * Tenant-scoped: adds the {@code tenant_id} predicate so a caller cannot read another tenant's
+   * documents by supplying a cross-tenant {@code payloadId}. Callers must always supply a non-empty
+   * tenant scope.
+   */
   @Query(
       value =
           """
@@ -145,11 +179,13 @@ public interface DocumentRepository
                                 left join tags tg on tg.tag_id = tagdoc.tag_id
                                 left join payloads pa on (d.document_id = pa.file_drop_file or d.document_id = pa.executable_file)
                                 where pa.payload_id = :payloadId
+                                   and d.tenant_id in (:tenantIds)
                                 group by d.document_id
                                 order by d.document_id desc
                                 """,
       nativeQuery = true)
-  List<RawDocument> rawAllDocumentsByPayloadId(@Param("payloadId") String payloadId);
+  List<RawDocument> rawAllDocumentsByPayloadIdAndTenantIds(
+      @Param("payloadId") String payloadId, @Param("tenantIds") Collection<String> tenantIds);
 
   // -- PAGINATION --
 

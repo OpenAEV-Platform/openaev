@@ -136,6 +136,15 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
   void cleanup() {
     jdbc.update("DELETE FROM secret_references WHERE tenant_id IN (?, ?)", tenantA, tenantB);
     jdbc.update("DELETE FROM secrets WHERE tenant_id IN (?, ?)", tenantA, tenantB);
+    // ExpectationsExpirationManagerJob heartbeats every active tenant on its own schedule,
+    // independent of this test, and registers its built-in collector (a collectors row and the
+    // collector_types row it references) the first time it sees a tenant. That race is real in
+    // production too, so both rows are cleaned up here rather than avoided, the same way the
+    // tenant-isolation skill expects a background job's side effects to be treated as part of
+    // the tenant's real footprint. The collector must go first: it is the one holding the FK
+    // into collector_types.
+    jdbc.update("DELETE FROM collectors WHERE tenant_id IN (?, ?)", tenantA, tenantB);
+    jdbc.update("DELETE FROM collector_types WHERE tenant_id IN (?, ?)", tenantA, tenantB);
     jdbc.update("DELETE FROM tenants WHERE tenant_id IN (?, ?)", tenantA, tenantB);
   }
 

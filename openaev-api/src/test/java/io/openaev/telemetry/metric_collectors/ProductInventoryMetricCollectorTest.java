@@ -280,6 +280,32 @@ class ProductInventoryMetricCollectorTest {
     }
 
     @Test
+    @DisplayName("documents gauge uses the all-tenants scoped transaction for v2 tables")
+    void given_documentsGauge_should_runInAllTenantsScope() {
+      when(documentRepository.count()).thenReturn(7L);
+
+      collector.init();
+
+      verify(metricRegistry).registerGauge(eq("documents_total"), any(), gaugeCaptor.capture());
+      assertThat(gaugeCaptor.getValue().get()).isEqualTo(7L);
+      verify(documentRepository).count();
+      verify(tenantTx, times(1)).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
+    @DisplayName("reports gauge uses the all-tenants scoped transaction for v2 tables")
+    void given_reportsGauge_should_runInAllTenantsScope() {
+      when(reportingRepository.count()).thenReturn(9L);
+
+      collector.init();
+
+      verify(metricRegistry).registerGauge(eq("reports_total"), any(), gaugeCaptor.capture());
+      assertThat(gaugeCaptor.getValue().get()).isEqualTo(9L);
+      verify(reportingRepository).count();
+      verify(tenantTx, times(1)).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
     @DisplayName("mappers gauge uses the all-tenants scoped transaction for v2 tables")
     void given_mappersGauge_should_runInAllTenantsScope() {
       when(importMapperRepository.count()).thenReturn(5L);

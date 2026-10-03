@@ -82,6 +82,14 @@ public class PlatformJobDefinitions {
   }
 
   @Bean
+  public JobDetail getIocValidationJobExecution() {
+    return JobBuilder.newJob(IocValidationJob.class)
+        .storeDurably()
+        .withIdentity(jobKey("IocValidationJob"))
+        .build();
+  }
+
+  @Bean
   public JobDetail getConnectorPingJob() {
     return JobBuilder.newJob(OpenCTIConnectorRegisterPingJob.class)
         .storeDurably()

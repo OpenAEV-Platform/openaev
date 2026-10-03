@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -82,6 +83,7 @@ public class InjectImportService {
 
   private final InjectMapper injectMapper;
   private final InjectService injectService;
+  private final TenantWriteScopeResolver tenantWriteScopeResolver;
 
   /**
    * Store a xls file for ulterior import. The file will be deleted on exit.
@@ -129,6 +131,7 @@ public class InjectImportService {
   }
 
   public ImportTestSummary importInjectIntoScenarioFromXLS(
+      TxCtx ctx,
       Scenario scenario,
       ImportMapper importMapper,
       String importId,
@@ -136,10 +139,11 @@ public class InjectImportService {
       int timezoneOffset,
       boolean saveAll) {
     return importInjectIntoFromXLS(
-        scenario, null, importMapper, importId, sheetName, timezoneOffset, saveAll);
+        ctx, scenario, null, importMapper, importId, sheetName, timezoneOffset, saveAll);
   }
 
   public ImportTestSummary importInjectIntoExerciseFromXLS(
+      TxCtx ctx,
       Exercise exercise,
       ImportMapper importMapper,
       String importId,
@@ -147,10 +151,11 @@ public class InjectImportService {
       int timezoneOffset,
       boolean saveAll) {
     return importInjectIntoFromXLS(
-        null, exercise, importMapper, importId, sheetName, timezoneOffset, saveAll);
+        ctx, null, exercise, importMapper, importId, sheetName, timezoneOffset, saveAll);
   }
 
   public ImportTestSummary importInjectIntoFromXLS(
+      TxCtx ctx,
       Scenario scenario,
       Exercise exercise,
       ImportMapper importMapper,
@@ -161,7 +166,7 @@ public class InjectImportService {
     // We call the inject service to get the injects to create as well as messages on how things
     // went
     ImportTestSummary importTestSummary =
-        importXls(importId, scenario, exercise, importMapper, sheetName, timezoneOffset);
+        importXls(ctx, importId, scenario, exercise, importMapper, sheetName, timezoneOffset);
     Optional<ImportMessage> hasCritical =
         importTestSummary.getImportMessage().stream()
             .filter(
@@ -293,7 +298,19 @@ public class InjectImportService {
         });
   }
 
+  /** Tenant of the simulation or scenario being imported into, null when it is not persisted. */
+  private static String targetTenantId(Scenario scenario, Exercise exercise) {
+    if (scenario != null && scenario.getTenant() != null) {
+      return scenario.getTenant().getId();
+    }
+    if (exercise != null && exercise.getTenant() != null) {
+      return exercise.getTenant().getId();
+    }
+    return null;
+  }
+
   private ImportTestSummary importXls(
+      TxCtx ctx,
       String importId,
       Scenario scenario,
       Exercise exercise,
@@ -301,6 +318,11 @@ public class InjectImportService {
       String sheetName,
       int timezoneOffset) {
     ImportTestSummary importTestSummary = new ImportTestSummary();
+    // Contextual teams created from the sheet belong to the simulation or scenario being imported
+    // into, falling back to the request write scope when the target is not persisted yet (the
+    // import preview builds a transient scenario).
+    String writeTenant =
+        tenantWriteScopeResolver.tenantForWrite(ctx, targetTenantId(scenario, exercise));
 
     try {
       // Validate importId is a valid UUID
@@ -399,7 +421,8 @@ public class InjectImportService {
                         mapTeamByName,
                         mapPatternByAllTeams,
                         zoneOffset,
-                        count);
+                        count,
+                        writeTenant);
                 // We set the exercise or scenario
                 Inject inject = rowSummary.getInject();
                 if (scenario != null && inject != null) {
@@ -480,7 +503,8 @@ public class InjectImportService {
       Map<String, Team> mapTeamByName,
       Map<String, Pattern> mapPatternByAllTeams,
       ZoneOffset timezoneOffset,
-      AtomicInteger count) {
+      AtomicInteger count,
+      String writeTenant) {
     ImportRow importTestSummary = new ImportRow();
     // The column that differenciate the importer is the same for all so we get it right now
     int colTypeIdx = CellReference.convertColStringToIndex(importMapper.getInjectTypeColumn());
@@ -766,7 +790,8 @@ public class InjectImportService {
                             mapTeamByName,
                             expectation,
                             importMapper,
-                            mapPatternByAllTeams)));
+                            mapPatternByAllTeams,
+                            writeTenant)));
     // The user is the one doing the import
     inject.setUser(
         userRepository
@@ -829,7 +854,8 @@ public class InjectImportService {
       Map<String, Team> mapTeamByName,
       AtomicReference<BaseInjectExpectation> expectation,
       ImportMapper importMapper,
-      Map<String, Pattern> mapPatternByAllTeams) {
+      Map<String, Pattern> mapPatternByAllTeams,
+      String writeTenant) {
     // If it's a reserved field, it's already taken care of
     if (importReservedField.contains(ruleAttribute.getName())) {
       return emptyList();
@@ -922,6 +948,7 @@ public class InjectImportService {
                 } else {
                   // The team does not exist, we create a new one
                   Team team = new Team();
+                  team.setTenant(new Tenant(writeTenant));
                   team.setName(teamName);
                   team.setContextual(true);
                   team = teamRepository.save(team);

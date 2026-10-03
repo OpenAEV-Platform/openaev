@@ -55,7 +55,7 @@ if an inject (execution, emails, etc.) has been detected or prevented and fill t
 |:--------------|:--------------------------------|:--------|:--------|:----------|:-----------|
 | PostgreSQL    | ≥ 17.0                          | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
 | ElasticSearch | ≥ 9.0                           | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
-| RabbitMQ      | >= 4.1                          | 1 core  | ≥ 512MB | Standard  | ≥ 2GB      |
+| RabbitMQ      | >= 4.3                          | 1 core  | ≥ 512MB | Standard  | ≥ 2GB      |
 | S3 / Silo     | latest (Silo is a MinIO fork)   | 1 core  | ≥ 128MB | SSD       | ≥ 16GB     |
 
 Please note that while the versions of these dependencies are the recommended ones, OpenAEV may still function with

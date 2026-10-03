@@ -32,20 +32,25 @@ import org.springframework.test.context.TestPropertySource;
  * transaction, so seeding goes through an auto-committing {@link JdbcTemplate}.
  */
 @TestPropertySource(
-    properties = "openaev.tenant.active-tables=asset_groups,assets,import_mappers,findings")
+    properties =
+        "openaev.tenant.active-tables=asset_groups,assets,import_mappers,findings,documents,teams")
 @DisplayName("product inventory gauges keep counting across tenants once a table is v2-active")
 class ProductInventoryTenantScopeTest extends IntegrationTest {
 
   @Autowired private ProductInventoryMetricCollector collector;
   @Autowired private DataSource dataSource;
   @Autowired private io.openaev.database.repository.FindingRepository findingRepository;
+  @Autowired private io.openaev.database.repository.DocumentRepository documentRepository;
+  @Autowired private io.openaev.database.repository.TeamRepository teamRepository;
 
   private JdbcTemplate jdbc;
   private final List<String> seededTenants = new ArrayList<>();
   private long baseline;
   private long endpointBaseline;
   private long mapperBaseline;
+  private long documentBaseline;
   private long findingBaseline;
+  private long teamBaseline;
 
   @BeforeEach
   void seedTwoTenantsWithOneAssetGroupEach() {
@@ -62,6 +67,9 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
         requireNonNull(jdbc.queryForObject("SELECT count(*) FROM import_mappers", Long.class));
     findingBaseline =
         requireNonNull(jdbc.queryForObject("SELECT count(*) FROM findings", Long.class));
+    documentBaseline =
+        requireNonNull(jdbc.queryForObject("SELECT count(*) FROM documents", Long.class));
+    teamBaseline = requireNonNull(jdbc.queryForObject("SELECT count(*) FROM teams", Long.class));
     seedAssetGroup(seedTenant("telemetry-a-" + UUID.randomUUID()), "telemetry-group-a");
     seedAssetGroup(seedTenant("telemetry-b-" + UUID.randomUUID()), "telemetry-group-b");
     seedEndpoint(seededTenants.get(0), "telemetry-vuln-endpoint-a");
@@ -71,6 +79,14 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
     // zero count and held whether or not the supplier kept its TxCtx.allTenants() scope.
     seedFinding(seededTenants.get(0), "telemetry-finding-a");
     seedFinding(seededTenants.get(1), "telemetry-finding-b");
+    // Documents in BOTH tenants, same reasoning: a per-tenant row in each so the platform-wide
+    // count can only hold if the supplier spans every tenant.
+    seedDocument(seededTenants.get(0), "telemetry-document-a");
+    seedDocument(seededTenants.get(1), "telemetry-document-b");
+    // Teams in BOTH tenants: the team gauge is platform-wide, so a per-tenant row in each is what
+    // makes a short count detectable.
+    seedTeam(seededTenants.get(0), "telemetry-team-a");
+    seedTeam(seededTenants.get(1), "telemetry-team-b");
   }
 
   @AfterEach
@@ -81,6 +97,8 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
       jdbc.update("DELETE FROM findings WHERE tenant_id = ?", tenantId);
       jdbc.update("DELETE FROM injects WHERE tenant_id = ?", tenantId);
       jdbc.update("DELETE FROM import_mappers WHERE tenant_id = ?", tenantId);
+      jdbc.update("DELETE FROM documents WHERE tenant_id = ?", tenantId);
+      jdbc.update("DELETE FROM teams WHERE tenant_id = ?", tenantId);
       jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", tenantId);
     }
     seededTenants.clear();
@@ -199,6 +217,76 @@ class ProductInventoryTenantScopeTest extends IntegrationTest {
         "INSERT INTO import_mappers (mapper_id, mapper_name, mapper_inject_type_column,"
             + " mapper_created_at, mapper_updated_at, tenant_id)"
             + " VALUES (CAST(? AS uuid), ?, 'A', now(), now(), ?)",
+        UUID.randomUUID().toString(),
+        name,
+        tenantId);
+  }
+
+  @Test
+  @DisplayName("the documents gauge counts every tenant's rows, not zero")
+  void documentsGaugeCountsAcrossTenants() {
+    // Two tenants, one document each, one platform-wide count. A short count means the supplier
+    // lost its TxCtx.allTenants() scope and documents_total silently stopped spanning tenants once
+    // documents is v2-active.
+    assertEquals(
+        documentBaseline + 2L,
+        collector.countDocuments(),
+        "documents_total must span every tenant; a zero or short count here is the silent"
+            + " telemetry corruption this test exists to catch");
+  }
+
+  @Test
+  @DisplayName(
+      "the same document count without a scope returns zero: this is what the scope" + " prevents")
+  void documentsCountUnscopedIsZero() {
+    // The red half: without a scope set, the inspector denies every row, so an unscoped count on
+    // the active documents table must be zero. If it returns rows the inspector stopped firing and
+    // the scoped assertion above proves nothing.
+    assertEquals(
+        0L,
+        documentRepository.count(),
+        "an unscoped count on the active documents table must be zero; a non-zero result means the"
+            + " inspector is not firing");
+  }
+
+  private void seedDocument(String tenantId, String name) {
+    jdbc.update(
+        "INSERT INTO documents (document_id, document_name, document_type, document_target,"
+            + " tenant_id) VALUES (?, ?, 'text/plain', ?, ?)",
+        UUID.randomUUID().toString(),
+        name,
+        name,
+        tenantId);
+  }
+
+  @Test
+  @DisplayName("the teams gauge counts every tenant's rows, not zero")
+  void teamsGaugeCountsAcrossTenants() {
+    // Two tenants, one team each, one platform-wide count. The gauge groups by contextual, so the
+    // assertion sums the groups: what matters is that no tenant's rows drop out.
+    assertEquals(
+        teamBaseline + 2L,
+        collector.collectTeams().values().stream().mapToLong(Long::longValue).sum(),
+        "teams_total must span every tenant; a zero or short count here means the supplier runs"
+            + " with no scope on an active table and the gauge silently stopped counting");
+  }
+
+  @Test
+  @DisplayName("the same team count without a scope returns zero: this is what the scope prevents")
+  void teamsCountUnscopedIsZero() {
+    // The red half: with no scope set the inspector denies every row of an active table, so the
+    // assertion above can only hold because the supplier sets one.
+    assertEquals(
+        0L,
+        teamRepository.count(),
+        "an unscoped count on the active teams table must be zero; a non-zero result means the"
+            + " inspector is not firing and the scoped assertion proves nothing");
+  }
+
+  private void seedTeam(String tenantId, String name) {
+    jdbc.update(
+        "INSERT INTO teams (team_id, team_name, team_contextual, tenant_id)"
+            + " VALUES (?, ?, false, ?)",
         UUID.randomUUID().toString(),
         name,
         tenantId);
