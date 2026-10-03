@@ -28,6 +28,7 @@ import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.Constants;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.opencti.errors.ConnectorUnavailableError;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.TenantRoleService;
 import io.openaev.service.UserService;
@@ -449,6 +450,25 @@ public class OpenCTIServiceTest extends IntegrationTest {
       }
 
       @Test
+      @DisplayName("given a rate limited call should throw an unavailable error, not a refusal")
+      void given_rateLimited_should_throwUnavailableError() throws Exception {
+        // Arrange
+        Response tooManyRequests = new Response();
+        tooManyRequests.setStatus(HttpStatus.SC_TOO_MANY_REQUESTS);
+        when(mockOpenCTIClient.execute(
+                any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class)))
+            .thenReturn(tooManyRequests);
+
+        // Act + Assert
+        assertThatThrownBy(
+                () ->
+                    openCTIService.validateHuntFromEmulation(
+                        registeredConnector(), input(), TIMEOUT))
+            .isInstanceOf(ConnectorUnavailableError.class)
+            .hasMessageContaining("HTTP 429");
+      }
+
+      @Test
       @DisplayName("given an answer without hunt validation should throw a connector error")
       void given_answerWithoutValidation_should_throwConnectorError() throws Exception {
         // Arrange
@@ -476,7 +496,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         // Act + Assert
         assertThatThrownBy(
                 () -> openCTIService.validateHuntFromEmulation(connector, input(), TIMEOUT))
-            .isInstanceOf(ConnectorError.class)
+            .isInstanceOf(ConnectorUnavailableError.class)
             .hasMessageContaining("hasn't registered yet");
         verify(mockOpenCTIClient, never())
             .execute(any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class));

@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
  *     hunt-validation:
  *       enabled: true
  *       window-padding: PT5M
+ *       max-age: P7D
  * }</pre>
  */
 @Component
@@ -30,6 +31,7 @@ public class SecurityCoverageHuntValidationConfig {
   static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(30);
   static final int DEFAULT_BATCH_SIZE = 50;
   static final int DEFAULT_MAX_ATTEMPTS = 5;
+  static final Duration DEFAULT_MAX_AGE = Duration.ofDays(7);
 
   /** Off by default: the OpenCTI hunt validation requires OpenCTI Enterprise Edition. */
   private boolean enabled = false;
@@ -45,6 +47,9 @@ public class SecurityCoverageHuntValidationConfig {
 
   /** Attempts OpenCTI refuses before a validation is given up (outages do not count). */
   private int maxAttempts = DEFAULT_MAX_ATTEMPTS;
+
+  /** Time after its planning a validation still not delivered is given up, outages included. */
+  private Duration maxAge = DEFAULT_MAX_AGE;
 
   public boolean isEnabled() {
     return enabled;
@@ -70,5 +75,10 @@ public class SecurityCoverageHuntValidationConfig {
   /** The configured attempts, at least one. */
   public int getMaxAttempts() {
     return Math.max(1, maxAttempts);
+  }
+
+  /** The configured maximum age, or the default when missing, zero or negative. */
+  public Duration getMaxAge() {
+    return maxAge == null || maxAge.isZero() || maxAge.isNegative() ? DEFAULT_MAX_AGE : maxAge;
   }
 }

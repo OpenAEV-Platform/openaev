@@ -6,6 +6,7 @@ import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.opencti.errors.ConnectorUnavailableError;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.stix.objects.Bundle;
 import jakarta.annotation.PostConstruct;
@@ -153,7 +154,9 @@ public class OpenCTIConnectorService {
    * @param input the emulation to validate the hunts against
    * @param timeout bound of the connect, the TLS handshake and every read of the call
    * @return the hunt validation OpenCTI started
-   * @throws ConnectorError no active connector for the tenant, or OpenCTI refused the validation
+   * @throws ConnectorError OpenCTI refused the validation
+   * @throws ConnectorUnavailableError no active or registered connector for the tenant, or OpenCTI
+   *     rate limited the call
    * @throws IOException OpenCTI could not be reached or answered a server error
    */
   public ValidateHuntFromEmulation.HuntValidation validateHuntFromEmulation(
@@ -163,7 +166,7 @@ public class OpenCTIConnectorService {
         getConnectorBase(tenantId)
             .orElseThrow(
                 () ->
-                    new ConnectorError(
+                    new ConnectorUnavailableError(
                         "No instance of Security Coverage connector is currently active to"
                             + " validate hunts for tenant id: "
                             + tenantId));

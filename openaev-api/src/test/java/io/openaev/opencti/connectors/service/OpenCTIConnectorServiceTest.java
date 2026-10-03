@@ -2,25 +2,32 @@ package io.openaev.opencti.connectors.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.Ping;
 import io.openaev.opencti.client.mutations.QueryTypeFields;
 import io.openaev.opencti.client.mutations.RegisterConnector;
+import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.opencti.errors.ConnectorUnavailableError;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.types.Identifier;
 import io.openaev.utils.fixtures.opencti.ResponseFixture;
 import io.openaev.utils.mockConfig.WithMockSecurityCoverageConnectorConfig;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -187,6 +194,70 @@ public class OpenCTIConnectorServiceTest extends IntegrationTest {
                     openCTIConnectorService.pushSecurityCoverageStixBundle(
                         createBundle(), TenantContext.getCurrentTenant()));
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Validate hunts from emulation tests")
+  public class ValidateHuntsFromEmulationTests {
+    private static final Duration TIMEOUT = Duration.ofSeconds(30);
+
+    private ValidateHuntFromEmulation.Input input() {
+      return new ValidateHuntFromEmulation.Input(
+          "T1059.001",
+          "identity--" + UUID.randomUUID(),
+          "Splunk prod",
+          UUID.randomUUID().toString(),
+          "2026-10-03T10:00:00Z",
+          "2026-10-03T10:20:00Z",
+          "security-coverage--" + UUID.randomUUID());
+    }
+
+    @Test
+    @DisplayName("given no connector for the tenant should throw an unavailable error")
+    void given_noConnectorForTenant_should_throwUnavailableError() throws IOException {
+      // Arrange
+      String tenantWithoutConnector = UUID.randomUUID().toString();
+
+      // Act + Assert
+      assertThatThrownBy(
+              () ->
+                  openCTIConnectorService.validateHuntFromEmulation(
+                      tenantWithoutConnector, input(), TIMEOUT))
+          .isInstanceOf(ConnectorUnavailableError.class)
+          .hasMessageContaining(tenantWithoutConnector);
+      verify(mockOpenCTIClient, never())
+          .execute(any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("given the tenant connector registered should call OpenCTI with its credentials")
+    void given_registeredConnector_should_callOpenCtiWithItsCredentials() throws Exception {
+      // Arrange
+      ConnectorBase connector = getInstanceOfSecurityCoverageConnector().get();
+      connector.setRegistered(true);
+      Response okResponse = ResponseFixture.getOkResponse();
+      okResponse.setData(
+          (ObjectNode)
+              new ObjectMapper()
+                  .readTree("{\"huntValidateFromEmulation\": {\"hunts_count\": 2, \"runs\": []}}"));
+      when(mockOpenCTIClient.execute(
+              any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class)))
+          .thenReturn(okResponse);
+
+      // Act
+      ValidateHuntFromEmulation.HuntValidation validation =
+          openCTIConnectorService.validateHuntFromEmulation(
+              connector.getTenantId(), input(), TIMEOUT);
+
+      // Assert
+      assertThat(validation.getHuntsCount()).isEqualTo(2);
+      verify(mockOpenCTIClient)
+          .execute(
+              eq(connector.getApiUrl()),
+              eq(connector.getToken()),
+              any(ValidateHuntFromEmulation.class),
+              eq(TIMEOUT));
     }
   }
 }

@@ -17,6 +17,7 @@ import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.SecurityCoverageHuntValidationRepository;
 import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
 import io.openaev.opencti.connectors.ConnectorBase;
+import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -61,7 +62,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *       transaction, then calls OpenCTI with no transaction open.
  *   <li>{@link #recordOutcomes}: the delivery job records each outcome in a second short
  *       transaction; a refused delivery is retried with an exponential backoff until the attempts
- *       run out, one that could not reach OpenCTI is postponed.
+ *       run out, one that could not reach OpenCTI is postponed, and both are given up once older
+ *       than the maximum age.
  * </ol>
  *
  * Failures are logged by the jobs and never propagate to the coverage computation or push.
@@ -95,6 +97,9 @@ public class SecurityCoverageHuntValidationService {
   static final Duration RETRY_MAX_DELAY = Duration.ofHours(6);
   static final int MAX_ERROR_LENGTH = 1024;
 
+  /** OpenCTI refuses a window whose start is not strictly before its end. */
+  static final Duration MIN_WINDOW_LENGTH = Duration.ofMinutes(1);
+
   private final SecurityCoverageHuntValidationConfig config;
   private final SecurityCoverageHuntValidationRepository huntValidationRepository;
   private final ExerciseService exerciseService;
@@ -110,13 +115,14 @@ public class SecurityCoverageHuntValidationService {
   // -- LIST --
 
   /**
-   * The tenants whose OpenCTI connector is registered: the only ones a delivery can reach, the
-   * others keep their validations due until their connector registers.
+   * The tenants whose Security Coverage connector is registered: the only ones a delivery can
+   * reach, the others keep their validations due until their connector registers.
    *
    * @return the distinct tenant ids
    */
   public List<String> tenantsWithRegisteredConnector() {
     return openCTIConnectorService.getRegisterConnectors().stream()
+        .filter(SecurityCoverageConnector.class::isInstance)
         .map(ConnectorBase::getTenantId)
         .filter(Objects::nonNull)
         .distinct()
@@ -281,6 +287,9 @@ public class SecurityCoverageHuntValidationService {
    *       nothing about the validation, and must not exhaust the attempts of every row it lasts.
    * </ul>
    *
+   * A refused or unreachable validation is given up anyway once it is older than the maximum age,
+   * so no outage keeps a validation retried forever.
+   *
    * <p>Must run inside a tenant-scoped transaction.
    *
    * @param outcomes the outcomes returned by {@link #send}
@@ -316,7 +325,7 @@ public class SecurityCoverageHuntValidationService {
         case REFUSED -> {
           validation.setAttempts(validation.getAttempts() + 1);
           validation.setLastError(StringUtils.abbreviate(outcome.error(), MAX_ERROR_LENGTH));
-          if (validation.getAttempts() >= config.getMaxAttempts()) {
+          if (validation.getAttempts() >= config.getMaxAttempts() || isExpired(validation, now)) {
             validation.setStatus(Status.FAILED);
           } else {
             validation.setNextAttemptAt(now.plus(retryDelay(validation.getAttempts())));
@@ -324,19 +333,29 @@ public class SecurityCoverageHuntValidationService {
         }
         case UNREACHABLE -> {
           validation.setLastError(StringUtils.abbreviate(outcome.error(), MAX_ERROR_LENGTH));
-          validation.setNextAttemptAt(now.plus(RETRY_BASE_DELAY));
+          if (isExpired(validation, now)) {
+            validation.setStatus(Status.FAILED);
+          } else {
+            validation.setNextAttemptAt(now.plus(RETRY_BASE_DELAY));
+          }
         }
       }
     }
     huntValidationRepository.saveAll(validations);
   }
 
+  private boolean isExpired(SecurityCoverageHuntValidation validation, Instant now) {
+    Instant plannedAt = validation.getCreatedAt();
+    return plannedAt != null && !plannedAt.plus(config.getMaxAge()).isAfter(now);
+  }
+
   // -- PLANNING RULES --
 
   /**
    * The execution window of an inject that ran ({@link #EXECUTED_STATUSES}): from the time it was
-   * sent to the time it completed, widened by {@code padding} on both sides. Empty for an inject
-   * that did not run, or ran without a recorded start.
+   * sent to the time it completed, widened by {@code padding} on both sides, and never shorter than
+   * {@link #MIN_WINDOW_LENGTH}. Empty for an inject that did not run, or ran without a recorded
+   * start.
    */
   static Optional<ExecutionWindow> executionWindow(Inject inject, Duration padding) {
     return inject
@@ -345,12 +364,15 @@ public class SecurityCoverageHuntValidationService {
         .filter(status -> status.getTrackingSentDate() != null)
         .map(
             status -> {
-              Instant start = status.getTrackingSentDate();
-              Instant end =
-                  status.getTrackingEndDate() == null || status.getTrackingEndDate().isBefore(start)
-                      ? start
+              Instant sent = status.getTrackingSentDate();
+              Instant ended =
+                  status.getTrackingEndDate() == null || status.getTrackingEndDate().isBefore(sent)
+                      ? sent
                       : status.getTrackingEndDate();
-              return new ExecutionWindow(start.minus(padding), end.plus(padding));
+              Instant start = sent.minus(padding);
+              Instant end = ended.plus(padding);
+              Instant minimumEnd = start.plus(MIN_WINDOW_LENGTH);
+              return new ExecutionWindow(start, end.isBefore(minimumEnd) ? minimumEnd : end);
             });
   }
 
