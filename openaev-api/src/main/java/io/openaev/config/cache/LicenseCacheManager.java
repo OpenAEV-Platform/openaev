@@ -4,6 +4,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
 import io.openaev.xtmone.XtmOneEntitlementService;
 import java.time.Instant;
+import org.springframework.beans.BeanUtils;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
@@ -39,8 +40,10 @@ public class LicenseCacheManager {
   }
 
   /**
-   * The license that decides Enterprise Edition. The own license is cached (parsing and verifying
-   * it is costly); the XTM license is read on every call, since its dates are re-applied each time.
+   * The license that decides Enterprise Edition, its {@code license_is_validated} flag being the
+   * gates' decision at this instant (the frontend gates read that flag). The own license is cached
+   * (parsing and verifying it is costly); the XTM license is read on every call, since its dates
+   * are re-applied each time.
    */
   public License getEnterpriseEditionInfo() {
     License own = ownLicense();
@@ -50,16 +53,25 @@ public class LicenseCacheManager {
     return xtmOneEntitlementService
         .activeLicense()
         .map(xtmLicense -> xtmLicense.toLicense(Instant.now()))
-        .orElse(own);
+        .orElseGet(() -> own.isLicenseValidated() ? noLongerGranting(own) : own);
+  }
+
+  /** Whether Enterprise Edition is in force now, as every gate decides it. */
+  public boolean isEnterpriseEditionActive() {
+    return enterpriseEditionService.isLicenseActive(getEnterpriseEditionInfo());
   }
 
   /**
-   * Whether Enterprise Edition is in force now, as every gate decides it: the license of {@link
-   * #getEnterpriseEditionInfo()} active at this instant. Its {@code license_is_validated} flag is
-   * not enough: a cached own license keeps it after its expiration date.
+   * An own license past its expiration date that no longer grants still reads as validated when it
+   * was cached before that date, or when it is a trial (no grace period). The copy reads as the
+   * gates decide; the cached license is shared and left as parsed.
    */
-  public boolean isEnterpriseEditionActive() {
-    return enterpriseEditionService.isLicenseActive(getEnterpriseEditionInfo());
+  private static License noLongerGranting(License own) {
+    License license = new License();
+    BeanUtils.copyProperties(own, license);
+    license.setLicenseValidated(false);
+    license.setLicenseExpired(true);
+    return license;
   }
 
   private License ownLicense() {

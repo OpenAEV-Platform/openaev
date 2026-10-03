@@ -168,10 +168,12 @@ class LicenseCacheManagerTest {
     }
 
     @Test
-    @DisplayName("Given a cached own license past its expiration date should no longer be in force")
-    void given_expiredCachedOwnLicense_should_notBeInForce() {
+    @DisplayName(
+        "Given a cached own license past its expiration date should read as no longer validated")
+    void given_expiredCachedOwnLicense_should_readAsNoLongerValidated() {
       // Arrange: validated when it was parsed and cached, before its expiration date.
       License own = ownLicense(true);
+      own.setLicenseExpired(false);
       own.setExpirationDate(Instant.now().minus(1, DAYS));
       when(enterpriseEditionService.getEnterpriseEditionInfo()).thenReturn(own);
       givenXtmLicense(null);
@@ -179,11 +181,57 @@ class LicenseCacheManagerTest {
       // Act
       License license = licenseCacheManager.getEnterpriseEditionInfo();
 
-      // Assert: the cached flag is stale, the decision in force is not.
-      assertThat(license.isLicenseValidated()).isTrue();
+      // Assert: the flags the frontend gates read follow the decision in force.
+      assertThat(license.isLicenseValidated()).isFalse();
+      assertThat(license.isLicenseExpired()).isTrue();
+      assertThat(license.getCustomer()).isEqualTo("OpenAEV customer");
+      assertThat(license.getExpirationDate()).isEqualTo(own.getExpirationDate());
+      assertThat(license.getSource()).isEqualTo(LicenseSource.openaev);
       assertThat(licenseCacheManager.isEnterpriseEditionActive()).isFalse();
       assertThatThrownBy(LicenseCacheManagerTest.this::callEnterpriseFeature)
           .isInstanceOf(EnterpriseEditionException.class);
+      // The cached license is left as parsed.
+      assertThat(own.isLicenseValidated()).isTrue();
+      assertThat(own.isLicenseExpired()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Given an expired own trial license should read as no longer validated")
+    void given_expiredOwnTrialLicense_should_readAsNoLongerValidated() {
+      // Arrange: a trial has no grace period, its parse keeps it validated once expired.
+      License own = ownLicense(true);
+      own.setType(LicenseTypeEnum.trial);
+      own.setLicenseExpired(true);
+      own.setExpirationDate(Instant.now().minus(1, DAYS));
+      when(enterpriseEditionService.getEnterpriseEditionInfo()).thenReturn(own);
+      givenXtmLicense(null);
+
+      // Act
+      License license = licenseCacheManager.getEnterpriseEditionInfo();
+
+      // Assert
+      assertThat(license.isLicenseValidated()).isFalse();
+      assertThat(license.getType()).isEqualTo(LicenseTypeEnum.trial);
+      assertThat(licenseCacheManager.isEnterpriseEditionActive()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Given an expired own license and a verified XTM license should grant from XTM")
+    void given_expiredOwnLicenseAndXtmLicense_should_grantFromXtm() {
+      // Arrange
+      License own = ownLicense(true);
+      own.setExpirationDate(Instant.now().minus(1, DAYS));
+      when(enterpriseEditionService.getEnterpriseEditionInfo()).thenReturn(own);
+      givenXtmLicense(
+          xtmLicense("standard", Instant.now().minus(10, DAYS), Instant.now().plus(300, DAYS)));
+
+      // Act
+      License license = licenseCacheManager.getEnterpriseEditionInfo();
+
+      // Assert
+      assertThat(license.getSource()).isEqualTo(LicenseSource.xtm_one);
+      assertThat(license.isLicenseValidated()).isTrue();
+      assertThat(licenseCacheManager.isEnterpriseEditionActive()).isTrue();
     }
 
     @Test
