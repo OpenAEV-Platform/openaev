@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OpenAEV — Findings (mockup, local/interactive)</title>
+<style>
+  :root {
+    --bg-default:#070d19; --bg-paper:#09101e; --bg-accent:#0f1e38; --bg-secondary:#0C1524;
+    --bg-drawer:#0f1d34; --bg-bg2:#0D182A; --bg-bg3:#253348; --bg-bg4:#1C2F49;
+    --grad-body:linear-gradient(100deg,#070d19 0%,#08101D 100%);
+    --grad-topbar:linear-gradient(90deg,rgba(7,13,25,.9) 0%,rgba(8,16,29,.9) 100%);
+    --primary:#0fbcff; --primary-light:#B2ECFF; --secondary:#00f18d;
+    --text:#F2F2F3; --text-secondary:rgba(255,255,255,.7); --text-tertiary:#848592;
+    --text-light:#AFB0B6; --text-disabled:#75829A;
+    --divider:rgba(255,255,255,.12); --border-main:#252A35; --hover:rgba(255,255,255,.08);
+    --selected:rgba(255,255,255,.16); --warning:#ffa726;
+    --nav-w:180px; --topbar-h:68px; --radius:4px;
+    --font:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    --font-head:"Geologica","IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    --font-code:Consolas,monaco,monospace;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body { background:var(--grad-body); background-attachment:fixed; color:var(--text);
+    font-family:var(--font); font-size:14px; -webkit-font-smoothing:antialiased; }
+  ::selection { background:rgba(15,188,255,.3); }
+  .lc { text-transform:lowercase; } .lc::first-letter { text-transform:uppercase; }
+  .app { display:flex; min-height:100vh; }
+
+  /* Left nav */
+  .nav { width:var(--nav-w); flex-shrink:0; background:var(--grad-body);
+    display:flex; flex-direction:column; min-height:100vh; position:sticky; top:0; height:100vh; }
+  .nav-header { min-height:56px; padding:12px 8px; display:flex; align-items:center; gap:7px; }
+  .nav-logo { font-family:var(--font-head); font-weight:600; font-size:17px; color:var(--text);
+    display:flex; align-items:center; gap:8px; }
+  .nav-logo svg { width:22px; height:22px; display:block; }
+  .nav-caret { margin-left:auto; color:var(--text-tertiary); display:flex; }
+  .nav-caret svg { width:20px; height:20px; fill:currentColor; }
+  .nav-group { padding:6px 0; }
+  .nav-group + .nav-group { border-top:1px solid var(--bg-bg2); }
+  .nav-item { height:36px; display:flex; align-items:center; gap:8px; padding-left:16px;
+    padding-right:8px; cursor:pointer; border-left:2px solid transparent; color:var(--text); }
+  .nav-item svg { width:16px; height:16px; fill:var(--text-tertiary); opacity:.5; flex-shrink:0; }
+  .nav-item span { font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; padding-top:1px; }
+  .nav-item:hover { background:var(--bg-bg3); }
+  .nav-item.selected { border-left-color:var(--primary); background:rgba(15,188,255,.1); }
+  .nav-item.selected svg { fill:var(--text-light); opacity:1; }
+  .nav-item .sub { margin-left:auto; opacity:.5; } .nav-item .sub svg { width:18px; height:18px; }
+  .nav-spacer { margin-top:auto; }
+
+  /* Main */
+  .main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .topbar { height:var(--topbar-h); position:sticky; top:0; z-index:5; background:var(--grad-topbar);
+    backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:space-between;
+    padding:0 24px; gap:16px; }
+  .search-platform { display:flex; align-items:center; gap:6px; width:50%; min-width:360px;
+    max-width:680px; height:36px; background:var(--bg-secondary); border-radius:var(--radius);
+    padding:0 12px; color:var(--text-light); }
+  .search-platform svg { width:18px; height:18px; fill:var(--text-tertiary); flex-shrink:0; }
+  .search-platform input { border:0; background:transparent; outline:0; color:var(--text);
+    font-family:var(--font); font-size:14px; width:100%; }
+  .search-platform input::placeholder { color:var(--text-tertiary); }
+  .topbar-actions { display:flex; align-items:center; gap:8px; }
+  .icon-btn { width:36px; height:36px; border-radius:var(--radius); border:0; cursor:pointer;
+    background:transparent; color:var(--primary); display:grid; place-items:center; }
+  .icon-btn svg { width:22px; height:22px; fill:currentColor; }
+  .icon-btn:hover { background:rgba(15,188,255,.15); }
+  .topbar-divider { width:1px; height:24px; background:var(--divider); margin:0 4px; }
+  .avatar { width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
+    background:rgba(15,188,255,.15); color:var(--primary-light); font-weight:600; font-size:13px; cursor:pointer; }
+  .ariane { display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 10px; border:0;
+    background:transparent; cursor:pointer; border-radius:var(--radius); font-family:var(--font);
+    font-weight:600; font-size:14px; }
+  .ariane:hover { background:rgba(178,134,255,.15); }
+  .ariane svg { width:18px; height:18px; fill:#B286FF; }
+  .ariane .ariane-lbl { background:linear-gradient(90deg,#D6C2FA,#B286FF); -webkit-background-clip:text;
+    background-clip:text; color:transparent; }
+  .nav-tenant { height:36px; display:flex; align-items:center; padding-left:16px; padding-right:6px;
+    cursor:pointer; color:var(--text); border-left:2px solid transparent; }
+  .nav-tenant:hover { background:var(--bg-bg3); }
+  .nav-tenant .home { width:16px; height:16px; fill:var(--text-tertiary); opacity:.5; flex-shrink:0; margin-right:12px; }
+  .nav-tenant .name { font-size:14px; font-weight:500; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .nav-tenant .unfold { width:18px; height:18px; fill:var(--text-secondary); flex-shrink:0; }
+
+  .content { padding:16px 20px 24px; flex:1; }
+  .breadcrumbs { display:flex; align-items:center; gap:6px; margin-top:-5px; margin-bottom:15px;
+    font-size:14px; color:var(--text-secondary); }
+  .breadcrumbs .current { color:#fff; }
+
+  /* filter bar */
+  .filterbar { display:flex; align-items:center; justify-content:space-between; margin-top:-4px; }
+  .filterbar-left { display:flex; align-items:center; gap:10px; }
+  .search-small { display:flex; align-items:center; gap:6px; width:200px; height:34px;
+    background:var(--bg-paper); border:1px solid var(--border-main); border-radius:5px;
+    padding:0 10px; color:var(--text-light); transition:width .15s; }
+  .search-small:focus-within { width:260px; border-color:var(--primary); }
+  .search-small svg { width:16px; height:16px; fill:var(--text-tertiary); }
+  .search-small input { border:0; background:transparent; outline:0; color:var(--text);
+    font-family:var(--font); font-size:13px; width:100%; }
+  .search-small input::placeholder { color:var(--text-tertiary); }
+  .add-filter { position:relative; }
+  .add-filter-btn { display:flex; align-items:center; justify-content:space-between; gap:8px;
+    width:200px; height:34px; background:var(--bg-secondary); border:1px solid var(--border-main);
+    border-radius:var(--radius); padding:0 8px 0 12px; color:var(--text-light); font-size:13px; cursor:pointer; }
+  .add-filter-btn svg { width:20px; height:20px; fill:var(--text-tertiary); }
+  .add-filter-menu { position:absolute; top:38px; left:0; width:200px; background:var(--bg-drawer);
+    border:1px solid var(--border-main); border-radius:var(--radius); padding:4px; z-index:10;
+    box-shadow:0 6px 20px rgba(0,0,0,.5); display:none; }
+  .add-filter-menu.open { display:block; }
+  .add-filter-menu div { padding:8px 10px; border-radius:var(--radius); cursor:pointer; font-size:13px; }
+  .add-filter-menu div:hover { background:var(--hover); }
+  .clear-filters { width:34px; height:34px; border-radius:var(--radius); border:0; cursor:pointer;
+    background:transparent; color:var(--primary); display:grid; place-items:center; }
+  .clear-filters svg { width:18px; height:18px; fill:currentColor; }
+  .clear-filters:hover { background:rgba(15,188,255,.15); }
+
+  .pagination { display:flex; align-items:center; gap:18px; font-size:13px; color:var(--text-secondary);
+    font-variant-numeric:tabular-nums; }
+  .pagination b { color:var(--text); font-weight:500; }
+  .pagination .pager button { width:28px; height:28px; border:0; background:transparent;
+    color:var(--text-secondary); border-radius:var(--radius); cursor:pointer; display:inline-grid; place-items:center; }
+  .pagination .pager button:hover:not(:disabled) { background:var(--hover); color:var(--text); }
+  .pagination .pager button:disabled { opacity:.4; cursor:default; }
+  .pagination .pager svg { width:20px; height:20px; fill:currentColor; }
+
+  .filter-chips { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px 0; min-height:56px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 6px 0 8px;
+    border-radius:var(--radius); font-size:13px; color:var(--text); background:var(--bg-bg4); }
+  .chip .k { color:var(--text-secondary); } .chip .op { color:var(--text-tertiary); font-size:12px; }
+  .chip .del { display:grid; place-items:center; cursor:pointer; opacity:.7; }
+  .chip .del:hover { opacity:1; } .chip .del svg { width:16px; height:16px; fill:currentColor; }
+  .mode-chip { height:22px; padding:0 8px; border-radius:var(--radius); background:var(--selected);
+    color:var(--text); font-size:12px; display:inline-flex; align-items:center; }
+
+  /* list */
+  .list-head { display:flex; align-items:center; height:40px; }
+  .list-head .row-icon { width:56px; flex-shrink:0; }
+  .list-head .cell { text-transform:uppercase; font-weight:700; font-size:12px; color:var(--text-secondary);
+    letter-spacing:.03em; display:flex; align-items:center; gap:2px; }
+  .list-head .cell.sortable { cursor:pointer; } .list-head .cell.sortable:hover { color:var(--text); }
+  .sort-arrow svg { width:18px; height:18px; fill:var(--primary); display:block; }
+  .sort-arrow { display:none; } .cell.sorted .sort-arrow { display:inline-flex; }
+
+  .row { display:flex; align-items:center; height:50px; border-bottom:1px solid var(--divider); cursor:pointer; }
+  .row:hover { background:var(--hover); }
+  .row-icon { width:56px; flex-shrink:0; display:grid; place-items:center; }
+  .row-icon svg { width:22px; height:22px; fill:var(--primary); }
+  .cells { flex:1; display:flex; align-items:center; min-width:0; }
+  .cell { font-size:.8rem; color:var(--text); white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; padding-right:8px; }
+  .c-type{width:13%;} .c-value{width:27%;} .c-assets{width:17%;} .c-groups{width:15%;}
+  .c-first{width:14%;} .c-last{width:14%;}
+  .type-label { font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:.05em; }
+  .code { display:inline-block; max-width:95%; padding:2px 8px; border-radius:var(--radius);
+    background:var(--bg-accent); border:1px solid var(--divider); font-family:var(--font-code);
+    font-size:12px; line-height:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    vertical-align:middle; }
+  .target { display:inline-flex; align-items:center; gap:5px; height:24px; padding:0 8px;
+    border:1px solid var(--divider); border-radius:var(--radius); font-size:12px; color:var(--text); max-width:100%; }
+  .target svg { width:14px; height:14px; fill:var(--text-light); flex-shrink:0; }
+  .target-more { display:inline-flex; align-items:center; height:24px; padding:0 7px; margin-left:4px;
+    border:1px solid var(--divider); border-radius:var(--radius); font-size:12px; color:var(--text-secondary); }
+  .dash { color:var(--text-tertiary); } .muted { color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+  .empty { padding:40px 16px; text-align:center; color:var(--text-secondary); font-size:13px; }
+
+  /* drawer */
+  .scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); opacity:0; pointer-events:none;
+    transition:opacity .2s; z-index:1201; }
+  .scrim.open { opacity:1; pointer-events:auto; }
+  .drawer { position:fixed; top:0; right:0; height:100vh; width:50%; min-width:520px; background:var(--bg-drawer);
+    z-index:1202; transform:translateX(100%); transition:transform .22s ease; display:flex; flex-direction:column;
+    box-shadow:-8px 0 30px rgba(0,0,0,.4); }
+  .drawer.open { transform:translateX(0); }
+  .drawer-header { background:var(--bg-default); padding:16px 24px; border-bottom:1px solid var(--divider);
+    display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .drawer-header h2 { font-family:var(--font-head); font-size:16px; font-weight:700; margin:0; flex:1;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .drawer-close { width:30px; height:30px; border:0; background:transparent; color:var(--primary);
+    border-radius:var(--radius); cursor:pointer; display:grid; place-items:center; }
+  .drawer-close svg { width:20px; height:20px; fill:currentColor; }
+  .drawer-body { padding:16px 20px 24px; overflow:auto; display:flex; flex-direction:column; gap:16px; }
+  .hero { display:flex; gap:16px; align-items:flex-start; padding:16px; border-radius:var(--radius);
+    border:1px solid var(--divider); background:linear-gradient(135deg,rgba(15,188,255,.08),transparent 60%); }
+  .hero-icon { width:52px; height:52px; border-radius:var(--radius); background:rgba(15,188,255,.12);
+    border:1px solid rgba(15,188,255,.3); display:grid; place-items:center; flex-shrink:0; }
+  .hero-icon svg { width:26px; height:26px; fill:var(--primary); }
+  .hero-overline { font-family:var(--font-head); font-weight:600; font-size:11px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--primary); }
+  .hero-title { font-family:var(--font-head); font-size:22px; font-weight:400; margin:2px 0 0;
+    word-break:break-all; }
+  .cvss-chip { display:inline-block; margin-top:8px; padding:1px 10px; border:1px solid var(--primary);
+    border-radius:var(--radius); color:var(--primary); font-size:12px; }
+  .herostats { display:flex; flex-wrap:wrap; gap:8px 32px; margin-top:12px; }
+  .herostat { display:flex; align-items:center; gap:8px; padding-right:32px; border-right:1px solid rgba(255,255,255,.08); }
+  .herostat:last-child { border-right:0; }
+  .herostat .b { width:30px; height:30px; border-radius:var(--radius); background:rgba(15,188,255,.1);
+    display:grid; place-items:center; } .herostat .b svg { width:16px; height:16px; fill:var(--primary); }
+  .herostat .v { font-family:var(--font-head); font-size:18px; line-height:1.05; }
+  .herostat .c { font-size:9.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--text-secondary); }
+  .section-label { font-family:var(--font-head); font-weight:600; font-size:11px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--text-secondary); margin-bottom:12px; }
+  .infogrid { border:1px solid var(--divider); border-radius:var(--radius); padding:16px;
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px 16px; }
+  .field h3 { font-family:var(--font-head); font-size:12px; font-weight:600; margin:0 0 4px; color:var(--text-secondary); }
+  .field .val { font-size:13px; } .field pre { margin:0; padding:8px 12px; border-radius:var(--radius);
+    background:var(--bg-accent); border:1px solid var(--divider); font-family:var(--font-code); font-size:12.5px;
+    line-height:1.5; white-space:pre-wrap; word-break:break-all; }
+
+  .callout { margin:22px 0 0; padding:12px 16px; border-left:2px solid var(--primary);
+    background:rgba(15,188,255,.06); border-radius:0 var(--radius) var(--radius) 0; font-size:12.5px;
+    color:var(--text-secondary); line-height:1.55; }
+  .callout b { color:var(--text); } .callout code { font-family:var(--font-code); color:var(--primary-light); font-size:11.5px; }
+  kbd { background:var(--bg-bg4); border:1px solid var(--divider); border-radius:3px; padding:0 5px; font-size:11px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="nav" id="nav"></aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="search-platform">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg>
+        <input placeholder="Search the platform..." aria-label="Search the platform" />
+      </div>
+      <div class="topbar-actions">
+        <button class="ariane" title="Ask Ariane"><svg viewBox="0 0 24 24"><path d="m19 9 1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25z"/></svg><span class="ariane-lbl">Ask Ariane</span></button>
+        <button class="icon-btn" title="CTEM Command Center"><svg viewBox="0 0 24 24"><path d="M19.74 18.33C21.15 16.6 22 14.4 22 12c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10c2.4 0 4.6-.85 6.33-2.26.27-.22.53-.46.78-.71.03-.03.05-.06.07-.08.2-.2.39-.41.56-.62M12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8c0 1.85-.63 3.54-1.69 4.9l-1.43-1.43c.69-.98 1.1-2.17 1.1-3.46 0-3.31-2.69-6-6-6s-6 2.69-6 6 2.69 6 6 6c1.3 0 2.51-.42 3.49-1.13l1.42 1.42C15.54 19.37 13.85 20 12 20m1.92-7.49c.17-.66.02-1.38-.49-1.9l-.02-.02c-.77-.77-2-.78-2.78-.04-.01.01-.03.02-.05.04-.78.78-.78 2.05 0 2.83l.02.02c.52.51 1.25.67 1.91.49l1.51 1.51c-.6.36-1.29.58-2.04.58-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4c0 .73-.21 1.41-.56 2z"/></svg></button>
+        <div class="topbar-divider"></div>
+        <button class="icon-btn" title="Alerts"><svg viewBox="0 0 24 24"><path d="M10.54 14.53 8.41 12.4l-1.06 1.06 3.18 3.18 6-6-1.06-1.06zm6.797-12.72 4.607 3.845-1.28 1.535-4.61-3.843zm-10.674 0 1.282 1.536L3.337 7.19l-1.28-1.536zM12 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9m0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7"/></svg></button>
+        <button class="icon-btn" title="Notifications"><svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2m6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5z"/></svg></button>
+        <button class="icon-btn" title="Install agents"><svg viewBox="0 0 24 24"><path d="M23 11.01 18 11c-.55 0-1 .45-1 1v9c0 .55.45 1 1 1h5c.55 0 1-.45 1-1v-9c0-.55-.45-.99-1-.99M23 20h-5v-7h5zM20 2H2C.89 2 0 2.89 0 4v12c0 1.1.89 2 2 2h7v2H7v2h8v-2h-2v-2h2v-2H2V4h18v5h2V4c0-1.11-.9-2-2-2m-8.03 7L11 6l-.97 3H7l2.47 1.76-.94 2.91 2.47-1.8 2.47 1.8-.94-2.91L15 9z"/></svg></button>
+        <button class="icon-btn" title="Account"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2M7.35 18.5C8.66 17.56 10.26 17 12 17s3.34.56 4.65 1.5c-1.31.94-2.91 1.5-4.65 1.5s-3.34-.56-4.65-1.5m10.79-1.38C16.45 15.8 14.32 15 12 15s-4.45.8-6.14 2.12C4.7 15.73 4 13.95 4 12c0-4.42 3.58-8 8-8s8 3.58 8 8c0 1.95-.7 3.73-1.86 5.12M12 6c-1.93 0-3.5 1.57-3.5 3.5S10.07 13 12 13s3.5-1.57 3.5-3.5S13.93 6 12 6m0 5c-.83 0-1.5-.67-1.5-1.5S11.17 8 12 8s1.5.67 1.5 1.5S12.83 11 12 11"/></svg></button>
+      </div>
+    </header>
+    <main class="content">
+      <nav class="breadcrumbs"><span class="current lc">Findings</span></nav>
+      <div class="filterbar">
+        <div class="filterbar-left">
+          <div class="search-small">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg>
+            <input id="rowSearch" placeholder="Search these results..." aria-label="Search these results" />
+          </div>
+          <div class="add-filter">
+            <div class="add-filter-btn" id="addFilterBtn"><span>Add filter</span><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5z"/></svg></div>
+            <div class="add-filter-menu" id="addFilterMenu"></div>
+          </div>
+          <button class="clear-filters" id="clearFilters" title="Clear filters"><svg viewBox="0 0 24 24"><path d="M10.83 8H21V6H8.83zm5 5H18v-2h-4.17zM14 16.83V18h-4v-2h3.17l-3-3H6v-2h2.17l-3-3H3V6h.17L1.39 4.22 2.8 2.81l18.38 18.38-1.41 1.41z"/></svg></button>
+        </div>
+        <div class="pagination">
+          <span>Rows per page: <b>20</b></span>
+          <span id="rangeLabel">1–12 of 12</span>
+          <span class="pager">
+            <button title="Previous page" disabled><svg viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
+            <button title="Next page" disabled><svg viewBox="0 0 24 24"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg></button>
+          </span>
+        </div>
+      </div>
+      <div class="filter-chips" id="filterChips"></div>
+      <div class="list">
+        <div class="list-head" id="listHead"></div>
+        <div id="rows"></div>
+      </div>
+      <div class="callout">
+        <b>Mockup local &amp; interactif — page Findings.</b> Fichier HTML autonome (aucun réseau, aucun artifact) :
+        <b>ouvre-le par double-clic</b>. Logo et icônes = vrais assets de <code>openaev-front</code>.
+        Interactions réelles : <b>recherche</b> live, <b>tri</b> des colonnes (Type / Value / First seen / Last seen),
+        <b>clic sur une ligne</b> → drawer de détail (comme la page finding), <b>Add filter</b> + chips supprimables
+        (le <code>×</code>). <kbd>Échap</kbd> ferme le drawer. Données de findings fictives (lab).
+      </div>
+    </main>
+  </div>
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-header">
+      <h2 class="lc" id="drawerTitle">Finding</h2>
+      <button class="drawer-close" id="drawerClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+</div>
+
+<script>
+// ── Real OpenAEV logo mark (openaev-front/src/static/images/logo_dark.svg) ──
+const LOGO = '<svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M34.4242 35.5365L0.34021 1.81516L1.98252 0.190323L36.0665 33.9117L34.4242 35.5365Z" fill="#0FBCFF"/><path fill-rule="evenodd" clip-rule="evenodd" d="M0.34021 33.9117L34.4242 0.190323L36.0665 1.81516L1.98252 35.5365L0.34021 33.9117Z" fill="#0FBCFF"/><path fill-rule="evenodd" clip-rule="evenodd" d="M28.0555 1.81526L18.1378 11.624L8.22809 1.8149L9.87081 0.190491L18.1383 8.3744L26.4135 0.190132L28.0555 1.81526Z" fill="#0FBCFF"/><path fill-rule="evenodd" clip-rule="evenodd" d="M18.1796 24.1151L19.0118 24.9386L28.0843 33.9113L26.4423 35.5365L18.1798 27.3648L9.92193 35.5363L8.27948 33.9116L18.1796 24.1151Z" fill="#0FBCFF"/><path d="M19.8089 2.13972L18.0332 0.38298L16.2576 2.13972L18.0332 3.89647L19.8089 2.13972Z" fill="#0FBCFF"/><path d="M19.8104 33.9269L18.0348 32.1702L16.2592 33.9269L18.0348 35.6837L19.8104 33.9269Z" fill="#0FBCFF"/></svg>';
+
+// ── Real icon path data (mdi-material-ui / @mui/icons-material) ──
+const ICONS = {
+  cve:'M22 13C22 13.53 21.79 14.04 21.41 14.41L21 14.83C20.91 11.97 18.84 9.62 16.11 9.11L11 4H4V11L9.11 16.11C9.62 18.84 11.97 20.91 14.83 21L14.41 21.41C14.04 21.79 13.53 22 13 22C12.47 22 11.97 21.79 11.59 21.42L2.59 12.42C2.21 12.04 2 11.53 2 11V4C2 2.9 2.9 2 4 2H11C11.53 2 12.04 2.21 12.41 2.58L21.41 11.58C21.79 11.96 22 12.47 22 13M5 6.5C5 7.33 5.67 8 6.5 8S8 7.33 8 6.5 7.33 5 6.5 5 5 5.67 5 6.5M15.11 10.61C12.61 10.61 10.61 12.61 10.61 15.11S12.61 19.61 15.11 19.61C16 19.61 16.8 19.36 17.5 18.93L20.61 22L22 20.61L18.92 17.5C19.36 16.82 19.61 16 19.61 15.11C19.61 12.61 17.61 10.61 15.11 10.61M15.11 12.61C16.5 12.61 17.61 13.73 17.61 15.11S16.5 17.61 15.11 17.61 12.61 16.5 12.61 15.11 13.73 12.61 15.11 12.61',
+  credentials:'M21 18H15V15H13.3C12.2 17.4 9.7 19 7 19C3.1 19 0 15.9 0 12S3.1 5 7 5C9.7 5 12.2 6.6 13.3 9H24V15H21V18M17 16H19V13H22V11H11.9L11.7 10.3C11 8.3 9.1 7 7 7C4.2 7 2 9.2 2 12S4.2 17 7 17C9.1 17 11 15.7 11.7 13.7L11.9 13H17V16M7 15C5.3 15 4 13.7 4 12S5.3 9 7 9 10 10.3 10 12 8.7 15 7 15M7 11C6.4 11 6 11.4 6 12S6.4 13 7 13 8 12.6 8 12 7.6 11 7 11Z',
+  file:'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8zM6 20V4h7v5h5v11z',
+  share:'M15 20C15 19.45 14.55 19 14 19H13V17H19C20.11 17 21 16.11 21 15V7C21 5.9 20.11 5 19 5H13L11 3H5C3.9 3 3 3.9 3 5V15C3 16.11 3.9 17 5 17H11V19H10C9.45 19 9 19.45 9 20H2V22H9C9 22.55 9.45 23 10 23H14C14.55 23 15 22.55 15 22H22V20H15M5 15V7H19V15H5Z',
+  port:'M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M20.18,12C20.18,8.18 17.55,4.96 14,4.07V6H10V4.07C6.45,4.96 3.82,8.18 3.82,12A8.18,8.18 0 0,0 12,20.18A8.18,8.18 0 0,0 20.18,12M7,10.64A1.36,1.36 0 0,1 8.36,12A1.36,1.36 0 0,1 7,13.36C6.25,13.36 5.64,12.75 5.64,12C5.64,11.25 6.25,10.64 7,10.64M17,10.64A1.36,1.36 0 0,1 18.36,12A1.36,1.36 0 0,1 17,13.36A1.36,1.36 0 0,1 15.64,12A1.36,1.36 0 0,1 17,10.64M8.36,14.27A1.37,1.37 0 0,1 9.73,15.64C9.73,16.39 9.12,17 8.36,17A1.36,1.36 0 0,1 7,15.64C7,14.88 7.61,14.27 8.36,14.27M15.64,14.27C16.39,14.27 17,14.88 17,15.64A1.36,1.36 0 0,1 15.64,17C14.88,17 14.27,16.39 14.27,15.64A1.37,1.37 0 0,1 15.64,14.27M12,15.64A1.36,1.36 0 0,1 13.36,17A1.36,1.36 0 0,1 12,18.36A1.36,1.36 0 0,1 10.64,17A1.36,1.36 0 0,1 12,15.64Z',
+  portscan:'M17,22V20H20V17H22V20.5C22,20.89 21.84,21.24 21.54,21.54C21.24,21.84 20.89,22 20.5,22H17M7,22H3.5C3.11,22 2.76,21.84 2.46,21.54C2.16,21.24 2,20.89 2,20.5V17H4V20H7V22M17,2H20.5C20.89,2 21.24,2.16 21.54,2.46C21.84,2.76 22,3.11 22,3.5V7H20V4H17V2M7,2V4H4V7H2V3.5C2,3.11 2.16,2.76 2.46,2.46C2.76,2.16 3.11,2 3.5,2H7M13,17.25L17,14.95V10.36L13,12.66V17.25M12,10.92L16,8.63L12,6.28L8,8.63L12,10.92M7,14.95L11,17.25V12.66L7,10.36V14.95M18.23,7.59C18.73,7.91 19,8.34 19,8.91V15.23C19,15.8 18.73,16.23 18.23,16.55L12.75,19.73C12.25,20.05 11.75,20.05 11.25,19.73L5.77,16.55C5.27,16.23 5,15.8 5,15.23V8.91C5,8.34 5.27,7.91 5.77,7.59L11.25,4.41C11.5,4.28 11.75,4.22 12,4.22C12.25,4.22 12.5,4.28 12.75,4.41L18.23,7.59Z',
+  ipv4:'M19 5V19H5V5H19M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3M9 7H7V17H9V7M15 7H11V17H13V13H15C16.1 13 17 12.1 17 11V9C17 7.9 16.1 7 15 7M15 11H13V9H15V11Z',
+  adminusername:'M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,6A2,2 0 0,0 10,8A2,2 0 0,0 12,10A2,2 0 0,0 14,8A2,2 0 0,0 12,6M12,13C14.67,13 20,14.33 20,17V20H4V17C4,14.33 9.33,13 12,13M12,14.9C9.03,14.9 5.9,16.36 5.9,17V18.1H18.1V17C18.1,16.36 14.97,14.9 12,14.9Z',
+  kerberoastableaccount:'M20 12V7H22V13H20M20 17H22V15H20M10 13C12.67 13 18 14.34 18 17V20H2V17C2 14.34 7.33 13 10 13M10 4A4 4 0 0 1 14 8A4 4 0 0 1 10 12A4 4 0 0 1 6 8A4 4 0 0 1 10 4M10 14.9C7.03 14.9 3.9 16.36 3.9 17V18.1H16.1V17C16.1 16.36 12.97 14.9 10 14.9M10 5.9A2.1 2.1 0 0 0 7.9 8A2.1 2.1 0 0 0 10 10.1A2.1 2.1 0 0 0 12.1 8A2.1 2.1 0 0 0 10 5.9Z',
+  passwordpolicy:'M21,11C21,16.55 17.16,21.74 12,23C6.84,21.74 3,16.55 3,11V5L12,1L21,5V11M12,21C15.75,20 19,15.54 19,11.22V6.3L12,3.18L5,6.3V11.22C5,15.54 8.25,20 12,21M14.8,11V9.5C14.8,8.1 13.4,7 12,7C10.6,7 9.2,8.1 9.2,9.5V11C8.6,11 8,11.6 8,12.2V15.7C8,16.4 8.6,17 9.2,17H14.7C15.4,17 16,16.4 16,15.8V12.3C16,11.6 15.4,11 14.8,11M13.5,11H10.5V9.5C10.5,8.7 11.2,8.2 12,8.2C12.8,8.2 13.5,8.7 13.5,9.5V11Z',
+  vulnerability:'M12 5.99 19.53 19H4.47zM12 2 1 21h22zm1 14h-2v2h2zm0-6h-2v4h2z',
+  group:'M12,5A3.5,3.5 0 0,0 8.5,8.5A3.5,3.5 0 0,0 12,12A3.5,3.5 0 0,0 15.5,8.5A3.5,3.5 0 0,0 12,5M12,7A1.5,1.5 0 0,1 13.5,8.5A1.5,1.5 0 0,1 12,10A1.5,1.5 0 0,1 10.5,8.5A1.5,1.5 0 0,1 12,7M5.5,8A2.5,2.5 0 0,0 3,10.5C3,11.44 3.53,12.25 4.29,12.68C4.65,12.88 5.06,13 5.5,13C5.94,13 6.35,12.88 6.71,12.68C7.08,12.47 7.39,12.17 7.62,11.81C6.89,10.86 6.5,9.7 6.5,8.5C6.5,8.41 6.5,8.31 6.5,8.22C6.2,8.08 5.86,8 5.5,8M18.5,8C18.14,8 17.8,8.08 17.5,8.22C17.5,8.31 17.5,8.41 17.5,8.5C17.5,9.7 17.11,10.86 16.38,11.81C16.5,12 16.63,12.15 16.78,12.3C16.94,12.45 17.1,12.58 17.29,12.68C17.65,12.88 18.06,13 18.5,13C18.94,13 19.35,12.88 19.71,12.68C20.47,12.25 21,11.44 21,10.5A2.5,2.5 0 0,0 18.5,8M12,14C9.66,14 5,15.17 5,17.5V19H19V17.5C19,15.17 14.34,14 12,14M4.71,14.55C2.78,14.78 0,15.76 0,17.5V19H3V17.07C3,16.06 3.69,15.22 4.71,14.55M19.29,14.55C20.31,15.22 21,16.06 21,17.07V19H24V17.5C24,15.76 21.22,14.78 19.29,14.55M12,16C13.53,16 15.24,16.5 16.23,17H7.77C8.76,16.5 10.47,16 12,16Z',
+  text:'M18.5,4L19.66,8.35L18.7,8.61C18.25,7.74 17.79,6.87 17.26,6.43C16.73,6 16.11,6 15.5,6H13V16.5C13,17 13,17.5 13.33,17.75C13.67,18 14.33,18 15,18V19H9V18C9.67,18 10.33,18 10.67,17.75C11,17.5 11,17 11,16.5V6H8.5C7.89,6 7.27,6 6.74,6.43C6.21,6.87 5.75,7.74 5.3,8.61L4.34,8.35L5.5,4H18.5Z',
+  computer:'M6,2C4.89,2 4,2.89 4,4V12C4,13.11 4.89,14 6,14H18C19.11,14 20,13.11 20,12V4C20,2.89 19.11,2 18,2H6M6,4H18V12H6V4M4,15C2.89,15 2,15.89 2,17V20C2,21.11 2.89,22 4,22H20C21.11,22 22,21.11 22,20V17C22,15.89 21.11,15 20,15H4M8,17H20V20H8V17M9,17.75V19.25H13V17.75H9M15,17.75V19.25H19V17.75H15Z',
+};
+const svg = (d, cls) => `<svg viewBox="0 0 24 24" class="${cls||''}"><path d="${d}"/></svg>`;
+const ICON = t => svg(ICONS[t] || ICONS.cve);
+
+// Asset chip glyph (a monitor, like ItemTargets platform icon)
+const ASSET_GLYPH = '<svg viewBox="0 0 24 24"><path d="M6,2C4.89,2 4,2.89 4,4V12C4,13.11 4.89,14 6,14H18C19.11,14 20,13.11 20,12V4C20,2.89 19.11,2 18,2H6M6,4H18V12H6V4M4,15C2.89,15 2,15.89 2,17V20C2,21.11 2.89,22 4,22H20C21.11,22 22,21.11 22,20V17C22,15.89 21.11,15 20,15H4M8,17H20V20H8V17M9,17.75V19.25H13V17.75H9M15,17.75V19.25H19V17.75H15Z"/></svg>';
+
+// ── Nav ──
+const NAV = [
+  [['Home','M19 5v2h-4V5zM9 5v6H5V5zm10 8v6h-4v-6zM9 17v2H5v-2zM21 3h-8v6h8zM11 3H3v10h8zm10 8h-8v10h8zm-10 4H3v6h8z'],
+   ['Dashboards','M9 17H7v-7h2zm4 0h-2V7h2zm4 0h-2v-4h2zm2.5 2.1h-15V5h15zm0-16.1h-15c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2'],
+   ['Reporting','M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2M18 20H6V4H13V9H18V20M9 13V19H7V13H9M15 15V19H17V15H15M11 11V19H13V11H11Z'],
+   ['Findings','SELF']],
+  [['Scenarios','M19 15.18V7c0-2.21-1.79-4-4-4s-4 1.79-4 4v10c0 1.1-.9 2-2 2s-2-.9-2-2V8.82C8.16 8.4 9 7.3 9 6c0-1.66-1.34-3-3-3S3 4.34 3 6c0 1.3.84 2.4 2 2.82V17c0 2.21 1.79 4 4 4s4-1.79 4-4V7c0-1.1.9-2 2-2s2 .9 2 2v8.18c-1.16.41-2 1.51-2 2.82 0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.3-.84-2.4-2-2.82M6 7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1m12 12c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1'],
+   ['Simulations','m10 16.5 6-4.5-6-4.5zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8'],
+   ['Atomic testings','M11,2V4.07C7.38,4.53 4.53,7.38 4.07,11H2V13H4.07C4.53,16.62 7.38,19.47 11,19.93V22H13V19.93C16.62,19.47 19.47,16.62 19.93,13H22V11H19.93C19.47,7.38 16.62,4.53 13,4.07V2M11,6.08V8H13V6.09C15.5,6.5 17.5,8.5 17.92,11H16V13H17.91C17.5,15.5 15.5,17.5 13,17.92V16H11V17.91C8.5,17.5 6.5,15.5 6.08,13H8V11H6.09C6.5,8.5 8.5,6.5 11,6.08M12,11A1,1 0 0,0 11,12A1,1 0 0,0 12,13A1,1 0 0,0 13,12A1,1 0 0,0 12,11Z'],
+   ['Threat Arsenal','m11.99 18.54-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27zm0-11.47L17.74 9 12 13.47 6.26 9z']],
+  [['Assets','M19 15v4H5v-4zm1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1M7 18.5c-.82 0-1.5-.67-1.5-1.5s.68-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5M19 5v4H5V5zm1-2H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1M7 8.5c-.82 0-1.5-.67-1.5-1.5S6.18 5.5 7 5.5s1.5.68 1.5 1.5S7.83 8.5 7 8.5'],
+   ['Asset groups','M5 3A2 2 0 0 0 3 5H5M7 3V5H9V3M11 3V5H13V3M15 3V5H17V3M19 3V5H21A2 2 0 0 0 19 3M3 7V9H5V7M7 7V11H11V7M13 7V11H17V7M19 7V9H21V7M3 11V13H5V11M19 11V13H21V11M7 13V17H11V13M13 13V17H17V13M3 15V17H5V15M19 15V17H21V15M3 19A2 2 0 0 0 5 21V19M7 19V21H9V19M11 19V21H13V19M15 19V21H17V19M19 19V21A2 2 0 0 0 21 19Z']],
+  [['Persons','M12 6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2m0 10c2.7 0 5.8 1.29 6 2H6c.23-.72 3.31-2 6-2m0-12C9.79 4 8 5.79 8 8s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4m0 10c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4'],
+   ['Teams','M4 13c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m1.13 1.1c-.37-.06-.74-.1-1.13-.1-.99 0-1.93.21-2.78.58C.48 14.9 0 15.62 0 16.43V18h4.5v-1.61c0-.83.23-1.61.63-2.29M20 13c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m4 3.43c0-.81-.48-1.53-1.22-1.85-.85-.37-1.79-.58-2.78-.58-.39 0-.76.04-1.13.1.4.68.63 1.46.63 2.29V18H24zm-7.76-2.78c-1.17-.52-2.61-.9-4.24-.9s-3.07.39-4.24.9C6.68 14.13 6 15.21 6 16.39V18h12v-1.61c0-1.18-.68-2.26-1.76-2.74'],
+   ['Organizations','M12 7V3H2v18h20V7zM6 19H4v-2h2zm0-4H4v-2h2zm0-4H4V9h2zm0-4H4V5h2zm4 12H8v-2h2zm0-4H8v-2h2zm0-4H8V9h2zm0-4H8V5h2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8zm-2-8h-2v2h2zm0 4h-2v2h2z']],
+  [['Integrations','M10.5 4.5c.28 0 .5.22.5.5v2h6v6h2c.28 0 .5.22.5.5s-.22.5-.5.5h-2v6h-2.12c-.68-1.75-2.39-3-4.38-3s-3.7 1.25-4.38 3H4v-2.12c1.75-.68 3-2.39 3-4.38S5.76 9.8 4.01 9.12L4 7h6V5c0-.28.22-.5.5-.5m0-2C9.12 2.5 8 3.62 8 5H4c-1.1 0-1.99.9-1.99 2v3.8h.29c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-.3c0-1.49 1.21-2.7 2.7-2.7s2.7 1.21 2.7 2.7v.3H17c1.1 0 2-.9 2-2v-4c1.38 0 2.5-1.12 2.5-2.5S20.38 11 19 11V7c0-1.1-.9-2-2-2h-4c0-1.38-1.12-2.5-2.5-2.5'],
+   ['Security platforms','M13,19H14A1,1 0 0,1 15,20H22V22H15A1,1 0 0,1 14,23H10A1,1 0 0,1 9,22H2V20H9A1,1 0 0,1 10,19H11V17.34C8.07,16.13 6,13 6,9.67V5.67L12,3L18,5.67V9.67C18,13 15.93,16.13 13,17.34V19M12,5L8,6.69V10H12V5M12,10V16C13.91,15.53 16,13.06 16,11V10H12Z'],
+   ['Components','M4 7V19H19V21H4C2 21 2 19 2 19V7H4M21 5V15H8V5H21M21.3 3H7.7C6.76 3 6 3.7 6 4.55V15.45C6 16.31 6.76 17 7.7 17H21.3C22.24 17 23 16.31 23 15.45V4.55C23 3.7 22.24 3 21.3 3M9 6H12V11H9V6M20 14H9V12H20V14M20 8H14V6H20V8M20 11H14V9H20V11Z','caret']],
+];
+// Tenant/context switcher (LeftBarTenantSwitcher): HomeWorkOutlined + tenant name + UnfoldMoreOutlined.
+// Only shown when the user has >1 tenant — hence it appears on multi-tenant slots.
+const TENANT = `<div class="nav-tenant" title="default">
+  <svg class="home" viewBox="0 0 24 24"><path d="M1 11v10h6v-5h2v5h6V11L8 6zm12 8h-2v-5H5v5H3v-6.97l5-3.57 5 3.57zm4-12h2v2h-2zm0 4h2v2h-2zm0 4h2v2h-2z"/><path d="M10 3v1.97l2 1.43V5h9v14h-4v2h6V3z"/></svg>
+  <span class="name">default</span>
+  <svg class="unfold" viewBox="0 0 24 24"><path d="M12 5.83 15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15z"/></svg>
+</div>`;
+document.getElementById('nav').innerHTML =
+  `<div class="nav-header"><div class="nav-logo">${LOGO}<span>OpenAEV</span></div>
+     <span class="nav-caret"><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5z"/></svg></span></div>` +
+  TENANT +
+  NAV.map(g => `<div class="nav-group">` + g.map(([label,d,flag]) => {
+    const icon = d === 'SELF' ? ICONS.cve /*binoculars-like Findings*/ : d;
+    const sel = label === 'Findings' ? ' selected' : '';
+    const findingsIcon = 'M11,6H13V13H11V6M9,20A1,1 0 0,1 8,21H5A1,1 0 0,1 4,20V15L6,6H10V13A1,1 0 0,1 9,14V20M10,5H7V3H10V5M15,20V14A1,1 0 0,1 14,13V6H18L20,15V20A1,1 0 0,1 19,21H16A1,1 0 0,1 15,20M14,5V3H17V5H14Z';
+    const path = d === 'SELF' ? findingsIcon : d;
+    const caret = flag === 'caret' ? '<span class="sub"><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5z" fill="currentColor"/></svg></span>' : '';
+    return `<div class="nav-item${sel}">${svg(path)}<span>${label}</span>${caret}</div>`;
+  }).join('') + `</div>`).join('') +
+  `<div class="nav-group nav-spacer">
+     <div class="nav-item">${svg('M6 15c-.83 0-1.58.34-2.12.88C2.7 17.06 2 22 2 22s4.94-.7 6.12-1.88c.54-.54.88-1.29.88-2.12 0-1.66-1.34-3-3-3m10.71-1.35C22.06 8.29 20.94 3.34 20.94 3.34S16 4.71 12.35 8.29l-2.49-.5c-.65-.13-1.33.08-1.81.55L4 12.69l5 2.14L11.17 17l2.14 5 4.05-4.05c.47-.47.68-1.15.55-1.81z')}<span>Getting Started</span></div>
+     <div class="nav-item">${svg('M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z')}<span>Collapse</span></div>
+   </div>`;
+
+// ── Findings data (fictitious lab data) ──
+const DATA = [
+  {type:'cve',label:'CVE',value:'CVE-2024-3094',assets:['SRV-BUILD-01'],groups:['Linux Servers'],first:'2026-06-14 09:12',last:'2026-07-28 03:44',cvss:'10.0',field:'xz/liblzma backdoor'},
+  {type:'credentials',label:'Credentials',value:'CORP\\svc_backup : Sup3rSecret-Lab!',assets:['WIN-DC-01'],groups:['Domain Controllers'],first:'2026-07-02 14:20',last:'2026-07-27 22:10',field:'password'},
+  {type:'file',label:'File',value:'C:\\Users\\jdoe\\Desktop\\passwords_2026.xlsx',assets:['LAPTOP-JDOE'],groups:['Finance'],first:'2026-07-11 08:01',last:'2026-07-26 17:33',field:'share_name'},
+  {type:'share',label:'Share',value:'\\\\FILE-SRV-02\\Backups$',assets:['FILE-SRV-02'],groups:['File Servers'],first:'2026-05-30 11:45',last:'2026-07-28 06:02',field:'share_name'},
+  {type:'port',label:'Port',value:'3389/tcp',assets:['SRV-RDP-07','+2'],groups:[],first:'2026-07-18 10:27',last:'2026-07-25 19:50',field:'port'},
+  {type:'ipv4',label:'IPv4',value:'10.10.42.15',assets:['SRV-RDP-07'],groups:[],first:'2026-07-18 10:27',last:'2026-07-25 19:50',field:'ip'},
+  {type:'adminusername',label:'AdminUsername',value:'CORP\\Administrator',assets:['WIN-DC-01'],groups:['Domain Controllers'],first:'2026-07-02 14:20',last:'2026-07-27 22:10',field:'username'},
+  {type:'kerberoastableaccount',label:'KerberoastableAccount',value:'svc_sql (SPN: MSSQLSvc/db01:1433)',assets:['WIN-DC-01'],groups:['Domain Controllers'],first:'2026-07-05 03:15',last:'2026-07-24 12:08',field:'spn'},
+  {type:'passwordpolicy',label:'PasswordPolicy',value:'MinLength=6 · Complexity=Disabled · Lockout=None',assets:['WIN-DC-01'],groups:['Domain Controllers'],first:'2026-06-20 07:00',last:'2026-07-23 09:40',field:'policy'},
+  {type:'vulnerability',label:'Vulnerability',value:'Apache Log4j2 JNDI RCE (Log4Shell)',assets:['SRV-WEB-03'],groups:['Web Servers'],first:'2026-04-12 16:30',last:'2026-07-28 01:15',cvss:'10.0',field:'cve'},
+  {type:'group',label:'Group',value:'CORP\\Domain Admins',assets:['WIN-DC-01'],groups:['Domain Controllers'],first:'2026-07-05 03:15',last:'2026-07-24 12:08',field:'group'},
+  {type:'text',label:'Text',value:'Unquoted service path — C:\\Program Files\\OpenVPN\\...',assets:['LAPTOP-JDOE','+4'],groups:['Workstations'],first:'2026-07-09 13:52',last:'2026-07-22 08:19',field:'text'},
+];
+const SECRET = new Set(['credentials','passwordpolicy','kerberoastableaccount']);
+
+// ── List head (sortable) ──
+const COLS = [
+  {k:'type',label:'Type',cls:'c-type',sortable:true},
+  {k:'value',label:'Value',cls:'c-value',sortable:true},
+  {k:'assets',label:'Assets',cls:'c-assets',sortable:false},
+  {k:'groups',label:'Asset groups',cls:'c-groups',sortable:false},
+  {k:'first',label:'First seen',cls:'c-first',sortable:true},
+  {k:'last',label:'Last seen',cls:'c-last',sortable:true},
+];
+let sortKey='last', sortDir=-1, query='';
+const arrow = up => `<span class="sort-arrow"><svg viewBox="0 0 24 24"><path d="${up?'m7 14 5-5 5 5z':'m7 10 5 5 5-5z'}"/></svg></span>`;
+function renderHead(){
+  document.getElementById('listHead').innerHTML = `<div class="row-icon"></div><div class="cells">` +
+    COLS.map(c => `<div class="cell ${c.cls}${c.sortable?' sortable':''}${sortKey===c.k?' sorted':''}" data-k="${c.k}">${c.label}${c.sortable?arrow(sortDir>0):''}</div>`).join('') +
+    `</div>`;
+  document.querySelectorAll('#listHead .sortable').forEach(el => el.onclick = () => {
+    const k = el.dataset.k; if(sortKey===k) sortDir*=-1; else { sortKey=k; sortDir=1; } renderRows();
+  });
+}
+function targets(list){
+  if(!list.length) return '<span class="dash">-</span>';
+  const first = list[0], more = list[1] && list[1].startsWith('+') ? list[1] : null;
+  return `<span class="target">${ASSET_GLYPH}${first}</span>` + (more?`<span class="target-more">${more}</span>`:'');
+}
+function renderRows(){
+  let rows = DATA.filter(d => !query || (d.value+' '+d.label).toLowerCase().includes(query));
+  rows = rows.slice().sort((a,b)=>{
+    const av=(a[sortKey]||'').toString().toLowerCase(), bv=(b[sortKey]||'').toString().toLowerCase();
+    return av<bv?-1*sortDir:av>bv?sortDir:0;
+  });
+  const host = document.getElementById('rows');
+  host.innerHTML = rows.length ? rows.map(d => `
+    <div class="row" data-id="${d.value}">
+      <div class="row-icon">${ICON(d.type)}</div>
+      <div class="cells">
+        <div class="cell c-type"><span class="type-label">${d.label}</span></div>
+        <div class="cell c-value"><code class="code">${esc(d.value)}</code></div>
+        <div class="cell c-assets">${targets(d.assets)}</div>
+        <div class="cell c-groups">${d.groups.length?`<span class="target">${d.groups[0]}</span>`:'<span class="dash">-</span>'}</div>
+        <div class="cell c-first muted">${d.first}</div>
+        <div class="cell c-last muted">${d.last}</div>
+      </div>
+    </div>`).join('') : `<div class="empty">No finding found.</div>`;
+  document.getElementById('rangeLabel').textContent = rows.length ? `1–${rows.length} of ${rows.length}` : '0 of 0';
+  host.querySelectorAll('.row').forEach(r => r.onclick = () => openDrawer(DATA.find(d=>d.value===r.dataset.id)));
+  renderHead();
+}
+function esc(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+// ── Drawer (finding detail, faithful to FindingOverview) ──
+function heroStat(icon,val,cap){ return `<div class="herostat"><div class="b">${svg(icon)}</div><div><div class="v">${val}</div><div class="c">${cap}</div></div></div>`; }
+function openDrawer(d){
+  document.getElementById('drawerTitle').textContent = d.value;
+  const masked = SECRET.has(d.type) ? '••••••••' : d.value;
+  const isCve = d.type==='cve'||d.type==='vulnerability';
+  document.getElementById('drawerBody').innerHTML = `
+    <div class="hero">
+      <div class="hero-icon">${ICON(d.type)}</div>
+      <div style="min-width:0">
+        <div class="hero-overline">${d.label}</div>
+        <div class="hero-title">${esc(masked)}</div>
+        ${isCve?`<span class="cvss-chip">CVSS ${d.cvss}</span>`:''}
+        <div class="herostats">
+          ${heroStat('M3 4h2v16H3zm4 0h2v16H7zm4 0h6v16h-6z','1','Occurrences')}
+          ${heroStat('M23 11.01 18 11c-.55 0-1 .45-1 1v9c0 .55.45 1 1 1h5c.55 0 1-.45 1-1v-9c0-.55-.45-.99-1-.99M23 20h-5v-7h5zM4 6h18V4H2v12h8v2H6v2h6v-4h10v-2H4z',(d.assets.filter(a=>!a.startsWith('+')).length)+(d.assets.some(a=>a.startsWith('+'))?'+':''),'Impacted assets')}
+          ${isCve?heroStat('M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5z',d.cvss,'CVSS score'):''}
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Information</div>
+      <div class="infogrid">
+        <div class="field"><h3>Type</h3><div class="val">${d.label}</div></div>
+        <div class="field" style="grid-column:1/-1"><h3>Value</h3><pre>${esc(SECRET.has(d.type)?'••••••••':d.value)}</pre></div>
+        <div class="field"><h3>Field</h3><div class="val">${d.field}</div></div>
+        <div class="field"><h3>First seen</h3><div class="val muted">${d.first}</div></div>
+        <div class="field"><h3>Last seen</h3><div class="val muted">${d.last}</div></div>
+        <div class="field"><h3>Tags</h3><div class="val"><span class="chip">${d.groups[0]||'untagged'}</span></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Affected assets &amp; context</div>
+      <div class="infogrid" style="grid-template-columns:1fr">
+        ${d.assets.filter(a=>!a.startsWith('+')).map(a=>`<div class="field"><div class="val"><span class="target">${ASSET_GLYPH}${a}</span> &nbsp; via <b>Related Injects</b></div></div>`).join('')}
+      </div>
+    </div>`;
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer').setAttribute('aria-hidden','false');
+  document.getElementById('scrim').classList.add('open');
+}
+function closeDrawer(){ document.getElementById('drawer').classList.remove('open'); document.getElementById('drawer').setAttribute('aria-hidden','true'); document.getElementById('scrim').classList.remove('open'); }
+document.getElementById('drawerClose').onclick = closeDrawer;
+document.getElementById('scrim').onclick = closeDrawer;
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeDrawer(); });
+
+// ── Search ──
+document.getElementById('rowSearch').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); renderRows(); });
+
+// ── Filter chips ──
+let chips = [
+  {id:'type', k:'Type', op:'=', v:'File, CVE, Credentials'},
+  {id:'last', k:'Last seen', op:'≥', v:'2026-07-01'},
+];
+const X = '<svg viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2m5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12z"/></svg>';
+function renderChips(){
+  const host = document.getElementById('filterChips');
+  host.innerHTML = chips.map((c,i)=>`${i>0?'<span class="mode-chip">OR</span>':''}<span class="chip" data-id="${c.id}"><span class="k">${c.k}</span><span class="op">${c.op}</span> ${c.v} <span class="del">${X}</span></span>`).join('');
+  host.querySelectorAll('.chip .del').forEach(del => del.onclick = () => { chips = chips.filter(c=>c.id!==del.closest('.chip').dataset.id); renderChips(); });
+}
+const FILTERS = ['Type','Value','Assets','Asset groups','First seen','Last seen'];
+const menu = document.getElementById('addFilterMenu');
+menu.innerHTML = FILTERS.map(f=>`<div>${f}</div>`).join('');
+document.getElementById('addFilterBtn').onclick = () => menu.classList.toggle('open');
+menu.querySelectorAll('div').forEach(el => el.onclick = () => {
+  if(!chips.some(c=>c.k===el.textContent)) chips.push({id:el.textContent.toLowerCase().replace(/\s/g,'_'),k:el.textContent,op:'=',v:'any'});
+  menu.classList.remove('open'); renderChips();
+});
+document.addEventListener('click', e => { if(!e.target.closest('.add-filter')) menu.classList.remove('open'); });
+document.getElementById('clearFilters').onclick = () => { chips=[]; renderChips(); };
+
+renderChips(); renderRows();
+</script>
+</body>
+</html>
