@@ -125,6 +125,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → Codecov flag `backend` |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
+| 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
 | ✅ **Pipeline Gate** | 10 min | Branch-protection status check |
 
 ---
@@ -142,6 +143,11 @@ It `needs:` these 16 jobs:
 
 **Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
 never hold a merge.
+
+**The tenant shadow verdict is deliberately excluded too.** It only exists when the caller's
+`api-matrix` carries shadow entries, which today means Nightly, and it is red whenever a shadow
+shard is red. Those runs report rather than gate: the job carries `continue-on-error`, so its red
+stays out of the run conclusion and does not page the on-call.
 
 The gate evaluates `needs` results itself in a shell loop rather than relying on
 job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocumented.
