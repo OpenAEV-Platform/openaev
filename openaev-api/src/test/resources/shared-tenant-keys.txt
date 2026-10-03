@@ -1,0 +1,61 @@
+# Keys whose value space repeats across tenants (#7905).
+#
+# A join or correlation on one of these columns can match a row owned by another tenant, because the
+# same value legitimately exists in several tenants at once. SharedTenantKeyJoinArchTest reads this
+# file and fails on any SQL that joins on one of them without constraining both sides to the same
+# tenant.
+#
+# Format, one key per line: <owning_table> <column>
+#
+# The set is NOT hand-picked. It is derived from the schema by three mechanical rules, and
+# SharedTenantKeySchemaCrossCheckTest re-derives it against the live schema and fails when this file
+# and the database disagree, so the list cannot rot while the schema moves:
+#
+#   1. the column is the sole non-tenant_id column of a multi-column UNIQUE index that also includes
+#      tenant_id. Uniqueness per tenant is exactly the statement that the value may repeat between
+#      tenants. Every other table's primary key is a single column, so a cross-tenant collision on
+#      it is structurally impossible and it is not listed here.
+#   2. the index names all of its key columns. An index with an expression key (for example
+#      LOWER(column)) is skipped, because its real key is not a column list and reading one column
+#      out of it invents a key the schema does not have. The cross-check pins the skipped set by
+#      name so a new expression index cannot appear unnoticed.
+#   3. the column does not itself carry a TOTAL single-column unique index in this same table, which
+#      is what keeps a value already unique platform-wide off the list, for example
+#      injectors_contracts.injector_contract_payload.
+#      Two traps this rule used to fall into. A foreign key onto a single-column primary key says the
+#      referenced value is unique where it is defined, NOT that the referencing column is unique here:
+#      users_tenants.user_id is a foreign key onto users and repeats once per tenant the user belongs
+#      to, so it IS a shared key. It is NOT in the list below, and the cross-check names it as the one
+#      shared key the join guard cannot enforce yet: the guard resolves a key by column name, and
+#      user_id is the first shared key whose name is not distinctive, so enforcing it today reports
+#      nine predicates that are on users_groups, users_tags, users_teams or users and are not this key.
+#      And a PARTIAL unique index buys nothing: uk_parameters_key_platform is unique on parameter_key
+#      only WHERE tenant_id IS NULL, so it says nothing about two tenants holding the same key.
+#
+# Known gap, deliberate and pinned by the cross-check: a key made of SEVERAL non-tenant columns is
+# not listed, because no single column of it is shared on its own. The cross-check asserts the exact
+# set of such indexes, so one being added is visible.
+#
+# Lines starting with # and blank lines are ignored.
+assets asset_external_reference
+attack_patterns attack_pattern_external_id
+attack_patterns attack_pattern_stix_id
+attackpath_graph_version attackpath_graph_version_simulation_id
+autonomous_objective_templates autonomous_objective_template_key
+collector_types collector_type_name
+collectors collector_id
+cwes cwe_external_id
+datapacks datapack_id
+domains domain_name
+executors executor_id
+injectors injector_id
+injectors_contracts injector_contract_id
+kill_chain_phases phase_stix_id
+mitigations mitigation_external_id
+parameters parameter_key
+payloads payload_external_id
+secret_references secret_reference_name
+security_coverages security_coverage_bundle_hash_md5
+security_coverages security_coverage_external_id
+tags tag_name
+vulnerabilities vulnerability_external_id
