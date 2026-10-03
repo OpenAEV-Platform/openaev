@@ -4,6 +4,7 @@ import static io.openaev.scheduler.jobs.AgentInactivityMonitorJob.AGENT_INACTIVI
 import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIAL_CONNECTIVITY_CHECK_TRIGGER;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_TRIGGER;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
+import static io.openaev.scheduler.jobs.SecurityCoverageHuntValidationJob.SECURITY_COVERAGE_HUNT_VALIDATION_TRIGGER;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_TRIGGER;
@@ -122,6 +123,20 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.getIocValidationJobExecution())
         .withIdentity("iocValidationTrigger")
         .withSchedule(_15_seconds)
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger securityCoverageHuntValidationTrigger() {
+    // Slower than the coverage job it follows: each run makes up to one OpenCTI call per due
+    // validation, and OpenCTI only needs the hunt runs started, not started instantly.
+    SimpleScheduleBuilder every60Seconds =
+        simpleSchedule().withIntervalInSeconds(60).repeatForever();
+    return newTrigger()
+        .forJob(this.platformJobs.securityCoverageHuntValidationJobDetail())
+        .withIdentity(SECURITY_COVERAGE_HUNT_VALIDATION_TRIGGER)
+        .withSchedule(every60Seconds.withMisfireHandlingInstructionNextWithRemainingCount())
         .build();
   }
 

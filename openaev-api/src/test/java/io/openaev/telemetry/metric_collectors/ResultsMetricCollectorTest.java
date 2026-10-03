@@ -156,6 +156,8 @@ class ResultsMetricCollectorTest {
       collector.recordEmailsSent(0);
       collector.recordEmailsSent(-2);
       collector.recordCoverageResultsSent(0);
+      collector.recordCoverageHuntValidationsSent(0);
+      collector.recordCoverageHuntValidationsSent(-1);
 
       collector.init();
 
@@ -164,6 +166,24 @@ class ResultsMetricCollectorTest {
 
       verify(metricRegistry)
           .registerGauge(eq("coverage_results_sent_count"), any(), gaugeCaptor.capture());
+      assertThat(gaugeCaptor.getValue().get()).isZero();
+
+      verify(metricRegistry)
+          .registerGauge(eq("coverage_hunt_validations_sent_count"), any(), gaugeCaptor.capture());
+      assertThat(gaugeCaptor.getValue().get()).isZero();
+    }
+
+    @Test
+    @DisplayName("hunt validations sent accumulate then reset on collect")
+    void given_huntValidationsSent_should_accumulateThenResetOnCollect() {
+      collector.recordCoverageHuntValidationsSent(2);
+      collector.recordCoverageHuntValidationsSent(3);
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerGauge(eq("coverage_hunt_validations_sent_count"), any(), gaugeCaptor.capture());
+      assertThat(gaugeCaptor.getValue().get()).isEqualTo(5L);
       assertThat(gaugeCaptor.getValue().get()).isZero();
     }
   }

@@ -32,6 +32,7 @@ public class ResultsMetricCollector {
   private final AtomicLong securityCoveragesProcessedCount = new AtomicLong(0);
   private final AtomicLong coverageScenariosGeneratedCount = new AtomicLong(0);
   private final AtomicLong coverageResultsSentCount = new AtomicLong(0);
+  private final AtomicLong coverageHuntValidationsSentCount = new AtomicLong(0);
   private final AtomicLong workflowRunsCount = new AtomicLong(0);
   private final AtomicLong workflowTimeoutsTriggeredCount = new AtomicLong(0);
   private final Map<Attributes, AtomicLong> payloadCreatedStats = new ConcurrentHashMap<>();
@@ -57,6 +58,10 @@ public class ResultsMetricCollector {
         "coverage_results_sent_count",
         "Number of security coverage results sent back to the CTI platform",
         () -> coverageResultsSentCount.getAndSet(0));
+    metricRegistry.registerGauge(
+        "coverage_hunt_validations_sent_count",
+        "Number of emulated techniques sent to the CTI platform to validate its hunts",
+        () -> coverageHuntValidationsSentCount.getAndSet(0));
     metricRegistry.registerGauge(
         "workflow_runs_count",
         "Number of chaining workflow runs started",
@@ -106,6 +111,13 @@ public class ResultsMetricCollector {
   public void recordCoverageResultsSent(long count) {
     if (count > 0) {
       coverageResultsSentCount.addAndGet(count);
+    }
+  }
+
+  /** Records emulated techniques the CTI platform accepted to validate its hunts against. */
+  public void recordCoverageHuntValidationsSent(long count) {
+    if (count > 0) {
+      coverageHuntValidationsSentCount.addAndGet(count);
     }
   }
 

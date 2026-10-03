@@ -68,6 +68,7 @@ import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.ReportingRepository;
 import io.openaev.database.repository.ReportingScheduleRepository;
+import io.openaev.database.repository.SecurityCoverageHuntValidationRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
@@ -235,6 +236,7 @@ import io.openaev.service.notification.NotifierService;
 import io.openaev.service.phishing.PhishingLandingPagePublicLookupService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.IocValidationService;
+import io.openaev.service.stix.SecurityCoverageHuntValidationService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
@@ -338,7 +340,8 @@ class TenantActiveTableAccessArchTest {
           "reporting_generations",
           "datapacks",
           "teams",
-          "attack_patterns");
+          "attack_patterns",
+          "security_coverage_hunt_validations");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -1471,7 +1474,11 @@ class TenantActiveTableAccessArchTest {
               // (SecurityCoverageJob, InjectsFinalizationJob#handleAutoClosingSimulations), all
               // pinned
               // by SecurityCoverageTenantScopeTest#SendJobCreationGateRequiresScope:
-              SecurityCoverageSendJobService.class)
+              SecurityCoverageSendJobService.class,
+              // Reads exercise.getSecurityCoverage() in planForSimulation, which refuses to run
+              // outside a transaction and is only called by SecurityCoverageJob inside
+              // tenantTx.execute(TxCtx.forTenant(tenantId)) with TenantContext set:
+              SecurityCoverageHuntValidationService.class)
           .should()
           .callMethod(Exercise.class, "getSecurityCoverage")
           .because(
@@ -1479,6 +1486,25 @@ class TenantActiveTableAccessArchTest {
                   + " repository: a lazy getSecurityCoverage() in an unscoped context silently"
                   + " reads null. New callers must run inside a scoped transaction and be"
                   + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule security_coverage_hunt_validations_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Outbox owner. Every repository access sits in a method that refuses to run
+              // outside a transaction, and its only callers (SecurityCoverageJob,
+              // SecurityCoverageHuntValidationJob) open that transaction with
+              // tenantTx.execute(TxCtx.forTenant(tenantId)) and stamp the simulation tenant on
+              // every row before save. Proved by SecurityCoverageHuntValidationTenantScopeTest:
+              SecurityCoverageHuntValidationService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(SecurityCoverageHuntValidationRepository.class)
+          .because(
+              "security_coverage_hunt_validations is tenant-active: an unscoped read returns"
+                  + " nothing and an unscoped update touches nothing while reporting success."
+                  + " New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule security_coverages_scenario_association_access_is_reviewed =

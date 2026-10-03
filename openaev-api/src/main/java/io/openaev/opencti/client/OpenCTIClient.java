@@ -12,7 +12,9 @@ import io.openaev.opencti.client.response.ResponseFile;
 import io.openaev.opencti.client.response.fields.Error;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
@@ -25,6 +27,7 @@ import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -40,6 +43,26 @@ public class OpenCTIClient {
 
   public Response execute(String url, String authToken, String mutationBody, JsonNode variables)
       throws IOException {
+    return execute(
+        buildRequest(url, authToken, mutationBody, variables), httpClientFactory::httpClientCustom);
+  }
+
+  /**
+   * Same as {@link #execute(String, String, Mutation)}, bounded by {@code timeout}: the TCP
+   * connect, the TLS handshake and every socket read give up after it, and the request is never
+   * retried automatically. For background callers that must not stall on an unreachable OpenCTI.
+   */
+  public Response execute(String url, String authToken, Mutation mutation, Duration timeout)
+      throws IOException {
+    Timeout bound = Timeout.of(Objects.requireNonNull(timeout, "timeout"));
+    return execute(
+        buildRequest(url, authToken, mutation.getQueryText(), mutation.getVariables()),
+        () -> httpClientFactory.httpClientNoRetry(bound));
+  }
+
+  private HttpPost buildRequest(
+      String url, String authToken, String mutationBody, JsonNode variables)
+      throws JsonProcessingException {
     HttpPost req = new HttpPost(url);
     req.addHeader(HttpHeaders.AUTHORIZATION, "Bearer %s".formatted(authToken));
     req.addHeader(HttpHeaders.CONTENT_TYPE, "application/json; charset=utf-8");
@@ -50,8 +73,7 @@ public class OpenCTIClient {
       payload.put("variables", variables);
     }
     req.setEntity(new StringEntity(mapper.writeValueAsString(payload)));
-
-    return execute(req);
+    return req;
   }
 
   public ResponseFile download(String url, String authToken) throws IOException {
@@ -80,8 +102,9 @@ public class OpenCTIClient {
 
   public record ExtractedData(int status, String body) {}
 
-  private Response execute(ClassicHttpRequest request) throws IOException {
-    try (CloseableHttpClient client = httpClientFactory.httpClientCustom()) {
+  private Response execute(ClassicHttpRequest request, Supplier<CloseableHttpClient> httpClient)
+      throws IOException {
+    try (CloseableHttpClient client = httpClient.get()) {
       ExtractedData ed =
           client.execute(
               request,

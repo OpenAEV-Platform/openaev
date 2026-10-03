@@ -77,13 +77,58 @@ The connector is now up and running and should be visible in OpenCTI as **OpenAE
 
 Once the connector appears in OpenCTI, you can trigger it to run security coverage enrichments. Refer to the [OpenCTI documentation](https://docs.opencti.io/latest/) for how to trigger the enabled connector to get automated enriched security posture assessments with OpenAEV.
 
+## Hunt validation from emulation results
+
+OpenCTI hunts search your SIEM, EDR or data lake for the techniques of a threat. OpenAEV can prove whether those hunts actually catch a technique: every emulation of the technique by a simulation is a known-true event, so OpenAEV asks OpenCTI to run its hunts over the time the emulation ran, on the security platform that watched it. OpenCTI then records whether the hunts found it as a `hunt_detected` coverage result on the Security Coverage, next to the detection and prevention rates.
+
+This feature requires OpenCTI **Enterprise Edition** with hunts and a hunt connector bound to the security platform. It is **disabled by default**.
+
+### How it works
+
+1. A simulation generated from an OpenCTI Security Coverage runs. Its injects emulate ATT&CK techniques (the Attack Patterns of their Threat Arsenal action) on your assets.
+2. The security platforms connected through collectors (EDR, XDR, SIEM, SOAR, NDR, ISPM) give their verdict on the detection and prevention expectations of each inject, or the expectations expire.
+3. Once the simulation results are pushed back to OpenCTI, OpenAEV plans one hunt validation per **inject, technique and security platform** whose verdict is computed. A triple is planned once only, however many times the results are pushed again.
+4. A background job sends each validation to OpenCTI (`huntValidateFromEmulation`) with:
+    - the technique ATT&CK ID (for example `T1059.001`),
+    - the security platform, by the STIX ID the simulation results give it (derived from its name, see [the security platform identities](../../reference/apis/security-coverage-results.md)) and by its name, which OpenCTI falls back to,
+    - the inject ID,
+    - the inject execution window, from the time the inject was sent to the time it completed, widened by a padding (5 minutes by default) on both sides,
+    - the OpenCTI Security Coverage ID of the simulation.
+5. OpenCTI runs its active hunts covering the technique on the hunt connector of that security platform, over that window, and writes the outcome on the coverage.
+
+Only injects that ran (status `Executed` or `Partial`) are validated. Platform types OpenCTI hunts cannot run on (email security, AI defense, vulnerability scanners) are skipped.
+
+### Enable it
+
+The validation uses the OpenCTI connection of each tenant configured in [Step 1](#step-1-configure-openaev-to-connect-to-opencti), and is enabled for the whole platform:
+
+```properties
+openaev.security-coverage.hunt-validation.enabled=true
+```
+
+Or as an environment variable:
+
+```properties
+OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_ENABLED=true
+```
+
+See the [configuration reference](../../deployment/configuration.md#xtm-suite-opencti-hunt-validation) for the window padding, the request timeout, the batch size and the number of attempts.
+
+### Failures
+
+A hunt validation never blocks the simulation results: they are pushed to OpenCTI first, and the validations are sent by a separate job.
+
+- When OpenCTI refuses a validation (Enterprise Edition not enabled, unknown technique, OpenCTI version without hunts), OpenAEV logs one warning per tenant and per run, and retries after 5, 10, 20 and 40 minutes before giving the validation up (5 attempts by default).
+- When OpenCTI cannot be reached or answers a server error, the job stops sending for that tenant until its next run (every minute) and postpones the validation by 5 minutes without counting an attempt: an outage, however long, never makes OpenAEV give a validation up.
+
 ## Example workflow
 
 1. A threat analyst identifies a new intrusion set in **OpenCTI**.
 2. The analyst triggers the **OpenAEV Coverage** connector on the associated Security Coverage object.
 3. OpenAEV receives the request, maps it to an existing scenario, and executes the simulation.
 4. Results (detection rate, prevention rate, findings) are pushed back to OpenCTI as enrichment data.
-5. The analyst sees the updated security posture directly in the OpenCTI interface.
+5. When hunt validation is enabled, OpenAEV asks OpenCTI to run its hunts over each emulated technique, and OpenCTI adds whether the hunts caught it to the coverage.
+6. The analyst sees the updated security posture directly in the OpenCTI interface.
 
 ## Results sent back to OpenCTI
 
