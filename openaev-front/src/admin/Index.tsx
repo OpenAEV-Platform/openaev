@@ -44,6 +44,8 @@ const Exercises = lazy(() => import('./components/simulations/Simulations'));
 const IndexExercise = lazy(() => import('./components/simulations/simulation/Index'));
 const SimulationInjectCreation = lazy(() => import('./components/simulations/simulation/injects/SimulationInjectCreationRoute'));
 const AtomicTestings = lazy(() => import('./components/atomic_testings/AtomicTestings'));
+const IocValidations = lazy(() => import('./components/ioc_validations/IocValidations'));
+const IocValidation = lazy(() => import('./components/ioc_validations/IocValidation'));
 const AtomicTestingCreation = lazy(() => import('./components/atomic_testings/AtomicTestingCreation'));
 const IndexAtomicTesting = lazy(() => import('./components/atomic_testings/atomic_testing/Index'));
 const Scenarios = lazy(() => import('./components/scenarios/Scenarios'));
@@ -274,6 +276,30 @@ const Index = () => {
               )}
             />
             <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
+            <Route
+              path="atomic_testings/ioc_validations"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(IocValidations)()}
+                />
+              )}
+            />
+            <Route
+              path="atomic_testings/ioc_validations/:iocValidationId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(IocValidation)()}
+                />
+              )}
+            />
             {/* Creation requires the same Manage Assessment capability as the create button. */}
             <Route
               path="atomic_testings/create"

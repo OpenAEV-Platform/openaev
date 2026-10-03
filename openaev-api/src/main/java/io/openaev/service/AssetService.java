@@ -28,6 +28,7 @@ import jakarta.persistence.criteria.Root;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -179,6 +180,16 @@ public class AssetService {
 
   public List<SecurityPlatform> securityPlatformsByIds(@NotNull final Set<String> ids) {
     return securityPlatformRepository.findAllByIds(ids);
+  }
+
+  /**
+   * Case-insensitive exact-name lookup of a security platform within one tenant (smallest id wins
+   * when several share the name). Used to match OpenCTI security platform identities.
+   */
+  public Optional<SecurityPlatform> securityPlatformByName(
+      @NotBlank final String name, @NotBlank final String tenantId) {
+    return securityPlatformRepository.findFirstByNameIgnoreCaseAndTenantIdOrderByIdAsc(
+        name.trim(), tenantId);
   }
 
   public Iterable<Asset> assetFromIds(@NotNull final List<String> assetIds) {

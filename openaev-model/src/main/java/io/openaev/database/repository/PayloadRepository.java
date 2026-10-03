@@ -152,4 +152,15 @@ public interface PayloadRepository
       @Param("portDst") Integer portDst,
       @Param("protocol") String protocol,
       @Param("tenantId") String tenantId);
+
+  /**
+   * Takes a transaction-scoped Postgres advisory lock on {@code key}, released at commit/rollback
+   * and held across API nodes. Serialises the find-or-create of a built-in payload with a
+   * deterministic id: a JVM lock released before the caller's transaction commits would let a
+   * concurrent creator miss the uncommitted row and insert the same primary key. Native because
+   * JPQL cannot call {@code pg_advisory_xact_lock}; wrapped as {@code SELECT 1 FROM (...)} so the
+   * {@code void} function maps to a scalar. Must run inside a transaction.
+   */
+  @Query(value = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(:key)) AS locked", nativeQuery = true)
+  Integer lockPayloadCreation(@Param("key") long key);
 }
