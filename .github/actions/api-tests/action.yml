@@ -248,6 +248,7 @@ runs:
         fi
         case "$MODE" in
           production)
+            GATE_MODE=shadow-prod
             # Read the list main ships rather than restating it here, so the two can never drift.
             PROPS=openaev-api/src/main/resources/application.properties
             # Exactly one definition, or fail: sed prints every match, so a second definition would
@@ -262,6 +263,7 @@ runs:
             fi
             ;;
           all)
+            GATE_MODE=shadow-all
             # TenantTables.ALL_STRICT: every strict tenant table, no dual-scope one.
             LIST='*'
             ;;
@@ -277,7 +279,16 @@ runs:
         # Single-quoted so '*' reaches the JVM instead of being glob-expanded by the shell below.
         # The write-attribution detector rides the same shadow run as the fail-closed one: both
         # report and never gate, since failure.ignore keeps the job green.
-        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dopenaev.writeattr.detector=on -Dmaven.test.failure.ignore=true" >> "$GITHUB_OUTPUT"
+        # openaev.failclosed.shadow-mode names the armed set to the fail-closed gate, which then
+        # reports its signatures against THAT mode's own stored list instead of asserting per test.
+        # Without it the gate would fail every test reading a table this wider list activates, which
+        # is new against failclosed-baseline.txt by construction, and the shadow could no longer say
+        # whether the suite passes under activation. The value is the gate's own vocabulary
+        # (FailClosedGateExtension.SHADOW_MODES), pinned both ways by
+        # FailClosedShadowSummaryMarkerTest; the gate refuses an unknown one rather than quietly
+        # re-arming the per-test assertion.
+        echo "   gate-mode=$GATE_MODE"
+        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dopenaev.failclosed.shadow-mode=$GATE_MODE -Dopenaev.writeattr.detector=on -Dmaven.test.failure.ignore=true" >> "$GITHUB_OUTPUT"
 
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
@@ -364,8 +375,48 @@ runs:
           "$REPORTS"/*.txt >> "$S" 2>/dev/null || true
         echo >> "$S"
 
-        # Unscoped production reads the fail-closed gate refused. Each is a path that would return
-        # zero rows in production once its table is active.
+        # Unscoped production reads, compared against THIS mode's own stored list. The gate's
+        # per-test assertion is inert under a shadow mode (it would fire on every table this wider
+        # list activates, which is new against failclosed-baseline.txt by construction), so the set
+        # arrives in the gate's own report file instead: failclosed-shadow.txt, one `new <sig>` or
+        # `known <sig>` line per observed signature. A `new` one is a signature this armed set has
+        # not produced before, which is the question the shadow exists to answer, and it fails this
+        # step. The shadow shards are continue-on-error jobs, so a red verdict marks the job and
+        # leaves the workflow run green: the on-call alert keys off the run conclusion and stays
+        # quiet, same rule as the warnings above.
+        # The file name and the `new ` prefix are FailClosedGateExtension constants, pinned by
+        # FailClosedShadowSummaryMarkerTest; a rename on either side would make this block find no
+        # file and the verdict pass vacuously.
+        VERDICT=0
+        FCSHADOW="$REPORTS/failclosed-shadow.txt"
+        if [ -f "$FCSHADOW" ]; then
+          NEWCOUNT=$(grep -c '^new ' "$FCSHADOW" || true)
+          {
+            echo "### $(head -n1 "$FCSHADOW" | sed 's/^# //')"
+            echo
+            echo "A \`new\` signature is one this armed set has not produced before. Scope the path,"
+            echo "or waive it in \`failclosed-baseline.txt\` with a reason, or record it in this"
+            echo "mode's own list once triaged."
+            echo
+            echo '```'
+            tail -n +2 "$FCSHADOW"
+            echo '```'
+            echo
+          } >> "$S"
+          if [ "${NEWCOUNT:-0}" -gt 0 ]; then
+            echo "::error title=Tenant shadow $MODE (shard $SHARD)::$NEWCOUNT unscoped production read(s) new to this mode's stored list. See the job summary."
+            VERDICT=1
+          fi
+        else
+          echo "::error title=Tenant shadow $MODE (shard $SHARD)::The fail-closed gate wrote no shadow report: it was not armed, it never ran, or it could not write. None of those is a clean signature set, so this is a failure and not a silent pass."
+          echo "No fail-closed shadow report: the gate did not run in this shard, so this shard has no signature set. Failing rather than reporting nothing." >> "$S"
+          echo >> "$S"
+          VERDICT=1
+        fi
+
+        # A run armed by hand with the detector on but no shadow mode still fails per test, so its
+        # signatures live in the assertion message. Kept for that path only; under a shadow mode the
+        # block above is the channel and this one finds nothing.
         SIGS=$(awk '
             /Fail-closed: production code read/ { inblock = 1; next }
             inblock && /^Scope the path/ { inblock = 0; next }
@@ -376,7 +427,7 @@ runs:
           ' "$REPORTS"/*.txt 2>/dev/null | sort -u)
         if [ -n "$SIGS" ]; then
           {
-            echo "### Unscoped production reads ($(echo "$SIGS" | wc -l))"
+            echo "### Unscoped production reads failed per test ($(echo "$SIGS" | wc -l))"
             echo
             echo "Scope each one, or waive it in \`failclosed-baseline.txt\` with a reason."
             echo
@@ -385,9 +436,6 @@ runs:
             echo '```'
             echo
           } >> "$S"
-        else
-          echo "No unscoped production read." >> "$S"
-          echo >> "$S"
         fi
 
         # Wrong-tenant production writes the write-attribution gate refused: a tenant_id written
@@ -493,6 +541,11 @@ runs:
             echo '```'
           } >> "$S"
         fi
+
+        # The shadow verdict, last so the whole summary is written either way. Non-zero only for a
+        # signature new to this mode's list: a red test is the shadow's expected output and is
+        # ignored by maven.test.failure.ignore, a new unscoped production read is not.
+        exit "$VERDICT"
 
     - name: Verify JaCoCo exec data
       if: ${{ !cancelled() }}
