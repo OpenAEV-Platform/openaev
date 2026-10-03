@@ -4277,5 +4277,10 @@
   "your trial license online": "your trial license online",
   "YYYY": "YYYY",
   "Zoom in": "Zoom in",
-  "Zoom out": "Zoom out"
+  "Zoom out": "Zoom out",
+  "notification_trigger_name": "Name",
+  "notification_trigger_type": "Type",
+  "notification_trigger_resource_type": "Resource type",
+  "notification_trigger_enabled": "Enabled",
+  "notification_trigger_event_types": "Events"
 }
