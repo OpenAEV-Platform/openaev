@@ -31,12 +31,16 @@ Every score of the bundle is a success rate in percentage points, from `0` to `1
 computed per expectation type, from the primary Expectations of the Injects: the asset and asset group Expectations.
 Agent and Player Expectations are already rolled up into them and are not counted twice.
 
-| Expectation outcome                                   | Counted as |
-|:------------------------------------------------------|:-----------|
-| Score greater than or equal to the expected score     | Success    |
-| Score of `0`                                          | Failure    |
-| Any other score                                       | Partial    |
-| No score yet                                          | Pending    |
+| Expectation outcome                                                           | Counted as |
+|:------------------------------------------------------------------------------|:-----------|
+| Score greater than or equal to the expected score                             | Success    |
+| Team Expectation (article, challenge or manual answered by a team) below the expected score | Failure    |
+| Other Expectation with a score of `0`                                         | Failure    |
+| Other Expectation with any other score below the expected score               | Partial    |
+| No score yet                                                                  | Pending    |
+
+A team Expectation is either reached or failed: a non-zero score below the expected score still counts as a failure,
+so `HUMAN_RESPONSE` scores never include partial answers of teams.
 
 The score is the number of successes divided by the number of counted Expectations, so partial, failed and pending
 Expectations all lower it.
@@ -112,7 +116,9 @@ Each security platform is scored only on the Expectations of the matching Inject
 - A platform expected to answer that never did keeps a pending or expired result, which counts against its score.
 - An expectation type is listed for a platform only when the platform reported on at least one Expectation of that type,
   so a SIEM that only detects is never listed with a `PREVENTION` score.
-- When one platform reports on every Expectation, its score equals the `coverage` score.
+- When a platform is the only one reporting and it reports on every Expectation, its score equals the `coverage`
+  score. With several reporting platforms, the score of an Expectation in `coverage` is the best result of all its
+  sources, so another platform's better result can make `coverage` higher than the score of each platform.
 
 Only the security platforms of the Simulation's Tenant are attributed.
 
