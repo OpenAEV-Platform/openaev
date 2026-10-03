@@ -78,7 +78,8 @@ class SecurityCoverageHuntValidationJobTest {
         "security-coverage--" + id,
         Instant.parse("2026-10-03T10:00:00Z"),
         Instant.parse("2026-10-03T10:20:00Z"),
-        LEASE);
+        LEASE,
+        Instant.parse("2026-10-10T10:20:00Z"));
   }
 
   private static HuntValidationOutcome accepted(String id) {

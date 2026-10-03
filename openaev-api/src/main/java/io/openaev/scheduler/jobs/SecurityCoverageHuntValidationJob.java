@@ -99,13 +99,15 @@ public class SecurityCoverageHuntValidationJob implements Job {
       return;
     }
     long refused = failures.stream().filter(outcome -> outcome.kind() == Kind.REFUSED).count();
+    long expired = failures.stream().filter(outcome -> outcome.kind() == Kind.EXPIRED).count();
     log.warn(
-        "OpenCTI hunt validations for tenant {}: {} sent, {} refused, {} postponed (OpenCTI"
-            + " unreachable or not tried this run); last error: {}",
+        "OpenCTI hunt validations for tenant {}: {} sent, {} refused, {} given up as stale, {}"
+            + " postponed (OpenCTI unreachable or not tried this run); last error: {}",
         tenantId,
         validated,
         refused,
-        dueCount - validated - refused,
+        expired,
+        dueCount - validated - refused - expired,
         failures.getLast().error());
   }
 }

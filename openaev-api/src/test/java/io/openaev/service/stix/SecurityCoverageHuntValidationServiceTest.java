@@ -475,8 +475,16 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
           second.leaseUntil());
       entityManager.flush();
       entityManager.clear();
+
+      // Assert: the failure of the ended claim is not recorded
       SecurityCoverageHuntValidation afterStaleFailure =
           huntValidationRepository.findById(first.id()).orElseThrow();
+      assertThat(afterStaleFailure.getStatus()).isEqualTo(Status.PENDING);
+      assertThat(afterStaleFailure.getNextAttemptAt()).isEqualTo(second.leaseUntil());
+      assertThat(afterStaleFailure.getLastError()).isNull();
+      entityManager.clear();
+
+      // Act: the acceptance of the first delivery arrives late
       huntValidationService.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
@@ -490,10 +498,7 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      // Assert
-      assertThat(afterStaleFailure.getStatus()).isEqualTo(Status.PENDING);
-      assertThat(afterStaleFailure.getNextAttemptAt()).isEqualTo(second.leaseUntil());
-      assertThat(afterStaleFailure.getLastError()).isNull();
+      // Assert: an acceptance always wins
       assertThat(huntValidationRepository.findById(first.id()).orElseThrow().getStatus())
           .isEqualTo(Status.VALIDATED);
     }

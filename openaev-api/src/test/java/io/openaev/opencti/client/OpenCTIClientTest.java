@@ -16,9 +16,11 @@ import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.client.response.fields.Error;
 import io.openaev.utils.fixtures.opencti.MutationFixture;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.List;
 import org.apache.hc.client5.http.ClientProtocolException;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpStatus;
@@ -315,6 +317,36 @@ public class OpenCTIClientTest extends IntegrationTest {
                       Duration.ofSeconds(7)))
           .isInstanceOf(ClientProtocolException.class)
           .hasCauseInstanceOf(IOException.class);
+    }
+
+    @Test
+    @DisplayName("It cancels the request once it has run for the whole timeout")
+    public void itCancelsTheRequestOnceItHasRunForTheWholeTimeout() throws IOException {
+      // A response trickling in: no single read times out, only the total deadline can stop it
+      when(boundedHttpClient.execute(
+              (ClassicHttpRequest) any(), (HttpClientResponseHandler<?>) any()))
+          .thenAnswer(
+              invocation -> {
+                HttpUriRequestBase request = invocation.getArgument(0);
+                long giveUpAt = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+                while (!request.isCancelled() && System.nanoTime() < giveUpAt) {
+                  Thread.sleep(10);
+                }
+                throw new InterruptedIOException(
+                    request.isCancelled() ? "Request aborted" : "Request never cancelled");
+              });
+
+      long start = System.nanoTime();
+      assertThatThrownBy(
+              () ->
+                  client.execute(
+                      baseUrl,
+                      authToken,
+                      MutationFixture.getDefaultMutation(),
+                      Duration.ofMillis(200)))
+          .isInstanceOf(ClientProtocolException.class)
+          .hasRootCauseMessage("Request aborted");
+      assertThat(Duration.ofNanos(System.nanoTime() - start).toMillis()).isLessThan(5000L);
     }
   }
 }

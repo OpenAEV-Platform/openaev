@@ -48,8 +48,11 @@ import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidat
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -66,6 +69,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
@@ -91,9 +95,45 @@ class SecurityCoverageHuntValidationServiceUnitTest {
 
   @InjectMocks private SecurityCoverageHuntValidationService service;
 
+  /** Three minutes before the claims of {@link #request(String)} end. */
+  private final SteppingClock clock = new SteppingClock(SENT.minus(Duration.ofMinutes(3)));
+
+  @BeforeEach
+  void useSteppingClock() {
+    service.clock = clock;
+  }
+
   @AfterEach
   void leaveTransaction() {
     TransactionSynchronizationManager.setActualTransactionActive(false);
+  }
+
+  /** A clock that only moves when a test advances it. */
+  private static final class SteppingClock extends Clock {
+    private Instant now;
+
+    SteppingClock(Instant start) {
+      this.now = start;
+    }
+
+    void advance(Duration duration) {
+      now = now.plus(duration);
+    }
+
+    @Override
+    public ZoneId getZone() {
+      return ZoneOffset.UTC;
+    }
+
+    @Override
+    public Clock withZone(ZoneId zone) {
+      return this;
+    }
+
+    @Override
+    public Instant instant() {
+      return now;
+    }
   }
 
   private static void insideTransaction() {
@@ -175,7 +215,12 @@ class SecurityCoverageHuntValidationServiceUnitTest {
     return coverage;
   }
 
+  /** A request claimed until {@code SENT}, stale long after it. */
   private static HuntValidationRequest request(String id) {
+    return request(id, SENT, SENT.plus(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE));
+  }
+
+  private static HuntValidationRequest request(String id, Instant leaseUntil, Instant expiresAt) {
     return new HuntValidationRequest(
         id,
         "inject-" + id,
@@ -185,7 +230,8 @@ class SecurityCoverageHuntValidationServiceUnitTest {
         COVERAGE_EXTERNAL_ID,
         SENT.minus(PADDING),
         ENDED.plus(PADDING),
-        SENT);
+        leaseUntil,
+        expiresAt);
   }
 
   private static SecurityCoverageHuntValidation pendingValidation(String id, int attempts) {
@@ -713,7 +759,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
     void given_budgetSpent_should_startNoCall() throws Exception {
       // Act
       List<HuntValidationOutcome> outcomes =
-          service.send(TENANT_ID, List.of(request("1"), request("2")), Instant.now());
+          service.send(TENANT_ID, List.of(request("1"), request("2")), clock.instant());
 
       // Assert
       assertThat(outcomes)
@@ -732,7 +778,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
           .thenAnswer(
               invocation -> {
-                Thread.sleep(600);
+                clock.advance(Duration.ofMillis(600));
                 return huntValidation(1, 1);
               });
 
@@ -741,7 +787,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
           service.send(
               TENANT_ID,
               List.of(request("1"), request("2"), request("3")),
-              Instant.now().plusMillis(500));
+              clock.instant().plusMillis(500));
 
       // Assert
       assertThat(outcomes)
@@ -753,6 +799,51 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       assertThat(outcomes).extracting(HuntValidationOutcome::leaseUntil).containsOnly(SENT);
       verify(openCTIConnectorService, times(1)).validateHuntFromEmulation(any(), any(), any());
       verify(resultsMetricCollector).recordCoverageHuntValidationsSent(1L);
+    }
+
+    @Test
+    @DisplayName("given a request turned stale while waiting should give it up without a call")
+    void given_requestTurnedStale_should_giveItUpWithoutACall() throws Exception {
+      // Arrange
+      when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
+          .thenReturn(huntValidation(1, 1));
+      HuntValidationRequest stale = request("1", SENT, clock.instant());
+
+      // Act
+      List<HuntValidationOutcome> outcomes = service.send(TENANT_ID, List.of(stale, request("2")));
+
+      // Assert
+      assertThat(outcomes)
+          .extracting(HuntValidationOutcome::validationId, HuntValidationOutcome::kind)
+          .containsExactly(
+              tuple("1", HuntValidationOutcome.Kind.EXPIRED),
+              tuple("2", HuntValidationOutcome.Kind.VALIDATED));
+      assertThat(outcomes.getFirst().error())
+          .isEqualTo(
+              "Not delivered within " + SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE);
+      ArgumentCaptor<ValidateHuntFromEmulation.Input> input =
+          ArgumentCaptor.forClass(ValidateHuntFromEmulation.Input.class);
+      verify(openCTIConnectorService, times(1))
+          .validateHuntFromEmulation(eq(TENANT_ID), input.capture(), any());
+      assertThat(input.getValue().injectId()).isEqualTo("inject-2");
+    }
+
+    @Test
+    @DisplayName("given a call that could outlive its claim should defer it without a call")
+    void given_callOutlivingItsClaim_should_deferItWithoutACall() throws Exception {
+      // Arrange
+      Instant claimEnd = clock.instant().plus(config.getRequestTimeout());
+      HuntValidationRequest closing =
+          request("1", claimEnd, SENT.plus(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE));
+
+      // Act
+      List<HuntValidationOutcome> outcomes = service.send(TENANT_ID, List.of(closing));
+
+      // Assert
+      assertThat(outcomes)
+          .extracting(HuntValidationOutcome::kind, HuntValidationOutcome::leaseUntil)
+          .containsExactly(tuple(HuntValidationOutcome.Kind.DEFERRED, claimEnd));
+      verify(openCTIConnectorService, never()).validateHuntFromEmulation(any(), any(), any());
     }
 
     @Test
@@ -781,10 +872,19 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       insideTransaction();
     }
 
+    private static final Instant STALE_BEFORE =
+        NOW.minus(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE);
+
     private void givenDue(SecurityCoverageHuntValidation... validations) {
-      List<SecurityCoverageHuntValidation> due = List.of(validations);
-      when(huntValidationRepository.findDueForUpdateSkipLocked(eq(Status.PENDING), eq(NOW), any()))
-          .thenReturn(due);
+      when(huntValidationRepository.findDueForUpdateSkipLocked(
+              eq(Status.PENDING), eq(NOW), eq(STALE_BEFORE), any()))
+          .thenReturn(List.of(validations));
+    }
+
+    private void givenStale(SecurityCoverageHuntValidation... validations) {
+      when(huntValidationRepository.findStaleForUpdateSkipLocked(
+              eq(Status.PENDING), eq(NOW), eq(STALE_BEFORE), any()))
+          .thenReturn(List.of(validations));
     }
 
     @Test
@@ -840,21 +940,37 @@ class SecurityCoverageHuntValidationServiceUnitTest {
     }
 
     @Test
-    @DisplayName("given a due validation past the maximum age should give it up before sending")
+    @DisplayName(
+        "given stale due validations should give them up apart from the fresh ones they never delay")
     void given_expiredDueValidation_should_giveUpBeforeSending() {
       // Arrange
       SecurityCoverageHuntValidation expired = pendingValidation("1", 2);
-      expired.setCreatedAt(NOW.minus(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE));
+      expired.setCreatedAt(STALE_BEFORE);
       expired.setLastError("Connection refused");
       SecurityCoverageHuntValidation fresh = pendingValidation("2", 0);
       fresh.setCreatedAt(NOW.minus(Duration.ofHours(1)));
-      givenDue(expired, fresh);
+      givenStale(expired);
+      givenDue(fresh);
 
       // Act
       List<HuntValidationRequest> requests = service.collectDueRequests(NOW);
 
       // Assert
-      assertThat(requests).extracting(HuntValidationRequest::id).containsExactly("2");
+      assertThat(requests)
+          .extracting(HuntValidationRequest::id, HuntValidationRequest::expiresAt)
+          .containsExactly(
+              tuple(
+                  "2",
+                  fresh.getCreatedAt().plus(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE)));
+      verify(huntValidationRepository)
+          .findStaleForUpdateSkipLocked(
+              Status.PENDING,
+              NOW,
+              STALE_BEFORE,
+              PageRequest.of(0, SecurityCoverageHuntValidationService.STALE_CHUNK_SIZE));
+      verify(huntValidationRepository)
+          .findDueForUpdateSkipLocked(
+              Status.PENDING, NOW, STALE_BEFORE, PageRequest.of(0, config.getBatchSize()));
       assertThat(expired.getStatus()).isEqualTo(Status.FAILED);
       assertThat(expired.getAttempts()).isEqualTo(2);
       assertThat(expired.getLastError())
@@ -941,6 +1057,29 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       assertThat(validation.getRunsCount()).isEqualTo(2);
       assertThat(validation.getLastError()).isNull();
       verify(huntValidationRepository).saveAll(List.of(validation));
+    }
+
+    @Test
+    @DisplayName("given a validation that turned stale before its call should give it up")
+    void given_expired_should_giveUp() {
+      // Arrange
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 1);
+      validation.setLastError("Connection refused");
+      givenStored(validation);
+      String reason =
+          "Not delivered within " + SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE;
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.EXPIRED, null, null, reason, SENT)),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.FAILED);
+      assertThat(validation.getAttempts()).isEqualTo(1);
+      assertThat(validation.getLastError()).isEqualTo(reason + "; last error: Connection refused");
     }
 
     @Test

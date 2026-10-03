@@ -22,6 +22,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.AssetService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import java.io.IOException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -108,12 +109,21 @@ public class SecurityCoverageHuntValidationService {
   /** Part of the claim of a delivery beyond its send budget and request timeout. */
   static final Duration CLAIM_LEASE_MARGIN = Duration.ofMinutes(2);
 
+  /**
+   * Stale validations given up per tenant and run, apart from the delivery batch: a backlog is
+   * cleared in bounded transactions and never takes the slots of fresh validations.
+   */
+  static final int STALE_CHUNK_SIZE = 500;
+
   private final SecurityCoverageHuntValidationConfig config;
   private final SecurityCoverageHuntValidationRepository huntValidationRepository;
   private final ExerciseService exerciseService;
   private final AssetService assetService;
   private final OpenCTIConnectorService openCTIConnectorService;
   private final ResultsMetricCollector resultsMetricCollector;
+
+  /** Replaced by tests to drive the send budget, the claims and the expiry without waiting. */
+  Clock clock = Clock.systemUTC();
 
   /** Whether the loop is enabled ({@code openaev.security-coverage.hunt-validation.enabled}). */
   public boolean isEnabled() {
@@ -134,8 +144,10 @@ public class SecurityCoverageHuntValidationService {
    * its rows due again once the claim ends.
    *
    * <p>A due validation older than the maximum age is given up here, before any OpenCTI call, so it
-   * is never sent late. Every pending validation becomes due within {@link #RETRY_MAX_DELAY}, so
-   * this check reaches all of them.
+   * is never sent late. Stale validations are read apart from the fresh ones, at most {@link
+   * #STALE_CHUNK_SIZE} per run, so a backlog of them never takes the slots of fresh validations.
+   * Every pending validation becomes due within {@link #RETRY_MAX_DELAY}, so this check reaches all
+   * of them; a request that turns stale while it waits for its call is given up by {@link #send}.
    *
    * <p>Must run inside a tenant-scoped transaction: the table is tenant-active, an unscoped read
    * returns nothing.
@@ -145,32 +157,38 @@ public class SecurityCoverageHuntValidationService {
    */
   public List<HuntValidationRequest> collectDueRequests(Instant now) {
     requireActiveTransaction("collectDueRequests");
+    Instant staleBefore = now.minus(config.getMaxAge());
+    List<SecurityCoverageHuntValidation> stale =
+        huntValidationRepository.findStaleForUpdateSkipLocked(
+            Status.PENDING, now, staleBefore, PageRequest.of(0, STALE_CHUNK_SIZE));
+    String reason = notDeliveredReason();
+    stale.forEach(validation -> giveUp(validation, reason));
     List<SecurityCoverageHuntValidation> due =
         huntValidationRepository.findDueForUpdateSkipLocked(
-            Status.PENDING, now, PageRequest.of(0, config.getBatchSize()));
-    if (due.isEmpty()) {
-      return List.of();
-    }
+            Status.PENDING, now, staleBefore, PageRequest.of(0, config.getBatchSize()));
     // Millisecond precision: the stored value must compare equal to the one the request carries
     Instant leaseUntil = now.plus(claimLease()).truncatedTo(ChronoUnit.MILLIS);
-    String reason = "Not delivered within " + config.getMaxAge();
-    for (SecurityCoverageHuntValidation validation : due) {
-      if (isExpired(validation, now)) {
-        validation.setStatus(Status.FAILED);
-        validation.setLastError(
-            validation.getLastError() == null
-                ? reason
-                : StringUtils.abbreviate(
-                    reason + "; last error: " + validation.getLastError(), MAX_ERROR_LENGTH));
-      } else {
-        validation.setNextAttemptAt(leaseUntil);
-      }
+    due.forEach(validation -> validation.setNextAttemptAt(leaseUntil));
+    if (!stale.isEmpty() || !due.isEmpty()) {
+      List<SecurityCoverageHuntValidation> changed = new ArrayList<>(stale);
+      changed.addAll(due);
+      huntValidationRepository.saveAll(changed);
     }
-    huntValidationRepository.saveAll(due);
-    return due.stream()
-        .filter(validation -> validation.getStatus() == Status.PENDING)
-        .map(HuntValidationRequest::from)
-        .toList();
+    Duration maxAge = config.getMaxAge();
+    return due.stream().map(validation -> HuntValidationRequest.from(validation, maxAge)).toList();
+  }
+
+  private String notDeliveredReason() {
+    return "Not delivered within " + config.getMaxAge();
+  }
+
+  private static void giveUp(SecurityCoverageHuntValidation validation, String reason) {
+    validation.setStatus(Status.FAILED);
+    validation.setLastError(
+        validation.getLastError() == null
+            ? reason
+            : StringUtils.abbreviate(
+                reason + "; last error: " + validation.getLastError(), MAX_ERROR_LENGTH));
   }
 
   /**
@@ -272,14 +290,17 @@ public class SecurityCoverageHuntValidationService {
    * without costing an attempt instead of hammering a host that is down.
    *
    * <p>No call is started once {@link #TENANT_SEND_BUDGET} is spent: the requests left are reported
-   * deferred, so their claim is released and they are due again at the next run.
+   * deferred, so their claim is released and they are due again at the next run. Right before its
+   * call, a request is checked again: one that turned stale while it waited is given up without
+   * contacting OpenCTI, and one whose call (bounded end to end by the request timeout) could
+   * outlive its claim is deferred, so that no other delivery can send it at the same time.
    *
    * @param tenantId the tenant whose OpenCTI connection is used
    * @param requests the due validations, from {@link #collectDueRequests}
    * @return one outcome per request
    */
   public List<HuntValidationOutcome> send(String tenantId, List<HuntValidationRequest> requests) {
-    return send(tenantId, requests, Instant.now().plus(TENANT_SEND_BUDGET));
+    return send(tenantId, requests, Instant.now(clock).plus(TENANT_SEND_BUDGET));
   }
 
   /**
@@ -299,7 +320,8 @@ public class SecurityCoverageHuntValidationService {
     }
     List<HuntValidationOutcome> outcomes = new ArrayList<>();
     for (int index = 0; index < requests.size(); index++) {
-      if (!Instant.now().isBefore(deadline)) {
+      Instant now = Instant.now(clock);
+      if (!now.isBefore(deadline)) {
         log.debug(
             "OpenCTI hunt validation budget spent for tenant {}: {} request(s) left for the next run",
             tenantId,
@@ -310,6 +332,15 @@ public class SecurityCoverageHuntValidationService {
         break;
       }
       HuntValidationRequest request = requests.get(index);
+      if (request.expiresAt() != null && !now.isBefore(request.expiresAt())) {
+        outcomes.add(HuntValidationOutcome.expired(request, notDeliveredReason()));
+        continue;
+      }
+      if (request.leaseUntil() != null
+          && !now.plus(config.getRequestTimeout()).isBefore(request.leaseUntil())) {
+        outcomes.add(HuntValidationOutcome.deferred(request));
+        continue;
+      }
       try {
         ValidateHuntFromEmulation.HuntValidation validation =
             openCTIConnectorService.validateHuntFromEmulation(
@@ -349,7 +380,8 @@ public class SecurityCoverageHuntValidationService {
    *       reaches the maximum number of attempts, then given up;
    *   <li>one that could not reach OpenCTI is postponed without spending an attempt: an outage says
    *       nothing about the validation, and must not exhaust the attempts of every row it lasts;
-   *   <li>one that was not tried is released: due again at the next run, no attempt spent.
+   *   <li>one that was not tried is released: due again at the next run, no attempt spent;
+   *   <li>one that turned stale before its call is given up, OpenCTI was not contacted.
    * </ul>
    *
    * A refused or unreachable validation is given up anyway once it is older than the maximum age,
@@ -412,6 +444,7 @@ public class SecurityCoverageHuntValidationService {
           }
         }
         case DEFERRED -> validation.setNextAttemptAt(now);
+        case EXPIRED -> giveUp(validation, outcome.error());
       }
     }
     huntValidationRepository.saveAll(validations);
@@ -553,7 +586,8 @@ public class SecurityCoverageHuntValidationService {
 
   /**
    * A validation claimed for delivery, detached from its transaction. {@code leaseUntil} is the end
-   * of the claim, stored as the validation's next attempt time while the claim holds.
+   * of the claim, stored as the validation's next attempt time while the claim holds; {@code
+   * expiresAt} is when the validation turns stale and must no longer be sent.
    */
   public record HuntValidationRequest(
       String id,
@@ -564,9 +598,10 @@ public class SecurityCoverageHuntValidationService {
       String coverageExternalId,
       Instant windowStart,
       Instant windowEnd,
-      Instant leaseUntil) {
+      Instant leaseUntil,
+      Instant expiresAt) {
 
-    static HuntValidationRequest from(SecurityCoverageHuntValidation validation) {
+    static HuntValidationRequest from(SecurityCoverageHuntValidation validation, Duration maxAge) {
       return new HuntValidationRequest(
           validation.getId(),
           validation.getInjectId(),
@@ -576,7 +611,8 @@ public class SecurityCoverageHuntValidationService {
           validation.getCoverageExternalId(),
           validation.getWindowStart(),
           validation.getWindowEnd(),
-          validation.getNextAttemptAt());
+          validation.getNextAttemptAt(),
+          validation.getCreatedAt() == null ? null : validation.getCreatedAt().plus(maxAge));
     }
 
     /**
@@ -612,8 +648,13 @@ public class SecurityCoverageHuntValidationService {
       REFUSED,
       /** OpenCTI could not be reached or answered a server error: postponed, no attempt spent. */
       UNREACHABLE,
-      /** Not tried, the send budget of the run was spent: released, no attempt spent. */
-      DEFERRED
+      /**
+       * Not tried, the send budget of the run was spent or the call could outlive its claim:
+       * released, no attempt spent.
+       */
+      DEFERRED,
+      /** Not tried, the validation turned stale before its call: given up. */
+      EXPIRED
     }
 
     public boolean validated() {
@@ -656,8 +697,13 @@ public class SecurityCoverageHuntValidationService {
           Kind.DEFERRED,
           null,
           null,
-          "Not tried: the delivery budget of the run was spent",
+          "Not tried in this run: no time left for its call",
           request.leaseUntil());
+    }
+
+    static HuntValidationOutcome expired(HuntValidationRequest request, String reason) {
+      return new HuntValidationOutcome(
+          request.id(), Kind.EXPIRED, null, null, reason, request.leaseUntil());
     }
   }
 }

@@ -10,10 +10,15 @@ import io.openaev.opencti.client.mutations.Mutation;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.client.response.ResponseFile;
 import io.openaev.opencti.client.response.fields.Error;
+import jakarta.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +42,15 @@ public class OpenCTIClient {
   private final HttpClientFactory httpClientFactory;
   private final ObjectMapper mapper;
 
+  /** Cancels the bounded requests that outlive their timeout. */
+  private final ScheduledExecutorService requestDeadlines =
+      Executors.newSingleThreadScheduledExecutor(
+          runnable -> {
+            Thread thread = new Thread(runnable, "opencti-request-deadline");
+            thread.setDaemon(true);
+            return thread;
+          });
+
   public Response execute(String url, String authToken, Mutation mutation) throws IOException {
     return execute(url, authToken, mutation.getQueryText(), mutation.getVariables());
   }
@@ -48,16 +62,29 @@ public class OpenCTIClient {
   }
 
   /**
-   * Same as {@link #execute(String, String, Mutation)}, bounded by {@code timeout}: the TCP
-   * connect, the TLS handshake and every socket read give up after it, and the request is never
-   * retried automatically. For background callers that must not stall on an unreachable OpenCTI.
+   * Same as {@link #execute(String, String, Mutation)}, bounded end to end by {@code timeout}: the
+   * TCP connect, the TLS handshake and every socket read give up after it, the request is cancelled
+   * once it has run for that long in total (a response trickling in never extends it), and it is
+   * never retried automatically. For background callers that must not stall on an unreachable
+   * OpenCTI. A cancelled request fails with an {@link IOException}.
    */
   public Response execute(String url, String authToken, Mutation mutation, Duration timeout)
       throws IOException {
     Timeout bound = Timeout.of(Objects.requireNonNull(timeout, "timeout"));
-    return execute(
-        buildRequest(url, authToken, mutation.getQueryText(), mutation.getVariables()),
-        () -> httpClientFactory.httpClientNoRetry(bound));
+    HttpPost request =
+        buildRequest(url, authToken, mutation.getQueryText(), mutation.getVariables());
+    ScheduledFuture<?> deadline =
+        requestDeadlines.schedule(request::cancel, timeout.toMillis(), TimeUnit.MILLISECONDS);
+    try {
+      return execute(request, () -> httpClientFactory.httpClientNoRetry(bound));
+    } finally {
+      deadline.cancel(false);
+    }
+  }
+
+  @PreDestroy
+  void stopRequestDeadlines() {
+    requestDeadlines.shutdownNow();
   }
 
   private HttpPost buildRequest(
