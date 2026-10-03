@@ -1,6 +1,7 @@
 package io.openaev.opencti.connectors.service;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
@@ -142,6 +143,31 @@ public class OpenCTIConnectorService {
     }
 
     openCTIService.pushStixBundle(bundle, connector.get());
+  }
+
+  /**
+   * Asks the tenant's OpenCTI to validate its hunts against one emulated technique, through the
+   * same connector (URL and token) the security coverage bundles are pushed with.
+   *
+   * @param tenantId the tenant whose OpenCTI connection is used
+   * @param input the emulation to validate the hunts against
+   * @param timeout bound of the connect, the TLS handshake and every read of the call
+   * @return the hunt validation OpenCTI started
+   * @throws ConnectorError no active connector for the tenant, or OpenCTI refused the validation
+   * @throws IOException OpenCTI could not be reached or answered a server error
+   */
+  public ValidateHuntFromEmulation.HuntValidation validateHuntFromEmulation(
+      final String tenantId, ValidateHuntFromEmulation.Input input, Duration timeout)
+      throws ConnectorError, IOException {
+    ConnectorBase connector =
+        getConnectorBase(tenantId)
+            .orElseThrow(
+                () ->
+                    new ConnectorError(
+                        "No instance of Security Coverage connector is currently active to"
+                            + " validate hunts for tenant id: "
+                            + tenantId));
+    return openCTIService.validateHuntFromEmulation(connector, input, timeout);
   }
 
   public void acknowledgeReceivedOfCoverage(String workId, String message, String tenantId) {

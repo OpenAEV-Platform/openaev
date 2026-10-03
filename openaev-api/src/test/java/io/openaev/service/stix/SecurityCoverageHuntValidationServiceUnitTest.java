@@ -1,0 +1,834 @@
+package io.openaev.service.stix;
+
+import static io.openaev.service.stix.SecurityCoverageHuntValidationService.MAX_ERROR_LENGTH;
+import static io.openaev.service.stix.SecurityCoverageHuntValidationService.RETRY_BASE_DELAY;
+import static io.openaev.service.stix.SecurityCoverageHuntValidationService.RETRY_MAX_DELAY;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.DetectionInjectExpectation;
+import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectExpectationResult;
+import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.ManualInjectExpectation;
+import io.openaev.database.model.PreventionInjectExpectation;
+import io.openaev.database.model.SecurityCoverage;
+import io.openaev.database.model.SecurityCoverageHuntValidation;
+import io.openaev.database.model.SecurityCoverageHuntValidation.Status;
+import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.SecurityCoverageHuntValidationRepository;
+import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
+import io.openaev.opencti.connectors.ConnectorBase;
+import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
+import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.service.AssetService;
+import io.openaev.service.stix.SecurityCoverageHuntValidationService.ExecutionWindow;
+import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationOutcome;
+import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationRequest;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import org.apache.hc.client5.http.ClientProtocolException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Spy;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("SecurityCoverageHuntValidationService (unit)")
+class SecurityCoverageHuntValidationServiceUnitTest {
+
+  private static final String TENANT_ID = "tenant-1";
+  private static final String SIMULATION_ID = "simulation-1";
+  private static final String COVERAGE_EXTERNAL_ID =
+      "security-coverage--2c5b3a1e-9f0d-4d6b-8a1c-3e4f5a6b7c8d";
+  private static final Instant SENT = Instant.parse("2026-10-03T10:00:00Z");
+  private static final Instant ENDED = Instant.parse("2026-10-03T10:12:00Z");
+  private static final Duration PADDING = Duration.ofMinutes(5);
+
+  @Spy
+  private SecurityCoverageHuntValidationConfig config = new SecurityCoverageHuntValidationConfig();
+
+  @Mock private SecurityCoverageHuntValidationRepository huntValidationRepository;
+  @Mock private ExerciseService exerciseService;
+  @Mock private AssetService assetService;
+  @Mock private OpenCTIConnectorService openCTIConnectorService;
+  @Mock private ResultsMetricCollector resultsMetricCollector;
+
+  @InjectMocks private SecurityCoverageHuntValidationService service;
+
+  @AfterEach
+  void leaveTransaction() {
+    TransactionSynchronizationManager.setActualTransactionActive(false);
+  }
+
+  private static void insideTransaction() {
+    TransactionSynchronizationManager.setActualTransactionActive(true);
+  }
+
+  // -- builders --
+
+  private static SecurityPlatform platform(
+      String id, SecurityPlatform.SECURITY_PLATFORM_TYPE type) {
+    SecurityPlatform platform = new SecurityPlatform();
+    platform.setId(id);
+    platform.setName("Platform " + id);
+    platform.setSecurityPlatformType(type);
+    return platform;
+  }
+
+  private static AttackPattern technique(String externalId) {
+    AttackPattern attackPattern = new AttackPattern();
+    attackPattern.setExternalId(externalId);
+    return attackPattern;
+  }
+
+  private static InjectStatus status(ExecutionStatus name, Instant sent, Instant ended) {
+    InjectStatus status = new InjectStatus();
+    status.setName(name);
+    status.setTrackingSentDate(sent);
+    status.setTrackingEndDate(ended);
+    return status;
+  }
+
+  private static InjectExpectationResult result(String sourceAssetId, Double score) {
+    return InjectExpectationResult.builder()
+        .sourceId("collector-" + sourceAssetId)
+        .sourceAssetId(sourceAssetId)
+        .score(score)
+        .result(score == null ? null : "Detected")
+        .build();
+  }
+
+  private static BaseInjectExpectation expectation(
+      BaseInjectExpectation expectation, InjectExpectationResult... results) {
+    expectation.setResults(new ArrayList<>(List.of(results)));
+    return expectation;
+  }
+
+  private static Inject inject(
+      String id,
+      InjectStatus status,
+      List<AttackPattern> techniques,
+      BaseInjectExpectation... exps) {
+    InjectorContract contract = new InjectorContract();
+    contract.setAttackPatterns(new ArrayList<>(techniques));
+    Inject inject = new Inject();
+    inject.setId(id);
+    inject.setInjectorContract(contract);
+    if (status != null) {
+      status.setInject(inject);
+      inject.setStatus(status);
+    }
+    inject.setExpectations(new ArrayList<>(List.of(exps)));
+    return inject;
+  }
+
+  private static Exercise simulation(SecurityCoverage coverage, Inject... injects) {
+    Tenant tenant = new Tenant();
+    tenant.setId(TENANT_ID);
+    Exercise simulation = new Exercise();
+    simulation.setId(SIMULATION_ID);
+    simulation.setTenant(tenant);
+    simulation.setSecurityCoverage(coverage);
+    simulation.setInjects(new ArrayList<>(List.of(injects)));
+    return simulation;
+  }
+
+  private static SecurityCoverage coverage() {
+    SecurityCoverage coverage = new SecurityCoverage();
+    coverage.setExternalId(COVERAGE_EXTERNAL_ID);
+    return coverage;
+  }
+
+  private static HuntValidationRequest request(String id) {
+    return new HuntValidationRequest(
+        id,
+        "inject-" + id,
+        "T1059.001",
+        "platform-" + id,
+        "Splunk prod",
+        COVERAGE_EXTERNAL_ID,
+        SENT.minus(PADDING),
+        ENDED.plus(PADDING));
+  }
+
+  private static SecurityCoverageHuntValidation pendingValidation(String id, int attempts) {
+    SecurityCoverageHuntValidation validation = new SecurityCoverageHuntValidation();
+    validation.setId(id);
+    validation.setStatus(Status.PENDING);
+    validation.setAttempts(attempts);
+    validation.setNextAttemptAt(SENT);
+    return validation;
+  }
+
+  @Nested
+  @DisplayName("Planning rules")
+  class PlanningRules {
+
+    @Test
+    @DisplayName("given an executed inject should pad its sent-to-end window on both sides")
+    void given_executedInject_should_padWindow() {
+      // Arrange
+      Inject inject = inject("i", status(ExecutionStatus.EXECUTED, SENT, ENDED), List.of());
+
+      // Act
+      Optional<ExecutionWindow> window =
+          SecurityCoverageHuntValidationService.executionWindow(inject, PADDING);
+
+      // Assert
+      assertThat(window).contains(new ExecutionWindow(SENT.minus(PADDING), ENDED.plus(PADDING)));
+    }
+
+    @Test
+    @DisplayName("given a partial inject without end date should end the window at its start")
+    void given_partialInjectWithoutEnd_should_endAtStart() {
+      // Arrange
+      Inject inject = inject("i", status(ExecutionStatus.PARTIAL, SENT, null), List.of());
+
+      // Act
+      Optional<ExecutionWindow> window =
+          SecurityCoverageHuntValidationService.executionWindow(inject, PADDING);
+
+      // Assert
+      assertThat(window).contains(new ExecutionWindow(SENT.minus(PADDING), SENT.plus(PADDING)));
+    }
+
+    @Test
+    @DisplayName("given an end date before the start should never produce an inverted window")
+    void given_endBeforeStart_should_notInvertWindow() {
+      // Arrange
+      Inject inject =
+          inject("i", status(ExecutionStatus.EXECUTED, SENT, SENT.minusSeconds(30)), List.of());
+
+      // Act
+      Optional<ExecutionWindow> window =
+          SecurityCoverageHuntValidationService.executionWindow(inject, Duration.ZERO);
+
+      // Assert
+      assertThat(window).contains(new ExecutionWindow(SENT, SENT));
+    }
+
+    @Test
+    @DisplayName("given an inject that did not run should have no window")
+    void given_injectThatDidNotRun_should_haveNoWindow() {
+      // Arrange + Act + Assert
+      for (ExecutionStatus name :
+          List.of(
+              ExecutionStatus.ERROR,
+              ExecutionStatus.QUEUING,
+              ExecutionStatus.EXECUTING,
+              ExecutionStatus.PENDING,
+              ExecutionStatus.DRAFT)) {
+        Inject inject = inject("i", status(name, SENT, ENDED), List.of());
+        assertThat(SecurityCoverageHuntValidationService.executionWindow(inject, PADDING))
+            .as("status %s", name)
+            .isEmpty();
+      }
+      assertThat(
+              SecurityCoverageHuntValidationService.executionWindow(
+                  inject("i", null, List.of()), PADDING))
+          .isEmpty();
+      assertThat(
+              SecurityCoverageHuntValidationService.executionWindow(
+                  inject("i", status(ExecutionStatus.EXECUTED, null, ENDED), List.of()), PADDING))
+          .isEmpty();
+    }
+
+    @Test
+    @DisplayName("given techniques with blanks and duplicates should keep sorted distinct ids")
+    void given_techniques_should_keepSortedDistinctIds() {
+      // Arrange
+      Inject inject =
+          inject(
+              "i",
+              null,
+              List.of(
+                  technique("T1059.001"),
+                  technique(" T1003 "),
+                  technique(""),
+                  technique(null),
+                  technique("T1059.001")));
+
+      // Act + Assert
+      assertThat(SecurityCoverageHuntValidationService.techniqueIds(inject))
+          .containsExactly("T1003", "T1059.001");
+    }
+
+    @Test
+    @DisplayName("given every verdict of a platform computed should consider it ready")
+    void given_everyVerdictComputed_should_beReady() {
+      // Arrange
+      Inject inject =
+          inject(
+              "i",
+              null,
+              List.of(),
+              expectation(new DetectionInjectExpectation(), result("edr", 100.0)),
+              expectation(new PreventionInjectExpectation(), result("edr", 0.0)));
+
+      // Act + Assert
+      assertThat(SecurityCoverageHuntValidationService.readySecurityPlatformIds(inject))
+          .containsExactly("edr");
+    }
+
+    @Test
+    @DisplayName("given one verdict still pending should not consider the platform ready")
+    void given_oneVerdictPending_should_notBeReady() {
+      // Arrange
+      Inject inject =
+          inject(
+              "i",
+              null,
+              List.of(),
+              expectation(
+                  new DetectionInjectExpectation(), result("edr", 100.0), result("siem", 100.0)),
+              expectation(new PreventionInjectExpectation(), result("edr", null)));
+
+      // Act + Assert
+      assertThat(SecurityCoverageHuntValidationService.readySecurityPlatformIds(inject))
+          .containsExactly("siem");
+    }
+
+    @Test
+    @DisplayName(
+        "given results outside detection and prevention or without asset should ignore them")
+    void given_unrelatedResults_should_beIgnored() {
+      // Arrange
+      Inject inject =
+          inject(
+              "i",
+              null,
+              List.of(),
+              expectation(new ManualInjectExpectation(), result("manual", 100.0)),
+              expectation(new DetectionInjectExpectation(), result(null, 100.0)),
+              expectation(new DetectionInjectExpectation(), result(" ", 100.0)));
+
+      // Act + Assert
+      assertThat(SecurityCoverageHuntValidationService.readySecurityPlatformIds(inject)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given consecutive failures should back off exponentially up to the cap")
+    void given_consecutiveFailures_should_backOffUpToCap() {
+      // Act + Assert
+      assertThat(SecurityCoverageHuntValidationService.retryDelay(1)).isEqualTo(RETRY_BASE_DELAY);
+      assertThat(SecurityCoverageHuntValidationService.retryDelay(2))
+          .isEqualTo(RETRY_BASE_DELAY.multipliedBy(2));
+      assertThat(SecurityCoverageHuntValidationService.retryDelay(4))
+          .isEqualTo(RETRY_BASE_DELAY.multipliedBy(8));
+      assertThat(SecurityCoverageHuntValidationService.retryDelay(30)).isEqualTo(RETRY_MAX_DELAY);
+      assertThat(SecurityCoverageHuntValidationService.retryDelay(0)).isEqualTo(RETRY_BASE_DELAY);
+    }
+
+    @Test
+    @DisplayName("given a transport error should describe it with its cause on one line")
+    void given_transportError_should_describeWithCause() {
+      // Arrange
+      IOException error =
+          new ClientProtocolException(
+              "Unexpected response for request on: http://opencti/graphql",
+              new ConnectException("Connection\nrefused"));
+
+      // Act + Assert
+      assertThat(SecurityCoverageHuntValidationService.describe(error))
+          .isEqualTo(
+              "Unexpected response for request on: http://opencti/graphql: Connection refused");
+    }
+  }
+
+  @Nested
+  @DisplayName("Planning a simulation")
+  class PlanningASimulation {
+
+    private final SecurityPlatform edr =
+        platform("edr", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+
+    @BeforeEach
+    void setUp() {
+      insideTransaction();
+    }
+
+    private Inject executedInjectSeenBy(String injectId, String platformId, String... techniques) {
+      return inject(
+          injectId,
+          status(ExecutionStatus.EXECUTED, SENT, ENDED),
+          Arrays.stream(techniques)
+              .map(SecurityCoverageHuntValidationServiceUnitTest::technique)
+              .toList(),
+          expectation(new DetectionInjectExpectation(), result(platformId, 100.0)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<SecurityCoverageHuntValidation> savedValidations() {
+      ArgumentCaptor<List<SecurityCoverageHuntValidation>> saved =
+          ArgumentCaptor.forClass((Class) List.class);
+      verify(huntValidationRepository).saveAll(saved.capture());
+      return saved.getValue();
+    }
+
+    @Test
+    @DisplayName("given a ready inject should plan one validation per technique with its payload")
+    void given_readyInject_should_planOneValidationPerTechnique() {
+      // Arrange
+      Exercise simulation =
+          simulation(coverage(), executedInjectSeenBy("inject-1", "edr", "T1059.001", "T1003"));
+      when(exerciseService.exercise(SIMULATION_ID)).thenReturn(simulation);
+      when(assetService.securityPlatformsByIds(anySet())).thenReturn(List.of(edr));
+      when(huntValidationRepository.findAllByInjectIdIn(anyCollection())).thenReturn(List.of());
+
+      // Act
+      int planned = service.planForSimulation(SIMULATION_ID);
+
+      // Assert
+      assertThat(planned).isEqualTo(2);
+      List<SecurityCoverageHuntValidation> saved = savedValidations();
+      assertThat(saved)
+          .extracting(SecurityCoverageHuntValidation::getTechniqueId)
+          .containsExactly("T1003", "T1059.001");
+      SecurityCoverageHuntValidation first = saved.getFirst();
+      assertThat(first.getInjectId()).isEqualTo("inject-1");
+      assertThat(first.getSecurityPlatformId()).isEqualTo("edr");
+      assertThat(first.getSecurityPlatformName()).isEqualTo("Platform edr");
+      assertThat(first.getCoverageExternalId()).isEqualTo(COVERAGE_EXTERNAL_ID);
+      assertThat(first.getWindowStart()).isEqualTo(SENT.minus(PADDING));
+      assertThat(first.getWindowEnd()).isEqualTo(ENDED.plus(PADDING));
+      assertThat(first.getStatus()).isEqualTo(Status.PENDING);
+      assertThat(first.getAttempts()).isZero();
+      assertThat(first.getNextAttemptAt()).isNotNull();
+      assertThat(first.getTenant().getId()).isEqualTo(TENANT_ID);
+    }
+
+    @Test
+    @DisplayName("given triples already planned should only plan the new ones")
+    void given_alreadyPlanned_should_onlyPlanNewOnes() {
+      // Arrange
+      Exercise simulation =
+          simulation(coverage(), executedInjectSeenBy("inject-1", "edr", "T1059.001", "T1003"));
+      when(exerciseService.exercise(SIMULATION_ID)).thenReturn(simulation);
+      when(assetService.securityPlatformsByIds(anySet())).thenReturn(List.of(edr));
+      SecurityCoverageHuntValidation existing = new SecurityCoverageHuntValidation();
+      existing.setInjectId("inject-1");
+      existing.setTechniqueId("T1059.001");
+      existing.setSecurityPlatformId("edr");
+      when(huntValidationRepository.findAllByInjectIdIn(List.of("inject-1")))
+          .thenReturn(List.of(existing));
+
+      // Act
+      int planned = service.planForSimulation(SIMULATION_ID);
+
+      // Assert
+      assertThat(planned).isEqualTo(1);
+      assertThat(savedValidations())
+          .extracting(SecurityCoverageHuntValidation::getTechniqueId)
+          .containsExactly("T1003");
+    }
+
+    @Test
+    @DisplayName("given a platform type OpenCTI hunts cannot run on should plan nothing")
+    void given_nonHuntablePlatform_should_planNothing() {
+      // Arrange
+      Exercise simulation =
+          simulation(coverage(), executedInjectSeenBy("inject-1", "mail", "T1566"));
+      when(exerciseService.exercise(SIMULATION_ID)).thenReturn(simulation);
+      when(assetService.securityPlatformsByIds(anySet()))
+          .thenReturn(
+              List.of(platform("mail", SecurityPlatform.SECURITY_PLATFORM_TYPE.EMAIL_SECURITY)));
+
+      // Act
+      int planned = service.planForSimulation(SIMULATION_ID);
+
+      // Assert
+      assertThat(planned).isZero();
+      verify(huntValidationRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given a simulation without coverage should plan nothing and read nothing else")
+    void given_noCoverage_should_planNothing() {
+      // Arrange
+      when(exerciseService.exercise(SIMULATION_ID))
+          .thenReturn(simulation(null, executedInjectSeenBy("inject-1", "edr", "T1003")));
+
+      // Act
+      int planned = service.planForSimulation(SIMULATION_ID);
+
+      // Assert
+      assertThat(planned).isZero();
+      verify(assetService, never()).securityPlatformsByIds(anySet());
+      verify(huntValidationRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given no inject ready yet should not even resolve the platforms")
+    void given_noInjectReady_should_notResolvePlatforms() {
+      // Arrange
+      Inject pending =
+          inject(
+              "inject-1",
+              status(ExecutionStatus.EXECUTED, SENT, ENDED),
+              List.of(technique("T1003")),
+              expectation(new DetectionInjectExpectation(), result("edr", null)));
+      when(exerciseService.exercise(SIMULATION_ID)).thenReturn(simulation(coverage(), pending));
+
+      // Act
+      int planned = service.planForSimulation(SIMULATION_ID);
+
+      // Assert
+      assertThat(planned).isZero();
+      verify(assetService, never()).securityPlatformsByIds(anySet());
+    }
+
+    @Test
+    @DisplayName("given no transaction should refuse instead of reading nothing")
+    void given_noTransaction_should_refuse() {
+      // Arrange
+      TransactionSynchronizationManager.setActualTransactionActive(false);
+
+      // Act + Assert
+      assertThatThrownBy(() -> service.planForSimulation(SIMULATION_ID))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("tenant-scoped transaction");
+      verify(exerciseService, never()).exercise(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("Sending")
+  class Sending {
+
+    private ValidateHuntFromEmulation.HuntValidation huntValidation(int hunts, int runs) {
+      ValidateHuntFromEmulation.HuntValidation validation =
+          new ValidateHuntFromEmulation.HuntValidation();
+      validation.setHuntsCount(hunts);
+      List<ValidateHuntFromEmulation.HuntRun> huntRuns = new ArrayList<>();
+      for (int i = 0; i < runs; i++) {
+        huntRuns.add(new ValidateHuntFromEmulation.HuntRun());
+      }
+      validation.setRuns(huntRuns);
+      return validation;
+    }
+
+    @Test
+    @DisplayName(
+        "given a due validation should send the contract input with the bundle platform id")
+    void given_dueValidation_should_sendContractInput() throws Exception {
+      // Arrange
+      when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
+          .thenReturn(huntValidation(2, 3));
+
+      // Act
+      List<HuntValidationOutcome> outcomes = service.send(TENANT_ID, List.of(request("1")));
+
+      // Assert
+      ArgumentCaptor<ValidateHuntFromEmulation.Input> input =
+          ArgumentCaptor.forClass(ValidateHuntFromEmulation.Input.class);
+      verify(openCTIConnectorService)
+          .validateHuntFromEmulation(
+              eq(TENANT_ID), input.capture(), eq(config.getRequestTimeout()));
+      assertThat(input.getValue())
+          .isEqualTo(
+              new ValidateHuntFromEmulation.Input(
+                  "T1059.001",
+                  SecurityPlatform.stixIdentityId("Splunk prod"),
+                  "Splunk prod",
+                  "inject-1",
+                  "2026-10-03T09:55:00Z",
+                  "2026-10-03T10:17:00Z",
+                  COVERAGE_EXTERNAL_ID));
+      assertThat(outcomes)
+          .containsExactly(
+              new HuntValidationOutcome("1", HuntValidationOutcome.Kind.VALIDATED, 2, 3, null));
+      verify(resultsMetricCollector).recordCoverageHuntValidationsSent(1L);
+    }
+
+    @Test
+    @DisplayName("given OpenCTI refusing one validation should keep sending the others")
+    void given_refusal_should_keepSendingOthers() throws Exception {
+      // Arrange
+      when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
+          .thenThrow(new ConnectorError("Enterprise edition is not enabled"))
+          .thenThrow(new IllegalArgumentException("unexpected payload"))
+          .thenReturn(huntValidation(0, 0));
+
+      // Act
+      List<HuntValidationOutcome> outcomes =
+          service.send(TENANT_ID, List.of(request("1"), request("2"), request("3")));
+
+      // Assert
+      assertThat(outcomes)
+          .extracting(HuntValidationOutcome::kind)
+          .containsExactly(
+              HuntValidationOutcome.Kind.REFUSED,
+              HuntValidationOutcome.Kind.REFUSED,
+              HuntValidationOutcome.Kind.VALIDATED);
+      assertThat(outcomes.getFirst().error()).isEqualTo("Enterprise edition is not enabled");
+      verify(resultsMetricCollector).recordCoverageHuntValidationsSent(1L);
+    }
+
+    @Test
+    @DisplayName("given OpenCTI unreachable should stop the batch at the first failure")
+    void given_unreachable_should_stopTheBatch() throws Exception {
+      // Arrange
+      when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
+          .thenThrow(new ClientProtocolException("Connection refused"));
+
+      // Act
+      List<HuntValidationOutcome> outcomes =
+          service.send(TENANT_ID, List.of(request("1"), request("2"), request("3")));
+
+      // Assert
+      assertThat(outcomes)
+          .containsExactly(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused"));
+      verify(openCTIConnectorService, times(1)).validateHuntFromEmulation(any(), any(), any());
+      verify(resultsMetricCollector).recordCoverageHuntValidationsSent(0L);
+    }
+
+    @Test
+    @DisplayName("given an open transaction should refuse to hold it across the HTTP calls")
+    void given_openTransaction_should_refuse() throws Exception {
+      // Arrange
+      insideTransaction();
+
+      // Act + Assert
+      assertThatThrownBy(() -> service.send(TENANT_ID, List.of(request("1"))))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("must not run inside a transaction");
+      verify(openCTIConnectorService, never()).validateHuntFromEmulation(any(), any(), any());
+      verify(resultsMetricCollector, never()).recordCoverageHuntValidationsSent(anyLong());
+    }
+  }
+
+  @Nested
+  @DisplayName("Recording outcomes")
+  class RecordingOutcomes {
+
+    private static final Instant NOW = Instant.parse("2026-10-03T11:00:00Z");
+
+    @BeforeEach
+    void setUp() {
+      insideTransaction();
+    }
+
+    private void givenStored(SecurityCoverageHuntValidation... validations) {
+      when(huntValidationRepository.findAllById(anySet())).thenReturn(List.of(validations));
+    }
+
+    @Test
+    @DisplayName("given an accepted validation should mark it validated with its counts")
+    void given_accepted_should_markValidated() {
+      // Arrange
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 1);
+      validation.setLastError("previous refusal");
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(new HuntValidationOutcome("1", HuntValidationOutcome.Kind.VALIDATED, 2, 3, null)),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.VALIDATED);
+      assertThat(validation.getAttempts()).isEqualTo(2);
+      assertThat(validation.getHuntsCount()).isEqualTo(2);
+      assertThat(validation.getRunsCount()).isEqualTo(3);
+      assertThat(validation.getValidatedAt()).isEqualTo(NOW);
+      assertThat(validation.getLastError()).isNull();
+      verify(huntValidationRepository).saveAll(List.of(validation));
+    }
+
+    @Test
+    @DisplayName("given a refusal below the maximum should retry after the backoff")
+    void given_refusalBelowMaximum_should_retryAfterBackoff() {
+      // Arrange
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 1);
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "EE required")),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.PENDING);
+      assertThat(validation.getAttempts()).isEqualTo(2);
+      assertThat(validation.getNextAttemptAt())
+          .isEqualTo(NOW.plus(RETRY_BASE_DELAY.multipliedBy(2)));
+      assertThat(validation.getLastError()).isEqualTo("EE required");
+    }
+
+    @Test
+    @DisplayName("given the last allowed refusal should give the validation up")
+    void given_lastAllowedRefusal_should_giveUp() {
+      // Arrange
+      SecurityCoverageHuntValidation validation =
+          pendingValidation("1", SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS - 1);
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "unknown technique")),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.FAILED);
+      assertThat(validation.getAttempts())
+          .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS);
+    }
+
+    @Test
+    @DisplayName("given OpenCTI unreachable should postpone without spending an attempt")
+    void given_unreachable_should_postponeWithoutSpendingAttempt() {
+      // Arrange
+      SecurityCoverageHuntValidation validation =
+          pendingValidation("1", SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS - 1);
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused")),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.PENDING);
+      assertThat(validation.getAttempts())
+          .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS - 1);
+      assertThat(validation.getNextAttemptAt()).isEqualTo(NOW.plus(RETRY_BASE_DELAY));
+      assertThat(validation.getLastError()).isEqualTo("Connection refused");
+    }
+
+    @Test
+    @DisplayName("given a validation settled meanwhile should leave it untouched")
+    void given_settledMeanwhile_should_leaveUntouched() {
+      // Arrange
+      SecurityCoverageHuntValidation validated = pendingValidation("1", 1);
+      validated.setStatus(Status.VALIDATED);
+      givenStored(validated);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "late")),
+          NOW);
+
+      // Assert
+      assertThat(validated.getStatus()).isEqualTo(Status.VALIDATED);
+      assertThat(validated.getAttempts()).isEqualTo(1);
+      assertThat(validated.getLastError()).isNull();
+    }
+
+    @Test
+    @DisplayName("given a very long error should store it truncated")
+    void given_veryLongError_should_storeItTruncated() {
+      // Arrange
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 0);
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "x".repeat(5000))),
+          NOW);
+
+      // Assert
+      assertThat(validation.getLastError()).hasSize(MAX_ERROR_LENGTH);
+    }
+
+    @Test
+    @DisplayName("given no outcome should not touch the database")
+    void given_noOutcome_should_notTouchDatabase() {
+      // Act
+      service.recordOutcomes(List.of(), NOW);
+
+      // Assert
+      verify(huntValidationRepository, never()).findAllById(anySet());
+    }
+  }
+
+  @Nested
+  @DisplayName("Configuration and tenants")
+  class ConfigurationAndTenants {
+
+    @Test
+    @DisplayName("given the default configuration should be disabled")
+    void given_defaultConfiguration_should_beDisabled() {
+      // Act + Assert
+      assertThat(service.isEnabled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given hunt validation enabled should report it")
+    void given_enabled_should_reportIt() {
+      // Arrange
+      config.setEnabled(true);
+
+      // Act + Assert
+      assertThat(service.isEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("given registered connectors should list their distinct tenants")
+    void given_registeredConnectors_should_listDistinctTenants() {
+      // Arrange
+      Function<String, ConnectorBase> connectorOf =
+          tenant -> {
+            ConnectorBase connector = org.mockito.Mockito.mock(ConnectorBase.class);
+            lenient().when(connector.getTenantId()).thenReturn(tenant);
+            return connector;
+          };
+      when(openCTIConnectorService.getRegisterConnectors())
+          .thenReturn(
+              List.of(
+                  connectorOf.apply("a"),
+                  connectorOf.apply(null),
+                  connectorOf.apply("b"),
+                  connectorOf.apply("a")));
+
+      // Act + Assert
+      assertThat(service.tenantsWithRegisteredConnector()).containsExactly("a", "b");
+    }
+  }
+}

@@ -136,6 +136,9 @@ Once the scenario is finalized and scheduled:
   representing the Security Coverage.
 - OpenCTI displays the updated coverage assessment, including which security platform detected or prevented each
   covered object.
+- When [hunt validation](../../evaluate/xtm-suite-connector.md#hunt-validation-from-emulation-results) is enabled,
+  OpenAEV also asks OpenCTI to run its hunts over the time each technique was emulated, on the security platform
+  that watched it, so the coverage shows whether the hunts catch the technique.
 
 ![Octi results](assets/octi-security-coverage-results.png)
 

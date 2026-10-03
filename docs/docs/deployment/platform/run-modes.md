@@ -19,7 +19,7 @@ The following feature areas are impacted because their Quartz jobs are disabled:
 | Feature area                               | Quartz jobs disabled in safe mode |
 |:-------------------------------------------|:--|
 | Inject/Comcheck/Scenario/Atomic execution  | `InjectsExecutionJob`, `ComchecksExecutionJob`, `ScenarioExecutionJob`, `AtomicTestingExecutionJob` |
-| Integrations and security coverage refresh | `ManagerIntegrationsSyncJob`, `SecurityCoverageJob`, `OpenCTIConnectorRegisterPingJob` |
+| Integrations and security coverage refresh | `ManagerIntegrationsSyncJob`, `SecurityCoverageJob`, `SecurityCoverageHuntValidationJob`, `OpenCTIConnectorRegisterPingJob` |
 | Chaining workflow processing               | `QueueChainingJob`, `WorkflowTimeoutJob` |
 | Reporting and notifications                | `ReportingScheduleJob`, `NotificationDigestJob`, `NotificationEventRetentionJob` |
 | Data retention and purge                   | `ExecutionTraceRetentionJob`, `ExecutionTracesBatchRequeueJob`, `UserEventRetentionJob`, `TenantPurgeJob`, `UrlAccessTokenPurgeJob` |

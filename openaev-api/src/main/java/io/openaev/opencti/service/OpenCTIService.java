@@ -24,13 +24,16 @@ import io.openaev.stix.objects.Bundle;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.core5.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
@@ -235,6 +238,57 @@ public class OpenCTIService {
           connector.getApiUrl());
       return payload;
     }
+  }
+
+  /**
+   * Asks OpenCTI to validate its hunts against one emulated technique ({@code
+   * huntValidateFromEmulation}), with the URL and token of the tenant's security coverage
+   * connector.
+   *
+   * @param connector the tenant's security coverage connector, already registered
+   * @param input the emulation to validate the hunts against
+   * @param timeout bound of the connect, the TLS handshake and every read of the call
+   * @return the hunt validation OpenCTI started (possibly zero hunts)
+   * @throws ConnectorError OpenCTI answered with GraphQL errors (Enterprise Edition required,
+   *     unknown technique, mutation missing on an older OpenCTI) or without a hunt validation
+   * @throws IOException OpenCTI could not be reached or answered a server error
+   */
+  public ValidateHuntFromEmulation.HuntValidation validateHuntFromEmulation(
+      ConnectorBase connector, ValidateHuntFromEmulation.Input input, Duration timeout)
+      throws IOException, ConnectorError {
+    if (!connector.isRegistered()) {
+      throw new ConnectorError(
+          "Cannot validate hunts via connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
+              .formatted(connector.getName(), connector.getApiUrl()));
+    }
+
+    Response r =
+        openCTIClient.execute(
+            connector.getApiUrl(),
+            connector.getToken(),
+            new ValidateHuntFromEmulation(input),
+            timeout);
+    if (r.getStatus() >= HttpStatus.SC_SERVER_ERROR) {
+      throw new ClientProtocolException(
+          "OpenCTI at %s answered HTTP %d".formatted(connector.getApiUrl(), r.getStatus()));
+    }
+    if (r.isError()) {
+      throw new ConnectorError(
+          "OpenCTI at %s refused the hunt validation: %s"
+              .formatted(
+                  connector.getApiUrl(),
+                  r.getErrors().stream()
+                      .map(Error::getMessage)
+                      .filter(Objects::nonNull)
+                      .collect(Collectors.joining("; "))));
+    }
+    ValidateHuntFromEmulation.ResponsePayload payload =
+        mapper.convertValue(r.getData(), ValidateHuntFromEmulation.ResponsePayload.class);
+    if (payload == null || payload.getHuntValidation() == null) {
+      throw new ConnectorError(
+          "OpenCTI at %s returned no hunt validation".formatted(connector.getApiUrl()));
+    }
+    return payload.getHuntValidation();
   }
 
   // TODO: support attachments; argument: `List<DataAttachment> attachments`

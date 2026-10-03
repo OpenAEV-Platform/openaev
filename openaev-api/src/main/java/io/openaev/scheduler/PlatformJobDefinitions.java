@@ -4,6 +4,7 @@ import static io.openaev.scheduler.jobs.AgentInactivityMonitorJob.AGENT_INACTIVI
 import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIAL_CONNECTIVITY_CHECK_JOB;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_JOB;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_JOB;
+import static io.openaev.scheduler.jobs.SecurityCoverageHuntValidationJob.SECURITY_COVERAGE_HUNT_VALIDATION_JOB;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_JOB;
 import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_JOB;
@@ -78,6 +79,14 @@ public class PlatformJobDefinitions {
     return JobBuilder.newJob(SecurityCoverageJob.class)
         .storeDurably()
         .withIdentity(jobKey("SecurityCoverageJob"))
+        .build();
+  }
+
+  @Bean
+  public JobDetail securityCoverageHuntValidationJobDetail() {
+    return JobBuilder.newJob(SecurityCoverageHuntValidationJob.class)
+        .storeDurably()
+        .withIdentity(jobKey(SECURITY_COVERAGE_HUNT_VALIDATION_JOB))
         .build();
   }
 
