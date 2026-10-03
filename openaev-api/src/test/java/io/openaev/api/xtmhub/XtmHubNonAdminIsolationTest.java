@@ -22,8 +22,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The v2 SQL rewrite must isolate XTM Hub registrations for a non-admin too. This proves the tenant
- * path, not the admin flag, is what keeps each tenant's singleton registration isolated.
+ * A non-admin spanning two tenants reads only its own tenant's XTM Hub registration through the
+ * tenant path, so the path and not the admin flag decides what comes back.
+ *
+ * <p>As in {@code XtmHubApiHttpIsolationTest}, this holds whether or not {@code
+ * tenant_xtmhub_registrations} is active: the read is {@code findByTenantId}, which carries the
+ * tenant itself. See that class's javadoc for why the activation has nothing observable behind it
+ * on this table.
  */
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=tenant_xtmhub_registrations")
