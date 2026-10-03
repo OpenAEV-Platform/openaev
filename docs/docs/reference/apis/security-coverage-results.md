@@ -155,16 +155,17 @@ Only the security platforms of the Simulation's Tenant are attributed.
         { "name": "DETECTION", "score": 50 }
       ],
       "coverage_platforms": [
-        { "platform_ref": "identity--3c9e5f4a-1b2d-4e6f-8a7b-9c0d1e2f3a4b", "name": "PREVENTION", "score": 100 },
-        { "platform_ref": "identity--3c9e5f4a-1b2d-4e6f-8a7b-9c0d1e2f3a4b", "name": "DETECTION", "score": 100 },
-        { "platform_ref": "identity--7d1a2b3c-4e5f-4a6b-8c9d-0e1f2a3b4c5d", "name": "DETECTION", "score": 0 }
+        { "platform_ref": "identity--fd6bb94b-46b7-5e41-90d0-2a0fcf171ca2", "name": "PREVENTION", "score": 100 },
+        { "platform_ref": "identity--fd6bb94b-46b7-5e41-90d0-2a0fcf171ca2", "name": "DETECTION", "score": 100 },
+        { "platform_ref": "identity--2d8bfd8f-30fd-56aa-b89d-742301ab549f", "name": "DETECTION", "score": 0 }
       ],
       "start_time": "2026-09-23T14:09:43Z",
       "stop_time": "2026-09-24T14:09:43Z"
     }
     ```
 
-    Both `platform_ref` values are `identity` objects of the same bundle.
+    Both `platform_ref` values are `identity` objects of the same bundle: `CrowdStrike Falcon` (the EDR) and `Vectra AI`
+    (the NDR), whose ids derive from their names (UUIDv5, see above).
 
 ## Security platform relationships
 
