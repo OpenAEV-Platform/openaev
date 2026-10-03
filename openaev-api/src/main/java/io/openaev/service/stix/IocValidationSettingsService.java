@@ -6,11 +6,9 @@ import static io.openaev.database.model.TenantSettingKeys.IOC_VALIDATION_HTTP_PR
 import static io.openaev.database.model.TenantSettingKeys.IOC_VALIDATION_NETWORK_PORT;
 import static io.openaev.database.model.TenantSettingKeys.IOC_VALIDATION_SINKHOLE_ADDRESS;
 
-import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.TenantSettingKeys;
-import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.service.AssetGroupService;
@@ -18,19 +16,14 @@ import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +45,6 @@ public class IocValidationSettingsService {
 
   private final TenantSettingsService tenantSettingsService;
   private final AssetGroupService assetGroupService;
-  private final AssetGroupRepository assetGroupRepository;
 
   // -- READ --
 
@@ -128,30 +120,8 @@ public class IocValidationSettingsService {
   @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> assetGroupOptions(
       @NotBlank final String tenantId, final String searchText) {
-    String search = blankToEmpty(searchText).toLowerCase(Locale.ROOT);
-    Specification<AssetGroup> byName =
-        (root, query, cb) -> {
-          var ofTenant = cb.equal(root.get("tenant").get("id"), tenantId);
-          return search.isEmpty()
-              ? ofTenant
-              : cb.and(
-                  ofTenant,
-                  cb.like(cb.lower(root.get("name")), "%" + escapeLike(search) + "%", '\\'));
-        };
-    List<FilterUtilsJpa.Option> options = new ArrayList<>();
-    String configuredId = value(tenantId, IOC_VALIDATION_ASSET_GROUP).trim();
-    if (!configuredId.isEmpty()) {
-      assetGroupRepository
-          .findByIdAndTenantId(configuredId, tenantId)
-          .ifPresent(
-              group -> options.add(new FilterUtilsJpa.Option(group.getId(), group.getName())));
-    }
-    assetGroupRepository
-        .findAll(byName, PageRequest.of(0, MAX_ASSET_GROUP_OPTIONS, Sort.by("name")))
-        .stream()
-        .filter(group -> !group.getId().equals(configuredId))
-        .forEach(group -> options.add(new FilterUtilsJpa.Option(group.getId(), group.getName())));
-    return options;
+    return assetGroupService.tenantOptionsByName(
+        tenantId, searchText, value(tenantId, IOC_VALIDATION_ASSET_GROUP), MAX_ASSET_GROUP_OPTIONS);
   }
 
   // -- OPTIONS --
@@ -195,9 +165,5 @@ public class IocValidationSettingsService {
 
   private static String blankToEmpty(String value) {
     return value == null ? "" : value.trim();
-  }
-
-  private static String escapeLike(String value) {
-    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 }
