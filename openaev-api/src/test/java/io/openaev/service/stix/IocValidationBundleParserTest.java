@@ -107,6 +107,21 @@ class IocValidationBundleParserTest {
   }
 
   @Test
+  @DisplayName("keeps one pair per indicator and platform, whatever its deployed_on_ref")
+  void given_sameCoupleWithManyDeployments_should_keepTheFirst() throws BundleValidationError {
+    ObjectNode request = request();
+    ArrayNode pairs = (ArrayNode) request.get("pairs");
+    for (int i = 0; i < 1000; i++) {
+      ObjectNode copy = pairs.get(0).deepCopy();
+      copy.put("deployed_on_ref", "relationship--9b1d3f5a-3333-4c4d-9e5f-%012d".formatted(i));
+      pairs.add(copy);
+    }
+    IocValidationRequest parsed = parser.parse(bundle(request), REQUEST_ID);
+    assertThat(parsed.pairs())
+        .containsExactly(new IocValidationRequest.Pair(INDICATOR, PLATFORM, DEPLOYED_ON));
+  }
+
+  @Test
   @DisplayName("rejects a bundle without request object")
   void given_noRequest_should_throw() {
     assertThatThrownBy(() -> parser.parse(bundle(), REQUEST_ID))

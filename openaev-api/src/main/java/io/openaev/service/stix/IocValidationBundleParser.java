@@ -174,14 +174,19 @@ public class IocValidationBundleParser {
       throw new BundleValidationError("The IOC validation request has no pairs array");
     }
     List<IocValidationRequest.Pair> pairs = new ArrayList<>();
-    Set<String> seen = new LinkedHashSet<>();
+    Set<String> seenDeployments = new LinkedHashSet<>();
+    // One deployed-on per (indicator, platform): this keeps the pairs within the indicator and
+    // platform limits, whatever the number of deployed_on_ref values sent
+    Set<String> seenCouples = new LinkedHashSet<>();
     for (JsonNode node : pairsNode) {
       IocValidationRequest.Pair pair =
           new IocValidationRequest.Pair(
               required(node, "indicator_ref"),
               required(node, "platform_ref"),
               required(node, "deployed_on_ref"));
-      if (seen.add(pair.deployedOnRef())) {
+      String couple = pair.indicatorRef() + "|" + pair.platformRef();
+      if (!seenDeployments.contains(pair.deployedOnRef()) && seenCouples.add(couple)) {
+        seenDeployments.add(pair.deployedOnRef());
         pairs.add(pair);
       }
     }
