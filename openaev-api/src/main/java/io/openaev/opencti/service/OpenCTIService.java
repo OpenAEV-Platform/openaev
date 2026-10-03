@@ -16,6 +16,7 @@ import io.openaev.opencti.config.XtmConfig;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.PrivilegeService;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.opencti.errors.ConnectorUnavailableError;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.document.form.DocumentCreateInput;
 import io.openaev.rest.tag.TagService;
@@ -282,13 +283,15 @@ public class OpenCTIService {
    * @return the hunt validation OpenCTI started (possibly zero hunts)
    * @throws ConnectorError OpenCTI answered with GraphQL errors (Enterprise Edition required,
    *     unknown technique, mutation missing on an older OpenCTI) or without a hunt validation
+   * @throws ConnectorUnavailableError the connector is not registered yet, or OpenCTI rate limited
+   *     the call
    * @throws IOException OpenCTI could not be reached or answered a server error
    */
   public ValidateHuntFromEmulation.HuntValidation validateHuntFromEmulation(
       ConnectorBase connector, ValidateHuntFromEmulation.Input input, Duration timeout)
       throws IOException, ConnectorError {
     if (!connector.isRegistered()) {
-      throw new ConnectorError(
+      throw new ConnectorUnavailableError(
           "Cannot validate hunts via connector %s with OpenCTI at %s: connector hasn't registered yet. Try again later."
               .formatted(connector.getName(), connector.getApiUrl()));
     }
@@ -299,6 +302,11 @@ public class OpenCTIService {
             connector.getToken(),
             new ValidateHuntFromEmulation(input),
             timeout);
+    if (r.getStatus() == HttpStatus.SC_TOO_MANY_REQUESTS) {
+      throw new ConnectorUnavailableError(
+          "OpenCTI at %s rate limited the call (HTTP %d)"
+              .formatted(connector.getApiUrl(), r.getStatus()));
+    }
     if (r.getStatus() >= HttpStatus.SC_SERVER_ERROR) {
       throw new ClientProtocolException(
           "OpenCTI at %s answered HTTP %d".formatted(connector.getApiUrl(), r.getStatus()));

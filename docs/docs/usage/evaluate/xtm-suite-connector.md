@@ -83,6 +83,8 @@ OpenCTI hunts search your SIEM, EDR or data lake for the techniques of a threat.
 
 This feature requires OpenCTI **Enterprise Edition** with hunts and a hunt connector bound to the security platform. It is **disabled by default**.
 
+OpenCTI matches the security platform by the STIX ID the simulation results gave it, then by its exact name: give the hunt connector the same security platform name as the security platform in OpenAEV, so both designate the same OpenCTI Security Platform.
+
 ### How it works
 
 1. A simulation generated from an OpenCTI Security Coverage runs. Its injects emulate ATT&CK techniques (the Attack Patterns of their Threat Arsenal action) on your assets.
@@ -92,11 +94,11 @@ This feature requires OpenCTI **Enterprise Edition** with hunts and a hunt conne
     - the technique ATT&CK ID (for example `T1059.001`),
     - the security platform, by the STIX ID the simulation results give it (derived from its name, see [the security platform identities](../../reference/apis/security-coverage-results.md)) and by its name, which OpenCTI falls back to,
     - the inject ID,
-    - the inject execution window, from the time the inject was sent to the time it completed, widened by a padding (5 minutes by default) on both sides,
+    - the inject execution window, from the time the inject was sent to the time it completed, widened by a padding (5 minutes by default) on both sides, and never shorter than one minute,
     - the OpenCTI Security Coverage ID of the simulation.
 5. OpenCTI runs its active hunts covering the technique on the hunt connector of that security platform, over that window, and writes the outcome on the coverage.
 
-Only injects that ran (status `Executed` or `Partial`) are validated. Platform types OpenCTI hunts cannot run on (email security, AI defense, vulnerability scanners) are skipped.
+Only injects that ran (status `Executed` or `Partial`) are validated. Platform types OpenCTI hunts cannot run on (email security, AI defense, vulnerability scanners) are skipped. A validation OpenCTI accepted is never sent again, even when no active hunt covered the technique at that time: OpenCTI is idempotent per inject, hunt and security platform.
 
 ### Enable it
 
@@ -112,14 +114,15 @@ Or as an environment variable:
 OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_ENABLED=true
 ```
 
-See the [configuration reference](../../deployment/configuration.md#xtm-suite-opencti-hunt-validation) for the window padding, the request timeout, the batch size and the number of attempts.
+See the [configuration reference](../../deployment/configuration.md#xtm-suite-opencti-hunt-validation) for the window padding, the request timeout, the batch size, the number of attempts and the maximum age.
 
 ### Failures
 
-A hunt validation never blocks the simulation results: they are pushed to OpenCTI first, and the validations are sent by a separate job.
+A hunt validation never blocks the simulation results: they are pushed to OpenCTI first, and the validations are sent by a separate job, at most 50 per tenant and per run by default.
 
-- When OpenCTI refuses a validation (Enterprise Edition not enabled, unknown technique, OpenCTI version without hunts), OpenAEV logs one warning per tenant and per run, and retries after 5, 10, 20 and 40 minutes before giving the validation up (5 attempts by default).
-- When OpenCTI cannot be reached or answers a server error, the job stops sending for that tenant until its next run (every minute) and postpones the validation by 5 minutes without counting an attempt: an outage, however long, never makes OpenAEV give a validation up.
+- When OpenCTI refuses a validation (Enterprise Edition not enabled, unknown technique or security platform, OpenCTI version without hunts), OpenAEV logs one warning per tenant and per run, and retries after 5, 10, 20 and 40 minutes before giving the validation up (5 attempts by default).
+- When OpenCTI cannot be reached, answers a server error, rate limits the call, or the tenant's OpenCTI connector is not registered, the job stops sending for that tenant until its next run (every minute) and postpones the validation by 5 minutes without counting an attempt: an outage does not use up the attempts.
+- A validation still not delivered 7 days after it was planned (the maximum age) is given up, whatever the reason, so no outage keeps it retried forever.
 
 ## Example workflow
 

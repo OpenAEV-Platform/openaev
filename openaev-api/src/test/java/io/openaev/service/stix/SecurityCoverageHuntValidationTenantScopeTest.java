@@ -21,7 +21,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SecurityCoverageHuntValidationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
-import io.openaev.opencti.connectors.ConnectorBase;
+import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.scheduler.jobs.SecurityCoverageHuntValidationJob;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationOutcome;
@@ -245,10 +245,10 @@ class SecurityCoverageHuntValidationTenantScopeTest extends IntegrationTest {
       Map<String, SecurityCoverageHuntValidation> seeded = seedOneValidationPerTenant();
       SecurityCoverageHuntValidation validationA = seeded.get(tenantA);
       SecurityCoverageHuntValidation validationB = seeded.get(tenantB);
-      ConnectorBase connectorA = org.mockito.Mockito.mock(ConnectorBase.class);
-      when(connectorA.getTenantId()).thenReturn(tenantA);
-      ConnectorBase connectorB = org.mockito.Mockito.mock(ConnectorBase.class);
-      when(connectorB.getTenantId()).thenReturn(tenantB);
+      SecurityCoverageConnector connectorA = new SecurityCoverageConnector();
+      connectorA.setTenantId(tenantA);
+      SecurityCoverageConnector connectorB = new SecurityCoverageConnector();
+      connectorB.setTenantId(tenantB);
       when(openCTIConnectorService.getRegisterConnectors())
           .thenReturn(List.of(connectorA, connectorB));
       ValidateHuntFromEmulation.HuntValidation accepted =

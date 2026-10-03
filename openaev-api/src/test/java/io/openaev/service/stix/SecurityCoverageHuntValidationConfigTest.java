@@ -40,6 +40,7 @@ class SecurityCoverageHuntValidationConfigTest {
       assertThat(config.getRequestTimeout()).isEqualTo(Duration.ofSeconds(30));
       assertThat(config.getBatchSize()).isEqualTo(50);
       assertThat(config.getMaxAttempts()).isEqualTo(5);
+      assertThat(config.getMaxAge()).isEqualTo(Duration.ofDays(7));
     }
 
     @Test
@@ -53,7 +54,8 @@ class SecurityCoverageHuntValidationConfigTest {
                   PREFIX + ".window-padding", "PT2M",
                   PREFIX + ".request-timeout", "PT10S",
                   PREFIX + ".batch-size", "20",
-                  PREFIX + ".max-attempts", "3"));
+                  PREFIX + ".max-attempts", "3",
+                  PREFIX + ".max-age", "P2D"));
 
       // Assert
       assertThat(config.isEnabled()).isTrue();
@@ -61,6 +63,7 @@ class SecurityCoverageHuntValidationConfigTest {
       assertThat(config.getRequestTimeout()).isEqualTo(Duration.ofSeconds(10));
       assertThat(config.getBatchSize()).isEqualTo(20);
       assertThat(config.getMaxAttempts()).isEqualTo(3);
+      assertThat(config.getMaxAge()).isEqualTo(Duration.ofDays(2));
     }
   }
 
@@ -78,7 +81,8 @@ class SecurityCoverageHuntValidationConfigTest {
                   PREFIX + ".window-padding", "-PT1M",
                   PREFIX + ".request-timeout", "PT0S",
                   PREFIX + ".batch-size", "0",
-                  PREFIX + ".max-attempts", "-2"));
+                  PREFIX + ".max-attempts", "-2",
+                  PREFIX + ".max-age", "-P1D"));
 
       // Assert
       assertThat(config.getWindowPadding()).isEqualTo(Duration.ZERO);
@@ -86,6 +90,8 @@ class SecurityCoverageHuntValidationConfigTest {
           .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_REQUEST_TIMEOUT);
       assertThat(config.getBatchSize()).isEqualTo(1);
       assertThat(config.getMaxAttempts()).isEqualTo(1);
+      assertThat(config.getMaxAge())
+          .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE);
     }
   }
 
@@ -110,7 +116,8 @@ class SecurityCoverageHuntValidationConfigTest {
                   PREFIX + ".window-padding", properties.getProperty(PREFIX + ".window-padding"),
                   PREFIX + ".request-timeout", properties.getProperty(PREFIX + ".request-timeout"),
                   PREFIX + ".batch-size", properties.getProperty(PREFIX + ".batch-size"),
-                  PREFIX + ".max-attempts", properties.getProperty(PREFIX + ".max-attempts")));
+                  PREFIX + ".max-attempts", properties.getProperty(PREFIX + ".max-attempts"),
+                  PREFIX + ".max-age", properties.getProperty(PREFIX + ".max-age")));
 
       // Assert
       assertThat(config.isEnabled()).isFalse();
@@ -122,6 +129,8 @@ class SecurityCoverageHuntValidationConfigTest {
           .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_BATCH_SIZE);
       assertThat(config.getMaxAttempts())
           .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS);
+      assertThat(config.getMaxAge())
+          .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE);
     }
   }
 }

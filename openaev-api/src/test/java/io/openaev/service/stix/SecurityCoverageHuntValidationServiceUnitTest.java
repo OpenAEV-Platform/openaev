@@ -1,6 +1,7 @@
 package io.openaev.service.stix;
 
 import static io.openaev.service.stix.SecurityCoverageHuntValidationService.MAX_ERROR_LENGTH;
+import static io.openaev.service.stix.SecurityCoverageHuntValidationService.MIN_WINDOW_LENGTH;
 import static io.openaev.service.stix.SecurityCoverageHuntValidationService.RETRY_BASE_DELAY;
 import static io.openaev.service.stix.SecurityCoverageHuntValidationService.RETRY_MAX_DELAY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,8 +37,10 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SecurityCoverageHuntValidationRepository;
 import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
 import io.openaev.opencti.connectors.ConnectorBase;
+import io.openaev.opencti.connectors.impl.SecurityCoverageConnector;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.opencti.errors.ConnectorUnavailableError;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.AssetService;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.ExecutionWindow;
@@ -236,10 +239,29 @@ class SecurityCoverageHuntValidationServiceUnitTest {
 
       // Act
       Optional<ExecutionWindow> window =
-          SecurityCoverageHuntValidationService.executionWindow(inject, Duration.ZERO);
+          SecurityCoverageHuntValidationService.executionWindow(inject, PADDING);
 
       // Assert
-      assertThat(window).contains(new ExecutionWindow(SENT, SENT));
+      assertThat(window).contains(new ExecutionWindow(SENT.minus(PADDING), SENT.plus(PADDING)));
+    }
+
+    @Test
+    @DisplayName("given no padding and an instant execution should keep the minimum window")
+    void given_noPaddingAndInstantExecution_should_keepMinimumWindow() {
+      // Arrange
+      Inject withoutEnd = inject("i", status(ExecutionStatus.PARTIAL, SENT, null), List.of());
+      Inject endedAtOnce = inject("j", status(ExecutionStatus.EXECUTED, SENT, SENT), List.of());
+
+      // Act
+      Optional<ExecutionWindow> windowWithoutEnd =
+          SecurityCoverageHuntValidationService.executionWindow(withoutEnd, Duration.ZERO);
+      Optional<ExecutionWindow> windowEndedAtOnce =
+          SecurityCoverageHuntValidationService.executionWindow(endedAtOnce, Duration.ZERO);
+
+      // Assert
+      ExecutionWindow minimum = new ExecutionWindow(SENT, SENT.plus(MIN_WINDOW_LENGTH));
+      assertThat(windowWithoutEnd).contains(minimum);
+      assertThat(windowEndedAtOnce).contains(minimum);
     }
 
     @Test
@@ -547,6 +569,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
         "given a due validation should send the contract input with the bundle platform id")
     void given_dueValidation_should_sendContractInput() throws Exception {
       // Arrange
+      Duration requestTimeout = config.getRequestTimeout();
       when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
           .thenReturn(huntValidation(2, 3));
 
@@ -557,8 +580,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       ArgumentCaptor<ValidateHuntFromEmulation.Input> input =
           ArgumentCaptor.forClass(ValidateHuntFromEmulation.Input.class);
       verify(openCTIConnectorService)
-          .validateHuntFromEmulation(
-              eq(TENANT_ID), input.capture(), eq(config.getRequestTimeout()));
+          .validateHuntFromEmulation(eq(TENANT_ID), input.capture(), eq(requestTimeout));
       assertThat(input.getValue())
           .isEqualTo(
               new ValidateHuntFromEmulation.Input(
@@ -617,6 +639,30 @@ class SecurityCoverageHuntValidationServiceUnitTest {
                   "1", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused"));
       verify(openCTIConnectorService, times(1)).validateHuntFromEmulation(any(), any(), any());
       verify(resultsMetricCollector).recordCoverageHuntValidationsSent(0L);
+    }
+
+    @Test
+    @DisplayName(
+        "given the tenant connector unavailable should postpone like an outage, not refuse")
+    void given_connectorUnavailable_should_postponeLikeAnOutage() throws Exception {
+      // Arrange
+      when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
+          .thenThrow(new ConnectorUnavailableError("connector hasn't registered yet"));
+
+      // Act
+      List<HuntValidationOutcome> outcomes =
+          service.send(TENANT_ID, List.of(request("1"), request("2")));
+
+      // Assert
+      assertThat(outcomes)
+          .containsExactly(
+              new HuntValidationOutcome(
+                  "1",
+                  HuntValidationOutcome.Kind.UNREACHABLE,
+                  null,
+                  null,
+                  "connector hasn't registered yet"));
+      verify(openCTIConnectorService, times(1)).validateHuntFromEmulation(any(), any(), any());
     }
 
     @Test
@@ -739,6 +785,69 @@ class SecurityCoverageHuntValidationServiceUnitTest {
     }
 
     @Test
+    @DisplayName("given an outage outliving the maximum age should give the validation up")
+    void given_outageOutlivingMaxAge_should_giveUp() {
+      // Arrange
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 0);
+      validation.setCreatedAt(NOW.minus(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE));
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused")),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.FAILED);
+      assertThat(validation.getAttempts()).isZero();
+      assertThat(validation.getLastError()).isEqualTo("Connection refused");
+    }
+
+    @Test
+    @DisplayName("given an outage younger than the maximum age should keep postponing")
+    void given_outageYoungerThanMaxAge_should_keepPostponing() {
+      // Arrange
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 0);
+      validation.setCreatedAt(
+          NOW.minus(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE).plusSeconds(1));
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused")),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.PENDING);
+      assertThat(validation.getNextAttemptAt()).isEqualTo(NOW.plus(RETRY_BASE_DELAY));
+    }
+
+    @Test
+    @DisplayName("given a refusal past the maximum age should give up before the last attempt")
+    void given_refusalPastMaxAge_should_giveUpBeforeLastAttempt() {
+      // Arrange
+      config.setMaxAge(Duration.ofHours(1));
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 1);
+      validation.setCreatedAt(NOW.minus(Duration.ofHours(2)));
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "unknown technique")),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.FAILED);
+      assertThat(validation.getAttempts()).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("given a validation settled meanwhile should leave it untouched")
     void given_settledMeanwhile_should_leaveUntouched() {
       // Arrange
@@ -810,22 +919,26 @@ class SecurityCoverageHuntValidationServiceUnitTest {
     }
 
     @Test
-    @DisplayName("given registered connectors should list their distinct tenants")
+    @DisplayName(
+        "given registered connectors should list the distinct tenants of the coverage ones")
     void given_registeredConnectors_should_listDistinctTenants() {
       // Arrange
-      Function<String, ConnectorBase> connectorOf =
+      Function<String, ConnectorBase> coverageConnectorOf =
           tenant -> {
-            ConnectorBase connector = org.mockito.Mockito.mock(ConnectorBase.class);
-            lenient().when(connector.getTenantId()).thenReturn(tenant);
+            SecurityCoverageConnector connector = new SecurityCoverageConnector();
+            connector.setTenantId(tenant);
             return connector;
           };
-      when(openCTIConnectorService.getRegisterConnectors())
-          .thenReturn(
-              List.of(
-                  connectorOf.apply("a"),
-                  connectorOf.apply(null),
-                  connectorOf.apply("b"),
-                  connectorOf.apply("a")));
+      ConnectorBase otherConnector = org.mockito.Mockito.mock(ConnectorBase.class);
+      lenient().when(otherConnector.getTenantId()).thenReturn("c");
+      List<ConnectorBase> connectors =
+          List.of(
+              coverageConnectorOf.apply("a"),
+              coverageConnectorOf.apply(null),
+              otherConnector,
+              coverageConnectorOf.apply("b"),
+              coverageConnectorOf.apply("a"));
+      when(openCTIConnectorService.getRegisterConnectors()).thenReturn(connectors);
 
       // Act + Assert
       assertThat(service.tenantsWithRegisteredConnector()).containsExactly("a", "b");
