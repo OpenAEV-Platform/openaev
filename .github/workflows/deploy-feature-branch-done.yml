@@ -82,14 +82,15 @@ jobs:
               return;
             }
 
+            const shortSha = deployment.sha.slice(0, 7);
             let state, description;
             if (conclusion === 'cancelled') {
               // Superseded by a newer commit or /deploy
               state = 'inactive';
-              description = 'Superseded by a newer deployment';
+              description = `${shortSha} superseded by a newer deployment`;
             } else {
               state = 'failure';
-              description = 'Image build failed';
+              description = `Image build failed for ${shortSha}`;
             }
 
             await github.rest.repos.createDeploymentStatus({
