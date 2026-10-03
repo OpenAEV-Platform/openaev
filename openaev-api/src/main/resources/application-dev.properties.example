@@ -229,6 +229,8 @@ openaev.rabbitmq.prefix=openaev
 # reach the broker. It does not resolve from the host itself, so a backend run
 # outside Docker needs it pointed at 127.0.0.1 in /etc/hosts (or set to
 # localhost, which drops those injectors).
+# Do not put a comment on the same line as the value — Java properties treat
+# it as part of the hostname.
 openaev.rabbitmq.hostname=host.docker.internal
 openaev.rabbitmq.user=guest
 openaev.rabbitmq.pass=guest
