@@ -456,6 +456,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // SecurityCoverageSendJobService#shouldCreateCoverageSendJob.
           // Both overloads (with/without agentId) are covered by the single name entry.
           "io.openaev.rest.inject.InjectApi#injectExecutionCallback",
+          // implant endpoints: InjectService#resolveInjectTargetingAgent resolves the agent's asset
+          // and the
+          // inject's asset groups (assets / asset_groups, v2) before serving the payload.
+          "io.openaev.rest.inject.InjectApi#getExecutablePayloadInject",
           // security platforms: serialize the collectors association (tenant-active table) so the
           // UI can keep collector-managed platforms read-only (#7025). Both overloads of
           // securityPlatforms (GET list and POST search) are covered by the single name entry.

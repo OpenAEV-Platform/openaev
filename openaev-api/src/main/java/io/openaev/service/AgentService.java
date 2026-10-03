@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.repository.AgentRepository;
+import io.openaev.utils.AgentUtils;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
@@ -29,6 +30,30 @@ public class AgentService {
       String executorId) {
     return agentRepository.findByAssetExecutorIdUserDeploymentAndPrivilege(
         assetId, user, deploymentMode, privilege, executorId);
+  }
+
+  /**
+   * Find an agent by id, only when it is a primary agent (no parent and not created for a specific
+   * inject).
+   *
+   * @param agentId the agent id
+   * @return the primary agent, or empty if it does not exist or is not a primary agent
+   */
+  public Optional<Agent> findPrimaryAgent(@NotBlank final String agentId) {
+    return agentRepository.findById(agentId).filter(AgentUtils::isPrimaryAgent);
+  }
+
+  /**
+   * True when the agent's asset is targeted by the inject, either directly or as a static member of
+   * one of the inject's asset groups. Dynamic group membership is not covered here.
+   *
+   * @param agentId the agent id
+   * @param injectId the inject id
+   * @return whether the agent's asset is a static target of the inject
+   */
+  public boolean isAgentAssetStaticallyTargetedByInject(
+      @NotBlank final String agentId, @NotBlank final String injectId) {
+    return agentRepository.isAgentAssetStaticallyTargetedByInject(agentId, injectId);
   }
 
   public List<Agent> getAgentsByExecutorId(String executorId) {

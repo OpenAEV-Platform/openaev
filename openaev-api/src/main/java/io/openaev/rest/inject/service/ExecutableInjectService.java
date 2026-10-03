@@ -12,14 +12,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.AgentRepository;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.payload.service.PayloadService;
-import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.command.CommandArgumentBinder;
 import jakarta.annotation.Resource;
@@ -48,13 +45,8 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
-  private final AgentRepository agentRepository;
-  private final AssetGroupService assetGroupService;
 
   @Resource protected ObjectMapper mapper;
-
-  static final String PAYLOAD_ACCESS_DENIED =
-      "Agent is not allowed to retrieve the payload of this inject";
 
   private static final Set<String> RESERVED_PLACEHOLDERS = Set.of("location", "payload_location");
   private static final Pattern argumentsRegex = Pattern.compile("#\\{([^#{}]+)}");
@@ -312,41 +304,8 @@ public class ExecutableInjectService {
     return payloadToExecute;
   }
 
-  /**
-   * Object-level authorization gate: a service-account bearer token carrying AGENT_RUNTIME_ACCESS
-   * is shared across every agent, so the {@code @AccessControl} capability check alone does not
-   * prove the caller is entitled to this specific inject's payload. Reject the request (403) unless
-   * the requesting agent's asset is actually targeted by the inject, either directly or through one
-   * of its asset groups (static or dynamic membership).
-   *
-   * <p>Every failure (unknown inject, unknown agent, agent without asset, agent not targeted) maps
-   * to the same 403 and message, so the endpoint does not reveal whether an inject or agent id
-   * exists. The precise reason is only logged server-side.
-   */
-  private Inject resolveInjectTargetingAgent(String injectId, String agentId) {
-    Inject inject = injectService.findInjectOrNull(injectId);
-    Asset agentAsset = agentRepository.findById(agentId).map(Agent::getAsset).orElse(null);
-    if (inject == null || agentAsset == null || !isInjectTarget(inject, agentAsset.getId())) {
-      log.warn(
-          "Executable payload denied: inject {} (found: {}), agent {} (asset found: {})",
-          injectId,
-          inject != null,
-          agentId,
-          agentAsset != null);
-      throw new ForbiddenException(PAYLOAD_ACCESS_DENIED);
-    }
-    return inject;
-  }
-
-  private boolean isInjectTarget(Inject inject, String agentAssetId) {
-    return inject.getAssets().stream().anyMatch(asset -> agentAssetId.equals(asset.getId()))
-        || inject.getAssetGroups().stream()
-            .flatMap(group -> assetGroupService.assetsFromAssetGroup(group.getId()).stream())
-            .anyMatch(asset -> agentAssetId.equals(asset.getId()));
-  }
-
   private Payload getExecutablePayloadInject(String injectId, String agentId) throws Exception {
-    Inject inject = resolveInjectTargetingAgent(injectId, agentId);
+    Inject inject = injectService.resolveInjectTargetingAgent(injectId, agentId);
     InjectorContract contract =
         inject
             .getInjectorContract()

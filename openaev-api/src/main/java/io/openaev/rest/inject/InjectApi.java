@@ -2,15 +2,12 @@ package io.openaev.rest.inject;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -28,23 +25,17 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.ValidationErrorBag;
-import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
-import io.openaev.rest.inject.service.InjectExecutionService;
+import io.openaev.rest.inject.service.InjectExecutionCallbackService;
 import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.secrets.provider.SecretResolvedValue;
-import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.RabbitmqService;
 import io.openaev.service.UserService;
 import io.openaev.service.credential.CredentialService;
-import io.openaev.service.inject.BatchingInjectStatusService;
-import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
@@ -56,18 +47,14 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.annotation.PostConstruct;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeoutException;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -95,43 +82,16 @@ public class InjectApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
+  private final InjectExecutionCallbackService injectExecutionCallbackService;
   private final CredentialService credentialService;
-  private final InjectExecutionService injectExecutionService;
   private final InjectExportService injectExportService;
   private final TargetService targetService;
   private final UserRepository userRepository;
   private final PayloadMapper payloadMapper;
   private final UserService userService;
   private final DocumentService documentService;
-  private final BatchExecutionTraceExecutor batchExecutionTraceExecutor;
-  private final BatchingInjectStatusService batchingInjectStatusService;
 
   private final InjectMapper injectMapper;
-
-  private final RabbitmqService rabbitmqService;
-  private final OpenAEVConfig openAEVConfig;
-  private final ObjectMapper objectMapper;
-
-  private final PreviewFeatureService previewFeatureService;
-
-  // For testing purpose, we add a setter
-  @Getter @Setter private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
-
-  @PostConstruct
-  public void init() throws IOException, TimeoutException {
-    if (openAEVConfig.getQueueConfig().get("inject-trace") != null) {
-      // Initializing the queue for batching the inject execution trace
-      injectTraceQueueService =
-          rabbitmqService.createBatchQueueService(
-              InjectExecutionCallback.class,
-              batchExecutionTraceExecutor::handleInjectExecutionCallbackList,
-              objectMapper,
-              openAEVConfig.getQueueConfig().get("inject-trace"),
-              DEFAULT_TENANT_UUID);
-      // Share the queue with the batching service so it can requeue delayed callbacks
-      batchingInjectStatusService.setInjectTraceQueueService(injectTraceQueueService);
-    }
-  }
 
   // -- INJECTS --
 
@@ -416,7 +376,7 @@ public class InjectApi extends RestBehavior {
   public void injectExecutionCallback(
       TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    doInjectExecutionCallback(ctx, null, injectId, input);
+    injectExecutionCallbackService.injectExecutionCallback(null, injectId, input);
   }
 
   @PostMapping({
@@ -440,6 +400,9 @@ public class InjectApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Execution callback was successful"),
         @ApiResponse(
+            responseCode = "403",
+            description = "The agent is not a target of the inject."),
+        @ApiResponse(
             responseCode = "409",
             description =
                 "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
@@ -454,26 +417,7 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    doInjectExecutionCallback(ctx, agentId, injectId, input);
-  }
-
-  private void doInjectExecutionCallback(
-      TxCtx ctx, String agentId, String injectId, InjectExecutionInput input) throws IOException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
-        && injectTraceQueueService != null) {
-      InjectExecutionCallback injectExecutionCallback =
-          InjectExecutionCallback.builder()
-              .injectExecutionInput(input)
-              .agentId(agentId)
-              .injectId(injectId)
-              .emissionDate(Instant.now().toEpochMilli())
-              .build();
-
-      // Publishing the parameters into a queue for later ingestion
-      injectTraceQueueService.publish(injectExecutionCallback);
-    } else {
-      injectExecutionService.handleInjectExecutionCallback(injectId, agentId, input);
-    }
+    injectExecutionCallbackService.injectExecutionCallback(agentId, injectId, input);
   }
 
   @GetMapping({

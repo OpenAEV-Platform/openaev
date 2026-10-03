@@ -36,6 +36,22 @@ public interface AgentRepository
       @Param("privilege") Agent.PRIVILEGE privilege,
       @Param("executorId") String executorId);
 
+  /**
+   * True when the agent's asset is targeted by the inject, either directly or as a static member of
+   * one of the inject's asset groups. Dynamic group membership is not covered here.
+   */
+  @Query(
+      """
+      SELECT COUNT(a) > 0 FROM Agent a
+        WHERE a.id = :agentId
+          AND (EXISTS (SELECT 1 FROM Inject i JOIN i.assets ia
+                        WHERE i.id = :injectId AND ia.id = a.asset.id)
+            OR EXISTS (SELECT 1 FROM Inject i JOIN i.assetGroups g JOIN g.assets ga
+                        WHERE i.id = :injectId AND ga.id = a.asset.id))
+      """)
+  boolean isAgentAssetStaticallyTargetedByInject(
+      @Param("agentId") String agentId, @Param("injectId") String injectId);
+
   List<Agent> findByExecutorId(String executorId);
 
   @Query("SELECT a FROM Agent a WHERE a.executor.id = :executorId AND a.tenant.id = :tenantId")
