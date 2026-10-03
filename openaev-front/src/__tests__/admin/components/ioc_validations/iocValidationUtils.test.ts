@@ -8,6 +8,7 @@ import {
   iocValidationStatusSeverity,
   iocValidationTestKindLabel,
   isAwaitingApproval,
+  isIpAddress,
   isPollingStatus,
   isWebLink,
   validateIocValidationSettings,
@@ -72,6 +73,15 @@ describe('iocValidationUtils', () => {
     expect(validateIocValidationSettings(settings({ ioc_validation_sinkhole_address: '10.0.0.53' }), '443').sinkhole).toBeUndefined();
     ['0', '65536', 'abc', '', '12.5'].forEach((port) => {
       expect(validateIocValidationSettings(settings(), port).port).toBe('The network port must be between 1 and 65535');
+    });
+  });
+
+  it('accepts well-formed IPv6 literals only', () => {
+    ['2001:db8::1', '::1', '::', 'fe80::1:2:3:4', '::ffff:192.0.2.1', '2001:0db8:0000:0000:0000:ff00:0042:8329'].forEach((address) => {
+      expect(isIpAddress(address)).toBe(true);
+    });
+    [':::', '1:2:3:4:5:6:7:8:9', '2001::db8::1', '12345::1', '::ffff:256.1.1.1', '[::1]', '2001:db8::g', '.:'].forEach((address) => {
+      expect(isIpAddress(address)).toBe(false);
     });
   });
 

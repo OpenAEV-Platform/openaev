@@ -107,9 +107,19 @@ export const isWebLink = (value?: string | null): value is string => {
 };
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
-const IPV6 = /^[0-9a-f:.]+$/i;
+// The URL parser validates IPv6 literals strictly (RFC 4291 text forms, embedded IPv4 included).
+const isIpv6Address = (value: string): boolean => {
+  if (!value.includes(':')) {
+    return false;
+  }
+  try {
+    return new URL(`http://[${value}]/`).hostname.length > 0;
+  } catch {
+    return false;
+  }
+};
 
-const isIpAddress = (value: string): boolean => IPV4.test(value) || (value.includes(':') && IPV6.test(value));
+export const isIpAddress = (value: string): boolean => IPV4.test(value) || isIpv6Address(value);
 
 export interface IocValidationSettingsErrors {
   proxy?: string;
