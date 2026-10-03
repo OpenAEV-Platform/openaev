@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
 
 /**
@@ -50,7 +51,21 @@ public final class SecurityPlatformResultUtils {
    */
   public static boolean isFromSecurityPlatform(
       final InjectExpectationResult result, @NotNull final String securityPlatformId) {
-    return result != null && securityPlatformId.equals(result.getSourceAssetId());
+    return isFromSecurityPlatforms(result, Set.of(securityPlatformId));
+  }
+
+  /**
+   * Whether the result was produced by one of the given security platforms.
+   *
+   * @param result the expectation result, may be {@code null}
+   * @param securityPlatformIds the ids of the security platform assets
+   * @return {@code true} when one of the platforms is the source asset of the result
+   */
+  public static boolean isFromSecurityPlatforms(
+      final InjectExpectationResult result, @NotNull final Collection<String> securityPlatformIds) {
+    return result != null
+        && result.getSourceAssetId() != null
+        && securityPlatformIds.contains(result.getSourceAssetId());
   }
 
   /**
@@ -63,9 +78,23 @@ public final class SecurityPlatformResultUtils {
    */
   public static boolean hasResultFromSecurityPlatform(
       @NotNull final BaseInjectExpectation expectation, @NotNull final String securityPlatformId) {
-    return hasDirectResultFromSecurityPlatform(expectation, securityPlatformId)
+    return hasResultFromSecurityPlatforms(expectation, Set.of(securityPlatformId));
+  }
+
+  /**
+   * Whether one of the given security platforms reported on the expectation, see {@link
+   * #hasResultFromSecurityPlatform}.
+   *
+   * @param expectation the expectation to inspect
+   * @param securityPlatformIds the ids of the security platform assets
+   * @return {@code true} when one of the platforms has a result on the expectation or below it
+   */
+  public static boolean hasResultFromSecurityPlatforms(
+      @NotNull final BaseInjectExpectation expectation,
+      @NotNull final Collection<String> securityPlatformIds) {
+    return hasDirectResultFromSecurityPlatforms(expectation, securityPlatformIds)
         || childrenOf(expectation).stream()
-            .anyMatch(child -> hasResultFromSecurityPlatform(child, securityPlatformId));
+            .anyMatch(child -> hasResultFromSecurityPlatforms(child, securityPlatformIds));
   }
 
   /**
@@ -83,12 +112,27 @@ public final class SecurityPlatformResultUtils {
    */
   public static BaseInjectExpectation toSecurityPlatformView(
       @NotNull final BaseInjectExpectation expectation, @NotNull final String securityPlatformId) {
+    return toSecurityPlatformView(expectation, Set.of(securityPlatformId));
+  }
+
+  /**
+   * Returns the expectation as a group of security platforms sees it, see {@link
+   * #toSecurityPlatformView(BaseInjectExpectation, String)}: the results of every platform of the
+   * group are kept, so the group's verdict on an expectation is the best one of its platforms.
+   *
+   * @param expectation the expectation, typically a managed entity
+   * @param securityPlatformIds the ids of the security platform assets of the group
+   * @return a detached copy restricted to the group's results and verdict
+   */
+  public static BaseInjectExpectation toSecurityPlatformView(
+      @NotNull final BaseInjectExpectation expectation,
+      @NotNull final Collection<String> securityPlatformIds) {
     BaseInjectExpectation view = expectation.clone();
     view.setResults(
         view.getResults().stream()
-            .filter(result -> isFromSecurityPlatform(result, securityPlatformId))
+            .filter(result -> isFromSecurityPlatforms(result, securityPlatformIds))
             .toList());
-    view.setScore(securityPlatformScore(expectation, view, securityPlatformId));
+    view.setScore(securityPlatformScore(expectation, view, securityPlatformIds));
     return view;
   }
 
@@ -114,37 +158,57 @@ public final class SecurityPlatformResultUtils {
   public static Map<String, List<ExpectationResultsByType>> computeResultsBySecurityPlatform(
       @NotNull final Collection<? extends BaseInjectExpectation> expectations,
       @NotNull final Collection<String> securityPlatformIds) {
-    Map<String, List<ExpectationResultsByType>> resultsByPlatform = new LinkedHashMap<>();
-    for (String securityPlatformId : new TreeSet<>(securityPlatformIds)) {
-      List<BaseInjectExpectation> platformViews =
-          expectations.stream()
-              .filter(expectation -> hasResultFromSecurityPlatform(expectation, securityPlatformId))
-              .map(expectation -> toSecurityPlatformView(expectation, securityPlatformId))
-              .toList();
-      if (platformViews.isEmpty()) {
-        continue;
-      }
-      List<ExpectationResultsByType> platformResults =
-          InjectExpectationResultUtils.getExpectationResultByTypes(
-              platformViews, InjectExpectationResultUtils::getScores);
-      if (!platformResults.isEmpty()) {
-        resultsByPlatform.put(securityPlatformId, platformResults);
-      }
-    }
-    return resultsByPlatform;
+    Map<String, Set<String>> groups = new LinkedHashMap<>();
+    securityPlatformIds.forEach(id -> groups.put(id, Set.of(id)));
+    return computeResultsBySecurityPlatformGroup(expectations, groups);
   }
 
-  private static boolean hasDirectResultFromSecurityPlatform(
-      final BaseInjectExpectation expectation, final String securityPlatformId) {
+  /**
+   * Computes, for each group of security platforms, the expectation results its platforms produced
+   * on the given expectations, with the rules of {@link #computeResultsBySecurityPlatform}: a group
+   * is scored on the expectations one of its platforms reported on, with the best verdict of its
+   * platforms. Used for the platforms that share one STIX identity.
+   *
+   * @param expectations the expectations to attribute
+   * @param securityPlatformIdsByGroup the platform ids of every group, by group key
+   * @return the results by expectation type for every group with at least one result, keyed by
+   *     group key in ascending order; groups without any result are absent
+   */
+  public static Map<String, List<ExpectationResultsByType>> computeResultsBySecurityPlatformGroup(
+      @NotNull final Collection<? extends BaseInjectExpectation> expectations,
+      @NotNull final Map<String, ? extends Collection<String>> securityPlatformIdsByGroup) {
+    Map<String, List<ExpectationResultsByType>> resultsByGroup = new LinkedHashMap<>();
+    for (String groupKey : new TreeSet<>(securityPlatformIdsByGroup.keySet())) {
+      Collection<String> platformIds = securityPlatformIdsByGroup.get(groupKey);
+      List<BaseInjectExpectation> groupViews =
+          expectations.stream()
+              .filter(expectation -> hasResultFromSecurityPlatforms(expectation, platformIds))
+              .map(expectation -> toSecurityPlatformView(expectation, platformIds))
+              .toList();
+      if (groupViews.isEmpty()) {
+        continue;
+      }
+      List<ExpectationResultsByType> groupResults =
+          InjectExpectationResultUtils.getExpectationResultByTypes(
+              groupViews, InjectExpectationResultUtils::getScores);
+      if (!groupResults.isEmpty()) {
+        resultsByGroup.put(groupKey, groupResults);
+      }
+    }
+    return resultsByGroup;
+  }
+
+  private static boolean hasDirectResultFromSecurityPlatforms(
+      final BaseInjectExpectation expectation, final Collection<String> securityPlatformIds) {
     return expectation.getResults() != null
         && expectation.getResults().stream()
-            .anyMatch(result -> isFromSecurityPlatform(result, securityPlatformId));
+            .anyMatch(result -> isFromSecurityPlatforms(result, securityPlatformIds));
   }
 
   private static Double securityPlatformScore(
       final BaseInjectExpectation expectation,
       final BaseInjectExpectation directView,
-      final String securityPlatformId) {
+      final Collection<String> securityPlatformIds) {
     Double directScore =
         directView.getResults().stream()
             .map(InjectExpectationResult::getScore)
@@ -153,8 +217,8 @@ public final class SecurityPlatformResultUtils {
             .orElse(null);
     List<BaseInjectExpectation> reportedChildren =
         childrenOf(expectation).stream()
-            .filter(child -> hasResultFromSecurityPlatform(child, securityPlatformId))
-            .map(child -> toSecurityPlatformView(child, securityPlatformId))
+            .filter(child -> hasResultFromSecurityPlatforms(child, securityPlatformIds))
+            .map(child -> toSecurityPlatformView(child, securityPlatformIds))
             .toList();
     if (reportedChildren.isEmpty() || expectation.getExpectedScore() == null) {
       return directScore;

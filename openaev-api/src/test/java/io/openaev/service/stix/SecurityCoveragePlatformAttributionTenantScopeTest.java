@@ -20,7 +20,6 @@ import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.RelationshipObject;
 import io.openaev.stix.objects.constants.ExtendedProperties;
-import io.openaev.stix.objects.constants.ObjectTypes;
 import io.openaev.stix.types.Complex;
 import io.openaev.stix.types.Identifier;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -195,8 +194,7 @@ class SecurityCoveragePlatformAttributionTenantScopeTest extends IntegrationTest
                     platform ->
                         new Complex<>(
                             new PlatformCoverageResult(
-                                new Identifier(ObjectTypes.IDENTITY.toString(), platform.getId())
-                                    .getValue(),
+                                SecurityPlatform.stixIdentityId(platform.getName()),
                                 "DETECTION",
                                 100)))
                 .toList())
@@ -227,10 +225,12 @@ class SecurityCoveragePlatformAttributionTenantScopeTest extends IntegrationTest
         jdbcTemplate.queryForObject(
             "SELECT count(*) FROM assets WHERE asset_id = ?", Long.class, foreignPlatform.getId());
     assertThat(foreignRows).isEqualTo(1L);
-    assertThat(bundle.toStix(mapper).toString()).doesNotContain(foreignPlatform.getId());
+    assertThat(bundle.toStix(mapper).toString())
+        .doesNotContain(foreignPlatform.getId())
+        .doesNotContain(SecurityPlatform.stixIdentityId(foreignPlatform.getName()));
     assertThatJson(coveragePlatformsJson(bundle)).isEqualTo(detectionEntryJson(ownPlatform));
     assertThat(
-            bundle.findById(new Identifier(ObjectTypes.IDENTITY.toString(), ownPlatform.getId())))
+            bundle.findById(new Identifier(SecurityPlatform.stixIdentityId(ownPlatform.getName()))))
         .isNotNull();
   }
 

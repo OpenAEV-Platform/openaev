@@ -623,13 +623,21 @@ public class SecurityCoverageService {
             .collect(Collectors.groupingBy(expectation -> expectation.getInject().getId()));
     List<SecurityPlatform> securityPlatforms =
         injectService.extractSecurityPlatforms(simulation.getInjects());
+    // Platforms sharing a name (different types) are one identity in OpenCTI: one identity, one
+    // relationship and one set of scores for all of them
     Map<String, DomainObject> platformIdentities = new LinkedHashMap<>();
-    securityPlatforms.forEach(
-        platform -> platformIdentities.put(platform.getId(), platform.toStixDomainObject()));
+    Map<String, Set<String>> platformIdsByStixId = new LinkedHashMap<>();
     // coverage_platforms may only reference the identities emitted below in the same bundle
     Map<String, Identifier> platformStixIds = new LinkedHashMap<>();
-    platformIdentities.forEach(
-        (platformId, identity) -> platformStixIds.put(platformId, identity.getId()));
+    for (SecurityPlatform platform : securityPlatforms) {
+      DomainObject identity = platform.toStixDomainObject();
+      String stixId = identity.getId().getValue();
+      platformIdentities.putIfAbsent(stixId, identity);
+      platformIdsByStixId
+          .computeIfAbsent(stixId, key -> new LinkedHashSet<>())
+          .add(platform.getId());
+      platformStixIds.put(platform.getId(), identity.getId());
+    }
     Function<List<Inject>, List<PlatformCoverageResult>> coveragePlatformsFunction =
         matchingInjects ->
             computeCoveragePlatforms(matchingInjects, expectationsByInjectId, platformStixIds);
@@ -689,19 +697,14 @@ public class SecurityCoverageService {
           externalLink);
     }
 
-    // Platforms sharing a name (different types) are one identity in OpenCTI: emit it once
-    Set<String> emittedPlatformIdentities = new HashSet<>();
-    for (SecurityPlatform securityPlatform : securityPlatforms) {
-      DomainObject platformIdentity = platformIdentities.get(securityPlatform.getId());
-      if (!emittedPlatformIdentities.add(platformIdentity.getId().getValue())) {
-        continue;
-      }
+    for (Map.Entry<String, Set<String>> platformGroup : platformIdsByStixId.entrySet()) {
+      DomainObject platformIdentity = platformIdentities.get(platformGroup.getKey());
       objects.add(platformIdentity);
 
       BaseType<?> platformCoverage =
           computeCoverage(
-              resultUtils.computeGlobalExpectationResultsForPlatform(
-                  simulationInjectIds, simulationExpectations, securityPlatform));
+              resultUtils.computeGlobalExpectationResultsForPlatforms(
+                  simulationInjectIds, simulationExpectations, platformGroup.getValue()));
       boolean covered = !((List<?>) platformCoverage.getValue()).isEmpty();
       RelationshipObject sro =
           new RelationshipObject(
@@ -799,17 +802,19 @@ public class SecurityCoverageService {
    * that produced them: the {@code coverage_platforms} property of its {@code has-covered}
    * relationship.
    *
-   * <p>Each platform is scored only on the expectations of these injects it reported on (see {@link
-   * SecurityPlatformResultUtils#computeResultsBySecurityPlatform}); a platform without any result
-   * on them is not listed. Scores use the rounding of the overall {@code coverage}.
+   * <p>Each platform identity is scored only on the expectations of these injects one of its
+   * platforms reported on (see {@link
+   * SecurityPlatformResultUtils#computeResultsBySecurityPlatformGroup}); an identity without any
+   * result on them is not listed. Platforms sharing an identity (same name) are scored together.
+   * Scores use the rounding of the overall {@code coverage}.
    *
    * @param matchingInjects the injects matching the covered object, the ones its {@code coverage}
    *     is computed from
    * @param expectationsByInjectId the primary expectations of the simulation, by inject id
    * @param platformStixIds the STIX identity id of every security platform emitted in the bundle,
    *     by platform id; no other platform is ever referenced
-   * @return one entry per platform and expectation type, ordered by platform id then expectation
-   *     type; empty when nothing is attributable
+   * @return one entry per platform identity and expectation type, ordered by identity id then
+   *     expectation type; empty when nothing is attributable
    */
   static List<PlatformCoverageResult> computeCoveragePlatforms(
       List<Inject> matchingInjects,
@@ -824,17 +829,23 @@ public class SecurityCoverageService {
             .distinct()
             .flatMap(injectId -> expectationsByInjectId.getOrDefault(injectId, List.of()).stream())
             .toList();
-    return SecurityPlatformResultUtils.computeResultsBySecurityPlatform(
-            matchingExpectations, platformStixIds.keySet())
+    Map<String, Set<String>> platformIdsByStixId = new LinkedHashMap<>();
+    platformStixIds.forEach(
+        (platformId, stixId) ->
+            platformIdsByStixId
+                .computeIfAbsent(stixId.getValue(), key -> new LinkedHashSet<>())
+                .add(platformId));
+    return SecurityPlatformResultUtils.computeResultsBySecurityPlatformGroup(
+            matchingExpectations, platformIdsByStixId)
         .entrySet()
         .stream()
         .flatMap(
-            platformResults ->
-                platformResults.getValue().stream()
+            identityResults ->
+                identityResults.getValue().stream()
                     .map(
                         result ->
                             PlatformCoverageResult.of(
-                                platformStixIds.get(platformResults.getKey()), result)))
+                                new Identifier(identityResults.getKey()), result)))
         .toList();
   }
 

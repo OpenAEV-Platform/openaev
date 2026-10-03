@@ -20,10 +20,24 @@ attack.
 |:--------------------------------|:----------------------------------------------|:--------------------------------------------|:--------------------------------------------------------------------------------------|
 | Security Coverage               | `security-coverage`                           | 1                                           | The Security Coverage received from OpenCTI, completed with the overall results       |
 | Covered object relationship     | `relationship` (`has-covered`)                | 1 per covered object                        | Results of the Injects matching one attack pattern, vulnerability, indicator or artifact |
-| Security platform               | `identity` (`identity_class: securityplatform`) | 1 per security platform with results       | The security platform, with the STIX id `identity--<security platform id>`            |
-| Security platform relationship  | `relationship` (`has-covered`)                | 1 per security platform                     | Overall results of one security platform across the Simulation                        |
+| Security platform               | `identity` (`identity_class: securityplatform`) | 1 per security platform name with results  | The security platform, with a STIX id derived from its name (see below)               |
+| Security platform relationship  | `relationship` (`has-covered`)                | 1 per security platform identity            | Overall results of one security platform identity across the Simulation               |
 
 Every relationship has the Security Coverage as `source_ref`.
+
+### Security platform identity id
+
+The STIX id of a security platform identity is not its OpenAEV id. It is derived from the platform name, exactly like
+the standard id OpenCTI gives an identity, so the same platform resolves to the same OpenCTI identity across Simulations
+and OpenAEV instances:
+
+1. Lowercase and trim the platform name.
+2. Serialize `{"identity_class":"securityplatform","name":"<normalized name>"}` as JSON with sorted keys and no spaces.
+3. Compute the UUID version 5 of this JSON in the namespace `00abedb4-aa42-466c-9c01-fed23315a9b7`.
+
+For example, `CrowdStrike Falcon` is `identity--fd6bb94b-46b7-5e41-90d0-2a0fcf171ca2`. Security platforms sharing a
+name (with different types) are one identity: the bundle emits it once, and its scores and relationship cover the
+results of all of them, with the best verdict of the platforms on each Expectation.
 
 ## Scores
 

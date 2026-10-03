@@ -119,6 +119,36 @@ class SecurityCoveragePlatformAttributionTest {
     }
 
     @Test
+    @DisplayName("Platforms sharing a name are scored together under their one identity")
+    void given_platformsSharingAName_should_scoreThemTogetherUnderOneIdentity() {
+      // Arrange
+      SecurityPlatform falconEdr = createPlatform("Falcon", "EDR");
+      SecurityPlatform falconXdr = createPlatform("falcon ", "XDR");
+      Inject inject = createInject();
+      Map<String, List<BaseInjectExpectation>> expectationsByInject =
+          Map.of(
+              inject.getId(),
+              List.of(
+                  createExpectation(DETECTION, createCollectorResult(falconEdr, 100.0)),
+                  createExpectation(DETECTION, createCollectorResult(falconXdr, 0.0)),
+                  createExpectation(
+                      DETECTION,
+                      createCollectorResult(falconEdr, 0.0),
+                      createCollectorResult(falconXdr, 100.0))));
+
+      // Act
+      List<PlatformCoverageResult> coveragePlatforms =
+          SecurityCoverageService.computeCoveragePlatforms(
+              List.of(inject), expectationsByInject, stixIdsOf(falconEdr, falconXdr));
+
+      // Assert
+      assertThat(coveragePlatforms)
+          .containsExactly(
+              new PlatformCoverageResult(
+                  SecurityPlatform.stixIdentityId("Falcon"), "DETECTION", 67));
+    }
+
+    @Test
     @DisplayName("Nothing is attributable without matching injects, expectations or platforms")
     void given_nothingAttributable_should_returnAnEmptyList() {
       // Arrange

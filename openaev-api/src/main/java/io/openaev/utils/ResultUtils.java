@@ -9,6 +9,7 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -93,6 +94,24 @@ public class ResultUtils {
       Set<String> injectIds,
       List<BaseInjectExpectation> expectations,
       SecurityPlatform securityPlatform) {
+    return computeGlobalExpectationResultsForPlatforms(
+        injectIds, expectations, Set.of(securityPlatform.getId()));
+  }
+
+  /**
+   * Computes global expectation results filtered by a group of security platforms, see {@link
+   * #computeGlobalExpectationResultsForPlatform}: every expectation carries the best verdict of the
+   * platforms of the group. Used for the platforms that share one STIX identity.
+   *
+   * @param injectIds the set of inject IDs the expectations belong to
+   * @param expectations the primary expectations of those injects
+   * @param securityPlatformIds the ids of the security platforms of the group
+   * @return a list of aggregated results filtered to the platforms of the group
+   */
+  public List<ExpectationResultsByType> computeGlobalExpectationResultsForPlatforms(
+      Set<String> injectIds,
+      List<BaseInjectExpectation> expectations,
+      Collection<String> securityPlatformIds) {
 
     if (injectIds == null || injectIds.isEmpty()) {
       return emptyList();
@@ -103,7 +122,7 @@ public class ResultUtils {
             .map(
                 expectation ->
                     SecurityPlatformResultUtils.toSecurityPlatformView(
-                        expectation, securityPlatform.getId()))
+                        expectation, securityPlatformIds))
             .toList();
 
     return injectExpectationMapper.extractExpectationResultByTypes(injectIds, platformViews);
