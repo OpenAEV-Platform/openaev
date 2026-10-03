@@ -374,6 +374,23 @@ context unless that context sets it. Every isolation test therefore needs
 `@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`, which the RED phase
 above already tells you to write.
 
+The same fact decides what a control run is worth when you size an activation by arming the table and
+counting what goes red. The rule is **the control must differ from the treatment by your table and
+nothing else**:
+
+- **you armed your table only**, the convention this skill prescribes: "the same class with no
+  property" is a valid control. The inspector is installed either way and simply rewrites nothing
+  when no table is active, so the one difference is your table.
+- **you armed your table on top of other tables**, for instance the production list plus yours: the
+  no-property run is NOT a control. It differs from the treatment by every table in the list, so what
+  you measure is the cost of switching the inspector on at all. The only valid control is the same
+  armed set minus the table under test.
+
+A real case for the second shape: an inventory arming the production list plus `teams` reported
+seventeen red against a no-property control, and eleven of them were a `domains` unique-key collision
+that reproduces with `domains` armed alone and has nothing to do with `teams`. Armed with `teams`
+only, the class was twelve red and none was a collision.
+
 The trap is the other direction, and it is about tests you did NOT write. A suite that asserted this
 table's isolation **before** the activation was relying on the v1 `@Filter`. Removing that filter
 takes its isolation away, and because the inspector is not active in its context either, the
