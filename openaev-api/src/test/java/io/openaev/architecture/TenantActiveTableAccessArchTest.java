@@ -126,6 +126,7 @@ import io.openaev.processor.datapack.V20260101_Starter_pack;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.processor.datapack.V20260708_Dynamic_injectors_base_url;
 import io.openaev.processor.datapack.V20260914_Default_tenant_markings;
+import io.openaev.processor.datapack.V20261002_Default_group_markings;
 import io.openaev.rest.asset.endpoint.EndpointApi;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
@@ -533,6 +534,11 @@ class TenantActiveTableAccessArchTest {
               // tenantTx.execute/setScopeOnCurrentTransaction with TxCtx.forTenant(...)), so it
               // needs no waiver.
               V20260914_Default_tenant_markings.class,
+              // Provisioning datapack: grants each default group (Admin/Manager/Observer) the TLP
+              // marking matching its role. Runs under the same tenant-scoped transaction primitive
+              // as the two datapacks above (MigrationProcessor -> tenantTx.execute/
+              // setScopeOnCurrentTransaction with TxCtx.forTenant(...)), so it needs no waiver.
+              V20261002_Default_group_markings.class,
               // Background primitive: reads the tenant's markings to assign the system clearance a
               // background transaction runs at (all markings of the tenants in scope — a scheduler
               // is not a user). Scoped, and in the strongest sense the rule asks for: the read

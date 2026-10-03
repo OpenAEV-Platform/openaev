@@ -32,6 +32,17 @@ public class PresetTenantData {
   }
 
   /**
+   * The TLP marking (by its {@link MarkingSeed#definition()}) each default group is granted at
+   * tenant creation — the clearance the group's members get on top of their {@link #DEFAULT_ROLES}
+   * capabilities. Keyed by the same role/group name used in {@link #DEFAULT_ROLES}.
+   */
+  public static final Map<String, String> DEFAULT_GROUP_MARKINGS =
+      Map.of(
+          ADMIN, "TLP:RED",
+          MANAGER, "TLP:AMBER",
+          OBSERVER, "TLP:GREEN");
+
+  /**
    * Creates fresh {@link VulnerabilityCwe} instances for each call. Must not be a static field
    * because JPA-managed entities retain persistence state (version, managed status) after the first
    * save — reusing the same objects for a second tenant causes {@code
