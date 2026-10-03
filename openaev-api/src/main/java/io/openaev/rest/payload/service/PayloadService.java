@@ -19,7 +19,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
@@ -60,7 +59,9 @@ import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -94,6 +95,7 @@ public class PayloadService {
   static final String IOC_VALIDATION_INVALID_FILE_DROP =
       "OpenAEV IOC validation: the run must be 32 lowercase hexadecimal characters and the"
           + " surrogate file name a plain file name";
+  private static final Pattern IOC_VALIDATION_RUN_PATTERN = Pattern.compile("[0-9a-f]{32}");
   public static final String IOC_VALIDATION_WINDOWS_EXECUTOR = "psh";
   public static final String IOC_VALIDATION_POSIX_EXECUTOR = "sh";
   private static final String IOC_VALIDATION_PAYLOAD_NAMESPACE =
@@ -708,7 +710,8 @@ public class PayloadService {
     return saveIocValidationCommandPayload(ctx, existing, existing.getTenant().getId());
   }
 
-  private String iocValidationPayloadId(
+  /** The identity of the IOC validation payload of a kind, executor and tenant. */
+  public static String iocValidationPayloadId(
       IocValidationTestKind kind, String executor, String tenantId) {
     return UUID.nameUUIDFromBytes(
             (IOC_VALIDATION_PAYLOAD_NAMESPACE + ":" + kind.name() + ":" + executor + ":" + tenantId)
@@ -799,28 +802,45 @@ public class PayloadService {
   }
 
   /**
-   * The inject content an IOC validation file drop is executed with. The run stored on the inject
-   * is only a seed: the run directory is named on the server after the seed and the inject id, so
-   * an inject can never address the directory of another one, whatever its content says, and its
-   * drop and its cleanup always meet in the same directory. Other payloads run with the content
-   * unchanged.
+   * The inject content an IOC validation file drop is executed with, and displayed with (terminal
+   * view, attack-path snapshot), so the audited command is the one that ran. The run stored on the
+   * inject is only a seed: the run directory is named on the server after the seed and the inject
+   * id, so an inject can never address the directory of another one, whatever its content says, and
+   * its drop and its cleanup always meet in the same directory. A missing or malformed seed is left
+   * as it is, so the endpoint refuses the inject before any file operation. Every other payload,
+   * including a user payload with an argument of the same name, runs with the content unchanged.
    */
   public static ObjectNode iocValidationExecutionContent(
       ObjectNode content, Payload payload, String injectId) {
-    boolean bindsRun =
-        payload.getArguments() != null
-            && payload.getArguments().stream()
-                .anyMatch(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()));
-    if (!bindsRun) {
+    if (!isIocValidationFileDropPayload(payload)) {
       return content;
     }
-    ObjectNode bound = content == null ? JsonNodeFactory.instance.objectNode() : content.deepCopy();
     String seed =
         content != null && content.hasNonNull(IOC_VALIDATION_RUN_KEY)
             ? content.get(IOC_VALIDATION_RUN_KEY).asText()
             : "";
+    if (!IOC_VALIDATION_RUN_PATTERN.matcher(seed).matches()) {
+      return content;
+    }
+    ObjectNode bound = content.deepCopy();
     bound.put(IOC_VALIDATION_RUN_KEY, iocValidationRunDirectory(injectId, seed));
     return bound;
+  }
+
+  /**
+   * Whether the payload is the IOC validation file-drop singleton of its tenant, recognised by its
+   * server-assigned identity and never by its argument names, which any payload author can choose.
+   */
+  static boolean isIocValidationFileDropPayload(Payload payload) {
+    if (payload == null || payload.getId() == null || payload.getTenant() == null) {
+      return false;
+    }
+    String tenantId = payload.getTenant().getId();
+    return Stream.of(IOC_VALIDATION_WINDOWS_EXECUTOR, IOC_VALIDATION_POSIX_EXECUTOR)
+        .anyMatch(
+            executor ->
+                iocValidationPayloadId(IocValidationTestKind.FILE_DROP, executor, tenantId)
+                    .equals(payload.getId()));
   }
 
   /** 32 lowercase hexadecimal characters, distinct per inject. */

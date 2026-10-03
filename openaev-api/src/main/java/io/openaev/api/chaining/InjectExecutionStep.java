@@ -32,6 +32,7 @@ import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -1076,7 +1077,12 @@ public class InjectExecutionStep implements ActionStep {
                 .map(ObjectNode.class::cast)
                 .toList();
     ObjectNode injectContent =
-        inject.getContent() != null ? inject.getContent() : JsonNodeFactory.instance.objectNode();
+        PayloadService.iocValidationExecutionContent(
+            inject.getContent() != null
+                ? inject.getContent()
+                : JsonNodeFactory.instance.objectNode(),
+            command,
+            inject.getId());
     return executableInjectService.resolveArgumentsForDisplay(
         resolvedCommand, args, injectorContractContentFields, injectContent);
   }

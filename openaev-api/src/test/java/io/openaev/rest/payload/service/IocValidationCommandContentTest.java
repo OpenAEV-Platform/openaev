@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.PayloadArgument;
+import io.openaev.database.model.Tenant;
 import io.openaev.utils.command.CommandArgumentBinder;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,12 +59,21 @@ class IocValidationCommandContentTest {
     assertThat(run.getDefaultValue()).isEmpty();
   }
 
+  private static Command fileDropPayload(String executor, String tenantId) {
+    Command payload = new Command();
+    payload.setId(
+        PayloadService.iocValidationPayloadId(IocValidationTestKind.FILE_DROP, executor, tenantId));
+    payload.setTenant(new Tenant(tenantId));
+    payload.setExecutor(executor);
+    payload.setArguments(
+        new ArrayList<>(PayloadService.iocValidationArguments(IocValidationTestKind.FILE_DROP)));
+    return payload;
+  }
+
   @Test
   @DisplayName("the run directory is named on the server after the inject, whatever its content")
   void given_executionContent_should_bindTheRunToTheInject() {
-    Command payload = new Command();
-    payload.setArguments(
-        new ArrayList<>(PayloadService.iocValidationArguments(IocValidationTestKind.FILE_DROP)));
+    Command payload = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
     ObjectNode content = JsonNodeFactory.instance.objectNode();
     content.put(IOC_VALIDATION_RUN_KEY, "0123456789abcdef0123456789abcdef");
     content.put(IOC_VALIDATION_FILE_NAME_KEY, "invoice.pdf");
@@ -86,12 +96,61 @@ class IocValidationCommandContentTest {
         .isEqualTo(run);
     assertThat(content.get(IOC_VALIDATION_RUN_KEY).asText())
         .isEqualTo("0123456789abcdef0123456789abcdef");
+    Command windows = fileDropPayload(PayloadService.IOC_VALIDATION_WINDOWS_EXECUTOR, "tenant-a");
     assertThat(
-            PayloadService.iocValidationExecutionContent(
-                    JsonNodeFactory.instance.objectNode(), payload, "inject-a")
+            PayloadService.iocValidationExecutionContent(content, windows, "inject-a")
                 .get(IOC_VALIDATION_RUN_KEY)
                 .asText())
-        .matches("[0-9a-f]{32}");
+        .isEqualTo(run);
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "",
+        "../../escape",
+        "0123456789ABCDEF0123456789ABCDEF",
+        "0123456789abcdef0123456789abcde",
+        "0123456789abcdef0123456789abcdef0"
+      })
+  @DisplayName("a malformed run is not turned into a valid one: the endpoint refuses the inject")
+  void given_malformedRun_should_keepTheContent(String seed) {
+    Command payload = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
+    ObjectNode content = JsonNodeFactory.instance.objectNode();
+    content.put(IOC_VALIDATION_RUN_KEY, seed);
+
+    assertThat(PayloadService.iocValidationExecutionContent(content, payload, "inject-a"))
+        .isSameAs(content);
+  }
+
+  @Test
+  @DisplayName("an inject without a run is not given one: the endpoint refuses it")
+  void given_missingRun_should_keepTheContent() {
+    Command payload = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
+    ObjectNode content = JsonNodeFactory.instance.objectNode();
+    content.put(IOC_VALIDATION_FILE_NAME_KEY, "invoice.pdf");
+
+    assertThat(PayloadService.iocValidationExecutionContent(content, payload, "inject-a"))
+        .isSameAs(content);
+    assertThat(PayloadService.iocValidationExecutionContent(null, payload, "inject-a")).isNull();
+  }
+
+  @Test
+  @DisplayName("a user payload with an argument named like the run keeps its value")
+  void given_userPayloadWithRunArgument_should_keepTheContent() {
+    Command payload = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
+    payload.setId("4b3f8e52-2f1b-4c36-9a4e-1d2c3b4a5f60");
+    ObjectNode content = JsonNodeFactory.instance.objectNode();
+    content.put(IOC_VALIDATION_RUN_KEY, "0123456789abcdef0123456789abcdef");
+
+    assertThat(PayloadService.iocValidationExecutionContent(content, payload, "inject-a"))
+        .isSameAs(content);
+    // The file drop payload of another tenant is not this tenant's singleton
+    Command otherTenant = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-b");
+    otherTenant.setTenant(new Tenant("tenant-a"));
+    assertThat(PayloadService.iocValidationExecutionContent(content, otherTenant, "inject-a"))
+        .isSameAs(content);
+    assertThat(PayloadService.isIocValidationFileDropPayload(null)).isFalse();
   }
 
   @Test

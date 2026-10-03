@@ -9,6 +9,7 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -36,6 +37,7 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.ExerciseTeamUserService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.UserService;
@@ -1752,6 +1754,44 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // Assert
     assertEquals("echo eva && whoami admin", command);
+  }
+
+  @Test
+  void given_iocValidationFileDrop_whenGetCommand_thenShowTheRunDirectoryThatRuns() {
+    // Arrange
+    Command payload = new Command();
+    payload.setTenant(new Tenant("tenant-a"));
+    payload.setExecutor(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR);
+    payload.setId(
+        PayloadService.iocValidationPayloadId(
+            IocValidationTestKind.FILE_DROP,
+            PayloadService.IOC_VALIDATION_POSIX_EXECUTOR,
+            "tenant-a"));
+    payload.setContent("echo #{" + PayloadService.IOC_VALIDATION_RUN_KEY + "}");
+    PayloadArgument runArg = new PayloadArgument();
+    runArg.setType(PrimitiveType.Text);
+    runArg.setKey(PayloadService.IOC_VALIDATION_RUN_KEY);
+    runArg.setDefaultValue("");
+    payload.setArguments(List.of(runArg));
+    InjectorContract contract = new InjectorContract();
+    contract.setPayload(payload);
+    Inject inject = new Inject();
+    inject.setId("inject-a");
+    inject.setInjectorContract(contract);
+    ObjectNode content = JsonNodeFactory.instance.objectNode();
+    content.put(PayloadService.IOC_VALIDATION_RUN_KEY, "0123456789abcdef0123456789abcdef");
+    inject.setContent(content);
+    String executedRun =
+        PayloadService.iocValidationExecutionContent(content, payload, "inject-a")
+            .get(PayloadService.IOC_VALIDATION_RUN_KEY)
+            .asText();
+
+    // Act
+    String command = ReflectionTestUtils.invokeMethod(injectExecutionStep, "getCommand", inject);
+
+    // Assert
+    assertEquals("echo " + executedRun, command);
+    assertNotEquals("echo 0123456789abcdef0123456789abcdef", command);
   }
 
   @Test
