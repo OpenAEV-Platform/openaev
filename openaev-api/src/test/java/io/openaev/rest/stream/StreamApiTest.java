@@ -1,6 +1,7 @@
 package io.openaev.rest.stream;
 
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
+import static io.openaev.database.audit.ModelBaseListener.DATA_PERSIST;
 import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -11,18 +12,25 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
+import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
+import io.openaev.service.utils.BulkOperationMonitor.BulkOperation;
+import io.openaev.service.utils.BulkOperationMonitor.BulkOperationEvent;
+import io.openaev.service.utils.BulkOperationMonitor.BulkOperationStatus;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -30,6 +38,9 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -37,6 +48,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.FluxSink;
 
 @MockitoSettings(strictness = Strictness.LENIENT) // class-wide
@@ -48,6 +60,8 @@ public class StreamApiTest {
   private static final String SESSION_ID = "sessionid";
   private static final String TENANT_ID = "tenant-a";
   private static final String OTHER_TENANT_ID = "tenant-b";
+  private static final String OTHER_USER_ID = "other-user";
+  private static final String OTHER_SESSION_ID = "other-session";
 
   @Mock private User mockUser;
 
@@ -109,6 +123,77 @@ public class StreamApiTest {
     return tenant;
   }
 
+  private ObjectMapper useRealMapper() {
+    ObjectMapper jsonMapper = ObjectMapperHelper.openAEVJsonMapper();
+    ReflectionTestUtils.setField(streamApi, "mapper", jsonMapper);
+    return jsonMapper;
+  }
+
+  private JsonNode captureWireEvent(FluxSink<Object> sink, ObjectMapper jsonMapper) {
+    ArgumentCaptor<ServerSentEvent> captor = ArgumentCaptor.forClass(ServerSentEvent.class);
+    verify(sink).next(captor.capture());
+    assertEquals(StreamApi.EVENT_TYPE_MESSAGE, captor.getValue().event());
+    return jsonMapper.valueToTree(captor.getValue().data());
+  }
+
+  private void denyRead(Base resource) {
+    stubRead(mockUser, resource, false);
+  }
+
+  private void stubRead(User user, Base resource, boolean allowed) {
+    when(permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, resource.getResourceType(), Action.READ))
+        .thenReturn(allowed);
+  }
+
+  private void failRead(User user, Base resource) {
+    when(permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, resource.getResourceType(), Action.READ))
+        .thenThrow(new ElementNotFoundException("Not found with id: " + RESOURCE_ID));
+  }
+
+  /** Adds a second tenant-less consumer next to the default one and returns its sink. */
+  private FluxSink<Object> registerSecondConsumer(User user) throws Exception {
+    OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
+    when(principal.getId()).thenReturn(OTHER_USER_ID);
+    when(userService.user(OTHER_USER_ID)).thenReturn(user);
+    FluxSink<Object> sink = mock(FluxSink.class);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> consumers =
+        (Map<String, Object>) ReflectionTestUtils.getField(streamApi, "consumers");
+    consumers.put(OTHER_SESSION_ID, buildStreamConsumer(principal, null, sink));
+    return sink;
+  }
+
+  private void assertDeniedDeletionIsMasked(Base resource, String idProperty) {
+    ObjectMapper jsonMapper = useRealMapper();
+    denyRead(resource);
+
+    BaseEvent event = new BaseEvent(DATA_DELETE, resource, jsonMapper);
+    JsonNode originalData = event.getInstanceData().deepCopy();
+    streamApi.listenDatabaseUpdate(event);
+
+    JsonNode wire = captureWireEvent(mockSink, jsonMapper);
+    ObjectNode expectedInstance = jsonMapper.createObjectNode().put(idProperty, RESOURCE_ID);
+    assertEquals(DATA_DELETE, wire.path("event_type").asText());
+    assertEquals(idProperty, wire.path("attribute_id").asText());
+    assertEquals(expectedInstance, wire.path("instance"));
+    assertEquals(originalData, event.getInstanceData());
+  }
+
+  private void assertDeniedMutationIsDropped(Base resource, String eventType) {
+    ObjectMapper jsonMapper = useRealMapper();
+    denyRead(resource);
+
+    BaseEvent event = new BaseEvent(eventType, resource, jsonMapper);
+    JsonNode originalData = event.getInstanceData().deepCopy();
+    streamApi.listenDatabaseUpdate(event);
+
+    verify(mockSink, never()).next(any());
+    assertEquals(eventType, event.getType());
+    assertEquals(originalData, event.getInstanceData());
+  }
+
   @Test
   public void test_listenDatabaseUpdate_WHEN_user_has_permission() {
 
@@ -135,32 +220,300 @@ public class StreamApiTest {
     assertEquals(scenario.getId(), ((Scenario) baseEventCaptured.getInstance()).getId());
   }
 
+  private static Agent restrictedAgent() {
+    Agent agent = new Agent();
+    agent.setId(RESOURCE_ID);
+    agent.setVersion("restricted-agent-version");
+    return agent;
+  }
+
+  private static Endpoint restrictedEndpoint() {
+    Endpoint endpoint = new Endpoint();
+    endpoint.setId(RESOURCE_ID);
+    endpoint.setName("restricted-endpoint");
+    return endpoint;
+  }
+
+  private static PreventionInjectExpectation restrictedExpectation() {
+    PreventionInjectExpectation expectation = new PreventionInjectExpectation();
+    expectation.setId(RESOURCE_ID);
+    return expectation;
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE})
+  public void given_agentMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
+    assertDeniedMutationIsDropped(restrictedAgent(), eventType);
+  }
+
   @Test
-  public void test_listenDatabaseUpdate_WHEN_user_has_not_permission() {
+  public void given_agentDeletion_when_userCannotRead_should_receiveAnIdOnlyTombstone() {
+    assertDeniedDeletionIsMasked(restrictedAgent(), "agent_id");
+  }
 
-    when(mapper.createObjectNode()).thenReturn(mock(ObjectNode.class));
+  @Test
+  public void given_assetDeletion_when_userCannotRead_should_receiveAnIdOnlyTombstone() {
+    Asset asset = new Asset();
+    asset.setId(RESOURCE_ID);
+    assertDeniedDeletionIsMasked(asset, "asset_id");
+  }
 
-    // mock PermissionService method
-    when(permissionService.hasPermission(
-            mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
-        .thenReturn(false);
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE})
+  public void given_endpointMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
+    assertDeniedMutationIsDropped(restrictedEndpoint(), eventType);
+  }
 
-    Scenario scenario = ScenarioFixture.getScenario();
-    scenario.setId(RESOURCE_ID);
-    BaseEvent event = new BaseEvent(DATA_UPDATE, scenario, mock(ObjectMapper.class));
+  @Test
+  public void given_endpointDeletion_when_userCannotRead_should_maskTheInheritedId() {
+    assertDeniedDeletionIsMasked(restrictedEndpoint(), "asset_id");
+  }
 
-    // call the method
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE})
+  public void given_expectationMutation_when_userCannotRead_should_notReceiveIt(String eventType) {
+    assertDeniedMutationIsDropped(restrictedExpectation(), eventType);
+  }
+
+  @Test
+  public void given_expectationDeletion_when_userCannotRead_should_maskTheInheritedId() {
+    assertDeniedDeletionIsMasked(restrictedExpectation(), "inject_expectation_id");
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  @ValueSource(strings = {"  "})
+  public void given_deniedDeletion_when_eventHasNoIdAttribute_should_sendNothing(
+      String attributeId) {
+    ObjectMapper jsonMapper = useRealMapper();
+    Agent agent = restrictedAgent();
+    denyRead(agent);
+    BaseEvent event = new BaseEvent(DATA_DELETE, agent, jsonMapper);
+    event.setAttributeId(attributeId);
+
     streamApi.listenDatabaseUpdate(event);
 
-    // capture the event and verify data
-    ArgumentCaptor<ServerSentEvent> captor = ArgumentCaptor.forClass(ServerSentEvent.class);
-    verify(mockSink).next(captor.capture());
+    verify(mockSink, never()).next(any());
+  }
 
-    ServerSentEvent<?> serverSentEvent = captor.getValue();
-    BaseEvent baseEventCaptured = (BaseEvent) serverSentEvent.data();
-    assertEquals(DATA_DELETE, baseEventCaptured.getType());
-    assertTrue(baseEventCaptured.getInstance() instanceof Scenario);
-    assertEquals(scenario.getId(), ((Scenario) baseEventCaptured.getInstance()).getId());
+  // -- Fan-out isolation --
+  //
+  // Each consumer's outcome is computed on its own: a denied, failing or masked consumer must
+  // neither alter what the others receive nor stop delivery to them. Every test swaps which of the
+  // two consumers is the odd one out, so both iteration orders of the consumer map are covered.
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void given_deletion_when_oneConsumerCannotRead_should_maskOnlyThatConsumer(
+      boolean defaultConsumerDenied) throws Exception {
+    ObjectMapper jsonMapper = useRealMapper();
+    User otherUser = mock(User.class);
+    FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
+    Agent agent = restrictedAgent();
+    stubRead(mockUser, agent, !defaultConsumerDenied);
+    stubRead(otherUser, agent, defaultConsumerDenied);
+    FluxSink<Object> deniedSink = defaultConsumerDenied ? mockSink : otherSink;
+    FluxSink<Object> allowedSink = defaultConsumerDenied ? otherSink : mockSink;
+
+    BaseEvent event = new BaseEvent(DATA_DELETE, agent, jsonMapper);
+    JsonNode originalData = event.getInstanceData().deepCopy();
+    streamApi.listenDatabaseUpdate(event);
+
+    assertEquals(
+        jsonMapper.createObjectNode().put("agent_id", RESOURCE_ID),
+        captureWireEvent(deniedSink, jsonMapper).path("instance"));
+    assertEquals(originalData, captureWireEvent(allowedSink, jsonMapper).path("instance"));
+    assertEquals(originalData, event.getInstanceData());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void given_deletion_when_permissionCheckThrows_should_sendTombstoneAndServeOthers(
+      boolean defaultConsumerFails) throws Exception {
+    // A deleted inject (or objective, evaluation, workflow...) can no longer be resolved to its
+    // parent, so the check throws for every non-admin consumer: the deletion must still reach them.
+    ObjectMapper jsonMapper = useRealMapper();
+    User otherUser = mock(User.class);
+    FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
+    Agent agent = restrictedAgent();
+    failRead(defaultConsumerFails ? mockUser : otherUser, agent);
+    stubRead(defaultConsumerFails ? otherUser : mockUser, agent, true);
+    FluxSink<Object> failingSink = defaultConsumerFails ? mockSink : otherSink;
+    FluxSink<Object> healthySink = defaultConsumerFails ? otherSink : mockSink;
+
+    BaseEvent event = new BaseEvent(DATA_DELETE, agent, jsonMapper);
+    JsonNode originalData = event.getInstanceData().deepCopy();
+    streamApi.listenDatabaseUpdate(event);
+
+    assertEquals(
+        jsonMapper.createObjectNode().put("agent_id", RESOURCE_ID),
+        captureWireEvent(failingSink, jsonMapper).path("instance"));
+    assertEquals(originalData, captureWireEvent(healthySink, jsonMapper).path("instance"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void given_update_when_permissionCheckThrows_should_dropItAndServeOthers(
+      boolean defaultConsumerFails) throws Exception {
+    ObjectMapper jsonMapper = useRealMapper();
+    User otherUser = mock(User.class);
+    FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
+    Agent agent = restrictedAgent();
+    failRead(defaultConsumerFails ? mockUser : otherUser, agent);
+    stubRead(defaultConsumerFails ? otherUser : mockUser, agent, true);
+    FluxSink<Object> failingSink = defaultConsumerFails ? mockSink : otherSink;
+    FluxSink<Object> healthySink = defaultConsumerFails ? otherSink : mockSink;
+
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, jsonMapper));
+
+    verify(failingSink, never()).next(any());
+    verify(healthySink).next(any());
+  }
+
+  @Test
+  public void given_permissionCheckThrows_should_notCacheTheDenial() {
+    ObjectMapper jsonMapper = useRealMapper();
+    Agent agent = restrictedAgent();
+    when(permissionService.hasPermission(
+            mockUser, Optional.empty(), RESOURCE_ID, agent.getResourceType(), Action.READ))
+        .thenThrow(new ElementNotFoundException("transient"))
+        .thenReturn(true);
+
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, jsonMapper));
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, jsonMapper));
+
+    verify(permissionService, times(2))
+        .hasPermission(
+            mockUser, Optional.empty(), RESOURCE_ID, agent.getResourceType(), Action.READ);
+    verify(mockSink, times(1)).next(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void given_oneConsumerFails_should_keepServingTheOthers(boolean defaultConsumerFails)
+      throws Exception {
+    ObjectMapper jsonMapper = useRealMapper();
+    User otherUser = mock(User.class);
+    FluxSink<Object> otherSink = registerSecondConsumer(otherUser);
+    Agent agent = restrictedAgent();
+    stubRead(mockUser, agent, true);
+    stubRead(otherUser, agent, true);
+    when(userService.user(defaultConsumerFails ? USER_ID : OTHER_USER_ID))
+        .thenThrow(new ElementNotFoundException("User not found"));
+    FluxSink<Object> failingSink = defaultConsumerFails ? mockSink : otherSink;
+    FluxSink<Object> healthySink = defaultConsumerFails ? otherSink : mockSink;
+
+    streamApi.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, jsonMapper));
+
+    verify(failingSink, never()).next(any());
+    verify(healthySink).next(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_notifierEvent_should_maskConfigurationPerConsumer(String eventType)
+      throws Exception {
+    ObjectMapper jsonMapper = useRealMapper();
+    FluxSink<Object> restrictedSink = registerTenantConsumer(TENANT_ID);
+    User privilegedUser = mock(User.class);
+    OpenAEVPrincipal privilegedPrincipal = mock(OpenAEVPrincipal.class);
+    when(privilegedPrincipal.getId()).thenReturn("privileged-user");
+    when(userService.user("privileged-user")).thenReturn(privilegedUser);
+    FluxSink<Object> privilegedSink = mock(FluxSink.class);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> consumers =
+        (Map<String, Object>) ReflectionTestUtils.getField(streamApi, "consumers");
+    consumers.put(
+        "privileged-session", buildStreamConsumer(privilegedPrincipal, TENANT_ID, privilegedSink));
+
+    when(permissionService.hasPermission(
+            mockUser, Optional.empty(), RESOURCE_ID, ResourceType.NOTIFIER, Action.READ))
+        .thenReturn(true);
+    when(permissionService.hasPermission(
+            privilegedUser, Optional.empty(), RESOURCE_ID, ResourceType.NOTIFIER, Action.READ))
+        .thenReturn(true);
+    when(permissionService.hasCapabilityPermission(mockUser, ResourceType.NOTIFIER, Action.READ))
+        .thenAnswer(
+            invocation -> {
+              assertEquals(TENANT_ID, TenantContext.getCurrentTenant());
+              return false;
+            });
+    when(permissionService.hasCapabilityPermission(
+            privilegedUser, ResourceType.NOTIFIER, Action.READ))
+        .thenAnswer(
+            invocation -> {
+              assertEquals(TENANT_ID, TenantContext.getCurrentTenant());
+              return true;
+            });
+
+    Map<String, Object> configuration =
+        Map.of("headers", Map.of("Authorization", "synthetic-stream-secret"));
+    Notifier notifier = new Notifier();
+    notifier.setId(RESOURCE_ID);
+    notifier.setTenant(tenant(TENANT_ID));
+    notifier.setConfiguration(configuration);
+    BaseEvent event = new BaseEvent(eventType, notifier, jsonMapper);
+    JsonNode originalData = event.getInstanceData().deepCopy();
+
+    streamApi.listenDatabaseUpdate(event);
+
+    JsonNode restrictedWire = captureWireEvent(restrictedSink, jsonMapper);
+    JsonNode privilegedWire = captureWireEvent(privilegedSink, jsonMapper);
+    assertEquals(eventType, restrictedWire.path("event_type").asText());
+    assertEquals(eventType, privilegedWire.path("event_type").asText());
+    assertEquals(RESOURCE_ID, restrictedWire.path("instance").path("notifier_id").asText());
+    assertTrue(restrictedWire.path("instance").path("notifier_configuration").isNull());
+    assertEquals(originalData, privilegedWire.path("instance"));
+    assertEquals(originalData, event.getInstanceData());
+    assertEquals(configuration, notifier.getConfiguration());
+    verify(permissionService).hasCapabilityPermission(mockUser, ResourceType.NOTIFIER, Action.READ);
+    verify(permissionService)
+        .hasCapabilityPermission(privilegedUser, ResourceType.NOTIFIER, Action.READ);
+  }
+
+  @Test
+  public void given_notificationEvent_when_consumerDoesNotOwnIt_should_notReceiveIt() {
+    User owner = mock(User.class);
+    when(owner.getId()).thenReturn("other-user");
+    Notification notification = new Notification();
+    notification.setId(RESOURCE_ID);
+    notification.setUser(owner);
+
+    streamApi.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, notification, mock(ObjectMapper.class)));
+
+    verify(mockSink, never()).next(any());
+  }
+
+  @Test
+  public void given_bulkOperation_when_consumerIsNotOwner_should_notReceiveIt() {
+    streamApi.listenBulkOperation(new BulkOperationEvent(bulkOperation(TENANT_ID, "other-user")));
+
+    verify(mockSink, never()).next(any());
+  }
+
+  @Test
+  public void given_bulkOperation_when_consumerIsInAnotherTenant_should_notReceiveIt()
+      throws Exception {
+    FluxSink<Object> sink = registerTenantConsumer(OTHER_TENANT_ID);
+
+    streamApi.listenBulkOperation(new BulkOperationEvent(bulkOperation(TENANT_ID, USER_ID)));
+
+    verify(sink, never()).next(any());
+  }
+
+  private static BulkOperation bulkOperation(String tenantId, String userId) {
+    return new BulkOperation(
+        "bulk-operation-id",
+        "delete",
+        "assets",
+        2,
+        1,
+        BulkOperationStatus.RUNNING,
+        Instant.EPOCH,
+        null,
+        tenantId,
+        userId);
   }
 
   @Test
