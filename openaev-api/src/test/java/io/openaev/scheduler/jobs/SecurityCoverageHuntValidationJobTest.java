@@ -148,8 +148,13 @@ class SecurityCoverageHuntValidationJobTest {
     when(huntValidationService.isEnabled()).thenReturn(true);
     when(tenantService.findActiveTenantIds()).thenReturn(List.of(TENANT_A, TENANT_B));
     when(huntValidationService.collectDueRequests(any(Instant.class)))
-        .thenThrow(new IllegalStateException("database hiccup"))
-        .thenReturn(due);
+        .thenAnswer(
+            invocation -> {
+              if (TENANT_A.equals(TenantContext.getCurrentTenant())) {
+                throw new IllegalStateException("database hiccup");
+              }
+              return due;
+            });
     when(huntValidationService.send(TENANT_B, due)).thenReturn(List.of(accepted("2")));
 
     // Act

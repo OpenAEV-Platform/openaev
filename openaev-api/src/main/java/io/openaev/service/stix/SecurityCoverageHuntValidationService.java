@@ -98,6 +98,12 @@ public class SecurityCoverageHuntValidationService {
   /** OpenCTI refuses a window whose start is not strictly before its end. */
   static final Duration MIN_WINDOW_LENGTH = Duration.ofMinutes(1);
 
+  /**
+   * Time one tenant may spend starting OpenCTI calls per run, so a slow OpenCTI never holds the
+   * delivery of the other tenants for a whole batch of request timeouts.
+   */
+  static final Duration TENANT_SEND_BUDGET = Duration.ofMinutes(1);
+
   private final SecurityCoverageHuntValidationConfig config;
   private final SecurityCoverageHuntValidationRepository huntValidationRepository;
   private final ExerciseService exerciseService;
@@ -240,11 +246,27 @@ public class SecurityCoverageHuntValidationService {
    * and the rest of the batch are reported unreachable without being sent, so they are postponed
    * without costing an attempt instead of hammering a host that is down.
    *
+   * <p>No call is started once {@link #TENANT_SEND_BUDGET} is spent: the requests left get no
+   * outcome and stay due for the next run.
+   *
    * @param tenantId the tenant whose OpenCTI connection is used
    * @param requests the due validations, from {@link #collectDueRequests}
-   * @return one outcome per request
+   * @return one outcome per request tried
    */
   public List<HuntValidationOutcome> send(String tenantId, List<HuntValidationRequest> requests) {
+    return send(tenantId, requests, Instant.now().plus(TENANT_SEND_BUDGET));
+  }
+
+  /**
+   * {@link #send(String, List)} with an explicit deadline after which no call is started.
+   *
+   * @param tenantId the tenant whose OpenCTI connection is used
+   * @param requests the due validations, from {@link #collectDueRequests}
+   * @param deadline the instant after which the requests left are not tried
+   * @return one outcome per request tried
+   */
+  List<HuntValidationOutcome> send(
+      String tenantId, List<HuntValidationRequest> requests, Instant deadline) {
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
       throw new IllegalStateException(
           "send() calls OpenCTI and must not run inside a transaction: the pooled connection would"
@@ -252,6 +274,13 @@ public class SecurityCoverageHuntValidationService {
     }
     List<HuntValidationOutcome> outcomes = new ArrayList<>();
     for (int index = 0; index < requests.size(); index++) {
+      if (!Instant.now().isBefore(deadline)) {
+        log.debug(
+            "OpenCTI hunt validation budget spent for tenant {}: {} request(s) left for the next run",
+            tenantId,
+            requests.size() - index);
+        break;
+      }
       HuntValidationRequest request = requests.get(index);
       try {
         ValidateHuntFromEmulation.HuntValidation validation =
