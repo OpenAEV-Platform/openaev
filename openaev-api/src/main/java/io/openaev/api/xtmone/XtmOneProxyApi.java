@@ -1,5 +1,6 @@
 package io.openaev.api.xtmone;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.xtmone.dto.AgentCallInput;
@@ -153,9 +154,14 @@ public class XtmOneProxyApi extends RestBehavior {
                 e.getStatusCode().value() == HttpStatus.TOO_MANY_REQUESTS.value()
                     ? "⚠️ **Quota exceeded** — " + detail
                     : "⚠️ **Error** — " + detail;
-            outputStream.write(
-                ("data: {\"type\":\"error\",\"content\":\"" + errorContent + "\"}\n\n")
-                    .getBytes(StandardCharsets.UTF_8));
+            // Written as JSON: XTM One's detail, relayed as is, may hold a quote.
+            String event =
+                JsonNodeFactory.instance
+                    .objectNode()
+                    .put("type", "error")
+                    .put("content", errorContent)
+                    .toString();
+            outputStream.write(("data: " + event + "\n\n").getBytes(StandardCharsets.UTF_8));
             outputStream.flush();
           } catch (Exception e) {
             log.warn("[XTM One Proxy] Stream error, agent={}.", validatedSlug, e);
