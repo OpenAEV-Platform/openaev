@@ -1,5 +1,6 @@
 package io.openaev.utils;
 
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY;
 import static io.openaev.utils.ExpectationUtils.getAgentsExpectationsForAsset;
 import static io.openaev.utils.ExpectationUtils.getExpectationsAssetsForAssetGroup;
 import static io.openaev.utils.ExpectationUtils.isAgentExpectation;
@@ -226,7 +227,36 @@ public final class SecurityPlatformResultUtils {
     Double childrenScore =
         InjectExpectationUtils.computeChildrenScore(
             expectation.isExpectationGroup(), expectation.getExpectedScore(), reportedChildren);
+    if (expectation instanceof TechnicalInjectExpectation technical
+        && isAssetExpectation(technical)) {
+      return combineAssetVerdict(directView, directScore, childrenScore);
+    }
     return InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(directView, childrenScore);
+  }
+
+  /**
+   * Combines the platform's direct verdict on an asset expectation with the verdict rolled up from
+   * its agents, with the rule the persisted score follows ({@code
+   * InjectExpectationService#combineWithChildrenVerdict}): a direct DETECTION / PREVENTION success
+   * wins, and VULNERABILITY is decided on the asset row itself in both directions (a direct
+   * VULNERABLE verdict first), the agents deciding only when the platform has no direct verdict.
+   */
+  private static Double combineAssetVerdict(
+      final BaseInjectExpectation directView,
+      final Double directScore,
+      final Double childrenScore) {
+    if (VULNERABILITY.equals(directView.getType())) {
+      Double directVulnerable =
+          InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(directView, null);
+      if (directVulnerable != null) {
+        return directVulnerable;
+      }
+      return directScore != null ? directScore : childrenScore;
+    }
+    if (directScore != null && directScore >= directView.getExpectedScore()) {
+      return directScore;
+    }
+    return childrenScore;
   }
 
   /**

@@ -254,6 +254,44 @@ class SecurityPlatformResultUtilsTest {
     }
 
     @Test
+    @DisplayName("A direct detection on the asset wins over an undetected agent, like the score")
+    void given_directDetectionAndUndetectedAgent_should_keepTheDirectDetection() {
+      // Arrange
+      SecurityPlatform edr = createPlatform("EDR", "EDR");
+      Endpoint endpoint = createEndpointWithAgents(1);
+      TechnicalInjectExpectation assetExpectation =
+          addTechnicalExpectation(null, endpoint, null, SUCCESS, createCollectorResult(edr, 100.0));
+      addTechnicalExpectation(
+          null, endpoint, endpoint.getAgents().get(0), SUCCESS, createCollectorResult(edr, 0.0));
+
+      // Act
+      BaseInjectExpectation view =
+          SecurityPlatformResultUtils.toSecurityPlatformView(assetExpectation, edr.getId());
+
+      // Assert
+      assertThat(view.getScore()).isEqualTo(100.0);
+    }
+
+    @Test
+    @DisplayName("A direct miss on the asset defers to the agents, like the score")
+    void given_directMissAndDetectedAgent_should_deferToTheAgents() {
+      // Arrange
+      SecurityPlatform edr = createPlatform("EDR", "EDR");
+      Endpoint endpoint = createEndpointWithAgents(1);
+      TechnicalInjectExpectation assetExpectation =
+          addTechnicalExpectation(null, endpoint, null, SUCCESS, createCollectorResult(edr, 0.0));
+      addTechnicalExpectation(
+          null, endpoint, endpoint.getAgents().get(0), SUCCESS, createCollectorResult(edr, 100.0));
+
+      // Act
+      BaseInjectExpectation view =
+          SecurityPlatformResultUtils.toSecurityPlatformView(assetExpectation, edr.getId());
+
+      // Assert
+      assertThat(view.getScore()).isEqualTo(100.0);
+    }
+
+    @Test
     @DisplayName("An asset with an agent the platform has not answered yet stays pending")
     void given_agentStillPendingForThePlatform_should_keepTheAssetExpectationPending() {
       // Arrange
