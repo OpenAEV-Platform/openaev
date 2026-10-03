@@ -203,8 +203,21 @@ public class BatchQueueService<T extends Queueable> {
               }
             };
 
+        // RabbitMQ can cancel the consumer while keeping the channel open (e.g. the quorum queue
+        // consumer timeout on RabbitMQ 4.3+): without a new subscription the queue is never read
+        // again, so reconnect
         CancelCallback cancelCallback =
-            consumerTag -> log.warn("Consumer {} was cancelled", consumerTag);
+            consumerTag -> {
+              log.error(
+                  "Consumer {} on queue {} was cancelled by the broker, reconnecting",
+                  consumerTag,
+                  queueName);
+              scheduleReconnection();
+            };
+
+        // A broker-side channel close (e.g. the delivery acknowledgement timeout on RabbitMQ
+        // before 4.3) leaves the connection open, so the connection listener never fires
+        consumerChannel.addShutdownListener(this::handleConsumerChannelShutdown);
 
         // Setting up the consumer itself
         consumerChannel.basicConsume(
@@ -240,6 +253,29 @@ public class BatchQueueService<T extends Queueable> {
     connection.removeShutdownListener(shutdownListener);
 
     // Start trying to reconnect
+    scheduleReconnection();
+  }
+
+  /**
+   * Handle the shutdown of a consumer channel
+   *
+   * @param cause the cause of the shutdown
+   */
+  private void handleConsumerChannelShutdown(ShutdownSignalException cause) {
+    // Closed by us (stop, reconnection) or by a connection loss, which is handled on its own
+    if (cause.isInitiatedByApplication() || cause.isHardError()) {
+      return;
+    }
+    log.error(
+        "Consumer channel of queue {} closed by the broker: {}", queueName, cause.getMessage());
+    scheduleReconnection();
+  }
+
+  /** Schedule a reconnection, unless the service is stopping */
+  private void scheduleReconnection() {
+    if (reconnectionExecutor == null || reconnectionExecutor.isShutdown()) {
+      return;
+    }
     reconnectionExecutor.schedule(this::attemptReconnection, 10, TimeUnit.SECONDS);
   }
 
@@ -250,6 +286,11 @@ public class BatchQueueService<T extends Queueable> {
     try {
       // Close the resources
       closeResources();
+
+      // Deliveries buffered from the closed channels can no longer be acked: RabbitMQ requeues
+      // them and delivers them again on the new channels, so drop them to avoid a double run
+      queue.values().forEach(BlockingQueue::clear);
+      deliveryTable.clear();
 
       // Trying to reestablish connection
       establishConnection();
