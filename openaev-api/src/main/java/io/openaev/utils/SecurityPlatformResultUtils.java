@@ -222,7 +222,7 @@ public final class SecurityPlatformResultUtils {
             .map(child -> toSecurityPlatformView(child, securityPlatformIds))
             .toList();
     if (reportedChildren.isEmpty() || expectation.getExpectedScore() == null) {
-      return directScore;
+      return InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(directView, directScore);
     }
     Double childrenScore =
         InjectExpectationUtils.computeChildrenScore(

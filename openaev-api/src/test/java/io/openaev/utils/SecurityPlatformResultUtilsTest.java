@@ -4,6 +4,7 @@ import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_STATUS
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.DETECTION;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY;
 import static io.openaev.utils.fixtures.InjectExpectationResultFixture.createCollectorResult;
 import static io.openaev.utils.fixtures.InjectExpectationResultFixture.createManualResult;
 import static io.openaev.utils.fixtures.InjectExpectationResultFixture.createSecurityPlatformResult;
@@ -576,6 +577,59 @@ class SecurityPlatformResultUtilsTest {
       assertThat(resultsByPlatform.keySet())
           .containsExactlyElementsOf(
               List.of(first.getId(), second.getId()).stream().sorted().toList());
+    }
+
+    @Test
+    @DisplayName("A vulnerable verdict of one platform of a group wins on an agentless expectation")
+    void given_agentlessVulnerabilityWithConflictingGroupResults_should_keepTheVulnerableVerdict() {
+      // Arrange
+      SecurityPlatform scanner = createPlatform("Scanner", "SIEM");
+      SecurityPlatform sameNameScanner = createPlatform("scanner ", "EDR");
+      List<BaseInjectExpectation> expectations =
+          List.of(
+              createExpectation(
+                  VULNERABILITY,
+                  SUCCESS,
+                  createCollectorResult(scanner, 0.0),
+                  createCollectorResult(sameNameScanner, 100.0)));
+
+      // Act
+      Map<String, List<ExpectationResultsByType>> resultsByGroup =
+          SecurityPlatformResultUtils.computeResultsBySecurityPlatformGroup(
+              expectations, Map.of("scanner", Set.of(scanner.getId(), sameNameScanner.getId())));
+
+      // Assert
+      assertThat(resultsByGroup).containsOnlyKeys("scanner");
+      assertThat(
+              resultOfType(resultsByGroup.get("scanner"), ExpectationType.VULNERABILITY)
+                  .getSuccessRate())
+          .isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("The best detection verdict of a group wins on an agentless expectation")
+    void given_agentlessDetectionWithConflictingGroupResults_should_keepTheBestVerdict() {
+      // Arrange
+      SecurityPlatform edr = createPlatform("Falcon", "EDR");
+      SecurityPlatform xdr = createPlatform("falcon ", "XDR");
+      List<BaseInjectExpectation> expectations =
+          List.of(
+              createExpectation(
+                  DETECTION,
+                  SUCCESS,
+                  createCollectorResult(edr, 0.0),
+                  createCollectorResult(xdr, 100.0)));
+
+      // Act
+      Map<String, List<ExpectationResultsByType>> resultsByGroup =
+          SecurityPlatformResultUtils.computeResultsBySecurityPlatformGroup(
+              expectations, Map.of("falcon", Set.of(edr.getId(), xdr.getId())));
+
+      // Assert
+      assertThat(
+              resultOfType(resultsByGroup.get("falcon"), ExpectationType.DETECTION)
+                  .getSuccessRate())
+          .isEqualTo(1.0);
     }
   }
 }
