@@ -89,6 +89,9 @@ public class PayloadService {
   public static final String IOC_VALIDATION_FILE_NAME_KEY = "ioc_validation_file_name";
   // Names the temporary directory the file-drop surrogate is written to, owned by one inject.
   public static final String IOC_VALIDATION_RUN_KEY = "ioc_validation_run";
+  static final String IOC_VALIDATION_INVALID_FILE_DROP =
+      "OpenAEV IOC validation: the run must be 32 lowercase hexadecimal characters and the"
+          + " surrogate file name a plain file name";
   public static final String IOC_VALIDATION_WINDOWS_EXECUTOR = "psh";
   public static final String IOC_VALIDATION_POSIX_EXECUTOR = "sh";
   private static final String IOC_VALIDATION_PAYLOAD_NAMESPACE =
@@ -685,17 +688,17 @@ public class PayloadService {
   private Command refreshIocValidationCommandPayload(
       TxCtx ctx, Command existing, IocValidationTestKind kind, String executor) {
     boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
-    List<String> argumentKeys =
-        iocValidationArguments(kind).stream().map(PayloadArgument::getKey).toList();
-    List<String> existingArgumentKeys =
+    List<String> arguments =
+        iocValidationArguments(kind).stream().map(PayloadService::argumentSignature).toList();
+    List<String> existingArguments =
         existing.getArguments() == null
             ? List.of()
-            : existing.getArguments().stream().map(PayloadArgument::getKey).toList();
+            : existing.getArguments().stream().map(PayloadService::argumentSignature).toList();
     boolean upToDate =
         iocValidationCommandContent(kind, windows).equals(existing.getContent())
             && Objects.equals(
                 iocValidationCleanupCommand(kind, windows), existing.getCleanupCommand())
-            && argumentKeys.equals(existingArgumentKeys);
+            && arguments.equals(existingArguments);
     if (upToDate) {
       return existing;
     }
@@ -771,7 +774,7 @@ public class PayloadService {
     };
   }
 
-  private List<PayloadArgument> iocValidationArguments(IocValidationTestKind kind) {
+  static List<PayloadArgument> iocValidationArguments(IocValidationTestKind kind) {
     return switch (kind) {
       case NETWORK_TRAFFIC ->
           List.of(
@@ -782,13 +785,19 @@ public class PayloadService {
               textArgument(IOC_VALIDATION_URL_KEY, "http://localhost"),
               textArgument(IOC_VALIDATION_PROXY_KEY, ""));
       case LOG_INJECTION -> List.of(textArgument(IOC_VALIDATION_VALUE_KEY, "benign"));
+      // No default run: a shared directory would let two injects overwrite and clean up each
+      // other's surrogate, so an inject without its own run is refused (mandatory argument).
       case FILE_DROP ->
           List.of(
               textArgument(IOC_VALIDATION_FILE_NAME_KEY, "benign.txt"),
-              textArgument(IOC_VALIDATION_RUN_KEY, "manual"));
+              textArgument(IOC_VALIDATION_RUN_KEY, ""));
       case DNS_RESOLUTION ->
           throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
     };
+  }
+
+  private static String argumentSignature(PayloadArgument argument) {
+    return argument.getKey() + "=" + Objects.toString(argument.getDefaultValue(), "");
   }
 
   private static PayloadArgument textArgument(String key, String defaultValue) {
@@ -814,7 +823,6 @@ public class PayloadService {
     String url = placeholder(IOC_VALIDATION_URL_KEY);
     String proxy = placeholder(IOC_VALIDATION_PROXY_KEY);
     String value = placeholder(IOC_VALIDATION_VALUE_KEY);
-    String fileName = placeholder(IOC_VALIDATION_FILE_NAME_KEY);
     if (windows) {
       return switch (kind) {
         case NETWORK_TRAFFIC ->
@@ -840,9 +848,8 @@ public class PayloadService {
         case FILE_DROP ->
             windowsRunDirectory()
                 + "; [void][System.IO.Directory]::CreateDirectory($oaevIocDir);"
-                + " Set-Content -LiteralPath (Join-Path $oaevIocDir "
-                + fileName
-                + ") -Value 'OpenAEV IOC validation benign surrogate'";
+                + " Set-Content -LiteralPath (Join-Path $oaevIocDir $oaevIocFile)"
+                + " -Value 'OpenAEV IOC validation benign surrogate'";
         case DNS_RESOLUTION ->
             throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
       };
@@ -875,9 +882,8 @@ public class PayloadService {
       case FILE_DROP ->
           posixRunDirectory()
               + "; mkdir -p -m 700 \"$OAEV_IOC_DIR\""
-              + " && printf 'OpenAEV IOC validation benign surrogate\\n' > \"$OAEV_IOC_DIR/\""
-              + fileName
-              + "; true";
+              + " && printf 'OpenAEV IOC validation benign surrogate\\n'"
+              + " > \"$OAEV_IOC_DIR/$OAEV_IOC_FILE\"; true";
       case DNS_RESOLUTION ->
           throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
     };
@@ -886,36 +892,59 @@ public class PayloadService {
   /**
    * The cleanup of a kind, {@code null} when the test leaves nothing behind. The file-drop cleanup
    * removes the surrogate, then the run directory only when it is empty: it never deletes anything
-   * it did not create, even with a crafted run argument.
+   * it did not create.
    */
   static String iocValidationCleanupCommand(IocValidationTestKind kind, boolean windows) {
     if (kind != IocValidationTestKind.FILE_DROP) {
       return null;
     }
-    String fileName = placeholder(IOC_VALIDATION_FILE_NAME_KEY);
     if (windows) {
       return windowsRunDirectory()
-          + "; Remove-Item -LiteralPath (Join-Path $oaevIocDir "
-          + fileName
-          + ") -Force -ErrorAction SilentlyContinue;"
+          + "; Remove-Item -LiteralPath (Join-Path $oaevIocDir $oaevIocFile)"
+          + " -Force -ErrorAction SilentlyContinue;"
           + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { }";
     }
     return posixRunDirectory()
-        + "; rm -f \"$OAEV_IOC_DIR/\""
-        + fileName
+        + "; rm -f \"$OAEV_IOC_DIR/$OAEV_IOC_FILE\""
         + "; rmdir \"$OAEV_IOC_DIR\" 2>/dev/null; true";
   }
 
+  /**
+   * Sets {@code $oaevIocDir} and {@code $oaevIocFile} for the file drop and its cleanup. The run
+   * and the file name are editable inject arguments, so they are checked on the endpoint before any
+   * file operation: the run must be 32 lowercase hexadecimal characters and the file name a plain
+   * name (no separator, no drive, not {@code .} or {@code ..}), otherwise the command stops with an
+   * error and touches nothing, so neither can lead outside the run directory.
+   */
   private static String windowsRunDirectory() {
-    return "$oaevIocDir = Join-Path ([System.IO.Path]::GetTempPath())"
-        + " ('openaev-ioc-validation-' + "
-        + placeholder(IOC_VALIDATION_RUN_KEY)
-        + ")";
+    String run = placeholder(IOC_VALIDATION_RUN_KEY);
+    String fileName = placeholder(IOC_VALIDATION_FILE_NAME_KEY);
+    return "$oaevIocRun = "
+        + run
+        + "; $oaevIocFile = "
+        + fileName
+        + "; if ($oaevIocRun -cnotmatch '^[0-9a-f]{32}$' -or $oaevIocFile -notmatch"
+        + " '^[^\\\\/:*?\"<>|]+$' -or $oaevIocFile -in @('.', '..')) { throw '"
+        + IOC_VALIDATION_INVALID_FILE_DROP
+        + "' }; $oaevIocDir = Join-Path ([System.IO.Path]::GetTempPath())"
+        + " ('openaev-ioc-validation-' + $oaevIocRun)";
   }
 
+  /**
+   * The POSIX counterpart of {@link #windowsRunDirectory()}: {@code OAEV_IOC_DIR}, {@code
+   * OAEV_IOC_FILE}.
+   */
   private static String posixRunDirectory() {
-    return "OAEV_IOC_DIR=\"${TMPDIR:-/tmp}/openaev-ioc-validation-\""
-        + placeholder(IOC_VALIDATION_RUN_KEY);
+    return "OAEV_IOC_RUN="
+        + placeholder(IOC_VALIDATION_RUN_KEY)
+        + "; OAEV_IOC_FILE="
+        + placeholder(IOC_VALIDATION_FILE_NAME_KEY)
+        + "; case \"$OAEV_IOC_RUN\" in *[!0123456789abcdef]*) OAEV_IOC_RUN= ;; esac;"
+        + " case \"$OAEV_IOC_FILE\" in .|..|*/*) OAEV_IOC_FILE= ;; esac;"
+        + " if [ \"${#OAEV_IOC_RUN}\" -ne 32 ] || [ -z \"$OAEV_IOC_FILE\" ]; then echo '"
+        + IOC_VALIDATION_INVALID_FILE_DROP
+        + "' >&2; exit 1; fi;"
+        + " OAEV_IOC_DIR=\"${TMPDIR:-/tmp}/openaev-ioc-validation-$OAEV_IOC_RUN\"";
   }
 
   private static String placeholder(String argumentKey) {

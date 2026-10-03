@@ -3,17 +3,27 @@ package io.openaev.rest.payload.service;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_FILE_NAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_RUN_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.openaev.database.model.IocValidationTestKind;
+import io.openaev.database.model.PayloadArgument;
 import io.openaev.utils.command.CommandArgumentBinder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @DisplayName("IOC validation benign command content")
 class IocValidationCommandContentTest {
 
+  private static final String RUN = "#{" + IOC_VALIDATION_RUN_KEY + "}";
   private static final String FILE_NAME = "#{" + IOC_VALIDATION_FILE_NAME_KEY + "}";
 
   @Test
@@ -34,51 +44,72 @@ class IocValidationCommandContentTest {
   }
 
   @Test
-  @DisplayName("the Unix file drop writes the surrogate in a directory owned by the run")
-  void given_fileDropOnUnix_should_writeInsideTheRunDirectory() {
+  @DisplayName("the file drop run has no default: an inject without its own run is refused")
+  void given_fileDropArguments_should_haveNoDefaultRun() {
+    PayloadArgument run =
+        PayloadService.iocValidationArguments(IocValidationTestKind.FILE_DROP).stream()
+            .filter(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(run.getDefaultValue()).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "the Unix file drop checks the run and the file name, then writes in the run directory")
+  void given_fileDropOnUnix_should_checkThenWriteInsideTheRunDirectory() {
     String content =
         PayloadService.iocValidationCommandContent(IocValidationTestKind.FILE_DROP, false);
     assertThat(content)
-        .contains("openaev-ioc-validation-\"#{" + IOC_VALIDATION_RUN_KEY + "}")
+        .contains("OAEV_IOC_RUN=" + RUN)
+        .contains("OAEV_IOC_FILE=" + FILE_NAME)
+        .contains("*[!0123456789abcdef]*")
+        .contains("\"${#OAEV_IOC_RUN}\" -ne 32")
         .contains("mkdir -p -m 700 \"$OAEV_IOC_DIR\"")
-        .contains("> \"$OAEV_IOC_DIR/\"" + FILE_NAME)
+        .contains("> \"$OAEV_IOC_DIR/$OAEV_IOC_FILE\"")
         .doesNotContain("\"${TMPDIR:-/tmp}/\"" + FILE_NAME);
+    assertThat(content.indexOf("exit 1")).isLessThan(content.indexOf("mkdir"));
   }
 
   @Test
-  @DisplayName("the Windows file drop writes the surrogate in a directory owned by the run")
-  void given_fileDropOnWindows_should_writeInsideTheRunDirectory() {
+  @DisplayName(
+      "the Windows file drop checks the run and the file name, then writes in the run directory")
+  void given_fileDropOnWindows_should_checkThenWriteInsideTheRunDirectory() {
     String content =
         PayloadService.iocValidationCommandContent(IocValidationTestKind.FILE_DROP, true);
     assertThat(content)
-        .contains("('openaev-ioc-validation-' + #{" + IOC_VALIDATION_RUN_KEY + "})")
-        .contains("[System.IO.Directory]::CreateDirectory($oaevIocDir)")
-        .contains("Set-Content -LiteralPath (Join-Path $oaevIocDir " + FILE_NAME + ")")
+        .contains("$oaevIocRun = " + RUN)
+        .contains("$oaevIocFile = " + FILE_NAME)
+        .contains("$oaevIocRun -cnotmatch '^[0-9a-f]{32}$'")
+        .contains("$oaevIocFile -notmatch '^[^\\\\/:*?\"<>|]+$'")
+        .contains("('openaev-ioc-validation-' + $oaevIocRun)")
+        .contains("Set-Content -LiteralPath (Join-Path $oaevIocDir $oaevIocFile)")
         .doesNotContain("GetTempPath()) " + FILE_NAME);
+    assertThat(content.indexOf("throw")).isLessThan(content.indexOf("CreateDirectory"));
   }
 
   @Test
-  @DisplayName("the Unix cleanup removes the surrogate and only an empty run directory")
+  @DisplayName("the Unix cleanup checks its arguments and removes only what the run created")
   void given_fileDropCleanupOnUnix_should_removeOnlyWhatTheRunCreated() {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false);
     assertThat(cleanup)
-        .contains("rm -f \"$OAEV_IOC_DIR/\"" + FILE_NAME)
+        .contains("rm -f \"$OAEV_IOC_DIR/$OAEV_IOC_FILE\"")
         .contains("rmdir \"$OAEV_IOC_DIR\"")
-        .doesNotContain("rm -rf")
-        .doesNotContain("\"${TMPDIR:-/tmp}/\"" + FILE_NAME);
+        .doesNotContain("rm -rf");
+    assertThat(cleanup.indexOf("exit 1")).isLessThan(cleanup.indexOf("rm -f"));
   }
 
   @Test
-  @DisplayName("the Windows cleanup removes the surrogate and only an empty run directory")
+  @DisplayName("the Windows cleanup checks its arguments and removes only what the run created")
   void given_fileDropCleanupOnWindows_should_removeOnlyWhatTheRunCreated() {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
     assertThat(cleanup)
-        .contains("Remove-Item -LiteralPath (Join-Path $oaevIocDir " + FILE_NAME + ")")
+        .contains("Remove-Item -LiteralPath (Join-Path $oaevIocDir $oaevIocFile)")
         .contains("[System.IO.Directory]::Delete($oaevIocDir)")
-        .doesNotContain("-Recurse")
-        .doesNotContain("GetTempPath()) " + FILE_NAME);
+        .doesNotContain("-Recurse");
+    assertThat(cleanup.indexOf("throw")).isLessThan(cleanup.indexOf("Remove-Item"));
   }
 
   @ParameterizedTest
@@ -92,7 +123,7 @@ class IocValidationCommandContentTest {
   }
 
   @Test
-  @DisplayName("the bound Unix file drop keeps the run directory and the file name as values")
+  @DisplayName("the bound Unix file drop keeps the run and the file name as values")
   void given_boundFileDropOnUnix_should_referenceTheBoundValues() {
     CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
     binder.bind(IOC_VALIDATION_FILE_NAME_KEY, "invoice; rm -rf ~.pdf");
@@ -105,7 +136,85 @@ class IocValidationCommandContentTest {
     assertThat(rendered)
         .contains("='invoice; rm -rf ~.pdf'")
         .contains("='0123abcd'")
-        .contains("OAEV_IOC_DIR=\"${TMPDIR:-/tmp}/openaev-ioc-validation-\"\"$OAEV_ARG_")
+        .contains("OAEV_IOC_RUN=\"$OAEV_ARG_")
+        .contains("OAEV_IOC_FILE=\"$OAEV_ARG_")
         .doesNotContain("#{");
+  }
+
+  /** Runs the rendered commands with {@code /bin/sh}, on the systems that have it (CI). */
+  @Nested
+  @DisplayName("executed by a POSIX shell")
+  class PosixExecution {
+
+    private static final String VALID_RUN = "0123456789abcdef0123456789abcdef";
+
+    @TempDir Path tmp;
+
+    private int execute(String template, String run, String fileName) throws Exception {
+      assumeTrue(Files.isExecutable(Path.of("/bin/sh")), "requires /bin/sh");
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
+      binder.bind(IOC_VALIDATION_FILE_NAME_KEY, fileName);
+      binder.bind(IOC_VALIDATION_RUN_KEY, run);
+      ProcessBuilder builder = new ProcessBuilder("/bin/sh", "-c", binder.render(template));
+      builder.environment().put("TMPDIR", tmp.toString());
+      builder.redirectErrorStream(true);
+      Process process = builder.start();
+      process.getInputStream().readAllBytes();
+      assertThat(process.waitFor(30, TimeUnit.SECONDS)).isTrue();
+      return process.exitValue();
+    }
+
+    private static String drop() {
+      return PayloadService.iocValidationCommandContent(IocValidationTestKind.FILE_DROP, false);
+    }
+
+    private static String cleanup() {
+      return PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false);
+    }
+
+    @Test
+    @DisplayName("writes the surrogate in the run directory and cleans both up")
+    void given_validArguments_should_writeThenCleanUp() throws Exception {
+      Path runDirectory = tmp.resolve("openaev-ioc-validation-" + VALID_RUN);
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      assertThat(runDirectory.resolve("invoice.pdf")).exists();
+
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+      assertThat(runDirectory).doesNotExist();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"../../escape", "manual", "0123456789ABCDEF0123456789ABCDEF", ""})
+    @DisplayName("refuses a run that is not 32 lowercase hexadecimal characters and writes nothing")
+    void given_invalidRun_should_failWithoutWriting(String invalidRun) throws Exception {
+      assertThat(execute(drop(), invalidRun, "invoice.pdf")).isNotZero();
+      try (Stream<Path> written = Files.list(tmp)) {
+        assertThat(written).isEmpty();
+      }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"../outside.txt", "..", ".", "nested/invoice.pdf", ""})
+    @DisplayName("refuses a file name that is not a plain name and writes nothing")
+    void given_invalidFileName_should_failWithoutWriting(String invalidFileName) throws Exception {
+      assertThat(execute(drop(), VALID_RUN, invalidFileName)).isNotZero();
+      try (Stream<Path> written = Files.list(tmp)) {
+        assertThat(written).isEmpty();
+      }
+    }
+
+    @Test
+    @DisplayName("never removes a file outside the run directory at cleanup")
+    void given_craftedCleanup_should_keepOtherFiles() throws Exception {
+      Path other = Files.writeString(tmp.resolve("keep.txt"), "not ours");
+      Path runDirectory =
+          Files.createDirectories(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
+
+      assertThat(execute(cleanup(), VALID_RUN, "../keep.txt")).isNotZero();
+      assertThat(execute(cleanup(), "../" + VALID_RUN, "keep.txt")).isNotZero();
+      assertThat(other).exists();
+      assertThat(runDirectory).exists();
+    }
   }
 }
