@@ -4,8 +4,9 @@ import java.util.Locale;
 
 /**
  * Result of one (indicator, security platform) pair. Precedence when several expectations report:
- * {@link #PREVENTED} over {@link #DETECTED} over {@link #MISSED}; {@link #ERROR} when the test could
- * not run. The STIX form ({@link #toStix()}) is the deployed-on {@code validation_status} value.
+ * {@link #PREVENTED} over {@link #DETECTED} over {@link #MISSED}; {@link #ERROR} when the test
+ * could not run. The STIX form ({@link #toStix()}) is the deployed-on {@code validation_status}
+ * value.
  */
 public enum IocValidationOutcome {
   PREVENTED,

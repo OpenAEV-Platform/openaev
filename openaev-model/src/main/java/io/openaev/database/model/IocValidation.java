@@ -47,6 +47,15 @@ public class IocValidation implements TenantBase, Auditable {
   public static final int MAX_INDICATORS = 200;
   public static final int MAX_PLATFORMS = 10;
 
+  /**
+   * Category of every validation scenario and of the simulations launched from it. Coverage
+   * statistics filter it out: a validation run proves a deployment, it does not measure coverage.
+   */
+  public static final String SCENARIO_CATEGORY = "ioc-validation";
+
+  /** Tag of every validation scenario, so operators can find and filter them. */
+  public static final String SCENARIO_TAG = "opencti: ioc validation";
+
   @Id
   @GeneratedValue(generator = "UUID")
   @UuidGenerator
@@ -89,7 +98,10 @@ public class IocValidation implements TenantBase, Auditable {
   private String statusMessage;
 
   @Type(JsonType.class)
-  @Column(name = "ioc_validation_requested_test_kinds", columnDefinition = "jsonb", nullable = false)
+  @Column(
+      name = "ioc_validation_requested_test_kinds",
+      columnDefinition = "jsonb",
+      nullable = false)
   @JsonProperty("ioc_validation_requested_test_kinds")
   private List<IocValidationTestKind> requestedTestKinds = new ArrayList<>();
 
@@ -188,7 +200,7 @@ public class IocValidation implements TenantBase, Auditable {
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
-  private final ResourceType resourceType = ResourceType.SCENARIO;
+  private final ResourceType resourceType = ResourceType.IOC_VALIDATION;
 
   /** Recomputes the denormalized counters from the IOC and pair lists. */
   public void refreshCounters() {

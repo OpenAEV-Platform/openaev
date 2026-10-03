@@ -768,7 +768,8 @@ public class PayloadService {
    * The benign command template per kind. Every action is read-only or writes a short marker: a TCP
    * connect-and-close (no payload), an HTTP HEAD through the configured egress proxy, one log line,
    * or a small text file named after the IOC in the temp directory. Placeholders are bound as shell
-   * variables by {@link io.openaev.utils.command.CommandArgumentBinder}, never substituted verbatim.
+   * variables by {@link io.openaev.utils.command.CommandArgumentBinder}, never substituted
+   * verbatim.
    */
   static String iocValidationCommandContent(IocValidationTestKind kind, boolean windows) {
     String host = placeholder(IOC_VALIDATION_HOST_KEY);

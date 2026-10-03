@@ -302,7 +302,7 @@ public class AttackPatternService {
     int cappedLatest = Math.min(latest, COVERAGE_LATEST_MAX);
     // The LIMIT is applied at the database so only the requested N rows are fetched.
     return exerciseRepository.findLatestExerciseIdsByStatus(
-        ExerciseStatus.FINISHED.name(), cappedLatest);
+        ExerciseStatus.FINISHED.name(), IocValidation.SCENARIO_CATEGORY, cappedLatest);
   }
 
   private static WidgetConfigurationWithSeries.Series coverageSeries(

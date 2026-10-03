@@ -128,8 +128,7 @@ public class TenantSettingsService {
   }
 
   /** Creates or replaces the tenant-level value of one setting key. */
-  public void updateSettingValue(
-      @NotBlank String tenantId, TenantSettingKeys key, String value) {
+  public void updateSettingValue(@NotBlank String tenantId, TenantSettingKeys key, String value) {
     upsert(new Tenant(tenantId), key.key(), value);
   }
 

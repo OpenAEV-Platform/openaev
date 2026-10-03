@@ -31,6 +31,8 @@ public class IocValidationBundleParser {
   public static final String OPENCTI_EXTENSION =
       "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba";
   static final int MAX_NAME_LENGTH = 255;
+  static final int MAX_VALUE_LENGTH = 8192;
+  static final int MAX_HASHES = 10;
 
   private final ObjectMapper mapper;
 
@@ -44,7 +46,8 @@ public class IocValidationBundleParser {
    */
   public IocValidationRequest parse(String stixJson, String entityId) throws BundleValidationError {
     JsonNode bundle = readBundle(stixJson);
-    List<JsonNode> objects = StreamSupport.stream(bundle.get("objects").spliterator(), false).toList();
+    List<JsonNode> objects =
+        StreamSupport.stream(bundle.get("objects").spliterator(), false).toList();
     List<JsonNode> requests =
         objects.stream().filter(object -> REQUEST_TYPE.equals(text(object, "type"))).toList();
     if (requests.size() != 1) {
@@ -105,4 +108,153 @@ public class IocValidationBundleParser {
   private static List<IocValidationRequest.Ioc> parseIocs(
       JsonNode iocsNode, Map<String, String> indicatorNames) throws BundleValidationError {
     if (!iocsNode.isArray()) {
-      throw new BundleValidationError("The IOC validation request has no iocs array
+      throw new BundleValidationError("The IOC validation request has no iocs array");
+    }
+    List<IocValidationRequest.Ioc> iocs = new ArrayList<>();
+    Set<String> seen = new LinkedHashSet<>();
+    for (JsonNode node : iocsNode) {
+      String indicatorRef = required(node, "indicator_ref");
+      String observableType = required(node, "observable_type");
+      String value = required(node, "value");
+      if (value.length() > MAX_VALUE_LENGTH) {
+        throw new BundleValidationError(
+            "The IOC value of indicator %s exceeds %d characters"
+                .formatted(indicatorRef, MAX_VALUE_LENGTH));
+      }
+      String testKindValue = required(node, "test_kind");
+      IocValidationTestKind testKind =
+          IocValidationTestKind.fromStix(testKindValue)
+              .orElseThrow(
+                  () ->
+                      new BundleValidationError(
+                          "Unknown IOC validation test kind '%s' for indicator %s"
+                              .formatted(testKindValue, indicatorRef)));
+      if (!seen.add(indicatorRef + "|" + testKind)) {
+        continue;
+      }
+      iocs.add(
+          new IocValidationRequest.Ioc(
+              indicatorRef,
+              indicatorNames.get(indicatorRef),
+              observableType,
+              value,
+              testKind,
+              truncate(blankToNull(text(node, "file_name")), MAX_NAME_LENGTH),
+              parseHashes(node.path("hashes"))));
+    }
+    if (iocs.isEmpty()) {
+      throw new BundleValidationError("The IOC validation request contains no IOC");
+    }
+    return iocs;
+  }
+
+  private static Map<String, String> parseHashes(JsonNode hashesNode) {
+    Map<String, String> hashes = new LinkedHashMap<>();
+    if (!hashesNode.isObject()) {
+      return hashes;
+    }
+    hashesNode
+        .fields()
+        .forEachRemaining(
+            entry -> {
+              if (hashes.size() < MAX_HASHES
+                  && entry.getValue().isTextual()
+                  && !entry.getValue().asText().isBlank()) {
+                hashes.put(
+                    truncate(entry.getKey(), MAX_NAME_LENGTH),
+                    truncate(entry.getValue().asText().trim(), MAX_NAME_LENGTH));
+              }
+            });
+    return hashes;
+  }
+
+  private static List<IocValidationRequest.Pair> parsePairs(JsonNode pairsNode)
+      throws BundleValidationError {
+    if (!pairsNode.isArray()) {
+      throw new BundleValidationError("The IOC validation request has no pairs array");
+    }
+    List<IocValidationRequest.Pair> pairs = new ArrayList<>();
+    Set<String> seen = new LinkedHashSet<>();
+    for (JsonNode node : pairsNode) {
+      IocValidationRequest.Pair pair =
+          new IocValidationRequest.Pair(
+              required(node, "indicator_ref"),
+              required(node, "platform_ref"),
+              required(node, "deployed_on_ref"));
+      if (seen.add(pair.deployedOnRef())) {
+        pairs.add(pair);
+      }
+    }
+    if (pairs.isEmpty()) {
+      throw new BundleValidationError(
+          "The IOC validation request contains no (indicator, security platform) pair");
+    }
+    return pairs;
+  }
+
+  private static void checkLimits(
+      List<IocValidationRequest.Ioc> iocs, List<IocValidationRequest.Pair> pairs)
+      throws BundleValidationError {
+    Set<String> indicators = new LinkedHashSet<>();
+    iocs.forEach(ioc -> indicators.add(ioc.indicatorRef()));
+    pairs.forEach(pair -> indicators.add(pair.indicatorRef()));
+    if (indicators.size() > MAX_INDICATORS) {
+      throw new BundleValidationError(
+          "An IOC validation request is limited to %d indicators, found %d"
+              .formatted(MAX_INDICATORS, indicators.size()));
+    }
+    long platforms = pairs.stream().map(IocValidationRequest.Pair::platformRef).distinct().count();
+    if (platforms > MAX_PLATFORMS) {
+      throw new BundleValidationError(
+          "An IOC validation request is limited to %d security platforms, found %d"
+              .formatted(MAX_PLATFORMS, platforms));
+    }
+  }
+
+  /** Requested test kinds; values this version does not know are ignored, not rejected. */
+  private static List<IocValidationTestKind> parseTestKinds(JsonNode testKindsNode) {
+    Set<IocValidationTestKind> testKinds = new LinkedHashSet<>();
+    if (testKindsNode.isArray()) {
+      testKindsNode.forEach(
+          node -> IocValidationTestKind.fromStix(node.asText()).ifPresent(testKinds::add));
+    }
+    return new ArrayList<>(testKinds);
+  }
+
+  private static Map<String, String> namesByIdOfType(List<JsonNode> objects, String type) {
+    Map<String, String> names = new LinkedHashMap<>();
+    objects.stream()
+        .filter(object -> type.equals(text(object, "type")))
+        .forEach(
+            object -> {
+              String id = text(object, "id");
+              String name = blankToNull(text(object, "name"));
+              if (id != null && name != null) {
+                names.put(id, truncate(name, MAX_NAME_LENGTH));
+              }
+            });
+    return names;
+  }
+
+  private static String required(JsonNode node, String field) throws BundleValidationError {
+    String value = blankToNull(text(node, field));
+    if (value == null) {
+      throw new BundleValidationError(
+          "The IOC validation request is missing the required field '%s'".formatted(field));
+    }
+    return value.trim();
+  }
+
+  private static String text(JsonNode node, String field) {
+    JsonNode value = node == null ? null : node.get(field);
+    return value != null && value.isTextual() ? value.asText() : null;
+  }
+
+  private static String blankToNull(String value) {
+    return value == null || value.isBlank() ? null : value;
+  }
+
+  private static String truncate(String value, int maxLength) {
+    return value == null || value.length() <= maxLength ? value : value.substring(0, maxLength);
+  }
+}

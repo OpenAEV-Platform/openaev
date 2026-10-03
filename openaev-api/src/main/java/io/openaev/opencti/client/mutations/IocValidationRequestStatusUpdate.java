@@ -10,8 +10,8 @@ import lombok.Getter;
 
 /**
  * {@code iocValidationRequestStatusUpdate}: reports the lifecycle of an IOC validation request back
- * to OpenCTI. {@code status} is the snake_case {@code IocValidationRequestStatus} value; every other
- * field is optional and omitted when null.
+ * to OpenCTI. {@code status} is the snake_case {@code IocValidationRequestStatus} value; every
+ * other field is optional and omitted when null.
  */
 @Getter
 @Builder

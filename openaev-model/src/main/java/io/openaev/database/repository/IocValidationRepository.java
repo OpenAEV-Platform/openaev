@@ -29,6 +29,13 @@ public interface IocValidationRepository
           + " where v.lifecycleSyncedStatus is null or v.lifecycleSyncedStatus <> v.status")
   List<IocValidationRef> findRefsWithPendingLifecycleSync();
 
+  /** Id and tenant of every finished validation whose result bundle OpenCTI has not received. */
+  @Query(
+      "select v.id as id, v.tenant.id as tenantId from IocValidation v"
+          + " where v.status in :statuses and v.resultsPushedAt is null")
+  List<IocValidationRef> findRefsWithPendingResultsPush(
+      @Param("statuses") Collection<IocValidationStatus> statuses);
+
   boolean existsBySimulationId(String simulationId);
 
   interface IocValidationRef {
