@@ -117,8 +117,14 @@ public final class IocValidationOutcomes {
     if (expectation.getResults() == null || securityPlatformId == null) {
       return List.of();
     }
+    // Collector results name the collector in sourceId and its security platform in sourceAssetId.
     return expectation.getResults().stream()
-        .filter(result -> securityPlatformId.equals(result.getSourceId()))
+        .filter(
+            result ->
+                securityPlatformId.equals(
+                    result.getSourceAssetId() != null
+                        ? result.getSourceAssetId()
+                        : result.getSourceId()))
         .toList();
   }
 

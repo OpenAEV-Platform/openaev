@@ -30,8 +30,16 @@ class IocValidationOutcomesTest {
     return expectation;
   }
 
-  private static InjectExpectationResult result(String sourceId, Double score) {
-    return InjectExpectationResult.builder().sourceId(sourceId).score(score).result("r").build();
+  private static final String COLLECTOR_ID = "edr-collector";
+
+  /** A collector verdict: the collector is the source, its security platform the source asset. */
+  private static InjectExpectationResult result(String securityPlatformId, Double score) {
+    return InjectExpectationResult.builder()
+        .sourceId(COLLECTOR_ID)
+        .sourceAssetId(securityPlatformId)
+        .score(score)
+        .result("r")
+        .build();
   }
 
   private static IocValidationPair pair(IocValidationOutcome outcome) {
@@ -51,6 +59,28 @@ class IocValidationOutcomesTest {
           IocValidationOutcomes.evaluate(
               List.of(
                   expectation(new PreventionInjectExpectation(), 100.0, result(PLATFORM_ID, 100.0)),
+                  expectation(new DetectionInjectExpectation(), null)),
+              PLATFORM_ID,
+              false);
+      assertThat(evaluation)
+          .map(IocValidationOutcomes.Evaluation::outcome)
+          .contains(IocValidationOutcome.PREVENTED);
+    }
+
+    @Test
+    @DisplayName("a result entered for the security platform itself counts too")
+    void given_platformSourcedResult_should_count() {
+      InjectExpectationResult platformResult =
+          InjectExpectationResult.builder()
+              .sourceId(PLATFORM_ID)
+              .sourceAssetId(PLATFORM_ID)
+              .score(100.0)
+              .result("r")
+              .build();
+      Optional<IocValidationOutcomes.Evaluation> evaluation =
+          IocValidationOutcomes.evaluate(
+              List.of(
+                  expectation(new PreventionInjectExpectation(), 100.0, platformResult),
                   expectation(new DetectionInjectExpectation(), null)),
               PLATFORM_ID,
               false);
