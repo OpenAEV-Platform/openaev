@@ -39,6 +39,7 @@ import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -178,7 +179,11 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
   }
 
   private List<HuntValidationRequest> dueRequestsOf(String injectId) {
-    return huntValidationService.collectDueRequests(Instant.now()).stream()
+    return dueRequestsOf(injectId, Instant.now());
+  }
+
+  private List<HuntValidationRequest> dueRequestsOf(String injectId, Instant now) {
+    return huntValidationService.collectDueRequests(now).stream()
         .filter(request -> request.injectId().equals(injectId))
         .toList();
   }
@@ -339,13 +344,19 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
               100.0,
               1);
       huntValidationService.planForSimulation(seeded.simulationId());
-      String validationId = dueRequestsOf(seeded.injectId()).getFirst().id();
+      HuntValidationRequest request = dueRequestsOf(seeded.injectId()).getFirst();
+      String validationId = request.id();
 
       // Act
       huntValidationService.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
-                  validationId, HuntValidationOutcome.Kind.VALIDATED, 1, 2, null)),
+                  validationId,
+                  HuntValidationOutcome.Kind.VALIDATED,
+                  1,
+                  2,
+                  null,
+                  request.leaseUntil())),
           Instant.now());
       entityManager.flush();
       entityManager.clear();
@@ -371,12 +382,15 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
               100.0,
               1);
       huntValidationService.planForSimulation(seeded.simulationId());
-      String validationId = dueRequestsOf(seeded.injectId()).getFirst().id();
+      String validationId = null;
 
-      // Act
+      // Act: every attempt is a new delivery, once the backoff of the previous refusal has passed
+      Instant now = Instant.now();
       for (int attempt = 0;
           attempt < SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS;
           attempt++) {
+        HuntValidationRequest request = dueRequestsOf(seeded.injectId(), now).getFirst();
+        validationId = request.id();
         huntValidationService.recordOutcomes(
             List.of(
                 new HuntValidationOutcome(
@@ -384,8 +398,10 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
                     HuntValidationOutcome.Kind.REFUSED,
                     null,
                     null,
-                    "Enterprise edition is not enabled")),
-            Instant.now());
+                    "Enterprise edition is not enabled",
+                    request.leaseUntil())),
+            now);
+        now = now.plus(SecurityCoverageHuntValidationService.RETRY_MAX_DELAY);
       }
       entityManager.flush();
       entityManager.clear();
@@ -397,7 +413,89 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
       assertThat(validation.getAttempts())
           .isEqualTo(SecurityCoverageHuntValidationConfig.DEFAULT_MAX_ATTEMPTS);
       assertThat(validation.getLastError()).isEqualTo("Enterprise edition is not enabled");
-      assertThat(dueRequestsOf(seeded.injectId())).isEmpty();
+      assertThat(dueRequestsOf(seeded.injectId(), now)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given a claimed validation should not be claimed again before its claim ends")
+    void given_claimedValidation_should_notBeClaimedAgainBeforeItsClaimEnds() {
+      // Arrange
+      Seeded seeded =
+          seedFinishedSimulation(
+              platform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR),
+              ExecutionStatus.EXECUTED,
+              100.0,
+              1);
+      huntValidationService.planForSimulation(seeded.simulationId());
+      Instant now = Instant.now();
+      HuntValidationRequest claimed = dueRequestsOf(seeded.injectId(), now).getFirst();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      List<HuntValidationRequest> beforeTheEnd =
+          dueRequestsOf(seeded.injectId(), claimed.leaseUntil().minusMillis(1));
+      List<HuntValidationRequest> atTheEnd = dueRequestsOf(seeded.injectId(), claimed.leaseUntil());
+
+      // Assert
+      assertThat(claimed.leaseUntil())
+          .isEqualTo(now.plus(huntValidationService.claimLease()).truncatedTo(ChronoUnit.MILLIS));
+      assertThat(beforeTheEnd).isEmpty();
+      assertThat(atTheEnd).extracting(HuntValidationRequest::id).containsExactly(claimed.id());
+      assertThat(atTheEnd.getFirst().leaseUntil()).isAfter(claimed.leaseUntil());
+    }
+
+    @Test
+    @DisplayName(
+        "given a claim taken over by another delivery should record only that delivery's failure")
+    void given_claimTakenOver_should_recordOnlyTheNewClaimFailure() {
+      // Arrange
+      Seeded seeded =
+          seedFinishedSimulation(
+              platform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR),
+              ExecutionStatus.EXECUTED,
+              100.0,
+              1);
+      huntValidationService.planForSimulation(seeded.simulationId());
+      Instant now = Instant.now();
+      HuntValidationRequest first = dueRequestsOf(seeded.injectId(), now).getFirst();
+      HuntValidationRequest second =
+          dueRequestsOf(seeded.injectId(), first.leaseUntil()).getFirst();
+
+      // Act
+      huntValidationService.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  first.id(),
+                  HuntValidationOutcome.Kind.UNREACHABLE,
+                  null,
+                  null,
+                  "Read timed out",
+                  first.leaseUntil())),
+          second.leaseUntil());
+      entityManager.flush();
+      entityManager.clear();
+      SecurityCoverageHuntValidation afterStaleFailure =
+          huntValidationRepository.findById(first.id()).orElseThrow();
+      huntValidationService.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  first.id(),
+                  HuntValidationOutcome.Kind.VALIDATED,
+                  1,
+                  1,
+                  null,
+                  first.leaseUntil())),
+          second.leaseUntil());
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertThat(afterStaleFailure.getStatus()).isEqualTo(Status.PENDING);
+      assertThat(afterStaleFailure.getNextAttemptAt()).isEqualTo(second.leaseUntil());
+      assertThat(afterStaleFailure.getLastError()).isNull();
+      assertThat(huntValidationRepository.findById(first.id()).orElseThrow().getStatus())
+          .isEqualTo(Status.VALIDATED);
     }
 
     @Test

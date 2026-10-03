@@ -40,6 +40,7 @@ class SecurityCoverageHuntValidationJobTest {
 
   private static final String TENANT_A = "tenant-a";
   private static final String TENANT_B = "tenant-b";
+  private static final Instant LEASE = Instant.parse("2026-10-03T11:05:00Z");
 
   @Mock private SecurityCoverageHuntValidationService huntValidationService;
   @Mock private TenantScopedTransaction tenantTx;
@@ -76,11 +77,12 @@ class SecurityCoverageHuntValidationJobTest {
         "Splunk prod",
         "security-coverage--" + id,
         Instant.parse("2026-10-03T10:00:00Z"),
-        Instant.parse("2026-10-03T10:20:00Z"));
+        Instant.parse("2026-10-03T10:20:00Z"),
+        LEASE);
   }
 
   private static HuntValidationOutcome accepted(String id) {
-    return new HuntValidationOutcome(id, HuntValidationOutcome.Kind.VALIDATED, 1, 1, null);
+    return new HuntValidationOutcome(id, HuntValidationOutcome.Kind.VALIDATED, 1, 1, null, LEASE);
   }
 
   @Test

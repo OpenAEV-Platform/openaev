@@ -27,9 +27,10 @@ import org.springframework.stereotype.Component;
  * a coverage push. Does nothing unless {@code openaev.security-coverage.hunt-validation.enabled}.
  *
  * <p>Every active tenant is visited, registered connector or not, so that pending validations are
- * always postponed or given up. Per tenant: the due validations are read in a short scoped
- * transaction, sent to OpenCTI with no transaction open, and their outcomes recorded in a second
- * short scoped transaction. A tenant that fails is logged in one line and never stops the others.
+ * always postponed or given up. Per tenant: the due validations are claimed in a short scoped
+ * transaction (atomically, so several OpenAEV instances never send the same validation), sent to
+ * OpenCTI with no transaction open, and their outcomes recorded in a second short scoped
+ * transaction. A tenant that fails is logged in one line and never stops the others.
  *
  * <p>Tenants are visited in a random order and each starts calls for at most {@code
  * SecurityCoverageHuntValidationService.TENANT_SEND_BUDGET} per run, so a slow OpenCTI never

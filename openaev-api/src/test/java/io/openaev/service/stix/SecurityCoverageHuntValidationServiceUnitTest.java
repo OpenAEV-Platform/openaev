@@ -6,6 +6,7 @@ import static io.openaev.service.stix.SecurityCoverageHuntValidationService.RETR
 import static io.openaev.service.stix.SecurityCoverageHuntValidationService.RETRY_MAX_DELAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -183,7 +184,8 @@ class SecurityCoverageHuntValidationServiceUnitTest {
         "Splunk prod",
         COVERAGE_EXTERNAL_ID,
         SENT.minus(PADDING),
-        ENDED.plus(PADDING));
+        ENDED.plus(PADDING),
+        SENT);
   }
 
   private static SecurityCoverageHuntValidation pendingValidation(String id, int attempts) {
@@ -590,7 +592,8 @@ class SecurityCoverageHuntValidationServiceUnitTest {
                   COVERAGE_EXTERNAL_ID));
       assertThat(outcomes)
           .containsExactly(
-              new HuntValidationOutcome("1", HuntValidationOutcome.Kind.VALIDATED, 2, 3, null));
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.VALIDATED, 2, 3, null, SENT));
       verify(resultsMetricCollector).recordCoverageHuntValidationsSent(1L);
     }
 
@@ -633,11 +636,22 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       // Assert
       assertThat(outcomes)
           .containsExactly(
-              new HuntValidationOutcome("1", HuntValidationOutcome.Kind.VALIDATED, 1, 1, null),
               new HuntValidationOutcome(
-                  "2", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused"),
+                  "1", HuntValidationOutcome.Kind.VALIDATED, 1, 1, null, SENT),
               new HuntValidationOutcome(
-                  "3", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused"));
+                  "2",
+                  HuntValidationOutcome.Kind.UNREACHABLE,
+                  null,
+                  null,
+                  "Connection refused",
+                  SENT),
+              new HuntValidationOutcome(
+                  "3",
+                  HuntValidationOutcome.Kind.UNREACHABLE,
+                  null,
+                  null,
+                  "Connection refused",
+                  SENT));
       verify(openCTIConnectorService, times(2)).validateHuntFromEmulation(any(), any(), any());
       verify(resultsMetricCollector).recordCoverageHuntValidationsSent(1L);
     }
@@ -682,32 +696,38 @@ class SecurityCoverageHuntValidationServiceUnitTest {
                   HuntValidationOutcome.Kind.UNREACHABLE,
                   null,
                   null,
-                  "connector hasn't registered yet"),
+                  "connector hasn't registered yet",
+                  SENT),
               new HuntValidationOutcome(
                   "2",
                   HuntValidationOutcome.Kind.UNREACHABLE,
                   null,
                   null,
-                  "connector hasn't registered yet"));
+                  "connector hasn't registered yet",
+                  SENT));
       verify(openCTIConnectorService, times(1)).validateHuntFromEmulation(any(), any(), any());
     }
 
     @Test
-    @DisplayName("given the tenant budget already spent should start no call and leave all due")
+    @DisplayName("given the tenant budget already spent should start no call and defer all")
     void given_budgetSpent_should_startNoCall() throws Exception {
       // Act
       List<HuntValidationOutcome> outcomes =
           service.send(TENANT_ID, List.of(request("1"), request("2")), Instant.now());
 
       // Assert
-      assertThat(outcomes).isEmpty();
+      assertThat(outcomes)
+          .extracting(HuntValidationOutcome::validationId, HuntValidationOutcome::kind)
+          .containsExactly(
+              tuple("1", HuntValidationOutcome.Kind.DEFERRED),
+              tuple("2", HuntValidationOutcome.Kind.DEFERRED));
       verify(openCTIConnectorService, never()).validateHuntFromEmulation(any(), any(), any());
       verify(resultsMetricCollector).recordCoverageHuntValidationsSent(0L);
     }
 
     @Test
-    @DisplayName("given the tenant budget spent during a call should leave the rest untried")
-    void given_budgetSpentDuringCall_should_leaveTheRestUntried() throws Exception {
+    @DisplayName("given the tenant budget spent during a call should defer the rest untried")
+    void given_budgetSpentDuringCall_should_deferTheRestUntried() throws Exception {
       // Arrange
       when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
           .thenAnswer(
@@ -725,8 +745,12 @@ class SecurityCoverageHuntValidationServiceUnitTest {
 
       // Assert
       assertThat(outcomes)
+          .extracting(HuntValidationOutcome::validationId, HuntValidationOutcome::kind)
           .containsExactly(
-              new HuntValidationOutcome("1", HuntValidationOutcome.Kind.VALIDATED, 1, 1, null));
+              tuple("1", HuntValidationOutcome.Kind.VALIDATED),
+              tuple("2", HuntValidationOutcome.Kind.DEFERRED),
+              tuple("3", HuntValidationOutcome.Kind.DEFERRED));
+      assertThat(outcomes).extracting(HuntValidationOutcome::leaseUntil).containsOnly(SENT);
       verify(openCTIConnectorService, times(1)).validateHuntFromEmulation(any(), any(), any());
       verify(resultsMetricCollector).recordCoverageHuntValidationsSent(1L);
     }
@@ -759,26 +783,60 @@ class SecurityCoverageHuntValidationServiceUnitTest {
 
     private void givenDue(SecurityCoverageHuntValidation... validations) {
       List<SecurityCoverageHuntValidation> due = List.of(validations);
-      when(huntValidationRepository
-              .findByStatusAndNextAttemptAtLessThanEqualOrderByNextAttemptAtAsc(
-                  eq(Status.PENDING), eq(NOW), any()))
+      when(huntValidationRepository.findDueForUpdateSkipLocked(eq(Status.PENDING), eq(NOW), any()))
           .thenReturn(due);
     }
 
     @Test
-    @DisplayName("given fresh due validations should return them without writing")
-    void given_freshDueValidations_should_returnThem() {
+    @DisplayName("given fresh due validations should claim them until the end of the lease")
+    void given_freshDueValidations_should_claimThem() {
       // Arrange
       SecurityCoverageHuntValidation fresh = pendingValidation("1", 0);
       fresh.setCreatedAt(NOW.minus(Duration.ofHours(1)));
       givenDue(fresh);
+      Instant leaseUntil = NOW.plus(service.claimLease());
 
       // Act
       List<HuntValidationRequest> requests = service.collectDueRequests(NOW);
 
       // Assert
-      assertThat(requests).extracting(HuntValidationRequest::id).containsExactly("1");
+      assertThat(requests)
+          .extracting(HuntValidationRequest::id, HuntValidationRequest::leaseUntil)
+          .containsExactly(tuple("1", leaseUntil));
+      assertThat(fresh.getNextAttemptAt()).isEqualTo(leaseUntil);
+      assertThat(fresh.getAttempts()).isZero();
+      verify(huntValidationRepository).saveAll(List.of(fresh));
+    }
+
+    @Test
+    @DisplayName("given nothing due should claim and write nothing")
+    void given_nothingDue_should_writeNothing() {
+      // Arrange
+      givenDue();
+
+      // Act
+      List<HuntValidationRequest> requests = service.collectDueRequests(NOW);
+
+      // Assert
+      assertThat(requests).isEmpty();
       verify(huntValidationRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("given a lease covering the send budget and one request should outlive a delivery")
+    void given_requestTimeout_should_extendTheLease() {
+      // Arrange
+      config.setRequestTimeout(Duration.ofMinutes(3));
+
+      // Act
+      Duration lease = service.claimLease();
+
+      // Assert
+      assertThat(lease)
+          .isEqualTo(
+              SecurityCoverageHuntValidationService.TENANT_SEND_BUDGET
+                  .plus(Duration.ofMinutes(3))
+                  .plus(SecurityCoverageHuntValidationService.CLAIM_LEASE_MARGIN));
     }
 
     @Test
@@ -804,7 +862,8 @@ class SecurityCoverageHuntValidationServiceUnitTest {
               "Not delivered within " + SecurityCoverageHuntValidationConfig.DEFAULT_MAX_AGE)
           .endsWith("last error: Connection refused");
       assertThat(fresh.getStatus()).isEqualTo(Status.PENDING);
-      verify(huntValidationRepository).saveAll(List.of(expired));
+      assertThat(fresh.getNextAttemptAt()).isEqualTo(NOW.plus(service.claimLease()));
+      verify(huntValidationRepository).saveAll(List.of(expired, fresh));
     }
 
     @Test
@@ -832,7 +891,82 @@ class SecurityCoverageHuntValidationServiceUnitTest {
     }
 
     private void givenStored(SecurityCoverageHuntValidation... validations) {
-      when(huntValidationRepository.findAllById(anySet())).thenReturn(List.of(validations));
+      when(huntValidationRepository.findAllByIdForUpdate(anySet()))
+          .thenReturn(List.of(validations));
+    }
+
+    @Test
+    @DisplayName("given a failure under a claim another delivery took over should not record it")
+    void given_failureUnderEndedClaim_should_notRecordIt() {
+      // Arrange
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 1);
+      Instant otherClaim = NOW.plus(Duration.ofMinutes(4));
+      validation.setNextAttemptAt(otherClaim);
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "EE required", SENT)),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.PENDING);
+      assertThat(validation.getAttempts()).isEqualTo(1);
+      assertThat(validation.getNextAttemptAt()).isEqualTo(otherClaim);
+      assertThat(validation.getLastError()).isNull();
+      verify(huntValidationRepository).saveAll(List.of());
+    }
+
+    @Test
+    @DisplayName("given an acceptance after a concurrent give-up should record the acceptance")
+    void given_acceptanceAfterGiveUp_should_recordTheAcceptance() {
+      // Arrange
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 1);
+      validation.setStatus(Status.FAILED);
+      validation.setNextAttemptAt(NOW.plus(Duration.ofMinutes(4)));
+      validation.setLastError("unknown technique");
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.VALIDATED, 1, 2, null, SENT)),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.VALIDATED);
+      assertThat(validation.getRunsCount()).isEqualTo(2);
+      assertThat(validation.getLastError()).isNull();
+      verify(huntValidationRepository).saveAll(List.of(validation));
+    }
+
+    @Test
+    @DisplayName("given a validation not tried in the run should release it without an attempt")
+    void given_deferred_should_releaseWithoutAttempt() {
+      // Arrange
+      SecurityCoverageHuntValidation validation = pendingValidation("1", 1);
+      givenStored(validation);
+
+      // Act
+      service.recordOutcomes(
+          List.of(
+              new HuntValidationOutcome(
+                  "1",
+                  HuntValidationOutcome.Kind.DEFERRED,
+                  null,
+                  null,
+                  "Not tried: the delivery budget of the run was spent",
+                  SENT)),
+          NOW);
+
+      // Assert
+      assertThat(validation.getStatus()).isEqualTo(Status.PENDING);
+      assertThat(validation.getAttempts()).isEqualTo(1);
+      assertThat(validation.getNextAttemptAt()).isEqualTo(NOW);
+      assertThat(validation.getLastError()).isNull();
     }
 
     @Test
@@ -845,7 +979,9 @@ class SecurityCoverageHuntValidationServiceUnitTest {
 
       // Act
       service.recordOutcomes(
-          List.of(new HuntValidationOutcome("1", HuntValidationOutcome.Kind.VALIDATED, 2, 3, null)),
+          List.of(
+              new HuntValidationOutcome(
+                  "1", HuntValidationOutcome.Kind.VALIDATED, 2, 3, null, SENT)),
           NOW);
 
       // Assert
@@ -869,7 +1005,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       service.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
-                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "EE required")),
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "EE required", SENT)),
           NOW);
 
       // Assert
@@ -892,7 +1028,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       service.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
-                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "unknown technique")),
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "unknown technique", SENT)),
           NOW);
 
       // Assert
@@ -913,7 +1049,12 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       service.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
-                  "1", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused")),
+                  "1",
+                  HuntValidationOutcome.Kind.UNREACHABLE,
+                  null,
+                  null,
+                  "Connection refused",
+                  SENT)),
           NOW);
 
       // Assert
@@ -936,7 +1077,12 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       service.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
-                  "1", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused")),
+                  "1",
+                  HuntValidationOutcome.Kind.UNREACHABLE,
+                  null,
+                  null,
+                  "Connection refused",
+                  SENT)),
           NOW);
 
       // Assert
@@ -958,7 +1104,12 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       service.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
-                  "1", HuntValidationOutcome.Kind.UNREACHABLE, null, null, "Connection refused")),
+                  "1",
+                  HuntValidationOutcome.Kind.UNREACHABLE,
+                  null,
+                  null,
+                  "Connection refused",
+                  SENT)),
           NOW);
 
       // Assert
@@ -979,7 +1130,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       service.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
-                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "unknown technique")),
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "unknown technique", SENT)),
           NOW);
 
       // Assert
@@ -999,7 +1150,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       service.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
-                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "late")),
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "late", SENT)),
           NOW);
 
       // Assert
@@ -1019,7 +1170,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       service.recordOutcomes(
           List.of(
               new HuntValidationOutcome(
-                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "x".repeat(5000))),
+                  "1", HuntValidationOutcome.Kind.REFUSED, null, null, "x".repeat(5000), SENT)),
           NOW);
 
       // Assert
@@ -1033,7 +1184,7 @@ class SecurityCoverageHuntValidationServiceUnitTest {
       service.recordOutcomes(List.of(), NOW);
 
       // Assert
-      verify(huntValidationRepository, never()).findAllById(anySet());
+      verify(huntValidationRepository, never()).findAllByIdForUpdate(anySet());
     }
   }
 

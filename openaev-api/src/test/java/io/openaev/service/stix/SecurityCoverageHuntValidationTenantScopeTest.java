@@ -221,7 +221,7 @@ class SecurityCoverageHuntValidationTenantScopeTest extends IntegrationTest {
             huntValidationService.recordOutcomes(
                 List.of(
                     new HuntValidationOutcome(
-                        idB, HuntValidationOutcome.Kind.VALIDATED, 1, 1, null)),
+                        idB, HuntValidationOutcome.Kind.VALIDATED, 1, 1, null, null)),
                 Instant.now());
             return null;
           });
