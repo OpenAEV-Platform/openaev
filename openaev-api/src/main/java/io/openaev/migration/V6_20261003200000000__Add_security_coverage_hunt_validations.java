@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * re-planning anything.
  */
 @Component
-public class V6_20261003120000000__Add_security_coverage_hunt_validations
+public class V6_20261003200000000__Add_security_coverage_hunt_validations
     extends BaseJavaMigration {
 
   @Override
