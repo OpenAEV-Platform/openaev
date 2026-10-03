@@ -262,6 +262,27 @@ class StepEventServiceTest {
       verify(stepRepository).findById(stepId);
       verify(stepService, never()).saveStep(any());
     }
+
+    @Test
+    void given_stepExecutionFailed_should_endStepWithoutRequeue() throws Exception {
+      // Arrange: the action step reports a final failure (e.g. no agent could run the inject)
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      Step step = new Step();
+      step.setStepAction(StepActionClass.INJECT_EXECUTION);
+      when(stepRepository.findById(event.getStepId())).thenReturn(Optional.of(step));
+      when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), any()))
+          .thenReturn(actionStep);
+      when(actionStep.run(step)).thenReturn(Optional.empty());
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert: the step ends and the same event is never re-published
+      assertEquals(StepStatus.END, step.getStatus());
+      verify(stepService).saveStep(step);
+      verify(queueChainingService, never()).republishReadyEvent(any());
+      assertEquals(0, event.getRetryCount());
+    }
   }
 
   // -- RETRY ON TRANSACTIONAL FAILURE --
@@ -306,8 +327,64 @@ class StepEventServiceTest {
       // Act
       stepEventService.handleReadyStepEvent(event);
 
-      // Assert — event is dropped, not re-queued
+      // Assert — event is dropped, not re-queued; ending the step failed too, so it stays READY
       verify(queueChainingService, never()).republishReadyEvent(any());
+      verify(stepService, never()).saveStep(any());
+    }
+
+    @Test
+    void given_maxRetriesReached_should_endReadyStep() throws IOException {
+      // Arrange: the event transaction fails, the transaction ending the step succeeds
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      event.setRetryCount(chainingConfig.getMaxRetryCount());
+      Step step = new Step();
+      step.setStatus(StepStatus.READY);
+      when(stepRepository.findForUpdateById(event.getStepId())).thenReturn(Optional.of(step));
+
+      doThrow(new RuntimeException("DB error"))
+          .doAnswer(
+              invocation -> {
+                Runnable work = invocation.getArgument(1);
+                work.run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert: the step ends instead of staying READY with no event left to carry it
+      assertEquals(StepStatus.END, step.getStatus());
+      verify(stepService).saveStep(step);
+      verify(queueChainingService, never()).republishReadyEvent(any());
+    }
+
+    @Test
+    void given_maxRetriesReached_andStepNoLongerReady_should_leaveStepUntouched() {
+      // Arrange: another event moved the step to RUN in the meantime
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      event.setRetryCount(chainingConfig.getMaxRetryCount());
+      Step step = new Step();
+      step.setStatus(StepStatus.RUN);
+      when(stepRepository.findForUpdateById(event.getStepId())).thenReturn(Optional.of(step));
+
+      doThrow(new RuntimeException("DB error"))
+          .doAnswer(
+              invocation -> {
+                Runnable work = invocation.getArgument(1);
+                work.run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert
+      assertEquals(StepStatus.RUN, step.getStatus());
+      verify(stepService, never()).saveStep(any());
     }
 
     @Test
@@ -332,6 +409,60 @@ class StepEventServiceTest {
       // Assert
       assertEquals(1, event.getRetryCount());
       verify(queueChainingService).republishReadyEvent(event);
+    }
+
+    @Test
+    void given_republishFails_should_endReadyStep() throws IOException {
+      // Arrange: the event transaction fails, its re-publication fails, ending the step succeeds
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      Step step = new Step();
+      step.setStatus(StepStatus.READY);
+      when(stepRepository.findForUpdateById(event.getStepId())).thenReturn(Optional.of(step));
+
+      doThrow(new RuntimeException("DB error"))
+          .doAnswer(
+              invocation -> {
+                Runnable work = invocation.getArgument(1);
+                work.run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+      doThrow(new IOException("RabbitMQ down"))
+          .when(queueChainingService)
+          .republishReadyEvent(any());
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert: the step ends instead of staying READY with no event left to carry it
+      assertEquals(StepStatus.END, step.getStatus());
+      verify(stepService).saveStep(step);
+    }
+
+    @Test
+    void given_republishThrowsRuntimeException_should_notStopTheBatch() throws IOException {
+      // Arrange: every event transaction fails, and the first re-publication hits a closed channel
+      StepEvent first = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      StepEvent second = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+
+      doAnswer(
+              invocation -> {
+                throw new RuntimeException("DB error");
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+      doThrow(new IllegalStateException("channel is already closed"))
+          .doNothing()
+          .when(queueChainingService)
+          .republishReadyEvent(any());
+
+      // Act — should not throw
+      stepEventService.handleReadyEvent(List.of(first, second));
+
+      // Assert: the second event is still handled
+      verify(queueChainingService).republishReadyEvent(first);
+      verify(queueChainingService).republishReadyEvent(second);
     }
   }
 
