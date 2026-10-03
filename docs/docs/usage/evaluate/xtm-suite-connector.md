@@ -114,6 +114,10 @@ Or as an environment variable:
 OPENAEV_SECURITY-COVERAGE_HUNT-VALIDATION_ENABLED=true
 ```
 
+!!! note
+
+    Docker Compose and Kubernetes accept this hyphenated name, but a POSIX shell does not. From a shell, use the equivalent form without hyphens, which OpenAEV reads the same way: `OPENAEV_SECURITYCOVERAGE_HUNTVALIDATION_ENABLED=true`. The other settings follow the same rule.
+
 See the [configuration reference](../../deployment/configuration.md#xtm-suite-opencti-hunt-validation) for the window padding, the request timeout, the batch size, the number of attempts and the maximum age.
 
 ### Failures
