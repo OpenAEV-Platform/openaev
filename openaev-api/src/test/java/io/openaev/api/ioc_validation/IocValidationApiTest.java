@@ -2,10 +2,8 @@ package io.openaev.api.ioc_validation;
 
 import static io.openaev.api.ioc_validation.IocValidationApi.IOC_VALIDATION_URI;
 import static io.openaev.api.ioc_validation.IocValidationApi.TENANT_IOC_VALIDATION_URI;
-import static io.openaev.api.stix_process.StixApi.STIX_URI;
 import static io.openaev.api.stix_process.StixApi.TENANT_STIX_URI;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -17,37 +15,41 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
+import io.openaev.api.ioc_validation.dto.IocValidationSettingsInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.IocValidation;
-import io.openaev.database.model.IocValidationStatus;
-import io.openaev.database.repository.IocValidationRepository;
+import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.stix.IocValidationBundleParser;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-@TestInstance(PER_CLASS)
-@Transactional
+/**
+ * Deliberately NOT {@code @Transactional}: the intake endpoint suspends any caller transaction
+ * (OpenCTI is never called while a connection is held), so it could not see uncommitted fixtures,
+ * and what it records would escape a test rollback. Each test works in its own committed tenant,
+ * deleted afterwards together with everything it owns.
+ */
 @TestPropertySource(properties = "openaev.tenant.active-tables=ioc_validations")
 @WithMockUser(isAdmin = true)
 @DisplayName("IOC validation API tests")
@@ -55,22 +57,50 @@ class IocValidationApiTest extends IntegrationTest {
 
   private static final String INDICATOR = "indicator--6d2f6bb1-31b1-4b8a-9d36-3b3b3a1f0e11";
   private static final String PLATFORM = "identity--1e2f6bb1-31b1-4b8a-9d36-3b3b3a1f0e22";
+  private static final String INTAKE_URI = TENANT_STIX_URI + "/process-ioc-validation";
 
   @Resource private ObjectMapper mapper;
   @Autowired private MockMvc mvc;
-  @Autowired private IocValidationRepository iocValidationRepository;
+  @Autowired private JdbcTemplate jdbc;
   @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private InjectorFixture injectorFixture;
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
   // No OpenCTI is configured in tests: acknowledgements and status reports become no-ops, and the
   // lifecycle stays pending until a connector is registered.
   @MockitoBean private OpenCTIConnectorService openCTIConnectorService;
-  @Autowired private TenantScopedTransaction tenantTx;
 
-  /** ioc_validations is tenant-active: direct repository reads need an explicit scope. */
-  private <T> T scoped(Supplier<T> read) {
-    return tenantTx.execute(TxCtx.allTenants(), read);
+  private String tenantId;
+  private String otherTenantId;
+
+  @BeforeEach
+  void setUp() throws Exception {
+    tenantId =
+        tenantHelper.createTenantWithCurrentUser("ioc-validation-" + UUID.randomUUID()).getId();
+  }
+
+  @AfterEach
+  void cleanup() {
+    for (String tenant : new String[] {tenantId, otherTenantId}) {
+      if (tenant == null) {
+        continue;
+      }
+      // The only children of the rows an approval creates that do not cascade with the tenant.
+      jdbc.update(
+          "DELETE FROM scenario_mails_reply_to WHERE scenario_id IN "
+              + "(SELECT scenario_id FROM scenarios WHERE tenant_id = ?)",
+          tenant);
+      jdbc.update(
+          "DELETE FROM scenarios_documents WHERE scenario_id IN "
+              + "(SELECT scenario_id FROM scenarios WHERE tenant_id = ?)",
+          tenant);
+    }
+    tenantHelper.deleteCommittedTenants(tenantId, otherTenantId);
+    tenantId = null;
+    otherTenantId = null;
+    assetGroupComposer.reset();
+    endpointComposer.reset();
   }
 
   private String ctiEvent(String requestId, String observableType, String value, String testKind) {
@@ -109,13 +139,16 @@ class IocValidationApiTest extends IntegrationTest {
     return event.toString();
   }
 
-  private String receive(String uriTemplate, String body, Object... uriVariables) throws Exception {
+  private MockHttpServletRequestBuilder intake(String tenant, String body) {
+    return post(INTAKE_URI, tenant)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body)
+        .with(csrf());
+  }
+
+  private String receive(String tenant, String body) throws Exception {
     String response =
-        mvc.perform(
-                post(uriTemplate + "/process-ioc-validation", uriVariables)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(body)
-                    .with(csrf()))
+        mvc.perform(intake(tenant, body))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -123,11 +156,38 @@ class IocValidationApiTest extends IntegrationTest {
     return JsonPath.read(response, "$.iocValidationId");
   }
 
+  private String receive(String body) throws Exception {
+    return receive(tenantId, body);
+  }
+
   private String receiveDnsRequest() throws Exception {
     return receive(
-        STIX_URI,
         ctiEvent(
             UUID.randomUUID().toString(), "Domain-Name", "evil.example.com", "dns_resolution"));
+  }
+
+  private String validation(String id) throws Exception {
+    return mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/{id}", tenantId, id))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+  }
+
+  private MockHttpServletRequestBuilder decide(String id, String decision) {
+    return post(TENANT_IOC_VALIDATION_URI + "/{id}/" + decision, tenantId, id).with(csrf());
+  }
+
+  private MockHttpServletRequestBuilder putSettings(String body) {
+    return put(TENANT_IOC_VALIDATION_URI + "/settings", tenantId)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(body)
+        .with(csrf());
+  }
+
+  private long recordCount() {
+    return jdbc.queryForObject(
+        "SELECT COUNT(*) FROM ioc_validations WHERE tenant_id = ?", Long.class, tenantId);
   }
 
   @Nested
@@ -139,12 +199,7 @@ class IocValidationApiTest extends IntegrationTest {
     void given_request_should_recordAwaitingApproval() throws Exception {
       String id = receiveDnsRequest();
 
-      String response =
-          mvc.perform(get(IOC_VALIDATION_URI + "/" + id))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
+      String response = validation(id);
 
       assertThat((String) JsonPath.read(response, "$.ioc_validation_status"))
           .isEqualTo("AWAITING_APPROVAL");
@@ -161,18 +216,15 @@ class IocValidationApiTest extends IntegrationTest {
     void given_notAllowedKind_should_previewSkip() throws Exception {
       String id =
           receive(
-              STIX_URI,
               ctiEvent(
                   UUID.randomUUID().toString(), "IPv4-Addr", "203.0.113.7", "network_traffic"));
 
-      IocValidation validation = scoped(() -> iocValidationRepository.findById(id).orElseThrow());
-      assertThat(validation.getIocs())
-          .singleElement()
-          .satisfies(
-              ioc -> {
-                assertThat(ioc.getTestKind()).isNull();
-                assertThat(ioc.getMessage()).contains("not allowed");
-              });
+      String response = validation(id);
+      assertThat((List<Object>) JsonPath.read(response, "$.ioc_validation_iocs")).hasSize(1);
+      assertThat((String) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_test_kind"))
+          .isNull();
+      assertThat((String) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_message"))
+          .contains("not allowed");
     }
 
     @Test
@@ -181,29 +233,23 @@ class IocValidationApiTest extends IntegrationTest {
       String requestId = UUID.randomUUID().toString();
       String body = ctiEvent(requestId, "Domain-Name", "evil.example.com", "dns_resolution");
 
-      String first = receive(STIX_URI, body);
-      String second = receive(STIX_URI, body);
+      String first = receive(body);
+      String second = receive(body);
 
       assertThat(second).isEqualTo(first);
+      assertThat(recordCount()).isEqualTo(1);
     }
 
     @Test
     @DisplayName("acknowledges a malformed request without recording anything")
     void given_malformedBundle_should_answerOkWithoutRecord() throws Exception {
-      long before = scoped(iocValidationRepository::count);
       ObjectNode event = mapper.createObjectNode();
       event.putObject("internal").put("work_id", "work_" + UUID.randomUUID());
       event.putObject("event").put("stix_objects", "{\"type\":\"bundle\",\"objects\":[]}");
 
-      mvc.perform(
-              post(STIX_URI + "/process-ioc-validation")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(event.toString())
-                  .with(csrf()))
-          .andExpect(status().isOk());
+      mvc.perform(intake(tenantId, event.toString())).andExpect(status().isOk());
 
-      long after = scoped(iocValidationRepository::count);
-      assertThat(after).isEqualTo(before);
+      assertThat(recordCount()).isZero();
     }
   }
 
@@ -218,10 +264,9 @@ class IocValidationApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(IOC_VALIDATION_URI + "/" + id + "/reject")
+                  decide(id, "reject")
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content("{\"ioc_validation_reason\":\"Out of the test window\"}")
-                      .with(csrf()))
+                      .content("{\"ioc_validation_reason\":\"Out of the test window\"}"))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -236,15 +281,10 @@ class IocValidationApiTest extends IntegrationTest {
     @DisplayName("refuses a second decision")
     void given_rejectedRequest_should_refuseApproval() throws Exception {
       String id = receiveDnsRequest();
-      mvc.perform(
-              post(IOC_VALIDATION_URI + "/" + id + "/reject")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content("{}")
-                  .with(csrf()))
+      mvc.perform(decide(id, "reject").contentType(MediaType.APPLICATION_JSON).content("{}"))
           .andExpect(status().isOk());
 
-      mvc.perform(post(IOC_VALIDATION_URI + "/" + id + "/approve").with(csrf()))
-          .andExpect(status().isBadRequest());
+      mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -252,39 +292,41 @@ class IocValidationApiTest extends IntegrationTest {
     void given_noAssetGroup_should_refuseApproval() throws Exception {
       String id = receiveDnsRequest();
 
-      mvc.perform(post(IOC_VALIDATION_URI + "/" + id + "/approve").with(csrf()))
-          .andExpect(status().isBadRequest());
-      assertThat(scoped(() -> iocValidationRepository.findById(id).orElseThrow()).getStatus())
-          .isEqualTo(IocValidationStatus.AWAITING_APPROVAL);
+      mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
+          .isEqualTo("AWAITING_APPROVAL");
     }
 
     @Test
     @DisplayName("an approval builds and launches the validation simulation")
     void given_assetGroup_should_launchSimulation() throws Exception {
-      AssetGroup assetGroup =
-          assetGroupComposer
-              .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"))
-              .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
-              .persist()
-              .get();
+      injectorFixture.getWellKnownOaevImplantInjector();
+      AssetGroup assetGroup;
+      TenantContext.setCurrentTenant(tenantId);
+      try {
+        assetGroup =
+            assetGroupComposer
+                .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"))
+                .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+                .persist()
+                .get();
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
       mvc.perform(
-              put(IOC_VALIDATION_URI + "/settings")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(
-                      mapper.writeValueAsString(
-                          new io.openaev.api.ioc_validation.dto.IocValidationSettingsInput(
-                              List.of(
-                                  io.openaev.database.model.IocValidationTestKind.DNS_RESOLUTION),
-                              "",
-                              "",
-                              443,
-                              assetGroup.getId())))
-                  .with(csrf()))
+              putSettings(
+                  mapper.writeValueAsString(
+                      new IocValidationSettingsInput(
+                          List.of(IocValidationTestKind.DNS_RESOLUTION),
+                          "",
+                          "",
+                          443,
+                          assetGroup.getId()))))
           .andExpect(status().isOk());
       String id = receiveDnsRequest();
 
       String response =
-          mvc.perform(post(IOC_VALIDATION_URI + "/" + id + "/approve").with(csrf()))
+          mvc.perform(decide(id, "approve"))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -306,7 +348,7 @@ class IocValidationApiTest extends IntegrationTest {
     @DisplayName("defaults to DNS resolution only on port 443")
     void given_defaults_should_allowDnsOnly() throws Exception {
       String response =
-          mvc.perform(get(IOC_VALIDATION_URI + "/settings"))
+          mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/settings", tenantId))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -321,12 +363,9 @@ class IocValidationApiTest extends IntegrationTest {
     @DisplayName("refuses HTTP HEAD tests without egress proxy")
     void given_httpHeadWithoutProxy_should_refuse() throws Exception {
       mvc.perform(
-              put(IOC_VALIDATION_URI + "/settings")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(
-                      "{\"ioc_validation_allowed_test_kinds\":[\"DNS_RESOLUTION\",\"HTTP_HEAD\"],"
-                          + "\"ioc_validation_network_port\":443}")
-                  .with(csrf()))
+              putSettings(
+                  "{\"ioc_validation_allowed_test_kinds\":[\"DNS_RESOLUTION\",\"HTTP_HEAD\"],"
+                      + "\"ioc_validation_network_port\":443}"))
           .andExpect(status().isBadRequest());
     }
 
@@ -334,13 +373,10 @@ class IocValidationApiTest extends IntegrationTest {
     @DisplayName("refuses a sinkhole that is not an IP address")
     void given_invalidSinkhole_should_refuse() throws Exception {
       mvc.perform(
-              put(IOC_VALIDATION_URI + "/settings")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(
-                      "{\"ioc_validation_allowed_test_kinds\":[\"NETWORK_TRAFFIC\"],"
-                          + "\"ioc_validation_sinkhole_address\":\"sinkhole.internal\","
-                          + "\"ioc_validation_network_port\":443}")
-                  .with(csrf()))
+              putSettings(
+                  "{\"ioc_validation_allowed_test_kinds\":[\"NETWORK_TRAFFIC\"],"
+                      + "\"ioc_validation_sinkhole_address\":\"sinkhole.internal\","
+                      + "\"ioc_validation_network_port\":443}"))
           .andExpect(status().isBadRequest());
     }
 
@@ -349,14 +385,11 @@ class IocValidationApiTest extends IntegrationTest {
     void given_validSettings_should_store() throws Exception {
       String response =
           mvc.perform(
-                  put(IOC_VALIDATION_URI + "/settings")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(
-                          "{\"ioc_validation_allowed_test_kinds\":[\"DNS_RESOLUTION\",\"HTTP_HEAD\",\"NETWORK_TRAFFIC\"],"
-                              + "\"ioc_validation_http_proxy_url\":\"http://proxy.internal:3128\","
-                              + "\"ioc_validation_sinkhole_address\":\"192.0.2.10\","
-                              + "\"ioc_validation_network_port\":8443}")
-                      .with(csrf()))
+                  putSettings(
+                      "{\"ioc_validation_allowed_test_kinds\":[\"DNS_RESOLUTION\",\"HTTP_HEAD\",\"NETWORK_TRAFFIC\"],"
+                          + "\"ioc_validation_http_proxy_url\":\"http://proxy.internal:3128\","
+                          + "\"ioc_validation_sinkhole_address\":\"192.0.2.10\","
+                          + "\"ioc_validation_network_port\":8443}"))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -380,7 +413,7 @@ class IocValidationApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(IOC_VALIDATION_URI + "/search")
+                  post(TENANT_IOC_VALIDATION_URI + "/search", tenantId)
                       .contentType(MediaType.APPLICATION_JSON)
                       .content("{\"page\":0,\"size\":50}")
                       .with(csrf()))
@@ -399,23 +432,20 @@ class IocValidationApiTest extends IntegrationTest {
   class TenantIsolation {
 
     @Test
-    @DisplayName("a request received for tenant A is not visible from another tenant")
-    void given_requestOfTenantA_should_notBeVisibleFromDefaultTenant() throws Exception {
-      String tenantA = tenantHelper.createTenantWithCurrentUser("ioc-validation-a").getId();
-      String id =
-          receive(
-              TENANT_STIX_URI,
-              ctiEvent(
-                  UUID.randomUUID().toString(),
-                  "Domain-Name",
-                  "evil.example.com",
-                  "dns_resolution"),
-              tenantA);
+    @DisplayName("a request received for one tenant is not visible from another tenant")
+    void given_requestOfOneTenant_should_notBeVisibleFromAnotherTenant() throws Exception {
+      otherTenantId =
+          tenantHelper.createTenantWithCurrentUser("ioc-validation-" + UUID.randomUUID()).getId();
+      String id = receiveDnsRequest();
 
-      mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/{id}", tenantA, id)).andExpect(status().isOk());
-      mvc.perform(get(IOC_VALIDATION_URI + "/" + id)).andExpect(status().isNotFound());
-      mvc.perform(post(IOC_VALIDATION_URI + "/" + id + "/approve").with(csrf()))
+      mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/{id}", tenantId, id))
+          .andExpect(status().isOk());
+      mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/{id}", otherTenantId, id))
+          .andExpect(status().isNotFound());
+      mvc.perform(post(TENANT_IOC_VALIDATION_URI + "/{id}/approve", otherTenantId, id).with(csrf()))
           .andExpect(status().is4xxClientError());
+      mvc.perform(get(IOC_VALIDATION_URI + "/" + id).header("X-Tenant-Ids", otherTenantId))
+          .andExpect(status().isNotFound());
     }
   }
 }

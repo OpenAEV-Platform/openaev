@@ -5297,6 +5297,8 @@ export interface EvaluationInput {
 }
 
 export interface Event {
+  entity_id?: string;
+  entity_type?: string;
   /** @minLength 1 */
   stix_objects: string;
 }
@@ -7506,6 +7508,11 @@ export interface Internal {
   work_id: string;
 }
 
+export interface IocValidationImportReport {
+  iocValidationId?: string;
+  summary?: string;
+}
+
 export interface IocValidationIocOutput {
   /** File name of a StixFile IOC */
   ioc_file_name?: string;
@@ -7513,13 +7520,19 @@ export interface IocValidationIocOutput {
   ioc_hashes?: Record<string, string>;
   /** Indicator name */
   ioc_indicator_name?: string;
-  /** STIX id of the OpenCTI indicator */
+  /**
+   * STIX id of the OpenCTI indicator
+   * @minLength 1
+   */
   ioc_indicator_ref: string;
   /** Ids of the benign injects built for this IOC */
   ioc_inject_ids: string[];
-  /** Why the IOC was skipped or how it was adapted (sinkhole, DNS fallback...) */
+  /** Why the IOC was skipped or how it was adapted (sinkhole...) */
   ioc_message?: string;
-  /** OpenCTI observable type (Domain-Name, Hostname, IPv4-Addr, IPv6-Addr, Url, StixFile) */
+  /**
+   * OpenCTI observable type (Domain-Name, Hostname, IPv4-Addr, IPv6-Addr, Url, StixFile)
+   * @minLength 1
+   */
   ioc_observable_type: string;
   /** Test kind requested by OpenCTI */
   ioc_requested_test_kind?:
@@ -7535,7 +7548,10 @@ export interface IocValidationIocOutput {
     | "HTTP_HEAD"
     | "FILE_DROP"
     | "LOG_INJECTION";
-  /** Observable value */
+  /**
+   * Observable value
+   * @minLength 1
+   */
   ioc_value: string;
 }
 
@@ -7559,10 +7575,15 @@ export interface IocValidationOutput {
   /** Name of the user who approved or rejected */
   ioc_validation_decided_by_name?: string;
   ioc_validation_description?: string;
-  /** OpenCTI Ioc-Validation-Request internal id */
+  /**
+   * OpenCTI Ioc-Validation-Request internal id
+   * @minLength 1
+   */
   ioc_validation_external_id: string;
+  /** @minLength 1 */
   ioc_validation_id: string;
   ioc_validation_iocs: IocValidationIocOutput[];
+  /** @minLength 1 */
   ioc_validation_name: string;
   /** Link to the request in OpenCTI */
   ioc_validation_opencti_url?: string;
@@ -7592,11 +7613,17 @@ export interface IocValidationOutput {
 }
 
 export interface IocValidationPairOutput {
-  /** STIX id of the deployed-on relationship */
+  /**
+   * STIX id of the deployed-on relationship
+   * @minLength 1
+   */
   pair_deployed_on_ref: string;
   /** @format date-time */
   pair_evaluated_at?: string;
-  /** STIX id of the indicator */
+  /**
+   * STIX id of the indicator
+   * @minLength 1
+   */
   pair_indicator_ref: string;
   /** Validation outcome (absent while pending) */
   pair_outcome?: "PREVENTED" | "DETECTED" | "MISSED" | "ERROR";
@@ -7604,14 +7631,21 @@ export interface IocValidationPairOutput {
   pair_outcome_reason?: string;
   /** Security platform name received from OpenCTI */
   pair_platform_name?: string;
-  /** STIX id of the OpenCTI security platform identity */
+  /**
+   * STIX id of the OpenCTI security platform identity
+   * @minLength 1
+   */
   pair_platform_ref: string;
   /** Id of the matched OpenAEV security platform asset (absent when not matched) */
   pair_security_platform_id?: string;
 }
 
 export interface IocValidationRejectInput {
-  /** Optional reason reported back to OpenCTI (max 2000 chars) */
+  /**
+   * Optional reason reported back to OpenCTI (max 2000 chars)
+   * @minLength 0
+   * @maxLength 2000
+   */
   ioc_validation_reason?: string;
 }
 
@@ -7623,10 +7657,26 @@ export interface IocValidationSettingsInput {
     | "FILE_DROP"
     | "LOG_INJECTION"
   )[];
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   ioc_validation_asset_group_id?: string;
+  /**
+   * @minLength 0
+   * @maxLength 2048
+   */
   ioc_validation_http_proxy_url?: string;
-  /** @format int32 */
+  /**
+   * @format int32
+   * @min 1
+   * @max 65535
+   */
   ioc_validation_network_port: number;
+  /**
+   * @minLength 0
+   * @maxLength 64
+   */
   ioc_validation_sinkhole_address?: string;
 }
 
@@ -7663,12 +7713,15 @@ export interface IocValidationSimpleOutput {
   ioc_validation_detected_count: number;
   /** @format int32 */
   ioc_validation_error_count: number;
+  /** @minLength 1 */
   ioc_validation_external_id: string;
+  /** @minLength 1 */
   ioc_validation_id: string;
   /** @format int32 */
   ioc_validation_iocs_count: number;
   /** @format int32 */
   ioc_validation_missed_count: number;
+  /** @minLength 1 */
   ioc_validation_name: string;
   /** @format int32 */
   ioc_validation_pairs_count: number;
@@ -8411,6 +8464,7 @@ export interface NotificationTriggerInput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "IOC_VALIDATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -8520,6 +8574,7 @@ export interface NotificationTriggerOutput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "IOC_VALIDATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
