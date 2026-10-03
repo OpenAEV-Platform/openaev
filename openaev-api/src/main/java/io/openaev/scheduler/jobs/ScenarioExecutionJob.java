@@ -110,7 +110,12 @@ public class ScenarioExecutionJob implements Job {
 
   private void createScheduledExercise(Scenario scenario, Instant now) {
     Instant start = scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now);
-    Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, start, false);
+    // No live user in this cron context: the recurrence owner's clearance gates dispatch
+    // instead. May be null if the scenario's recurrence was never (re)configured through
+    // ScenarioApi.updateScenarioRecurrence - resolves to zero clearance at dispatch time.
+    Exercise exercise =
+        this.scenarioToExerciseService.toExercise(
+            scenario, start, false, scenario.getScheduledBy());
     // Chained scenarios need the workflow template now; the workflow run is created later when
     // the scheduled exercise is auto-started.
     provisionChainedWorkflowTemplateIfNeeded(scenario.getId(), exercise);

@@ -236,7 +236,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
                 }));
     // -- EXECUTE --
     clearInvocations(actionMetricCollector);
-    Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, null, false);
+    Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, null, false, null);
     String exerciseId = exercise.getId();
     entityManager.flush();
     entityManager.clear();
