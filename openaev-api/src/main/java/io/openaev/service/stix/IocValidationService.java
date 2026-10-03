@@ -781,7 +781,7 @@ public class IocValidationService {
 
   private String frontValidationUrl(String tenantId, String validationId) {
     return buildTenantUrl(openAEVConfig.getBaseUrl(), tenantId)
-        + "/admin/ioc_validations/"
+        + "/admin/atomic_testings/ioc_validations/"
         + validationId;
   }
 

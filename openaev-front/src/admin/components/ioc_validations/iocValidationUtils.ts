@@ -6,7 +6,7 @@ export type IocValidationStatus = IocValidationOutput['ioc_validation_status'];
 export type IocValidationTestKind = IocValidationSettingsInput['ioc_validation_allowed_test_kinds'][number];
 export type IocValidationOutcome = NonNullable<IocValidationPairOutput['pair_outcome']>;
 
-export const IOC_VALIDATION_BASE_URL = '/admin/ioc_validations';
+export const IOC_VALIDATION_BASE_URL = '/admin/atomic_testings/ioc_validations';
 export const IOC_VALIDATION_SETTINGS_URL = '/admin/settings/customization/ioc_validation';
 
 // Results are computed when the simulation ends: polling faster would only load the API.

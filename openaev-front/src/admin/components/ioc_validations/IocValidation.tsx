@@ -142,6 +142,10 @@ const IocValidation = () => {
         variant="object"
         elements={[
           {
+            label: t('Atomic testings'),
+            link: '/admin/atomic_testings',
+          },
+          {
             label: t('IOC validations'),
             link: IOC_VALIDATION_BASE_URL,
           },

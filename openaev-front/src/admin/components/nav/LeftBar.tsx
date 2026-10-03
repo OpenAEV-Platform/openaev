@@ -14,7 +14,6 @@ import {
   RocketLaunchOutlined,
   RouteOutlined,
   RowingOutlined,
-  VerifiedUserOutlined,
 } from '@mui/icons-material';
 import {
   Binoculars,
@@ -97,12 +96,6 @@ const LeftBar = () => {
           icon: () => (<Target />),
           label: 'Atomic testings',
           userRight: true,
-        },
-        {
-          path: `/admin/ioc_validations`,
-          icon: () => (<VerifiedUserOutlined />),
-          label: 'IOC validations',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
         },
         {
           path: `/admin/threat-arsenal`,

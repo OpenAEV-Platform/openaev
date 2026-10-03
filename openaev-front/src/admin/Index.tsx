@@ -277,7 +277,7 @@ const Index = () => {
             />
             <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
             <Route
-              path="ioc_validations"
+              path="atomic_testings/ioc_validations"
               element={(
                 <ProtectedRoute
                   checks={[{
@@ -289,7 +289,7 @@ const Index = () => {
               )}
             />
             <Route
-              path="ioc_validations/:iocValidationId"
+              path="atomic_testings/ioc_validations/:iocValidationId"
               element={(
                 <ProtectedRoute
                   checks={[{

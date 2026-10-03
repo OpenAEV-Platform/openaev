@@ -19,6 +19,7 @@ import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type IocValidationSimpleOutput, type SearchPaginationInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import AtomicTestingsTabs from '../atomic_testings/AtomicTestingsTabs';
 import IocValidationStatusChip from './IocValidationStatusChip';
 import { IOC_VALIDATION_BASE_URL, IOC_VALIDATION_SETTINGS_URL, iocValidationTestKindLabel } from './iocValidationUtils';
 
@@ -131,10 +132,14 @@ const IocValidations = () => {
       <Breadcrumbs
         variant="list"
         elements={[{
+          label: t('Atomic testings'),
+          link: '/admin/atomic_testings',
+        }, {
           label: t('IOC validations'),
           current: true,
         }]}
       />
+      <AtomicTestingsTabs />
       <PaginationComponentV2
         fetch={searchIocValidationsToLoad}
         searchPaginationInput={searchPaginationInput}
