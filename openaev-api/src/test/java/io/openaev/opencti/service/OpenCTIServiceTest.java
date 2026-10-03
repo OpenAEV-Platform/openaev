@@ -5,6 +5,9 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,10 +23,12 @@ import io.openaev.opencti.client.mutations.Ping;
 import io.openaev.opencti.client.mutations.PushStixBundle;
 import io.openaev.opencti.client.mutations.QueryTypeFields;
 import io.openaev.opencti.client.mutations.RegisterConnector;
+import io.openaev.opencti.client.mutations.ValidateHuntFromEmulation;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.Constants;
 import io.openaev.opencti.errors.ConnectorError;
+import io.openaev.opencti.errors.ConnectorUnavailableError;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.TenantRoleService;
 import io.openaev.service.UserService;
@@ -41,15 +46,18 @@ import io.openaev.utils.fixtures.opencti.ConnectorFixture;
 import io.openaev.utils.fixtures.opencti.ResponseFixture;
 import jakarta.persistence.EntityManager;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.apache.hc.core5.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
@@ -338,6 +346,160 @@ public class OpenCTIServiceTest extends IntegrationTest {
             .hasMessage(
                 "Cannot push STIX bundle via connector %s to OpenCTI at %s: connector hasn't registered yet. Try again later."
                     .formatted(testConnector.getName(), testConnector.getUrl()));
+      }
+    }
+
+    @Nested
+    @DisplayName("For validating hunts from emulation")
+    public class ForValidatingHuntsFromEmulation {
+      private static final Duration TIMEOUT = Duration.ofSeconds(30);
+
+      private ValidateHuntFromEmulation.Input input() {
+        return new ValidateHuntFromEmulation.Input(
+            "T1059.001",
+            "identity--" + UUID.randomUUID(),
+            "Splunk prod",
+            UUID.randomUUID().toString(),
+            "2026-10-03T10:00:00Z",
+            "2026-10-03T10:20:00Z",
+            "security-coverage--" + UUID.randomUUID());
+      }
+
+      private ConnectorBase registeredConnector() {
+        ConnectorBase connector = ConnectorFixture.getDefaultConnector();
+        connector.setRegistered(true);
+        return connector;
+      }
+
+      @Test
+      @DisplayName("given a valid answer should return the hunt validation")
+      void given_validAnswer_should_returnHuntValidation() throws Exception {
+        // Arrange
+        ConnectorBase connector = registeredConnector();
+        ValidateHuntFromEmulation.Input input = input();
+        Response okResponse = ResponseFixture.getOkResponse();
+        okResponse.setData(
+            (ObjectNode)
+                mapper.readTree(
+                    """
+                    {
+                      "huntValidateFromEmulation": {
+                        "hunts_count": 1,
+                        "runs": [{ "id": "run-1", "hunt_id": "hunt-1", "hunt_run_status": "queued" }]
+                      }
+                    }
+                    """));
+        when(mockOpenCTIClient.execute(
+                any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class)))
+            .thenReturn(okResponse);
+
+        // Act
+        ValidateHuntFromEmulation.HuntValidation validation =
+            openCTIService.validateHuntFromEmulation(connector, input, TIMEOUT);
+
+        // Assert
+        assertThat(validation.getHuntsCount()).isEqualTo(1);
+        assertThat(validation.getRuns().getFirst().getId()).isEqualTo("run-1");
+        ArgumentCaptor<ValidateHuntFromEmulation> mutation =
+            ArgumentCaptor.forClass(ValidateHuntFromEmulation.class);
+        verify(mockOpenCTIClient)
+            .execute(
+                eq(connector.getApiUrl()),
+                eq(connector.getToken()),
+                mutation.capture(),
+                eq(TIMEOUT));
+        assertThat(mutation.getValue().getInput()).isEqualTo(input);
+      }
+
+      @Test
+      @DisplayName("given GraphQL errors should throw a connector error naming them")
+      void given_graphqlErrors_should_throwConnectorError() throws Exception {
+        // Arrange
+        Response errorResponse = ResponseFixture.getErrorResponse();
+        when(mockOpenCTIClient.execute(
+                any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class)))
+            .thenReturn(errorResponse);
+
+        // Act + Assert
+        assertThatThrownBy(
+                () ->
+                    openCTIService.validateHuntFromEmulation(
+                        registeredConnector(), input(), TIMEOUT))
+            .isInstanceOf(ConnectorError.class)
+            .hasMessageContaining("refused the hunt validation")
+            .hasMessageContaining(errorResponse.getErrors().getFirst().getMessage());
+      }
+
+      @Test
+      @DisplayName("given a server error should throw an I/O error so the delivery postpones")
+      void given_serverError_should_throwIoError() throws Exception {
+        // Arrange
+        Response gatewayError = new Response();
+        gatewayError.setStatus(HttpStatus.SC_BAD_GATEWAY);
+        when(mockOpenCTIClient.execute(
+                any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class)))
+            .thenReturn(gatewayError);
+
+        // Act + Assert
+        assertThatThrownBy(
+                () ->
+                    openCTIService.validateHuntFromEmulation(
+                        registeredConnector(), input(), TIMEOUT))
+            .isInstanceOf(IOException.class)
+            .hasMessageContaining("HTTP 502");
+      }
+
+      @Test
+      @DisplayName("given a rate limited call should throw an unavailable error, not a refusal")
+      void given_rateLimited_should_throwUnavailableError() throws Exception {
+        // Arrange
+        Response tooManyRequests = new Response();
+        tooManyRequests.setStatus(HttpStatus.SC_TOO_MANY_REQUESTS);
+        when(mockOpenCTIClient.execute(
+                any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class)))
+            .thenReturn(tooManyRequests);
+
+        // Act + Assert
+        assertThatThrownBy(
+                () ->
+                    openCTIService.validateHuntFromEmulation(
+                        registeredConnector(), input(), TIMEOUT))
+            .isInstanceOf(ConnectorUnavailableError.class)
+            .hasMessageContaining("HTTP 429");
+      }
+
+      @Test
+      @DisplayName("given an answer without hunt validation should throw a connector error")
+      void given_answerWithoutValidation_should_throwConnectorError() throws Exception {
+        // Arrange
+        Response okResponse = ResponseFixture.getOkResponse();
+        okResponse.setData((ObjectNode) mapper.readTree("{\"huntValidateFromEmulation\": null}"));
+        when(mockOpenCTIClient.execute(
+                any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class)))
+            .thenReturn(okResponse);
+
+        // Act + Assert
+        assertThatThrownBy(
+                () ->
+                    openCTIService.validateHuntFromEmulation(
+                        registeredConnector(), input(), TIMEOUT))
+            .isInstanceOf(ConnectorError.class)
+            .hasMessageContaining("returned no hunt validation");
+      }
+
+      @Test
+      @DisplayName("given a connector not registered yet should not call OpenCTI")
+      void given_connectorNotRegistered_should_notCallOpenCti() throws Exception {
+        // Arrange
+        ConnectorBase connector = ConnectorFixture.getDefaultConnector();
+
+        // Act + Assert
+        assertThatThrownBy(
+                () -> openCTIService.validateHuntFromEmulation(connector, input(), TIMEOUT))
+            .isInstanceOf(ConnectorUnavailableError.class)
+            .hasMessageContaining("hasn't registered yet");
+        verify(mockOpenCTIClient, never())
+            .execute(any(), any(), any(ValidateHuntFromEmulation.class), any(Duration.class));
       }
     }
   }

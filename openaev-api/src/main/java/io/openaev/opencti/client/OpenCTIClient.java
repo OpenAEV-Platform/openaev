@@ -10,9 +10,16 @@ import io.openaev.opencti.client.mutations.Mutation;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.client.response.ResponseFile;
 import io.openaev.opencti.client.response.fields.Error;
+import jakarta.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
@@ -25,6 +32,7 @@ import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -34,12 +42,54 @@ public class OpenCTIClient {
   private final HttpClientFactory httpClientFactory;
   private final ObjectMapper mapper;
 
+  /** Cancels the bounded requests that outlive their timeout. */
+  private final ScheduledExecutorService requestDeadlines =
+      Executors.newSingleThreadScheduledExecutor(
+          runnable -> {
+            Thread thread = new Thread(runnable, "opencti-request-deadline");
+            thread.setDaemon(true);
+            return thread;
+          });
+
   public Response execute(String url, String authToken, Mutation mutation) throws IOException {
     return execute(url, authToken, mutation.getQueryText(), mutation.getVariables());
   }
 
   public Response execute(String url, String authToken, String mutationBody, JsonNode variables)
       throws IOException {
+    return execute(
+        buildRequest(url, authToken, mutationBody, variables), httpClientFactory::httpClientCustom);
+  }
+
+  /**
+   * Same as {@link #execute(String, String, Mutation)}, bounded end to end by {@code timeout}: the
+   * TCP connect, the TLS handshake and every socket read give up after it, the request is cancelled
+   * once it has run for that long in total (a response trickling in never extends it), and it is
+   * never retried automatically. For background callers that must not stall on an unreachable
+   * OpenCTI. A cancelled request fails with an {@link IOException}.
+   */
+  public Response execute(String url, String authToken, Mutation mutation, Duration timeout)
+      throws IOException {
+    Timeout bound = Timeout.of(Objects.requireNonNull(timeout, "timeout"));
+    HttpPost request =
+        buildRequest(url, authToken, mutation.getQueryText(), mutation.getVariables());
+    ScheduledFuture<?> deadline =
+        requestDeadlines.schedule(request::cancel, timeout.toMillis(), TimeUnit.MILLISECONDS);
+    try {
+      return execute(request, () -> httpClientFactory.httpClientNoRetry(bound));
+    } finally {
+      deadline.cancel(false);
+    }
+  }
+
+  @PreDestroy
+  void stopRequestDeadlines() {
+    requestDeadlines.shutdownNow();
+  }
+
+  private HttpPost buildRequest(
+      String url, String authToken, String mutationBody, JsonNode variables)
+      throws JsonProcessingException {
     HttpPost req = new HttpPost(url);
     req.addHeader(HttpHeaders.AUTHORIZATION, "Bearer %s".formatted(authToken));
     req.addHeader(HttpHeaders.CONTENT_TYPE, "application/json; charset=utf-8");
@@ -50,8 +100,7 @@ public class OpenCTIClient {
       payload.put("variables", variables);
     }
     req.setEntity(new StringEntity(mapper.writeValueAsString(payload)));
-
-    return execute(req);
+    return req;
   }
 
   public ResponseFile download(String url, String authToken) throws IOException {
@@ -80,15 +129,27 @@ public class OpenCTIClient {
 
   public record ExtractedData(int status, String body) {}
 
-  private Response execute(ClassicHttpRequest request) throws IOException {
-    try (CloseableHttpClient client = httpClientFactory.httpClientCustom()) {
+  private Response execute(ClassicHttpRequest request, Supplier<CloseableHttpClient> httpClient)
+      throws IOException {
+    try (CloseableHttpClient client = httpClient.get()) {
       ExtractedData ed =
           client.execute(
               request,
-              classicResponse ->
-                  new ExtractedData(
-                      classicResponse.getCode(),
-                      EntityUtils.toString(classicResponse.getEntity())));
+              classicResponse -> {
+                HttpEntity entity = classicResponse.getEntity();
+                return new ExtractedData(
+                    classicResponse.getCode(), entity == null ? "" : EntityUtils.toString(entity));
+              });
+      if (ed.body == null || ed.body.isBlank()) {
+        // Gateways answer 429 and 5xx without a body: the status alone tells the caller what
+        // happened
+        Response response = new Response();
+        response.setStatus(ed.status);
+        Error err = new Error();
+        err.setMessage("Empty response body (HTTP %d)".formatted(ed.status));
+        response.setErrors(List.of(err));
+        return response;
+      }
       try {
         JsonNode node = mapper.readTree(ed.body);
         if (!node.has("errors") && !node.has("data")) {
