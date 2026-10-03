@@ -108,10 +108,21 @@ public class OpenCTIClient {
       ExtractedData ed =
           client.execute(
               request,
-              classicResponse ->
-                  new ExtractedData(
-                      classicResponse.getCode(),
-                      EntityUtils.toString(classicResponse.getEntity())));
+              classicResponse -> {
+                HttpEntity entity = classicResponse.getEntity();
+                return new ExtractedData(
+                    classicResponse.getCode(), entity == null ? "" : EntityUtils.toString(entity));
+              });
+      if (ed.body == null || ed.body.isBlank()) {
+        // Gateways answer 429 and 5xx without a body: the status alone tells the caller what
+        // happened
+        Response response = new Response();
+        response.setStatus(ed.status);
+        Error err = new Error();
+        err.setMessage("Empty response body (HTTP %d)".formatted(ed.status));
+        response.setErrors(List.of(err));
+        return response;
+      }
       try {
         JsonNode node = mapper.readTree(ed.body);
         if (!node.has("errors") && !node.has("data")) {
