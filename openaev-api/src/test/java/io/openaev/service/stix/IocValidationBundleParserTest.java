@@ -96,6 +96,24 @@ class IocValidationBundleParserTest {
   }
 
   @Test
+  @DisplayName("rejects an event targeting another request than the one the bundle carries")
+  void given_mismatchedRequestIds_should_throw() {
+    assertThatThrownBy(
+            () -> parser.parse(bundle(request()), "6d2f6bb1-31b1-4b8a-9d36-000000000000"))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining("bundle carries request " + REQUEST_ID);
+  }
+
+  @Test
+  @DisplayName("uses the event entity id when the request carries no OpenCTI extension id")
+  void given_noExtensionId_should_useEntityId() throws BundleValidationError {
+    ObjectNode request = request();
+    request.remove("extensions");
+
+    assertThat(parser.parse(bundle(request), REQUEST_ID).requestId()).isEqualTo(REQUEST_ID);
+  }
+
+  @Test
   @DisplayName("deduplicates repeated IOCs and pairs")
   void given_duplicates_should_keepOne() throws BundleValidationError {
     ObjectNode request = request();

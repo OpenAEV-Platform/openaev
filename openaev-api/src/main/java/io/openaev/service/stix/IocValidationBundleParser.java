@@ -92,13 +92,24 @@ public class IocValidationBundleParser {
     return bundle;
   }
 
-  private static String resolveRequestId(JsonNode request, String entityId)
-      throws BundleValidationError {
-    if (entityId != null && !entityId.isBlank()) {
-      return entityId.trim();
+  /**
+   * The OpenCTI id of the request, from the event or the OpenCTI extension of the request object.
+   * When both are present they must be equal: the lifecycle reported back to OpenCTI must target
+   * the request whose IOCs are executed.
+   */
+  static String resolveRequestId(JsonNode request, String entityId) throws BundleValidationError {
+    String eventId = entityId == null || entityId.isBlank() ? null : entityId.trim();
+    String extensionId =
+        blankToNull(text(request.path("extensions").path(OPENCTI_EXTENSION), "id"));
+    if (eventId != null && extensionId != null && !eventId.equals(extensionId.trim())) {
+      throw new BundleValidationError(
+          "The event targets request %s but the bundle carries request %s"
+              .formatted(eventId, extensionId.trim()));
     }
-    String extensionId = text(request.path("extensions").path(OPENCTI_EXTENSION), "id");
-    if (extensionId != null && !extensionId.isBlank()) {
+    if (eventId != null) {
+      return eventId;
+    }
+    if (extensionId != null) {
       return extensionId.trim();
     }
     throw new BundleValidationError(
