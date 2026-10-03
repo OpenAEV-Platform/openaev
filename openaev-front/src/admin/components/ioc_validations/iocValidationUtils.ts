@@ -90,6 +90,53 @@ export const iocValidationTestKindLabel = (kind?: IocValidationTestKind | null):
 
 export const isAwaitingApproval = (status?: IocValidationStatus | null): boolean => status === 'AWAITING_APPROVAL';
 
+// A request awaiting approval can be decided elsewhere, a running one gets its results from the job.
+export const isPollingStatus = (status?: IocValidationStatus | null): boolean => status === 'AWAITING_APPROVAL' || status === 'RUNNING';
+
+// The OpenCTI link comes from the request: only plain web links are rendered.
+export const isWebLink = (value?: string | null): value is string => {
+  if (!value) {
+    return false;
+  }
+  try {
+    const { protocol } = new URL(value);
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+const IPV6 = /^[0-9a-f:.]+$/i;
+
+const isIpAddress = (value: string): boolean => IPV4.test(value) || (value.includes(':') && IPV6.test(value));
+
+export interface IocValidationSettingsErrors {
+  proxy?: string;
+  sinkhole?: string;
+  port?: string;
+}
+
+/** Same rules as the API, so a rejected save is explained before it is sent. Messages are i18n keys. */
+export const validateIocValidationSettings = (settings: IocValidationSettingsInput, portText: string): IocValidationSettingsErrors => {
+  const errors: IocValidationSettingsErrors = {};
+  const proxy = (settings.ioc_validation_http_proxy_url ?? '').trim();
+  const sinkhole = (settings.ioc_validation_sinkhole_address ?? '').trim();
+  if (proxy && !isWebLink(proxy)) {
+    errors.proxy = 'The egress proxy must be an absolute http or https URL';
+  } else if (!proxy && settings.ioc_validation_allowed_test_kinds.includes('HTTP_HEAD')) {
+    errors.proxy = 'HTTP HEAD tests can only be allowed once an egress proxy is configured';
+  }
+  if (sinkhole && !isIpAddress(sinkhole)) {
+    errors.sinkhole = 'The sinkhole must be an IPv4 or IPv6 address';
+  }
+  const port = Number(portText);
+  if (!/^\d+$/.test(portText.trim()) || port < 1 || port > 65535) {
+    errors.port = 'The network port must be between 1 and 65535';
+  }
+  return errors;
+};
+
 export interface IocValidationOutcomeCounts {
   prevented: number;
   detected: number;
