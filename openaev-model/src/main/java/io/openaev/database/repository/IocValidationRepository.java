@@ -20,6 +20,17 @@ public interface IocValidationRepository
   Optional<IocValidation> findByExternalIdAndTenantId(String externalId, String tenantId);
 
   /**
+   * Takes a transaction-scoped Postgres advisory lock on {@code key}, released at commit/rollback
+   * and held across API nodes. Serialises the intake of one OpenCTI request: a replay delivered to
+   * another node waits for the first insert to commit and then finds it, instead of racing on the
+   * {@code (external_id, tenant_id)} unique constraint. Native because JPQL cannot call {@code
+   * pg_advisory_xact_lock}; wrapped as {@code SELECT 1 FROM (...)} so the {@code void} function
+   * maps to a scalar. Must run inside a transaction.
+   */
+  @Query(value = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(:key)) AS locked", nativeQuery = true)
+  Integer lockRequestIntake(@Param("key") long key);
+
+  /**
    * Loads a validation with a row lock held until the transaction ends: concurrent approve and
    * reject decisions are serialized, and the second one sees the status the first one set.
    */

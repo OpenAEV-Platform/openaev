@@ -30,9 +30,16 @@ import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +48,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.test.context.TestSecurityContextHolder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -240,6 +249,43 @@ class IocValidationApiTest extends IntegrationTest {
 
       assertThat(second).isEqualTo(first);
       assertThat(recordCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("keeps one record when OpenCTI delivers the same request concurrently")
+    void given_concurrentReplays_should_keepOneRecord() throws Exception {
+      String body =
+          ctiEvent(
+              UUID.randomUUID().toString(), "Domain-Name", "evil.example.com", "dns_resolution");
+      SecurityContext security = TestSecurityContextHolder.getContext();
+      CountDownLatch start = new CountDownLatch(1);
+      ExecutorService pool = Executors.newFixedThreadPool(4);
+      try {
+        List<Future<String>> deliveries = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+          deliveries.add(
+              pool.submit(
+                  () -> {
+                    TestSecurityContextHolder.setContext(security);
+                    try {
+                      start.await();
+                      return receive(body);
+                    } finally {
+                      TestSecurityContextHolder.clearContext();
+                    }
+                  }));
+        }
+        start.countDown();
+        Set<String> ids = new HashSet<>();
+        for (Future<String> delivery : deliveries) {
+          ids.add(delivery.get(60, TimeUnit.SECONDS));
+        }
+
+        assertThat(ids).hasSize(1);
+        assertThat(recordCount()).isEqualTo(1);
+      } finally {
+        pool.shutdownNow();
+      }
     }
 
     @Test

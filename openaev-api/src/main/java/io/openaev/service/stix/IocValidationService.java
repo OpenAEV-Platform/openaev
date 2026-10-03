@@ -37,6 +37,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -133,7 +134,9 @@ public class IocValidationService {
    * Records an IOC validation request posted by OpenCTI, in status {@link
    * IocValidationStatus#AWAITING_APPROVAL}. The tenant allow-list is applied as a preview: the
    * skipped IOCs and why are visible before anyone approves. Replays of the same request (OpenCTI
-   * re-dispatching it) return the existing record instead of duplicating it.
+   * re-dispatching it) return the existing record instead of duplicating it, also when delivered
+   * concurrently to several API nodes: the intake of a request is serialised by a
+   * transaction-scoped advisory lock.
    *
    * @param ctx single-tenant scope the request is attributed to
    * @param stixJson the bundle of the CTI event
@@ -145,6 +148,7 @@ public class IocValidationService {
       throws BundleValidationError {
     String tenantId = singleTenant(ctx);
     IocValidationRequest request = bundleParser.parse(stixJson, entityId);
+    iocValidationRepository.lockRequestIntake(intakeLockKey(tenantId, request.requestId()));
     Optional<IocValidation> existing =
         iocValidationRepository.findByExternalIdAndTenantId(request.requestId(), tenantId);
     if (existing.isPresent()) {
@@ -741,6 +745,35 @@ public class IocValidationService {
               .orElse(null));
     }
     validation.setPairs(new ArrayList<>(validation.getPairs()));
+  }
+
+  /**
+   * Message of the OpenCTI work acknowledgement once a request is recorded. A replay returns the
+   * existing validation, so the message states its actual lifecycle status.
+   */
+  public static String intakeAcknowledgement(IocValidationStatus status) {
+    return switch (status) {
+      case AWAITING_APPROVAL -> "IOC validation request recorded, awaiting approval in OpenAEV";
+      case RUNNING ->
+          "IOC validation request already recorded, the validation is running in OpenAEV";
+      case COMPLETED ->
+          "IOC validation request already recorded, the validation is completed in OpenAEV";
+      case PARTIAL ->
+          "IOC validation request already recorded, the validation is partially completed in"
+              + " OpenAEV";
+      case FAILED -> "IOC validation request already recorded, the validation failed in OpenAEV";
+      case REJECTED ->
+          "IOC validation request already recorded, the validation was rejected in OpenAEV";
+    };
+  }
+
+  /** Advisory lock key of the intake of one OpenCTI request in one tenant. */
+  static long intakeLockKey(String tenantId, String requestId) {
+    UUID key =
+        UUID.nameUUIDFromBytes(
+            ("ioc-validation-intake:" + tenantId + ":" + requestId)
+                .getBytes(StandardCharsets.UTF_8));
+    return key.getMostSignificantBits() ^ key.getLeastSignificantBits();
   }
 
   private static IocValidationIoc toIoc(IocValidationRequest.Ioc requested) {

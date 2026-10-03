@@ -154,7 +154,10 @@ public class StixApi extends RestBehavior {
       IocValidation validation =
           iocValidationService.receiveRequest(ctx, ctiEvent.getEvent().getStixObjects(), entityId);
       openCTIService.acknowledgeProcessedOfIocValidation(
-          workId, "IOC validation request recorded, awaiting approval in OpenAEV", false, tenantId);
+          workId,
+          IocValidationService.intakeAcknowledgement(validation.getStatus()),
+          false,
+          tenantId);
       iocValidationService.syncLifecycle(tenantId, validation.getId());
       return ResponseEntity.ok(
           new IocValidationImportReport(validation.getId(), validation.getStatusMessage()));
