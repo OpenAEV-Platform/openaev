@@ -73,7 +73,7 @@ public class CustomDomainApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Register a custom domain")
   public CustomDomain createCustomDomain(TxCtx ctx, @Valid @RequestBody CustomDomainInput input) {
-    return customDomainService.create(input.getHostname());
+    return customDomainService.create(ctx, input.getHostname());
   }
 
   @PostMapping({CUSTOM_DOMAIN_URI + "/{id}/verify", TENANT_CUSTOM_DOMAIN_URI + "/{id}/verify"})

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
@@ -203,6 +204,24 @@ class TeamServiceTest {
       assertFalse(result.getContextual());
       assertTrue(result.getTags().isEmpty());
       assertTrue(result.getUsers().isEmpty());
+    }
+
+    @Test
+    @DisplayName("should attribute the copy to the source team's own tenant")
+    void given_sourceTeamHasATenant_should_attributeCopyToThatTenant() {
+      // Prepare
+      Tenant tenant = new Tenant("non-default-tenant");
+      Team teamToCopy = createPartialMockTeam("Team", "Desc", Collections.emptySet());
+      when(teamToCopy.getOrganization()).thenReturn(null);
+      when(teamToCopy.getUsers()).thenReturn(Collections.emptyList());
+      when(teamToCopy.getContextual()).thenReturn(true);
+      when(teamToCopy.getTenant()).thenReturn(tenant);
+
+      // Act
+      Team result = teamService.copyContextualTeam(teamToCopy);
+
+      // Assert
+      assertEquals(tenant, result.getTenant());
     }
 
     @Test

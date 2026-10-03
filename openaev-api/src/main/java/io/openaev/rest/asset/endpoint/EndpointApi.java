@@ -152,6 +152,8 @@ public class EndpointApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
+  // ctx is unused directly: the aspect reads it to scope this transaction against asset_agent_jobs,
+  // which is v2-active; the inspector validates that the row this DELETE touches is in scope.
   public void cleanupAssetAgentJob(
       TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
     this.assetAgentJobRepository
@@ -170,6 +172,8 @@ public class EndpointApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
+  // ctx is unused directly: the aspect reads it to scope this transaction against asset_agent_jobs,
+  // which is v2-active; the inspector validates that the row this DELETE touches is in scope.
   public void cleanupAssetAgentJobDepreacted(
       TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
     this.assetAgentJobRepository.deleteById(assetAgentJobId);

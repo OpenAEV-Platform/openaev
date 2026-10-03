@@ -18,6 +18,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ManagerFactory implements DependenciesManager {
 
+  /** Max wait for the lock, so a caller fails instead of deadlocking with a Manager creation. */
+  static final long MANAGER_LOCK_TIMEOUT_MS = 30_000;
+
   /**
    * Creation lives in a separate bean so the call always crosses the Spring proxy and its
    * {@code @Transactional} applies — a same-class call would silently bypass it.
@@ -36,12 +39,20 @@ public class ManagerFactory implements DependenciesManager {
    * transaction is read-only it skips the built-in registration write (see there for why {@code
    * REQUIRES_NEW} must not be used). The in-memory {@link Lock} serializes concurrent creation per
    * tenant, and creation runs outside {@link ConcurrentHashMap#computeIfAbsent} so no map bin lock
-   * is held across DB work; {@link ConcurrentHashMap#putIfAbsent} publishes the instance safely.
+   * is held across DB work; {@link ConcurrentHashMap#putIfAbsent} publishes the instance safely. A
+   * caller that cannot get the lock within {@link #MANAGER_LOCK_TIMEOUT_MS} fails instead of
+   * waiting forever.
    *
    * @param tenantId the tenant identifier
    * @return the Manager for that tenant
+   * @throws io.openaev.aop.lock.LockAcquisitionException if another creation for the same tenant
+   *     holds the lock for longer than {@link #MANAGER_LOCK_TIMEOUT_MS}
    */
-  @Lock(type = MANAGER_FACTORY, key = "#tenantId")
+  @Lock(
+      type = MANAGER_FACTORY,
+      key = "#tenantId",
+      timeout = MANAGER_LOCK_TIMEOUT_MS,
+      errorMessage = "Timed out waiting for the Manager creation of this tenant")
   public Manager getManager(String tenantId) {
     Manager existing = managers.get(tenantId);
     if (existing != null) {

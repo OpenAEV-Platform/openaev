@@ -1,4 +1,4 @@
-import { AutoAwesome, DnsOutlined, NotificationsOutlined, SchoolOutlined } from '@mui/icons-material';
+import { AutoAwesome, DnsOutlined, NotificationsOutlined, SchoolOutlined, VerifiedUserOutlined } from '@mui/icons-material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent, memo, useContext } from 'react';
 
@@ -9,6 +9,7 @@ import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
+import { IOC_VALIDATION_SETTINGS_URL } from '../ioc_validations/iocValidationUtils';
 
 /**
  * Right submenu of Settings > Customization, mirroring OpenCTI's
@@ -38,6 +39,13 @@ const CustomizationMenuComponent: FunctionComponent = () => {
       icon: () => (<NotificationsOutlined />),
       label: 'Notifiers',
     },
+    ...(ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS)
+      ? [{
+          path: IOC_VALIDATION_SETTINGS_URL,
+          icon: () => (<VerifiedUserOutlined />),
+          label: 'IOC validation',
+        }]
+      : []),
     ...(ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED)
       ? [{
           path: LESSONS_TEMPLATES_BASE_URL,

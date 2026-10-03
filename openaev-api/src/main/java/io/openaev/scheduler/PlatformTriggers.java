@@ -116,6 +116,17 @@ public class PlatformTriggers {
 
   @Bean
   @Profile("!test")
+  public Trigger iocValidationTrigger() {
+    SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
+    return newTrigger()
+        .forJob(this.platformJobs.getIocValidationJobExecution())
+        .withIdentity("iocValidationTrigger")
+        .withSchedule(_15_seconds)
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
   public Trigger connectorPingTrigger() {
     // 40 seconds is recommended for OCTI connectors pings
     SimpleScheduleBuilder _40_seconds = simpleSchedule().withIntervalInSeconds(40).repeatForever();

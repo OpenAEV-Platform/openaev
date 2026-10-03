@@ -1,6 +1,6 @@
 {
   "name": "openaev-front",
-  "version": "3.260923.0",
+  "version": "3.261001.0",
   "type": "module",
   "private": true,
   "license": "Apache-2.0",
@@ -39,7 +39,8 @@
     "@casl/react": "5.0.1",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@filigran/chatbot": "3.11.1",
+    "@filigran/chatbot": "3.12.2",
+    "@filigran/design-system": "1.2.0",
     "@filigran/rich-text-editor": "npm:@filigran/rich-text-editor@1.2.1",
     "@fontsource/geologica": "5.3.0",
     "@fontsource/ibm-plex-sans": "5.3.0",
@@ -50,7 +51,6 @@
     "@mui/lab": "7.0.0-beta.17",
     "@mui/material": "7.3.11",
     "@mui/system": "7.3.11",
-    "@mui/x-date-pickers": "8.29.3",
     "@redux-devtools/extension": "4.0.0",
     "@tanstack/react-virtual": "3.14.13",
     "@uiw/react-md-editor": "4.1.2",
@@ -112,6 +112,7 @@
     "@playwright/test": "1.63.0",
     "@stylistic/eslint-plugin": "5.10.0",
     "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
     "@types/d3-hierarchy": "3.1.7",
     "@types/node": "24.19.0",
@@ -122,7 +123,7 @@
     "@types/react-syntax-highlighter": "15",
     "@typescript-eslint/utils": "8.70.1",
     "@vitejs/plugin-react": "6.1.1",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "5.0.2",
     "@vitest/eslint-plugin": "1.6.27",
     "chokidar": "5.0.0",
     "cross-env": "10.1.0",
@@ -147,7 +148,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",
     "vite": "8.3.1",
-    "vitest": "4.1.11"
+    "vitest": "5.0.2"
   },
   "resolutions": {
     "@types/react": "19.3.0",

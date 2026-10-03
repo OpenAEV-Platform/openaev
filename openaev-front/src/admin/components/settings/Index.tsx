@@ -17,6 +17,7 @@ import CustomDomains from './custom_domains/CustomDomains';
 import XlsMappers from './data_ingestion/XlsMappers';
 import Experience from './experience/Experience';
 import Groups from './groups/Groups';
+import IocValidationSettings from './ioc_validation/IocValidationSettings';
 import KillChainPhases from './kill_chain_phases/KillChainPhases';
 import MarkingDefinitions from './marking_definitions/MarkingDefinitions';
 import Notifiers from './notifiers/Notifiers';
@@ -249,6 +250,10 @@ const Index = () => {
         )}
       />
       <Route path="customization/autonomous_attack" element={errorWrapper(AutonomousAttackSettings)()} />
+      <Route
+        path="customization/ioc_validation"
+        element={<ProtectedRoute checks={TENANT_SETTINGS_CHECKS} Component={errorWrapper(IocValidationSettings)()} />}
+      />
       {/* Legacy flat paths kept as redirects so old bookmarks keep working. */}
       <Route path="asset_rules" element={<Navigate to="../customization/asset_rules" replace={true} />} />
       <Route path="notifiers" element={<Navigate to="../customization/notifiers" replace={true} />} />

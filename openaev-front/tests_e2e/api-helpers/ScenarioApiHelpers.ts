@@ -6,10 +6,11 @@ class ScenarioApiHelpers {
   readonly scenarioUri = tenantApiPath('/api/scenarios');
   constructor(private request: APIRequestContext) {}
 
-  async createScenario(name?: string) {
+  async createScenario(name?: string, isChaining = false) {
     const response = await this.request.post(this.scenarioUri, {
       data: {
         scenario_name: name || `Scenario test e2e ${Date.now()}`,
+        scenario_is_chaining: isChaining,
         scenario_category: 'attack-scenario',
         scenario_main_focus: 'incident-response',
         scenario_severity: 'high',

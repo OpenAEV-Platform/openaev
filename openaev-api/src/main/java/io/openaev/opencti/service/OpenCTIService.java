@@ -237,6 +237,37 @@ public class OpenCTIService {
     }
   }
 
+  /**
+   * Reports the lifecycle of an IOC validation request to OpenCTI through {@code
+   * iocValidationRequestStatusUpdate}, authenticated with the tenant OpenCTI token the connector
+   * carries.
+   *
+   * @throws ConnectorError when OpenCTI answers with GraphQL errors
+   */
+  public IocValidationRequestStatusUpdate.ResponsePayload updateIocValidationRequestStatus(
+      ConnectorBase connector, IocValidationRequestStatusUpdate update)
+      throws IOException, ConnectorError {
+    Response r = openCTIClient.execute(connector.getApiUrl(), connector.getToken(), update);
+    if (r.isError()) {
+      throw new ConnectorError(
+          """
+            Failed to update IOC validation request %s to status %s with OpenCTI at %s
+            Errors: %s
+            """
+              .formatted(
+                  update.getRequestId(),
+                  update.getStatus(),
+                  connector.getApiUrl(),
+                  r.getErrors().stream().map(Error::toString).collect(Collectors.joining("\n"))));
+    }
+    log.info(
+        "Updated IOC validation request {} to status {} on OpenCTI at {}",
+        update.getRequestId(),
+        update.getStatus(),
+        connector.getApiUrl());
+    return mapper.convertValue(r.getData(), IocValidationRequestStatusUpdate.ResponsePayload.class);
+  }
+
   // TODO: support attachments; argument: `List<DataAttachment> attachments`
   public void createCase(
       Execution execution,

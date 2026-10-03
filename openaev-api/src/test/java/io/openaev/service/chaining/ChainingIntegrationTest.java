@@ -123,6 +123,11 @@ class ChainingIntegrationTest extends IntegrationTest {
     doAnswer(
             invocation -> {
               Inject inject = invocation.getArgument(0);
+              // The stub replaces the real InjectService, so none of its tenant-attribution logic
+              // runs here; name the default tenant explicitly rather than rely on it.
+              if (inject.getTenant() == null) {
+                inject.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+              }
               return injectRepository.save(inject);
             })
         .when(injectService)

@@ -2,6 +2,8 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
@@ -18,10 +20,18 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.UUID;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -35,13 +45,51 @@ import org.hibernate.annotations.BatchSize;
 @EntityListeners(ModelBaseListener.class)
 public class SecurityPlatform extends Asset implements StixDomainObjectConvertible {
 
+  private static final String STIX_IDENTITY_CLASS = "securityplatform";
+  private static final UUID OASIS_NAMESPACE =
+      UUID.fromString("00abedb4-aa42-466c-9c01-fed23315a9b7");
+  private static final ObjectMapper CANONICAL_MAPPER = new ObjectMapper();
+
+  /**
+   * STIX id of the security platform identity, derived from its name exactly like the OpenCTI
+   * standard id of an identity (UUIDv5 in the OASIS namespace over the canonical JSON of the
+   * lower-cased trimmed name and the identity class), so the same named platform resolves to the
+   * same identity across OpenAEV instances and in OpenCTI.
+   */
+  public static String stixIdentityId(String name) {
+    Map<String, String> contributions = new TreeMap<>();
+    contributions.put("identity_class", STIX_IDENTITY_CLASS);
+    contributions.put("name", Objects.requireNonNullElse(name, "").trim().toLowerCase(Locale.ROOT));
+    try {
+      String canonical = CANONICAL_MAPPER.writeValueAsString(contributions);
+      return "%s--%s"
+          .formatted(ObjectTypes.IDENTITY.toString(), uuidV5(OASIS_NAMESPACE, canonical));
+    } catch (JsonProcessingException | NoSuchAlgorithmException e) {
+      throw new IllegalStateException("Cannot generate the security platform STIX id", e);
+    }
+  }
+
+  private static UUID uuidV5(UUID namespace, String name) throws NoSuchAlgorithmException {
+    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+    sha1.update(
+        ByteBuffer.allocate(16)
+            .putLong(namespace.getMostSignificantBits())
+            .putLong(namespace.getLeastSignificantBits())
+            .array());
+    byte[] hash = sha1.digest(name.getBytes(StandardCharsets.UTF_8));
+    hash[6] = (byte) ((hash[6] & 0x0f) | 0x50);
+    hash[8] = (byte) ((hash[8] & 0x3f) | 0x80);
+    ByteBuffer buffer = ByteBuffer.wrap(hash, 0, 16);
+    return new UUID(buffer.getLong(), buffer.getLong());
+  }
+
   @Override
   public DomainObject toStixDomainObject() {
     return new DomainObject(
         new HashMap<>(
             Map.of(
                 CommonProperties.ID.toString(),
-                new Identifier(ObjectTypes.IDENTITY.toString(), this.getId()),
+                new Identifier(stixIdentityId(this.getName())),
                 CommonProperties.CREATED.toString(),
                 new Timestamp(this.getCreatedAt()),
                 CommonProperties.MODIFIED.toString(),

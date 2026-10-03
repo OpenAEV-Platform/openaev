@@ -692,6 +692,7 @@ public class InjectSearchService {
             injectorJoin.get("id"),
             injectorJoin.get("type"),
             payloadJoin.get("id"),
+            payloadJoin.get("type"),
             collectorTypeJoin.get("name"),
             statusJoin.get("id"),
             exerciseJoin.get("id")));

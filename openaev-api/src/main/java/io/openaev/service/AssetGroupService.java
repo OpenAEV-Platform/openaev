@@ -28,7 +28,9 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.Hibernate;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -381,6 +383,49 @@ public class AssetGroupService {
     return results.stream()
         .map(i -> new FilterUtilsJpa.Option((String) i[0], (String) i[1]))
         .toList();
+  }
+
+  /**
+   * The asset groups of a tenant whose name contains {@code searchText}, by name, as picker
+   * options. The {@code pinnedId} group of the tenant, when it exists, comes first so a current
+   * choice can always be displayed.
+   *
+   * @param searchText case-insensitive part of the name; blank matches every group
+   * @param pinnedId group listed first, may be blank
+   * @param limit maximum number of groups matching the search
+   */
+  @Transactional(readOnly = true)
+  public List<FilterUtilsJpa.Option> tenantOptionsByName(
+      @NotBlank final String tenantId,
+      final String searchText,
+      final String pinnedId,
+      final int limit) {
+    String search = StringUtils.trimToEmpty(searchText).toLowerCase(Locale.ROOT);
+    String pinned = StringUtils.trimToEmpty(pinnedId);
+    Specification<AssetGroup> byName =
+        (root, query, cb) -> {
+          var ofTenant = cb.equal(root.get("tenant").get("id"), tenantId);
+          return search.isEmpty()
+              ? ofTenant
+              : cb.and(
+                  ofTenant,
+                  cb.like(cb.lower(root.get("name")), "%" + escapeLike(search) + "%", '\\'));
+        };
+    List<FilterUtilsJpa.Option> options = new ArrayList<>();
+    if (!pinned.isEmpty()) {
+      assetGroupRepository
+          .findByIdAndTenantId(pinned, tenantId)
+          .ifPresent(
+              group -> options.add(new FilterUtilsJpa.Option(group.getId(), group.getName())));
+    }
+    assetGroupRepository.findAll(byName, PageRequest.of(0, limit, Sort.by("name"))).stream()
+        .filter(group -> !group.getId().equals(pinned))
+        .forEach(group -> options.add(new FilterUtilsJpa.Option(group.getId(), group.getName())));
+    return options;
+  }
+
+  private static String escapeLike(String value) {
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
   /**

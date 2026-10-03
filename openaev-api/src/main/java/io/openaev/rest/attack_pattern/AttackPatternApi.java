@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawAttackPatternIndexing;
@@ -52,6 +53,7 @@ public class AttackPatternApi extends RestBehavior {
   private final InjectorContractRepository injectorContractRepository;
   private final KillChainPhaseRepository killChainPhaseRepository;
   private final KillChainPhaseService killChainPhaseService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping
   @Transactional
@@ -112,8 +114,10 @@ public class AttackPatternApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public AttackPattern createAttackPattern(
       TxCtx ctx, @Valid @RequestBody AttackPatternCreateInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     AttackPattern attackPattern = new AttackPattern();
     attackPattern.setUpdateAttributes(input);
+    attackPattern.setTenant(new Tenant(tenantId));
     attackPattern.setKillChainPhases(
         fromIterable(killChainPhaseRepository.findAllById(input.getKillChainPhasesIds())));
     attackPattern.setParent(
@@ -130,8 +134,13 @@ public class AttackPatternApi extends RestBehavior {
   public Iterable<InjectorContract> injectorContracts(
       TxCtx ctx, @PathVariable String attackPatternId) {
     attackPatternRepository.findById(attackPatternId).orElseThrow(ElementNotFoundException::new);
-    return injectorContractRepository.findAll(
-        InjectorContractSpecification.fromAttackPattern(attackPatternId));
+    Iterable<InjectorContract> contracts =
+        injectorContractRepository.findAll(
+            InjectorContractSpecification.fromAttackPattern(attackPatternId));
+    // See AttackPatternInitializer: the contracts' attack patterns are serialized after this
+    // transaction closed, so they are hydrated while the scope is still set.
+    AttackPatternInitializer.initializeFromContracts(contracts);
+    return contracts;
   }
 
   @PutMapping("/{attackPatternId}")
@@ -168,10 +177,10 @@ public class AttackPatternApi extends RestBehavior {
         attackPatterns.stream().filter(a -> a.getParentId() != null).toList();
     upserted.addAll(
         attackPatternService.internalUpsertAttackPatterns(
-            patternsWithoutParent, input.getIgnoreDependencies()));
+            ctx, patternsWithoutParent, input.getIgnoreDependencies()));
     upserted.addAll(
         attackPatternService.internalUpsertAttackPatterns(
-            patternsWithParent, input.getIgnoreDependencies()));
+            ctx, patternsWithParent, input.getIgnoreDependencies()));
     return upserted;
   }
 

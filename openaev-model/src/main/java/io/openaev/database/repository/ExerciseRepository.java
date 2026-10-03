@@ -305,7 +305,11 @@ public interface ExerciseRepository
    * are returned so the ordering is meaningful, and the LIMIT is applied at the database so callers
    * never load the full result set into memory.
    *
+   * <p>Simulations of {@code excludedCategory} never take one of the N slots: IOC validation runs
+   * prove a deployment, they do not measure coverage.
+   *
    * @param status the exercise status name (e.g. {@code FINISHED})
+   * @param excludedCategory the exercise category left out of the coverage scope
    * @param limit the maximum number of exercise ids to return
    * @return the ordered list of exercise ids (latest end date first), at most {@code limit} entries
    */
@@ -315,12 +319,15 @@ public interface ExerciseRepository
               + "FROM exercises ex "
               + "WHERE ex.exercise_status = :status "
               + "AND ex.exercise_end_date IS NOT NULL "
+              + "AND ex.exercise_category IS DISTINCT FROM :excludedCategory "
               + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "ORDER BY ex.exercise_end_date DESC "
               + "LIMIT :limit;",
       nativeQuery = true)
   List<String> findLatestExerciseIdsByStatus(
-      @Param("status") String status, @Param("limit") int limit);
+      @Param("status") String status,
+      @Param("excludedCategory") String excludedCategory,
+      @Param("limit") int limit);
 
   @Query(
       value =

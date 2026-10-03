@@ -1,5 +1,6 @@
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined, RotateLeftOutlined } from '@mui/icons-material';
-import { Button, IconButton, InputLabel, Tooltip } from '@mui/material';
+import { InputLabel } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
@@ -252,28 +253,26 @@ const InjectContentForm = ({
       title: t('Inject data'),
       helper: t('The content and targets specific to this inject.'),
       titleAdornment: canResetDefaults && (
-        <Tooltip title={t('Reset to default values')}>
-          <span>
-            <IconButton
-              color="primary"
-              disabled={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
-              onClick={resetDefaultValue}
-              size="small"
-              sx={{ borderRadius: 1 }}
-            >
-              <RotateLeftOutlined fontSize="small" />
-            </IconButton>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <span className="inline-flex">
+                <IconButton
+                  icon={<RotateLeftOutlined fontSize="small" />}
+                  aria-label={t('Reset')}
+                  disabled={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
+                  onClick={resetDefaultValue}
+                  priority="tertiary"
+                  size="sm"
+                />
+              </span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('Reset to default values')}</TooltipContent>
         </Tooltip>
       ),
       action: (
-        <Button
-          color="primary"
-          startIcon={<HelpOutlineOutlined />}
-          variant="outlined"
-          size="small"
-          onClick={openVariablesDialog}
-        >
+        <Button type="button" priority="secondary" size="sm" startIcon={<HelpOutlineOutlined fontSize="small" />} onClick={openVariablesDialog}>
           {t('Available variables')}
         </Button>
       ),

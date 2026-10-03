@@ -49,7 +49,8 @@ public class AgentInactivityMonitorJob implements Job {
     try {
       Instant threshold = Instant.now().minus(ACTIVE_THRESHOLD_MILLIS, ChronoUnit.MILLIS);
       List<Agent> newlyInactiveAgents =
-          agentRepository.findStaleAgentsByStatus(threshold, AgentStatus.ACTIVE);
+          agentRepository.findStaleAgentsByTenantIdAndStatus(
+              tenantId, threshold, AgentStatus.ACTIVE);
       if (newlyInactiveAgents.isEmpty()) {
         return;
       }

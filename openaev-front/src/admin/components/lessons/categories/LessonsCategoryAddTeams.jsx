@@ -1,5 +1,6 @@
+import { Button, IconButton } from '@filigran/design-system';
 import { Add, CastForEducationOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton } from '@mui/material';
+import { Box } from '@mui/material';
 import * as R from 'ramda';
 import { useMemo, useState } from 'react';
 
@@ -130,14 +131,15 @@ const LessonsCategoryAddTeams = ({
 
   return (
     <>
+      {/* The library icon button at `sm` — 24px, the header row's own height.
+          MUI's `size="small"` renders 30px and overflowed the row. */}
       <IconButton
         onClick={() => setOpen(true)}
         aria-haspopup="true"
-        size="small"
-        color="secondary"
-      >
-        <Add fontSize="small" />
-      </IconButton>
+        size="sm"
+        priority="tertiary"
+        icon={<Add fontSize="small" />}
+      />
       <SelectListPicker
         open={open}
         onClose={handleClose}
@@ -146,11 +148,7 @@ const LessonsCategoryAddTeams = ({
         submitLabel={t('Add')}
         headerComponent={headerComponent}
         headerActions={(
-          <Button
-            onClick={selectAllTeams}
-            variant="outlined"
-            size="small"
-          >
+          <Button type="button" priority="secondary" size="sm" onClick={selectAllTeams}>
             {t('Select all')}
           </Button>
         )}
