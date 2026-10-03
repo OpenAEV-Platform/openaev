@@ -4242,5 +4242,10 @@
   "your trial license online": "la vostra licenza di prova online",
   "YYYY": "AAAA",
   "Zoom in": "Ingrandisci",
-  "Zoom out": "Riduci"
+  "Zoom out": "Riduci",
+  "notification_trigger_name": "Nome",
+  "notification_trigger_type": "Tipo",
+  "notification_trigger_resource_type": "Tipo di risorsa",
+  "notification_trigger_enabled": "Abilitato",
+  "notification_trigger_event_types": "Eventi"
 }
