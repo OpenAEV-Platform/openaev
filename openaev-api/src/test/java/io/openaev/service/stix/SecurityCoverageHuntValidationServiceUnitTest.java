@@ -693,6 +693,45 @@ class SecurityCoverageHuntValidationServiceUnitTest {
     }
 
     @Test
+    @DisplayName("given the tenant budget already spent should start no call and leave all due")
+    void given_budgetSpent_should_startNoCall() throws Exception {
+      // Act
+      List<HuntValidationOutcome> outcomes =
+          service.send(TENANT_ID, List.of(request("1"), request("2")), Instant.now());
+
+      // Assert
+      assertThat(outcomes).isEmpty();
+      verify(openCTIConnectorService, never()).validateHuntFromEmulation(any(), any(), any());
+      verify(resultsMetricCollector).recordCoverageHuntValidationsSent(0L);
+    }
+
+    @Test
+    @DisplayName("given the tenant budget spent during a call should leave the rest untried")
+    void given_budgetSpentDuringCall_should_leaveTheRestUntried() throws Exception {
+      // Arrange
+      when(openCTIConnectorService.validateHuntFromEmulation(eq(TENANT_ID), any(), any()))
+          .thenAnswer(
+              invocation -> {
+                Thread.sleep(600);
+                return huntValidation(1, 1);
+              });
+
+      // Act
+      List<HuntValidationOutcome> outcomes =
+          service.send(
+              TENANT_ID,
+              List.of(request("1"), request("2"), request("3")),
+              Instant.now().plusMillis(500));
+
+      // Assert
+      assertThat(outcomes)
+          .containsExactly(
+              new HuntValidationOutcome("1", HuntValidationOutcome.Kind.VALIDATED, 1, 1, null));
+      verify(openCTIConnectorService, times(1)).validateHuntFromEmulation(any(), any(), any());
+      verify(resultsMetricCollector).recordCoverageHuntValidationsSent(1L);
+    }
+
+    @Test
     @DisplayName("given an open transaction should refuse to hold it across the HTTP calls")
     void given_openTransaction_should_refuse() throws Exception {
       // Arrange

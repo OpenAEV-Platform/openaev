@@ -10,6 +10,8 @@ import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidat
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationRequest;
 import io.openaev.service.tenants.TenantService;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,10 @@ import org.springframework.stereotype.Component;
  * always postponed or given up. Per tenant: the due validations are read in a short scoped
  * transaction, sent to OpenCTI with no transaction open, and their outcomes recorded in a second
  * short scoped transaction. A tenant that fails is logged in one line and never stops the others.
+ *
+ * <p>Tenants are visited in a random order and each starts calls for at most {@code
+ * SecurityCoverageHuntValidationService.TENANT_SEND_BUDGET} per run, so a slow OpenCTI never
+ * starves the tenants visited after it.
  */
 @Component
 @RequiredArgsConstructor
@@ -50,7 +56,9 @@ public class SecurityCoverageHuntValidationJob implements Job {
     if (!huntValidationService.isEnabled()) {
       return;
     }
-    for (String tenantId : tenantService.findActiveTenantIds()) {
+    List<String> tenantIds = new ArrayList<>(tenantService.findActiveTenantIds());
+    Collections.shuffle(tenantIds);
+    for (String tenantId : tenantIds) {
       try {
         deliverForTenant(tenantId);
       } catch (Exception e) {
