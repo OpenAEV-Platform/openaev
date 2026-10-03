@@ -1,0 +1,53 @@
+package io.openaev.database.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * One IOC of an IOC validation request, stored in the {@code ioc_validation_iocs} JSON column. It
+ * records what OpenCTI asked for, what OpenAEV actually runs once the tenant allow-list is applied,
+ * and the injects built for it, so results can be traced back to the indicator.
+ */
+@Data
+@NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class IocValidationIoc {
+
+  @JsonProperty("ioc_indicator_ref")
+  private String indicatorRef;
+
+  @JsonProperty("ioc_indicator_name")
+  private String indicatorName;
+
+  @JsonProperty("ioc_observable_type")
+  private String observableType;
+
+  @JsonProperty("ioc_value")
+  private String value;
+
+  @JsonProperty("ioc_requested_test_kind")
+  private IocValidationTestKind requestedTestKind;
+
+  /** Test kind actually run; {@code null} when the IOC is skipped. */
+  @JsonProperty("ioc_test_kind")
+  private IocValidationTestKind testKind;
+
+  @JsonProperty("ioc_file_name")
+  private String fileName;
+
+  @JsonProperty("ioc_hashes")
+  private Map<String, String> hashes = new LinkedHashMap<>();
+
+  @JsonProperty("ioc_inject_ids")
+  private List<String> injectIds = new ArrayList<>();
+
+  /** Why the IOC was skipped, or how it was adapted (sinkhole, DNS fallback). */
+  @JsonProperty("ioc_message")
+  private String message;
+}

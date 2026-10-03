@@ -10,6 +10,7 @@ import { useQueryableWithLocalStorage } from '../../../components/common/queryab
 import { useFormatter } from '../../../components/i18n';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import AtomicTestingsTabs from './AtomicTestingsTabs';
 import InjectResultList from './InjectResultList';
 
 const AtomicTestings = () => {
@@ -42,6 +43,7 @@ const AtomicTestings = () => {
           current: true,
         }]}
       />
+      <AtomicTestingsTabs />
       <InjectResultList
         showActions
         fetchInjects={searchAtomicTestings}
