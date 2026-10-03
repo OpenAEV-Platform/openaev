@@ -78,6 +78,20 @@ public class PayloadService {
       "#{" + DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY + "}";
   private static final String DYNAMIC_DNS_RESOLUTION_UUID = "ff16dc60-ea6f-4925-8509-20557e09c676";
 
+  // -- IOC VALIDATION DYNAMIC PAYLOADS --
+  // Per-tenant, per-executor singleton Command payloads carrying the benign test of one IOC. Their
+  // values are passed per inject through the inject content, keyed by these argument keys.
+  public static final String IOC_VALIDATION_HOST_KEY = "ioc_validation_host";
+  public static final String IOC_VALIDATION_PORT_KEY = "ioc_validation_port";
+  public static final String IOC_VALIDATION_URL_KEY = "ioc_validation_url";
+  public static final String IOC_VALIDATION_PROXY_KEY = "ioc_validation_proxy";
+  public static final String IOC_VALIDATION_VALUE_KEY = "ioc_validation_value";
+  public static final String IOC_VALIDATION_FILE_NAME_KEY = "ioc_validation_file_name";
+  public static final String IOC_VALIDATION_WINDOWS_EXECUTOR = "psh";
+  public static final String IOC_VALIDATION_POSIX_EXECUTOR = "sh";
+  private static final String IOC_VALIDATION_PAYLOAD_NAMESPACE =
+      "6f6d2a7b-6c90-4a3a-8d2b-2f2c9a0d7e10";
+
   @Resource protected ObjectMapper mapper;
 
   private final PayloadRepository payloadRepository;
@@ -637,6 +651,196 @@ public class PayloadService {
             tenantId),
         tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
+  }
+
+  /**
+   * Upserts the per-tenant, per-executor Command payload that runs the benign test of an IOC
+   * validation kind (network connect, HTTP HEAD, log injection or file-drop surrogate). DNS
+   * resolution is served by {@link #getDynamicDnsResolutionPayload} instead. The payload is a
+   * singleton keyed by (kind, executor, tenant); callers pass the per-IOC values through the inject
+   * content using the {@code IOC_VALIDATION_*_KEY} argument keys.
+   *
+   * @param executor the implant executor, {@code psh} (Windows) or {@code sh} (Linux/macOS)
+   */
+  public Command getIocValidationCommandPayload(
+      TxCtx ctx, IocValidationTestKind kind, String executor) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
+    String payloadId = iocValidationPayloadId(kind, executor, writeTenant);
+    return payloadRepository
+        .findById(payloadId)
+        .map(Command.class::cast)
+        .orElseGet(() -> createIocValidationCommandPayload(ctx, kind, executor, writeTenant));
+  }
+
+  private String iocValidationPayloadId(
+      IocValidationTestKind kind, String executor, String tenantId) {
+    return UUID.nameUUIDFromBytes(
+            (IOC_VALIDATION_PAYLOAD_NAMESPACE + ":" + kind.name() + ":" + executor + ":" + tenantId)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8))
+        .toString();
+  }
+
+  @Lock(type = LockResourceType.PAYLOAD, key = "#tenantId")
+  private Command createIocValidationCommandPayload(
+      TxCtx ctx, IocValidationTestKind kind, String executor, String tenantId) {
+    boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
+    Command payload = new Command();
+    payload.setId(iocValidationPayloadId(kind, executor, tenantId));
+    payload.setTenant(new Tenant(tenantId));
+    payload.setExecutor(executor);
+    payload.setContent(iocValidationCommandContent(kind, windows));
+    if (kind == IocValidationTestKind.FILE_DROP) {
+      payload.setCleanupExecutor(executor);
+      payload.setCleanupCommand(
+          windows
+              ? "Remove-Item -Force -ErrorAction SilentlyContinue -Path (Join-Path"
+                  + " ([System.IO.Path]::GetTempPath()) #{"
+                  + IOC_VALIDATION_FILE_NAME_KEY
+                  + "})"
+              : "rm -f \"${TMPDIR:-/tmp}/\"#{" + IOC_VALIDATION_FILE_NAME_KEY + "}");
+    }
+    payload.setName(iocValidationPayloadName(kind, executor));
+    payload.setDescription(
+        "Benign OpenCTI IOC validation test (" + kind.toStix() + ") run via " + executor);
+    payload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    payload.setSource(Payload.PAYLOAD_SOURCE.FILIGRAN);
+    payload.setPlatforms(
+        windows
+            ? new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Windows}
+            : new Endpoint.PLATFORM_TYPE[] {
+              Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
+            });
+    payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+    payload.setArguments(new ArrayList<>(iocValidationArguments(kind)));
+    payload.setExpectations(
+        new BaseInjectExpectation.EXPECTATION_TYPE[] {
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
+        });
+
+    Command saved = payloadRepository.save(payload);
+    synchroniseInjectorContractBasedOnPayload(
+        saved,
+        List.of(),
+        domainService.upsertDomainEntities(
+            Set.of(PresetDomain.getEndpoint(), PresetDomain.getNetwork()), tenantId),
+        tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+    return saved;
+  }
+
+  private static String iocValidationPayloadName(IocValidationTestKind kind, String executor) {
+    return switch (kind) {
+      case NETWORK_TRAFFIC -> "IOC validation - network connect (" + executor + ")";
+      case HTTP_HEAD -> "IOC validation - HTTP HEAD (" + executor + ")";
+      case LOG_INJECTION -> "IOC validation - log injection (" + executor + ")";
+      case FILE_DROP -> "IOC validation - file drop surrogate (" + executor + ")";
+      case DNS_RESOLUTION ->
+          throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
+    };
+  }
+
+  private List<PayloadArgument> iocValidationArguments(IocValidationTestKind kind) {
+    return switch (kind) {
+      case NETWORK_TRAFFIC ->
+          List.of(
+              textArgument(IOC_VALIDATION_HOST_KEY, "127.0.0.1"),
+              textArgument(IOC_VALIDATION_PORT_KEY, "443"));
+      case HTTP_HEAD ->
+          List.of(
+              textArgument(IOC_VALIDATION_URL_KEY, "http://localhost"),
+              textArgument(IOC_VALIDATION_PROXY_KEY, ""));
+      case LOG_INJECTION -> List.of(textArgument(IOC_VALIDATION_VALUE_KEY, "benign"));
+      case FILE_DROP -> List.of(textArgument(IOC_VALIDATION_FILE_NAME_KEY, "benign.txt"));
+      case DNS_RESOLUTION ->
+          throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
+    };
+  }
+
+  private static PayloadArgument textArgument(String key, String defaultValue) {
+    PayloadArgument argument = new PayloadArgument();
+    argument.setType(PrimitiveType.Text);
+    argument.setKey(key);
+    argument.setDefaultValue(defaultValue);
+    return argument;
+  }
+
+  /**
+   * The benign command template per kind. Every action is read-only or writes a short marker: a TCP
+   * connect-and-close (no payload), an HTTP HEAD through the configured egress proxy, one log line,
+   * or a small text file named after the IOC in the temp directory. Placeholders are bound as shell
+   * variables by {@link io.openaev.utils.command.CommandArgumentBinder}, never substituted verbatim.
+   */
+  static String iocValidationCommandContent(IocValidationTestKind kind, boolean windows) {
+    String host = placeholder(IOC_VALIDATION_HOST_KEY);
+    String port = placeholder(IOC_VALIDATION_PORT_KEY);
+    String url = placeholder(IOC_VALIDATION_URL_KEY);
+    String proxy = placeholder(IOC_VALIDATION_PROXY_KEY);
+    String value = placeholder(IOC_VALIDATION_VALUE_KEY);
+    String fileName = placeholder(IOC_VALIDATION_FILE_NAME_KEY);
+    if (windows) {
+      return switch (kind) {
+        case NETWORK_TRAFFIC ->
+            "$client = New-Object System.Net.Sockets.TcpClient; try { [void]$client.ConnectAsync("
+                + host
+                + ", [int]"
+                + port
+                + ").Wait(5000) } catch { } finally { $client.Close() }";
+        case HTTP_HEAD ->
+            "try { Invoke-WebRequest -UseBasicParsing -Method Head -TimeoutSec 10 -Proxy "
+                + proxy
+                + " -Uri "
+                + url
+                + " | Out-Null } catch { }";
+        case LOG_INJECTION ->
+            "$message = 'OpenAEV IOC validation marker: ' + "
+                + value
+                + "; try { if (-not [System.Diagnostics.EventLog]::SourceExists('OpenAEV')) {"
+                + " [System.Diagnostics.EventLog]::CreateEventSource('OpenAEV', 'Application') };"
+                + " [System.Diagnostics.EventLog]::WriteEntry('OpenAEV', $message, 'Information',"
+                + " 4242) } catch { Add-Content -Path (Join-Path ([System.IO.Path]::GetTempPath())"
+                + " 'openaev-ioc-validation.log') -Value $message }";
+        case FILE_DROP ->
+            "Set-Content -Path (Join-Path ([System.IO.Path]::GetTempPath()) "
+                + fileName
+                + ") -Value 'OpenAEV IOC validation benign surrogate'";
+        case DNS_RESOLUTION ->
+            throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
+      };
+    }
+    return switch (kind) {
+      case NETWORK_TRAFFIC ->
+          "if command -v nc >/dev/null 2>&1; then nc -z -w 5 "
+              + host
+              + " "
+              + port
+              + "; else bash -c 'exec 3<>\"/dev/tcp/$1/$2\" && exec 3<&-' openaev "
+              + host
+              + " "
+              + port
+              + "; fi; true";
+      case HTTP_HEAD ->
+          "curl -sS -I -o /dev/null --connect-timeout 5 --max-time 10 --proxy "
+              + proxy
+              + " "
+              + url
+              + "; true";
+      case LOG_INJECTION ->
+          "OAEV_IOC_MESSAGE=\"OpenAEV IOC validation marker: \""
+              + value
+              + "; logger -t openaev-ioc-validation -- \"$OAEV_IOC_MESSAGE\" 2>/dev/null"
+              + " || printf '%s\\n' \"$OAEV_IOC_MESSAGE\""
+              + " >> \"${TMPDIR:-/tmp}/openaev-ioc-validation.log\"; true";
+      case FILE_DROP ->
+          "printf 'OpenAEV IOC validation benign surrogate\\n' > \"${TMPDIR:-/tmp}/\""
+              + fileName
+              + "; true";
+      case DNS_RESOLUTION ->
+          throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
+    };
+  }
+
+  private static String placeholder(String argumentKey) {
+    return "#{" + argumentKey + "}";
   }
 
   // Transactional so the payload delete and the chaining step sweep commit or roll back together:

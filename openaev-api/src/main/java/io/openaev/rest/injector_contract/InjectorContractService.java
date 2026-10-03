@@ -148,6 +148,11 @@ public class InjectorContractService implements DependenciesManager {
         .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
   }
 
+  /** The injector contract generated for a payload, if the payload has one. */
+  public Optional<InjectorContract> injectorContractByPayload(@NotNull final Payload payload) {
+    return injectorContractRepository.findInjectorContractByPayload(payload);
+  }
+
   /**
    * Retrieves an injector contract by ID, only if it is referenced by one of the given workflow's
    * steps.

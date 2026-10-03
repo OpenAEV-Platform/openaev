@@ -21,6 +21,13 @@ public class CTIEvent {
     @JsonProperty(value = "stix_objects", required = true)
     @NotBlank
     private String stixObjects;
+
+    /** Internal id of the OpenCTI entity the event is about (IOC validation request id). */
+    @JsonProperty("entity_id")
+    private String entityId;
+
+    @JsonProperty("entity_type")
+    private String entityType;
   }
 
   @JsonProperty(value = "internal", required = true)

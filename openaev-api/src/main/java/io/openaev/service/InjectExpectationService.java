@@ -205,6 +205,18 @@ public class InjectExpectationService {
         injectId, tenantId);
   }
 
+  /**
+   * The primary expectations (the ones attached to the inject's own targets, not the per-agent
+   * children) of the given injects, in one query. Same selection as the global score computation.
+   */
+  public List<BaseInjectExpectation> findPrimaryExpectationsByInjectIds(
+      @NotNull final Set<String> injectIds) {
+    if (injectIds.isEmpty()) {
+      return List.of();
+    }
+    return this.injectExpectationRepository.findAllForGlobalScoreByInjects(injectIds);
+  }
+
   // -- UPDATE FROM UI --
 
   /**

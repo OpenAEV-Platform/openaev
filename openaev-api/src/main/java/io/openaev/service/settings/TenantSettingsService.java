@@ -127,6 +127,12 @@ public class TenantSettingsService {
         tenant, themeType, Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE, input.getLoginAsideImage());
   }
 
+  /** Creates or replaces the tenant-level value of one setting key. */
+  public void updateSettingValue(
+      @NotBlank String tenantId, TenantSettingKeys key, String value) {
+    upsert(new Tenant(tenantId), key.key(), value);
+  }
+
   /** Clear a tenant setting value if it matches the given value. */
   public void clearSettingIfMatch(
       @NotBlank String tenantId, @NotBlank String key, @NotBlank String value) {
