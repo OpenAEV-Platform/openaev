@@ -213,7 +213,9 @@ jobs:
               ref: headSha,
               environment,
               description: `Feature branch ${headRef}`,
-              transient_environment: true,
+              // Not transient: GitHub only auto-inactivates prior non-transient deployments,
+              // which retires the previously live commit once a newer one succeeds
+              transient_environment: false,
               production_environment: false,
               auto_merge: false,
               required_contexts: [],

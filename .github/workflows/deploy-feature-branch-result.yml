@@ -9,7 +9,9 @@ name: "[Core] Deploy Feature Branch Result"
 #     log_url, docker_tag, dry_run }
 #
 # It posts the status on the PR's GitHub deployment and, on success, writes the
-# environment URL under the Deployment checkbox of the PR description.
+# environment URL under the Deployment checkbox of the PR description. A
+# success retires the previously live deployment; a result for a closed PR
+# leaves the deployment inactive.
 #
 # SECURITY: This workflow NEVER checks out code, and repository_dispatch runs it
 # from the default branch. deployment_id comes from build metadata produced by a
@@ -79,18 +81,32 @@ jobs:
               state,
               description: String(result.description ?? '').slice(0, 140),
               log_url: logUrl,
-              environment_url: environmentUrl || undefined
+              environment_url: environmentUrl || undefined,
+              // Only a success retires the previously live deployment; after a failure it stays live
+              auto_inactive: state === 'success'
             });
             core.info(`Deployment ${deploymentId} of PR #${prNumber} marked ${state}`);
 
-            if (state !== 'success') return;
-
-            // Re-read the body right before writing so a concurrent human edit is kept
+            // A result can land after the PR was closed and its deployments deactivated.
+            // Checking after publishing also covers a close racing with this run.
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
             if (pr.state !== 'open') {
-              core.info(`PR #${prNumber} is ${pr.state}, description left unchanged`);
+              if (state !== 'inactive') {
+                await github.rest.repos.createDeploymentStatus({
+                  owner, repo,
+                  deployment_id: deploymentId,
+                  state: 'inactive',
+                  description: 'PR closed',
+                  auto_inactive: false
+                });
+              }
+              core.info(`PR #${prNumber} is ${pr.state}, deployment ${deploymentId} kept inactive`);
               return;
             }
+
+            if (state !== 'success') return;
+
+            // The body was read just above, right before writing, so a concurrent human edit is kept
 
             // Keep in sync with the BOX pattern of deploy-feature-branch.yml
             const BOX = /^([ \t]*)[-*+][ \t]+\[[ xX]\][^\r\n]*<!--\s*feature-deploy\s*-->[^\r\n]*/m;
