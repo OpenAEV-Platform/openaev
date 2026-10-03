@@ -40,8 +40,16 @@
         {
             customType: 'regex',
             managerFilePatterns: ['/^pom\.xml$/'],
-            matchStrings: ['<jackson-bom\.version>(?<currentValue>.*?)</jackson-bom\.version>'],
+            matchStrings: ['<jackson-2-bom\.version>(?<currentValue>.*?)</jackson-2-bom\.version>'],
             depNameTemplate: 'com.fasterxml.jackson:jackson-bom',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<jackson-bom\.version>(?<currentValue>.*?)</jackson-bom\.version>'],
+            depNameTemplate: 'tools.jackson:jackson-bom',
             datasourceTemplate: 'maven',
             versioningTemplate: 'maven',
         },

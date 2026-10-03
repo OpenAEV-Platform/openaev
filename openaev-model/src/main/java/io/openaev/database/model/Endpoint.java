@@ -169,7 +169,7 @@ public class Endpoint extends Asset implements AuditStateCapturable {
       inverseJoinColumns = @JoinColumn(name = "inject_id"))
   @JsonIgnore
   @AuditStateIgnore
-  private List<Inject> injects = new ArrayList<>();
+  private Set<Inject> injects = new HashSet<>();
 
   /**
    * Keeps the legacy invariants while platform/arch are optional at the API layer: agent and

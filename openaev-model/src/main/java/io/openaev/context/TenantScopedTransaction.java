@@ -2,6 +2,7 @@ package io.openaev.context;
 
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -255,6 +256,7 @@ public class TenantScopedTransaction {
   private void setScope(String scope) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
+        .setFlushMode(FlushModeType.COMMIT)
         .setParameter("scope", scope)
         .getSingleResult();
   }
@@ -262,6 +264,7 @@ public class TenantScopedTransaction {
   private void setMarkingScope(String scope) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_markings', :scope, true)")
+        .setFlushMode(FlushModeType.COMMIT)
         .setParameter("scope", scope)
         .getSingleResult();
   }

@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.16</version>
+        <version>4.0.8</version>
     </parent>
 
     <groupId>io.openaev</groupId>
@@ -31,7 +31,8 @@
         <postgresql.version>42.7.13</postgresql.version>
         <pyroscope.version>2.9.2</pyroscope.version>
         <bouncycastle.version>1.86.1</bouncycastle.version>
-        <jackson-bom.version>2.22.3</jackson-bom.version>
+        <jackson-bom.version>3.2.3</jackson-bom.version>
+        <jackson-2-bom.version>2.22.3</jackson-2-bom.version>
         <netty.version>4.2.18.Final</netty.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <tools-jackson-core.version>3.2.3</tools-jackson-core.version>

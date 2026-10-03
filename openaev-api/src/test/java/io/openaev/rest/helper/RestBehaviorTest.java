@@ -43,6 +43,27 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 @DisplayName("RestBehavior exception mapping")
 class RestBehaviorTest {
 
+  /**
+   * Spring Framework 7 dropped the short {@code ParameterValidationResult} constructors and only
+   * keeps the seven-argument one. This mirrors what the removed three-argument constructor did: no
+   * container, no index, no key, and a source lookup that refuses every type.
+   */
+  private static ParameterValidationResult validationResult(
+      MethodParameter parameter,
+      Object argument,
+      List<? extends MessageSourceResolvable> resolvableErrors) {
+    return new ParameterValidationResult(
+        parameter,
+        argument,
+        resolvableErrors,
+        null,
+        null,
+        null,
+        (error, sourceType) -> {
+          throw new IllegalArgumentException("No source object of the given type");
+        });
+  }
+
   @Test
   @DisplayName("a tenant-filtering refusal maps to 500 with a clear code")
   void tenantFilteringRefusalMapsToClear500() {
@@ -577,8 +598,7 @@ class RestBehaviorTest {
       Method method = updateActionLikeMethod();
       MethodParameter bodyParameter = new MethodParameter(method, 1);
       ParameterValidationResult result =
-          new ParameterValidationResult(
-              bodyParameter, new SampleValidationInput(), List.of(fieldErrors));
+          validationResult(bodyParameter, new SampleValidationInput(), List.of(fieldErrors));
       MethodValidationResult validation =
           MethodValidationResult.create(this, method, List.of(result));
       return new HandlerMethodValidationException(validation);
@@ -642,8 +662,7 @@ class RestBehaviorTest {
       pathParameter.initParameterNameDiscovery(new DefaultParameterNameDiscoverer());
       MessageSourceResolvable resolvable =
           new DefaultMessageSourceResolvable(new String[] {"NotBlank"}, "must not be blank");
-      ParameterValidationResult result =
-          new ParameterValidationResult(pathParameter, "", List.of(resolvable));
+      ParameterValidationResult result = validationResult(pathParameter, "", List.of(resolvable));
       HandlerMethodValidationException ex =
           new HandlerMethodValidationException(
               MethodValidationResult.create(this, method, List.of(result)));
@@ -684,22 +703,26 @@ class RestBehaviorTest {
         "unnamed same-typed parameters get distinct positional labels instead of colliding")
     void given_unnamedParameters_should_labelPositionallyWithoutCollision()
         throws NoSuchMethodException {
-      // GIVEN - two String parameters whose names are unavailable (no discoverer initialized,
-      // as when sources are not compiled with -parameters): a type-based fallback would label
-      // both "String" and clobber one children entry
+      // GIVEN - two String parameters whose names are unavailable (as when sources are not
+      // compiled with -parameters): a type-based fallback would label both "String" and clobber
+      // one children entry. Spring 7 discovers names by default, so discovery is turned off.
       Method method =
           HandlerMethodValidationHandling.class.getDeclaredMethod(
               "linkActionsLike", String.class, String.class);
+      MethodParameter firstParameter = new MethodParameter(method, 0);
+      firstParameter.initParameterNameDiscovery(null);
+      MethodParameter secondParameter = new MethodParameter(method, 1);
+      secondParameter.initParameterNameDiscovery(null);
       ParameterValidationResult first =
-          new ParameterValidationResult(
-              new MethodParameter(method, 0),
+          validationResult(
+              firstParameter,
               "",
               List.of(
                   new DefaultMessageSourceResolvable(
                       new String[] {"NotBlank"}, "must not be blank")));
       ParameterValidationResult second =
-          new ParameterValidationResult(
-              new MethodParameter(method, 1),
+          validationResult(
+              secondParameter,
               "x",
               List.of(
                   new DefaultMessageSourceResolvable(
@@ -779,7 +802,7 @@ class RestBehaviorTest {
       // broken response contract is a server bug, not a client mistake
       Method method = HandlerMethodValidationHandling.class.getDeclaredMethod("renderActionLike");
       ParameterValidationResult result =
-          new ParameterValidationResult(
+          validationResult(
               new MethodParameter(method, -1),
               "",
               List.of(

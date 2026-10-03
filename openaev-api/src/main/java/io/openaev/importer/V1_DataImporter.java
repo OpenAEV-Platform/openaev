@@ -53,6 +53,7 @@ import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.FlushModeType;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -295,6 +296,7 @@ public class V1_DataImporter implements Importer {
             entityManager
                 .createNativeQuery(
                     "SELECT coalesce(current_setting('app.current_tenants', true), '')")
+                .setFlushMode(FlushModeType.COMMIT)
                 .getSingleResult();
     if (guc.isBlank()) {
       return fallback;
@@ -1125,11 +1127,11 @@ public class V1_DataImporter implements Importer {
               if (savedExercise != null) {
                 Set<Exercise> exercises = new HashSet<>(team.getExercises());
                 exercises.add(savedExercise);
-                team.setExercises(exercises.stream().toList());
+                team.setExercises(exercises);
               } else if (savedScenario != null) {
                 Set<Scenario> scenarios = new HashSet<>(team.getScenarios());
                 scenarios.add(savedScenario);
-                team.setScenarios(scenarios.stream().toList());
+                team.setScenarios(scenarios);
               }
             });
     baseIds.putAll(baseTeams);
@@ -1716,13 +1718,17 @@ public class V1_DataImporter implements Importer {
             if (assetGroup != null
                 && injectorContractContentUtils.hasField(
                     inject.getInjectorContract().get(), "asset_groups")) {
-              inject.getAssetGroups().add(assetGroup);
+              // Native insert (not inject.getAssetGroups().add(...)) to avoid Hibernate 7's
+              // "cannot recreate collection while filter is enabled" on this
+              // @Filter(tenantFilter)'d, EAGER, FetchMode.SUBSELECT many-to-many. See
+              // InjectRepository#addAssetGroup for details.
+              injectRepository.addAssetGroup(injectId, assetGroup.getId());
             } else if (asset != null
                 && injectorContractContentUtils.hasField(
                     inject.getInjectorContract().get(), "assets")) {
-              inject.getAssets().add(asset);
+              // Native insert (not inject.getAssets().add(...)) for the same reason as above.
+              injectRepository.addAsset(injectId, asset.getId());
             }
-            injectRepository.save(inject);
           }
         });
     // Looking for children of created injects

@@ -212,13 +212,15 @@ public interface InjectRepository
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
+  // Ids only: Hibernate 7 cannot map Inject from a native result set, its tenant-scoped
+  // @JoinFormula associations need generated column aliases a plain select i.* does not carry.
   @Query(
       value =
-          "select i.*, i.tenant_id as tenantId from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+          "select i.inject_id from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
               + " and i.inject_content like :challengeId"
               + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
-  List<Inject> findAllForChallengeId(@Param("challengeId") String challengeId);
+  List<String> findAllIdsForChallengeId(@Param("challengeId") String challengeId);
 
   @Query(
       value =
@@ -311,6 +313,29 @@ public interface InjectRepository
       value = "insert into injects_teams (inject_id, team_id) values (:injectId, :teamId)",
       nativeQuery = true)
   void addTeam(@Param("injectId") String injectId, @Param("teamId") String teamId);
+
+  // Inserted directly through a native query rather than via the JPA-managed collection: the
+  // assetGroups field is a @Filter(tenantFilter)'d, EAGER, FetchMode.SUBSELECT many-to-many, and
+  // Hibernate 7 refuses to plan a delete-all+reinsert ("recreate") for such a collection while the
+  // filter is enabled (HibernateException: "cannot recreate collection while filter is enabled").
+  // Hibernate 6 tolerated this recreate plan; Hibernate 7 enforces it strictly, so collection
+  // mutation must be bypassed here the same way addTag/addTeam already do above.
+  @Modifying
+  @Query(
+      value =
+          "insert into injects_asset_groups (inject_id, asset_group_id) values (:injectId,"
+              + " :assetGroupId)",
+      nativeQuery = true)
+  void addAssetGroup(
+      @Param("injectId") String injectId, @Param("assetGroupId") String assetGroupId);
+
+  // See addAssetGroup above: same Hibernate 7 collection-recreate-under-filter constraint applies
+  // to the assets field.
+  @Modifying
+  @Query(
+      value = "insert into injects_assets (inject_id, asset_id) values (:injectId, :assetId)",
+      nativeQuery = true)
+  void addAsset(@Param("injectId") String injectId, @Param("assetId") String assetId);
 
   @Override
   @Query(

@@ -17,8 +17,12 @@ import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
 
@@ -26,6 +30,9 @@ import org.springframework.test.context.TestExecutionListeners;
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+@ExtendWith(MockitoExtension.class)
+// Lenient, as the Boot 3 MockitoTestExecutionListener that used to init these mocks was.
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class ManualExecutorTest extends IntegrationTest {
 
   @Mock InjectExpectationService injectExpectationService;

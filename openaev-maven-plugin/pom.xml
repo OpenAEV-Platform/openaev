@@ -21,7 +21,7 @@
       <dependency>
         <groupId>com.fasterxml.jackson</groupId>
         <artifactId>jackson-bom</artifactId>
-        <version>${jackson-bom.version}</version>
+        <version>${jackson-2-bom.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
