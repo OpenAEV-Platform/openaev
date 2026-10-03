@@ -18,6 +18,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationOutcome;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationRequest;
+import io.openaev.service.tenants.TenantService;
 import java.time.Instant;
 import java.util.List;
 import java.util.function.Supplier;
@@ -42,6 +43,7 @@ class SecurityCoverageHuntValidationJobTest {
 
   @Mock private SecurityCoverageHuntValidationService huntValidationService;
   @Mock private TenantScopedTransaction tenantTx;
+  @Mock private TenantService tenantService;
 
   @InjectMocks private SecurityCoverageHuntValidationJob job;
 
@@ -91,7 +93,7 @@ class SecurityCoverageHuntValidationJobTest {
     job.execute(null);
 
     // Assert
-    verify(huntValidationService, never()).tenantsWithRegisteredConnector();
+    verifyNoInteractions(tenantService);
     verify(huntValidationService, never()).send(anyString(), anyList());
     verifyNoInteractions(tenantTx);
   }
@@ -103,8 +105,8 @@ class SecurityCoverageHuntValidationJobTest {
     List<HuntValidationRequest> due = List.of(request("1"));
     List<HuntValidationOutcome> outcomes = List.of(accepted("1"));
     when(huntValidationService.isEnabled()).thenReturn(true);
-    when(huntValidationService.tenantsWithRegisteredConnector()).thenReturn(List.of(TENANT_A));
-    when(huntValidationService.findDueRequests(any(Instant.class))).thenReturn(due);
+    when(tenantService.findActiveTenantIds()).thenReturn(List.of(TENANT_A));
+    when(huntValidationService.collectDueRequests(any(Instant.class))).thenReturn(due);
     when(huntValidationService.send(TENANT_A, due)).thenReturn(outcomes);
 
     // Act
@@ -115,7 +117,7 @@ class SecurityCoverageHuntValidationJobTest {
     order
         .verify(tenantTx)
         .execute(eq(TxCtx.forTenant(TENANT_A)), ArgumentMatchers.<Supplier<Object>>any());
-    order.verify(huntValidationService).findDueRequests(any(Instant.class));
+    order.verify(huntValidationService).collectDueRequests(any(Instant.class));
     order.verify(huntValidationService).send(TENANT_A, due);
     order.verify(tenantTx).execute(eq(TxCtx.forTenant(TENANT_A)), ArgumentMatchers.<Runnable>any());
     order.verify(huntValidationService).recordOutcomes(eq(outcomes), any(Instant.class));
@@ -127,8 +129,8 @@ class SecurityCoverageHuntValidationJobTest {
   void given_nothingDue_should_notSendNorRecord() throws Exception {
     // Arrange
     when(huntValidationService.isEnabled()).thenReturn(true);
-    when(huntValidationService.tenantsWithRegisteredConnector()).thenReturn(List.of(TENANT_A));
-    when(huntValidationService.findDueRequests(any(Instant.class))).thenReturn(List.of());
+    when(tenantService.findActiveTenantIds()).thenReturn(List.of(TENANT_A));
+    when(huntValidationService.collectDueRequests(any(Instant.class))).thenReturn(List.of());
 
     // Act
     job.execute(null);
@@ -144,9 +146,8 @@ class SecurityCoverageHuntValidationJobTest {
     // Arrange
     List<HuntValidationRequest> due = List.of(request("2"));
     when(huntValidationService.isEnabled()).thenReturn(true);
-    when(huntValidationService.tenantsWithRegisteredConnector())
-        .thenReturn(List.of(TENANT_A, TENANT_B));
-    when(huntValidationService.findDueRequests(any(Instant.class)))
+    when(tenantService.findActiveTenantIds()).thenReturn(List.of(TENANT_A, TENANT_B));
+    when(huntValidationService.collectDueRequests(any(Instant.class)))
         .thenThrow(new IllegalStateException("database hiccup"))
         .thenReturn(due);
     when(huntValidationService.send(TENANT_B, due)).thenReturn(List.of(accepted("2")));

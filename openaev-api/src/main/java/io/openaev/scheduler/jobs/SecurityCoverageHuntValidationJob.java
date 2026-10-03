@@ -8,6 +8,7 @@ import io.openaev.service.stix.SecurityCoverageHuntValidationService;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationOutcome;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationOutcome.Kind;
 import io.openaev.service.stix.SecurityCoverageHuntValidationService.HuntValidationRequest;
+import io.openaev.service.tenants.TenantService;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,9 +24,10 @@ import org.springframework.stereotype.Component;
  * tenant, separately from {@link SecurityCoverageJob} so a slow or unreachable OpenCTI never delays
  * a coverage push. Does nothing unless {@code openaev.security-coverage.hunt-validation.enabled}.
  *
- * <p>Per tenant: the due validations are read in a short scoped transaction, sent to OpenCTI with
- * no transaction open, and their outcomes recorded in a second short scoped transaction. A tenant
- * that fails is logged in one line and never stops the others.
+ * <p>Every active tenant is visited, registered connector or not, so that pending validations are
+ * always postponed or given up. Per tenant: the due validations are read in a short scoped
+ * transaction, sent to OpenCTI with no transaction open, and their outcomes recorded in a second
+ * short scoped transaction. A tenant that fails is logged in one line and never stops the others.
  */
 @Component
 @RequiredArgsConstructor
@@ -40,6 +42,7 @@ public class SecurityCoverageHuntValidationJob implements Job {
 
   private final SecurityCoverageHuntValidationService huntValidationService;
   private final TenantScopedTransaction tenantTx;
+  private final TenantService tenantService;
 
   @Override
   @LogExecutionTime
@@ -47,7 +50,7 @@ public class SecurityCoverageHuntValidationJob implements Job {
     if (!huntValidationService.isEnabled()) {
       return;
     }
-    for (String tenantId : huntValidationService.tenantsWithRegisteredConnector()) {
+    for (String tenantId : tenantService.findActiveTenantIds()) {
       try {
         deliverForTenant(tenantId);
       } catch (Exception e) {
@@ -63,7 +66,7 @@ public class SecurityCoverageHuntValidationJob implements Job {
       List<HuntValidationRequest> due =
           tenantTx.execute(
               TxCtx.forTenant(tenantId),
-              () -> huntValidationService.findDueRequests(Instant.now()));
+              () -> huntValidationService.collectDueRequests(Instant.now()));
       if (due.isEmpty()) {
         return;
       }
