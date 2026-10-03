@@ -17,6 +17,7 @@
   "Previous month": "前の月",
   "Response choices": "回答の選択肢",
   "The scheduling can only be changed before the simulation starts. Resetting it reopens the date and clears the collected results.": "スケジュールはシミュレーション開始前にのみ変更できます。リセットすると日付が再び編集可能になり、収集済みの結果は削除されます。",
+  "Type to search the asset groups by name.": "名前でアセットグループを検索するには入力してください。",
   "View in scenario": "シナリオで表示",
   "_": "_",
   "-": "なし",

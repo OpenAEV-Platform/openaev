@@ -17,6 +17,7 @@
   "Previous month": "Vorheriger Monat",
   "Response choices": "Antwortoptionen",
   "The scheduling can only be changed before the simulation starts. Resetting it reopens the date and clears the collected results.": "Die Planung lässt sich nur vor dem Start der Simulation ändern. Ein Zurücksetzen gibt das Datum wieder frei und löscht die erfassten Ergebnisse.",
+  "Type to search the asset groups by name.": "Tippen Sie, um die Asset-Gruppen nach Namen zu suchen.",
   "View in scenario": "Im Szenario anzeigen",
   "_": "_",
   "-": "Keine",

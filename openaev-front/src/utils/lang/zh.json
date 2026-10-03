@@ -17,6 +17,7 @@
   "Previous month": "上个月",
   "Response choices": "回答选项",
   "The scheduling can only be changed before the simulation starts. Resetting it reopens the date and clears the collected results.": "仅可在模拟开始前修改计划。重置会重新开放日期并清除已收集的结果。",
+  "Type to search the asset groups by name.": "输入以按名称搜索资产组。",
   "View in scenario": "在场景中查看",
   "_": "_",
   "-": "-",

@@ -17,6 +17,7 @@
   "Previous month": "Предыдущий месяц",
   "Response choices": "Варианты ответа",
   "The scheduling can only be changed before the simulation starts. Resetting it reopens the date and clears the collected results.": "Расписание можно изменить только до запуска симуляции. Сброс снова открывает дату и удаляет собранные результаты.",
+  "Type to search the asset groups by name.": "Начните вводить, чтобы искать группы активов по имени.",
   "View in scenario": "Открыть в сценарии",
   "_": "_",
   "-": "Нет",

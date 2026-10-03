@@ -1,4 +1,19 @@
-import { Button, Checkbox, Input, Paper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Text } from '@filigran/design-system';
+import {
+  Button,
+  Checkbox,
+  Combobox,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  Input,
+  Paper,
+  Text,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert } from '@mui/material';
 import { useEffect, useState } from 'react';
@@ -35,8 +50,6 @@ interface AssetGroupOption {
 
 // The port is edited as text so a partial or invalid entry stays visible until it is fixed.
 type IocValidationSettingsFormValues = Omit<IocValidationSettingsInput, 'ioc_validation_network_port'> & { ioc_validation_network_port: string };
-
-const NO_ASSET_GROUP = '__none__';
 
 const toFormValues = (settings: IocValidationSettingsOutput): IocValidationSettingsFormValues => ({
   ioc_validation_allowed_test_kinds: settings.ioc_validation_allowed_test_kinds,
@@ -77,13 +90,81 @@ const settingsSchema = zodImplement<IocValidationSettingsFormValues>().with({
   });
 });
 
+const ASSET_GROUP_SEARCH_DELAY_MS = 300;
+
+interface AssetGroupFieldProps {
+  value: string;
+  onChange: (assetGroupId: string) => void;
+  onBlur: () => void;
+}
+
+// Searched by name on the API (bounded results, configured group first), so every group of the tenant is reachable.
+export const AssetGroupField = ({ value, onChange, onBlur }: AssetGroupFieldProps) => {
+  const { t } = useFormatter();
+  const [search, setSearch] = useState('');
+  const [options, setOptions] = useState<AssetGroupOption[]>([]);
+  const [selected, setSelected] = useState<AssetGroupOption | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const timer = setTimeout(() => {
+      searchIocValidationAssetGroupOptions(search)
+        .then((result: { data: AssetGroupOption[] }) => {
+          if (cancelled) return;
+          const found = result.data ?? [];
+          setOptions(found);
+          setSelected(current => current ?? found.find(option => option.id === value) ?? null);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, search ? ASSET_GROUP_SEARCH_DELAY_MS : 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search]);
+
+  return (
+    <Combobox<AssetGroupOption>
+      options={options}
+      value={selected}
+      onValueChange={(option) => {
+        const next = (option as AssetGroupOption | null) ?? null;
+        setSelected(next);
+        onChange(next?.id ?? '');
+      }}
+      onInputChange={(input, meta) => {
+        if (meta.cause === 'type') setSearch(input);
+      }}
+      getOptionLabel={option => option.label}
+      isOptionEqualToValue={(a, b) => a.id === b.id}
+      filterOptions={found => found}
+      loading={loading}
+      clearable
+    >
+      <ComboboxLabel>{t('Asset group running the tests')}</ComboboxLabel>
+      <ComboboxField>
+        <ComboboxInput aria-label={t('Asset group running the tests')} onBlur={onBlur} data-testid="ioc-validation-asset-group" />
+        <ComboboxControls>
+          <ComboboxClear />
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent />
+      <ComboboxHelperText>{t('Type to search the asset groups by name.')}</ComboboxHelperText>
+    </Combobox>
+  );
+};
+
 interface IocValidationSettingsFormProps {
   settings: IocValidationSettingsOutput;
-  assetGroups: AssetGroupOption[];
   onSaved: (settings: IocValidationSettingsOutput) => void;
 }
 
-const IocValidationSettingsForm = ({ settings, assetGroups, onSaved }: IocValidationSettingsFormProps) => {
+const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsFormProps) => {
   const { t } = useFormatter();
   const {
     control,
@@ -217,21 +298,7 @@ const IocValidationSettingsForm = ({ settings, assetGroups, onSaved }: IocValida
             control={control}
             name="ioc_validation_asset_group_id"
             render={({ field }) => (
-              <Select
-                value={field.value || NO_ASSET_GROUP}
-                onValueChange={(value: string) => field.onChange(value === NO_ASSET_GROUP ? '' : value)}
-              >
-                <SelectLabel>{t('Asset group running the tests')}</SelectLabel>
-                <SelectTrigger aria-label={t('Asset group running the tests')}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent aria-label={t('Asset group running the tests')}>
-                  <SelectItem value={NO_ASSET_GROUP}>{t('None')}</SelectItem>
-                  {assetGroups.map(group => (
-                    <SelectItem key={group.id} value={group.id}>{group.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <AssetGroupField value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} />
             )}
           />
         </div>
@@ -264,11 +331,9 @@ const IocValidationSettingsForm = ({ settings, assetGroups, onSaved }: IocValida
 const IocValidationSettings = () => {
   const { t } = useFormatter();
   const [settings, setSettings] = useState<IocValidationSettingsOutput | null>(null);
-  const [assetGroups, setAssetGroups] = useState<AssetGroupOption[]>([]);
 
   useEffect(() => {
     fetchIocValidationSettings().then((result: { data: IocValidationSettingsOutput }) => setSettings(result.data));
-    searchIocValidationAssetGroupOptions('').then((result: { data: AssetGroupOption[] }) => setAssetGroups(result.data ?? []));
   }, []);
 
   if (!settings) {
@@ -295,7 +360,7 @@ const IocValidationSettings = () => {
             {t('The IOC validation connector is not registered in OpenCTI yet: requests and results wait until it is.')}
           </Alert>
         )}
-        <IocValidationSettingsForm settings={settings} assetGroups={assetGroups} onSaved={setSettings} />
+        <IocValidationSettingsForm settings={settings} onSaved={setSettings} />
       </div>
       <CustomizationMenu />
     </div>
