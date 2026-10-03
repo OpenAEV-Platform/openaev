@@ -17,6 +17,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.IocValidation;
 import io.openaev.database.model.IocValidationStatus;
@@ -32,18 +34,21 @@ import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
+@TestPropertySource(properties = "openaev.tenant.active-tables=ioc_validations")
 @WithMockUser(isAdmin = true)
 @DisplayName("IOC validation API tests")
 class IocValidationApiTest extends IntegrationTest {
@@ -61,6 +66,12 @@ class IocValidationApiTest extends IntegrationTest {
   // No OpenCTI is configured in tests: acknowledgements and status reports become no-ops, and the
   // lifecycle stays pending until a connector is registered.
   @MockitoBean private OpenCTIConnectorService openCTIConnectorService;
+  @Autowired private TenantScopedTransaction tenantTx;
+
+  /** ioc_validations is tenant-active: direct repository reads need an explicit scope. */
+  private <T> T scoped(Supplier<T> read) {
+    return tenantTx.execute(TxCtx.allTenants(), read);
+  }
 
   private String ctiEvent(String requestId, String observableType, String value, String testKind) {
     ObjectNode request = mapper.createObjectNode();
@@ -154,7 +165,7 @@ class IocValidationApiTest extends IntegrationTest {
               ctiEvent(
                   UUID.randomUUID().toString(), "IPv4-Addr", "203.0.113.7", "network_traffic"));
 
-      IocValidation validation = iocValidationRepository.findById(id).orElseThrow();
+      IocValidation validation = scoped(() -> iocValidationRepository.findById(id).orElseThrow());
       assertThat(validation.getIocs())
           .singleElement()
           .satisfies(
@@ -179,7 +190,7 @@ class IocValidationApiTest extends IntegrationTest {
     @Test
     @DisplayName("acknowledges a malformed request without recording anything")
     void given_malformedBundle_should_answerOkWithoutRecord() throws Exception {
-      long before = iocValidationRepository.count();
+      long before = scoped(iocValidationRepository::count);
       ObjectNode event = mapper.createObjectNode();
       event.putObject("internal").put("work_id", "work_" + UUID.randomUUID());
       event.putObject("event").put("stix_objects", "{\"type\":\"bundle\",\"objects\":[]}");
@@ -191,7 +202,8 @@ class IocValidationApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isOk());
 
-      assertThat(iocValidationRepository.count()).isEqualTo(before);
+      long after = scoped(iocValidationRepository::count);
+      assertThat(after).isEqualTo(before);
     }
   }
 
@@ -242,7 +254,7 @@ class IocValidationApiTest extends IntegrationTest {
 
       mvc.perform(post(IOC_VALIDATION_URI + "/" + id + "/approve").with(csrf()))
           .andExpect(status().isBadRequest());
-      assertThat(iocValidationRepository.findById(id).orElseThrow().getStatus())
+      assertThat(scoped(() -> iocValidationRepository.findById(id).orElseThrow()).getStatus())
           .isEqualTo(IocValidationStatus.AWAITING_APPROVAL);
     }
 
