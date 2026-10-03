@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -20,6 +21,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
@@ -35,7 +37,11 @@ import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -257,6 +263,18 @@ public class ExecutorApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Agent downloads")
   public class AgentDownloadsTest {
+    // The signature shipped in the .sig sidecar of a fixture binary, which the download must
+    // forward. The sidecar ends with a newline, as `openssl base64 -A` writes it. A missing
+    // sidecar fails the test rather than silently expecting no header.
+    private static String signatureFixture(String binaryPath) throws IOException {
+      try (InputStream in =
+          Objects.requireNonNull(
+              ExecutorApiTest.class.getResourceAsStream(binaryPath + ".sig"),
+              "Missing signature fixture " + binaryPath + ".sig")) {
+        return new String(in.readAllBytes(), StandardCharsets.US_ASCII).trim();
+      }
+    }
+
     private static Stream<Arguments> platformArchCombinationsFailure() {
       return Stream.of(
           Arguments.of(
@@ -454,6 +472,17 @@ public class ExecutorApiTest extends IntegrationTest {
     @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.INSTALL_AGENT})
     public void given_platformAndArch_then_downloadOutcomeSuccess(
         String platform, String arch, String installType) throws Exception {
+      String filename =
+          switch (installType) {
+            case EndpointService.SERVICE -> "openaev-agent-installer-Testing.exe";
+            default -> "openaev-agent-installer-%s-Testing.exe".formatted(installType);
+          };
+      String resourcePath =
+          "/agents/openaev-agent/%s/%s/%s"
+              .formatted(
+                  platform.toLowerCase(),
+                  AgentUtils.getCanonicalArchitectureString(arch.toLowerCase()),
+                  filename);
 
       byte[] agentBytes =
           mvc.perform(
@@ -461,23 +490,17 @@ public class ExecutorApiTest extends IntegrationTest {
                       .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
                       .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
               .andExpect(status().is2xxSuccessful())
+              .andExpect(
+                  header()
+                      .stringValues(RestBehavior.SIGNATURE_HEADER, signatureFixture(resourcePath)))
+              // The test build is versioned "Testing", which the installer scripts cannot compare
+              .andExpect(header().doesNotExist(RestBehavior.VERSION_HEADER))
               .andReturn()
               .getResponse()
               .getContentAsByteArray();
 
-      String filename =
-          switch (installType) {
-            case EndpointService.SERVICE -> "openaev-agent-installer-Testing.exe";
-            default -> "openaev-agent-installer-%s-Testing.exe".formatted(installType);
-          };
       assertThat(HashUtils.getSha256HexDigest(agentBytes))
-          .isEqualTo(
-              HashUtils.getSha256HexDigest(
-                  "/agents/openaev-agent/%s/%s/%s"
-                      .formatted(
-                          platform.toLowerCase(),
-                          AgentUtils.getCanonicalArchitectureString(arch.toLowerCase()),
-                          filename)));
+          .isEqualTo(HashUtils.getSha256HexDigest(resourcePath));
     }
 
     private static Stream<Arguments> installationModeFailure() {
@@ -531,30 +554,36 @@ public class ExecutorApiTest extends IntegrationTest {
     @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.INSTALL_AGENT})
     public void given_platformAndArch_then_downloadExecutableSucceeds(String platform, String arch)
         throws Exception {
-      byte[] agentBytes =
-          mvc.perform(
-                  get("/api/agent/executable/openaev/%s/%s".formatted(platform, arch))
-                      .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
-                      .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsByteArray();
-
       String baseFilename = "openaev-agent-Testing";
       String filename =
           switch (platform) {
             case "Windows" -> "%s.exe".formatted(baseFilename);
             default -> baseFilename;
           };
+      String resourcePath =
+          "/agents/openaev-agent/%s/%s/%s"
+              .formatted(
+                  platform.toLowerCase(),
+                  AgentUtils.getCanonicalArchitectureString(arch.toLowerCase()),
+                  filename);
+
+      byte[] agentBytes =
+          mvc.perform(
+                  get("/api/agent/executable/openaev/%s/%s".formatted(platform, arch))
+                      .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
+                      .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+              .andExpect(status().is2xxSuccessful())
+              .andExpect(
+                  header()
+                      .stringValues(RestBehavior.SIGNATURE_HEADER, signatureFixture(resourcePath)))
+              // The test build is versioned "Testing", which the installer scripts cannot compare
+              .andExpect(header().doesNotExist(RestBehavior.VERSION_HEADER))
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
       assertThat(HashUtils.getSha256HexDigest(agentBytes))
-          .isEqualTo(
-              HashUtils.getSha256HexDigest(
-                  "/agents/openaev-agent/%s/%s/%s"
-                      .formatted(
-                          platform.toLowerCase(),
-                          AgentUtils.getCanonicalArchitectureString(arch.toLowerCase()),
-                          filename)));
+          .isEqualTo(HashUtils.getSha256HexDigest(resourcePath));
     }
 
     private static Stream<Arguments> platformArchCombinationsExecutableFailure() {
