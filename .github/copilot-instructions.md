@@ -67,7 +67,7 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 - **core-ci.yml**: Primary CI pipeline (backend + frontend + e2e)
 - **nightly-ci.yml**: Nightly extended test suite
 - **test-feature-branch.yml**: Docker image build (Alpine Linux)
-- **codeql.yml**: Security scanning (weekly + main push)
+- **codeql.yml**: Security scanning (main push, PRs to main except docs-only changes, weekly, manual dispatch)
 - **openaev-validate-pr-title.yml**: Conventional Commits validation
 
 ## Project Structure

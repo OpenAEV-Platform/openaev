@@ -1,88 +1,84 @@
-# For most projects, this workflow file will not need changing; you simply need
-# to commit it to your repository.
-#
-# You may wish to alter this file to override the set of languages analyzed,
-# or to provide custom queries or build logic.
-#
-# ******** NOTE ********
-# We have attempted to detect the languages in your repository. Please check
-# the `language` matrix defined below to confirm you have the correct set of
-# supported CodeQL languages.
-#
 name: "CodeQL"
+
+# Uploads from this workflow are rejected while code scanning default setup is enabled:
+# turn default setup off before enabling this workflow.
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  pull_request:
+    branches: [main]
+    # CodeQL is not a required check, so a skipped run cannot block a merge.
+    paths-ignore:
+      - "docs/**"
+      - "adr/**"
+      - "brainstorming/**"
+      - "**/*.md"
   schedule:
-    - cron: '44 23 * * 5'
+    - cron: "44 23 * * 5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# PR runs cancel the previous run of the same PR; every other event gets its own group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+# Overlay (incremental) analysis is off: it saves a ~160 MB database cache on every push to main.
+env:
+  CODEQL_OVERLAY_DATABASE_MODE: none
 
 jobs:
   analyze:
-    name: Analyze
-    # Runner size impacts CodeQL analysis time. To learn more, please see:
-    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
-    #   - https://gh.io/supported-runners-and-hardware-resources
-    #   - https://gh.io/using-larger-runners
-    # Consider using larger runners for possible analysis time improvements.
-    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
-    timeout-minutes: ${{ (matrix.language == 'swift' && 120) || 360 }}
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       actions: read
       contents: read
       security-events: write
-
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'java-kotlin', 'javascript-typescript' ]
-        # CodeQL supports [ 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift' ]
-        # Use only 'java-kotlin' to analyze code written in Java, Kotlin or both
-        # Use only 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
-        # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
+        # Each language name sets the analysis category (/language:<name>). Code scanning tracks
+        # alerts per category, so renaming a language starts a new set of alerts.
+        include:
+          - language: actions
+            build-mode: none
+          - language: java
+            build-mode: autobuild
+          - language: javascript
+            build-mode: none
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v7
-      with:
-        submodules: "true"
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-    - name: Setup Java JDK
-      uses: actions/setup-java@v6
-      with:
-        distribution: 'zulu'
-        java-version: 21
-      if: matrix.language == 'java-kotlin'
+      # Read-only: backend-compile is the sole writer of maven-v2. CodeQL's own dependency
+      # caching stays off (its default here): it would store another ~500 MB copy of ~/.m2.
+      - name: Restore Maven dependencies
+        if: matrix.language == 'java'
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-v2-${{ runner.os }}-${{ runner.arch }}-
 
-    # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: ${{ matrix.language }}
-        config-file: ./.github/codeql-config.yml
-        # If you wish to specify custom queries, you can do so here or in a config file.
-        # By default, queries listed here will override any specified in a config file.
-        # Prefix the list here with "+" to use these queries and those in the config file.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
 
-        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
-        # queries: security-extended,security-and-quality
+      # Selects the highest Java version declared in the POMs among the runner's JDKs.
+      - name: Autobuild
+        if: matrix.build-mode == 'autobuild'
+        uses: github/codeql-action/autobuild@v4
 
-    # Autobuild attempts to build any compiled languages (C/C++, C#, Go, Java, or Swift).
-    # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
-
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-
-    #   If the Autobuild fails above, remove it and uncomment the following three lines.
-    #   modify them (or add more) to build your code if your project, please refer to the EXAMPLE below for guidance.
-
-    # - run: |
-    #     echo "Run, Build Application using script"
-    #     ./location_of_script_within_repo/buildscript.sh
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
-      with:
-        category: "/language:${{matrix.language}}"
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}

@@ -20,11 +20,10 @@ COPY openaev-es9-client ./openaev-es9-client
 COPY openaev-opensearch-client ./openaev-opensearch-client
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api
-COPY openaev-maven-plugin ./openaev-maven-plugin
 COPY openaev-ocsf ./openaev-ocsf
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
-RUN mvn install -DskipTests -Pdev
+RUN mvn -B -ntp install -Dmaven.test.skip=true -Pdev
 
 FROM eclipse-temurin:21.0.12_8-jre-noble AS app
 
@@ -40,6 +39,8 @@ COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-ap
 # Install Chromium and its system libraries for server-side report rendering. The boot jar uses
 # the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI (Spring Boot 3.x
 # loader). Dev machines need nothing: Playwright auto-downloads the browser on first use.
+# Coming after the jar COPY, this layer is reinstalled with current Ubuntu packages whenever
+# the jar changes, and restored from the layer cache otherwise.
 RUN DEBIAN_FRONTEND=noninteractive java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* \
     && chmod -R a+rX /ms-playwright
