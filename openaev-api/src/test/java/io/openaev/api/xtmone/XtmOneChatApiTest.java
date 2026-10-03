@@ -67,9 +67,12 @@ class XtmOneChatApiTest extends IntegrationTest {
   private static final String CHAT_PROMPTS_URL = "/api/xtmone/chat/prompts";
   private static final String CHAT_QUOTA_URL = "/api/xtmone/chat/quota";
   private static final String CHAT_WORKSPACES_URL = "/api/xtmone/chat/workspaces";
+  private static final String CHAT_CONVERSATION_REFERENCES_URL =
+      "/api/xtmone/chat/conversation-references";
   private static final String CONVERSATION_ID = "11111111-1111-1111-1111-111111111111";
   private static final String MESSAGE_ID = "22222222-2222-2222-2222-222222222222";
   private static final String WORKSPACE_ID = "33333333-3333-3333-3333-333333333333";
+  private static final String REFERENCED_ID = "44444444-4444-4444-4444-444444444444";
   private static final ObjectMapper JSON = new ObjectMapper();
 
   @Autowired private MockMvc mvc;
@@ -99,6 +102,9 @@ class XtmOneChatApiTest extends IntegrationTest {
               "POST workspaces", json(post(CHAT_WORKSPACES_URL), "{\"name\":\"Red team\"}")),
           Arguments.of("PATCH workspace", json(patch(workspaceUrl), "{\"name\":\"Blue\"}")),
           Arguments.of("DELETE workspace", delete(workspaceUrl).with(csrf())),
+          Arguments.of(
+              "GET conversation references",
+              get(CHAT_CONVERSATION_REFERENCES_URL).param("q", "red")),
           Arguments.of(
               "POST steer",
               json(post(CHAT_STEER_URL), conversationBody + ",\"content\":\"hello\"}")),
@@ -379,6 +385,38 @@ class XtmOneChatApiTest extends IntegrationTest {
 
     @Test
     @WithMockUser
+    @DisplayName("Given a restored conversation should pass the conversation_refs of its messages")
+    void given_restoredConversation_should_passConversationRefsThrough() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.createChatSession(anyMap()))
+          .thenReturn(
+              relayed(
+                  200,
+                  "{\"conversation_id\":\""
+                      + CONVERSATION_ID
+                      + "\",\"messages\":[{\"id\":\""
+                      + MESSAGE_ID
+                      + "\",\"role\":\"user\",\"content\":\"Compare with @Red team plan\","
+                      + "\"conversation_refs\":[{\"conversation_id\":\""
+                      + REFERENCED_ID
+                      + "\",\"title\":\"Red team plan\",\"key\":\"red-team-plan\"}]}]}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_SESSIONS_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"conversation_id\":\"" + CONVERSATION_ID + "\"}"))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.messages[0].conversation_refs[0].conversation_id").value(REFERENCED_ID))
+          .andExpect(jsonPath("$.messages[0].conversation_refs[0].title").value("Red team plan"))
+          .andExpect(jsonPath("$.messages[0].conversation_refs[0].key").value("red-team-plan"));
+    }
+
+    @Test
+    @WithMockUser
     @DisplayName("Given upstream refusal should relay the status and XTM One's detail")
     void given_upstreamRefusal_should_relayStatusAndDetail() throws Exception {
       // -- ARRANGE --
@@ -566,6 +604,78 @@ class XtmOneChatApiTest extends IntegrationTest {
       mvc.perform(get(CHAT_WORKSPACES_URL).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isForbidden())
           .andExpect(jsonPath("$.detail").value("Enterprise Edition required"));
+    }
+  }
+
+  @Nested
+  @DisplayName("GET /api/xtmone/chat/conversation-references")
+  class SearchConversationReferences {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given valid parameters should forward them and relay every conversation field")
+    void given_validParameters_should_forwardThemAndRelay() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.searchChatConversationReferences("red team", 5, CONVERSATION_ID))
+          .thenReturn(
+              relayed(
+                  200,
+                  "{\"conversations\":[{\"id\":\""
+                      + REFERENCED_ID
+                      + "\",\"title\":\"Red team plan\",\"key\":\"red-team-plan\","
+                      + "\"updated_at\":\"2026-09-30T10:00:00+00:00\",\"is_own\":false}]}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              get(CHAT_CONVERSATION_REFERENCES_URL)
+                  .param("q", "  red team ")
+                  .param("limit", "5")
+                  .param("exclude", CONVERSATION_ID)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.conversations[0].id").value(REFERENCED_ID))
+          .andExpect(jsonPath("$.conversations[0].title").value("Red team plan"))
+          .andExpect(jsonPath("$.conversations[0].key").value("red-team-plan"))
+          .andExpect(jsonPath("$.conversations[0].updated_at").value("2026-09-30T10:00:00+00:00"))
+          .andExpect(jsonPath("$.conversations[0].is_own").value(false));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given malformed parameters should leave them out rather than refuse")
+    void given_malformedParameters_should_leaveThemOut() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.searchChatConversationReferences(isNull(), isNull(), isNull()))
+          .thenReturn(relayed(200, "{\"conversations\":[]}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              get(CHAT_CONVERSATION_REFERENCES_URL)
+                  .param("q", "   ")
+                  .param("limit", "50")
+                  .param("exclude", "../" + CONVERSATION_ID)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.conversations").isEmpty());
+      verify(xtmOneClient).searchChatConversationReferences(isNull(), isNull(), isNull());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One rejects OpenAEV's JWT should relay the 422 and its detail")
+    void given_upstreamUnauthorized_should_relayUnprocessableEntity() throws Exception {
+      // -- ARRANGE --
+      // XtmOneClient turns XTM One's 401 into a 422, so the user is not signed out.
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.searchChatConversationReferences(any(), any(), any()))
+          .thenReturn(relayed(422, "{\"detail\":\"[XTM One] HTTP 401\"}"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_CONVERSATION_REFERENCES_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isUnprocessableEntity())
+          .andExpect(jsonPath("$.detail").value("[XTM One] HTTP 401"));
     }
   }
 
@@ -1523,7 +1633,10 @@ class XtmOneChatApiTest extends IntegrationTest {
           Arguments.of(
               "POST workspaces", json(post(CHAT_WORKSPACES_URL), "{\"name\":\"Red team\"}")),
           Arguments.of("PATCH workspace", json(patch(workspaceUrl), "{\"name\":\"Blue\"}")),
-          Arguments.of("DELETE workspace", delete(workspaceUrl).with(csrf())));
+          Arguments.of("DELETE workspace", delete(workspaceUrl).with(csrf())),
+          Arguments.of(
+              "GET conversation references",
+              get(CHAT_CONVERSATION_REFERENCES_URL).param("q", "red")));
     }
 
     @ParameterizedTest(name = "{0}")
