@@ -234,6 +234,7 @@ nav:
       - XTM Hub: administration/hub.md # Warning: page is linked in XTM Hub documentation
   - Reference:
       - APIs:
+          - Bulk snapshot export: reference/apis/bulk-snapshot.md
           - Filters: reference/apis/filters.md
           - Security Coverage result bundle: reference/apis/security-coverage-results.md
       - Deployment and stack:
