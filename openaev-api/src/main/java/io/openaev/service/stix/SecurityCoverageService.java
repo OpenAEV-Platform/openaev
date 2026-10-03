@@ -689,8 +689,13 @@ public class SecurityCoverageService {
           externalLink);
     }
 
+    // Platforms sharing a name (different types) are one identity in OpenCTI: emit it once
+    Set<String> emittedPlatformIdentities = new HashSet<>();
     for (SecurityPlatform securityPlatform : securityPlatforms) {
       DomainObject platformIdentity = platformIdentities.get(securityPlatform.getId());
+      if (!emittedPlatformIdentities.add(platformIdentity.getId().getValue())) {
+        continue;
+      }
       objects.add(platformIdentity);
 
       BaseType<?> platformCoverage =

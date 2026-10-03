@@ -1286,7 +1286,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     }
 
     private Identifier identityIdOf(SecurityPlatform platform) {
-      return new Identifier(ObjectTypes.IDENTITY.toString(), platform.getId());
+      return new Identifier(SecurityPlatform.stixIdentityId(platform.getName()));
     }
 
     private PlatformCoverageResult entry(SecurityPlatform platform, String name, int score) {

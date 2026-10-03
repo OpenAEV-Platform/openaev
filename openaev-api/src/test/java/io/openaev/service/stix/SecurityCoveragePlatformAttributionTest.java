@@ -83,7 +83,7 @@ class SecurityCoveragePlatformAttributionTest {
               List.of(inject), expectationsByInject, platformStixIds);
 
       // Assert
-      String platformRef = "identity--" + edr.getId();
+      String platformRef = SecurityPlatform.stixIdentityId(edr.getName());
       assertThat(platformStixIds.get(edr.getId()).getValue()).isEqualTo(platformRef);
       assertThat(coveragePlatforms)
           .containsExactly(
@@ -114,7 +114,8 @@ class SecurityCoveragePlatformAttributionTest {
       // Assert
       assertThat(coveragePlatforms)
           .containsExactly(
-              new PlatformCoverageResult("identity--" + edr.getId(), "DETECTION", 100));
+              new PlatformCoverageResult(
+                  SecurityPlatform.stixIdentityId(edr.getName()), "DETECTION", 100));
     }
 
     @Test
@@ -164,6 +165,20 @@ class SecurityCoveragePlatformAttributionTest {
           .isEqualTo(
               "{\"platform_ref\":\"identity--8c3f6f5e-7b2a-4f43-9b1a-2d6a8f0e5c11\","
                   + "\"name\":\"DETECTION\",\"score\":75}");
+    }
+
+    @Test
+    @DisplayName("The platform identity id is the OpenCTI standard id derived from its name")
+    void given_platformName_should_deriveTheOpenCtiIdentityId() {
+      // Arrange
+      SecurityPlatform platform = createPlatform("CrowdStrike Falcon", "EDR");
+
+      // Act
+      String id = platform.toStixDomainObject().getId().getValue();
+
+      // Assert
+      assertThat(id).isEqualTo("identity--fd6bb94b-46b7-5e41-90d0-2a0fcf171ca2");
+      assertThat(SecurityPlatform.stixIdentityId("  crowdstrike FALCON ")).isEqualTo(id);
     }
   }
 }
