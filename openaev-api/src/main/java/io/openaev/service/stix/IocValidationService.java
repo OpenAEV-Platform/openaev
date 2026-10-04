@@ -644,8 +644,8 @@ public class IocValidationService {
       if (payloads.isEmpty()) {
         ioc.setTestKind(null);
         ioc.setMessage(
-            "Not run: no endpoint of the asset group runs Windows, Linux or macOS for the %s test"
-                .formatted(plan.testKind().toStix()));
+            "Not run: no endpoint of the asset group runs Windows, Linux or macOS for this test (%s)"
+                .formatted(plan.testKind().label()));
         continue;
       }
       for (Payload payload : payloads) {

@@ -8,14 +8,25 @@ import java.util.Optional;
  * #toStix()}), e.g. {@code dns_resolution}.
  */
 public enum IocValidationTestKind {
-  DNS_RESOLUTION,
-  NETWORK_TRAFFIC,
-  HTTP_HEAD,
-  FILE_DROP,
-  LOG_INJECTION;
+  DNS_RESOLUTION("DNS resolution"),
+  NETWORK_TRAFFIC("Network traffic"),
+  HTTP_HEAD("HTTP HEAD request"),
+  FILE_DROP("Benign file drop"),
+  LOG_INJECTION("Benign log line");
+
+  private final String label;
+
+  IocValidationTestKind(String label) {
+    this.label = label;
+  }
 
   public String toStix() {
     return name().toLowerCase(Locale.ROOT);
+  }
+
+  /** Name of the test kind in messages read by people (OpenAEV request page, OpenCTI). */
+  public String label() {
+    return label;
   }
 
   /** Parses the snake_case contract value; unknown or blank values yield an empty optional. */
