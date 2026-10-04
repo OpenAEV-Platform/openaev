@@ -19,15 +19,18 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.ioc_validation.dto.IocValidationSettingsInput;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.service.stix.IocValidationBundleParser;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -77,6 +80,7 @@ class IocValidationApiTest extends IntegrationTest {
   @Autowired private JdbcTemplate jdbc;
   @Autowired private AssetGroupComposer assetGroupComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
@@ -356,6 +360,20 @@ class IocValidationApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("refuses an approval when no endpoint of the asset group has an active agent")
+    void given_noActiveAgent_should_refuseApproval() throws Exception {
+      injectorFixture.getWellKnownOaevImplantInjector();
+      AssetGroup assetGroup = validationTargets(AgentFixture.createInactiveAgent());
+      allow(List.of(IocValidationTestKind.DNS_RESOLUTION), assetGroup);
+      String id = receiveDnsRequest();
+
+      mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
+
+      assertThat((String) JsonPath.read(validation(id), "$.ioc_validation_status"))
+          .isEqualTo("AWAITING_APPROVAL");
+    }
+
+    @Test
     @DisplayName("an approval never runs a test the operator was shown as skipped")
     void given_settingsWidenedAfterIntake_should_keepSkippedTest() throws Exception {
       injectorFixture.getWellKnownOaevImplantInjector();
@@ -550,11 +568,18 @@ class IocValidationApiTest extends IntegrationTest {
   }
 
   private AssetGroup validationTargets() {
+    return validationTargets(AgentFixture.createDefaultAgentService());
+  }
+
+  private AssetGroup validationTargets(Agent agent) {
     TenantContext.setCurrentTenant(tenantId);
     try {
       return assetGroupComposer
           .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"))
-          .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+          .withAsset(
+              endpointComposer
+                  .forEndpoint(EndpointFixture.createEndpoint())
+                  .withAgent(agentComposer.forAgent(agent)))
           .persist()
           .get();
     } finally {
