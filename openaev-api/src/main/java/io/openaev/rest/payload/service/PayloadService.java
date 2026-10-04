@@ -121,6 +121,10 @@ public class PayloadService {
       "OpenAEV IOC validation: this file drop payload predates the per-inject run directory and is"
           + " refused; approve a new validation to bring it to the current template";
   public static final String IOC_VALIDATION_WINDOWS_EXECUTOR = "psh";
+  private static final BaseInjectExpectation.EXPECTATION_TYPE[] IOC_VALIDATION_EXPECTATIONS = {
+    BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+    BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
+  };
   public static final String IOC_VALIDATION_POSIX_EXECUTOR = "sh";
   private static final String IOC_VALIDATION_PAYLOAD_NAMESPACE =
       "6f6d2a7b-6c90-4a3a-8d2b-2f2c9a0d7e10";
@@ -764,19 +768,15 @@ public class PayloadService {
               Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS
             });
     payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
-    payload.setExpectations(
-        new BaseInjectExpectation.EXPECTATION_TYPE[] {
-          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
-          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
-        });
     return saveIocValidationCommandPayload(ctx, payload, tenantId);
   }
 
   /**
    * Whether a command payload is exactly the IOC validation template of a kind and an executor: the
    * command and cleanup executors, the command, the cleanup, the arguments with their types and
-   * defaults, no prerequisite and no elevation. Every one of them is editable and changes what runs
-   * on the endpoint.
+   * defaults, no prerequisite, no elevation, and the prevention and detection expectations the
+   * results are evaluated from. Every one of them is editable and changes what runs on the endpoint
+   * or what the validation can measure.
    */
   static boolean isIocValidationCommandTemplate(
       Command command, IocValidationTestKind kind, String executor) {
@@ -794,7 +794,11 @@ public class PayloadService {
         && Objects.equals(cleanup, command.getCleanupCommand())
         && expectedArguments.equals(arguments)
         && (command.getPrerequisites() == null || command.getPrerequisites().isEmpty())
-        && !command.isElevationRequired();
+        && !command.isElevationRequired()
+        && command.getExpectations() != null
+        && Arrays.stream(command.getExpectations())
+            .collect(Collectors.toSet())
+            .equals(Set.of(IOC_VALIDATION_EXPECTATIONS));
   }
 
   private void applyIocValidationCommandTemplate(
@@ -808,6 +812,7 @@ public class PayloadService {
     payload.setCleanupExecutor(cleanup == null ? null : executor);
     payload.setCleanupCommand(cleanup);
     payload.setArguments(new ArrayList<>(iocValidationArguments(kind)));
+    payload.setExpectations(IOC_VALIDATION_EXPECTATIONS.clone());
   }
 
   private Command saveIocValidationCommandPayload(TxCtx ctx, Command payload, String tenantId) {

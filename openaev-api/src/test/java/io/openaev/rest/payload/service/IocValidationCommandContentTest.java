@@ -1,5 +1,7 @@
 package io.openaev.rest.payload.service;
 
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.DETECTION;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_FILE_NAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_RUN_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -8,6 +10,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.PayloadArgument;
@@ -193,6 +196,15 @@ class IocValidationCommandContentTest {
         .filter(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()))
         .forEach(argument -> argument.setDefaultValue("0123456789abcdef0123456789abcdef"));
     assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(editedDefault)).isFalse();
+
+    // The results are evaluated from the prevention and detection expectations
+    Command withoutPrevention = currentFileDrop();
+    withoutPrevention.setExpectations(new EXPECTATION_TYPE[] {DETECTION, DETECTION});
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withoutPrevention)).isFalse();
+    Command withoutExpectations = currentFileDrop();
+    withoutExpectations.setExpectations(null);
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withoutExpectations))
+        .isFalse();
   }
 
   @Test
@@ -231,6 +243,7 @@ class IocValidationCommandContentTest {
         PayloadService.iocValidationCommandContent(IocValidationTestKind.FILE_DROP, false));
     current.setCleanupCommand(
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false));
+    current.setExpectations(new EXPECTATION_TYPE[] {DETECTION, PREVENTION});
     return current;
   }
 
