@@ -20,6 +20,9 @@ IOC validation is designed so that nothing dangerous ever runs:
   approves or rejects it.
 - **Only the test kinds you allow run.** By default, only *DNS resolution* is allowed. Every other kind must be
   enabled explicitly in the settings.
+- **An approval never runs more than the request showed.** A test the settings no longer allow at approval time is
+  dropped; a test that was skipped when the request arrived stays skipped even if you allow it meanwhile. Ask for a
+  new validation from OpenCTI to run it.
 - **The real indicator is never downloaded or executed.** File indicators are replaced by a benign text file that
   only carries the file name, and hashes are only written to a log line.
 - **No contact with adversary infrastructure by default.** DNS resolution never connects to the resolved

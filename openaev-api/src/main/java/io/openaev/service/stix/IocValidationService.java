@@ -198,7 +198,8 @@ public class IocValidationService {
 
   /**
    * Approves a waiting validation: re-applies the current safety settings (a setting narrowed since
-   * the request arrived wins), builds the validation scenario and launches its simulation.
+   * the request arrived drops a test, a setting widened since never adds one), builds the
+   * validation scenario and launches its simulation.
    *
    * @throws BadRequestException when the request is no longer awaiting approval, or when nothing
    *     can run (no allowed test, no asset group, no endpoint)
@@ -210,13 +211,31 @@ public class IocValidationService {
     requireAwaitingApproval(validation);
 
     IocValidationSettings settings = settingsService.settings(tenantId);
-    IocValidationPlanner.apply(validation.getIocs(), settings);
+    // The approval starts at most what the operator was shown: a setting narrowed since the request
+    // arrived drops a test, a setting widened since never turns a skipped IOC into a test.
+    List<IocValidationIoc> iocs = validation.getIocs();
+    List<IocValidationTestKind> shownKinds =
+        iocs.stream().map(IocValidationIoc::getTestKind).toList();
+    List<String> shownMessages = iocs.stream().map(IocValidationIoc::getMessage).toList();
+    IocValidationPlanner.apply(iocs, settings);
+    for (int index = 0; index < iocs.size(); index++) {
+      IocValidationIoc ioc = iocs.get(index);
+      if (shownKinds.get(index) == null) {
+        ioc.setMessage(
+            ioc.getTestKind() == null
+                ? shownMessages.get(index)
+                : "Not run: skipped when OpenAEV received the request; a new request from OpenCTI"
+                    + " runs it under the current IOC validation settings");
+        ioc.setTestKind(null);
+      }
+    }
     validation.setAllowedTestKinds(sortedKinds(settings.allowedTestKinds()));
     matchSecurityPlatforms(validation, tenantId);
     if (validation.getIocs().stream().noneMatch(ioc -> ioc.getTestKind() != null)) {
       throw new BadRequestException(
-          "Nothing can run: every IOC of this request is skipped by the IOC validation settings."
-              + " Reject the request, or adjust the settings and approve again.");
+          "Nothing can run: every IOC of this request was skipped when it was received or is no"
+              + " longer allowed by the IOC validation settings. Reject the request and ask for a"
+              + " new validation from OpenCTI.");
     }
     AssetGroup assetGroup = requireAssetGroup(settings);
     List<Endpoint> endpoints =
@@ -634,13 +653,26 @@ public class IocValidationService {
       List<String> executors) {
     Set<Tag> tags = validationTags(ctx);
     Set<Inject> injects = new HashSet<>();
+    // Payload creation takes transaction-scoped locks: resolving every payload once, kind by kind
+    // in
+    // enum order, takes them in the same order in every approval, whatever the order of the IOCs.
+    Map<IocValidationTestKind, List<Payload>> payloadsByKind =
+        new EnumMap<>(IocValidationTestKind.class);
+    validation.getIocs().stream()
+        .map(IocValidationIoc::getTestKind)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toCollection(() -> EnumSet.noneOf(IocValidationTestKind.class)))
+        .forEach(kind -> payloadsByKind.put(kind, payloadsFor(ctx, kind, executors)));
     for (IocValidationIoc ioc : validation.getIocs()) {
       ioc.setInjectIds(new ArrayList<>());
-      IocValidationPlanner.Plan plan = IocValidationPlanner.plan(ioc, settings);
-      if (!plan.runnable()) {
+      if (ioc.getTestKind() == null) {
         continue;
       }
-      List<Payload> payloads = payloadsFor(ctx, plan.testKind(), executors);
+      IocValidationPlanner.Plan plan = IocValidationPlanner.plan(ioc, settings);
+      if (!plan.runnable() || plan.testKind() != ioc.getTestKind()) {
+        continue;
+      }
+      List<Payload> payloads = payloadsByKind.get(plan.testKind());
       if (payloads.isEmpty()) {
         ioc.setTestKind(null);
         ioc.setMessage(

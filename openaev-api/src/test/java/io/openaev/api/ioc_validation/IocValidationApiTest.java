@@ -235,7 +235,7 @@ class IocValidationApiTest extends IntegrationTest {
       assertThat((String) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_test_kind"))
           .isNull();
       assertThat((String) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_message"))
-          .contains("not allowed");
+          .contains("do not allow this test (Network traffic)");
     }
 
     @Test
@@ -345,32 +345,59 @@ class IocValidationApiTest extends IntegrationTest {
           .isEqualTo("AWAITING_APPROVAL");
     }
 
+    private AssetGroup validationTargets() {
+      TenantContext.setCurrentTenant(tenantId);
+      try {
+        return assetGroupComposer
+            .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"))
+            .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+            .persist()
+            .get();
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
+
+    private void allow(List<IocValidationTestKind> kinds, AssetGroup assetGroup) throws Exception {
+      mvc.perform(
+              putSettings(
+                  mapper.writeValueAsString(
+                      new IocValidationSettingsInput(kinds, "", "", 443, assetGroup.getId()))))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("an approval never runs a test the operator was shown as skipped")
+    void given_settingsWidenedAfterIntake_should_keepSkippedTest() throws Exception {
+      injectorFixture.getWellKnownOaevImplantInjector();
+      AssetGroup assetGroup = validationTargets();
+      allow(List.of(IocValidationTestKind.DNS_RESOLUTION), assetGroup);
+      String id =
+          receive(
+              ctiEvent(
+                  UUID.randomUUID().toString(), "IPv4-Addr", "203.0.113.7", "network_traffic"));
+      // Allowed only after the request was shown with its network test skipped
+      allow(
+          List.of(IocValidationTestKind.DNS_RESOLUTION, IocValidationTestKind.NETWORK_TRAFFIC),
+          assetGroup);
+
+      mvc.perform(decide(id, "approve")).andExpect(status().isBadRequest());
+
+      String response = validation(id);
+      assertThat((String) JsonPath.read(response, "$.ioc_validation_status"))
+          .isEqualTo("AWAITING_APPROVAL");
+      assertThat((String) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_test_kind"))
+          .isNull();
+      assertThat((List<String>) JsonPath.read(response, "$.ioc_validation_iocs[0].ioc_inject_ids"))
+          .isNullOrEmpty();
+    }
+
     @Test
     @DisplayName("an approval builds and launches the validation simulation")
     void given_assetGroup_should_launchSimulation() throws Exception {
       injectorFixture.getWellKnownOaevImplantInjector();
-      AssetGroup assetGroup;
-      TenantContext.setCurrentTenant(tenantId);
-      try {
-        assetGroup =
-            assetGroupComposer
-                .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("IOC validation targets"))
-                .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
-                .persist()
-                .get();
-      } finally {
-        TenantContext.clearCurrentTenant();
-      }
-      mvc.perform(
-              putSettings(
-                  mapper.writeValueAsString(
-                      new IocValidationSettingsInput(
-                          List.of(IocValidationTestKind.DNS_RESOLUTION),
-                          "",
-                          "",
-                          443,
-                          assetGroup.getId()))))
-          .andExpect(status().isOk());
+      AssetGroup assetGroup = validationTargets();
+      allow(List.of(IocValidationTestKind.DNS_RESOLUTION), assetGroup);
       String id = receiveDnsRequest();
 
       String response =
