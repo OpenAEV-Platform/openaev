@@ -31,7 +31,8 @@ The STIX id of a security platform identity is not its OpenAEV id. It is derived
 the standard id OpenCTI gives an identity, so the same platform resolves to the same OpenCTI identity across Simulations
 and OpenAEV instances:
 
-1. Lowercase and trim the platform name.
+1. Lowercase the platform name, then trim it the way JavaScript `String.prototype.trim` does: every Unicode space
+   (no-break and em spaces included), tab, line terminator and byte order mark at either end is removed.
 2. Serialize `{"identity_class":"securityplatform","name":"<normalized name>"}` as JSON with sorted keys and no spaces.
 3. Compute the UUID version 5 of this JSON in the namespace `00abedb4-aa42-466c-9c01-fed23315a9b7`.
 
