@@ -38,7 +38,8 @@ and OpenAEV instances:
 
 For example, `CrowdStrike Falcon` is `identity--fd6bb94b-46b7-5e41-90d0-2a0fcf171ca2`. Security platforms sharing a
 name (with different types) are one identity: the bundle emits it once, and its scores and relationship cover the
-results of all of them, with the best verdict of the platforms on each Expectation.
+results of all of them, with the best verdict of the platforms on each Expectation (the worst one for a vulnerability,
+as in `coverage`).
 
 ## Scores
 
@@ -150,8 +151,10 @@ Each security platform is scored only on the Expectations of the matching Inject
 - An expectation type is listed for a platform only when the platform reported on at least one Expectation of that type,
   so a SIEM that only detects is never listed with a `PREVENTION` score.
 - When a platform is the only one reporting and it reports on every Expectation, its score equals the `coverage`
-  score. With several reporting platforms, the score of an Expectation in `coverage` is the best result of all its
-  sources, so another platform's better result can make `coverage` higher than the score of each platform.
+  score. With several reporting platforms, the score of an Expectation in `coverage` combines all its sources. For
+  detection and prevention the best result wins, so another platform's better result can make `coverage` higher than
+  the score of each platform. For vulnerability the worst verdict wins, so a vulnerable result of one platform makes
+  the Expectation vulnerable in `coverage` even when another platform reported it not vulnerable.
 
 Only the security platforms of the Simulation's Tenant are attributed.
 

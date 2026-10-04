@@ -105,7 +105,8 @@ public final class SecurityPlatformResultUtils {
    *
    * <p>The verdict is rolled up from the children the platform reported on when the expectation has
    * some (agents of an asset, assets of an asset group), and is otherwise the best score of the
-   * platform's own results. It is {@code null} (pending) when the platform has not answered yet.
+   * platform's own results, a VULNERABLE result winning for VULNERABILITY. It is {@code null}
+   * (pending) when the platform has not answered yet.
    *
    * @param expectation the expectation, typically a managed entity
    * @param securityPlatformId the id of the security platform asset
@@ -119,7 +120,8 @@ public final class SecurityPlatformResultUtils {
   /**
    * Returns the expectation as a group of security platforms sees it, see {@link
    * #toSecurityPlatformView(BaseInjectExpectation, String)}: the results of every platform of the
-   * group are kept, so the group's verdict on an expectation is the best one of its platforms.
+   * group are kept, so the group's verdict on an expectation is the best one of its platforms (the
+   * worst one for VULNERABILITY).
    *
    * @param expectation the expectation, typically a managed entity
    * @param securityPlatformIds the ids of the security platform assets of the group
@@ -168,7 +170,8 @@ public final class SecurityPlatformResultUtils {
    * Computes, for each group of security platforms, the expectation results its platforms produced
    * on the given expectations, with the rules of {@link #computeResultsBySecurityPlatform}: a group
    * is scored on the expectations one of its platforms reported on, with the best verdict of its
-   * platforms. Used for the platforms that share one STIX identity.
+   * platforms (the worst one for VULNERABILITY). Used for the platforms that share one STIX
+   * identity.
    *
    * @param expectations the expectations to attribute
    * @param securityPlatformIdsByGroup the platform ids of every group, by group key

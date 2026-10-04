@@ -140,7 +140,8 @@ public class ResultUtils {
   /**
    * Computes global expectation results filtered by a group of security platforms, see {@link
    * #computeGlobalExpectationResultsForPlatform}: every expectation carries the best verdict of the
-   * platforms of the group. Used for the platforms that share one STIX identity.
+   * platforms of the group (the worst one for VULNERABILITY). Used for the platforms that share one
+   * STIX identity.
    *
    * @param injectIds the set of inject IDs the expectations belong to
    * @param expectations the expectations of those injects, loaded with {@link
