@@ -437,17 +437,21 @@ public class ExecutableInjectService {
   }
 
   /**
-   * An IOC validation file drop runs only with the run of its own inject: an empty run is refused
-   * here, before any default (of the payload or of the injector contract, both editable) can take
-   * its place and make two injects share one directory.
+   * An IOC validation file drop runs only with the run and the file name of its own inject: an
+   * empty one is refused here, before any default (of the payload or of the injector contract, both
+   * editable) can take its place, make two injects share one directory or write another file.
    */
   static void refuseIocValidationFileDropWithoutRun(Payload payload, ObjectNode executionContent) {
-    if (PayloadService.isIocValidationFileDropPayload(payload)
-        && (executionContent == null
-            || !hasText(executionContent.path(PayloadService.IOC_VALIDATION_RUN_KEY).asText("")))) {
-      throw new IllegalArgumentException(
-          "Missing mandatory input '%s' for inject execution"
-              .formatted(PayloadService.IOC_VALIDATION_RUN_KEY));
+    if (!PayloadService.isIocValidationFileDropPayload(payload)) {
+      return;
+    }
+    for (String key :
+        List.of(
+            PayloadService.IOC_VALIDATION_RUN_KEY, PayloadService.IOC_VALIDATION_FILE_NAME_KEY)) {
+      if (executionContent == null || !hasText(executionContent.path(key).asText(""))) {
+        throw new IllegalArgumentException(
+            "Missing mandatory input '%s' for inject execution".formatted(key));
+      }
     }
   }
 

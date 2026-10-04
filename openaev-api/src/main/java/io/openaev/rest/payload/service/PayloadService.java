@@ -812,11 +812,14 @@ public class PayloadService {
               textArgument(IOC_VALIDATION_URL_KEY, "http://localhost"),
               textArgument(IOC_VALIDATION_PROXY_KEY, ""));
       case LOG_INJECTION -> List.of(textArgument(IOC_VALIDATION_VALUE_KEY, "benign"));
-      // No default run: a shared directory would let two injects overwrite and clean up each
-      // other's surrogate, so an inject without its own run is refused (mandatory argument).
+      // No default run nor file name: a shared directory would let two injects overwrite and clean
+      // up
+      // each other's surrogate, and a default name would hide a missing one, so an inject without
+      // its
+      // own run and file name is refused before dispatch (mandatory arguments).
       case FILE_DROP ->
           List.of(
-              textArgument(IOC_VALIDATION_FILE_NAME_KEY, "benign.txt"),
+              textArgument(IOC_VALIDATION_FILE_NAME_KEY, ""),
               textArgument(IOC_VALIDATION_RUN_KEY, ""));
       case DNS_RESOLUTION ->
           throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");

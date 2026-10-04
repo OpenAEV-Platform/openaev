@@ -3,6 +3,7 @@ package io.openaev.rest.payload.service;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_FILE_NAME_KEY;
 import static io.openaev.rest.payload.service.PayloadService.IOC_VALIDATION_RUN_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -52,14 +53,13 @@ class IocValidationCommandContentTest {
   }
 
   @Test
-  @DisplayName("the file drop run has no default: an inject without its own run is refused")
+  @DisplayName(
+      "the file drop run and file name have no default: an inject without its own is refused")
   void given_fileDropArguments_should_haveNoDefaultRun() {
-    PayloadArgument run =
-        PayloadService.iocValidationArguments(IocValidationTestKind.FILE_DROP).stream()
-            .filter(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()))
-            .findFirst()
-            .orElseThrow();
-    assertThat(run.getDefaultValue()).isEmpty();
+    assertThat(PayloadService.iocValidationArguments(IocValidationTestKind.FILE_DROP))
+        .extracting(PayloadArgument::getKey, PayloadArgument::getDefaultValue)
+        .containsExactly(
+            tuple(IOC_VALIDATION_FILE_NAME_KEY, ""), tuple(IOC_VALIDATION_RUN_KEY, ""));
   }
 
   private static Command fileDropPayload(String executor, String tenantId) {

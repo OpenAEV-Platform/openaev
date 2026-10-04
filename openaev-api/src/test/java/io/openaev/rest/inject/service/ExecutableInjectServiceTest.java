@@ -116,6 +116,8 @@ class ExecutableInjectServiceTest {
     withoutRun.put(PayloadService.IOC_VALIDATION_RUN_KEY, "");
     ObjectNode withRun = JsonNodeFactory.instance.objectNode();
     withRun.put(PayloadService.IOC_VALIDATION_RUN_KEY, "0123456789abcdef0123456789abcdef");
+    ObjectNode withoutFileName = withRun.deepCopy();
+    withRun.put(PayloadService.IOC_VALIDATION_FILE_NAME_KEY, "invoice.pdf");
     Command userPayload = new Command();
     userPayload.setTenant(new Tenant("tenant-a"));
     userPayload.setId("4b3f8e52-2f1b-4c36-9a4e-1d2c3b4a5f60");
@@ -129,6 +131,12 @@ class ExecutableInjectServiceTest {
     assertThatThrownBy(
             () -> ExecutableInjectService.refuseIocValidationFileDropWithoutRun(fileDrop, null))
         .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                ExecutableInjectService.refuseIocValidationFileDropWithoutRun(
+                    fileDrop, withoutFileName))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Missing mandatory input 'ioc_validation_file_name' for inject execution");
     assertThatCode(
             () -> ExecutableInjectService.refuseIocValidationFileDropWithoutRun(fileDrop, withRun))
         .doesNotThrowAnyException();
