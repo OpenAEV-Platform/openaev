@@ -323,8 +323,8 @@ class IocValidationCommandContentTest {
   @EnumSource(
       value = IocValidationTestKind.class,
       names = {"NETWORK_TRAFFIC", "HTTP_HEAD", "LOG_INJECTION"})
-  @DisplayName("the tests that leave nothing behind have no cleanup")
-  void given_testWithoutArtifact_should_haveNoCleanup(IocValidationTestKind kind) {
+  @DisplayName("only the file drop defines a cleanup")
+  void given_testOtherThanFileDrop_should_defineNoCleanup(IocValidationTestKind kind) {
     assertThat(PayloadService.iocValidationCleanupCommand(kind, false)).isNull();
     assertThat(PayloadService.iocValidationCleanupCommand(kind, true)).isNull();
   }

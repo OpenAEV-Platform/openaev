@@ -812,11 +812,9 @@ public class PayloadService {
               textArgument(IOC_VALIDATION_URL_KEY, "http://localhost"),
               textArgument(IOC_VALIDATION_PROXY_KEY, ""));
       case LOG_INJECTION -> List.of(textArgument(IOC_VALIDATION_VALUE_KEY, "benign"));
-      // No default run nor file name: a shared directory would let two injects overwrite and clean
-      // up
-      // each other's surrogate, and a default name would hide a missing one, so an inject without
-      // its
-      // own run and file name is refused before dispatch (mandatory arguments).
+      // No default run nor file name: a shared directory would let two injects overwrite and
+      // clean up each other's surrogate, and a default name would hide a missing one, so an
+      // inject without its own run and file name is refused before dispatch (mandatory arguments).
       case FILE_DROP ->
           List.of(
               textArgument(IOC_VALIDATION_FILE_NAME_KEY, ""),
@@ -1007,9 +1005,12 @@ public class PayloadService {
   }
 
   /**
-   * The cleanup of a kind, {@code null} when the test leaves nothing behind. The file-drop cleanup
-   * removes the surrogate, then the run directory only when it is empty: it never deletes anything
-   * it did not create.
+   * The cleanup of a kind, {@code null} when no cleanup is defined: only the file drop defines one.
+   * The log injection leaves its marker line in the system log or, when that log is unavailable, in
+   * the {@code openaev-ioc-validation.log} file of the temporary directory: the line is the
+   * evidence the security platform is expected to collect, and the file is shared by every run, so
+   * no cleanup removes it. The file-drop cleanup removes the surrogate, then the run directory only
+   * when it is empty: it never deletes anything it did not create.
    */
   static String iocValidationCleanupCommand(IocValidationTestKind kind, boolean windows) {
     if (kind != IocValidationTestKind.FILE_DROP) {
