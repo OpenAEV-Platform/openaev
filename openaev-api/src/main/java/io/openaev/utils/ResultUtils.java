@@ -58,6 +58,26 @@ public class ResultUtils {
   }
 
   /**
+   * Computes global expectation results, all sources together, from expectations already loaded
+   * with {@link #findExpectationsForPlatformResults(Set)}: the results are then scored on the same
+   * expectations as the per-platform results of the same injects, so an inject without any primary
+   * expectation is scored on its other expectations (for example its agent-level ones) rather than
+   * on the expectation types of its content only.
+   *
+   * @param injectIds the set of inject IDs the expectations belong to
+   * @param expectations the expectations of those injects, loaded with {@link
+   *     #findExpectationsForPlatformResults(Set)}
+   * @return a list of aggregated results by expectation type, or empty list if no injects provided
+   */
+  public List<ExpectationResultsByType> computeGlobalExpectationResults(
+      Set<String> injectIds, List<BaseInjectExpectation> expectations) {
+    if (injectIds == null || injectIds.isEmpty()) {
+      return emptyList();
+    }
+    return injectExpectationMapper.extractExpectationResultByTypes(injectIds, expectations);
+  }
+
+  /**
    * Loads the expectations the per-platform results of the given injects are computed from: the
    * primary expectations, the ones the global score is computed from (agent-level and player-level
    * expectations are rolled up into them and excluded), and every expectation of an inject that has

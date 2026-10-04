@@ -1534,16 +1534,26 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       Bundle bundle = buildBundle(simulation);
 
       // Assert
+      RelationshipObject agentOnlySro = coveredObjectSro(bundle, "T9109");
       assertCoveragePlatforms(
-          bundle,
-          coveredObjectSro(bundle, "T9109"),
-          entry(edr, "PREVENTION", 0),
-          entry(edr, "DETECTION", 100));
+          bundle, agentOnlySro, entry(edr, "PREVENTION", 0), entry(edr, "DETECTION", 100));
+      // covered and coverage are scored on the same agent results as coverage_platforms
+      assertThat(agentOnlySro.getProperty(ExtendedProperties.COVERED.toString()))
+          .isEqualTo(new io.openaev.stix.types.Boolean(true));
+      assertThatJson(
+              agentOnlySro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .isEqualTo(
+              toList(
+                      List.of(
+                          new Complex<>(new CoverageResult("PREVENTION", 0)),
+                          new Complex<>(new CoverageResult("DETECTION", 100))))
+                  .toStix(mapper));
+      RelationshipObject assetSro = coveredObjectSro(bundle, "T9110");
       assertCoveragePlatforms(
-          bundle,
-          coveredObjectSro(bundle, "T9110"),
-          entry(edr, "PREVENTION", 100),
-          entry(edr, "DETECTION", 100));
+          bundle, assetSro, entry(edr, "PREVENTION", 100), entry(edr, "DETECTION", 100));
+      assertThatJson(assetSro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+          .isEqualTo(predictCoverageFromInjects(List.of(assetInject.get())).toStix(mapper));
       // the per-platform relationship scores both injects: 1 of 2 preventions, 2 of 2 detections
       RelationshipObject platformSro =
           bundle.findRelationshipsByTargetRef(identityIdOf(edr)).getFirst();

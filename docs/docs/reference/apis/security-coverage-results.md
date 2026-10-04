@@ -55,9 +55,11 @@ The other rows are rolled up before the count and never counted twice: agent Exp
 player Expectations into their team Expectation, and the asset Expectations of a targeted asset group into the group
 Expectation, according to its validation mode (all assets or at least one asset).
 
-The per-platform scores (`coverage_platforms` and the security platform relationships) start from the same primary
-Expectations. An Inject without any primary Expectation, for example one with agent Expectations only, is scored there on
-all its Expectations, so the results its agents received from a security platform are still attributed. When a platform
+The scores of the covered objects (`coverage` and `coverage_platforms`) and of the security platform relationships start
+from the same primary Expectations. An Inject without any primary Expectation, for example one with agent Expectations
+only, is scored there on all its Expectations, so the results its agents received are still counted and attributed, and
+the `covered` and `coverage` of a covered object always agree with its `coverage_platforms`. Only the `coverage` of the
+Security Coverage object, the overall score of the Simulation, counts primary Expectations only. When a platform
 reported both on an asset Expectation and on its agents, a detection or prevention success on the asset wins and its
 agents decide otherwise; for a vulnerability the worst verdict wins, so a vulnerable result on the asset or on any of
 its agents makes the asset vulnerable for that platform.
