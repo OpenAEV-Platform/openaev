@@ -121,6 +121,21 @@ class IocValidationResultsPushOutboxTest extends IntegrationTest {
         status -> assertThat(predicate).contains("'" + status.name() + "'"));
   }
 
+  @Test
+  @DisplayName("given the outbox indexes should be keyed by id, the order each bounded page reads")
+  void given_outboxIndexes_should_beKeyedById() {
+    List<String> definitions =
+        jdbc.queryForList(
+            "SELECT indexdef FROM pg_indexes WHERE indexname IN"
+                + " ('idx_ioc_validations_results_push_pending',"
+                + " 'idx_ioc_validations_lifecycle_sync_pending')",
+            String.class);
+
+    assertThat(definitions)
+        .hasSize(2)
+        .allSatisfy(definition -> assertThat(definition).contains("(ioc_validation_id)"));
+  }
+
   private String insertValidation(String status, boolean pushed) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
