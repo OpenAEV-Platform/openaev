@@ -4338,6 +4338,7 @@
   "Endpoints of this group run the benign tests; the security platforms of the request evaluate them.": "Los endpoints de este grupo ejecutan las pruebas inofensivas; las plataformas de seguridad de la solicitud las evalúan.",
   "IOC validation settings saved": "Ajustes de validación de IOC guardados",
   "The egress proxy must be an absolute http or https URL": "El proxy de salida debe ser una URL http o https absoluta",
+  "The egress proxy URL must not contain credentials": "La URL del proxy de salida no debe contener credenciales",
   "HTTP HEAD tests can only be allowed once an egress proxy is configured": "Las pruebas HTTP HEAD solo pueden permitirse una vez configurado un proxy de salida",
   "The sinkhole must be an IPv4 or IPv6 address": "El sinkhole debe ser una dirección IPv4 o IPv6",
   "The network port must be between 1 and 65535": "El puerto de red debe estar entre 1 y 65535",

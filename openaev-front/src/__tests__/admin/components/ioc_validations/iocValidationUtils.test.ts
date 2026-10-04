@@ -74,6 +74,10 @@ describe('iocValidationUtils', () => {
       .toBe('HTTP HEAD tests can only be allowed once an egress proxy is configured');
     expect(validateIocValidationSettings(settings({ ioc_validation_http_proxy_url: 'ftp://proxy' }), '443').proxy)
       .toBe('The egress proxy must be an absolute http or https URL');
+    expect(validateIocValidationSettings(settings({ ioc_validation_http_proxy_url: 'http://user:secret@proxy:3128' }), '443').proxy)
+      .toBe('The egress proxy URL must not contain credentials');
+    expect(validateIocValidationSettings(settings({ ioc_validation_http_proxy_url: 'http://user@proxy:3128' }), '443').proxy)
+      .toBe('The egress proxy URL must not contain credentials');
   });
 
   it('rejects an invalid sinkhole and port', () => {

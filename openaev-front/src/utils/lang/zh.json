@@ -4338,6 +4338,7 @@
   "Endpoints of this group run the benign tests; the security platforms of the request evaluate them.": "此组的终端运行良性测试，请求中的安全平台对其进行评估。",
   "IOC validation settings saved": "IOC 验证设置已保存",
   "The egress proxy must be an absolute http or https URL": "出口代理必须是绝对的 http 或 https URL",
+  "The egress proxy URL must not contain credentials": "出口代理 URL 不得包含凭据",
   "HTTP HEAD tests can only be allowed once an egress proxy is configured": "只有配置出口代理后才能允许 HTTP HEAD 测试",
   "The sinkhole must be an IPv4 or IPv6 address": "Sinkhole 必须是 IPv4 或 IPv6 地址",
   "The network port must be between 1 and 65535": "网络端口必须介于 1 到 65535 之间",

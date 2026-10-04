@@ -4338,6 +4338,7 @@
   "Endpoints of this group run the benign tests; the security platforms of the request evaluate them.": "이 그룹의 엔드포인트가 무해한 테스트를 실행하고, 요청의 보안 플랫폼이 이를 평가합니다.",
   "IOC validation settings saved": "IOC 검증 설정이 저장되었습니다",
   "The egress proxy must be an absolute http or https URL": "송신 프록시는 절대 http 또는 https URL이어야 합니다",
+  "The egress proxy URL must not contain credentials": "송신 프록시 URL에 자격 증명을 포함할 수 없습니다",
   "HTTP HEAD tests can only be allowed once an egress proxy is configured": "HTTP HEAD 테스트는 송신 프록시를 구성한 후에만 허용할 수 있습니다",
   "The sinkhole must be an IPv4 or IPv6 address": "싱크홀은 IPv4 또는 IPv6 주소여야 합니다",
   "The network port must be between 1 and 65535": "네트워크 포트는 1에서 65535 사이여야 합니다",

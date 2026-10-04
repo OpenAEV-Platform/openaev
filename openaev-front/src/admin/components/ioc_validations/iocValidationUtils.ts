@@ -118,6 +118,12 @@ export const isWebLink = (value?: string | null): value is string => {
   }
 };
 
+// The proxy URL is shown in the settings and copied into the simulation injects, so it never carries credentials.
+const hasCredentials = (value: string): boolean => {
+  const { username, password } = new URL(value);
+  return username !== '' || password !== '';
+};
+
 const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 // The URL parser validates IPv6 literals strictly (RFC 4291 text forms, embedded IPv4 included).
 const isIpv6Address = (value: string): boolean => {
@@ -146,6 +152,8 @@ export const validateIocValidationSettings = (settings: IocValidationSettingsInp
   const sinkhole = (settings.ioc_validation_sinkhole_address ?? '').trim();
   if (proxy && !isWebLink(proxy)) {
     errors.proxy = 'The egress proxy must be an absolute http or https URL';
+  } else if (proxy && hasCredentials(proxy)) {
+    errors.proxy = 'The egress proxy URL must not contain credentials';
   } else if (!proxy && settings.ioc_validation_allowed_test_kinds.includes('HTTP_HEAD')) {
     errors.proxy = 'HTTP HEAD tests can only be allowed once an egress proxy is configured';
   }
