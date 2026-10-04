@@ -16,7 +16,7 @@ import {
   Text,
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -30,7 +30,7 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import type { IocValidationSettingsInput, IocValidationSettingsOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
-import { Can } from '../../../../utils/permissions/permissionsContext';
+import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { zodImplement } from '../../../../utils/Zod';
 import {
@@ -254,12 +254,12 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
             render={({ field }) => (
               <Input
                 label={t('Egress proxy URL')}
-                placeholder="http://proxy.internal:3128"
+                placeholder="http://proxy.example.com:3128"
                 value={field.value ?? ''}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 error={errorText(errors.ioc_validation_http_proxy_url?.message)}
-                helperText={t('Required to allow HTTP HEAD tests.')}
+                helperText={t('Required to allow HTTP HEAD tests. Example: http://proxy.example.com:3128')}
               />
             )}
           />
@@ -274,7 +274,7 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 error={errorText(errors.ioc_validation_sinkhole_address?.message)}
-                helperText={t('When set, network tests connect to this address instead of the indicator.')}
+                helperText={t('When set, network tests connect to this address instead of the indicator. Example: 192.0.2.10')}
               />
             )}
           />
@@ -289,6 +289,7 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 error={errorText(errors.ioc_validation_network_port?.message)}
+                helperText={t('The TCP port the network tests connect to, from 1 to 65535. 443 by default.')}
               />
             )}
           />
@@ -330,6 +331,59 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
   );
 };
 
+export const IOC_VALIDATION_DOCUMENTATION_URL = 'https://docs.openaev.io/latest/usage/build/scenario/ioc-validation/';
+const IOC_VALIDATION_CONFIGURATION_URL = `${IOC_VALIDATION_DOCUMENTATION_URL}#configure-ioc-validation`;
+const OPENCTI_CONNECTION_DOCUMENTATION_URL = 'https://docs.openaev.io/latest/usage/evaluate/xtm-suite-connector/#step-1-configure-openaev-to-connect-to-opencti';
+
+const DocumentationButton = ({ href, label }: {
+  href: string;
+  label: string;
+}) => (
+  <Button priority="secondary" size="sm" asChild>
+    <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+  </Button>
+);
+
+/** What IOC validation still needs on this tenant, each with its next step. */
+export const IocValidationReadiness = ({ openctiEnabled, connectorRegistered }: {
+  openctiEnabled: boolean;
+  connectorRegistered: boolean;
+}) => {
+  const { t } = useFormatter();
+  const ability = useContext(AbilityContext);
+  // The OpenCTI connection is part of the platform configuration
+  const canConfigurePlatform = ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
+  if (!openctiEnabled) {
+    return (
+      <Alert
+        severity="info"
+        data-testid="ioc-validation-opencti-missing"
+        title={t('No OpenCTI connection is configured for this tenant: OpenCTI cannot send IOC validation requests yet.')}
+        description={canConfigurePlatform
+          ? t('Add the OpenCTI connection of this tenant to the platform configuration (XTM Suite connector), then restart OpenAEV.')
+          : t('Ask your administrator to configure the OpenCTI connection of this tenant.')}
+        action={canConfigurePlatform
+          ? <DocumentationButton href={OPENCTI_CONNECTION_DOCUMENTATION_URL} label={t('Configure the OpenCTI connection')} />
+          : undefined}
+        style={{ marginBottom: 16 }}
+      />
+    );
+  }
+  if (!connectorRegistered) {
+    return (
+      <Alert
+        severity="warning"
+        data-testid="ioc-validation-connector-unregistered"
+        title={t('The IOC validation connector is not registered in OpenCTI yet: requests and results wait until it is.')}
+        description={t('OpenAEV registers it in OpenCTI with the OpenCTI account of the connection. In OpenCTI, give that account the Connector role, with the Update knowledge and Connectors API usage capabilities.')}
+        action={<DocumentationButton href={IOC_VALIDATION_CONFIGURATION_URL} label={t('How to configure IOC validation')} />}
+        style={{ marginBottom: 16 }}
+      />
+    );
+  }
+  return null;
+};
+
 const IocValidationSettings = () => {
   const { t } = useFormatter();
   const [settings, setSettings] = useState<IocValidationSettingsOutput | null>(null);
@@ -352,20 +406,22 @@ const IocValidationSettings = () => {
             current: true,
           }]}
         />
-        {!settings.ioc_validation_opencti_enabled && (
-          <Alert
-            severity="info"
-            title={t('No OpenCTI connection is configured for this tenant: OpenCTI cannot send IOC validation requests yet.')}
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        {settings.ioc_validation_opencti_enabled && !settings.ioc_validation_connector_registered && (
-          <Alert
-            severity="warning"
-            title={t('The IOC validation connector is not registered in OpenCTI yet: requests and results wait until it is.')}
-            style={{ marginBottom: 16 }}
-          />
-        )}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginBottom: 8,
+        }}
+        >
+          <Button priority="tertiary" size="sm" asChild>
+            <a href={IOC_VALIDATION_DOCUMENTATION_URL} target="_blank" rel="noopener noreferrer" data-testid="ioc-validation-learn-more">
+              {t('Learn more')}
+            </a>
+          </Button>
+        </div>
+        <IocValidationReadiness
+          openctiEnabled={Boolean(settings.ioc_validation_opencti_enabled)}
+          connectorRegistered={Boolean(settings.ioc_validation_connector_registered)}
+        />
         <IocValidationSettingsForm settings={settings} onSaved={setSettings} />
       </div>
       <CustomizationMenu />

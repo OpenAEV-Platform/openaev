@@ -56,7 +56,16 @@ Go to **Settings > Customization > IOC validation**. You need the *Manage tenant
   the indicators would be reported as missed.
 
 IOC validation also needs an OpenCTI connection for the tenant and the IOC validation connector registered in
-OpenCTI. The IOC validation settings show a warning when either is missing.
+OpenCTI. The IOC validation settings show a warning when either is missing, with the next step:
+
+- **No OpenCTI connection**: add the OpenCTI connection of the tenant to the platform configuration (see
+  [Configure OpenAEV to connect to OpenCTI](../../evaluate/xtm-suite-connector.md#step-1-configure-openaev-to-connect-to-opencti)),
+  then restart OpenAEV. Users who cannot change the platform configuration are asked to contact their administrator.
+- **Connector not registered**: OpenAEV registers the IOC validation connector in OpenCTI with the OpenCTI account of
+  the connection. In OpenCTI, give that account the *Connector* role, with the *Update knowledge* and *Connectors API
+  usage* capabilities.
+
+Each field of the settings gives an example value, and **Learn more** opens this page.
 
 ![IOC validation settings: allowed test kinds, network safety and the asset group running the tests](assets/ioc-validation-settings.png)
 

@@ -260,8 +260,8 @@ public class IocValidationService {
         endpoints.stream().filter(IocValidationService::hasRunnableAgent).toList();
     if (runnableEndpoints.isEmpty()) {
       throw new BadRequestException(
-          ("No endpoint of the IOC validation asset group '%s' has an active agent: the tests"
-                  + " would not run. Check the agents of its endpoints, then approve again.")
+          ("No endpoint of the asset group '%s' has an active agent: start an agent or choose another"
+                  + " asset group in Settings > Customization > IOC validation, then approve again.")
               .formatted(assetGroup.getName()));
     }
 
