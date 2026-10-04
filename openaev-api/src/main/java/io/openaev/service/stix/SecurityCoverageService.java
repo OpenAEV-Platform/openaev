@@ -621,23 +621,12 @@ public class SecurityCoverageService {
     Map<String, List<BaseInjectExpectation>> expectationsByInjectId =
         simulationExpectations.stream()
             .collect(Collectors.groupingBy(expectation -> expectation.getInject().getId()));
-    List<SecurityPlatform> securityPlatforms =
-        injectService.extractSecurityPlatforms(simulation.getInjects());
-    // Platforms sharing a name (different types) are one identity in OpenCTI: one identity, one
-    // relationship and one set of scores for all of them
-    Map<String, DomainObject> platformIdentities = new LinkedHashMap<>();
-    Map<String, Set<String>> platformIdsByStixId = new LinkedHashMap<>();
+    PlatformIdentities identities =
+        PlatformIdentities.of(injectService.extractSecurityPlatforms(simulation.getInjects()));
+    Map<String, DomainObject> platformIdentities = identities.identityByStixId();
+    Map<String, Set<String>> platformIdsByStixId = identities.platformIdsByStixId();
     // coverage_platforms may only reference the identities emitted below in the same bundle
-    Map<String, Identifier> platformStixIds = new LinkedHashMap<>();
-    for (SecurityPlatform platform : securityPlatforms) {
-      DomainObject identity = platform.toStixDomainObject();
-      String stixId = identity.getId().getValue();
-      platformIdentities.putIfAbsent(stixId, identity);
-      platformIdsByStixId
-          .computeIfAbsent(stixId, key -> new LinkedHashSet<>())
-          .add(platform.getId());
-      platformStixIds.put(platform.getId(), identity.getId());
-    }
+    Map<String, Identifier> platformStixIds = identities.stixIdByPlatformId();
     Function<List<Inject>, List<PlatformCoverageResult>> coveragePlatformsFunction =
         matchingInjects ->
             computeCoveragePlatforms(matchingInjects, expectationsByInjectId, platformStixIds);
@@ -794,6 +783,41 @@ public class SecurityCoverageService {
                 coveragePlatforms.stream().map(Complex::new).toList()));
       }
       objects.add(sro);
+    }
+  }
+
+  /**
+   * The STIX identities of the security platforms of a bundle. Platforms sharing a name (different
+   * types) are one identity in OpenCTI: one identity, one relationship and one set of scores for
+   * all of them. The identity of such a group is built from its platform with the smallest id, so
+   * the emitted name and dates never depend on the order the platforms are loaded in.
+   *
+   * @param identityByStixId the identity to emit, by STIX id, in platform id order
+   * @param platformIdsByStixId the ids of the platforms of each identity, by STIX id
+   * @param stixIdByPlatformId the STIX id of the identity of every platform, by platform id
+   */
+  record PlatformIdentities(
+      Map<String, DomainObject> identityByStixId,
+      Map<String, Set<String>> platformIdsByStixId,
+      Map<String, Identifier> stixIdByPlatformId) {
+
+    static PlatformIdentities of(Collection<SecurityPlatform> platforms) {
+      Map<String, DomainObject> identityByStixId = new LinkedHashMap<>();
+      Map<String, Set<String>> platformIdsByStixId = new LinkedHashMap<>();
+      Map<String, Identifier> stixIdByPlatformId = new LinkedHashMap<>();
+      platforms.stream()
+          .sorted(Comparator.comparing(SecurityPlatform::getId))
+          .forEach(
+              platform -> {
+                DomainObject identity = platform.toStixDomainObject();
+                String stixId = identity.getId().getValue();
+                identityByStixId.putIfAbsent(stixId, identity);
+                platformIdsByStixId
+                    .computeIfAbsent(stixId, key -> new LinkedHashSet<>())
+                    .add(platform.getId());
+                stixIdByPlatformId.put(platform.getId(), identity.getId());
+              });
+      return new PlatformIdentities(identityByStixId, platformIdsByStixId, stixIdByPlatformId);
     }
   }
 

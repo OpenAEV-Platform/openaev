@@ -119,6 +119,35 @@ class SecurityCoveragePlatformAttributionTest {
     }
 
     @Test
+    @DisplayName(
+        "Platforms sharing a name: the identity is built from the same platform whatever the order")
+    void given_platformsSharingAName_should_buildTheIdentityFromTheSmallestPlatformId() {
+      // Arrange
+      SecurityPlatform falconEdr = createPlatform("Falcon", "EDR");
+      SecurityPlatform falconXdr = createPlatform("falcon ", "XDR");
+      SecurityPlatform first =
+          falconEdr.getId().compareTo(falconXdr.getId()) < 0 ? falconEdr : falconXdr;
+      String stixId = SecurityPlatform.stixIdentityId("Falcon");
+
+      // Act
+      SecurityCoverageService.PlatformIdentities forward =
+          SecurityCoverageService.PlatformIdentities.of(List.of(falconEdr, falconXdr));
+      SecurityCoverageService.PlatformIdentities backward =
+          SecurityCoverageService.PlatformIdentities.of(List.of(falconXdr, falconEdr));
+
+      // Assert
+      for (SecurityCoverageService.PlatformIdentities identities : List.of(forward, backward)) {
+        assertThat(identities.identityByStixId()).containsOnlyKeys(stixId);
+        assertThat(identities.identityByStixId().get(stixId).getProperty("name"))
+            .isEqualTo(first.toStixDomainObject().getProperty("name"));
+        assertThat(identities.platformIdsByStixId().get(stixId))
+            .containsExactlyInAnyOrder(falconEdr.getId(), falconXdr.getId());
+        assertThat(identities.stixIdByPlatformId().values())
+            .allSatisfy(identifier -> assertThat(identifier.getValue()).isEqualTo(stixId));
+      }
+    }
+
+    @Test
     @DisplayName("Platforms sharing a name are scored together under their one identity")
     void given_platformsSharingAName_should_scoreThemTogetherUnderOneIdentity() {
       // Arrange
