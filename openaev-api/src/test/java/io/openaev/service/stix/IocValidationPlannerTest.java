@@ -59,7 +59,10 @@ class IocValidationPlannerTest {
 
       assertThat(dns.runnable()).isTrue();
       assertThat(network.runnable()).isFalse();
-      assertThat(network.message()).contains("not allowed");
+      // The message names the test as people read it, never the contract value
+      assertThat(network.message())
+          .contains("do not allow this test (Network traffic)")
+          .doesNotContain("network_traffic");
       assertThat(network.arguments()).isEmpty();
     }
 

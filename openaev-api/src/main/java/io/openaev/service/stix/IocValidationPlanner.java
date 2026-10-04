@@ -78,8 +78,8 @@ public final class IocValidationPlanner {
     }
     if (!settings.allows(kind)) {
       return Plan.skip(
-          "Not run: the %s test kind is not allowed by the IOC validation settings of this tenant"
-              .formatted(kind.toStix()));
+          "Not run: the IOC validation settings of this tenant do not allow this test (%s)"
+              .formatted(kind.label()));
     }
     String observableType =
         ioc.getObservableType() == null ? "" : ioc.getObservableType().toLowerCase(Locale.ROOT);
@@ -195,8 +195,8 @@ public final class IocValidationPlanner {
 
   private static Plan notApplicable(IocValidationTestKind kind, IocValidationIoc ioc) {
     return Plan.skip(
-        "Not run: the %s test kind does not apply to %s observables"
-            .formatted(kind.toStix(), ioc.getObservableType()));
+        "Not run: this test (%s) does not apply to %s observables"
+            .formatted(kind.label(), ioc.getObservableType()));
   }
 
   /** Lower-case ASCII host name, or empty when the value is not a resolvable name. */

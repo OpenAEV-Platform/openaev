@@ -1,6 +1,5 @@
-import { Button, Text } from '@filigran/design-system';
+import { Alert, Button, Text } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
-import { Alert } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 
@@ -8,10 +7,10 @@ import { fetchIocValidation } from '../../../actions/ioc_validations/ioc-validat
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { Field, Section } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
-import Loader from '../../../components/Loader';
 import type { IocValidationIocOutput, IocValidationOutput, IocValidationPairOutput } from '../../../utils/api-types';
 import IocValidationDecisionActions from './IocValidationDecisionActions';
 import IocValidationOutcomeChip from './IocValidationOutcomeChip';
+import IocValidationSkeleton from './IocValidationSkeleton';
 import IocValidationStatusChip from './IocValidationStatusChip';
 import IocValidationTable, { type IocValidationTableColumn } from './IocValidationTable';
 import {
@@ -51,10 +50,20 @@ const IocValidation = () => {
   }, [status, load]);
 
   if (notFound) {
-    return <Alert severity="warning" variant="outlined">{t('This IOC validation does not exist or is not available in this tenant.')}</Alert>;
+    return (
+      <Alert
+        severity="warning"
+        title={t('This IOC validation does not exist or is not available in this tenant.')}
+        action={(
+          <Button asChild priority="secondary" size="sm">
+            <Link to={IOC_VALIDATION_BASE_URL}>{t('Back to IOC validations')}</Link>
+          </Button>
+        )}
+      />
+    );
   }
   if (!iocValidation) {
-    return <Loader />;
+    return <IocValidationSkeleton />;
   }
 
   const counts = countIocValidationOutcomes(iocValidation.ioc_validation_pairs);
@@ -190,9 +199,7 @@ const IocValidation = () => {
         </div>
       </header>
       {iocValidation.ioc_validation_status_message && (
-        <Alert severity="info" variant="outlined" style={{ marginBottom: 16 }}>
-          {iocValidation.ioc_validation_status_message}
-        </Alert>
+        <Alert severity="info" title={iocValidation.ioc_validation_status_message} style={{ marginBottom: 16 }} />
       )}
       <div style={{
         display: 'grid',

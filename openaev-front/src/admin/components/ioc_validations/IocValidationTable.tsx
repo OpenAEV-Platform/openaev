@@ -52,7 +52,6 @@ const IocValidationTable = <T, >({ caption, columns, rows, rowKey, emptyMessage 
               style={{
                 ...cellStyle,
                 width: column.width,
-                fontWeight: 400,
               }}
             >
               {column.label}
