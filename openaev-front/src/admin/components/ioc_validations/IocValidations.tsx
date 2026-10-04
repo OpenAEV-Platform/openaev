@@ -162,7 +162,7 @@ const IocValidations = () => {
       <List>
         <ListItem
           divider={false}
-          style={{ paddingTop: 0 }}
+          sx={{ paddingTop: 0 }}
           secondaryAction={<>&nbsp;</>}
         >
           <ListItemIcon />

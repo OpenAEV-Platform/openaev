@@ -88,6 +88,7 @@ public class IocValidationService {
   private static final int MAX_SCENARIO_NAME_LENGTH = 255;
   static final int OUTBOX_PAGE_SIZE = 100;
 
+  private final AtomicReference<String> runningResultsCursor = new AtomicReference<>("");
   private final AtomicReference<String> resultsPushCursor = new AtomicReference<>("");
   private final AtomicReference<String> lifecycleSyncCursor = new AtomicReference<>("");
 
@@ -336,12 +337,13 @@ public class IocValidationService {
 
   // -- RESULTS (background job) --
 
-  /** Evaluates every running validation of every tenant, one short transaction each. */
+  /**
+   * Evaluates a bounded page of the running validations of every tenant, one short transaction
+   * each; the next run continues with the following page.
+   */
   public void computeRunningResults() {
     for (IocValidationRef ref :
-        allTenants(
-            () ->
-                iocValidationRepository.findRefsByStatusIn(List.of(IocValidationStatus.RUNNING)))) {
+        nextOutboxPage(runningResultsCursor, iocValidationRepository::findRunningRefs)) {
       try {
         inTenant(ref.getTenantId(), () -> computeResults(ref.getId(), Instant.now()));
       } catch (Exception e) {

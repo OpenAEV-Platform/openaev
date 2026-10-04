@@ -16,6 +16,8 @@ import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -78,6 +80,12 @@ public class IocValidationSettingsService {
     if (!proxy.isEmpty() && !IocValidationPlanner.isHttpUrl(proxy)) {
       throw new InputValidationException(
           HTTP_PROXY_URL_FIELD, "The egress proxy must be an absolute http or https URL");
+    }
+    if (hasUserInfo(proxy)) {
+      throw new InputValidationException(
+          HTTP_PROXY_URL_FIELD,
+          "The egress proxy URL must not contain credentials: it is shown in the settings and"
+              + " copied into the simulation injects");
     }
     if (settings.allows(IocValidationTestKind.HTTP_HEAD) && proxy.isEmpty()) {
       throw new InputValidationException(
@@ -161,6 +169,17 @@ public class IocValidationSettingsService {
     Optional<String> stored =
         tenantSettingsService.findSetting(tenantId, key.key()).map(Setting::getValue);
     return stored.orElse(key.defaultValue());
+  }
+
+  static boolean hasUserInfo(String url) {
+    if (url.isEmpty()) {
+      return false;
+    }
+    try {
+      return new URI(url).getRawUserInfo() != null;
+    } catch (URISyntaxException e) {
+      return false;
+    }
   }
 
   private static String blankToEmpty(String value) {

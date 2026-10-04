@@ -128,11 +128,11 @@ class IocValidationResultsPushOutboxTest extends IntegrationTest {
         jdbc.queryForList(
             "SELECT indexdef FROM pg_indexes WHERE indexname IN"
                 + " ('idx_ioc_validations_results_push_pending',"
-                + " 'idx_ioc_validations_lifecycle_sync_pending')",
+                + " 'idx_ioc_validations_lifecycle_sync_pending', 'idx_ioc_validations_running')",
             String.class);
 
     assertThat(definitions)
-        .hasSize(2)
+        .hasSize(3)
         .allSatisfy(definition -> assertThat(definition).contains("(ioc_validation_id)"));
   }
 
