@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -358,6 +359,7 @@ public class ExecutableInjectService {
     if (contract.getPayload() == null) {
       throw new ElementNotFoundException("Payload not found");
     }
+    refuseOutdatedIocValidationFileDrop(contract.getPayload());
     ObjectNode injectContent =
         PayloadService.iocValidationExecutionContent(
             inject.getContent(), contract.getPayload(), inject.getId());
@@ -418,6 +420,19 @@ public class ExecutableInjectService {
 
     return processPayloadToExecute(
         payloadToExecute, contract, injectContent, injectorContractFields, obfuscator);
+  }
+
+  /**
+   * An inject approved before an upgrade can still point at an IOC validation file-drop payload of
+   * an earlier version, which wrote directly in the temp directory: it is refused until a new
+   * approval brings the payload to the current template.
+   */
+  static void refuseOutdatedIocValidationFileDrop(Payload payload) {
+    if (PayloadService.isIocValidationFileDropPayload(payload)
+        && !(Hibernate.unproxy(payload) instanceof Command fileDrop
+            && PayloadService.isCurrentIocValidationFileDropTemplate(fileDrop))) {
+      throw new IllegalStateException(PayloadService.IOC_VALIDATION_OUTDATED_FILE_DROP);
+    }
   }
 
   private Payload processPayloadToExecute(

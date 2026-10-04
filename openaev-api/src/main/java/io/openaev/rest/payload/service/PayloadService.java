@@ -96,6 +96,10 @@ public class PayloadService {
       "OpenAEV IOC validation: the run must be 32 lowercase hexadecimal characters and the"
           + " surrogate file name a plain file name";
   private static final Pattern IOC_VALIDATION_RUN_PATTERN = Pattern.compile("[0-9a-f]{32}");
+  static final String IOC_VALIDATION_INVALID_RUN = "invalid-run";
+  public static final String IOC_VALIDATION_OUTDATED_FILE_DROP =
+      "OpenAEV IOC validation: this file drop payload predates the per-inject run directory and is"
+          + " refused; approve a new validation to bring it to the current template";
   public static final String IOC_VALIDATION_WINDOWS_EXECUTOR = "psh";
   public static final String IOC_VALIDATION_POSIX_EXECUTOR = "sh";
   private static final String IOC_VALIDATION_PAYLOAD_NAMESPACE =
@@ -806,32 +810,54 @@ public class PayloadService {
    * view, attack-path snapshot), so the audited command is the one that ran. The run stored on the
    * inject is only a seed: the run directory is named on the server after the seed and the inject
    * id, so an inject can never address the directory of another one, whatever its content says, and
-   * its drop and its cleanup always meet in the same directory. A missing or malformed seed is left
-   * as it is, so the endpoint refuses the inject before any file operation. Every other payload,
-   * including a user payload with an argument of the same name, runs with the content unchanged.
+   * its drop and its cleanup always meet in the same directory. A missing seed falls back to the
+   * empty default and a malformed one is replaced with {@link #IOC_VALIDATION_INVALID_RUN}, which
+   * no binder sanitization (control characters stripped) can turn into a valid run, so the endpoint
+   * refuses the inject before any file operation. Every other payload, including a user payload
+   * with an argument of the same name, runs with the content unchanged.
    */
   public static ObjectNode iocValidationExecutionContent(
       ObjectNode content, Payload payload, String injectId) {
-    if (!isIocValidationFileDropPayload(payload)) {
+    if (!isIocValidationFileDropPayload(payload)
+        || content == null
+        || !content.hasNonNull(IOC_VALIDATION_RUN_KEY)) {
       return content;
     }
-    String seed =
-        content != null && content.hasNonNull(IOC_VALIDATION_RUN_KEY)
-            ? content.get(IOC_VALIDATION_RUN_KEY).asText()
-            : "";
-    if (!IOC_VALIDATION_RUN_PATTERN.matcher(seed).matches()) {
-      return content;
-    }
+    String seed = content.get(IOC_VALIDATION_RUN_KEY).asText();
     ObjectNode bound = content.deepCopy();
-    bound.put(IOC_VALIDATION_RUN_KEY, iocValidationRunDirectory(injectId, seed));
+    bound.put(
+        IOC_VALIDATION_RUN_KEY,
+        IOC_VALIDATION_RUN_PATTERN.matcher(seed).matches()
+            ? iocValidationRunDirectory(injectId, seed)
+            : IOC_VALIDATION_INVALID_RUN);
     return bound;
+  }
+
+  /**
+   * Whether a file-drop payload still runs the current template (run directory owned by the inject,
+   * checked arguments). A payload created by an earlier version wrote directly in the temp
+   * directory: it is refreshed the next time a validation is approved, and refused at execution
+   * until then.
+   */
+  public static boolean isCurrentIocValidationFileDropTemplate(Command command) {
+    boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(command.getExecutor());
+    boolean bindsRun =
+        command.getArguments() != null
+            && command.getArguments().stream()
+                .anyMatch(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()));
+    return bindsRun
+        && iocValidationCommandContent(IocValidationTestKind.FILE_DROP, windows)
+            .equals(command.getContent())
+        && Objects.equals(
+            iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, windows),
+            command.getCleanupCommand());
   }
 
   /**
    * Whether the payload is the IOC validation file-drop singleton of its tenant, recognised by its
    * server-assigned identity and never by its argument names, which any payload author can choose.
    */
-  static boolean isIocValidationFileDropPayload(Payload payload) {
+  public static boolean isIocValidationFileDropPayload(Payload payload) {
     if (payload == null || payload.getId() == null || payload.getTenant() == null) {
       return false;
     }

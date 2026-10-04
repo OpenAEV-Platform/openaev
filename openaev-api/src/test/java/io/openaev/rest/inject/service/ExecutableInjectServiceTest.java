@@ -1,13 +1,18 @@
 package io.openaev.rest.inject.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Command;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.database.model.Tenant;
+import io.openaev.rest.payload.service.PayloadService;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -62,6 +67,37 @@ class ExecutableInjectServiceTest {
 
     // Assert
     assertThat(result).isEqualTo("nxc smb 10.10.10.10 -u  --shares");
+  }
+
+  @Test
+  @DisplayName("Should refuse an IOC validation file drop payload of an earlier version")
+  void given_outdatedIocValidationFileDrop_should_refuseExecution() {
+    // Arrange: the singleton as an earlier version created it, writing directly in the temp dir
+    Command legacy = new Command();
+    legacy.setTenant(new Tenant("tenant-a"));
+    legacy.setExecutor(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR);
+    legacy.setId(
+        PayloadService.iocValidationPayloadId(
+            IocValidationTestKind.FILE_DROP,
+            PayloadService.IOC_VALIDATION_POSIX_EXECUTOR,
+            "tenant-a"));
+    legacy.setContent(
+        "printf 'OpenAEV IOC validation benign surrogate\\n' > \"${TMPDIR:-/tmp}/\"#{"
+            + PayloadService.IOC_VALIDATION_FILE_NAME_KEY
+            + "}; true");
+    legacy.setArguments(List.of(payloadArgument(PayloadService.IOC_VALIDATION_FILE_NAME_KEY, "")));
+    // A user payload is never concerned, whatever its content
+    Command userPayload = new Command();
+    userPayload.setTenant(new Tenant("tenant-a"));
+    userPayload.setId("4b3f8e52-2f1b-4c36-9a4e-1d2c3b4a5f60");
+    userPayload.setContent(legacy.getContent());
+
+    // Act / Assert
+    assertThatThrownBy(() -> ExecutableInjectService.refuseOutdatedIocValidationFileDrop(legacy))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage(PayloadService.IOC_VALIDATION_OUTDATED_FILE_DROP);
+    assertThatCode(() -> ExecutableInjectService.refuseOutdatedIocValidationFileDrop(userPayload))
+        .doesNotThrowAnyException();
   }
 
   @Test

@@ -111,16 +111,55 @@ class IocValidationCommandContentTest {
         "../../escape",
         "0123456789ABCDEF0123456789ABCDEF",
         "0123456789abcdef0123456789abcde",
-        "0123456789abcdef0123456789abcdef0"
+        "0123456789abcdef0123456789abcdef0",
+        "0123456789abcdef0123456789abcdef\n",
+        "0123456789abcdef\u00000123456789abcdef",
+        "\t0123456789abcdef0123456789abcdef\r"
       })
-  @DisplayName("a malformed run is not turned into a valid one: the endpoint refuses the inject")
-  void given_malformedRun_should_keepTheContent(String seed) {
+  @DisplayName(
+      "a malformed run stays invalid after the binder sanitization: the endpoint refuses it")
+  void given_malformedRun_should_stayInvalidOnceBound(String seed) {
     Command payload = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
     ObjectNode content = JsonNodeFactory.instance.objectNode();
     content.put(IOC_VALIDATION_RUN_KEY, seed);
 
-    assertThat(PayloadService.iocValidationExecutionContent(content, payload, "inject-a"))
-        .isSameAs(content);
+    String run =
+        PayloadService.iocValidationExecutionContent(content, payload, "inject-a")
+            .get(IOC_VALIDATION_RUN_KEY)
+            .asText();
+
+    assertThat(run).isEqualTo(PayloadService.IOC_VALIDATION_INVALID_RUN);
+    CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("sh");
+    binder.bind(IOC_VALIDATION_RUN_KEY, run);
+    assertThat(binder.render(RUN)).doesNotContainPattern("[0-9a-f]{32}");
+    assertThat(content.get(IOC_VALIDATION_RUN_KEY).asText()).isEqualTo(seed);
+  }
+
+  @Test
+  @DisplayName("only a file drop payload running the current template may be executed")
+  void given_fileDropPayload_should_recogniseTheCurrentTemplate() {
+    Command current = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
+    current.setContent(
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.FILE_DROP, false));
+    current.setCleanupCommand(
+        PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false));
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(current)).isTrue();
+
+    Command legacyCommand =
+        fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
+    legacyCommand.setContent("printf 'x' > \"${TMPDIR:-/tmp}/\"" + FILE_NAME + "; true");
+    legacyCommand.setCleanupCommand(current.getCleanupCommand());
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(legacyCommand)).isFalse();
+
+    Command withoutRun = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
+    withoutRun.setContent(current.getContent());
+    withoutRun.setCleanupCommand(current.getCleanupCommand());
+    withoutRun.setArguments(
+        new ArrayList<>(
+            PayloadService.iocValidationArguments(IocValidationTestKind.FILE_DROP).stream()
+                .filter(argument -> !IOC_VALIDATION_RUN_KEY.equals(argument.getKey()))
+                .toList()));
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withoutRun)).isFalse();
   }
 
   @Test
@@ -269,10 +308,16 @@ class IocValidationCommandContentTest {
       binder.bind(IOC_VALIDATION_RUN_KEY, run);
       ProcessBuilder builder = new ProcessBuilder("/bin/sh", "-c", binder.render(template));
       builder.environment().put("TMPDIR", tmp.toString());
+      // The assertions read the file system, never the output: discarding it lets the timed wait
+      // bound the test.
       builder.redirectErrorStream(true);
+      builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
       Process process = builder.start();
-      process.getInputStream().readAllBytes();
-      assertThat(process.waitFor(30, TimeUnit.SECONDS)).isTrue();
+      boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+      if (!finished) {
+        process.destroyForcibly();
+      }
+      assertThat(finished).isTrue();
       return process.exitValue();
     }
 
@@ -297,7 +342,14 @@ class IocValidationCommandContentTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"../../escape", "manual", "0123456789ABCDEF0123456789ABCDEF", ""})
+    @ValueSource(
+        strings = {
+          "../../escape",
+          "manual",
+          "0123456789ABCDEF0123456789ABCDEF",
+          "",
+          PayloadService.IOC_VALIDATION_INVALID_RUN
+        })
     @DisplayName("refuses a run that is not 32 lowercase hexadecimal characters and writes nothing")
     void given_invalidRun_should_failWithoutWriting(String invalidRun) throws Exception {
       assertThat(execute(drop(), invalidRun, "invoice.pdf")).isNotZero();
