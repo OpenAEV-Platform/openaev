@@ -234,7 +234,7 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
           )}
         />
         {contactsInfrastructure && (
-          <Alert severity="warning" variant="outlined" style={{ marginTop: 12 }}>
+          <Alert severity="warning" variant="outlined" sx={{ mt: 1.5 }}>
             {t('Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests.')}
           </Alert>
         )}
@@ -351,12 +351,12 @@ const IocValidationSettings = () => {
           }]}
         />
         {!settings.ioc_validation_opencti_enabled && (
-          <Alert severity="info" variant="outlined" style={{ marginBottom: 16 }}>
+          <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
             {t('No OpenCTI connection is configured for this tenant: OpenCTI cannot send IOC validation requests yet.')}
           </Alert>
         )}
         {settings.ioc_validation_opencti_enabled && !settings.ioc_validation_connector_registered && (
-          <Alert severity="warning" variant="outlined" style={{ marginBottom: 16 }}>
+          <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
             {t('The IOC validation connector is not registered in OpenCTI yet: requests and results wait until it is.')}
           </Alert>
         )}
