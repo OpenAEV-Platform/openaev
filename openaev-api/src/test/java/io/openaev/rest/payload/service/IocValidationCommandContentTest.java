@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Command;
+import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
@@ -214,6 +215,13 @@ class IocValidationCommandContentTest {
         new HashMap<>(Map.of(DETECTION, List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR))));
     assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(restrictedPlatforms))
         .isFalse();
+    // The endpoint platforms decide which agents run the command: sh never targets Windows
+    Command otherPlatforms = currentFileDrop();
+    otherPlatforms.setPlatforms(new PLATFORM_TYPE[] {PLATFORM_TYPE.Windows});
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(otherPlatforms)).isFalse();
+    Command withoutMacOs = currentFileDrop();
+    withoutMacOs.setPlatforms(new PLATFORM_TYPE[] {PLATFORM_TYPE.Linux});
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withoutMacOs)).isFalse();
   }
 
   @Test
@@ -253,6 +261,7 @@ class IocValidationCommandContentTest {
     current.setCleanupCommand(
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false));
     current.setExpectations(new EXPECTATION_TYPE[] {DETECTION, PREVENTION});
+    current.setPlatforms(new PLATFORM_TYPE[] {PLATFORM_TYPE.MacOS, PLATFORM_TYPE.Linux});
     return current;
   }
 
@@ -565,14 +574,29 @@ class IocValidationCommandContentTest {
     }
 
     @Test
-    @DisplayName("never overwrites a file already at the surrogate path and fails")
-    void given_existingSurrogate_should_failWithoutOverwritingIt() throws Exception {
+    @DisplayName(
+        "never overwrites a file already at the surrogate path, fails, and keeps it at cleanup")
+    void given_existingSurrogate_should_failWithoutOverwritingNorRemovingIt() throws Exception {
       Path runDirectory =
           Files.createDirectories(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
       Path existing = Files.writeString(runDirectory.resolve("invoice.pdf"), "not ours");
 
       assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
       assertThat(existing).hasContent("not ours");
+    }
+
+    @Test
+    @DisplayName("removes at cleanup only the surrogate of its run, not a file put in its place")
+    void given_replacedSurrogate_should_keepItAtCleanup() throws Exception {
+      Path surrogate = tmp.resolve("openaev-ioc-validation-" + VALID_RUN).resolve("invoice.pdf");
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      Files.writeString(surrogate, "not ours");
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(surrogate).hasContent("not ours");
     }
   }
 
@@ -722,14 +746,29 @@ class IocValidationCommandContentTest {
     }
 
     @Test
-    @DisplayName("never overwrites a file already at the surrogate path and fails")
-    void given_existingSurrogate_should_failWithoutOverwritingIt() throws Exception {
+    @DisplayName(
+        "never overwrites a file already at the surrogate path, fails, and keeps it at cleanup")
+    void given_existingSurrogate_should_failWithoutOverwritingNorRemovingIt() throws Exception {
       Path runDirectory =
           Files.createDirectories(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
       Path existing = Files.writeString(runDirectory.resolve("invoice.pdf"), "not ours");
 
       assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
       assertThat(existing).hasContent("not ours");
+    }
+
+    @Test
+    @DisplayName("removes at cleanup only the surrogate of its run, not a file put in its place")
+    void given_replacedSurrogate_should_keepItAtCleanup() throws Exception {
+      Path surrogate = tmp.resolve("openaev-ioc-validation-" + VALID_RUN).resolve("invoice.pdf");
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      Files.writeString(surrogate, "not ours");
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(surrogate).hasContent("not ours");
     }
   }
 }
