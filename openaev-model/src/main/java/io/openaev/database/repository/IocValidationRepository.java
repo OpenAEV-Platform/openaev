@@ -1,9 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.IocValidation;
-import io.openaev.database.model.IocValidationStatus;
 import jakarta.persistence.LockModeType;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -39,11 +37,16 @@ public interface IocValidationRepository
   @Query("select v from IocValidation v where v.id = :id")
   Optional<IocValidation> findByIdForUpdate(@Param("id") String id);
 
-  /** Id and tenant of every validation in one of the given statuses, for the background sweep. */
+  /**
+   * One page, in id order from {@code from}, of the running validations: the results job walks them
+   * a bounded page per run. The status is a literal so that the planner can prove the predicate of
+   * the partial index {@code idx_ioc_validations_running}.
+   */
   @Query(
-      "select v.id as id, v.tenant.id as tenantId from IocValidation v where v.status in :statuses")
-  List<IocValidationRef> findRefsByStatusIn(
-      @Param("statuses") Collection<IocValidationStatus> statuses);
+      "select v.id as id, v.tenant.id as tenantId from IocValidation v"
+          + " where v.status = io.openaev.database.model.IocValidationStatus.RUNNING"
+          + " and v.id >= :from order by v.id")
+  List<IocValidationRef> findRunningRefs(@Param("from") String from, Pageable page);
 
   /**
    * One page, in id order from {@code from}, of the validations whose current status OpenCTI has

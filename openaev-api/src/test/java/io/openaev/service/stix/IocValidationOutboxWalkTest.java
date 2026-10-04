@@ -168,6 +168,24 @@ class IocValidationOutboxWalkTest {
         .findRefsWithPendingResultsPush(fullPage.getLast().getId(), page);
   }
 
+  @Test
+  @DisplayName("given many running validations should evaluate one bounded page per run")
+  void given_manyRunningValidations_should_evaluateOneBoundedPagePerRun() {
+    List<IocValidationRef> fullPage =
+        IntStream.range(0, IocValidationService.OUTBOX_PAGE_SIZE)
+            .mapToObj(i -> (IocValidationRef) new Ref("id-%03d".formatted(i), TENANT))
+            .toList();
+    when(iocValidationRepository.findRunningRefs(anyString(), any()))
+        .thenReturn(fullPage, List.of());
+
+    service.computeRunningResults();
+    service.computeRunningResults();
+
+    PageRequest page = PageRequest.of(0, IocValidationService.OUTBOX_PAGE_SIZE);
+    verify(iocValidationRepository).findRunningRefs("", page);
+    verify(iocValidationRepository).findRunningRefs(fullPage.getLast().getId(), page);
+  }
+
   private static boolean isFor(IocValidationRequestStatusUpdate update, String id) {
     return update != null && ("ioc-validation-request--" + id).equals(update.getRequestId());
   }

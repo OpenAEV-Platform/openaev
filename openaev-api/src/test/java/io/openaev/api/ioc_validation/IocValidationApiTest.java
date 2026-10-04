@@ -605,6 +605,17 @@ class IocValidationApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("refuses an egress proxy URL carrying credentials")
+    void given_proxyWithCredentials_should_refuse() throws Exception {
+      mvc.perform(
+              putSettings(
+                  "{\"ioc_validation_allowed_test_kinds\":[\"DNS_RESOLUTION\",\"HTTP_HEAD\"],"
+                      + "\"ioc_validation_http_proxy_url\":\"https://user:secret@proxy.internal:3128\","
+                      + "\"ioc_validation_network_port\":443}"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("refuses a sinkhole that is not an IP address")
     void given_invalidSinkhole_should_refuse() throws Exception {
       mvc.perform(
