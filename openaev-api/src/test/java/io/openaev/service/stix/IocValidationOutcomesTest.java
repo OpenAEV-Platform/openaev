@@ -136,6 +136,51 @@ class IocValidationOutcomesTest {
     }
 
     @Test
+    @DisplayName("a platform reporting through several collectors is evaluated once all answered")
+    void given_collectorStillPending_should_waitThenBeMissed() {
+      List<BaseInjectExpectation> oneCollectorAnswered =
+          List.of(
+              expectation(
+                  new DetectionInjectExpectation(),
+                  null,
+                  result(PLATFORM_ID, 0.0),
+                  siemResult(null)),
+              expectation(
+                  new PreventionInjectExpectation(),
+                  null,
+                  result(PLATFORM_ID, 0.0),
+                  siemResult(null)));
+      assertThat(IocValidationOutcomes.evaluate(oneCollectorAnswered, PLATFORM_ID, false))
+          .isEmpty();
+
+      List<BaseInjectExpectation> bothAnswered =
+          List.of(
+              expectation(
+                  new DetectionInjectExpectation(),
+                  null,
+                  result(PLATFORM_ID, 0.0),
+                  siemResult(0.0)),
+              expectation(
+                  new PreventionInjectExpectation(),
+                  null,
+                  result(PLATFORM_ID, 0.0),
+                  siemResult(0.0)));
+      assertThat(IocValidationOutcomes.evaluate(bothAnswered, PLATFORM_ID, false))
+          .map(IocValidationOutcomes.Evaluation::outcome)
+          .contains(IocValidationOutcome.MISSED);
+    }
+
+    /** The verdict of a second collector of the same security platform. */
+    private static InjectExpectationResult siemResult(Double score) {
+      return InjectExpectationResult.builder()
+          .sourceId("siem-collector")
+          .sourceAssetId(PLATFORM_ID)
+          .score(score)
+          .result("r")
+          .build();
+    }
+
+    @Test
     @DisplayName("an evaluated test the platform answered negatively is missed")
     void given_negativeResults_should_beMissed() {
       Optional<IocValidationOutcomes.Evaluation> evaluation =
