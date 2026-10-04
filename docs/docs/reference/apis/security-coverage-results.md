@@ -150,7 +150,10 @@ Each security platform is scored only on the Expectations of the matching Inject
 
 - An Expectation without any result of the platform is out of its scope (another platform monitors that asset, or the
   platform does not handle that expectation type) and does not lower its score.
-- A platform expected to answer that never did keeps a pending or expired result, which counts against its score.
+- A platform expected to answer that never did keeps a pending result, which counts against its score, until the
+  Expectation expires. At expiration the signal polarity applies: a detection or prevention result becomes a failure
+  and still counts against the platform, while a vulnerability result receives the expected score ("Not vulnerable",
+  since the platform reported no finding) and counts as a success.
 - An expectation type is listed for a platform only when the platform reported on at least one Expectation of that type,
   so a SIEM that only detects is never listed with a `PREVENTION` score.
 - When a platform is the only one reporting and it reports on every Expectation, its score equals the `coverage`
