@@ -52,16 +52,34 @@ Go to **Settings > Customization > IOC validation**. You need the *Manage tenant
   an asset group is set.
 
 IOC validation also needs an OpenCTI connection for the tenant and the IOC validation connector registered in
-OpenCTI. The IOC validations screen shows a warning when either is missing.
+OpenCTI. The IOC validation settings show a warning when either is missing.
+
+![IOC validation settings: allowed test kinds, network safety and the asset group running the tests](assets/ioc-validation-settings.png)
+
+While the connector is not registered in OpenCTI, requests and results wait, and the settings say so:
+
+![IOC validation settings while the IOC validation connector is not registered in OpenCTI yet](assets/ioc-validation-settings-write-back-waiting.png)
 
 ## Approve or reject a request
 
 Go to **Atomic testings** and open the **IOC validations** tab. Each request shows the indicators, the security platforms, the test
 that will run for each indicator and the indicators that are skipped, with the reason.
 
+![IOC validations tab of Atomic testings with requests awaiting approval, running, partial and rejected](assets/ioc-validation-list.png)
+
+Until OpenCTI sends a first request, the tab explains where requests come from:
+
+![IOC validations tab before the first request](assets/ioc-validation-list-empty.png)
+
+![A request awaiting approval, with its indicators, the test that runs for each one and a skipped indicator with its reason](assets/ioc-validation-awaiting-approval.png)
+
 - **Approve** builds a scenario with one benign inject per indicator on the configured asset group and starts
-  a simulation at once.
+  a simulation at once. The confirmation lists the tests that run and the security platforms expected to see them.
 - **Reject** closes the request without running anything. The optional reason is reported to OpenCTI.
+
+![Approval confirmation listing the tests that run once approved and the security platforms](assets/ioc-validation-approve-dialog.png)
+
+![Rejection confirmation with the optional reason reported to OpenCTI](assets/ioc-validation-reject-dialog.png)
 
 ## Results
 
@@ -78,5 +96,8 @@ The request ends in status *Completed* when every pair was evaluated, *Partial* 
 and *Failed* when no pair could be evaluated. A running validation is closed after seven days even if the
 simulation never ends.
 
+![A partial result: outcomes per indicator and security platform, with the reason of each outcome](assets/ioc-validation-result.png)
+
 The results are sent back to OpenCTI, where they update the validation status of each deployment of the
-indicator. See the [OpenCTI documentation](https://docs.opencti.io/latest/usage/dissemination-assurance/).
+indicator; **Open in OpenCTI** leads to the request there. See the
+[OpenCTI documentation](https://docs.opencti.io/latest/usage/dissemination-assurance/).
