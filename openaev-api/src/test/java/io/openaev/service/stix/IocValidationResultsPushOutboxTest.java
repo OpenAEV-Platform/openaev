@@ -11,11 +11,14 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 
@@ -60,13 +63,42 @@ class IocValidationResultsPushOutboxTest extends IntegrationTest {
 
     List<String> polled =
         tenantTx
-            .execute(TxCtx.allTenants(), iocValidationRepository::findRefsWithPendingResultsPush)
+            .execute(
+                TxCtx.allTenants(),
+                () ->
+                    iocValidationRepository.findRefsWithPendingResultsPush("", Pageable.unpaged()))
             .stream()
             .filter(ref -> tenantId.equals(ref.getTenantId()))
             .map(IocValidationRef::getId)
             .toList();
 
     assertThat(polled).containsExactlyInAnyOrder(completed, partial, failed);
+  }
+
+  @Test
+  @DisplayName("given a cursor and a page size should poll one bounded page in id order")
+  void given_cursorAndPageSize_should_pollOneBoundedPageInIdOrder() {
+    List<String> ids =
+        Stream.of(
+                insertValidation("COMPLETED", false),
+                insertValidation("PARTIAL", false),
+                insertValidation("FAILED", false))
+            .sorted()
+            .toList();
+
+    assertThat(poll("", PageRequest.of(0, 2))).containsExactly(ids.get(0), ids.get(1));
+    assertThat(poll(ids.get(1), PageRequest.of(0, 2))).containsExactly(ids.get(1), ids.get(2));
+    assertThat(poll(ids.get(2), PageRequest.of(0, 2))).containsExactly(ids.get(2));
+  }
+
+  private List<String> poll(String from, Pageable page) {
+    return tenantTx
+        .execute(
+            TxCtx.forTenant(tenantId),
+            () -> iocValidationRepository.findRefsWithPendingResultsPush(from, page))
+        .stream()
+        .map(IocValidationRef::getId)
+        .toList();
   }
 
   @Test

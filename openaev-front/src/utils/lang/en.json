@@ -4352,5 +4352,12 @@
   "Writes a benign text file carrying the indicator file name. The real file is never downloaded or executed.": "Writes a benign text file carrying the indicator file name. The real file is never downloaded or executed.",
   "Writes a benign log line containing the indicator value, such as a file hash.": "Writes a benign log line containing the indicator value, such as a file hash.",
   "Awaiting approval": "Awaiting approval",
-  "Rejected": "Rejected"
+  "Rejected": "Rejected",
+  "Waiting for approval: {runnable, plural, one {# IOC to test} other {# IOCs to test}}{skipped, plural, =0 {} other {, # skipped by the safety settings}}": "Waiting for approval: {runnable, plural, one {# IOC to test} other {# IOCs to test}}{skipped, plural, =0 {} other {, # skipped by the safety settings}}",
+  "Open the safety settings": "Open the safety settings",
+  "Results appear once the simulation runs": "Results appear once the simulation runs",
+  "No test ran: the request was rejected": "No test ran: the request was rejected",
+  "Domain name": "Domain name",
+  "IPv4 address": "IPv4 address",
+  "IPv6 address": "IPv6 address"
 }

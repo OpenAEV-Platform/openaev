@@ -80,6 +80,9 @@ Until OpenCTI sends a first request, the tab explains where requests come from:
 
 ![A request awaiting approval, with its indicators, the test that runs for each one and a skipped indicator with its reason](assets/ioc-validation-awaiting-approval.png)
 
+Until the request is approved, its results stay empty and the decision fields are hidden. When an indicator is
+skipped because the safety settings do not allow its test, administrators get a link to those settings next to the reason.
+
 - **Approve and start the simulation** builds a scenario with one benign inject per indicator on the configured asset group and starts
   a simulation at once. The confirmation lists the tests that run and the security platforms expected to see them.
 - **Reject** closes the request without running anything. The optional reason is reported to OpenCTI.

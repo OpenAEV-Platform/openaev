@@ -4352,5 +4352,12 @@
   "Writes a benign text file carrying the indicator file name. The real file is never downloaded or executed.": "Записывает безопасный текстовый файл с именем файла индикатора. Настоящий файл никогда не загружается и не выполняется.",
   "Writes a benign log line containing the indicator value, such as a file hash.": "Записывает безопасную строку журнала со значением индикатора, например хешем файла.",
   "Awaiting approval": "Ожидает утверждения",
-  "Rejected": "Отклонено"
+  "Rejected": "Отклонено",
+  "Waiting for approval: {runnable, plural, one {# IOC to test} other {# IOCs to test}}{skipped, plural, =0 {} other {, # skipped by the safety settings}}": "Ожидает утверждения: {runnable, plural, one {# IOC для проверки} few {# IOC для проверки} many {# IOC для проверки} other {# IOC для проверки}}{skipped, plural, =0 {} other {, пропущено настройками безопасности: #}}",
+  "Open the safety settings": "Открыть настройки безопасности",
+  "Results appear once the simulation runs": "Результаты появятся после запуска симуляции",
+  "No test ran: the request was rejected": "Тесты не выполнялись: запрос отклонён",
+  "Domain name": "Доменное имя",
+  "IPv4 address": "IPv4-адрес",
+  "IPv6 address": "IPv6-адрес"
 }

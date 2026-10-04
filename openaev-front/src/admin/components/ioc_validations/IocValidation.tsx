@@ -1,6 +1,6 @@
 import { Alert, Button, Text } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 
 import { fetchIocValidation } from '../../../actions/ioc_validations/ioc-validation-actions';
@@ -8,6 +8,9 @@ import Breadcrumbs from '../../../components/Breadcrumbs';
 import { Field, Section } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
 import type { IocValidationIocOutput, IocValidationOutput, IocValidationPairOutput } from '../../../utils/api-types';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import IocValidationDate from './IocValidationDate';
 import IocValidationDecisionActions from './IocValidationDecisionActions';
 import IocValidationOutcomeChip from './IocValidationOutcomeChip';
 import IocValidationSkeleton from './IocValidationSkeleton';
@@ -17,13 +20,18 @@ import {
   countIocValidationOutcomes,
   IOC_VALIDATION_BASE_URL,
   IOC_VALIDATION_POLL_INTERVAL_MS,
+  IOC_VALIDATION_SETTINGS_URL,
+  iocValidationObservableTypeLabel,
   iocValidationTestKindLabel,
+  isAwaitingApproval,
   isPollingStatus,
   isWebLink,
 } from './iocValidationUtils';
 
 const IocValidation = () => {
-  const { t, fldt } = useFormatter();
+  const { t } = useFormatter();
+  const ability = useContext(AbilityContext);
+  const canManageSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
   const { iocValidationId } = useParams() as { iocValidationId: string };
   const [iocValidation, setIocValidation] = useState<IocValidationOutput | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -67,6 +75,18 @@ const IocValidation = () => {
   }
 
   const counts = countIocValidationOutcomes(iocValidation.ioc_validation_pairs);
+  const awaitingApproval = isAwaitingApproval(iocValidation.ioc_validation_status);
+  const rejected = iocValidation.ioc_validation_status === 'REJECTED';
+  const runnable = iocValidation.ioc_validation_iocs.filter(ioc => ioc.ioc_test_kind).length;
+  const statusMessage = awaitingApproval
+    ? t('Waiting for approval: {runnable, plural, one {# IOC to test} other {# IOCs to test}}{skipped, plural, =0 {} other {, # skipped by the safety settings}}', {
+        runnable: String(runnable),
+        skipped: String(iocValidation.ioc_validation_iocs.length - runnable),
+      })
+    : iocValidation.ioc_validation_status_message;
+  const allowedTestKinds = iocValidation.ioc_validation_allowed_test_kinds ?? [];
+  const skippedBySettings = (ioc: IocValidationIocOutput) => !ioc.ioc_test_kind
+    && !!ioc.ioc_requested_test_kind && !allowedTestKinds.includes(ioc.ioc_requested_test_kind);
   const indicatorNames = new Map(iocValidation.ioc_validation_iocs.map(ioc => [ioc.ioc_indicator_ref, ioc.ioc_indicator_name]));
   const indicatorLabel = (ref: string) => indicatorNames.get(ref) || ref;
 
@@ -83,7 +103,7 @@ const IocValidation = () => {
       width: '24%',
       render: ioc => (
         <>
-          <Text variant="content-compact" className="text-default-secondary">{ioc.ioc_observable_type}</Text>
+          <Text variant="content-compact" className="text-default-secondary">{t(iocValidationObservableTypeLabel(ioc.ioc_observable_type))}</Text>
           <Text variant="content-code" style={{ display: 'block' }}>{ioc.ioc_value}</Text>
         </>
       ),
@@ -104,7 +124,14 @@ const IocValidation = () => {
       key: 'message',
       label: t('Details'),
       width: '28%',
-      render: ioc => ioc.ioc_message || '-',
+      render: ioc => (
+        <>
+          {ioc.ioc_message}
+          {canManageSettings && skippedBySettings(ioc) && (
+            <Link to={IOC_VALIDATION_SETTINGS_URL} style={{ display: 'block' }}>{t('Open the safety settings')}</Link>
+          )}
+        </>
+      ),
     },
   ];
 
@@ -133,13 +160,13 @@ const IocValidation = () => {
       key: 'reason',
       label: t('Details'),
       width: '28%',
-      render: pair => pair.pair_outcome_reason || '-',
+      render: pair => pair.pair_outcome_reason,
     },
     {
       key: 'evaluated',
       label: t('Evaluated'),
       width: '14%',
-      render: pair => (pair.pair_evaluated_at ? fldt(pair.pair_evaluated_at) : '-'),
+      render: pair => (pair.pair_evaluated_at ? <IocValidationDate date={pair.pair_evaluated_at} /> : null),
     },
   ];
 
@@ -198,8 +225,8 @@ const IocValidation = () => {
           <IocValidationDecisionActions iocValidation={iocValidation} onUpdate={setIocValidation} onRefresh={load} />
         </div>
       </header>
-      {iocValidation.ioc_validation_status_message && (
-        <Alert severity="info" title={iocValidation.ioc_validation_status_message} style={{ marginBottom: 16 }} />
+      {statusMessage && (
+        <Alert severity="info" title={statusMessage} style={{ marginBottom: 16 }} />
       )}
       <div style={{
         display: 'grid',
@@ -216,9 +243,13 @@ const IocValidation = () => {
           }}
           >
             <Field label={t('Requested by')}>{iocValidation.ioc_validation_requested_by || '-'}</Field>
-            <Field label={t('Received')}>{fldt(iocValidation.ioc_validation_created_at)}</Field>
-            <Field label={t('Decided by')}>{iocValidation.ioc_validation_decided_by_name || '-'}</Field>
-            <Field label={t('Decided')}>{iocValidation.ioc_validation_decided_at ? fldt(iocValidation.ioc_validation_decided_at) : '-'}</Field>
+            <Field label={t('Received')}><IocValidationDate date={iocValidation.ioc_validation_created_at} /></Field>
+            {iocValidation.ioc_validation_decided_at && (
+              <>
+                <Field label={t('Decided by')}>{iocValidation.ioc_validation_decided_by_name || '-'}</Field>
+                <Field label={t('Decided')}><IocValidationDate date={iocValidation.ioc_validation_decided_at} /></Field>
+              </>
+            )}
             <Field label={t('Requested tests')}>
               {iocValidation.ioc_validation_requested_test_kinds.map(kind => t(iocValidationTestKindLabel(kind))).join(', ') || '-'}
             </Field>
@@ -233,19 +264,29 @@ const IocValidation = () => {
           )}
         </Section>
         <Section title={t('Results')}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 16,
-          }}
-          >
-            <Field label={t('Prevented')}>{counts.prevented}</Field>
-            <Field label={t('Detected')}>{counts.detected}</Field>
-            <Field label={t('Missed')}>{counts.missed}</Field>
-            <Field label={t('Errors')}>{counts.error}</Field>
-            <Field label={t('Pending')}>{counts.pending}</Field>
-            <Field label={t('Completed')}>{iocValidation.ioc_validation_completed_at ? fldt(iocValidation.ioc_validation_completed_at) : '-'}</Field>
-          </div>
+          {awaitingApproval || rejected
+            ? (
+                <Text variant="content-compact" className="text-default-secondary">
+                  {awaitingApproval ? t('Results appear once the simulation runs') : t('No test ran: the request was rejected')}
+                </Text>
+              )
+            : (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                  gap: 16,
+                }}
+                >
+                  <Field label={t('Prevented')}>{counts.prevented}</Field>
+                  <Field label={t('Detected')}>{counts.detected}</Field>
+                  <Field label={t('Missed')}>{counts.missed}</Field>
+                  <Field label={t('Errors')}>{counts.error}</Field>
+                  <Field label={t('Pending')}>{counts.pending}</Field>
+                  {iocValidation.ioc_validation_completed_at && (
+                    <Field label={t('Completed')}><IocValidationDate date={iocValidation.ioc_validation_completed_at} /></Field>
+                  )}
+                </div>
+              )}
           {(iocValidation.ioc_validation_scenario_id || iocValidation.ioc_validation_simulation_id) && (
             <div style={{
               display: 'flex',
