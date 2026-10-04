@@ -1120,22 +1120,22 @@ public class PayloadService {
           + " $oaevIocInfo = New-Object System.IO.FileInfo($oaevIocPath);"
           + " if ($oaevIocInfo.Exists -and $oaevIocInfo.Length -le "
           + IOC_VALIDATION_SURROGATE_MAX_BYTES
-          + " -and [System.IO.File]::ReadAllText($oaevIocPath).TrimEnd() -ceq ('"
+          + " -and [System.IO.File]::ReadAllText($oaevIocPath) -ceq ('"
           + IOC_VALIDATION_SURROGATE_TEXT
-          + " ' + $oaevIocRun)) { [System.IO.File]::Delete($oaevIocPath) } } catch { } };"
+          + " ' + $oaevIocRun + [Environment]::NewLine)) { [System.IO.File]::Delete($oaevIocPath) }"
+          + " } catch { } };"
           + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { } }";
     }
     // Only a regular file of the run directory entered is removed (rm never follows a link), then
-    // the run directory itself when it is empty (rmdir refuses a link)
+    // the run directory itself when it is empty (rmdir refuses a link). The file is compared byte
+    // for byte with the text the drop wrote (a command substitution would drop trailing newlines)
     return posixRunDirectory()
         + "; if "
         + POSIX_ENTER_RUN_DIRECTORY
         + "; then if [ -f \"./$OAEV_IOC_FILE\" ] && [ ! -L \"./$OAEV_IOC_FILE\" ]"
-        + " && [ \"$(head -c "
-        + IOC_VALIDATION_SURROGATE_MAX_BYTES
-        + " \"./$OAEV_IOC_FILE\")\" = \""
+        + " && printf '"
         + IOC_VALIDATION_SURROGATE_TEXT
-        + " $OAEV_IOC_RUN\" ];"
+        + " %s\\n' \"$OAEV_IOC_RUN\" | cmp -s - \"./$OAEV_IOC_FILE\";"
         + " then rm -f -- \"./$OAEV_IOC_FILE\"; fi;"
         + " cd \"$OAEV_IOC_BASE\" && rmdir -- \"openaev-ioc-validation-$OAEV_IOC_RUN\" 2>/dev/null;"
         + " fi; true";

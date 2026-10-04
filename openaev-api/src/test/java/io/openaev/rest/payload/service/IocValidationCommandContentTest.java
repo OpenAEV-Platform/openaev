@@ -615,6 +615,19 @@ class IocValidationCommandContentTest {
 
       assertThat(surrogate).hasContent("not ours");
     }
+
+    @Test
+    @DisplayName("keeps at cleanup a file that only adds trailing newlines to the surrogate")
+    void given_surrogateWithTrailingNewlines_should_keepItAtCleanup() throws Exception {
+      Path surrogate = tmp.resolve("openaev-ioc-validation-" + VALID_RUN).resolve("invoice.pdf");
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      String replacement = Files.readString(surrogate) + "\n\n";
+      Files.writeString(surrogate, replacement);
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(Files.readString(surrogate)).isEqualTo(replacement);
+    }
   }
 
   /**
@@ -786,6 +799,19 @@ class IocValidationCommandContentTest {
       assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
 
       assertThat(surrogate).hasContent("not ours");
+    }
+
+    @Test
+    @DisplayName("keeps at cleanup a file that only adds trailing whitespace to the surrogate")
+    void given_surrogateWithTrailingWhitespace_should_keepItAtCleanup() throws Exception {
+      Path surrogate = tmp.resolve("openaev-ioc-validation-" + VALID_RUN).resolve("invoice.pdf");
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      String replacement = Files.readString(surrogate).stripTrailing() + " \t\r\n";
+      Files.writeString(surrogate, replacement);
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(Files.readString(surrogate)).isEqualTo(replacement);
     }
   }
 }
