@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   Checkbox,
   Combobox,
@@ -15,7 +16,6 @@ import {
   Text,
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -234,9 +234,11 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
           )}
         />
         {contactsInfrastructure && (
-          <Alert severity="warning" variant="outlined" sx={{ mt: 1.5 }}>
-            {t('Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests.')}
-          </Alert>
+          <Alert
+            severity="warning"
+            title={t('Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests.')}
+            style={{ marginTop: 12 }}
+          />
         )}
       </Paper>
       <Paper padding={16} title={t('Network safety')}>
@@ -351,14 +353,18 @@ const IocValidationSettings = () => {
           }]}
         />
         {!settings.ioc_validation_opencti_enabled && (
-          <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
-            {t('No OpenCTI connection is configured for this tenant: OpenCTI cannot send IOC validation requests yet.')}
-          </Alert>
+          <Alert
+            severity="info"
+            title={t('No OpenCTI connection is configured for this tenant: OpenCTI cannot send IOC validation requests yet.')}
+            style={{ marginBottom: 16 }}
+          />
         )}
         {settings.ioc_validation_opencti_enabled && !settings.ioc_validation_connector_registered && (
-          <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
-            {t('The IOC validation connector is not registered in OpenCTI yet: requests and results wait until it is.')}
-          </Alert>
+          <Alert
+            severity="warning"
+            title={t('The IOC validation connector is not registered in OpenCTI yet: requests and results wait until it is.')}
+            style={{ marginBottom: 16 }}
+          />
         )}
         <IocValidationSettingsForm settings={settings} onSaved={setSettings} />
       </div>

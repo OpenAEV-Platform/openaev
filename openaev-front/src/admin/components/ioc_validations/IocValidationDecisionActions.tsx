@@ -4,14 +4,72 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactElement, useContext, useState } from 'react';
 
 import { approveIocValidation, rejectIocValidation } from '../../../actions/ioc_validations/ioc-validation-actions';
+import { Field } from '../../../components/common/detail/EntityDetailCommon';
 import DialogConfirmation from '../../../components/common/DialogConfirmation';
 import { useFormatter } from '../../../components/i18n';
-import { type IocValidationOutput } from '../../../utils/api-types';
+import { type IocValidationIocOutput, type IocValidationOutput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../utils/fdsLayer';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../utils/permissions/types';
-import { IOC_VALIDATION_REJECT_REASON_MAX_LENGTH, isAwaitingApproval } from './iocValidationUtils';
+import IocValidationTable, { type IocValidationTableColumn } from './IocValidationTable';
+import { IOC_VALIDATION_REJECT_REASON_MAX_LENGTH, iocValidationTestKindLabel, isAwaitingApproval } from './iocValidationUtils';
+
+// Tests listed in the approval dialog; the request page lists them all.
+const APPROVAL_SUMMARY_MAX_ROWS = 10;
+
+// What the approval starts: the tests that run on each indicator and the security platforms expected to see them.
+const IocValidationApprovalSummary: FunctionComponent<{ iocValidation: IocValidationOutput }> = ({ iocValidation }) => {
+  const { t } = useFormatter();
+  const theme = useTheme();
+  const planned = iocValidation.ioc_validation_iocs.filter(ioc => ioc.ioc_test_kind);
+  const platforms = [...new Set(iocValidation.ioc_validation_pairs.map(pair => pair.pair_platform_name || pair.pair_platform_ref))];
+  const columns: IocValidationTableColumn<IocValidationIocOutput>[] = [
+    {
+      key: 'indicator',
+      label: t('Indicator'),
+      width: '34%',
+      render: ioc => ioc.ioc_indicator_name || ioc.ioc_indicator_ref,
+    },
+    {
+      key: 'value',
+      label: t('Observable'),
+      width: '38%',
+      render: ioc => <Text variant="content-code">{ioc.ioc_value}</Text>,
+    },
+    {
+      key: 'test',
+      label: t('Test that runs'),
+      width: '28%',
+      render: ioc => t(iocValidationTestKindLabel(ioc.ioc_test_kind)),
+    },
+  ];
+  return (
+    <div
+      data-testid="ioc-validation-approval-summary"
+      style={{
+        display: 'grid',
+        gap: theme.spacing(1.5),
+        marginTop: theme.spacing(2),
+      }}
+    >
+      <Text variant="content-compact" className="text-default-secondary">{t('Tests that run once approved')}</Text>
+      <IocValidationTable
+        caption={t('Tests that run once approved')}
+        columns={columns}
+        rows={planned.slice(0, APPROVAL_SUMMARY_MAX_ROWS)}
+        rowKey={(ioc, index) => `${ioc.ioc_indicator_ref}-${ioc.ioc_test_kind ?? 'none'}-${index}`}
+        emptyMessage={t('No IOC in this request.')}
+      />
+      {planned.length > APPROVAL_SUMMARY_MAX_ROWS && (
+        <Text variant="content-caption" className="text-default-secondary">
+          {t('{count} more indicators', { count: String(planned.length - APPROVAL_SUMMARY_MAX_ROWS) })}
+        </Text>
+      )}
+      <Field label={t('Security platforms')}>{platforms.join(', ') || '-'}</Field>
+    </div>
+  );
+};
 
 interface Props {
   iocValidation: IocValidationOutput;
@@ -102,6 +160,7 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
         handleSubmit={handleApprove}
         text={t('Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.')}
         submitLabel={t('Approve')}
+        extraContent={<IocValidationApprovalSummary iocValidation={iocValidation} />}
       />
       <DialogConfirmation
         open={rejectOpen}
