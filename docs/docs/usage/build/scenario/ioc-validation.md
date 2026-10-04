@@ -40,6 +40,10 @@ IOC validation is designed so that nothing dangerous ever runs:
 
 Each test carries a **Detection** and a **Prevention** expectation for every security platform of the request.
 
+After an upgrade, the benign test payloads are brought to the current version the next time a validation is
+approved. Until then, a file drop approved before the upgrade is refused when the agent asks for it, rather than run
+with the earlier version of the test: approve a new validation to run it.
+
 ## Configure IOC validation
 
 Go to **Settings > Customization > IOC validation**. You need the *Manage tenant settings* capability.
