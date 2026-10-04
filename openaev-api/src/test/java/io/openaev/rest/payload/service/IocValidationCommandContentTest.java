@@ -15,7 +15,9 @@ import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.command.CommandArgumentBinder;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -531,6 +533,152 @@ class IocValidationCommandContentTest {
 
       assertThat(victim).hasContent("not ours");
       assertThat(Files.isSymbolicLink(surrogate)).isTrue();
+    }
+  }
+
+  /**
+   * Runs the rendered Windows commands with PowerShell, on the systems that have it ({@code pwsh}
+   * or Windows PowerShell) and allow creating a symbolic link.
+   */
+  @Nested
+  @DisplayName("executed by PowerShell")
+  class PowerShellExecution {
+
+    private static final String VALID_RUN = "fedcba9876543210fedcba9876543210";
+
+    @TempDir Path tmp;
+
+    private String shell;
+
+    @BeforeEach
+    void requirePowerShell() {
+      shell =
+          Stream.of("pwsh", "powershell")
+              .filter(PowerShellExecution::starts)
+              .findFirst()
+              .orElse(null);
+      assumeTrue(shell != null, "requires PowerShell");
+    }
+
+    private static boolean starts(String candidate) {
+      try {
+        Process process =
+            new ProcessBuilder(candidate, "-NoProfile", "-NonInteractive", "-Command", "exit 0")
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        return process.waitFor(60, TimeUnit.SECONDS) && process.exitValue() == 0;
+      } catch (IOException e) {
+        return false;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return false;
+      }
+    }
+
+    private Path danglingLink(Path link) throws Exception {
+      Path target = tmp.resolve("missing-target");
+      try {
+        return Files.createSymbolicLink(link, target);
+      } catch (IOException | UnsupportedOperationException e) {
+        // Without the symbolic link right, Windows still lets any account create a junction
+        assumeTrue(
+            System.getProperty("os.name", "").startsWith("Windows"),
+            "requires the right to create a symbolic link");
+        Process process =
+            new ProcessBuilder("cmd", "/c", "mklink", "/J", link.toString(), target.toString())
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        assumeTrue(
+            process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0,
+            "requires a junction");
+        return link;
+      }
+    }
+
+    private static boolean isDanglingLink(Path path) {
+      return Files.exists(path, LinkOption.NOFOLLOW_LINKS)
+          && !Files.isRegularFile(path)
+          && !Files.isDirectory(path);
+    }
+
+    private int execute(String template, String run, String fileName) throws Exception {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("psh");
+      binder.bind(IOC_VALIDATION_FILE_NAME_KEY, fileName);
+      binder.bind(IOC_VALIDATION_RUN_KEY, run);
+      // A script file keeps the command intact (no command-line quoting on Windows)
+      Path script =
+          Files.writeString(
+              Files.createTempFile(tmp, "ioc-validation-", ".ps1"), binder.render(template));
+      ProcessBuilder builder =
+          new ProcessBuilder(
+              shell,
+              "-NoProfile",
+              "-NonInteractive",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              script.toString());
+      // GetTempPath reads TMPDIR on POSIX systems, TMP then TEMP on Windows
+      builder.environment().put("TMPDIR", tmp.toString());
+      builder.environment().put("TMP", tmp.toString());
+      builder.environment().put("TEMP", tmp.toString());
+      builder.redirectErrorStream(true);
+      builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+      Process process = builder.start();
+      boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+      if (!finished) {
+        process.destroyForcibly();
+      }
+      assertThat(finished).isTrue();
+      return process.exitValue();
+    }
+
+    private static String drop() {
+      return PayloadService.iocValidationCommandContent(IocValidationTestKind.FILE_DROP, true);
+    }
+
+    private static String cleanup() {
+      return PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
+    }
+
+    @Test
+    @DisplayName("writes the surrogate in the run directory and cleans both up")
+    void given_validArguments_should_writeThenCleanUp() throws Exception {
+      Path runDirectory = tmp.resolve("openaev-ioc-validation-" + VALID_RUN);
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      assertThat(runDirectory.resolve("invoice.pdf")).exists();
+
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+      assertThat(runDirectory).doesNotExist();
+    }
+
+    @Test
+    @DisplayName("refuses a dangling link as run directory and leaves it in place at cleanup")
+    void given_danglingRunDirectoryLink_should_neitherFollowNorDeleteIt() throws Exception {
+      Path runDirectory = danglingLink(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(tmp.resolve("missing-target")).doesNotExist();
+      assertThat(isDanglingLink(runDirectory)).isTrue();
+    }
+
+    @Test
+    @DisplayName("refuses a dangling link as surrogate path and leaves it in place at cleanup")
+    void given_danglingSurrogateLink_should_neitherFollowNorDeleteIt() throws Exception {
+      Path runDirectory =
+          Files.createDirectories(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
+      Path surrogate = danglingLink(runDirectory.resolve("invoice.pdf"));
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(tmp.resolve("missing-target")).doesNotExist();
+      assertThat(isDanglingLink(surrogate)).isTrue();
     }
   }
 }

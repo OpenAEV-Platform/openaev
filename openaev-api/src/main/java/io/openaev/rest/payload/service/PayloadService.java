@@ -97,11 +97,15 @@ public class PayloadService {
   static final String IOC_VALIDATION_UNSAFE_FILE_DROP =
       "OpenAEV IOC validation: the run directory or the surrogate path is a link; nothing was"
           + " written";
-  // Defines Test-OaevLink: whether a path exists and is a reparse point (symbolic link, junction).
-  private static final String WINDOWS_LINK_TEST =
-      "function Test-OaevLink($oaevPath) { (Test-Path -LiteralPath $oaevPath) -and"
-          + " [bool]((Get-Item -LiteralPath $oaevPath -Force).Attributes -band"
-          + " [System.IO.FileAttributes]::ReparsePoint) }";
+  // Defines Test-OaevLink: whether a path is a reparse point (symbolic link, junction), dangling or
+  // not. GetAttributes reads the entry itself, never its target, where Test-Path is false for a
+  // dangling symbolic link; a missing path is no link, and a path that cannot be read counts as
+  // one.
+  static final String WINDOWS_LINK_TEST =
+      "function Test-OaevLink($oaevPath) { try { [bool]([System.IO.File]::GetAttributes($oaevPath)"
+          + " -band [System.IO.FileAttributes]::ReparsePoint) }"
+          + " catch [System.IO.FileNotFoundException], [System.IO.DirectoryNotFoundException]"
+          + " { $false } catch { $true } }";
   // Enters the run directory and checks its physical path: a run directory replaced by a symbolic
   // link is never followed, and the file operations then use paths relative to that directory.
   private static final String POSIX_ENTER_RUN_DIRECTORY =
