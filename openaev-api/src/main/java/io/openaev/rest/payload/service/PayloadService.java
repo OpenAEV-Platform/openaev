@@ -94,6 +94,18 @@ public class PayloadService {
   static final String IOC_VALIDATION_INVALID_FILE_DROP =
       "OpenAEV IOC validation: the run must be 32 lowercase hexadecimal characters and the"
           + " surrogate file name a plain file name";
+  static final String IOC_VALIDATION_UNSAFE_FILE_DROP =
+      "OpenAEV IOC validation: the run directory or the surrogate path is a link; nothing was"
+          + " written";
+  // Defines Test-OaevLink: whether a path exists and is a reparse point (symbolic link, junction).
+  private static final String WINDOWS_LINK_TEST =
+      "function Test-OaevLink($oaevPath) { (Test-Path -LiteralPath $oaevPath) -and"
+          + " [bool]((Get-Item -LiteralPath $oaevPath -Force).Attributes -band"
+          + " [System.IO.FileAttributes]::ReparsePoint) }";
+  // Enters the run directory and checks its physical path: a run directory replaced by a symbolic
+  // link is never followed, and the file operations then use paths relative to that directory.
+  private static final String POSIX_ENTER_RUN_DIRECTORY =
+      "cd \"$OAEV_IOC_DIR\" 2>/dev/null && [ \"$(pwd -P)\" = \"$OAEV_IOC_DIR\" ]";
   private static final Pattern IOC_VALIDATION_RUN_PATTERN = Pattern.compile("[0-9a-f]{32}");
   // Device names Windows reserves whatever the extension and the spaces before it (PowerShell
   // -match is case-insensitive).
@@ -974,8 +986,15 @@ public class PayloadService {
                 + " 'openaev-ioc-validation.log') -Value $message }";
         case FILE_DROP ->
             windowsRunDirectory()
-                + "; [void][System.IO.Directory]::CreateDirectory($oaevIocDir);"
-                + " Set-Content -LiteralPath (Join-Path $oaevIocDir $oaevIocFile)"
+                + "; "
+                + WINDOWS_LINK_TEST
+                + "; $oaevIocPath = Join-Path $oaevIocDir $oaevIocFile;"
+                + " if (Test-OaevLink $oaevIocDir) { throw '"
+                + IOC_VALIDATION_UNSAFE_FILE_DROP
+                + "' }; [void][System.IO.Directory]::CreateDirectory($oaevIocDir);"
+                + " if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)) { throw '"
+                + IOC_VALIDATION_UNSAFE_FILE_DROP
+                + "' }; Set-Content -LiteralPath $oaevIocPath"
                 + " -Value 'OpenAEV IOC validation benign surrogate'";
         case DNS_RESOLUTION ->
             throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
@@ -1008,9 +1027,13 @@ public class PayloadService {
               + " >> \"${TMPDIR:-/tmp}/openaev-ioc-validation.log\"; true";
       case FILE_DROP ->
           posixRunDirectory()
-              + "; mkdir -p -m 700 \"$OAEV_IOC_DIR\""
-              + " && printf 'OpenAEV IOC validation benign surrogate\\n'"
-              + " > \"$OAEV_IOC_DIR/$OAEV_IOC_FILE\"; true";
+              + "; mkdir -m 700 \"$OAEV_IOC_DIR\" 2>/dev/null;"
+              + " if ! { "
+              + POSIX_ENTER_RUN_DIRECTORY
+              + "; } || [ -L \"./$OAEV_IOC_FILE\" ]; then echo '"
+              + IOC_VALIDATION_UNSAFE_FILE_DROP
+              + "' >&2; exit 1; fi;"
+              + " printf 'OpenAEV IOC validation benign surrogate\\n' > \"./$OAEV_IOC_FILE\"; true";
       case DNS_RESOLUTION ->
           throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
     };
@@ -1030,14 +1053,26 @@ public class PayloadService {
     }
     if (windows) {
       // File.Delete never removes a directory (Remove-Item would remove an empty one) and is a
-      // no-op for a missing file
+      // no-op for a missing file; a run directory or a surrogate path that is a link is left alone
       return windowsRunDirectory()
-          + "; try { [System.IO.File]::Delete((Join-Path $oaevIocDir $oaevIocFile)) } catch { };"
-          + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { }";
+          + "; "
+          + WINDOWS_LINK_TEST
+          + "; $oaevIocPath = Join-Path $oaevIocDir $oaevIocFile;"
+          + " if ((Test-Path -LiteralPath $oaevIocDir -PathType Container)"
+          + " -and -not (Test-OaevLink $oaevIocDir)) {"
+          + " if (-not (Test-OaevLink $oaevIocPath)) {"
+          + " try { [System.IO.File]::Delete($oaevIocPath) } catch { } };"
+          + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { } }";
     }
+    // Only a regular file of the run directory entered is removed (rm never follows a link), then
+    // the run directory itself when it is empty (rmdir refuses a link)
     return posixRunDirectory()
-        + "; rm -f \"$OAEV_IOC_DIR/$OAEV_IOC_FILE\""
-        + "; rmdir \"$OAEV_IOC_DIR\" 2>/dev/null; true";
+        + "; if "
+        + POSIX_ENTER_RUN_DIRECTORY
+        + "; then if [ -f \"./$OAEV_IOC_FILE\" ] && [ ! -L \"./$OAEV_IOC_FILE\" ];"
+        + " then rm -f -- \"./$OAEV_IOC_FILE\"; fi;"
+        + " cd \"$OAEV_IOC_BASE\" && rmdir -- \"openaev-ioc-validation-$OAEV_IOC_RUN\" 2>/dev/null;"
+        + " fi; true";
   }
 
   /**
@@ -1082,7 +1117,8 @@ public class PayloadService {
         + " if [ \"${#OAEV_IOC_RUN}\" -ne 32 ] || [ -z \"$OAEV_IOC_FILE\" ]; then echo '"
         + IOC_VALIDATION_INVALID_FILE_DROP
         + "' >&2; exit 1; fi;"
-        + " OAEV_IOC_DIR=\"${TMPDIR:-/tmp}/openaev-ioc-validation-$OAEV_IOC_RUN\"";
+        + " OAEV_IOC_BASE=$(cd -P \"${TMPDIR:-/tmp}\" && pwd) || exit 1;"
+        + " OAEV_IOC_DIR=\"$OAEV_IOC_BASE/openaev-ioc-validation-$OAEV_IOC_RUN\"";
   }
 
   private static String placeholder(String argumentKey) {

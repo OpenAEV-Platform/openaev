@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -273,10 +274,14 @@ class IocValidationCommandContentTest {
         .contains("OAEV_IOC_FILE=" + FILE_NAME)
         .contains("*[!0123456789abcdef]*")
         .contains("\"${#OAEV_IOC_RUN}\" -ne 32")
-        .contains("mkdir -p -m 700 \"$OAEV_IOC_DIR\"")
-        .contains("> \"$OAEV_IOC_DIR/$OAEV_IOC_FILE\"")
+        .contains("mkdir -m 700 \"$OAEV_IOC_DIR\"")
+        .contains("[ \"$(pwd -P)\" = \"$OAEV_IOC_DIR\" ]")
+        .contains("[ -L \"./$OAEV_IOC_FILE\" ]")
+        .contains("> \"./$OAEV_IOC_FILE\"")
+        .doesNotContain("mkdir -p")
         .doesNotContain("\"${TMPDIR:-/tmp}/\"" + FILE_NAME);
     assertThat(content.indexOf("exit 1")).isLessThan(content.indexOf("mkdir"));
+    assertThat(content.indexOf("pwd -P")).isLessThan(content.indexOf("printf"));
   }
 
   @Test
@@ -293,9 +298,15 @@ class IocValidationCommandContentTest {
         .contains("$oaevIocFile -match '[. ]$'")
         .contains("$oaevIocFile -match '" + PayloadService.WINDOWS_RESERVED_FILE_NAME + "'")
         .contains("('openaev-ioc-validation-' + $oaevIocRun)")
-        .contains("Set-Content -LiteralPath (Join-Path $oaevIocDir $oaevIocFile)")
+        .contains("[System.IO.FileAttributes]::ReparsePoint")
+        .contains("if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)) { throw")
+        .contains("Set-Content -LiteralPath $oaevIocPath")
         .doesNotContain("GetTempPath()) " + FILE_NAME);
     assertThat(content.indexOf("throw")).isLessThan(content.indexOf("CreateDirectory"));
+    // A link is refused right before the write, after the directory exists
+    assertThat(content.lastIndexOf("Test-OaevLink $oaevIocPath"))
+        .isGreaterThan(content.indexOf("CreateDirectory"))
+        .isLessThan(content.indexOf("Set-Content"));
   }
 
   @Test
@@ -304,10 +315,13 @@ class IocValidationCommandContentTest {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false);
     assertThat(cleanup)
-        .contains("rm -f \"$OAEV_IOC_DIR/$OAEV_IOC_FILE\"")
-        .contains("rmdir \"$OAEV_IOC_DIR\"")
+        .contains("[ \"$(pwd -P)\" = \"$OAEV_IOC_DIR\" ]")
+        .contains("[ -f \"./$OAEV_IOC_FILE\" ] && [ ! -L \"./$OAEV_IOC_FILE\" ]")
+        .contains("rm -f -- \"./$OAEV_IOC_FILE\"")
+        .contains("rmdir -- \"openaev-ioc-validation-$OAEV_IOC_RUN\"")
         .doesNotContain("rm -rf");
     assertThat(cleanup.indexOf("exit 1")).isLessThan(cleanup.indexOf("rm -f"));
+    assertThat(cleanup.indexOf("pwd -P")).isLessThan(cleanup.indexOf("rm -f"));
   }
 
   @Test
@@ -315,13 +329,18 @@ class IocValidationCommandContentTest {
   void given_fileDropCleanupOnWindows_should_removeOnlyWhatTheRunCreated() {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
-    // A surrogate path that is a directory is never removed: File.Delete refuses directories
+    // A surrogate path that is a directory is never removed: File.Delete refuses directories; a
+    // run directory or a surrogate path that is a link is left alone
     assertThat(cleanup)
-        .contains("[System.IO.File]::Delete((Join-Path $oaevIocDir $oaevIocFile))")
+        .contains("-and -not (Test-OaevLink $oaevIocDir)")
+        .contains("if (-not (Test-OaevLink $oaevIocPath))")
+        .contains("[System.IO.File]::Delete($oaevIocPath)")
         .contains("[System.IO.Directory]::Delete($oaevIocDir)")
         .doesNotContain("Remove-Item")
         .doesNotContain("-Recurse");
     assertThat(cleanup.indexOf("throw")).isLessThan(cleanup.indexOf("[System.IO.File]::Delete"));
+    assertThat(cleanup.indexOf("Test-OaevLink $oaevIocDir"))
+        .isLessThan(cleanup.indexOf("[System.IO.File]::Delete"));
   }
 
   // PowerShell -match is case-insensitive
@@ -396,6 +415,12 @@ class IocValidationCommandContentTest {
     private static final String VALID_RUN = "0123456789abcdef0123456789abcdef";
 
     @TempDir Path tmp;
+
+    // Before any setup: the link fixtures need a POSIX file system as well
+    @BeforeEach
+    void requirePosixShell() {
+      assumeTrue(Files.isExecutable(Path.of("/bin/sh")), "requires /bin/sh");
+    }
 
     private int execute(String template, String run, String fileName) throws Exception {
       assumeTrue(Files.isExecutable(Path.of("/bin/sh")), "requires /bin/sh");
@@ -475,6 +500,37 @@ class IocValidationCommandContentTest {
       assertThat(execute(cleanup(), "../" + VALID_RUN, "keep.txt")).isNotZero();
       assertThat(other).exists();
       assertThat(runDirectory).exists();
+    }
+
+    @Test
+    @DisplayName("never follows a run directory replaced by a symbolic link, at drop or at cleanup")
+    void given_runDirectoryLink_should_neverFollowIt() throws Exception {
+      Path outside = Files.createDirectories(tmp.resolve("outside"));
+      Path victim = Files.writeString(outside.resolve("invoice.pdf"), "not ours");
+      Path runDirectory =
+          Files.createSymbolicLink(tmp.resolve("openaev-ioc-validation-" + VALID_RUN), outside);
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(victim).hasContent("not ours");
+      assertThat(Files.isSymbolicLink(runDirectory)).isTrue();
+    }
+
+    @Test
+    @DisplayName(
+        "never follows a surrogate path replaced by a symbolic link, at drop or at cleanup")
+    void given_surrogateLink_should_neverFollowIt() throws Exception {
+      Path victim = Files.writeString(tmp.resolve("keep.txt"), "not ours");
+      Path runDirectory =
+          Files.createDirectories(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
+      Path surrogate = Files.createSymbolicLink(runDirectory.resolve("invoice.pdf"), victim);
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(victim).hasContent("not ours");
+      assertThat(Files.isSymbolicLink(surrogate)).isTrue();
     }
   }
 }
