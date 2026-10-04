@@ -73,6 +73,10 @@ While the connector is not registered in OpenCTI, requests and results wait, and
 
 ![IOC validation settings while the IOC validation connector is not registered in OpenCTI yet](assets/ioc-validation-settings-write-back-waiting.png)
 
+Without an OpenCTI connection for the tenant, the settings point to the platform configuration:
+
+![IOC validation settings without an OpenCTI connection for the tenant](assets/ioc-validation-settings-opencti-missing.png)
+
 ## Approve or reject a request
 
 Go to **Atomic testings** and open the **IOC validations** tab. Each request shows the indicators, the security platforms, the test
