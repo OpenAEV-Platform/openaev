@@ -4339,6 +4339,7 @@
   "Endpoints of this group run the benign tests; the security platforms of the request evaluate them.": "Endpoints of this group run the benign tests; the security platforms of the request evaluate them.",
   "IOC validation settings saved": "IOC validation settings saved",
   "The egress proxy must be an absolute http or https URL": "The egress proxy must be an absolute http or https URL",
+  "The egress proxy URL must not contain credentials": "The egress proxy URL must not contain credentials",
   "HTTP HEAD tests can only be allowed once an egress proxy is configured": "HTTP HEAD tests can only be allowed once an egress proxy is configured",
   "The sinkhole must be an IPv4 or IPv6 address": "The sinkhole must be an IPv4 or IPv6 address",
   "The network port must be between 1 and 65535": "The network port must be between 1 and 65535",

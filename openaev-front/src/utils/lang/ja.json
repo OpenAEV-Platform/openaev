@@ -4339,6 +4339,7 @@
   "Endpoints of this group run the benign tests; the security platforms of the request evaluate them.": "このグループのエンドポイントが無害なテストを実行し、リクエストのセキュリティプラットフォームがそれを評価します。",
   "IOC validation settings saved": "IOC 検証設定を保存しました",
   "The egress proxy must be an absolute http or https URL": "送信プロキシは絶対 http または https URL である必要があります",
+  "The egress proxy URL must not contain credentials": "出力プロキシの URL に認証情報を含めることはできません",
   "HTTP HEAD tests can only be allowed once an egress proxy is configured": "HTTP HEAD テストは送信プロキシを設定した後にのみ許可できます",
   "The sinkhole must be an IPv4 or IPv6 address": "シンクホールは IPv4 または IPv6 アドレスである必要があります",
   "The network port must be between 1 and 65535": "ネットワークポートは 1 から 65535 の間である必要があります",
