@@ -363,6 +363,7 @@ public class ExecutableInjectService {
     ObjectNode injectContent =
         PayloadService.iocValidationExecutionContent(
             inject.getContent(), contract.getPayload(), inject.getId());
+    refuseIocValidationFileDropWithoutRun(contract.getPayload(), injectContent);
     Payload payloadToExecute = payloadService.generateDuplicatedPayload(contract.getPayload());
     JsonNode injectorContractFieldsNode = contract.getConvertedContent().get("fields");
     List<ObjectNode> injectorContractFields =
@@ -432,6 +433,21 @@ public class ExecutableInjectService {
         && !(Hibernate.unproxy(payload) instanceof Command fileDrop
             && PayloadService.isCurrentIocValidationFileDropTemplate(fileDrop))) {
       throw new IllegalStateException(PayloadService.IOC_VALIDATION_OUTDATED_FILE_DROP);
+    }
+  }
+
+  /**
+   * An IOC validation file drop runs only with the run of its own inject: an empty run is refused
+   * here, before any default (of the payload or of the injector contract, both editable) can take
+   * its place and make two injects share one directory.
+   */
+  static void refuseIocValidationFileDropWithoutRun(Payload payload, ObjectNode executionContent) {
+    if (PayloadService.isIocValidationFileDropPayload(payload)
+        && (executionContent == null
+            || !hasText(executionContent.path(PayloadService.IOC_VALIDATION_RUN_KEY).asText("")))) {
+      throw new IllegalArgumentException(
+          "Missing mandatory input '%s' for inject execution"
+              .formatted(PayloadService.IOC_VALIDATION_RUN_KEY));
     }
   }
 

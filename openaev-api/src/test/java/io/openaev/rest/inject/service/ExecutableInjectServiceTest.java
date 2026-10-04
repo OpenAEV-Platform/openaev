@@ -101,6 +101,45 @@ class ExecutableInjectServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "Should refuse an IOC validation file drop without its own run, whatever the defaults")
+  void given_iocValidationFileDropWithoutRun_should_refuseExecution() {
+    // Arrange
+    Command fileDrop = new Command();
+    fileDrop.setTenant(new Tenant("tenant-a"));
+    fileDrop.setId(
+        PayloadService.iocValidationPayloadId(
+            IocValidationTestKind.FILE_DROP,
+            PayloadService.IOC_VALIDATION_POSIX_EXECUTOR,
+            "tenant-a"));
+    ObjectNode withoutRun = JsonNodeFactory.instance.objectNode();
+    withoutRun.put(PayloadService.IOC_VALIDATION_RUN_KEY, "");
+    ObjectNode withRun = JsonNodeFactory.instance.objectNode();
+    withRun.put(PayloadService.IOC_VALIDATION_RUN_KEY, "0123456789abcdef0123456789abcdef");
+    Command userPayload = new Command();
+    userPayload.setTenant(new Tenant("tenant-a"));
+    userPayload.setId("4b3f8e52-2f1b-4c36-9a4e-1d2c3b4a5f60");
+
+    // Act / Assert
+    assertThatThrownBy(
+            () ->
+                ExecutableInjectService.refuseIocValidationFileDropWithoutRun(fileDrop, withoutRun))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Missing mandatory input 'ioc_validation_run' for inject execution");
+    assertThatThrownBy(
+            () -> ExecutableInjectService.refuseIocValidationFileDropWithoutRun(fileDrop, null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatCode(
+            () -> ExecutableInjectService.refuseIocValidationFileDropWithoutRun(fileDrop, withRun))
+        .doesNotThrowAnyException();
+    assertThatCode(
+            () ->
+                ExecutableInjectService.refuseIocValidationFileDropWithoutRun(
+                    userPayload, withoutRun))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
   @DisplayName("Should block execution when mandatory value is missing")
   void given_mandatoryMissingArgument_should_blockExecution() throws Exception {
     // Arrange
