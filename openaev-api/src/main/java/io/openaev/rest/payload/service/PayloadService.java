@@ -97,6 +97,9 @@ public class PayloadService {
   static final String IOC_VALIDATION_UNSAFE_FILE_DROP =
       "OpenAEV IOC validation: the run directory or the surrogate path is a link; nothing was"
           + " written";
+  static final String IOC_VALIDATION_FAILED_FILE_DROP =
+      "OpenAEV IOC validation: the surrogate could not be created as a new file in the run"
+          + " directory";
   // Defines Test-OaevLink: whether a path is a reparse point (symbolic link, junction), dangling or
   // not. GetAttributes reads the entry itself, never its target, where Test-Path is false for a
   // dangling symbolic link; a missing path is no link, and a path that cannot be read counts as
@@ -775,8 +778,8 @@ public class PayloadService {
    * Whether a command payload is exactly the IOC validation template of a kind and an executor: the
    * command and cleanup executors, the command, the cleanup, the arguments with their types and
    * defaults, no prerequisite, no elevation, and the prevention and detection expectations the
-   * results are evaluated from. Every one of them is editable and changes what runs on the endpoint
-   * or what the validation can measure.
+   * results are evaluated from, open to every security platform. Every one of them is editable and
+   * changes what runs on the endpoint or what the validation can measure.
    */
   static boolean isIocValidationCommandTemplate(
       Command command, IocValidationTestKind kind, String executor) {
@@ -798,7 +801,9 @@ public class PayloadService {
         && command.getExpectations() != null
         && Arrays.stream(command.getExpectations())
             .collect(Collectors.toSet())
-            .equals(Set.of(IOC_VALIDATION_EXPECTATIONS));
+            .equals(Set.of(IOC_VALIDATION_EXPECTATIONS))
+        && (command.getExpectedSecurityPlatforms() == null
+            || command.getExpectedSecurityPlatforms().isEmpty());
   }
 
   private void applyIocValidationCommandTemplate(
@@ -813,6 +818,7 @@ public class PayloadService {
     payload.setCleanupCommand(cleanup);
     payload.setArguments(new ArrayList<>(iocValidationArguments(kind)));
     payload.setExpectations(IOC_VALIDATION_EXPECTATIONS.clone());
+    payload.setExpectedSecurityPlatforms(new HashMap<>());
   }
 
   private Command saveIocValidationCommandPayload(TxCtx ctx, Command payload, String tenantId) {
@@ -969,9 +975,10 @@ public class PayloadService {
    * connect-and-close (no payload), an HTTP HEAD through the configured egress proxy, one log line,
    * or a small text file named after the IOC. The file is written in a temporary directory owned by
    * the inject ({@code openaev-ioc-validation-<run>}), never directly in the temp directory, so it
-   * can neither overwrite nor, at cleanup, delete a file of another application. Placeholders are
-   * bound as shell variables by {@link io.openaev.utils.command.CommandArgumentBinder}, never
-   * substituted verbatim.
+   * can neither overwrite nor, at cleanup, delete a file of another application; the surrogate is
+   * created as a new file only (never written over an existing one) and a failed write fails the
+   * test. Placeholders are bound as shell variables by {@link
+   * io.openaev.utils.command.CommandArgumentBinder}, never substituted verbatim.
    */
   static String iocValidationCommandContent(IocValidationTestKind kind, boolean windows) {
     String host = placeholder(IOC_VALIDATION_HOST_KEY);
@@ -1011,8 +1018,14 @@ public class PayloadService {
                 + "' }; [void][System.IO.Directory]::CreateDirectory($oaevIocDir);"
                 + " if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)) { throw '"
                 + IOC_VALIDATION_UNSAFE_FILE_DROP
-                + "' }; Set-Content -LiteralPath $oaevIocPath"
-                + " -Value 'OpenAEV IOC validation benign surrogate'";
+                + "' }; $oaevIocStream = $null; try {"
+                + " $oaevIocStream = [System.IO.File]::Open($oaevIocPath,"
+                + " [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write);"
+                + " $oaevIocBytes = [System.Text.Encoding]::UTF8.GetBytes("
+                + "'OpenAEV IOC validation benign surrogate' + [Environment]::NewLine);"
+                + " $oaevIocStream.Write($oaevIocBytes, 0, $oaevIocBytes.Length) } catch { throw '"
+                + IOC_VALIDATION_FAILED_FILE_DROP
+                + "' } finally { if ($oaevIocStream) { $oaevIocStream.Dispose() } }";
         case DNS_RESOLUTION ->
             throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
       };
@@ -1050,7 +1063,10 @@ public class PayloadService {
               + "; } || [ -L \"./$OAEV_IOC_FILE\" ]; then echo '"
               + IOC_VALIDATION_UNSAFE_FILE_DROP
               + "' >&2; exit 1; fi;"
-              + " printf 'OpenAEV IOC validation benign surrogate\\n' > \"./$OAEV_IOC_FILE\"; true";
+              + " if ! ( set -C; printf 'OpenAEV IOC validation benign surrogate\\n'"
+              + " > \"./$OAEV_IOC_FILE\" ); then echo '"
+              + IOC_VALIDATION_FAILED_FILE_DROP
+              + "' >&2; exit 1; fi";
       case DNS_RESOLUTION ->
           throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
     };

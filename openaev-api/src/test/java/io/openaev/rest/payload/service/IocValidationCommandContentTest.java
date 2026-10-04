@@ -16,6 +16,7 @@ import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.command.CommandArgumentBinder;
 import java.io.IOException;
@@ -23,7 +24,9 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -205,6 +208,12 @@ class IocValidationCommandContentTest {
     withoutExpectations.setExpectations(null);
     assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withoutExpectations))
         .isFalse();
+    // Expected security platforms restrict which collectors can satisfy the expectations
+    Command restrictedPlatforms = currentFileDrop();
+    restrictedPlatforms.setExpectedSecurityPlatforms(
+        new HashMap<>(Map.of(DETECTION, List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR))));
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(restrictedPlatforms))
+        .isFalse();
   }
 
   @Test
@@ -293,6 +302,10 @@ class IocValidationCommandContentTest {
         .contains("[ \"$(pwd -P)\" = \"$OAEV_IOC_DIR\" ]")
         .contains("[ -L \"./$OAEV_IOC_FILE\" ]")
         .contains("> \"./$OAEV_IOC_FILE\"")
+        // noclobber: the surrogate is created, never written over an existing file
+        .contains("set -C")
+        .contains(PayloadService.IOC_VALIDATION_FAILED_FILE_DROP)
+        .doesNotContain("; true")
         .doesNotContain("mkdir -p")
         .doesNotContain("\"${TMPDIR:-/tmp}/\"" + FILE_NAME);
     assertThat(content.indexOf("exit 1")).isLessThan(content.indexOf("mkdir"));
@@ -315,13 +328,16 @@ class IocValidationCommandContentTest {
         .contains("('openaev-ioc-validation-' + $oaevIocRun)")
         .contains("[System.IO.FileAttributes]::ReparsePoint")
         .contains("if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)) { throw")
-        .contains("Set-Content -LiteralPath $oaevIocPath")
+        // Created as a new file: never an overwrite, never through a link at the surrogate path
+        .contains("[System.IO.FileMode]::CreateNew")
+        .contains(PayloadService.IOC_VALIDATION_FAILED_FILE_DROP)
+        .doesNotContain("Set-Content")
         .doesNotContain("GetTempPath()) " + FILE_NAME);
     assertThat(content.indexOf("throw")).isLessThan(content.indexOf("CreateDirectory"));
     // A link is refused right before the write, after the directory exists
     assertThat(content.lastIndexOf("Test-OaevLink $oaevIocPath"))
         .isGreaterThan(content.indexOf("CreateDirectory"))
-        .isLessThan(content.indexOf("Set-Content"));
+        .isLessThan(content.indexOf("CreateNew"));
   }
 
   @Test
@@ -547,6 +563,17 @@ class IocValidationCommandContentTest {
       assertThat(victim).hasContent("not ours");
       assertThat(Files.isSymbolicLink(surrogate)).isTrue();
     }
+
+    @Test
+    @DisplayName("never overwrites a file already at the surrogate path and fails")
+    void given_existingSurrogate_should_failWithoutOverwritingIt() throws Exception {
+      Path runDirectory =
+          Files.createDirectories(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
+      Path existing = Files.writeString(runDirectory.resolve("invoice.pdf"), "not ours");
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+      assertThat(existing).hasContent("not ours");
+    }
   }
 
   /**
@@ -692,6 +719,17 @@ class IocValidationCommandContentTest {
 
       assertThat(tmp.resolve("missing-target")).doesNotExist();
       assertThat(isDanglingLink(surrogate)).isTrue();
+    }
+
+    @Test
+    @DisplayName("never overwrites a file already at the surrogate path and fails")
+    void given_existingSurrogate_should_failWithoutOverwritingIt() throws Exception {
+      Path runDirectory =
+          Files.createDirectories(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
+      Path existing = Files.writeString(runDirectory.resolve("invoice.pdf"), "not ours");
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+      assertThat(existing).hasContent("not ours");
     }
   }
 }
