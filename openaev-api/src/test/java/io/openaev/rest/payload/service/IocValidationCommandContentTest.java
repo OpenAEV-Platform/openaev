@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.PayloadArgument;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.command.CommandArgumentBinder;
 import java.nio.file.Files;
@@ -107,7 +108,6 @@ class IocValidationCommandContentTest {
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "",
         "../../escape",
         "0123456789ABCDEF0123456789ABCDEF",
         "0123456789abcdef0123456789abcde",
@@ -138,22 +138,30 @@ class IocValidationCommandContentTest {
   @Test
   @DisplayName("only a file drop payload running the current template may be executed")
   void given_fileDropPayload_should_recogniseTheCurrentTemplate() {
-    Command current = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
-    current.setContent(
-        PayloadService.iocValidationCommandContent(IocValidationTestKind.FILE_DROP, false));
-    current.setCleanupCommand(
-        PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false));
+    Command current = currentFileDrop();
     assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(current)).isTrue();
 
-    Command legacyCommand =
-        fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
+    Command legacyCommand = currentFileDrop();
     legacyCommand.setContent("printf 'x' > \"${TMPDIR:-/tmp}/\"" + FILE_NAME + "; true");
-    legacyCommand.setCleanupCommand(current.getCleanupCommand());
     assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(legacyCommand)).isFalse();
 
-    Command withoutRun = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
-    withoutRun.setContent(current.getContent());
-    withoutRun.setCleanupCommand(current.getCleanupCommand());
+    // Executors are editable and decide how the command and the cleanup are bound and run
+    Command otherExecutor = currentFileDrop();
+    otherExecutor.setExecutor("bash");
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(otherExecutor)).isFalse();
+    Command withoutCleanupExecutor = currentFileDrop();
+    withoutCleanupExecutor.setCleanupExecutor(null);
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withoutCleanupExecutor))
+        .isFalse();
+
+    // An argument type decides how its value is resolved
+    Command otherType = currentFileDrop();
+    otherType.getArguments().stream()
+        .filter(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()))
+        .forEach(argument -> argument.setType(PrimitiveType.TargetedAsset));
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(otherType)).isFalse();
+
+    Command withoutRun = currentFileDrop();
     withoutRun.setArguments(
         new ArrayList<>(
             PayloadService.iocValidationArguments(IocValidationTestKind.FILE_DROP).stream()
@@ -163,10 +171,7 @@ class IocValidationCommandContentTest {
 
     // A run default set through the payload update API would be shared by every inject without a
     // run
-    Command editedDefault =
-        fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
-    editedDefault.setContent(current.getContent());
-    editedDefault.setCleanupCommand(current.getCleanupCommand());
+    Command editedDefault = currentFileDrop();
     editedDefault.getArguments().stream()
         .filter(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()))
         .forEach(argument -> argument.setDefaultValue("0123456789abcdef0123456789abcdef"));
@@ -175,23 +180,41 @@ class IocValidationCommandContentTest {
 
   @Test
   @DisplayName(
-      "an inject without a run never falls back to the payload default: the endpoint refuses it")
-  void given_missingRun_should_neverFallBackToThePayloadDefault() {
+      "an inject without a run keeps an empty run: it is refused before dispatch as a missing"
+          + " mandatory input")
+  void given_missingRun_should_stayEmpty() {
     Command payload = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
     ObjectNode content = JsonNodeFactory.instance.objectNode();
     content.put(IOC_VALIDATION_FILE_NAME_KEY, "invoice.pdf");
+    ObjectNode emptyRun = content.deepCopy();
+    emptyRun.put(IOC_VALIDATION_RUN_KEY, "");
 
     assertThat(
             PayloadService.iocValidationExecutionContent(content, payload, "inject-a")
                 .get(IOC_VALIDATION_RUN_KEY)
                 .asText())
-        .isEqualTo(PayloadService.IOC_VALIDATION_INVALID_RUN);
+        .isEmpty();
     assertThat(content.has(IOC_VALIDATION_RUN_KEY)).isFalse();
+    assertThat(
+            PayloadService.iocValidationExecutionContent(emptyRun, payload, "inject-a")
+                .get(IOC_VALIDATION_RUN_KEY)
+                .asText())
+        .isEmpty();
     assertThat(
             PayloadService.iocValidationExecutionContent(null, payload, "inject-a")
                 .get(IOC_VALIDATION_RUN_KEY)
                 .asText())
-        .isEqualTo(PayloadService.IOC_VALIDATION_INVALID_RUN);
+        .isEmpty();
+  }
+
+  private static Command currentFileDrop() {
+    Command current = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
+    current.setCleanupExecutor(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR);
+    current.setContent(
+        PayloadService.iocValidationCommandContent(IocValidationTestKind.FILE_DROP, false));
+    current.setCleanupCommand(
+        PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, false));
+    return current;
   }
 
   @Test

@@ -691,24 +691,13 @@ public class PayloadService {
   }
 
   /**
-   * A payload created by an earlier version keeps running its old command: it is brought back to
-   * the current template (content, cleanup and arguments) the next time a validation uses it.
+   * A payload created by an earlier version, or edited since, keeps running its old command: it is
+   * brought back to the current template (executors, content, cleanup and arguments) the next time
+   * a validation uses it.
    */
   private Command refreshIocValidationCommandPayload(
       TxCtx ctx, Command existing, IocValidationTestKind kind, String executor) {
-    boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
-    List<String> arguments =
-        iocValidationArguments(kind).stream().map(PayloadService::argumentSignature).toList();
-    List<String> existingArguments =
-        existing.getArguments() == null
-            ? List.of()
-            : existing.getArguments().stream().map(PayloadService::argumentSignature).toList();
-    boolean upToDate =
-        iocValidationCommandContent(kind, windows).equals(existing.getContent())
-            && Objects.equals(
-                iocValidationCleanupCommand(kind, windows), existing.getCleanupCommand())
-            && arguments.equals(existingArguments);
-    if (upToDate) {
+    if (isIocValidationCommandTemplate(existing, kind, executor)) {
       return existing;
     }
     applyIocValidationCommandTemplate(existing, kind, executor);
@@ -752,9 +741,32 @@ public class PayloadService {
     return saveIocValidationCommandPayload(ctx, payload, tenantId);
   }
 
+  /**
+   * Whether a command payload is exactly the IOC validation template of a kind and an executor: the
+   * command and cleanup executors, the command, the cleanup and the arguments with their types and
+   * defaults. Every one of them is editable and changes what runs on the endpoint.
+   */
+  static boolean isIocValidationCommandTemplate(
+      Command command, IocValidationTestKind kind, String executor) {
+    boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
+    String cleanup = iocValidationCleanupCommand(kind, windows);
+    List<String> expectedArguments =
+        iocValidationArguments(kind).stream().map(PayloadService::argumentSignature).toList();
+    List<String> arguments =
+        command.getArguments() == null
+            ? List.of()
+            : command.getArguments().stream().map(PayloadService::argumentSignature).toList();
+    return executor.equals(command.getExecutor())
+        && Objects.equals(cleanup == null ? null : executor, command.getCleanupExecutor())
+        && iocValidationCommandContent(kind, windows).equals(command.getContent())
+        && Objects.equals(cleanup, command.getCleanupCommand())
+        && expectedArguments.equals(arguments);
+  }
+
   private void applyIocValidationCommandTemplate(
       Command payload, IocValidationTestKind kind, String executor) {
     boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
+    payload.setExecutor(executor);
     payload.setContent(iocValidationCommandContent(kind, windows));
     String cleanup = iocValidationCleanupCommand(kind, windows);
     payload.setCleanupExecutor(cleanup == null ? null : executor);
@@ -811,12 +823,13 @@ public class PayloadService {
    * view, attack-path snapshot), so the audited command is the one that ran. The run stored on the
    * inject is only a seed: the run directory is named on the server after the seed and the inject
    * id, so an inject can never address the directory of another one, whatever its content says, and
-   * its drop and its cleanup always meet in the same directory. A missing or malformed seed is
-   * replaced with {@link #IOC_VALIDATION_INVALID_RUN}, never left to the payload default (an
-   * editable value) and never turned into a valid run by the binder sanitization (control
-   * characters stripped), so the endpoint refuses the inject before any file operation. Every other
-   * payload, including a user payload with an argument of the same name, runs with the content
-   * unchanged.
+   * its drop and its cleanup always meet in the same directory. A missing or empty seed stays
+   * empty, so the mandatory run argument is refused before dispatch; a non-empty malformed seed is
+   * replaced with {@link #IOC_VALIDATION_INVALID_RUN}, which no binder sanitization (control
+   * characters stripped) can turn into a valid run, so the endpoint refuses it before any file
+   * operation. The payload default is never used: the execution guard refuses a singleton whose
+   * arguments were edited. Every other payload, including a user payload with an argument of the
+   * same name, runs with the content unchanged.
    */
   public static ObjectNode iocValidationExecutionContent(
       ObjectNode content, Payload payload, String injectId) {
@@ -828,37 +841,39 @@ public class PayloadService {
             ? content.get(IOC_VALIDATION_RUN_KEY).asText()
             : "";
     ObjectNode bound = content == null ? JsonNodeFactory.instance.objectNode() : content.deepCopy();
-    bound.put(
-        IOC_VALIDATION_RUN_KEY,
-        IOC_VALIDATION_RUN_PATTERN.matcher(seed).matches()
-            ? iocValidationRunDirectory(injectId, seed)
-            : IOC_VALIDATION_INVALID_RUN);
+    String run;
+    if (seed.isEmpty()) {
+      run = "";
+    } else if (IOC_VALIDATION_RUN_PATTERN.matcher(seed).matches()) {
+      run = iocValidationRunDirectory(injectId, seed);
+    } else {
+      run = IOC_VALIDATION_INVALID_RUN;
+    }
+    bound.put(IOC_VALIDATION_RUN_KEY, run);
     return bound;
   }
 
   /**
-   * Whether a file-drop payload still runs the current template: the command, the cleanup and the
-   * arguments with their defaults are exactly those of this version. A payload created by an
-   * earlier version, or whose arguments were edited (a run default would be shared by every inject
-   * without a run of its own), is refreshed the next time a validation is approved, and refused at
-   * execution until then.
+   * Whether a file-drop singleton still runs the current template of the executor its identity was
+   * created for (see {@link #isIocValidationCommandTemplate}). A payload created by an earlier
+   * version, or edited since (a run default would be shared by every inject without a run of its
+   * own), is refreshed the next time a validation is approved, and refused at execution until then.
    */
   public static boolean isCurrentIocValidationFileDropTemplate(Command command) {
-    boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(command.getExecutor());
-    List<String> expectedArguments =
-        iocValidationArguments(IocValidationTestKind.FILE_DROP).stream()
-            .map(PayloadService::argumentSignature)
-            .toList();
-    List<String> arguments =
-        command.getArguments() == null
-            ? List.of()
-            : command.getArguments().stream().map(PayloadService::argumentSignature).toList();
-    return expectedArguments.equals(arguments)
-        && iocValidationCommandContent(IocValidationTestKind.FILE_DROP, windows)
-            .equals(command.getContent())
-        && Objects.equals(
-            iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, windows),
-            command.getCleanupCommand());
+    if (command.getId() == null || command.getTenant() == null) {
+      return false;
+    }
+    String tenantId = command.getTenant().getId();
+    return Stream.of(IOC_VALIDATION_WINDOWS_EXECUTOR, IOC_VALIDATION_POSIX_EXECUTOR)
+        .filter(
+            executor ->
+                iocValidationPayloadId(IocValidationTestKind.FILE_DROP, executor, tenantId)
+                    .equals(command.getId()))
+        .findFirst()
+        .map(
+            executor ->
+                isIocValidationCommandTemplate(command, IocValidationTestKind.FILE_DROP, executor))
+        .orElse(false);
   }
 
   /**
@@ -887,7 +902,11 @@ public class PayloadService {
   }
 
   private static String argumentSignature(PayloadArgument argument) {
-    return argument.getKey() + "=" + Objects.toString(argument.getDefaultValue(), "");
+    return argument.getType()
+        + ":"
+        + argument.getKey()
+        + "="
+        + Objects.toString(argument.getDefaultValue(), "");
   }
 
   private static PayloadArgument textArgument(String key, String defaultValue) {
