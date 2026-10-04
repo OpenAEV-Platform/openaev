@@ -400,6 +400,29 @@ class IocValidationCommandContentTest {
         .isLessThan(cleanup.indexOf("[System.IO.File]::Delete"));
   }
 
+  @Test
+  @DisplayName(
+      "the Windows cleanup keeps the surrogate open from its checks to its deletion, pinning the"
+          + " run directory")
+  void given_fileDropCleanupOnWindows_should_checkAndDeleteTheOpenSurrogate() {
+    String cleanup =
+        PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
+    int open = cleanup.indexOf("[System.IO.File]::Open($oaevIocPath");
+    int recheck = cleanup.indexOf("(Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)");
+    int read = cleanup.indexOf(".ReadToEnd()");
+    int delete = cleanup.indexOf("[System.IO.File]::Delete($oaevIocPath)");
+    int close = cleanup.indexOf("$oaevIocStream.Dispose()");
+
+    assertThat(open).isPositive();
+    assertThat(recheck).isGreaterThan(open);
+    assertThat(read).isGreaterThan(recheck);
+    assertThat(delete).isGreaterThan(read);
+    assertThat(close).isGreaterThan(delete);
+    assertThat(cleanup)
+        .contains("[System.IO.FileShare]::Read -bor [System.IO.FileShare]::Delete")
+        .doesNotContain("ReadAllText");
+  }
+
   // PowerShell -match is case-insensitive
   private static boolean isWindowsReservedFileName(String fileName) {
     return Pattern.compile(
@@ -671,7 +694,10 @@ class IocValidationCommandContentTest {
     }
 
     private Path danglingLink(Path link) throws Exception {
-      Path target = tmp.resolve("missing-target");
+      return directoryLink(link, tmp.resolve("missing-target"));
+    }
+
+    private Path directoryLink(Path link, Path target) throws Exception {
       try {
         return Files.createSymbolicLink(link, target);
       } catch (IOException | UnsupportedOperationException e) {
@@ -735,6 +761,24 @@ class IocValidationCommandContentTest {
 
     private static String cleanup() {
       return PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
+    }
+
+    @Test
+    @DisplayName(
+        "keeps at cleanup the surrogate copy behind a run directory swapped for a link after the"
+            + " drop")
+    void given_runDirectorySwappedForLink_should_keepWhatTheLinkLeadsTo() throws Exception {
+      Path runDirectory = tmp.resolve("openaev-ioc-validation-" + VALID_RUN);
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      Path outside = Files.createDirectories(tmp.resolve("outside"));
+      Path copy = Files.copy(runDirectory.resolve("invoice.pdf"), outside.resolve("invoice.pdf"));
+      Files.delete(runDirectory.resolve("invoice.pdf"));
+      Files.delete(runDirectory);
+      directoryLink(runDirectory, outside);
+
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(copy).exists();
     }
 
     @Test

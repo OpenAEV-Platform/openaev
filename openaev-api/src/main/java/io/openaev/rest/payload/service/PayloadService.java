@@ -1108,22 +1108,28 @@ public class PayloadService {
       return null;
     }
     if (windows) {
-      // File.Delete never removes a directory (Remove-Item would remove an empty one) and is a
-      // no-op for a missing file; a run directory or a surrogate path that is a link is left alone
+      // File.Delete never removes a directory (Remove-Item would remove an empty one); a run
+      // directory or a surrogate path that is a link is left alone. The surrogate stays open from
+      // the link checks to its deletion: a directory holding an open file cannot be renamed, so the
+      // run directory cannot be swapped for a link between the content check and the deletion
       return windowsRunDirectory()
           + "; "
           + WINDOWS_LINK_TEST
           + "; $oaevIocPath = Join-Path $oaevIocDir $oaevIocFile;"
           + " if ((Test-Path -LiteralPath $oaevIocDir -PathType Container)"
           + " -and -not (Test-OaevLink $oaevIocDir)) {"
-          + " if (-not (Test-OaevLink $oaevIocPath)) { try {"
-          + " $oaevIocInfo = New-Object System.IO.FileInfo($oaevIocPath);"
-          + " if ($oaevIocInfo.Exists -and $oaevIocInfo.Length -le "
+          + " if (-not (Test-OaevLink $oaevIocPath)) { $oaevIocStream = $null; try {"
+          + " $oaevIocStream = [System.IO.File]::Open($oaevIocPath, [System.IO.FileMode]::Open,"
+          + " [System.IO.FileAccess]::Read,"
+          + " ([System.IO.FileShare]::Read -bor [System.IO.FileShare]::Delete));"
+          + " if (-not ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath))"
+          + " -and $oaevIocStream.Length -le "
           + IOC_VALIDATION_SURROGATE_MAX_BYTES
-          + " -and [System.IO.File]::ReadAllText($oaevIocPath) -ceq ('"
+          + " -and (New-Object System.IO.StreamReader($oaevIocStream,"
+          + " [System.Text.Encoding]::UTF8)).ReadToEnd() -ceq ('"
           + IOC_VALIDATION_SURROGATE_TEXT
           + " ' + $oaevIocRun + [Environment]::NewLine)) { [System.IO.File]::Delete($oaevIocPath) }"
-          + " } catch { } };"
+          + " } catch { } finally { if ($oaevIocStream) { $oaevIocStream.Dispose() } } };"
           + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { } }";
     }
     // Only a regular file of the run directory entered is removed (rm never follows a link), then
