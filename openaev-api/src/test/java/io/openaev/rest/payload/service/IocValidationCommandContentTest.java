@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -288,7 +289,9 @@ class IocValidationCommandContentTest {
         .contains("$oaevIocRun = " + RUN)
         .contains("$oaevIocFile = " + FILE_NAME)
         .contains("$oaevIocRun -cnotmatch '^[0-9a-f]{32}$'")
-        .contains("$oaevIocFile -notmatch '^[^\\\\/:*?\"<>|]+$'")
+        .contains("$oaevIocFile -notmatch '^[^\\\\/:*?\"<>|\\x00-\\x1f]+$'")
+        .contains("$oaevIocFile -match '[. ]$'")
+        .contains("$oaevIocFile -match '" + PayloadService.WINDOWS_RESERVED_FILE_NAME + "'")
         .contains("('openaev-ioc-validation-' + $oaevIocRun)")
         .contains("Set-Content -LiteralPath (Join-Path $oaevIocDir $oaevIocFile)")
         .doesNotContain("GetTempPath()) " + FILE_NAME);
@@ -317,6 +320,41 @@ class IocValidationCommandContentTest {
         .contains("[System.IO.Directory]::Delete($oaevIocDir)")
         .doesNotContain("-Recurse");
     assertThat(cleanup.indexOf("throw")).isLessThan(cleanup.indexOf("Remove-Item"));
+  }
+
+  // PowerShell -match is case-insensitive
+  private static boolean isWindowsReservedFileName(String fileName) {
+    return Pattern.compile(
+            PayloadService.WINDOWS_RESERVED_FILE_NAME,
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE)
+        .matcher(fileName)
+        .find();
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "CON",
+        "con.txt",
+        "NUL .log",
+        "aux",
+        "PRN.tar.gz",
+        "COM1",
+        "lpt9.dll",
+        "COM\u00b9.txt",
+        "CONIN$",
+        "CONOUT$.txt"
+      })
+  @DisplayName("a reserved Windows device name is refused, with or without an extension")
+  void given_reservedWindowsDeviceName_should_beRefused(String fileName) {
+    assertThat(isWindowsReservedFileName(fileName)).isTrue();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"invoice.pdf", "CONSOLE.txt", "COM10", "LPT", "my-con.txt", "NULL.dll"})
+  @DisplayName("a file name that only starts like a reserved Windows device name is accepted")
+  void given_fileNameLikeAReservedWindowsDeviceName_should_beAccepted(String fileName) {
+    assertThat(isWindowsReservedFileName(fileName)).isFalse();
   }
 
   @ParameterizedTest

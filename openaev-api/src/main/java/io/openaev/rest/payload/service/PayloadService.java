@@ -97,6 +97,11 @@ public class PayloadService {
       "OpenAEV IOC validation: the run must be 32 lowercase hexadecimal characters and the"
           + " surrogate file name a plain file name";
   private static final Pattern IOC_VALIDATION_RUN_PATTERN = Pattern.compile("[0-9a-f]{32}");
+  // Device names Windows reserves whatever the extension and the spaces before it (PowerShell
+  // -match is case-insensitive).
+  static final String WINDOWS_RESERVED_FILE_NAME =
+      "^(CON|PRN|AUX|NUL|CONIN\\$|CONOUT\\$"
+          + "|COM[0-9\\u00b9\\u00b2\\u00b3]|LPT[0-9\\u00b9\\u00b2\\u00b3]) *(\\.|$)";
   static final String IOC_VALIDATION_INVALID_RUN = "invalid-run";
   public static final String IOC_VALIDATION_OUTDATED_FILE_DROP =
       "OpenAEV IOC validation: this file drop payload predates the per-inject run directory and is"
@@ -1031,8 +1036,11 @@ public class PayloadService {
    * Sets {@code $oaevIocDir} and {@code $oaevIocFile} for the file drop and its cleanup. The run
    * and the file name are editable inject arguments, so they are checked on the endpoint before any
    * file operation: the run must be 32 lowercase hexadecimal characters and the file name a plain
-   * name (no separator, no drive, not {@code .} or {@code ..}), otherwise the command stops with an
-   * error and touches nothing, so neither can lead outside the run directory.
+   * Windows file name (no separator, drive, wildcard or control character, no trailing dot or
+   * space, so neither {@code .} nor {@code ..}, and no reserved device name such as {@code CON} or
+   * {@code COM1}, with or without an extension), otherwise the command stops with an error and
+   * touches nothing: neither can lead outside the run directory, and the surrogate is never
+   * silently written to a device instead of a file.
    */
   private static String windowsRunDirectory() {
     String run = placeholder(IOC_VALIDATION_RUN_KEY);
@@ -1041,8 +1049,12 @@ public class PayloadService {
         + run
         + "; $oaevIocFile = "
         + fileName
-        + "; if ($oaevIocRun -cnotmatch '^[0-9a-f]{32}$' -or $oaevIocFile -notmatch"
-        + " '^[^\\\\/:*?\"<>|]+$' -or $oaevIocFile -in @('.', '..')) { throw '"
+        + "; if ($oaevIocRun -cnotmatch '^[0-9a-f]{32}$'"
+        + " -or $oaevIocFile -notmatch '^[^\\\\/:*?\"<>|\\x00-\\x1f]+$'"
+        + " -or $oaevIocFile -match '[. ]$'"
+        + " -or $oaevIocFile -match '"
+        + WINDOWS_RESERVED_FILE_NAME
+        + "') { throw '"
         + IOC_VALIDATION_INVALID_FILE_DROP
         + "' }; $oaevIocDir = Join-Path ([System.IO.Path]::GetTempPath())"
         + " ('openaev-ioc-validation-' + $oaevIocRun)";
