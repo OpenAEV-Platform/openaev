@@ -617,7 +617,7 @@ public class SecurityCoverageService {
     Set<String> simulationInjectIds =
         simulation.getInjects().stream().map(Inject::getId).collect(Collectors.toSet());
     List<BaseInjectExpectation> simulationExpectations =
-        resultUtils.findExpectationsForGlobalScore(simulationInjectIds);
+        resultUtils.findExpectationsForPlatformResults(simulationInjectIds);
     Map<String, List<BaseInjectExpectation>> expectationsByInjectId =
         simulationExpectations.stream()
             .collect(Collectors.groupingBy(expectation -> expectation.getInject().getId()));
@@ -810,7 +810,8 @@ public class SecurityCoverageService {
    *
    * @param matchingInjects the injects matching the covered object, the ones its {@code coverage}
    *     is computed from
-   * @param expectationsByInjectId the primary expectations of the simulation, by inject id
+   * @param expectationsByInjectId the expectations of the simulation the platform results are
+   *     computed from ({@link ResultUtils#findExpectationsForPlatformResults}), by inject id
    * @param platformStixIds the STIX identity id of every security platform emitted in the bundle,
    *     by platform id; no other platform is ever referenced
    * @return one entry per platform identity and expectation type, ordered by identity id then

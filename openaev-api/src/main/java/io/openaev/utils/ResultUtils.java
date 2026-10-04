@@ -9,6 +9,7 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -57,21 +58,39 @@ public class ResultUtils {
   }
 
   /**
-   * Loads the primary expectations of the given injects, the ones the global score is computed from
-   * (agent-level and player-level expectations are rolled up into them and excluded).
+   * Loads the expectations the per-platform results of the given injects are computed from: the
+   * primary expectations, the ones the global score is computed from (agent-level and player-level
+   * expectations are rolled up into them and excluded), and every expectation of an inject that has
+   * no primary expectation (for example an inject with agent-level expectations only), the fallback
+   * the result mappers apply ({@code InjectMapper#toInjectResultOverviewOutput}).
    *
    * <p>Callers computing several results over the same injects load them once with this method and
    * pass them to {@link #computeGlobalExpectationResultsForPlatform} instead of querying once per
-   * platform.
+   * platform. At most two queries are issued, whatever the number of injects.
    *
    * @param injectIds the set of inject IDs to load the expectations of
-   * @return the primary expectations of the injects, or an empty list if no injects are provided
+   * @return the expectations of the injects, or an empty list if no injects are provided
    */
-  public List<BaseInjectExpectation> findExpectationsForGlobalScore(Set<String> injectIds) {
+  public List<BaseInjectExpectation> findExpectationsForPlatformResults(Set<String> injectIds) {
     if (injectIds == null || injectIds.isEmpty()) {
       return emptyList();
     }
-    return injectExpectationRepository.findAllForGlobalScoreByInjects(injectIds);
+    List<BaseInjectExpectation> primaryExpectations =
+        injectExpectationRepository.findAllForGlobalScoreByInjects(injectIds);
+    Set<String> injectsWithPrimary =
+        primaryExpectations.stream()
+            .map(expectation -> expectation.getInject().getId())
+            .collect(Collectors.toSet());
+    Set<String> injectsWithoutPrimary =
+        injectIds.stream()
+            .filter(injectId -> !injectsWithPrimary.contains(injectId))
+            .collect(Collectors.toSet());
+    if (injectsWithoutPrimary.isEmpty()) {
+      return primaryExpectations;
+    }
+    List<BaseInjectExpectation> expectations = new ArrayList<>(primaryExpectations);
+    expectations.addAll(injectExpectationRepository.findAllByInjectIds(injectsWithoutPrimary));
+    return expectations;
   }
 
   /**
@@ -85,8 +104,8 @@ public class ResultUtils {
    * SecurityPlatformResultUtils}.
    *
    * @param injectIds the set of inject IDs the expectations belong to
-   * @param expectations the primary expectations of those injects, loaded with {@link
-   *     #findExpectationsForGlobalScore(Set)}
+   * @param expectations the expectations of those injects, loaded with {@link
+   *     #findExpectationsForPlatformResults(Set)}
    * @param securityPlatform the security platform to filter results by
    * @return a list of aggregated results filtered to the specified platform
    */
@@ -104,7 +123,8 @@ public class ResultUtils {
    * platforms of the group. Used for the platforms that share one STIX identity.
    *
    * @param injectIds the set of inject IDs the expectations belong to
-   * @param expectations the primary expectations of those injects
+   * @param expectations the expectations of those injects, loaded with {@link
+   *     #findExpectationsForPlatformResults(Set)}
    * @param securityPlatformIds the ids of the security platforms of the group
    * @return a list of aggregated results filtered to the platforms of the group
    */

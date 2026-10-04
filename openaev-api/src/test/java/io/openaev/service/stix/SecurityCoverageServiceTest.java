@@ -1477,6 +1477,87 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "Inject with agent-level expectations only: the platform is attributed from the agent results")
+    void given_injectWithAgentExpectationsOnly_should_attributeThePlatformFromTheAgentResults()
+        throws ParsingException, JsonProcessingException {
+      // Arrange
+      AttackPatternComposer.Composer agentOnlyTechnique = persistedAttackPattern("T9109");
+      AttackPatternComposer.Composer assetTechnique = persistedAttackPattern("T9110");
+      SecurityPlatform edr =
+          persistedPlatform("Agent-only EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+      EndpointComposer.Composer endpoint =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      AgentComposer.Composer agent =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpoint.withAgent(agent);
+      InjectorContractComposer.Composer contract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withAttackPattern(agentOnlyTechnique);
+      // No asset expectation: the agent rows are the only rows of this inject
+      InjectComposer.Composer agentOnlyInject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withInjectorContract(contract)
+              .withEndpoint(endpoint)
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      agent,
+                      100.0,
+                      createCollectorResult(edr, 100.0)))
+              .withExpectation(
+                  agentExpectation(
+                      BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                      agent,
+                      0.0,
+                      createCollectorResult(edr, 0.0)));
+      // An inject with primary expectations in the same simulation keeps its primary-only scoring
+      InjectComposer.Composer assetInject = injectCovering(assetTechnique);
+      answer(
+          assetInject,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+          100.0,
+          createCollectorResult(edr, 100.0));
+      answer(
+          assetInject,
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          100.0,
+          createCollectorResult(edr, 100.0));
+      ExerciseComposer.Composer simulation =
+          finishedSimulationCovering(
+              List.of(agentOnlyTechnique, assetTechnique), agentOnlyInject, assetInject);
+
+      // Act
+      Bundle bundle = buildBundle(simulation);
+
+      // Assert
+      assertCoveragePlatforms(
+          bundle,
+          coveredObjectSro(bundle, "T9109"),
+          entry(edr, "PREVENTION", 0),
+          entry(edr, "DETECTION", 100));
+      assertCoveragePlatforms(
+          bundle,
+          coveredObjectSro(bundle, "T9110"),
+          entry(edr, "PREVENTION", 100),
+          entry(edr, "DETECTION", 100));
+      // the per-platform relationship scores both injects: 1 of 2 preventions, 2 of 2 detections
+      RelationshipObject platformSro =
+          bundle.findRelationshipsByTargetRef(identityIdOf(edr)).getFirst();
+      assertThatJson(platformSro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .isEqualTo(
+              toList(
+                      List.of(
+                          new Complex<>(new CoverageResult("PREVENTION", 50)),
+                          new Complex<>(new CoverageResult("DETECTION", 100))))
+                  .toStix(mapper));
+    }
+
+    @Test
     @DisplayName("No platform result: coverage_platforms is omitted, coverage is still computed")
     void given_noPlatformResult_should_omitCoveragePlatforms()
         throws ParsingException, JsonProcessingException {

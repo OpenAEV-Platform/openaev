@@ -42,8 +42,21 @@ results of all of them, with the best verdict of the platforms on each Expectati
 ## Scores
 
 Every score of the bundle is a success rate in percentage points, from `0` to `100`, rounded to the nearest point. It is
-computed per expectation type, from the primary Expectations of the Injects: the asset and asset group Expectations.
-Agent and Player Expectations are already rolled up into them and are not counted twice.
+computed per expectation type, from the primary Expectations of the Injects, which are all the Expectations attached to
+neither an agent nor a player:
+
+- team Expectations (manual, article and challenge Expectations of a team, `HUMAN_RESPONSE`);
+- asset Expectations and asset group Expectations;
+- Expectations attached to no team, asset or asset group;
+- the Expectation of one asset of a targeted asset group only when that asset is also a direct target of the Inject.
+
+The other rows are rolled up before the count and never counted twice: agent Expectations into their asset Expectation,
+player Expectations into their team Expectation, and the asset Expectations of a targeted asset group into the group
+Expectation, according to its validation mode (all assets or at least one asset).
+
+The per-platform scores (`coverage_platforms` and the security platform relationships) start from the same primary
+Expectations. An Inject without any primary Expectation, for example one with agent Expectations only, is scored there on
+all its Expectations, so the results its agents received from a security platform are still attributed.
 
 | Expectation outcome                                                           | Counted as |
 |:------------------------------------------------------------------------------|:-----------|
