@@ -189,8 +189,18 @@ class SecurityPlatformResultUtilsTest {
         Agent agent,
         BaseInjectExpectation.EXPECTATION_STATUS globalStatus,
         InjectExpectationResult... results) {
+      return addTechnicalExpectation(DETECTION, assetGroup, asset, agent, globalStatus, results);
+    }
+
+    private TechnicalInjectExpectation addTechnicalExpectation(
+        BaseInjectExpectation.EXPECTATION_TYPE type,
+        AssetGroup assetGroup,
+        Endpoint asset,
+        Agent agent,
+        BaseInjectExpectation.EXPECTATION_STATUS globalStatus,
+        InjectExpectationResult... results) {
       TechnicalInjectExpectation expectation =
-          (TechnicalInjectExpectation) createExpectation(DETECTION, globalStatus, results);
+          (TechnicalInjectExpectation) createExpectation(type, globalStatus, results);
       expectation.setInject(inject);
       expectation.setAssetGroup(assetGroup);
       expectation.setAsset(asset);
@@ -287,6 +297,81 @@ class SecurityPlatformResultUtilsTest {
       // Act
       BaseInjectExpectation view =
           SecurityPlatformResultUtils.toSecurityPlatformView(assetExpectation, edr.getId());
+
+      // Assert
+      assertThat(view.getScore()).isEqualTo(100.0);
+    }
+
+    @Test
+    @DisplayName("A vulnerable agent wins over a direct not vulnerable verdict on the asset")
+    void given_directNotVulnerableAndVulnerableAgent_should_keepTheVulnerableVerdict() {
+      // Arrange
+      SecurityPlatform scanner = createPlatform("Scanner", "SIEM");
+      Endpoint endpoint = createEndpointWithAgents(1);
+      TechnicalInjectExpectation assetExpectation =
+          addTechnicalExpectation(
+              VULNERABILITY, null, endpoint, null, SUCCESS, createCollectorResult(scanner, 100.0));
+      addTechnicalExpectation(
+          VULNERABILITY,
+          null,
+          endpoint,
+          endpoint.getAgents().get(0),
+          SUCCESS,
+          createCollectorResult(scanner, 0.0));
+
+      // Act
+      BaseInjectExpectation view =
+          SecurityPlatformResultUtils.toSecurityPlatformView(assetExpectation, scanner.getId());
+
+      // Assert
+      assertThat(view.getScore()).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("A direct vulnerable verdict on the asset wins over not vulnerable agents")
+    void given_directVulnerableAndNotVulnerableAgent_should_keepTheVulnerableVerdict() {
+      // Arrange
+      SecurityPlatform scanner = createPlatform("Scanner", "SIEM");
+      Endpoint endpoint = createEndpointWithAgents(1);
+      TechnicalInjectExpectation assetExpectation =
+          addTechnicalExpectation(
+              VULNERABILITY, null, endpoint, null, SUCCESS, createCollectorResult(scanner, 0.0));
+      addTechnicalExpectation(
+          VULNERABILITY,
+          null,
+          endpoint,
+          endpoint.getAgents().get(0),
+          SUCCESS,
+          createCollectorResult(scanner, 100.0));
+
+      // Act
+      BaseInjectExpectation view =
+          SecurityPlatformResultUtils.toSecurityPlatformView(assetExpectation, scanner.getId());
+
+      // Assert
+      assertThat(view.getScore()).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("A direct not vulnerable verdict on the asset holds with not vulnerable agents")
+    void given_directNotVulnerableAndNotVulnerableAgent_should_keepTheDirectVerdict() {
+      // Arrange
+      SecurityPlatform scanner = createPlatform("Scanner", "SIEM");
+      Endpoint endpoint = createEndpointWithAgents(1);
+      TechnicalInjectExpectation assetExpectation =
+          addTechnicalExpectation(
+              VULNERABILITY, null, endpoint, null, SUCCESS, createCollectorResult(scanner, 100.0));
+      addTechnicalExpectation(
+          VULNERABILITY,
+          null,
+          endpoint,
+          endpoint.getAgents().get(0),
+          SUCCESS,
+          createCollectorResult(scanner, 100.0));
+
+      // Act
+      BaseInjectExpectation view =
+          SecurityPlatformResultUtils.toSecurityPlatformView(assetExpectation, scanner.getId());
 
       // Assert
       assertThat(view.getScore()).isEqualTo(100.0);

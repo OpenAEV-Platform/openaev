@@ -238,8 +238,10 @@ public final class SecurityPlatformResultUtils {
    * Combines the platform's direct verdict on an asset expectation with the verdict rolled up from
    * its agents, with the rule the persisted score follows ({@code
    * InjectExpectationService#combineWithChildrenVerdict}): a direct DETECTION / PREVENTION success
-   * wins, and VULNERABILITY is decided on the asset row itself in both directions (a direct
-   * VULNERABLE verdict first), the agents deciding only when the platform has no direct verdict.
+   * wins, and for VULNERABILITY the worst verdict wins: a direct VULNERABLE verdict first, then a
+   * VULNERABLE verdict of the agents (a finding reported by an agent overrides a direct "Not
+   * vulnerable" through the rollup), then the direct verdict, the agents deciding only when the
+   * platform has no direct verdict.
    */
   private static Double combineAssetVerdict(
       final BaseInjectExpectation directView,
@@ -250,6 +252,10 @@ public final class SecurityPlatformResultUtils {
           InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(directView, null);
       if (directVulnerable != null) {
         return directVulnerable;
+      }
+      Double expectedScore = directView.getExpectedScore();
+      if (childrenScore != null && expectedScore != null && childrenScore < expectedScore) {
+        return childrenScore;
       }
       return directScore != null ? directScore : childrenScore;
     }

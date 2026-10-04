@@ -57,7 +57,10 @@ Expectation, according to its validation mode (all assets or at least one asset)
 
 The per-platform scores (`coverage_platforms` and the security platform relationships) start from the same primary
 Expectations. An Inject without any primary Expectation, for example one with agent Expectations only, is scored there on
-all its Expectations, so the results its agents received from a security platform are still attributed.
+all its Expectations, so the results its agents received from a security platform are still attributed. When a platform
+reported both on an asset Expectation and on its agents, a detection or prevention success on the asset wins and its
+agents decide otherwise; for a vulnerability the worst verdict wins, so a vulnerable result on the asset or on any of
+its agents makes the asset vulnerable for that platform.
 
 | Expectation outcome                                                           | Counted as |
 |:------------------------------------------------------------------------------|:-----------|
