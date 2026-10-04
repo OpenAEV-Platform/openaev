@@ -194,7 +194,7 @@ One `has-covered` relationship targets each security platform identity of the bu
 |:-------------|:-------------------------------------------------------------------------------------------------------------|
 | `target_ref` | STIX id of the security platform identity                                                                   |
 | `covered`    | `true` when at least one Inject of the Simulation defines an Expectation                                    |
-| `coverage`   | Scores of every Expectation of the Simulation, each one scored with the results of this platform only: an Expectation the platform did not report on counts as pending |
+| `coverage`   | Scores of the counted Expectations of the Simulation (see [Scores](#scores): the primary Expectations, plus all the Expectations of an Inject without any primary one), each one scored with the results of this platform only: a counted Expectation the platform did not report on counts as pending |
 | `start_time`, `stop_time`, `external_uri` | Same as on the covered object relationships                                    |
 
 ## Compatibility
