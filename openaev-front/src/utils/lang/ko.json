@@ -16,6 +16,7 @@
   "How to configure IOC validation": "IOC 검증 구성 방법",
   "Installation mode": "설치 모드",
   "Next month": "다음 달",
+  "None named in the request": "요청에 지정된 항목 없음",
   "Open calendar": "달력 열기",
   "Open clock": "시계 열기",
   "OpenAEV registers it in OpenCTI with the OpenCTI account of the connection. In OpenCTI, give that account the Connector role, with the Update knowledge and Connectors API usage capabilities.": "OpenAEV는 연결의 OpenCTI 계정으로 OpenCTI에 등록합니다. OpenCTI에서 해당 계정에 \"Update knowledge\" 및 \"Connectors API usage\" 권한이 있는 \"Connector\" 역할을 부여하세요.",

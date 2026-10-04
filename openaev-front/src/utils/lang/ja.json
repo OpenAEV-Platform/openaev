@@ -16,6 +16,7 @@
   "How to configure IOC validation": "IOC 検証の設定方法",
   "Installation mode": "インストールモード",
   "Next month": "次の月",
+  "None named in the request": "リクエストに指定されていません",
   "Open calendar": "カレンダーを開く",
   "Open clock": "時計を開く",
   "OpenAEV registers it in OpenCTI with the OpenCTI account of the connection. In OpenCTI, give that account the Connector role, with the Update knowledge and Connectors API usage capabilities.": "OpenAEV は接続の OpenCTI アカウントで OpenCTI に登録します。OpenCTI で、そのアカウントに \"Update knowledge\" と \"Connectors API usage\" の権限を持つ \"Connector\" ロールを付与してください。",

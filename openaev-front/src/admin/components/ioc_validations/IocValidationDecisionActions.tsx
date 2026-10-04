@@ -69,7 +69,7 @@ const IocValidationApprovalSummary: FunctionComponent<{ iocValidation: IocValida
           {t('{count} more indicators', { count: String(planned.length - APPROVAL_SUMMARY_MAX_ROWS) })}
         </Text>
       )}
-      <Field label={t('Security platforms')}>{platforms.join(', ') || '-'}</Field>
+      <Field label={t('Security platforms')}>{platforms.join(', ') || t('None named in the request')}</Field>
     </div>
   );
 };

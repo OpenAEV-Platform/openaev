@@ -16,6 +16,7 @@
   "How to configure IOC validation": "Как настроить проверку IOC",
   "Installation mode": "Режим установки",
   "Next month": "Следующий месяц",
+  "None named in the request": "В запросе не указаны",
   "Open calendar": "Открыть календарь",
   "Open clock": "Открыть часы",
   "OpenAEV registers it in OpenCTI with the OpenCTI account of the connection. In OpenCTI, give that account the Connector role, with the Update knowledge and Connectors API usage capabilities.": "OpenAEV регистрирует его в OpenCTI с учетной записью OpenCTI подключения. В OpenCTI назначьте этой учетной записи роль \"Connector\" с возможностями \"Update knowledge\" и \"Connectors API usage\".",

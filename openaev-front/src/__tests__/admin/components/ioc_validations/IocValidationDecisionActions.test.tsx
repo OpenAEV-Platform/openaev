@@ -91,6 +91,16 @@ describe('IocValidationDecisionActions', () => {
     expect(within(summary).getByText('3 more indicators')).toBeTruthy();
   });
 
+  it('says so in the approval when the request names no security platform', () => {
+    renderActions({
+      ...awaitingRequest(1),
+      ioc_validation_pairs: [],
+    } as unknown as IocValidationOutput);
+    fireEvent.click(screen.getByRole('button', { name: 'Approve and start the simulation' }));
+    const summary = screen.getByTestId('ioc-validation-approval-summary');
+    expect(within(summary).getByText('None named in the request')).toBeTruthy();
+  });
+
   it('offers no decision once the request is decided', () => {
     renderActions({
       ...awaitingRequest(1),
