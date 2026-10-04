@@ -38,16 +38,25 @@ const awaitingRequest = (plannedCount: number) => ({
   ],
   ioc_validation_pairs: [
     {
+      pair_indicator_ref: 'indicator--0',
       pair_platform_ref: 'identity--edr',
       pair_platform_name: 'Corporate EDR',
     },
     {
+      pair_indicator_ref: 'indicator--0',
       pair_platform_ref: 'identity--siem',
       pair_platform_name: 'SOC SIEM',
     },
     {
+      pair_indicator_ref: 'indicator--1',
       pair_platform_ref: 'identity--edr',
       pair_platform_name: 'Corporate EDR',
+    },
+    // Only the skipped indicator is paired with this platform: no test is expected there
+    {
+      pair_indicator_ref: `indicator--${plannedCount}`,
+      pair_platform_ref: 'identity--ndr',
+      pair_platform_name: 'Network NDR',
     },
   ],
 }) as unknown as IocValidationOutput;

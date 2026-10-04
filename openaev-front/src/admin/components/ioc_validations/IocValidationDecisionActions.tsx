@@ -23,7 +23,10 @@ const IocValidationApprovalSummary: FunctionComponent<{ iocValidation: IocValida
   const { t } = useFormatter();
   const theme = useTheme();
   const planned = iocValidation.ioc_validation_iocs.filter(ioc => ioc.ioc_test_kind);
-  const platforms = [...new Set(iocValidation.ioc_validation_pairs.map(pair => pair.pair_platform_name || pair.pair_platform_ref))];
+  const plannedIndicators = new Set(planned.map(ioc => ioc.ioc_indicator_ref));
+  const platforms = [...new Set(iocValidation.ioc_validation_pairs
+    .filter(pair => plannedIndicators.has(pair.pair_indicator_ref))
+    .map(pair => pair.pair_platform_name || pair.pair_platform_ref))];
   const columns: IocValidationTableColumn<IocValidationIocOutput>[] = [
     {
       key: 'indicator',

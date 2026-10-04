@@ -4299,6 +4299,7 @@
   "The IOC validation has been rejected.": "La validation d'IOC a été rejetée.",
   "Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.": "Approuver cette validation d'IOC ? Une simulation démarre immédiatement et exécute des tests inoffensifs sur les actifs cibles du scénario de validation. Rien n'est téléchargé ni exécuté à partir des indicateurs.",
   "Reject this IOC validation? No test runs and OpenCTI is notified with the reason below.": "Rejeter cette validation d'IOC ? Aucun test ne s'exécute et OpenCTI est notifié avec le motif ci-dessous.",
+  "This IOC validation could not be loaded.": "Cette validation d'IOC n'a pas pu être chargée.",
   "This IOC validation does not exist or is not available in this tenant.": "Cette validation d'IOC n'existe pas ou n'est pas disponible dans ce tenant.",
   "Indicator": "Indicateur",
   "Observable": "Observable",

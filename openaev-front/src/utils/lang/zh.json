@@ -4299,6 +4299,7 @@
   "The IOC validation has been rejected.": "IOC 验证已被拒绝。",
   "Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.": "批准此 IOC 验证？模拟将立即开始，并在验证场景的目标资产上运行良性测试。不会从指标下载或执行任何内容。",
   "Reject this IOC validation? No test runs and OpenCTI is notified with the reason below.": "拒绝此 IOC 验证？不会运行任何测试，并将以下原因通知 OpenCTI。",
+  "This IOC validation could not be loaded.": "无法加载此 IOC 验证。",
   "This IOC validation does not exist or is not available in this tenant.": "此 IOC 验证不存在或在此租户中不可用。",
   "Indicator": "指标",
   "Observable": "可观测对象",
