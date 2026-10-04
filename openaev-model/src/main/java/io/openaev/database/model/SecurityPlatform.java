@@ -59,7 +59,7 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
   public static String stixIdentityId(String name) {
     Map<String, String> contributions = new TreeMap<>();
     contributions.put("identity_class", STIX_IDENTITY_CLASS);
-    contributions.put("name", Objects.requireNonNullElse(name, "").trim().toLowerCase(Locale.ROOT));
+    contributions.put("name", normalizeIdentityName(name));
     try {
       String canonical = CANONICAL_MAPPER.writeValueAsString(contributions);
       return "%s--%s"
@@ -67,6 +67,37 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
     } catch (JsonProcessingException | NoSuchAlgorithmException e) {
       throw new IllegalStateException("Cannot generate the security platform STIX id", e);
     }
+  }
+
+  /**
+   * The name as OpenCTI normalizes it for an identity standard id: lower-cased, then trimmed of the
+   * characters the JavaScript {@code String.prototype.trim} removes (every Unicode space separator,
+   * tab, line terminators and the byte order mark), which {@link String#trim()} does not all
+   * remove.
+   */
+  static String normalizeIdentityName(String name) {
+    String lower = Objects.requireNonNullElse(name, "").toLowerCase(Locale.ROOT);
+    int start = 0;
+    int end = lower.length();
+    while (start < end && isTrimmedByOpenCti(lower.charAt(start))) {
+      start++;
+    }
+    while (end > start && isTrimmedByOpenCti(lower.charAt(end - 1))) {
+      end--;
+    }
+    return lower.substring(start, end);
+  }
+
+  private static boolean isTrimmedByOpenCti(char c) {
+    return c == '\t'
+        || c == '\n'
+        || c == '\u000B'
+        || c == '\f'
+        || c == '\r'
+        || c == '\u2028'
+        || c == '\u2029'
+        || c == '\uFEFF'
+        || Character.getType(c) == Character.SPACE_SEPARATOR;
   }
 
   private static UUID uuidV5(UUID namespace, String name) throws NoSuchAlgorithmException {

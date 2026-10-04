@@ -239,5 +239,21 @@ class SecurityCoveragePlatformAttributionTest {
       assertThat(id).isEqualTo("identity--fd6bb94b-46b7-5e41-90d0-2a0fcf171ca2");
       assertThat(SecurityPlatform.stixIdentityId("  crowdstrike FALCON ")).isEqualTo(id);
     }
+
+    @Test
+    @DisplayName("Unicode spaces around a platform name are trimmed like OpenCTI does")
+    void given_unicodeSpacesAroundTheName_should_deriveTheSameIdentityIdAsOpenCti() {
+      // Arrange
+      String expected = "identity--fd6bb94b-46b7-5e41-90d0-2a0fcf171ca2";
+
+      // Act and assert: em space, no-break space, ideographic space, line separator, byte order
+      // mark and tab, none of which String.trim() removes except the tab
+      assertThat(SecurityPlatform.stixIdentityId("\u2003CrowdStrike Falcon\u00A0"))
+          .isEqualTo(expected);
+      assertThat(SecurityPlatform.stixIdentityId("\u3000\u2028crowdstrike falcon\uFEFF\t"))
+          .isEqualTo(expected);
+      // Spaces inside the name are kept
+      assertThat(SecurityPlatform.stixIdentityId("CrowdStrike\u2003Falcon")).isNotEqualTo(expected);
+    }
   }
 }
