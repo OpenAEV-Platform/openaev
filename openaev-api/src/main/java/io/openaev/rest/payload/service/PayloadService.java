@@ -804,7 +804,8 @@ public class PayloadService {
         && command.getPlatforms() != null
         && Arrays.stream(command.getPlatforms())
             .collect(Collectors.toSet())
-            .equals(Set.of(iocValidationPlatforms(windows)));
+            .equals(Set.of(iocValidationPlatforms(windows)))
+        && command.getExecutionArch() == Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
   }
 
   /** The endpoints an executor runs on: PowerShell on Windows, sh on Linux and macOS. */
@@ -828,6 +829,7 @@ public class PayloadService {
     payload.setExpectations(IOC_VALIDATION_EXPECTATIONS.clone());
     payload.setExpectedSecurityPlatforms(new HashMap<>());
     payload.setPlatforms(iocValidationPlatforms(windows));
+    payload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
   }
 
   private Command saveIocValidationCommandPayload(TxCtx ctx, Command payload, String tenantId) {
@@ -1027,15 +1029,23 @@ public class PayloadService {
                 + "' }; [void][System.IO.Directory]::CreateDirectory($oaevIocDir);"
                 + " if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)) { throw '"
                 + IOC_VALIDATION_UNSAFE_FILE_DROP
-                + "' }; $oaevIocStream = $null; try {"
+                // The open surrogate pins the run directory (a directory holding an open file
+                // cannot be renamed or removed), so the run directory is checked again once the
+                // file is open: a directory swapped for a link in between gets nothing written
+                + "' }; $oaevIocStream = $null; $oaevIocMoved = $false; try {"
                 + " $oaevIocStream = [System.IO.File]::Open($oaevIocPath,"
                 + " [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write);"
+                + " $oaevIocMoved = (Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath);"
+                + " if (-not $oaevIocMoved) {"
                 + " $oaevIocBytes = [System.Text.Encoding]::UTF8.GetBytes('"
                 + IOC_VALIDATION_SURROGATE_TEXT
                 + " ' + $oaevIocRun + [Environment]::NewLine);"
-                + " $oaevIocStream.Write($oaevIocBytes, 0, $oaevIocBytes.Length) } catch { throw '"
+                + " $oaevIocStream.Write($oaevIocBytes, 0, $oaevIocBytes.Length) } } catch { throw '"
                 + IOC_VALIDATION_FAILED_FILE_DROP
-                + "' } finally { if ($oaevIocStream) { $oaevIocStream.Dispose() } }";
+                + "' } finally { if ($oaevIocStream) { $oaevIocStream.Dispose() } };"
+                + " if ($oaevIocMoved) { throw '"
+                + IOC_VALIDATION_UNSAFE_FILE_DROP
+                + "' }";
         case DNS_RESOLUTION ->
             throw new IllegalArgumentException("DNS resolution uses the dynamic DNS payload");
       };

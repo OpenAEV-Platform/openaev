@@ -14,6 +14,7 @@ import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.IocValidationTestKind;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.model.PrimitiveType;
@@ -222,6 +223,10 @@ class IocValidationCommandContentTest {
     Command withoutMacOs = currentFileDrop();
     withoutMacOs.setPlatforms(new PLATFORM_TYPE[] {PLATFORM_TYPE.Linux});
     assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withoutMacOs)).isFalse();
+    // The execution architecture also decides which agents run the command
+    Command arm64Only = currentFileDrop();
+    arm64Only.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(arm64Only)).isFalse();
   }
 
   @Test
@@ -343,10 +348,22 @@ class IocValidationCommandContentTest {
         .doesNotContain("Set-Content")
         .doesNotContain("GetTempPath()) " + FILE_NAME);
     assertThat(content.indexOf("throw")).isLessThan(content.indexOf("CreateDirectory"));
-    // A link is refused right before the write, after the directory exists
-    assertThat(content.lastIndexOf("Test-OaevLink $oaevIocPath"))
+    // A link is refused right before the creation, after the directory exists
+    assertThat(content.indexOf("if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath))"))
         .isGreaterThan(content.indexOf("CreateDirectory"))
         .isLessThan(content.indexOf("CreateNew"));
+    // and again once the surrogate is open, before anything is written to it
+    int recheck =
+        content.indexOf(
+            "$oaevIocMoved = (Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)");
+    assertThat(recheck)
+        .isGreaterThan(content.indexOf("CreateNew"))
+        .isLessThan(content.indexOf("$oaevIocStream.Write("));
+    assertThat(content)
+        .endsWith(
+            "if ($oaevIocMoved) { throw '"
+                + PayloadService.IOC_VALIDATION_UNSAFE_FILE_DROP
+                + "' }");
   }
 
   @Test
