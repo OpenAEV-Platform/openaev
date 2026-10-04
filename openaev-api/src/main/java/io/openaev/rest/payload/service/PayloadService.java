@@ -19,6 +19,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
@@ -810,21 +811,23 @@ public class PayloadService {
    * view, attack-path snapshot), so the audited command is the one that ran. The run stored on the
    * inject is only a seed: the run directory is named on the server after the seed and the inject
    * id, so an inject can never address the directory of another one, whatever its content says, and
-   * its drop and its cleanup always meet in the same directory. A missing seed falls back to the
-   * empty default and a malformed one is replaced with {@link #IOC_VALIDATION_INVALID_RUN}, which
-   * no binder sanitization (control characters stripped) can turn into a valid run, so the endpoint
-   * refuses the inject before any file operation. Every other payload, including a user payload
-   * with an argument of the same name, runs with the content unchanged.
+   * its drop and its cleanup always meet in the same directory. A missing or malformed seed is
+   * replaced with {@link #IOC_VALIDATION_INVALID_RUN}, never left to the payload default (an
+   * editable value) and never turned into a valid run by the binder sanitization (control
+   * characters stripped), so the endpoint refuses the inject before any file operation. Every other
+   * payload, including a user payload with an argument of the same name, runs with the content
+   * unchanged.
    */
   public static ObjectNode iocValidationExecutionContent(
       ObjectNode content, Payload payload, String injectId) {
-    if (!isIocValidationFileDropPayload(payload)
-        || content == null
-        || !content.hasNonNull(IOC_VALIDATION_RUN_KEY)) {
+    if (!isIocValidationFileDropPayload(payload)) {
       return content;
     }
-    String seed = content.get(IOC_VALIDATION_RUN_KEY).asText();
-    ObjectNode bound = content.deepCopy();
+    String seed =
+        content != null && content.hasNonNull(IOC_VALIDATION_RUN_KEY)
+            ? content.get(IOC_VALIDATION_RUN_KEY).asText()
+            : "";
+    ObjectNode bound = content == null ? JsonNodeFactory.instance.objectNode() : content.deepCopy();
     bound.put(
         IOC_VALIDATION_RUN_KEY,
         IOC_VALIDATION_RUN_PATTERN.matcher(seed).matches()
@@ -834,18 +837,23 @@ public class PayloadService {
   }
 
   /**
-   * Whether a file-drop payload still runs the current template (run directory owned by the inject,
-   * checked arguments). A payload created by an earlier version wrote directly in the temp
-   * directory: it is refreshed the next time a validation is approved, and refused at execution
-   * until then.
+   * Whether a file-drop payload still runs the current template: the command, the cleanup and the
+   * arguments with their defaults are exactly those of this version. A payload created by an
+   * earlier version, or whose arguments were edited (a run default would be shared by every inject
+   * without a run of its own), is refreshed the next time a validation is approved, and refused at
+   * execution until then.
    */
   public static boolean isCurrentIocValidationFileDropTemplate(Command command) {
     boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(command.getExecutor());
-    boolean bindsRun =
-        command.getArguments() != null
-            && command.getArguments().stream()
-                .anyMatch(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()));
-    return bindsRun
+    List<String> expectedArguments =
+        iocValidationArguments(IocValidationTestKind.FILE_DROP).stream()
+            .map(PayloadService::argumentSignature)
+            .toList();
+    List<String> arguments =
+        command.getArguments() == null
+            ? List.of()
+            : command.getArguments().stream().map(PayloadService::argumentSignature).toList();
+    return expectedArguments.equals(arguments)
         && iocValidationCommandContent(IocValidationTestKind.FILE_DROP, windows)
             .equals(command.getContent())
         && Objects.equals(

@@ -160,18 +160,38 @@ class IocValidationCommandContentTest {
                 .filter(argument -> !IOC_VALIDATION_RUN_KEY.equals(argument.getKey()))
                 .toList()));
     assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withoutRun)).isFalse();
+
+    // A run default set through the payload update API would be shared by every inject without a
+    // run
+    Command editedDefault =
+        fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
+    editedDefault.setContent(current.getContent());
+    editedDefault.setCleanupCommand(current.getCleanupCommand());
+    editedDefault.getArguments().stream()
+        .filter(argument -> IOC_VALIDATION_RUN_KEY.equals(argument.getKey()))
+        .forEach(argument -> argument.setDefaultValue("0123456789abcdef0123456789abcdef"));
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(editedDefault)).isFalse();
   }
 
   @Test
-  @DisplayName("an inject without a run is not given one: the endpoint refuses it")
-  void given_missingRun_should_keepTheContent() {
+  @DisplayName(
+      "an inject without a run never falls back to the payload default: the endpoint refuses it")
+  void given_missingRun_should_neverFallBackToThePayloadDefault() {
     Command payload = fileDropPayload(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR, "tenant-a");
     ObjectNode content = JsonNodeFactory.instance.objectNode();
     content.put(IOC_VALIDATION_FILE_NAME_KEY, "invoice.pdf");
 
-    assertThat(PayloadService.iocValidationExecutionContent(content, payload, "inject-a"))
-        .isSameAs(content);
-    assertThat(PayloadService.iocValidationExecutionContent(null, payload, "inject-a")).isNull();
+    assertThat(
+            PayloadService.iocValidationExecutionContent(content, payload, "inject-a")
+                .get(IOC_VALIDATION_RUN_KEY)
+                .asText())
+        .isEqualTo(PayloadService.IOC_VALIDATION_INVALID_RUN);
+    assertThat(content.has(IOC_VALIDATION_RUN_KEY)).isFalse();
+    assertThat(
+            PayloadService.iocValidationExecutionContent(null, payload, "inject-a")
+                .get(IOC_VALIDATION_RUN_KEY)
+                .asText())
+        .isEqualTo(PayloadService.IOC_VALIDATION_INVALID_RUN);
   }
 
   @Test
