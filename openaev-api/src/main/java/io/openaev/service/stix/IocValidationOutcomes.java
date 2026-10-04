@@ -121,10 +121,12 @@ public final class IocValidationOutcomes {
                     .anyMatch(result -> isSuccess(result, expectation)));
   }
 
+  // Several collectors can report for one security platform, each with its own seeded result: the
+  // platform has evaluated an expectation once every one of them is scored.
   private static boolean evaluatedFor(
       BaseInjectExpectation expectation, String securityPlatformId) {
-    return platformResults(expectation, securityPlatformId).stream()
-        .anyMatch(result -> result.getScore() != null);
+    List<InjectExpectationResult> results = platformResults(expectation, securityPlatformId);
+    return !results.isEmpty() && results.stream().allMatch(result -> result.getScore() != null);
   }
 
   private static List<InjectExpectationResult> platformResults(
