@@ -743,8 +743,9 @@ public class PayloadService {
 
   /**
    * Whether a command payload is exactly the IOC validation template of a kind and an executor: the
-   * command and cleanup executors, the command, the cleanup and the arguments with their types and
-   * defaults. Every one of them is editable and changes what runs on the endpoint.
+   * command and cleanup executors, the command, the cleanup, the arguments with their types and
+   * defaults, no prerequisite and no elevation. Every one of them is editable and changes what runs
+   * on the endpoint.
    */
   static boolean isIocValidationCommandTemplate(
       Command command, IocValidationTestKind kind, String executor) {
@@ -760,13 +761,17 @@ public class PayloadService {
         && Objects.equals(cleanup == null ? null : executor, command.getCleanupExecutor())
         && iocValidationCommandContent(kind, windows).equals(command.getContent())
         && Objects.equals(cleanup, command.getCleanupCommand())
-        && expectedArguments.equals(arguments);
+        && expectedArguments.equals(arguments)
+        && (command.getPrerequisites() == null || command.getPrerequisites().isEmpty())
+        && !command.isElevationRequired();
   }
 
   private void applyIocValidationCommandTemplate(
       Command payload, IocValidationTestKind kind, String executor) {
     boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
     payload.setExecutor(executor);
+    payload.setPrerequisites(new ArrayList<>());
+    payload.setElevationRequired(false);
     payload.setContent(iocValidationCommandContent(kind, windows));
     String cleanup = iocValidationCleanupCommand(kind, windows);
     payload.setCleanupExecutor(cleanup == null ? null : executor);

@@ -10,12 +10,14 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Command;
 import io.openaev.database.model.IocValidationTestKind;
 import io.openaev.database.model.PayloadArgument;
+import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.command.CommandArgumentBinder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -153,6 +155,17 @@ class IocValidationCommandContentTest {
     withoutCleanupExecutor.setCleanupExecutor(null);
     assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withoutCleanupExecutor))
         .isFalse();
+
+    // A prerequisite runs before the command, an elevation runs it with more rights
+    Command withPrerequisite = currentFileDrop();
+    PayloadPrerequisite prerequisite = new PayloadPrerequisite();
+    prerequisite.setExecutor(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR);
+    prerequisite.setGetCommand("curl -s https://downloads.example.com/tool");
+    withPrerequisite.setPrerequisites(new ArrayList<>(List.of(prerequisite)));
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(withPrerequisite)).isFalse();
+    Command elevated = currentFileDrop();
+    elevated.setElevationRequired(true);
+    assertThat(PayloadService.isCurrentIocValidationFileDropTemplate(elevated)).isFalse();
 
     // An argument type decides how its value is resolved
     Command otherType = currentFileDrop();
