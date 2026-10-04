@@ -88,6 +88,18 @@ export const iocValidationOutcomeSeverity = (outcome?: IocValidationOutcome | nu
 
 export const iocValidationTestKindLabel = (kind?: IocValidationTestKind | null): string => (kind ? IOC_VALIDATION_TEST_KIND_LABELS[kind] ?? kind : '-');
 
+// OpenCTI observable type keys, shown by their label
+const OBSERVABLE_TYPE_LABELS: Record<string, string> = {
+  'Domain-Name': 'Domain name',
+  'Hostname': 'Hostname',
+  'IPv4-Addr': 'IPv4 address',
+  'IPv6-Addr': 'IPv6 address',
+  'Url': 'URL',
+  'StixFile': 'File',
+};
+
+export const iocValidationObservableTypeLabel = (type?: string | null): string => (type ? OBSERVABLE_TYPE_LABELS[type] ?? type : '');
+
 export const isAwaitingApproval = (status?: IocValidationStatus | null): boolean => status === 'AWAITING_APPROVAL';
 
 // A request awaiting approval can be decided elsewhere, a running one gets its results from the job.

@@ -4351,5 +4351,12 @@
   "Writes a benign text file carrying the indicator file name. The real file is never downloaded or executed.": "インジケーターのファイル名を持つ無害なテキストファイルを書き込みます。実際のファイルがダウンロードまたは実行されることはありません。",
   "Writes a benign log line containing the indicator value, such as a file hash.": "ファイルハッシュなど、インジケーターの値を含む無害なログ行を書き込みます。",
   "Awaiting approval": "承認待ち",
-  "Rejected": "却下"
+  "Rejected": "却下",
+  "Waiting for approval: {runnable, plural, one {# IOC to test} other {# IOCs to test}}{skipped, plural, =0 {} other {, # skipped by the safety settings}}": "承認待ち: テスト対象の IOC {runnable, plural, other {# 件}}{skipped, plural, =0 {} other {、安全設定によりスキップ # 件}}",
+  "Open the safety settings": "安全設定を開く",
+  "Results appear once the simulation runs": "結果はシミュレーションの実行後に表示されます",
+  "No test ran: the request was rejected": "テストは実行されていません: リクエストは却下されました",
+  "Domain name": "ドメイン名",
+  "IPv4 address": "IPv4 アドレス",
+  "IPv6 address": "IPv6 アドレス"
 }

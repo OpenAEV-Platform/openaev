@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   countIocValidationOutcomes,
+  iocValidationObservableTypeLabel,
   iocValidationOutcomeLabel,
   iocValidationOutcomeSeverity,
   iocValidationStatusLabel,
@@ -21,6 +22,15 @@ const settings = (overrides: Partial<IocValidationSettingsInput> = {}): IocValid
 } as IocValidationSettingsInput);
 
 describe('iocValidationUtils', () => {
+  it('labels the OpenCTI observable types instead of printing their keys', () => {
+    expect(iocValidationObservableTypeLabel('Domain-Name')).toBe('Domain name');
+    expect(iocValidationObservableTypeLabel('IPv4-Addr')).toBe('IPv4 address');
+    expect(iocValidationObservableTypeLabel('Url')).toBe('URL');
+    expect(iocValidationObservableTypeLabel('StixFile')).toBe('File');
+    expect(iocValidationObservableTypeLabel('Email-Addr')).toBe('Email-Addr');
+    expect(iocValidationObservableTypeLabel(null)).toBe('');
+  });
+
   it('labels statuses, outcomes and test kinds', () => {
     expect(iocValidationStatusLabel('AWAITING_APPROVAL')).toBe('Awaiting approval');
     expect(iocValidationStatusSeverity('FAILED')).toBe('critical');

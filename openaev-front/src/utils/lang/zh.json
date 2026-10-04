@@ -4351,5 +4351,12 @@
   "Writes a benign text file carrying the indicator file name. The real file is never downloaded or executed.": "写入一个带有指标文件名的良性文本文件，真实文件从不下载或执行。",
   "Writes a benign log line containing the indicator value, such as a file hash.": "写入一条包含指标值（例如文件哈希）的良性日志行。",
   "Awaiting approval": "等待批准",
-  "Rejected": "已拒绝"
+  "Rejected": "已拒绝",
+  "Waiting for approval: {runnable, plural, one {# IOC to test} other {# IOCs to test}}{skipped, plural, =0 {} other {, # skipped by the safety settings}}": "等待审批：待测试 IOC {runnable, plural, other {# 个}}{skipped, plural, =0 {} other {，# 个被安全设置跳过}}",
+  "Open the safety settings": "打开安全设置",
+  "Results appear once the simulation runs": "模拟运行后将显示结果",
+  "No test ran: the request was rejected": "未运行任何测试：请求已被拒绝",
+  "Domain name": "域名",
+  "IPv4 address": "IPv4 地址",
+  "IPv6 address": "IPv6 地址"
 }

@@ -921,8 +921,12 @@ public class IocValidationService {
   private static String intakeMessage(IocValidation validation) {
     long runnable = validation.getIocs().stream().filter(ioc -> ioc.getTestKind() != null).count();
     long skipped = validation.getIocs().size() - runnable;
-    return "Waiting for approval in OpenAEV: %d IOC(s) to test, %d skipped by the safety settings"
-        .formatted(runnable, skipped);
+    String message =
+        "Waiting for approval in OpenAEV: %d %s to test"
+            .formatted(runnable, runnable == 1 ? "IOC" : "IOCs");
+    return skipped == 0
+        ? message
+        : message + ", %d skipped by the safety settings".formatted(skipped);
   }
 
   private static String resultsMessage(IocValidation validation) {

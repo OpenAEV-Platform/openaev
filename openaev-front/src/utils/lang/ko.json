@@ -4351,5 +4351,12 @@
   "Writes a benign text file carrying the indicator file name. The real file is never downloaded or executed.": "지표 파일 이름을 가진 무해한 텍스트 파일을 작성합니다. 실제 파일은 다운로드되거나 실행되지 않습니다.",
   "Writes a benign log line containing the indicator value, such as a file hash.": "파일 해시와 같은 지표 값을 포함한 무해한 로그 줄을 작성합니다.",
   "Awaiting approval": "승인 대기 중",
-  "Rejected": "거부됨"
+  "Rejected": "거부됨",
+  "Waiting for approval: {runnable, plural, one {# IOC to test} other {# IOCs to test}}{skipped, plural, =0 {} other {, # skipped by the safety settings}}": "승인 대기 중: 테스트할 IOC {runnable, plural, other {#개}}{skipped, plural, =0 {} other {, 안전 설정으로 건너뜀 #개}}",
+  "Open the safety settings": "안전 설정 열기",
+  "Results appear once the simulation runs": "결과는 시뮬레이션이 실행되면 표시됩니다",
+  "No test ran: the request was rejected": "실행된 테스트 없음: 요청이 거부되었습니다",
+  "Domain name": "도메인 이름",
+  "IPv4 address": "IPv4 주소",
+  "IPv6 address": "IPv6 주소"
 }

@@ -20,27 +20,28 @@ import { type IocValidationSimpleOutput, type SearchPaginationInput } from '../.
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import AtomicTestingsTabs from '../atomic_testings/AtomicTestingsTabs';
+import IocValidationDate from './IocValidationDate';
 import IocValidationStatusChip from './IocValidationStatusChip';
 import { IOC_VALIDATION_BASE_URL, IOC_VALIDATION_SETTINGS_URL, iocValidationTestKindLabel } from './iocValidationUtils';
 
 const inlineStyles: Record<string, CSSProperties> = {
-  ioc_validation_name: { width: '18%' },
-  ioc_validation_status: { width: '11%' },
-  ioc_validation_requested_by: { width: '10%' },
-  ioc_validation_requested_test_kinds: { width: '13%' },
-  ioc_validation_iocs_count: { width: '6%' },
-  ioc_validation_pairs_count: { width: '6%' },
+  ioc_validation_name: { width: '15%' },
+  ioc_validation_status: { width: '12%' },
+  ioc_validation_requested_by: { width: '9%' },
+  ioc_validation_requested_test_kinds: { width: '11%' },
+  ioc_validation_iocs_count: { width: '5%' },
+  ioc_validation_pairs_count: { width: '13%' },
   ioc_validation_prevented_count: { width: '7%' },
   ioc_validation_detected_count: { width: '7%' },
   ioc_validation_missed_count: { width: '6%' },
   ioc_validation_error_count: { width: '6%' },
-  ioc_validation_created_at: { width: '10%' },
+  ioc_validation_created_at: { width: '9%' },
 };
 
 const AVAILABLE_FILTER_NAMES = ['ioc_validation_status'];
 
 const IocValidations = () => {
-  const { t, fldt } = useFormatter();
+  const { t } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -123,9 +124,9 @@ const IocValidations = () => {
       field: 'ioc_validation_created_at',
       label: 'Created',
       isSortable: true,
-      value: (iocValidation: IocValidationSimpleOutput) => fldt(iocValidation.ioc_validation_created_at),
+      value: (iocValidation: IocValidationSimpleOutput) => <IocValidationDate date={iocValidation.ioc_validation_created_at} />,
     },
-  ], [fldt, t]);
+  ], [t]);
 
   return (
     <section>
