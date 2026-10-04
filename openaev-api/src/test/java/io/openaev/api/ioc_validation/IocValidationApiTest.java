@@ -450,7 +450,7 @@ class IocValidationApiTest extends IntegrationTest {
 
     private List<String> argumentKeysOf(String payloadId) {
       return jdbc.queryForList(
-          "SELECT jsonb_array_elements(payload_arguments) ->> 'key' FROM payloads"
+          "SELECT jsonb_array_elements(payload_arguments::jsonb) ->> 'key' FROM payloads"
               + " WHERE payload_id = ?",
           String.class,
           payloadId);
