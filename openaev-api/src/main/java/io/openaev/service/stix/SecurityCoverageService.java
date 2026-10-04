@@ -44,6 +44,7 @@ import io.openaev.stix.types.*;
 import io.openaev.stix.types.Boolean;
 import io.openaev.stix.types.Dictionary;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
+import io.openaev.utils.ExpectationChildrenIndex;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.SecurityCoverageUtils;
@@ -621,6 +622,8 @@ public class SecurityCoverageService {
     Map<String, List<BaseInjectExpectation>> expectationsByInjectId =
         simulationExpectations.stream()
             .collect(Collectors.groupingBy(expectation -> expectation.getInject().getId()));
+    // The children of every expectation are indexed once for all covered objects and platforms
+    ExpectationChildrenIndex expectationChildren = new ExpectationChildrenIndex();
     PlatformIdentities identities =
         PlatformIdentities.of(injectService.extractSecurityPlatforms(simulation.getInjects()));
     Map<String, DomainObject> platformIdentities = identities.identityByStixId();
@@ -633,7 +636,8 @@ public class SecurityCoverageService {
         matchingInjects -> computeCoverageFromExpectations(matchingInjects, expectationsByInjectId);
     Function<List<Inject>, List<PlatformCoverageResult>> coveragePlatformsFunction =
         matchingInjects ->
-            computeCoveragePlatforms(matchingInjects, expectationsByInjectId, platformStixIds);
+            computeCoveragePlatforms(
+                matchingInjects, expectationsByInjectId, platformStixIds, expectationChildren);
 
     // Process coverage refs by stix object: attack patterns
     processCoverageRefs(
@@ -701,7 +705,10 @@ public class SecurityCoverageService {
       BaseType<?> platformCoverage =
           computeCoverage(
               resultUtils.computeGlobalExpectationResultsForPlatforms(
-                  simulationInjectIds, simulationExpectations, platformGroup.getValue()));
+                  simulationInjectIds,
+                  simulationExpectations,
+                  platformGroup.getValue(),
+                  expectationChildren));
       boolean covered = !((List<?>) platformCoverage.getValue()).isEmpty();
       RelationshipObject sro =
           new RelationshipObject(
@@ -854,6 +861,28 @@ public class SecurityCoverageService {
       List<Inject> matchingInjects,
       Map<String, List<BaseInjectExpectation>> expectationsByInjectId,
       Map<String, Identifier> platformStixIds) {
+    return computeCoveragePlatforms(
+        matchingInjects, expectationsByInjectId, platformStixIds, new ExpectationChildrenIndex());
+  }
+
+  /**
+   * Attributes the results of the injects matching one covered object to the security platforms
+   * that produced them, see {@link #computeCoveragePlatforms(List, Map, Map)}, resolving the
+   * children of the expectations through the index of the bundle generation.
+   *
+   * @param matchingInjects the injects matching the covered object
+   * @param expectationsByInjectId the expectations of the simulation, by inject id
+   * @param platformStixIds the STIX identity id of every security platform emitted in the bundle,
+   *     by platform id
+   * @param expectationChildren the children index shared by every covered object of the bundle
+   * @return one entry per platform identity and expectation type, ordered by identity id then
+   *     expectation type; empty when nothing is attributable
+   */
+  static List<PlatformCoverageResult> computeCoveragePlatforms(
+      List<Inject> matchingInjects,
+      Map<String, List<BaseInjectExpectation>> expectationsByInjectId,
+      Map<String, Identifier> platformStixIds,
+      ExpectationChildrenIndex expectationChildren) {
     if (matchingInjects.isEmpty() || platformStixIds.isEmpty()) {
       return List.of();
     }
@@ -870,7 +899,7 @@ public class SecurityCoverageService {
                 .computeIfAbsent(stixId.getValue(), key -> new LinkedHashSet<>())
                 .add(platformId));
     return SecurityPlatformResultUtils.computeResultsBySecurityPlatformGroup(
-            matchingExpectations, platformIdsByStixId)
+            matchingExpectations, platformIdsByStixId, expectationChildren)
         .entrySet()
         .stream()
         .flatMap(

@@ -153,6 +153,27 @@ public class ResultUtils {
       Set<String> injectIds,
       List<BaseInjectExpectation> expectations,
       Collection<String> securityPlatformIds) {
+    return computeGlobalExpectationResultsForPlatforms(
+        injectIds, expectations, securityPlatformIds, new ExpectationChildrenIndex());
+  }
+
+  /**
+   * Computes global expectation results filtered by a group of security platforms, see {@link
+   * #computeGlobalExpectationResultsForPlatforms(Set, List, Collection)}, resolving the children of
+   * the expectations through an index shared by every platform group of the computation.
+   *
+   * @param injectIds the set of inject IDs the expectations belong to
+   * @param expectations the expectations of those injects, loaded with {@link
+   *     #findExpectationsForPlatformResults(Set)}
+   * @param securityPlatformIds the ids of the security platforms of the group
+   * @param children the children index of the computation
+   * @return a list of aggregated results filtered to the platforms of the group
+   */
+  public List<ExpectationResultsByType> computeGlobalExpectationResultsForPlatforms(
+      Set<String> injectIds,
+      List<BaseInjectExpectation> expectations,
+      Collection<String> securityPlatformIds,
+      ExpectationChildrenIndex children) {
 
     if (injectIds == null || injectIds.isEmpty()) {
       return emptyList();
@@ -163,7 +184,7 @@ public class ResultUtils {
             .map(
                 expectation ->
                     SecurityPlatformResultUtils.toSecurityPlatformView(
-                        expectation, securityPlatformIds))
+                        expectation, securityPlatformIds, children))
             .toList();
 
     return injectExpectationMapper.extractExpectationResultByTypes(injectIds, platformViews);

@@ -1,11 +1,7 @@
 package io.openaev.utils;
 
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY;
-import static io.openaev.utils.ExpectationUtils.getAgentsExpectationsForAsset;
-import static io.openaev.utils.ExpectationUtils.getExpectationsAssetsForAssetGroup;
-import static io.openaev.utils.ExpectationUtils.isAgentExpectation;
 import static io.openaev.utils.ExpectationUtils.isAssetExpectation;
-import static io.openaev.utils.ExpectationUtils.isAssetGroupExpectation;
 
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectExpectationResult;
@@ -93,9 +89,27 @@ public final class SecurityPlatformResultUtils {
   public static boolean hasResultFromSecurityPlatforms(
       @NotNull final BaseInjectExpectation expectation,
       @NotNull final Collection<String> securityPlatformIds) {
+    return hasResultFromSecurityPlatforms(
+        expectation, securityPlatformIds, new ExpectationChildrenIndex());
+  }
+
+  /**
+   * Whether one of the given security platforms reported on the expectation, see {@link
+   * #hasResultFromSecurityPlatform}, resolving the children through a shared index.
+   *
+   * @param expectation the expectation to inspect
+   * @param securityPlatformIds the ids of the security platform assets
+   * @param children the children index of the computation
+   * @return {@code true} when one of the platforms has a result on the expectation or below it
+   */
+  public static boolean hasResultFromSecurityPlatforms(
+      @NotNull final BaseInjectExpectation expectation,
+      @NotNull final Collection<String> securityPlatformIds,
+      @NotNull final ExpectationChildrenIndex children) {
     return hasDirectResultFromSecurityPlatforms(expectation, securityPlatformIds)
-        || childrenOf(expectation).stream()
-            .anyMatch(child -> hasResultFromSecurityPlatforms(child, securityPlatformIds));
+        || children.childrenOf(expectation).stream()
+            .anyMatch(
+                child -> hasResultFromSecurityPlatforms(child, securityPlatformIds, children));
   }
 
   /**
@@ -130,12 +144,29 @@ public final class SecurityPlatformResultUtils {
   public static BaseInjectExpectation toSecurityPlatformView(
       @NotNull final BaseInjectExpectation expectation,
       @NotNull final Collection<String> securityPlatformIds) {
+    return toSecurityPlatformView(expectation, securityPlatformIds, new ExpectationChildrenIndex());
+  }
+
+  /**
+   * Returns the expectation as a group of security platforms sees it, see {@link
+   * #toSecurityPlatformView(BaseInjectExpectation, Collection)}, resolving the children through a
+   * shared index so a computation over many expectations and platforms scans each inject once.
+   *
+   * @param expectation the expectation, typically a managed entity
+   * @param securityPlatformIds the ids of the security platform assets of the group
+   * @param children the children index of the computation
+   * @return a detached copy restricted to the group's results and verdict
+   */
+  public static BaseInjectExpectation toSecurityPlatformView(
+      @NotNull final BaseInjectExpectation expectation,
+      @NotNull final Collection<String> securityPlatformIds,
+      @NotNull final ExpectationChildrenIndex children) {
     BaseInjectExpectation view = expectation.clone();
     view.setResults(
         view.getResults().stream()
             .filter(result -> isFromSecurityPlatforms(result, securityPlatformIds))
             .toList());
-    view.setScore(securityPlatformScore(expectation, view, securityPlatformIds));
+    view.setScore(securityPlatformScore(expectation, view, securityPlatformIds, children));
     return view;
   }
 
@@ -181,13 +212,34 @@ public final class SecurityPlatformResultUtils {
   public static Map<String, List<ExpectationResultsByType>> computeResultsBySecurityPlatformGroup(
       @NotNull final Collection<? extends BaseInjectExpectation> expectations,
       @NotNull final Map<String, ? extends Collection<String>> securityPlatformIdsByGroup) {
+    return computeResultsBySecurityPlatformGroup(
+        expectations, securityPlatformIdsByGroup, new ExpectationChildrenIndex());
+  }
+
+  /**
+   * Computes, for each group of security platforms, the expectation results its platforms produced
+   * on the given expectations, see {@link #computeResultsBySecurityPlatformGroup(Collection, Map)},
+   * resolving the children through an index shared by every call of the computation (one per
+   * simulation for a security coverage bundle).
+   *
+   * @param expectations the expectations to attribute
+   * @param securityPlatformIdsByGroup the platform ids of every group, by group key
+   * @param children the children index of the computation
+   * @return the results by expectation type for every group with at least one result, keyed by
+   *     group key in ascending order; groups without any result are absent
+   */
+  public static Map<String, List<ExpectationResultsByType>> computeResultsBySecurityPlatformGroup(
+      @NotNull final Collection<? extends BaseInjectExpectation> expectations,
+      @NotNull final Map<String, ? extends Collection<String>> securityPlatformIdsByGroup,
+      @NotNull final ExpectationChildrenIndex children) {
     Map<String, List<ExpectationResultsByType>> resultsByGroup = new LinkedHashMap<>();
     for (String groupKey : new TreeSet<>(securityPlatformIdsByGroup.keySet())) {
       Collection<String> platformIds = securityPlatformIdsByGroup.get(groupKey);
       List<BaseInjectExpectation> groupViews =
           expectations.stream()
-              .filter(expectation -> hasResultFromSecurityPlatforms(expectation, platformIds))
-              .map(expectation -> toSecurityPlatformView(expectation, platformIds))
+              .filter(
+                  expectation -> hasResultFromSecurityPlatforms(expectation, platformIds, children))
+              .map(expectation -> toSecurityPlatformView(expectation, platformIds, children))
               .toList();
       if (groupViews.isEmpty()) {
         continue;
@@ -212,7 +264,8 @@ public final class SecurityPlatformResultUtils {
   private static Double securityPlatformScore(
       final BaseInjectExpectation expectation,
       final BaseInjectExpectation directView,
-      final Collection<String> securityPlatformIds) {
+      final Collection<String> securityPlatformIds,
+      final ExpectationChildrenIndex children) {
     Double directScore =
         directView.getResults().stream()
             .map(InjectExpectationResult::getScore)
@@ -220,9 +273,9 @@ public final class SecurityPlatformResultUtils {
             .max(Double::compare)
             .orElse(null);
     List<BaseInjectExpectation> reportedChildren =
-        childrenOf(expectation).stream()
-            .filter(child -> hasResultFromSecurityPlatforms(child, securityPlatformIds))
-            .map(child -> toSecurityPlatformView(child, securityPlatformIds))
+        children.childrenOf(expectation).stream()
+            .filter(child -> hasResultFromSecurityPlatforms(child, securityPlatformIds, children))
+            .map(child -> toSecurityPlatformView(child, securityPlatformIds, children))
             .toList();
     if (reportedChildren.isEmpty() || expectation.getExpectedScore() == null) {
       return InjectExpectationUtils.reconcileWithDirectVulnerableVerdict(directView, directScore);
@@ -266,26 +319,5 @@ public final class SecurityPlatformResultUtils {
       return directScore;
     }
     return childrenScore;
-  }
-
-  /**
-   * The children a parent expectation's score rolls up from, resolved like the score propagation
-   * does: the agent expectations of an asset expectation, the asset expectations of an asset group
-   * expectation. Agent expectations and agentless rows have none.
-   */
-  private static List<TechnicalInjectExpectation> childrenOf(
-      final BaseInjectExpectation expectation) {
-    if (!(expectation instanceof TechnicalInjectExpectation technical)
-        || technical.getInject() == null
-        || isAgentExpectation(technical)) {
-      return List.of();
-    }
-    if (isAssetGroupExpectation(technical)) {
-      return getExpectationsAssetsForAssetGroup(technical);
-    }
-    if (isAssetExpectation(technical)) {
-      return getAgentsExpectationsForAsset(technical);
-    }
-    return List.of();
   }
 }
