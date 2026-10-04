@@ -22,10 +22,15 @@ public class V6_20261003170000000__Add_ioc_validations_outbox_indexes extends Ba
               + " ON ioc_validations (tenant_id)"
               + " WHERE ioc_validation_opencti_synced_status IS NULL"
               + " OR ioc_validation_opencti_synced_status <> ioc_validation_status");
+      // Same literal predicate as IocValidationRepository#findRefsWithPendingResultsPush: rejected,
+      // awaiting and running validations never push results and stay out of the index. Kept
+      // identical to V6_20261004103000000, which rebuilds the index where an earlier version of
+      // this migration created it without the status condition.
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_ioc_validations_results_push_pending"
               + " ON ioc_validations (ioc_validation_status)"
-              + " WHERE ioc_validation_results_pushed_at IS NULL");
+              + " WHERE ioc_validation_results_pushed_at IS NULL"
+              + " AND ioc_validation_status IN ('COMPLETED', 'PARTIAL', 'FAILED')");
     }
   }
 }

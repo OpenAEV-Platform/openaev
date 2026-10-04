@@ -75,6 +75,9 @@ public class IocValidationService {
   /** A running validation is closed after this delay even if the simulation never ends. */
   static final Duration MAX_RUNNING_DURATION = Duration.ofDays(7);
 
+  /**
+   * Statuses whose results are pushed to OpenCTI; IocValidationRepository spells them as literals.
+   */
   static final Set<IocValidationStatus> RESULT_STATUSES =
       EnumSet.of(
           IocValidationStatus.COMPLETED, IocValidationStatus.PARTIAL, IocValidationStatus.FAILED);
@@ -392,7 +395,7 @@ public class IocValidationService {
   /** Pushes the result bundle of every finished validation OpenCTI has not received yet. */
   public void pushPendingResults() {
     for (IocValidationRef ref :
-        allTenants(() -> iocValidationRepository.findRefsWithPendingResultsPush(RESULT_STATUSES))) {
+        allTenants(iocValidationRepository::findRefsWithPendingResultsPush)) {
       String tenantId = ref.getTenantId();
       try {
         Optional<Bundle> bundle =

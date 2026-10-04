@@ -50,12 +50,19 @@ public interface IocValidationRepository
           + " where v.lifecycleSyncedStatus is null or v.lifecycleSyncedStatus <> v.status")
   List<IocValidationRef> findRefsWithPendingLifecycleSync();
 
-  /** Id and tenant of every finished validation whose result bundle OpenCTI has not received. */
+  /**
+   * Id and tenant of every finished validation (completed, partial or failed) whose result bundle
+   * OpenCTI has not received. The statuses are literals, not parameters, so that the planner can
+   * prove the predicate of the partial index {@code idx_ioc_validations_results_push_pending},
+   * which must stay identical to this one, for cached generic plans too.
+   */
   @Query(
       "select v.id as id, v.tenant.id as tenantId from IocValidation v"
-          + " where v.status in :statuses and v.resultsPushedAt is null")
-  List<IocValidationRef> findRefsWithPendingResultsPush(
-      @Param("statuses") Collection<IocValidationStatus> statuses);
+          + " where v.resultsPushedAt is null and v.status in ("
+          + "io.openaev.database.model.IocValidationStatus.COMPLETED,"
+          + " io.openaev.database.model.IocValidationStatus.PARTIAL,"
+          + " io.openaev.database.model.IocValidationStatus.FAILED)")
+  List<IocValidationRef> findRefsWithPendingResultsPush();
 
   boolean existsBySimulationId(String simulationId);
 
