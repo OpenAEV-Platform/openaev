@@ -52,7 +52,8 @@ Go to **Settings > Customization > IOC validation**. You need the *Manage tenant
 - **Sinkhole address**: an IPv4 or IPv6 address. When set, network tests connect to it instead of the indicator.
 - **Network test port**: the TCP port of network tests, 443 by default.
 - **Asset group running the tests**: the endpoints of this group run the benign tests. Approval is refused until
-  an asset group is set.
+  an asset group is set and at least one of its endpoints has an active agent: without one no test would run, and
+  the indicators would be reported as missed.
 
 IOC validation also needs an OpenCTI connection for the tenant and the IOC validation connector registered in
 OpenCTI. The IOC validation settings show a warning when either is missing.

@@ -33,6 +33,7 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.objects.Bundle;
+import io.openaev.utils.AgentUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -210,7 +211,7 @@ public class IocValidationService {
    * validation scenario and launches its simulation.
    *
    * @throws BadRequestException when the request is no longer awaiting approval, or when nothing
-   *     can run (no allowed test, no asset group, no endpoint)
+   *     can run (no allowed test, no asset group, no endpoint with an active agent)
    */
   @Transactional(rollbackFor = Exception.class)
   public IocValidation approve(TxCtx ctx, @NotBlank final String id, @NotNull final User decider) {
@@ -255,6 +256,14 @@ public class IocValidationService {
           "The IOC validation asset group '%s' contains no endpoint to run the tests on"
               .formatted(assetGroup.getName()));
     }
+    List<Endpoint> runnableEndpoints =
+        endpoints.stream().filter(IocValidationService::hasRunnableAgent).toList();
+    if (runnableEndpoints.isEmpty()) {
+      throw new BadRequestException(
+          ("No endpoint of the IOC validation asset group '%s' has an active agent: the tests"
+                  + " would not run. Check the agents of its endpoints, then approve again.")
+              .formatted(assetGroup.getName()));
+    }
 
     // Scenarios, injects and simulations are still v1 tables: TenantBaseListener stamps them from
     // TenantContext, which only the /api/tenants/{tenantId}/ route sets. Bridging the resolved
@@ -265,7 +274,8 @@ public class IocValidationService {
     try {
       Scenario scenario = createScenario(ctx, validation);
       Set<Inject> injects =
-          createInjects(ctx, validation, settings, scenario, assetGroup, executorsOf(endpoints));
+          createInjects(
+              ctx, validation, settings, scenario, assetGroup, executorsOf(runnableEndpoints));
       if (injects.isEmpty()) {
         throw new BadRequestException(
             "Nothing can run: no endpoint of the asset group '%s' runs a platform the planned tests support"
@@ -777,6 +787,16 @@ public class IocValidationService {
         .<Payload>map(
             executor -> payloadService.getIocValidationCommandPayload(ctx, kind, executor))
         .toList();
+  }
+
+  /**
+   * Whether an endpoint has an active primary agent, the only agents the command injectors run a
+   * test on ({@link AgentUtils#getActiveAgents}).
+   */
+  static boolean hasRunnableAgent(Endpoint endpoint) {
+    List<Agent> agents = endpoint.getAgents();
+    return agents != null
+        && agents.stream().anyMatch(agent -> AgentUtils.isPrimaryAgent(agent) && agent.isActive());
   }
 
   /**
