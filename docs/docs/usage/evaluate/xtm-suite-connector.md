@@ -92,7 +92,7 @@ OpenCTI matches the security platform by the STIX ID the simulation results gave
 3. Once the simulation results are pushed back to OpenCTI, OpenAEV plans one hunt validation per **inject, technique and security platform** whose verdict is computed. A triple is planned once only, however many times the results are pushed again.
 4. A background job sends each validation to OpenCTI (`huntValidateFromEmulation`) with:
     - the technique ATT&CK ID (for example `T1059.001`),
-    - the security platform, by the STIX ID the simulation results give it (derived from its name, see [the security platform identities](../../reference/apis/security-coverage-results.md)) and by its name, which OpenCTI falls back to,
+    - the security platform, by the STIX ID of its identity in the Security Coverage bundle the simulation results were pushed in (the same ID, so OpenCTI finds the platform those results created) and by its name, which OpenCTI falls back to,
     - the inject ID,
     - the inject execution window, from the time the inject was sent to the time it completed, widened by a padding (5 minutes by default) on both sides, and never shorter than one minute,
     - the OpenCTI Security Coverage ID of the simulation.

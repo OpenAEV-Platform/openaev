@@ -134,16 +134,12 @@ Once the scenario is finalized and scheduled:
 - OpenAEV sends these results back to OpenCTI as part of
   automated [Enriched Security Posture Assessment](../../evaluate/xtm-suite-connector.md) in the same **STIX 2.1 bundle**
   representing the Security Coverage.
-- OpenCTI displays the updated coverage assessment, including which security platform detected or prevented each
-  covered object.
+- OpenCTI displays the updated coverage assessment.
 - When [hunt validation](../../evaluate/xtm-suite-connector.md#hunt-validation-from-emulation-results) is enabled,
   OpenAEV also asks OpenCTI to run its hunts over the time each technique was emulated, on the security platform
   that watched it, so the coverage shows whether the hunts catch the technique.
 
 ![Octi results](assets/octi-security-coverage-results.png)
-
-The [Security Coverage result bundle](../../../reference/apis/security-coverage-results.md) reference documents the
-content of the bundle sent back to OpenCTI.
 
 This creates a complete feedback loop between threat intelligence and security validation.
 

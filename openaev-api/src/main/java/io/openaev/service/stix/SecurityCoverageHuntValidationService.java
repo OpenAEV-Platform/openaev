@@ -20,6 +20,8 @@ import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.AssetService;
+import io.openaev.stix.objects.constants.ObjectTypes;
+import io.openaev.stix.types.Identifier;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import java.io.IOException;
 import java.time.Clock;
@@ -616,14 +618,14 @@ public class SecurityCoverageHuntValidationService {
     }
 
     /**
-     * The OpenCTI input. The platform travels both as the STIX id the coverage bundles gave it
-     * (derived from its name) and as its name, which OpenCTI falls back to when it does not know
-     * the id.
+     * The OpenCTI input. The platform travels both as the STIX id of its identity in the security
+     * coverage bundles ({@link SecurityPlatform#toStixDomainObject()}, built on the platform id)
+     * and as its name, which OpenCTI falls back to when it does not know the id.
      */
     ValidateHuntFromEmulation.Input toInput() {
       return new ValidateHuntFromEmulation.Input(
           techniqueId,
-          SecurityPlatform.stixIdentityId(securityPlatformName),
+          new Identifier(ObjectTypes.IDENTITY.toString(), securityPlatformId).getValue(),
           securityPlatformName,
           injectId,
           windowStart.toString(),

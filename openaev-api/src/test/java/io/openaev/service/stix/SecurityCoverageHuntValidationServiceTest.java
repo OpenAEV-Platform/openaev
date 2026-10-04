@@ -324,7 +324,7 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
               input -> {
                 assertThat(input.techniqueId()).isEqualTo(seeded.techniqueIds().getFirst());
                 assertThat(input.securityPlatformId())
-                    .isEqualTo(SecurityPlatform.stixIdentityId(xdr.getName()));
+                    .isEqualTo(xdr.toStixDomainObject().getId().getValue());
                 assertThat(input.securityPlatformName()).isEqualTo(xdr.getName());
                 assertThat(input.injectId()).isEqualTo(seeded.injectId());
                 assertThat(input.windowStart()).isEqualTo(SENT.minus(PADDING).toString());

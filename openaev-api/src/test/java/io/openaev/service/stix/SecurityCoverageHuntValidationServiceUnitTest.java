@@ -630,7 +630,10 @@ class SecurityCoverageHuntValidationServiceUnitTest {
           .isEqualTo(
               new ValidateHuntFromEmulation.Input(
                   "T1059.001",
-                  SecurityPlatform.stixIdentityId("Splunk prod"),
+                  new SecurityPlatform("platform-1", null, "Splunk prod", null)
+                      .toStixDomainObject()
+                      .getId()
+                      .getValue(),
                   "Splunk prod",
                   "inject-1",
                   "2026-10-03T09:55:00Z",
