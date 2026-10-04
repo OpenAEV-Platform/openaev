@@ -1029,9 +1029,10 @@ public class PayloadService {
       return null;
     }
     if (windows) {
+      // File.Delete never removes a directory (Remove-Item would remove an empty one) and is a
+      // no-op for a missing file
       return windowsRunDirectory()
-          + "; Remove-Item -LiteralPath (Join-Path $oaevIocDir $oaevIocFile)"
-          + " -Force -ErrorAction SilentlyContinue;"
+          + "; try { [System.IO.File]::Delete((Join-Path $oaevIocDir $oaevIocFile)) } catch { };"
           + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { }";
     }
     return posixRunDirectory()

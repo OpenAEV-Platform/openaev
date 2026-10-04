@@ -315,11 +315,13 @@ class IocValidationCommandContentTest {
   void given_fileDropCleanupOnWindows_should_removeOnlyWhatTheRunCreated() {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
+    // A surrogate path that is a directory is never removed: File.Delete refuses directories
     assertThat(cleanup)
-        .contains("Remove-Item -LiteralPath (Join-Path $oaevIocDir $oaevIocFile)")
+        .contains("[System.IO.File]::Delete((Join-Path $oaevIocDir $oaevIocFile))")
         .contains("[System.IO.Directory]::Delete($oaevIocDir)")
+        .doesNotContain("Remove-Item")
         .doesNotContain("-Recurse");
-    assertThat(cleanup.indexOf("throw")).isLessThan(cleanup.indexOf("Remove-Item"));
+    assertThat(cleanup.indexOf("throw")).isLessThan(cleanup.indexOf("[System.IO.File]::Delete"));
   }
 
   // PowerShell -match is case-insensitive
