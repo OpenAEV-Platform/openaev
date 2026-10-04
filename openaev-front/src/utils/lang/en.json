@@ -4298,6 +4298,7 @@
   "The IOC validation has been rejected.": "The IOC validation has been rejected.",
   "Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.": "Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.",
   "Reject this IOC validation? No test runs and OpenCTI is notified with the reason below.": "Reject this IOC validation? No test runs and OpenCTI is notified with the reason below.",
+  "This IOC validation could not be loaded.": "This IOC validation could not be loaded.",
   "This IOC validation does not exist or is not available in this tenant.": "This IOC validation does not exist or is not available in this tenant.",
   "Indicator": "Indicator",
   "Observable": "Observable",

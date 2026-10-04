@@ -1,5 +1,6 @@
 import { Button } from '@filigran/design-system';
 import { SettingsOutlined, VerifiedUserOutlined } from '@mui/icons-material';
+// fds:keep-mui the list rows follow the other OpenAEV list screens, and the library ships no List component yet
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';

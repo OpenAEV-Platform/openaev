@@ -34,14 +34,20 @@ const IocValidation = () => {
   const canManageSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
   const { iocValidationId } = useParams() as { iocValidationId: string };
   const [iocValidation, setIocValidation] = useState<IocValidationOutput | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState<'not_found' | 'failed' | null>(null);
 
+  // Only a 404 means the request is gone; any other failure keeps what is loaded, and polling, going.
   const load = useCallback(() => fetchIocValidation(iocValidationId)
     .then((result: { data: IocValidationOutput }) => {
       setIocValidation(result.data);
-      setNotFound(false);
+      setLoadError(null);
     })
-    .catch(() => setNotFound(true)), [iocValidationId]);
+    .catch((error: {
+      status?: number;
+      response?: { status?: number };
+    }) => {
+      setLoadError((error?.response?.status ?? error?.status) === 404 ? 'not_found' : 'failed');
+    }), [iocValidationId]);
 
   useEffect(() => {
     load();
@@ -57,7 +63,20 @@ const IocValidation = () => {
     return () => clearInterval(interval);
   }, [status, load]);
 
-  if (notFound) {
+  if (loadError === 'failed' && !iocValidation) {
+    return (
+      <Alert
+        severity="error"
+        title={t('This IOC validation could not be loaded.')}
+        action={(
+          <Button priority="secondary" size="sm" onClick={() => load()}>
+            {t('Retry')}
+          </Button>
+        )}
+      />
+    );
+  }
+  if (loadError === 'not_found') {
     return (
       <Alert
         severity="warning"

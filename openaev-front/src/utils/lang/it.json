@@ -4298,6 +4298,7 @@
   "The IOC validation has been rejected.": "La convalida IOC è stata rifiutata.",
   "Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.": "Approvare questa convalida IOC? Una simulazione si avvia subito ed esegue test innocui sugli asset di destinazione dello scenario di convalida. Nulla viene scaricato o eseguito dagli indicatori.",
   "Reject this IOC validation? No test runs and OpenCTI is notified with the reason below.": "Rifiutare questa convalida IOC? Nessun test viene eseguito e OpenCTI viene informato con il motivo indicato sotto.",
+  "This IOC validation could not be loaded.": "Impossibile caricare questa convalida IOC.",
   "This IOC validation does not exist or is not available in this tenant.": "Questa convalida IOC non esiste o non è disponibile in questo tenant.",
   "Indicator": "Indicatore",
   "Observable": "Osservabile",

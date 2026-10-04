@@ -4298,6 +4298,7 @@
   "The IOC validation has been rejected.": "Проверка IOC отклонена.",
   "Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.": "Утвердить эту проверку IOC? Симуляция начнется сразу и выполнит безопасные тесты на целевых активах сценария проверки. Ничего не загружается и не выполняется из индикаторов.",
   "Reject this IOC validation? No test runs and OpenCTI is notified with the reason below.": "Отклонить эту проверку IOC? Тесты не запускаются, а OpenCTI уведомляется с указанной ниже причиной.",
+  "This IOC validation could not be loaded.": "Не удалось загрузить эту проверку IOC.",
   "This IOC validation does not exist or is not available in this tenant.": "Эта проверка IOC не существует или недоступна в этом арендаторе.",
   "Indicator": "Индикатор",
   "Observable": "Наблюдаемый объект",

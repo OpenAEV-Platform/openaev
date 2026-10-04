@@ -4298,6 +4298,7 @@
   "The IOC validation has been rejected.": "IOC 検証は却下されました。",
   "Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.": "この IOC 検証を承認しますか？シミュレーションがすぐに開始され、検証シナリオの対象資産で無害なテストを実行します。インジケーターから何かをダウンロードしたり実行したりすることはありません。",
   "Reject this IOC validation? No test runs and OpenCTI is notified with the reason below.": "この IOC 検証を却下しますか？テストは実行されず、下記の理由が OpenCTI に通知されます。",
+  "This IOC validation could not be loaded.": "この IOC 検証を読み込めませんでした。",
   "This IOC validation does not exist or is not available in this tenant.": "この IOC 検証は存在しないか、このテナントでは利用できません。",
   "Indicator": "インジケーター",
   "Observable": "観測可能オブジェクト",
