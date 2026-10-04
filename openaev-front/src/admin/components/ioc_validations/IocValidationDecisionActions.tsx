@@ -93,7 +93,7 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
           disabled={!canLaunch}
           onClick={() => setApproveOpen(true)}
         >
-          {t('Approve')}
+          {t('Approve and start the simulation')}
         </Button>,
       )}
       <DialogConfirmation
@@ -101,7 +101,7 @@ const IocValidationDecisionActions: FunctionComponent<Props> = ({ iocValidation,
         handleClose={() => setApproveOpen(false)}
         handleSubmit={handleApprove}
         text={t('Approve this IOC validation? A simulation starts at once and runs benign tests on the target assets of the validation scenario. Nothing is downloaded or executed from the indicators.')}
-        submitLabel={t('Approve')}
+        submitLabel={t('Approve and start the simulation')}
       />
       <DialogConfirmation
         open={rejectOpen}

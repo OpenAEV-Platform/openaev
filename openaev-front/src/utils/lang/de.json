@@ -4287,6 +4287,7 @@
   "No IOC validation request yet.": "Noch keine IOC-Validierungsanfrage.",
   "IOC validation requests are sent from OpenCTI and wait here for approval before any test runs.": "IOC-Validierungsanfragen werden von OpenCTI gesendet und warten hier auf Genehmigung, bevor ein Test läuft.",
   "Approve": "Genehmigen",
+  "Approve and start the simulation": "Freigeben und Simulation starten",
   "Reject": "Ablehnen",
   "Reason": "Grund",
   "Optional reason reported to OpenCTI": "Optionaler Grund, der an OpenCTI gemeldet wird",

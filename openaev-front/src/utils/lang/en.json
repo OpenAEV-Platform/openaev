@@ -4287,6 +4287,7 @@
   "No IOC validation request yet.": "No IOC validation request yet.",
   "IOC validation requests are sent from OpenCTI and wait here for approval before any test runs.": "IOC validation requests are sent from OpenCTI and wait here for approval before any test runs.",
   "Approve": "Approve",
+  "Approve and start the simulation": "Approve and start the simulation",
   "Reject": "Reject",
   "Reason": "Reason",
   "Optional reason reported to OpenCTI": "Optional reason reported to OpenCTI",

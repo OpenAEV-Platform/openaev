@@ -63,7 +63,7 @@ OpenCTI. The IOC validations screen shows a warning when either is missing.
 Go to **Atomic testings** and open the **IOC validations** tab. Each request shows the indicators, the security platforms, the test
 that will run for each indicator and the indicators that are skipped, with the reason.
 
-- **Approve** builds a scenario with one benign inject per indicator on the configured asset group and starts
+- **Approve and start the simulation** builds a scenario with one benign inject per indicator on the configured asset group and starts
   a simulation at once.
 - **Reject** closes the request without running anything. The optional reason is reported to OpenCTI.
 

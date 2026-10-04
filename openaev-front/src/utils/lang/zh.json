@@ -4287,6 +4287,7 @@
   "No IOC validation request yet.": "尚无 IOC 验证请求。",
   "IOC validation requests are sent from OpenCTI and wait here for approval before any test runs.": "IOC 验证请求由 OpenCTI 发送，在任何测试运行前在此等待批准。",
   "Approve": "批准",
+  "Approve and start the simulation": "批准并开始模拟",
   "Reject": "拒绝",
   "Reason": "原因",
   "Optional reason reported to OpenCTI": "报告给 OpenCTI 的可选原因",
