@@ -6,6 +6,7 @@ import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
@@ -44,25 +45,32 @@ public interface IocValidationRepository
   List<IocValidationRef> findRefsByStatusIn(
       @Param("statuses") Collection<IocValidationStatus> statuses);
 
-  /** Id and tenant of every validation whose current status OpenCTI has not acknowledged yet. */
+  /**
+   * One page, in id order from {@code from}, of the validations whose current status OpenCTI has
+   * not acknowledged yet: the job walks this outbox a bounded page per run, never all of it.
+   */
   @Query(
       "select v.id as id, v.tenant.id as tenantId from IocValidation v"
-          + " where v.lifecycleSyncedStatus is null or v.lifecycleSyncedStatus <> v.status")
-  List<IocValidationRef> findRefsWithPendingLifecycleSync();
+          + " where (v.lifecycleSyncedStatus is null or v.lifecycleSyncedStatus <> v.status)"
+          + " and v.id >= :from order by v.id")
+  List<IocValidationRef> findRefsWithPendingLifecycleSync(
+      @Param("from") String from, Pageable page);
 
   /**
-   * Id and tenant of every finished validation (completed, partial or failed) whose result bundle
-   * OpenCTI has not received. The statuses are literals, not parameters, so that the planner can
-   * prove the predicate of the partial index {@code idx_ioc_validations_results_push_pending},
-   * which must stay identical to this one, for cached generic plans too.
+   * One page, in id order from {@code from}, of the finished validations (completed, partial or
+   * failed) whose result bundle OpenCTI has not received: the job walks this outbox a bounded page
+   * per run. The statuses are literals, not parameters, so that the planner can prove the predicate
+   * of the partial index {@code idx_ioc_validations_results_push_pending}, which must stay
+   * identical to this one, for cached generic plans too.
    */
   @Query(
       "select v.id as id, v.tenant.id as tenantId from IocValidation v"
           + " where v.resultsPushedAt is null and v.status in ("
           + "io.openaev.database.model.IocValidationStatus.COMPLETED,"
           + " io.openaev.database.model.IocValidationStatus.PARTIAL,"
-          + " io.openaev.database.model.IocValidationStatus.FAILED)")
-  List<IocValidationRef> findRefsWithPendingResultsPush();
+          + " io.openaev.database.model.IocValidationStatus.FAILED)"
+          + " and v.id >= :from order by v.id")
+  List<IocValidationRef> findRefsWithPendingResultsPush(@Param("from") String from, Pageable page);
 
   boolean existsBySimulationId(String simulationId);
 

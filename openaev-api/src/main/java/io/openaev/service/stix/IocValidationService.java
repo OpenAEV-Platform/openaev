@@ -42,11 +42,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -83,6 +86,10 @@ public class IocValidationService {
           IocValidationStatus.COMPLETED, IocValidationStatus.PARTIAL, IocValidationStatus.FAILED);
 
   private static final int MAX_SCENARIO_NAME_LENGTH = 255;
+  static final int OUTBOX_PAGE_SIZE = 100;
+
+  private final AtomicReference<String> resultsPushCursor = new AtomicReference<>("");
+  private final AtomicReference<String> lifecycleSyncCursor = new AtomicReference<>("");
 
   private final IocValidationRepository iocValidationRepository;
   private final IocValidationBundleParser bundleParser;
@@ -411,10 +418,27 @@ public class IocValidationService {
     return done;
   }
 
-  /** Pushes the result bundle of every finished validation OpenCTI has not received yet. */
+  /**
+   * One bounded page of an outbox, from where the previous run stopped; the walk starts over once a
+   * page comes back short, so every pending validation is visited in turn and a validation that
+   * keeps failing stays for a later run without holding the others back.
+   */
+  private List<IocValidationRef> nextOutboxPage(
+      AtomicReference<String> cursor, BiFunction<String, Pageable, List<IocValidationRef>> query) {
+    List<IocValidationRef> page =
+        allTenants(() -> query.apply(cursor.get(), PageRequest.of(0, OUTBOX_PAGE_SIZE)));
+    cursor.set(page.size() < OUTBOX_PAGE_SIZE ? "" : page.getLast().getId());
+    return page;
+  }
+
+  /**
+   * Pushes the result bundles of a bounded page of finished validations OpenCTI has not received
+   * yet. OpenCTI unreachable ends the run: the next one resumes from the validation that failed.
+   */
   public void pushPendingResults() {
     for (IocValidationRef ref :
-        allTenants(iocValidationRepository::findRefsWithPendingResultsPush)) {
+        nextOutboxPage(
+            resultsPushCursor, iocValidationRepository::findRefsWithPendingResultsPush)) {
       String tenantId = ref.getTenantId();
       try {
         Optional<Bundle> bundle =
@@ -436,10 +460,19 @@ public class IocValidationService {
         }
         openCTIConnectorService.pushIocValidationStixBundle(bundle.get(), tenantId);
         inTenant(tenantId, () -> markResultsPushed(ref.getId(), Instant.now()));
-      } catch (ConnectorError | IOException e) {
+      } catch (IOException e) {
+        log.warn(
+            "OpenCTI unreachable while pushing the results of IOC validation {} for tenant {}"
+                + " (resumed from it on the next run): {}",
+            ref.getId(),
+            tenantId,
+            e.getMessage());
+        resultsPushCursor.set(ref.getId());
+        return;
+      } catch (ConnectorError e) {
         log.warn(
             "Could not push the results of IOC validation {} to OpenCTI for tenant {} (retried on"
-                + " the next run): {}",
+                + " a later run): {}",
             ref.getId(),
             tenantId,
             e.getMessage());
@@ -449,11 +482,35 @@ public class IocValidationService {
     }
   }
 
-  /** Reports to OpenCTI every status it has not acknowledged yet. */
+  /**
+   * Reports to OpenCTI the statuses of a bounded page of validations it has not acknowledged yet.
+   * OpenCTI unreachable ends the run: the next one resumes from the validation that failed.
+   */
   public void syncPendingLifecycles() {
     for (IocValidationRef ref :
-        allTenants(iocValidationRepository::findRefsWithPendingLifecycleSync)) {
-      syncLifecycle(ref.getTenantId(), ref.getId());
+        nextOutboxPage(
+            lifecycleSyncCursor, iocValidationRepository::findRefsWithPendingLifecycleSync)) {
+      try {
+        reportLifecycle(ref.getTenantId(), ref.getId());
+      } catch (IOException e) {
+        log.warn(
+            "OpenCTI unreachable while reporting the status of IOC validation {} for tenant {}"
+                + " (resumed from it on the next run): {}",
+            ref.getId(),
+            ref.getTenantId(),
+            e.getMessage());
+        lifecycleSyncCursor.set(ref.getId());
+        return;
+      } catch (ConnectorError e) {
+        log.warn(
+            "Could not report the status of IOC validation {} to OpenCTI for tenant {} (retried on"
+                + " a later run): {}",
+            ref.getId(),
+            ref.getTenantId(),
+            e.getMessage());
+      } catch (Exception e) {
+        log.error("Could not report the status of IOC validation {}", ref.getId(), e);
+      }
     }
   }
 
@@ -466,22 +523,7 @@ public class IocValidationService {
    */
   public boolean syncLifecycle(String tenantId, String id) {
     try {
-      Optional<IocValidationRequestStatusUpdate> update =
-          inTenant(
-              tenantId, () -> iocValidationRepository.findById(id).flatMap(this::statusUpdate));
-      if (update.isEmpty()) {
-        return false;
-      }
-      if (!isIocValidationConnectorRegistered(tenantId)) {
-        log.debug(
-            "IOC validation connector of tenant {} not registered yet, status kept", tenantId);
-        return false;
-      }
-      openCTIConnectorService.updateIocValidationRequestStatus(update.get(), tenantId);
-      IocValidationStatus reported =
-          IocValidationStatus.valueOf(update.get().getStatus().toUpperCase(Locale.ROOT));
-      inTenant(tenantId, () -> markSynced(id, reported));
-      return true;
+      return reportLifecycle(tenantId, id);
     } catch (ConnectorError | IOException e) {
       log.warn(
           "Could not report the status of IOC validation {} to OpenCTI for tenant {} (retried on"
@@ -493,6 +535,23 @@ public class IocValidationService {
       log.error("Could not report the status of IOC validation {}", id, e);
     }
     return false;
+  }
+
+  private boolean reportLifecycle(String tenantId, String id) throws ConnectorError, IOException {
+    Optional<IocValidationRequestStatusUpdate> update =
+        inTenant(tenantId, () -> iocValidationRepository.findById(id).flatMap(this::statusUpdate));
+    if (update.isEmpty()) {
+      return false;
+    }
+    if (!isIocValidationConnectorRegistered(tenantId)) {
+      log.debug("IOC validation connector of tenant {} not registered yet, status kept", tenantId);
+      return false;
+    }
+    openCTIConnectorService.updateIocValidationRequestStatus(update.get(), tenantId);
+    IocValidationStatus reported =
+        IocValidationStatus.valueOf(update.get().getStatus().toUpperCase(Locale.ROOT));
+    inTenant(tenantId, () -> markSynced(id, reported));
+    return true;
   }
 
   /** The status update OpenCTI has not acknowledged yet, if any. */
