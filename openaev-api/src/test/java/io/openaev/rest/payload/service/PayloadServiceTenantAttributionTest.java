@@ -2,6 +2,7 @@ package io.openaev.rest.payload.service;
 
 import static io.openaev.service.stix.SecurityCoverageInjectService.ALL_PLATFORMS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
@@ -18,6 +19,12 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +32,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.TestPropertySource;
 
 /**
@@ -116,6 +125,65 @@ class PayloadServiceTenantAttributionTest extends IntegrationTest {
 
       // Assert
       assertThat(second.getId()).isEqualTo(first.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "given two concurrent first requests in one tenant should make the second wait for the"
+            + " first row instead of colliding on its primary key")
+    void given_concurrentFirstRequests_should_shareOneRowWithoutPkCollision() throws Exception {
+      // Arrange: the first transaction creates the row and stays open until released, so the
+      // second request runs while the row is still uncommitted.
+      tenantA = tenantHelper.createTenantWithCurrentUser("dns-payload-concurrent").getId();
+      CountDownLatch firstCreated = new CountDownLatch(1);
+      CountDownLatch releaseFirst = new CountDownLatch(1);
+      ExecutorService pool =
+          new DelegatingSecurityContextExecutorService(
+              Executors.newFixedThreadPool(2), SecurityContextHolder.getContext());
+      try {
+        // Act
+        Future<String> first =
+            pool.submit(
+                () ->
+                    inTenantWithAmbient(
+                        tenantA,
+                        () -> {
+                          String id =
+                              payloadService
+                                  .getDynamicDnsResolutionPayload(TxCtx.forTenant(tenantA))
+                                  .getId();
+                          firstCreated.countDown();
+                          awaitOrFail(releaseFirst);
+                          return id;
+                        }));
+        assertThat(firstCreated.await(30, TimeUnit.SECONDS)).isTrue();
+        Future<String> second =
+            pool.submit(
+                () ->
+                    inTenantWithAmbient(
+                        tenantA,
+                        () ->
+                            payloadService
+                                .getDynamicDnsResolutionPayload(TxCtx.forTenant(tenantA))
+                                .getId()));
+
+        // Assert: the second request waits for the first transaction, then reuses its row.
+        assertThatThrownBy(() -> second.get(2, TimeUnit.SECONDS))
+            .isInstanceOf(TimeoutException.class);
+        releaseFirst.countDown();
+        assertThat(second.get(30, TimeUnit.SECONDS)).isEqualTo(first.get(30, TimeUnit.SECONDS));
+        assertThat(
+                jdbcTemplate.queryForObject(
+                    "SELECT count(*) FROM payloads WHERE payload_name = 'Dynamic DNS Resolution'"
+                        + " AND tenant_id = ?",
+                    Integer.class,
+                    tenantA))
+            .isEqualTo(1);
+      } finally {
+        releaseFirst.countDown();
+        pool.shutdown();
+        assertThat(pool.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
+      }
     }
 
     @Test
@@ -248,6 +316,17 @@ class PayloadServiceTenantAttributionTest extends IntegrationTest {
         id,
         name);
     return id;
+  }
+
+  private static void awaitOrFail(CountDownLatch latch) {
+    try {
+      if (!latch.await(60, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("The test never released the first transaction");
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(e);
+    }
   }
 
   private <T> T inTenant(String tenantId, Supplier<T> work) {

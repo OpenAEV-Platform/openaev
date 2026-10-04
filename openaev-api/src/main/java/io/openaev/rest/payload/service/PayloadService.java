@@ -20,8 +20,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.aop.lock.Lock;
-import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -579,10 +577,22 @@ public class PayloadService {
   public DnsResolution getDynamicDnsResolutionPayload(TxCtx ctx) {
     String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     String tenantScopedId = dynamicDnsResolutionIdFor(writeTenant);
+    lockPayloadCreation(tenantScopedId);
     return payloadRepository
         .findById(tenantScopedId)
         .map(DnsResolution.class::cast)
         .orElseGet(() -> createDynamicDnsResolutionPayload(ctx, writeTenant, tenantScopedId));
+  }
+
+  /**
+   * Serializes the lookup-then-insert of a built-in payload with a deterministic id until the
+   * caller's transaction ends, so that concurrent creators wait for the first one's row instead of
+   * colliding on its primary key.
+   */
+  private void lockPayloadCreation(String payloadId) {
+    UUID payloadUuid = UUID.fromString(payloadId);
+    payloadRepository.lockPayloadCreation(
+        payloadUuid.getMostSignificantBits() ^ payloadUuid.getLeastSignificantBits());
   }
 
   /**
@@ -612,7 +622,6 @@ public class PayloadService {
    *
    * @return the created Dynamic DNS Resolution payload
    */
-  @Lock(type = LockResourceType.PAYLOAD, key = "#tenantId")
   private DnsResolution createDynamicDnsResolutionPayload(
       TxCtx ctx, String tenantId, String tenantScopedId) {
     DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
@@ -666,9 +675,7 @@ public class PayloadService {
       TxCtx ctx, IocValidationTestKind kind, String executor) {
     String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     String payloadId = iocValidationPayloadId(kind, executor, writeTenant);
-    UUID payloadUuid = UUID.fromString(payloadId);
-    payloadRepository.lockPayloadCreation(
-        payloadUuid.getMostSignificantBits() ^ payloadUuid.getLeastSignificantBits());
+    lockPayloadCreation(payloadId);
     return payloadRepository
         .findById(payloadId)
         .map(Command.class::cast)
