@@ -442,6 +442,30 @@ class IocValidationApiTest extends IntegrationTest {
       assertThat(runOf(secondInject)).isNotEqualTo(runOf(firstInject));
     }
 
+    @Test
+    @DisplayName("an injector contract gone stale alone is repaired before the next validation")
+    void given_staleContractOfACurrentPayload_should_repairTheContract() throws Exception {
+      allowTestKindOnValidationTargets(IocValidationTestKind.FILE_DROP);
+
+      String firstInject = approveFileDrop();
+      String payloadId = payloadOf(firstInject);
+      String command = commandOf(payloadId);
+      // Only the contract drifts: the payload keeps the current template
+      jdbc.update(
+          "UPDATE injectors_contracts SET injector_contract_content = ?"
+              + " WHERE injector_contract_payload = ?",
+          withoutRunField(contractContentOf(payloadId)),
+          payloadId);
+      assertThat(contractFieldKeysOf(payloadId)).doesNotContain(IOC_VALIDATION_RUN_KEY);
+
+      String secondInject = approveFileDrop();
+
+      assertThat(payloadOf(secondInject)).isEqualTo(payloadId);
+      assertThat(commandOf(payloadId)).isEqualTo(command);
+      assertThat(contractFieldKeysOf(payloadId)).contains(IOC_VALIDATION_RUN_KEY);
+      assertThat(runOf(secondInject)).matches("[0-9a-f]{32}").isNotEqualTo(runOf(firstInject));
+    }
+
     private String contractContentOf(String payloadId) {
       return jdbc.queryForObject(
           "SELECT injector_contract_content FROM injectors_contracts"

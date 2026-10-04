@@ -721,11 +721,14 @@ public class PayloadService {
   /**
    * A payload created by an earlier version, or edited since, keeps running its old command: it is
    * brought back to the current template (executors, content, cleanup and arguments) the next time
-   * a validation uses it.
+   * a validation uses it. Its injector contract is edited apart from it, so it is reconciled on
+   * every use, the payload current or not: a contract gone stale alone (a field or an expectation
+   * removed) is repaired before the inject is built from it.
    */
   private Command refreshIocValidationCommandPayload(
       TxCtx ctx, Command existing, IocValidationTestKind kind, String executor) {
     if (isIocValidationCommandTemplate(existing, kind, executor)) {
+      synchroniseIocValidationContract(ctx, existing, existing.getTenant().getId());
       return existing;
     }
     applyIocValidationCommandTemplate(existing, kind, executor);
@@ -809,13 +812,18 @@ public class PayloadService {
 
   private Command saveIocValidationCommandPayload(TxCtx ctx, Command payload, String tenantId) {
     Command saved = payloadRepository.save(payload);
+    synchroniseIocValidationContract(ctx, saved, tenantId);
+    return saved;
+  }
+
+  /** Brings the injector contract of an IOC validation payload back to what the payload defines. */
+  private void synchroniseIocValidationContract(TxCtx ctx, Command payload, String tenantId) {
     synchroniseInjectorContractBasedOnPayload(
-        saved,
+        payload,
         List.of(),
         domainService.upsertDomainEntities(
             Set.of(PresetDomain.getEndpoint(), PresetDomain.getNetwork()), tenantId),
         tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
-    return saved;
   }
 
   private static String iocValidationPayloadName(IocValidationTestKind kind, String executor) {
