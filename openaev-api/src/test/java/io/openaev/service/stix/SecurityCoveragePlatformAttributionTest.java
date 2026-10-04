@@ -6,6 +6,7 @@ import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.P
 import static io.openaev.utils.fixtures.InjectExpectationResultFixture.createCollectorResult;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.BaseInjectExpectation;
@@ -254,6 +255,30 @@ class SecurityCoveragePlatformAttributionTest {
           .isEqualTo(expected);
       // Spaces inside the name are kept
       assertThat(SecurityPlatform.stixIdentityId("CrowdStrike\u2003Falcon")).isNotEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("Escaped and non-ASCII characters hash the canonical JSON OpenCTI hashes")
+    void given_namesNeedingEscapes_should_deriveTheIdentityIdsOpenCtiDerives() {
+      // Act and assert: ids computed by the OpenCTI standard id generation (canonicalize + UUIDv5)
+      assertThat(SecurityPlatform.stixIdentityId("EDR \"Prod\" \\ lab"))
+          .isEqualTo("identity--773e0647-3a70-5a17-aae3-ea4aa46df541");
+      assertThat(SecurityPlatform.stixIdentityId("Splunk\u000eSIEM"))
+          .isEqualTo("identity--3782b925-958e-5ba8-86b0-d93c4dd02693");
+      assertThat(SecurityPlatform.stixIdentityId("a\tb\nc\bd\fe\rf\u001fg"))
+          .isEqualTo("identity--aae89d3c-dabb-588b-9c8d-5015b0cd2138");
+      assertThat(
+              SecurityPlatform.stixIdentityId(
+                  "D\u00e9fense \u00dcnicode \u9632\u5fa1 \ud83d\udee1"))
+          .isEqualTo("identity--1511969b-fdf3-53f9-a4fe-349a0ad87bdd");
+    }
+
+    @Test
+    @DisplayName("A name with a lone surrogate has no identity id, as in OpenCTI")
+    void given_loneSurrogate_should_refuseTheName() {
+      // Act and assert
+      assertThatThrownBy(() -> SecurityPlatform.stixIdentityId("x\ud800y"))
+          .isInstanceOf(IllegalArgumentException.class);
     }
   }
 }

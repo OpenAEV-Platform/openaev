@@ -33,7 +33,10 @@ and OpenAEV instances:
 
 1. Lowercase the platform name, then trim it the way JavaScript `String.prototype.trim` does: every Unicode space
    (no-break and em spaces included), tab, line terminator and byte order mark at either end is removed.
-2. Serialize `{"identity_class":"securityplatform","name":"<normalized name>"}` as JSON with sorted keys and no spaces.
+2. Serialize `{"identity_class":"securityplatform","name":"<normalized name>"}` with the JSON Canonicalization Scheme
+   (RFC 8785), as OpenCTI does: sorted keys, no spaces, and the name escaped like JavaScript `JSON.stringify`
+   (`\"`, `\\`, `\b`, `\f`, `\n`, `\r` and `\t`, a lower-case `\u00xx` escape for the other control characters, every
+   other character as is). A name holding a lone surrogate has no identity id, in OpenCTI either.
 3. Compute the UUID version 5 of this JSON in the namespace `00abedb4-aa42-466c-9c01-fed23315a9b7`.
 
 For example, `CrowdStrike Falcon` is `identity--fd6bb94b-46b7-5e41-90d0-2a0fcf171ca2`. Security platforms sharing a
@@ -205,6 +208,12 @@ One `has-covered` relationship targets each security platform identity of the bu
 `coverage_platforms` is an additional property: `covered`, `coverage` and every other property keep their meaning, so
 OpenCTI versions that do not know `coverage_platforms` ignore it. OpenCTI versions that support it store it on the
 relationship as `coverage_platforms_information`.
+
+One output of the covered object relationships changes: an Inject without any primary Expectation, for example one
+with agent Expectations only, is now scored on all its Expectations (see [Scores](#scores)), so its results count in
+the `coverage` of the covered objects it matches. A covered object matched only by such Injects used to read
+`covered: false` without `coverage`; it now reads `covered: true` with their scores, in line with its
+`coverage_platforms`.
 
 ## What's next?
 

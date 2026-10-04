@@ -2,8 +2,6 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
@@ -48,25 +46,80 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
   private static final String STIX_IDENTITY_CLASS = "securityplatform";
   private static final UUID OASIS_NAMESPACE =
       UUID.fromString("00abedb4-aa42-466c-9c01-fed23315a9b7");
-  private static final ObjectMapper CANONICAL_MAPPER = new ObjectMapper();
 
   /**
    * STIX id of the security platform identity, derived from its name exactly like the OpenCTI
    * standard id of an identity (UUIDv5 in the OASIS namespace over the canonical JSON of the
    * lower-cased trimmed name and the identity class), so the same named platform resolves to the
    * same identity across OpenAEV instances and in OpenCTI.
+   *
+   * @throws IllegalArgumentException when the name holds a lone surrogate, which OpenCTI refuses as
+   *     well (and PostgreSQL cannot store)
    */
   public static String stixIdentityId(String name) {
     Map<String, String> contributions = new TreeMap<>();
     contributions.put("identity_class", STIX_IDENTITY_CLASS);
     contributions.put("name", normalizeIdentityName(name));
     try {
-      String canonical = CANONICAL_MAPPER.writeValueAsString(contributions);
       return "%s--%s"
-          .formatted(ObjectTypes.IDENTITY.toString(), uuidV5(OASIS_NAMESPACE, canonical));
-    } catch (JsonProcessingException | NoSuchAlgorithmException e) {
+          .formatted(
+              ObjectTypes.IDENTITY.toString(),
+              uuidV5(OASIS_NAMESPACE, canonicalJson(contributions)));
+    } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("Cannot generate the security platform STIX id", e);
     }
+  }
+
+  /**
+   * The JSON Canonicalization Scheme (RFC 8785) serialization of string members, the one OpenCTI
+   * hashes: members in the order of their names' UTF-16 code units (the order of a {@link TreeMap}
+   * of strings) and strings escaped like ECMAScript {@code JSON.stringify}.
+   */
+  static String canonicalJson(Map<String, String> members) {
+    StringBuilder json = new StringBuilder("{");
+    members.forEach(
+        (key, value) -> {
+          if (json.length() > 1) {
+            json.append(',');
+          }
+          json.append(canonicalString(key)).append(':').append(canonicalString(value));
+        });
+    return json.append('}').toString();
+  }
+
+  /**
+   * A JSON string as RFC 8785 writes it: two-character escapes for the quotation mark, the reverse
+   * solidus, backspace, form feed, line feed, carriage return and tab, a lower-case {@code \\u00xx}
+   * escape for the other control characters, and every other character as is.
+   */
+  static String canonicalString(String value) {
+    StringBuilder json = new StringBuilder(value.length() + 2).append('"');
+    for (int index = 0; index < value.length(); index++) {
+      char c = value.charAt(index);
+      switch (c) {
+        case '"' -> json.append("\\\"");
+        case '\\' -> json.append("\\\\");
+        case '\b' -> json.append("\\b");
+        case '\f' -> json.append("\\f");
+        case '\n' -> json.append("\\n");
+        case '\r' -> json.append("\\r");
+        case '\t' -> json.append("\\t");
+        default -> {
+          if (c < 0x20) {
+            json.append("\\u%04x".formatted((int) c));
+          } else if (Character.isHighSurrogate(c)
+              && index + 1 < value.length()
+              && Character.isLowSurrogate(value.charAt(index + 1))) {
+            json.append(c).append(value.charAt(++index));
+          } else if (Character.isSurrogate(c)) {
+            throw new IllegalArgumentException("A lone surrogate cannot be canonicalized");
+          } else {
+            json.append(c);
+          }
+        }
+      }
+    }
+    return json.append('"').toString();
   }
 
   /**
