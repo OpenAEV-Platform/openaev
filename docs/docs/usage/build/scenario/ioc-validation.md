@@ -102,6 +102,10 @@ The request ends in status *Completed* when every pair was evaluated, *Partial* 
 and *Failed* when no pair could be evaluated. A running validation is closed after seven days even if the
 simulation never ends.
 
+Validation simulations are kept out of the coverage statistics: their expectations never count in the
+security coverage matrix of the home page, in the ATT&CK coverage, or in the custom dashboards, so a benign
+test never changes how well your attack patterns look covered.
+
 ![A partial result: outcomes per indicator and security platform, with the reason of each outcome](assets/ioc-validation-result.png)
 
 The results are sent back to OpenCTI, where they update the validation status of each deployment of the

@@ -667,6 +667,39 @@ class IndexingRegressionTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Expectations of an IOC validation run are never indexed for the coverage")
+    void given_iocValidationSimulation_should_notIndexItsExpectations() {
+      BaseInjectExpectation regular = expectationInSimulation(null);
+      BaseInjectExpectation validation = expectationInSimulation(IocValidation.SCENARIO_CATEGORY);
+      entityManager.flush();
+      entityManager.clear();
+
+      List<String> indexedIds =
+          injectExpectationHandler.fetch(FROM, 5000).stream()
+              .map(EsInjectExpectation::getBase_id)
+              .toList();
+
+      assertThat(indexedIds).contains(regular.getId()).doesNotContain(validation.getId());
+    }
+
+    private BaseInjectExpectation expectationInSimulation(String category) {
+      BaseInjectExpectation expectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withExpectation(
+                  injectExpectationComposer
+                      .forExpectation(expectation)
+                      .withEndpoint(
+                          endpointComposer.forEndpoint(EndpointFixture.createEndpoint())));
+      Exercise exercise = ExerciseFixture.createDefaultExercise();
+      exercise.setCategory(category);
+      exerciseComposer.forExercise(exercise).withInject(injectWrapper).persist();
+      return expectation;
+    }
+
+    @Test
     @DisplayName(
         "Agentless expectation keeps security platforms side from agent-level expectation results")
     void

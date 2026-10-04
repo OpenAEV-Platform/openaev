@@ -494,7 +494,11 @@ public interface InjectExpectationRepository
         JOIN injects i ON i.inject_id = ie.inject_id
         LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
                                         AND ic.tenant_id = i.tenant_id
+        LEFT JOIN exercises ex ON ex.exercise_id = i.inject_exercise
         WHERE GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, COALESCE(ic.injector_contract_updated_at, ie.inject_expectation_updated_at)) > :from
+          -- IOC validation runs (IocValidation.SCENARIO_CATEGORY) never feed the coverage
+          -- statistics. Filtered before the LIMIT so a page of them cannot stall the cursor.
+          AND ex.exercise_category IS DISTINCT FROM 'ioc-validation'
         ORDER BY sort_ts ASC
         LIMIT :limit
     ),
