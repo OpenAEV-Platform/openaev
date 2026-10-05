@@ -401,23 +401,35 @@ public class InjectsExecutionJob implements Job {
                       executableInject -> {
                         Inject inject = executableInject.getInjection().getInject();
                         String tenantId = inject.getTenant().getId();
-                        tenantScopedJobRunner.runInTenant(
-                            tenantId,
-                            () -> {
-                              try {
-                                this.executeInject(executableInject);
-                              } catch (Exception e) {
-                                // Same transaction: the traces written before the failure and
-                                // the ERROR status commit together.
-                                Throwable cause =
-                                    e instanceof RuntimeException && e.getCause() != null
-                                        ? e.getCause()
-                                        : e;
-                                log.warn(cause.getMessage(), cause);
-                                injectStatusService.persistErrorStatusInTransaction(
-                                    inject.getId(), cause.getMessage());
-                              }
-                            });
+                        try {
+                          tenantScopedJobRunner.runInTenant(
+                              tenantId,
+                              () -> {
+                                try {
+                                  this.executeInject(executableInject);
+                                } catch (Exception e) {
+                                  // Same transaction: the traces written before the failure and
+                                  // the ERROR status commit together.
+                                  Throwable cause =
+                                      e instanceof RuntimeException && e.getCause() != null
+                                          ? e.getCause()
+                                          : e;
+                                  log.warn(cause.getMessage(), cause);
+                                  injectStatusService.persistErrorStatusInTransaction(
+                                      inject.getId(), cause.getMessage());
+                                }
+                              });
+                        } catch (RuntimeException e) {
+                          // The transaction could not commit (rollback-only, commit or
+                          // after-commit failure): persist the ERROR status in a fresh one.
+                          Throwable cause = e.getCause() != null ? e.getCause() : e;
+                          log.warn(cause.getMessage(), cause);
+                          tenantScopedJobRunner.runInTenant(
+                              tenantId,
+                              () ->
+                                  injectStatusService.persistErrorStatusInTransaction(
+                                      inject.getId(), cause.getMessage()));
+                        }
                       });
 
               // Update the exercise once all injects of the batch are processed.
