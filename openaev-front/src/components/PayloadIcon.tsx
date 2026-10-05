@@ -1,5 +1,5 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DnsOutlined, SubscriptionsOutlined } from '@mui/icons-material';
-import { Tooltip } from '@mui/material';
 import { ApplicationCogOutline, Console, FileImportOutline, LanConnect } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 
@@ -27,8 +27,11 @@ const renderIcon = (payloadType: string) => {
 const PayloadIcon: FunctionComponent<PayloadIconProps> = ({ payloadType, tooltip = false }) => {
   if (tooltip) {
     return (
-      <Tooltip title={payloadType}>
-        {renderIcon(payloadType)}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{renderIcon(payloadType)}</span>
+        </TooltipTrigger>
+        <TooltipContent>{payloadType}</TooltipContent>
       </Tooltip>
     );
   }

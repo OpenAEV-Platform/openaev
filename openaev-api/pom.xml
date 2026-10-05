@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.260923.0</version>
+        <version>3.261001.0</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -15,7 +15,7 @@
     <properties>
         <commons-collections4.version>4.6.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
-        <springdoc.version>2.9.0</springdoc.version>
+        <springdoc.version>2.9.1</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
@@ -30,9 +30,9 @@
         <!-- GCP credential status validation: signs the service account RS256 JWT and exchanges
              the OAuth2 refresh token. Same trade-off as Azure — SDK for the token, plain
              HttpClient for the resource probe. BSD-3-Clause. -->
-        <google-auth-library.version>1.53.0</google-auth-library.version>
+        <google-auth-library.version>1.54.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.55.5</aws-sts.version>
+        <aws-sts.version>2.55.10</aws-sts.version>
     </properties>
 
     <profiles>
@@ -73,7 +73,7 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>3.260923.0</version>
+            <version>3.261001.0</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
@@ -236,7 +236,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.7.1-jre</version>
+            <version>33.7.2-jre</version>
         </dependency>
         <!-- Playwright drives an in-container headless Chromium to render reports (PDF/HTML).
              On dev machines the browser bundle is downloaded automatically on first use; the
@@ -279,7 +279,7 @@
         <dependency>
             <groupId>org.mock-server</groupId>
             <artifactId>mockserver-netty</artifactId>
-            <version>7.6.0</version>
+            <version>8.0.0</version>
             <scope>test</scope>
         </dependency>
         <!-- MockServer exposes Prometheus metrics and reaches for SpanContextSupplier on every
@@ -302,7 +302,7 @@
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
-            <version>1.5.0</version>
+            <version>1.5.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -360,7 +360,7 @@
         <dependency>
             <groupId>com.github.jsqlparser</groupId>
             <artifactId>jsqlparser</artifactId>
-            <version>5.3</version>
+            <version>5.4</version>
         </dependency>
     </dependencies>
 

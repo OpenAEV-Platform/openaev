@@ -1,5 +1,6 @@
+import { IconButton } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Box, type Breakpoint, Dialog as MuiDialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { Box, type Breakpoint, Dialog as MuiDialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 
 import Transition from '../Transition';
@@ -42,9 +43,13 @@ const Dialog: FunctionComponent<DialogProps> = ({
           {showCloseIcon ? (
             <Box display="flex" alignItems="center" justifyContent="space-between">
               {title}
-              <IconButton onClick={handleClose} size="small" aria-label="close">
-                <Close />
-              </IconButton>
+              <IconButton
+                icon={<Close />}
+                onClick={handleClose}
+                aria-label="close"
+                priority="tertiary"
+                size="md"
+              />
             </Box>
           ) : (
             title

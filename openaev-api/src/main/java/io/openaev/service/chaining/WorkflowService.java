@@ -852,8 +852,35 @@ public class WorkflowService {
         simulationId, WorkflowStatus.RUN);
   }
 
+  /**
+   * Finds the workflow executions of a simulation that have not ended yet: running (RUN) or paused
+   * (STOP). A paused simulation keeps its run in STOP, so {@link #findWorkflowRunBySimulationId}
+   * cannot see it; this is the lookup for anything that must act on a live run whatever its pause
+   * state, such as cancelling the simulation.
+   *
+   * @param simulationId the ID of the simulation
+   * @return the workflow executions with status RUN or STOP
+   */
+  public List<Workflow> findActiveWorkflowBySimulationId(String simulationId) {
+    return this.workflowRepository.findAllBySimulation_IdAndStatusIn(
+        simulationId, List.of(WorkflowStatus.RUN, WorkflowStatus.STOP));
+  }
+
   public List<Workflow> findAllWorkflowExecutionBySimulationId(String simulationId) {
     return this.workflowRepository.findAllBySimulation_IdAndStatusIn(
+        simulationId, List.of(WorkflowStatus.RUN, WorkflowStatus.END, WorkflowStatus.STOP));
+  }
+
+  /**
+   * Finds the current execution of a simulation: its latest run, whatever its status (RUN, END or
+   * STOP). Reset deletes every execution (ADR-009), but a database reset before that may still hold
+   * older runs, so callers must act on this one only.
+   *
+   * @param simulationId the ID of the simulation
+   * @return the latest workflow execution, or empty if the simulation was never launched
+   */
+  public Optional<Workflow> findCurrentWorkflowExecutionBySimulationId(String simulationId) {
+    return this.workflowRepository.findFirstBySimulation_IdAndStatusInOrderByWorkflowCreatedAtDesc(
         simulationId, List.of(WorkflowStatus.RUN, WorkflowStatus.END, WorkflowStatus.STOP));
   }
 
@@ -1591,6 +1618,11 @@ public class WorkflowService {
     return workflowRepository.existsByIdAndStatus(workflowId, WorkflowStatus.END);
   }
 
+  @Transactional(readOnly = true)
+  public boolean isWorkflowStopped(String workflowId) {
+    return workflowRepository.existsByIdAndStatus(workflowId, WorkflowStatus.STOP);
+  }
+
   /**
    * Finds all RUN workflows whose timeout has expired.
    *
@@ -1640,9 +1672,14 @@ public class WorkflowService {
     // createReadySteps/enqueueReadySteps
     // below, re-readying and re-enqueuing steps on a terminated run (churn, and a possible re-fire
     // after a timeout settle).
-    if (this.isWorkflowEnded(workflowRun.getId())) {
+    // STOP is read straight from the repository: this method is already transactional, and a call
+    // to the @Transactional isWorkflowStopped of this class would bypass the Spring proxy (see
+    // TenantBackgroundTransactionArchTest#no_transactional_self_invocation).
+    if (this.isWorkflowEnded(workflowRun.getId())
+        || workflowRepository.existsByIdAndStatus(workflowRun.getId(), WorkflowStatus.STOP)) {
       log.info(
-          "[Chaining] Ignoring evaluation because workflow run {} has ended.", workflowRun.getId());
+          "[Chaining] Ignoring evaluation because workflow run {} is not runnable (END/STOP).",
+          workflowRun.getId());
       return workflowRun;
     }
 

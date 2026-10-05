@@ -1,9 +1,11 @@
+import { IconButton } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { Box, Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, memo, useCallback } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import Transition from '../../../../../../components/common/Transition';
+import { useFormatter } from '../../../../../../components/i18n';
 import { type EsSeries, type StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import SecurityCoverageContent from './SecurityCoverageContent';
 
@@ -27,6 +29,7 @@ interface Props {
 }
 
 const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetConfig, widgetTitle, data, fullscreen, setFullscreen }) => {
+  const { t } = useFormatter();
   // Standard hooks
   const { classes } = useStyles();
 
@@ -43,13 +46,12 @@ const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetConfig, wi
       >
         <DialogTitle className={classes.headerFull}>
           <IconButton
-            aria-label="Close"
+            icon={<Close fontSize="small" />}
+            aria-label={t('Close')}
             onClick={handleClose}
-            size="large"
-            color="primary"
-          >
-            <Close fontSize="small" color="primary" />
-          </IconButton>
+            priority="tertiary"
+            size="md"
+          />
           {widgetTitle}
         </DialogTitle>
         <DialogContent>

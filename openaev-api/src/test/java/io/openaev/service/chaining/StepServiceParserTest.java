@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import io.openaev.database.model.WorkflowStateEntries;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -231,14 +234,8 @@ public class StepServiceParserTest {
   @Test
   public void testNewOutputWithComputed() {
     // Création du stateEntries vide
-    Set<String> executionKeys = new HashSet<>();
-    executionKeys.add("ip");
-    executionKeys.add("port");
-    executionKeys.add("stdout");
-    executionKeys.add("exit");
     WorkflowStateEntries stateEntries =
-        new WorkflowStateEntries(
-            new ArrayList<>(), new ArrayList<>(), new HashSet<>(), executionKeys);
+        new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
 
     stepStateService.newOutput(
         stateEntries,
@@ -247,7 +244,7 @@ public class StepServiceParserTest {
         "stdout");
 
     assertEquals(1, stateEntries.getInputs().size());
-    assertTrue(stateEntries.getInputs().get(0).getValues().contains("filigran"));
+    assertTrue(stateEntries.getInputs().getFirst().getValues().contains("filigran"));
 
     stepStateService.newOutput(
         stateEntries,
@@ -265,7 +262,7 @@ public class StepServiceParserTest {
         "port+ip");
 
     assertEquals(1, stateEntries.getCorrelated().size());
-    WorkflowStateEntries.Correlated c1 = stateEntries.getCorrelated().get(0);
+    WorkflowStateEntries.Correlated c1 = stateEntries.getCorrelated().getFirst();
     assertTrue(c1.getValues().contains(new WorkflowStateEntries.Pair("port", "445")));
     assertTrue(c1.getValues().contains(new WorkflowStateEntries.Pair("ip", "192.168.123.131")));
 

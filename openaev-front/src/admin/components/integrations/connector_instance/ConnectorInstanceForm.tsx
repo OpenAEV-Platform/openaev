@@ -1,6 +1,7 @@
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { InfoOutlined } from '@mui/icons-material';
-import { AccordionDetails, Button, Tooltip, Typography } from '@mui/material';
+import { AccordionDetails, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FormEvent, useMemo } from 'react';
 import { FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
@@ -29,6 +30,16 @@ interface Props {
   isMigrating?: boolean;
   disabled?: boolean;
 }
+
+// A 36px cell pinned to the row's bottom: the label height varies, so aligning on
+// the row start or end missed the field itself.
+const INPUT_HEIGHT = 36;
+
+const fieldWithHelpSx = {
+  display: 'grid',
+  gridTemplateColumns: '1fr auto',
+  alignItems: 'end',
+} as const;
 
 const ConnectorInstanceForm = ({
   initialConfigurationValues,
@@ -134,9 +145,7 @@ const ConnectorInstanceForm = ({
   };
 
   const formatKeyToLabel = (key: string): string => {
-    // Keys are SCREAMING_SNAKE_CASE (e.g. EXECUTOR_TANIUM_API_URL); lowercase first
-    // so an already-uppercase key becomes proper Title Case ("Executor Tanium Api Url")
-    // instead of staying all-caps.
+    // Keys are SCREAMING_SNAKE_CASE: lowercase first, or Title Case stays all-caps.
     return key
       .toLowerCase()
       .replace(/_/g, ' ')
@@ -275,14 +284,12 @@ const ConnectorInstanceForm = ({
           required
           disabled={disabled}
         />
-        <TextField id="catalog-connector-slug" label={t('Instance name')} disabled defaultValue={catalogConnectorSlug} />
+        <TextField fullWidth={false} id="catalog-connector-slug" label={t('Instance name')} disabled defaultValue={catalogConnectorSlug} />
         {requiredFields.map(({ index, field, definition }) => (
           <div
             key={field.id}
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr auto',
-              alignItems: 'start',
+              ...fieldWithHelpSx,
               gap: theme.spacing(2),
             }}
           >
@@ -291,13 +298,19 @@ const ConnectorInstanceForm = ({
               field={formatCatalogConnectorConfigurationToObject(definition, index, true)}
               readOnly={disabled}
             />
-            <Tooltip title={definition.connector_configuration_description}>
-              <InfoOutlined
-                color="primary"
-                fontSize="small"
-                sx={{ mt: '25px' }}
-              />
-            </Tooltip>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              height: INPUT_HEIGHT,
+            }}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <InfoOutlined color="primary" fontSize="small" />
+                </TooltipTrigger>
+                {definition.connector_configuration_description && <TooltipContent>{definition.connector_configuration_description}</TooltipContent>}
+              </Tooltip>
+            </div>
           </div>
         ))}
         {optionalFields.length > 0 && (
@@ -321,9 +334,7 @@ const ConnectorInstanceForm = ({
                   <div
                     key={field.id}
                     style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr auto',
-                      alignItems: 'end',
+                      ...fieldWithHelpSx,
                       gap: theme.spacing(2),
                     }}
                   >
@@ -332,12 +343,19 @@ const ConnectorInstanceForm = ({
                       field={formatCatalogConnectorConfigurationToObject(definition, index, false)}
                       readOnly={disabled}
                     />
-                    <Tooltip title={definition.connector_configuration_description}>
-                      <InfoOutlined
-                        fontSize="small"
-                        color="primary"
-                      />
-                    </Tooltip>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: INPUT_HEIGHT,
+                    }}
+                    >
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <InfoOutlined fontSize="small" color="primary" />
+                        </TooltipTrigger>
+                        {definition.connector_configuration_description && <TooltipContent>{definition.connector_configuration_description}</TooltipContent>}
+                      </Tooltip>
+                    </div>
                   </div>
                 ))}
               </AccordionDetails>
@@ -354,20 +372,10 @@ const ConnectorInstanceForm = ({
           marginTop: theme.spacing(1),
         }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
+          <Button type="button" priority="secondary" onClick={onClose} disabled={isSubmitting}>
             {t('Cancel')}
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={isSubmitting || disabled}
-          >
+          <Button type="submit" disabled={isSubmitting || disabled}>
             {t(getActionLabel())}
           </Button>
         </div>

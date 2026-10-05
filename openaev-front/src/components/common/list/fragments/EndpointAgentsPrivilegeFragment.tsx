@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 
 import AgentPrivilege from '../../../../admin/components/assets/endpoints/AgentPrivilege';
 import { useFormatter } from '../../../i18n';
@@ -38,15 +38,21 @@ const EndpointAgentsPrivilegeFragment = (props: Props) => {
 
   return (
     <>
-      <Tooltip title={t('Admin') + `: ${privileges.adminCount}`} placement="top">
-        <span>
-          {privileges.adminCount > 0 && (<AgentPrivilege variant="list" privilege="admin" />)}
-        </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>
+            {privileges.adminCount > 0 && (<AgentPrivilege variant="list" privilege="admin" />)}
+          </span>
+        </TooltipTrigger>
+        {(t('Admin') + `: ${privileges.adminCount}`) && <TooltipContent side="top">{t('Admin') + `: ${privileges.adminCount}`}</TooltipContent>}
       </Tooltip>
-      <Tooltip title={t('User') + `: ${privileges.userCount}`} placement="top">
-        <span>
-          {privileges.userCount > 0 && (<AgentPrivilege variant="list" privilege="user" />)}
-        </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>
+            {privileges.userCount > 0 && (<AgentPrivilege variant="list" privilege="user" />)}
+          </span>
+        </TooltipTrigger>
+        {(t('User') + `: ${privileges.userCount}`) && <TooltipContent side="top">{t('User') + `: ${privileges.userCount}`}</TooltipContent>}
       </Tooltip>
       {
         props.privileges && props.privileges.length === 0 && (

@@ -1,8 +1,16 @@
-import { FormControl, InputLabel, MenuItem, Select, type SelectChangeEvent } from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 
+import DateField from '../../../../components/fields/DateField';
 import { useFormatter } from '../../../../components/i18n';
+import { toUtcMidnightIso, utcMidnightToLocalDay } from '../../../../utils/Time';
 import { CUSTOM_TIME_RANGE, getTimeRangeItems } from './widgets/configuration/common/TimeRangeUtils';
 
 interface Props {
@@ -22,58 +30,50 @@ const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleSta
 
   return (
     <>
-      <FormControl
-        size="small"
-        sx={{ minWidth: 120 }}
-      >
-        <InputLabel id="customDashboardTimeRangeSelectLabel" variant="outlined">{t('Time range')}</InputLabel>
+      {/* The library Select renders NO wrapper of its own — unlike Combobox,
+          which wraps its parts in a flex column. Its label and its trigger are
+          therefore siblings of whatever holds them, and in the grid this row
+          uses they landed in two different cells, one beside the other. The
+          wrapper keeps them together. */}
+      <div>
         <Select
-          labelId="customDashboardTimeRangeSelectLabel"
-          label={t('Time range')}
-          id="customDashboardTimeRangeSelect"
-          variant="outlined"
           value={timeRangeValue}
-          onChange={(event: SelectChangeEvent) => {
-            handleTimeRange(event.target.value);
+          onValueChange={(next) => {
+            handleTimeRange(next);
           }}
         >
-          {timeRangeItems.map(item => (
-            <MenuItem key={item.value} value={item.value}>
-              {t(item.label_key)}
-            </MenuItem>
-          ))}
+          <SelectLabel>{t('Time range')}</SelectLabel>
+          <SelectTrigger style={{ minWidth: 120 }}>
+            <SelectValue placeholder={t('Time range')} />
+          </SelectTrigger>
+          <SelectContent>
+            {timeRangeItems.map(item => (
+              <SelectItem key={item.value} value={item.value}>
+                {t(item.label_key)}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-      </FormControl>
+      </div>
       {
         timeRangeValue === CUSTOM_TIME_RANGE && (
           <>
-            <DateTimePicker
-              views={['year', 'month', 'day']}
-              value={startDateValue ? new Date(startDateValue) : null}
-              maxDate={new Date(new Date(endDateValue ?? '').setUTCHours(24, 0, 0, 0))}
+            {/* Both bounds are stored as UTC midnight of the picked day and shown as that day, in every time zone */}
+            <DateField
+              value={startDateValue ? utcMidnightToLocalDay(startDateValue) : null}
+              maxDate={endDateValue ? utcMidnightToLocalDay(endDateValue, 1) : undefined}
               onChange={(startDate) => {
-                handleStartDate(new Date(new Date(startDate!).setUTCHours(24, 0, 0, 0)).toISOString());
-              }}
-              slotProps={{
-                textField: {
-                  variant: 'outlined',
-                  size: 'small',
-                },
+                if (!startDate) return;
+                handleStartDate(toUtcMidnightIso(startDate));
               }}
               label={t('Start date')}
             />
-            <DateTimePicker
-              views={['year', 'month', 'day']}
-              value={endDateValue ? new Date(endDateValue) : null}
-              minDate={new Date(new Date(startDateValue ?? '').setUTCHours(24, 0, 0, 0))}
+            <DateField
+              value={endDateValue ? utcMidnightToLocalDay(endDateValue) : null}
+              minDate={startDateValue ? utcMidnightToLocalDay(startDateValue, 1) : undefined}
               onChange={(endDate) => {
-                handleEndDate(new Date(new Date(endDate!).setUTCHours(24, 0, 0, 0)).toISOString());
-              }}
-              slotProps={{
-                textField: {
-                  variant: 'outlined',
-                  size: 'small',
-                },
+                if (!endDate) return;
+                handleEndDate(toUtcMidnightIso(endDate));
               }}
               label={t('End date')}
             />

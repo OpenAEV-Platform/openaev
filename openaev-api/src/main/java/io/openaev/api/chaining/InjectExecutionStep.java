@@ -184,6 +184,19 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
+   * A READY step that already ran carries the id of the inject it created ({@link #run} bakes it
+   * into the step data): its presence means this READY request is a duplicate.
+   */
+  @Override
+  public boolean isAlreadyRun(Step readyStep) {
+    if (readyStep.getData() == null) {
+      return false;
+    }
+    String injectId = StepService.getField(readyStep.getData(), "inject_id");
+    return injectId != null && !injectId.isBlank();
+  }
+
+  /**
    * Runs a READY step by executing the corresponding to inject.
    *
    * <p>Handles deserialization of step data, creation of the inject, execution via {@link

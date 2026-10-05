@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, memo, useCallback, useMemo } from 'react';
 import { Link } from 'react-router';
@@ -141,17 +141,18 @@ const ResponsePie: FunctionComponent<Props> = ({
 
             {displayHumanValidationBtn && type === 'HUMAN_RESPONSE' && (
               <Button
-                startIcon={<InfoOutlined />}
-                color="primary"
-                component={Link}
-                to={humanValidationLink}
+                asChild
+                priority="tertiary"
                 style={{
                   textAlign: 'center',
                   fontSize: 'clamp(0.75rem, 0.5vw, 1rem)',
                   width: '100%',
                 }}
               >
-                {`${pending.length} ${t('validations needed')}`}
+                <Link to={humanValidationLink}>
+                  <InfoOutlined fontSize="small" />
+                  {`${pending.length} ${t('validations needed')}`}
+                </Link>
               </Button>
             )}
           </div>

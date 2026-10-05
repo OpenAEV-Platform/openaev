@@ -55,7 +55,9 @@ public class UserQueryHelper {
         tenantIdsExpression.alias(ALIAS_TENANTS),
         tenantNamesExpression.alias(QUERY_ALIAS_TENANT_NAMES));
 
-    cq.groupBy(userRoot.get("id"), organizationJoin.get("id"));
+    // organizations is tenant-active: the inspector wraps the joined table in a sub-query, so
+    // PostgreSQL can no longer infer organization_name from organization_id - list it explicitly.
+    cq.groupBy(userRoot.get("id"), organizationJoin.get("id"), organizationJoin.get("name"));
   }
 
   // -- EXECUTION --

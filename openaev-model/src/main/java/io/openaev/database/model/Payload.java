@@ -13,7 +13,6 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.helper.CollectorTypeNameSerializer;
@@ -34,14 +33,17 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
+import org.hibernate.type.SqlTypes;
 
 @Data
 @Entity
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners(ModelBaseListener.class)
+// payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
+// TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
+// on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
 @Schema(
     discriminatorProperty = "payload_type",
     oneOf = {
@@ -168,7 +170,7 @@ public class Payload implements GrantableBase, TenantBase {
    * when this payload's predefined expectations are instantiated on an inject.
    */
   @Setter
-  @Type(JsonType.class)
+  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "payload_expected_security_platforms", columnDefinition = "jsonb")
   @JsonProperty("payload_expected_security_platforms")
   private Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>

@@ -14,7 +14,7 @@ Java / Spring Boot / React / TypeScript / PostgreSQL. See `pom.xml` and `package
 | `openaev-model/` | JPA entities, repositories | Active |
 | `openaev-framework/` | Shared abstractions | ⚠️ Deprecated ([details](/.github/copilot-instructions.md#architecture)) |
 | `openaev-api/` | REST API, services, migrations | Active |
-| `openaev-front/` | React SPA (Redux, CASL, MUI, Zod) | Active |
+| `openaev-front/` | React SPA (Redux, CASL, Filigran Design System, MUI, Zod) | Active |
 
 ## Key Commands
 
@@ -34,7 +34,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | Domain                                                            | File | Applies to |
 |-------------------------------------------------------------------|---|---|
 | **Backend** (entities, services, DTOs, API)                       | [backend.instructions.md](.github/instructions/backend.instructions.md) | `openaev-api/**`, `openaev-model/**` |
-| **Frontend** (components, hooks, folders)                         | [frontend.instructions.md](.github/instructions/frontend.instructions.md) | `openaev-front/**` |
+| **Frontend** (components, design system, hooks, folders)          | [frontend.instructions.md](.github/instructions/frontend.instructions.md) | `openaev-front/**` |
 | **Database** (migrations, schema, indexes)                        | [database.instructions.md](.github/instructions/database.instructions.md) | `**/db/migration/**`, `**/model/**` |
 | **Security** (auth, RBAC, tenant isolation)                       | [security.instructions.md](.github/instructions/security.instructions.md) | All Java & TypeScript files |
 | **Performance** (queries, caching, patterns)                      | [performance.instructions.md](.github/instructions/performance.instructions.md) | All Java files |
@@ -68,7 +68,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 |---|---|---|---|
 | [Code Reviewer](.github/agents/code-reviewer.agent.md) | General-purpose review: architecture, conventions, readability, delegation | `AGENTS.md` → `copilot-instructions.md` → `code-review.instructions.md` | `review-code` skill |
 | [API Reviewer](.github/agents/api-reviewer.agent.md) | Audit API layer: controllers, DTO contracts, Swagger, compatibility | `AGENTS.md` → `copilot-instructions.md` → `api.instructions.md` | n/a |
-| [Frontend Reviewer](.github/agents/frontend-reviewer.agent.md) | Audit component patterns, forms, MUI, i18n, permissions | `AGENTS.md` → `copilot-instructions.md` → `frontend.instructions.md` | `review-frontend` skill |
+| [Frontend Reviewer](.github/agents/frontend-reviewer.agent.md) | Audit component patterns, design system adoption, forms, MUI, i18n, permissions | `AGENTS.md` → `copilot-instructions.md` → `frontend.instructions.md` | `review-frontend` skill |
 | [Migration Reviewer](.github/agents/migration-reviewer.agent.md) | Audit Flyway migration safety, idempotency, tenant isolation, rollout risk | `AGENTS.md` → `copilot-instructions.md` → `migration.instructions.md` | `review-migration` skill |
 | [Multi-Tenancy Reviewer](.github/agents/multi-tenancy-reviewer.agent.md) | Audit tenant isolation, cross-tenant leaks, filter bypasses, migration safety | `AGENTS.md` → `copilot-instructions.md` → `multi-tenancy.instructions.md` | `review-multi-tenancy` skill |
 | [Performance Reviewer](.github/agents/performance-reviewer.agent.md) | Audit N+1, lazy loading, query efficiency, pagination | `AGENTS.md` → `copilot-instructions.md` → `performance.instructions.md` | `review-performance` skill |
@@ -88,7 +88,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | PR touches `@AccessControl`, `@Filter`, `Capability`, `Permission`, native `@Query` | **Security Reviewer** |
 | PR touches entity collections, `@Fetch`, `@Transactional`, new endpoints, `findAll` | **Performance Reviewer** |
 | PR touches tenant-scoped entities, migrations with `tenant_id`, `TenantContext` | **Multi-Tenancy Reviewer** |
-| PR touches frontend (`.tsx`, `.ts`, forms, components) | **Frontend Reviewer** |
+| PR touches frontend (`.tsx`, `.ts`, forms, components, design system) | **Frontend Reviewer** |
 | PR adds a new feature without tests, or coverage is below threshold | **Test Specialist** |
 | PR touches chaining (steps, conditions, workflows, queues, scope, WorkflowState) | **Chaining Engine Reviewer** |
 | PR has functional changes but no `docs/` updates | **Docs Reviewer** (auto-triggered on PR open via `/review docs` command) |

@@ -1003,6 +1003,91 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackObservationOutput {
+  /** Asset id */
+  asset_id?: string;
+  /** Asset name */
+  asset_name?: string;
+  /** Attack pattern external id */
+  attack_pattern_external_id?: string;
+  /** Attack pattern name */
+  attack_pattern_name?: string;
+  /**
+   * Successful attempts
+   * @format int64
+   */
+  attempts_success?: number;
+  /**
+   * Total attempts
+   * @format int64
+   */
+  attempts_total?: number;
+  /**
+   * Coverage ratio
+   * @format double
+   */
+  coverage_ratio?: number;
+  /** Endpoint hostname, null for an asset that is not an endpoint */
+  endpoint_hostname?: string;
+  /** Endpoint platform, null for an asset that is not an endpoint */
+  endpoint_platform?: string;
+  /** Expectation status */
+  expectation_status?: string;
+  /** Expectation type */
+  expectation_type?: string;
+  /** Observation id */
+  id?: string;
+  /** Id of the inject of the latest verified attempt */
+  last_inject_id?: string;
+  /** Id of the last simulation that produced this observation */
+  last_simulation_id?: string;
+  /** Name of the last simulation that produced this observation */
+  last_simulation_name?: string;
+  /**
+   * Start date of the last simulation that produced this observation
+   * @format date-time
+   */
+  last_simulation_start_date?: string;
+  /** Status of the last simulation that produced this observation */
+  last_simulation_status?: string;
+  /**
+   * Last verification timestamp
+   * @format date-time
+   */
+  last_verified_at?: string;
+  /**
+   * Types of the security platforms that reported on this technique
+   * @uniqueItems true
+   */
+  platform_types_reporting?: string[];
+  /**
+   * Types of the security platforms that succeeded
+   * @uniqueItems true
+   */
+  platform_types_succeeded?: string[];
+  /**
+   * Ids of the security platforms that reported on this technique
+   * @uniqueItems true
+   */
+  platforms_reporting?: string[];
+  /**
+   * Ids of the security platforms that succeeded
+   * @uniqueItems true
+   */
+  platforms_succeeded?: string[];
+  /** Scenario id */
+  scenario_id?: string;
+  /** Scenario name */
+  scenario_name?: string;
+  /** Tenant name */
+  tenant_name?: string;
+  /**
+   * Last update timestamp
+   * @format date-time
+   */
+  updated_at?: string;
+}
+
 export interface AttackPathAlertDTO {
   date?: string;
   id?: string;
@@ -4508,6 +4593,11 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_mac_addresses?: string[];
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /** Free-form category-specific attributes */
   asset_metadata?: Record<string, any>;
   /**
@@ -4910,6 +5000,54 @@ export interface EsAssetGroup {
   name?: string;
 }
 
+export interface EsAttackObservation {
+  asset_hostname?: string;
+  asset_name?: string;
+  attack_observation_attack_pattern_external_id?: string;
+  attack_observation_attack_pattern_name?: string;
+  /** @format int64 */
+  attack_observation_attempts_success?: number;
+  /** @format int64 */
+  attack_observation_attempts_total?: number;
+  /** @format double */
+  attack_observation_coverage_ratio?: number;
+  attack_observation_expectation_type?: string;
+  /** @format date-time */
+  attack_observation_last_verified_at?: string;
+  /** @uniqueItems true */
+  attack_observation_platform_types_reporting?: string[];
+  /** @uniqueItems true */
+  attack_observation_platform_types_succeeded?: string[];
+  /** @uniqueItems true */
+  attack_observation_platforms_succeeded?: string[];
+  attack_observation_scenario_name?: string;
+  attack_observation_simulation_name?: string;
+  /** @format date-time */
+  attack_observation_simulation_start_date?: string;
+  attack_observation_simulation_status?: string;
+  attack_observation_status?: string;
+  attack_observation_tenant_name?: string;
+  base_asset_side?: string;
+  /** @uniqueItems true */
+  base_attack_patterns_side?: string[];
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  base_id?: string;
+  base_inject_side?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  base_scenario_side?: string;
+  /** @uniqueItems true */
+  base_security_platforms_side?: string[];
+  base_simulation_side?: string;
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_platform?: string;
+}
+
 export interface EsAttackPath {
   /** @uniqueItems true */
   attackPatternChildrenIds?: string[];
@@ -4966,6 +5104,14 @@ export type EsBase = BaseEsBase &
     | BaseEsBaseBaseEntityMapping<"security-platform", EsSecurityPlatform>
     | BaseEsBaseBaseEntityMapping<"security-domain", EsSecurityDomain>
     | BaseEsBaseBaseEntityMapping<"asset-group", EsAssetGroup>
+    | BaseEsBaseBaseEntityMapping<
+        "snapshot-attack-observation",
+        EsAttackObservation
+      >
+    | BaseEsBaseBaseEntityMapping<
+        "snapshot-vulnerability-observation",
+        EsVulnerabilityObservation
+      >
   );
 
 export interface EsCountInterval {
@@ -5241,6 +5387,35 @@ export interface EsTeam {
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
+}
+
+export interface EsVulnerabilityObservation {
+  asset_hostname?: string;
+  asset_name?: string;
+  base_asset_side?: string;
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  /** @uniqueItems true */
+  base_findings_side?: string[];
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  base_scenario_side?: string;
+  base_simulation_side?: string;
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_platform?: string;
+  finding_type?: string;
+  finding_value?: string;
+  vulnerability_observation_external_id?: string;
+  /** @format date-time */
+  vulnerability_observation_last_verified_at?: string;
+  vulnerability_observation_scenario_name?: string;
+  vulnerability_observation_simulation_name?: string;
+  vulnerability_observation_tenant_name?: string;
 }
 
 export interface EsVulnerableEndpoint {
@@ -7830,6 +8005,7 @@ export interface License {
   license_is_valid_product?: boolean;
   license_is_validated?: boolean;
   license_platform?: string;
+  license_source?: "openaev" | "xtm_one";
   /** @format date-time */
   license_start_date?: string;
   license_type?: "trial" | "nfr" | "standard" | "lts";
@@ -8178,6 +8354,7 @@ export interface NotificationTriggerInput {
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
     | "MARKING_DEFINITION"
+    | "MARKING_ASSIGNMENT"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -8217,6 +8394,7 @@ export interface NotificationTriggerInput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "SNAPSHOT_OBSERVATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -8287,6 +8465,7 @@ export interface NotificationTriggerOutput {
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
     | "MARKING_DEFINITION"
+    | "MARKING_ASSIGNMENT"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -8326,6 +8505,7 @@ export interface NotificationTriggerOutput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "SNAPSHOT_OBSERVATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -8511,7 +8691,7 @@ export interface PageAggregatedFindingOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8530,7 +8710,7 @@ export interface PageAsset {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8549,7 +8729,7 @@ export interface PageAssetGroupOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8568,7 +8748,7 @@ export interface PageAssetOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8587,7 +8767,7 @@ export interface PageAttackPatternOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8606,7 +8786,7 @@ export interface PageConnectorInstanceLog {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8625,7 +8805,7 @@ export interface PageCredentialOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8644,7 +8824,7 @@ export interface PageCustomDashboard {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8663,7 +8843,7 @@ export interface PageCustomDomain {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8682,7 +8862,7 @@ export interface PageEndpointOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8701,7 +8881,7 @@ export interface PageEndpointTargetOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8720,7 +8900,7 @@ export interface PageExerciseSimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8739,7 +8919,7 @@ export interface PageFullTextSearchResult {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8758,7 +8938,7 @@ export interface PageGroup {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8777,7 +8957,7 @@ export interface PageInjectResultOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8796,7 +8976,7 @@ export interface PageInjectTarget {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8815,7 +8995,7 @@ export interface PageInjectTestStatusOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8834,7 +9014,7 @@ export interface PageInjectorContractBaseOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8853,7 +9033,7 @@ export interface PageKillChainPhase {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8872,7 +9052,7 @@ export interface PageLessonsTemplate {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8891,7 +9071,7 @@ export interface PageMarkingDefinitionOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8910,7 +9090,7 @@ export interface PageMitigation {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8929,7 +9109,7 @@ export interface PageNotificationOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8948,7 +9128,7 @@ export interface PageNotificationTriggerOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8967,7 +9147,7 @@ export interface PageNotifierOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8986,7 +9166,7 @@ export interface PageOrganization {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9005,7 +9185,7 @@ export interface PagePayload {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9024,7 +9204,7 @@ export interface PagePhishingEmailTemplate {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9043,7 +9223,7 @@ export interface PagePhishingLandingPage {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9062,7 +9242,7 @@ export interface PagePlatformGroupOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9081,7 +9261,7 @@ export interface PagePlayerOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9100,7 +9280,7 @@ export interface PageRawPaginationDocument {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9119,7 +9299,7 @@ export interface PageRawPaginationImportMapper {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9138,7 +9318,7 @@ export interface PageRawPaginationScenario {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9157,7 +9337,7 @@ export interface PageRelatedFindingOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9176,7 +9356,7 @@ export interface PageReporting {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9195,7 +9375,7 @@ export interface PageRoleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9214,7 +9394,7 @@ export interface PageSecurityPlatform {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9233,7 +9413,7 @@ export interface PageTag {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9252,7 +9432,7 @@ export interface PageTagRuleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9271,7 +9451,7 @@ export interface PageTeamOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9290,7 +9470,7 @@ export interface PageTenantOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9309,7 +9489,7 @@ export interface PageUserOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9328,7 +9508,7 @@ export interface PageVulnerabilitySimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9920,6 +10100,7 @@ export interface PlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
     | "MARKING"
+    | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -9980,6 +10161,8 @@ export interface PlatformSettings {
   platform_banner_by_level?: Record<string, string[]>;
   /** Base URL of the platform */
   platform_base_url?: string;
+  /** Git commit the platform was built from, when the build provides it */
+  platform_commit?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
   /** id of the platform */
@@ -10303,6 +10486,7 @@ export interface PublicPlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
     | "MARKING"
+    | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10756,6 +10940,7 @@ export interface RoleInput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -10792,6 +10977,8 @@ export interface RoleInput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -10839,6 +11026,7 @@ export interface RoleOutput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -10875,6 +11063,8 @@ export interface RoleOutput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -11830,6 +12020,82 @@ export interface SimulationsResultsLatest {
   >;
 }
 
+export interface SnapshotSearchInput {
+  /** Opaque resume cursor from a previous page */
+  cursor?: string | null;
+  /**
+   * Page size, default 500, capped at 1000
+   * @format int32
+   */
+  page_size?: number | null;
+  /**
+   * Safety lag in seconds, default 120, clamped to [max(60, grace), 3600]
+   * @format int32
+   */
+  safety_lag_seconds?: number | null;
+  /**
+   * Full reconciliation lower bound; mutually exclusive with cursor
+   * @format date-time
+   */
+  since?: string | null;
+}
+
+export interface SnapshotSearchOutputAttackObservationOutput {
+  /** Always "eventual" */
+  consistency_mode?: string;
+  /** Whether another page is expected to follow */
+  has_more?: boolean;
+  /**
+   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
+   * @format date-time
+   */
+  indexed_through?: string;
+  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
+  next_cursor?: string | null;
+  /** Page of observations */
+  observations?: AttackObservationOutput[];
+  /**
+   * Server time at which this response was computed
+   * @format date-time
+   */
+  server_time?: string;
+  /** Whether the window is current with the indexing horizon */
+  snapshot_ready?: boolean;
+  /**
+   * Inclusive upper bound of this page's window
+   * @format date-time
+   */
+  snapshot_window_end?: string;
+}
+
+export interface SnapshotSearchOutputVulnerabilityObservationOutput {
+  /** Always "eventual" */
+  consistency_mode?: string;
+  /** Whether another page is expected to follow */
+  has_more?: boolean;
+  /**
+   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
+   * @format date-time
+   */
+  indexed_through?: string;
+  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
+  next_cursor?: string | null;
+  /** Page of observations */
+  observations?: VulnerabilityObservationOutput[];
+  /**
+   * Server time at which this response was computed
+   * @format date-time
+   */
+  server_time?: string;
+  /** Whether the window is current with the indexing horizon */
+  snapshot_ready?: boolean;
+  /**
+   * Inclusive upper bound of this page's window
+   * @format date-time
+   */
+  snapshot_window_end?: string;
+}
+
 export interface SortField {
   direction?: string | null;
   nullHandling?: "NATIVE" | "NULLS_FIRST" | "NULLS_LAST";
@@ -12436,15 +12702,30 @@ export interface TenantSettingsUpdateInput {
 }
 
 export interface ThemeInput {
-  /** Accent color of the theme */
+  /**
+   * Accent color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   accent_color?: string;
-  /** Background color of the theme */
+  /**
+   * Background color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   background_color?: string;
-  /** Solid color of the login page aside */
+  /**
+   * Solid color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_color?: string;
-  /** Gradient end color of the login page aside */
+  /**
+   * Gradient end color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_gradient_end?: string;
-  /** Gradient start color of the login page aside */
+  /**
+   * Gradient start color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_gradient_start?: string;
   /** Url of the login page aside background image */
   login_aside_image?: string;
@@ -12454,14 +12735,31 @@ export interface ThemeInput {
   logo_url?: string;
   /** 'true' if the logo needs to be collapsed */
   logo_url_collapsed?: string;
-  /** Navigation color of the theme */
+  /**
+   * Navigation color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   navigation_color?: string;
-  /** Paper color of the theme */
+  /**
+   * Paper color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   paper_color?: string;
-  /** Primary color of the theme */
+  /**
+   * Primary color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   primary_color?: string;
-  /** Secondary color of the theme */
+  /**
+   * Secondary color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   secondary_color?: string;
+  /**
+   * Text color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
+  text_color?: string;
 }
 
 export interface ThreatArsenalAction {
@@ -13023,6 +13321,7 @@ export interface User {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -13059,6 +13358,8 @@ export interface User {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -13304,6 +13605,47 @@ export interface VulnerabilityCreateInput {
    * @example "ANALYZED"
    */
   vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+}
+
+export interface VulnerabilityObservationOutput {
+  /** Asset id */
+  asset_id?: string;
+  /** Asset name */
+  asset_name?: string;
+  /** Endpoint hostname, null for an asset that is not an endpoint */
+  endpoint_hostname?: string;
+  /** Endpoint platform, null for an asset that is not an endpoint */
+  endpoint_platform?: string;
+  /** Finding type */
+  finding_type?: string;
+  /** Finding value */
+  finding_value?: string;
+  /** Observation id */
+  id?: string;
+  /** Id of the finding that defines the current state of this grain */
+  last_finding_id?: string;
+  /** Id of the last scenario that produced this observation */
+  last_scenario_id?: string;
+  /** Name of the last scenario that produced this observation */
+  last_scenario_name?: string;
+  /** Id of the last simulation that produced this observation */
+  last_simulation_id?: string;
+  /** Name of the last simulation that produced this observation */
+  last_simulation_name?: string;
+  /**
+   * Last verification timestamp
+   * @format date-time
+   */
+  last_verified_at?: string;
+  /** Tenant name */
+  tenant_name?: string;
+  /**
+   * Last update timestamp
+   * @format date-time
+   */
+  updated_at?: string;
+  /** Vulnerability external id */
+  vulnerability_external_id?: string;
 }
 
 /** Full vulnerability output including references and CWEs */
@@ -13562,6 +13904,16 @@ export interface Workflow {
    * @max 5940
    */
   workflow_max_temporal_rate_seconds?: number;
+  /**
+   * Timestamp when the workflow has been paused
+   * @format date-time
+   */
+  workflow_pause_at?: string;
+  /**
+   * Total pause duration in seconds, incremented at each pause/resume cycle
+   * @format int64
+   */
+  workflow_pause_second?: number;
   workflow_rate_limit_enabled?: boolean;
   workflow_safe_mode_enabled?: boolean;
   workflow_scope_rules?: WorkflowScopeRule[];

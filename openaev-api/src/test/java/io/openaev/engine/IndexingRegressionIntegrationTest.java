@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
@@ -70,8 +71,13 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private ScenarioComposer scenarioComposer;
 
-  /** One hour ago - used as the {@code lastIndexing} cursor for incremental tests. */
-  private static final Instant FROM = Instant.now().minus(1, ChronoUnit.HOURS);
+  /**
+   * One hour ago - used as the {@code lastIndexing} cursor for incremental tests. Truncated to the
+   * microsecond precision of a PostgreSQL {@code timestamp} so a round-trip through the column is
+   * exact.
+   */
+  private static final Instant FROM =
+      Instant.now().truncatedTo(ChronoUnit.MICROS).minus(1, ChronoUnit.HOURS);
 
   /** A point in time safely before {@code FROM} - used to push timestamps into the past. */
   private static final Instant PAST = FROM.minus(1, ChronoUnit.DAYS);
@@ -128,7 +134,9 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
     // ALL_TIME avoids the DEFAULT branch that requires a dashboard timeRange parameter
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
     ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 5000));
-    return engineService.entities(ADMIN_USER, runtime);
+    // Not a tenant-scope test: it only checks indexing/deletion counts across fixtures that may
+    // span tenants, so it reads the platform-wide view rather than any one tenant's.
+    return engineService.entities(TxCtx.allTenants(), ADMIN_USER, runtime);
   }
 
   /**
@@ -342,13 +350,23 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
 
     /** The write of a round that read {@code readCursor} and computed {@code cursor} for asset. */
     private int advanceFrom(Instant readCursor, Instant cursor) {
+      return advanceFrom(readCursor, null, cursor, null);
+    }
+
+    /** The keyset variant of {@link #advanceFrom(Instant, Instant)}, ids compared and written. */
+    private int advanceFrom(Instant readCursor, String readLastId, Instant cursor, String lastId) {
       return indexingStatusRepository.advanceCursorFrom(
-          "asset", readCursor, cursor, EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+          "asset",
+          readCursor,
+          readLastId,
+          cursor,
+          lastId,
+          EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
     }
 
     /** The write of a round that found no {@code asset} row and computed {@code cursor}. */
     private int insertIfAbsent(Instant cursor) {
-      return indexingStatusRepository.insertCursorIfAbsent("asset", cursor);
+      return indexingStatusRepository.insertCursorIfAbsent("asset", cursor, null);
     }
 
     @Test
@@ -456,6 +474,46 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
       // -- ASSERT --
       assertThat(written).isOne();
       assertThat(readIndexingCursor("asset")).isEqualTo(CURSOR);
+    }
+
+    @Test
+    @DisplayName(
+        "Read (C, a), a peer advances on the id alone to (C, b), the stale write is refused")
+    void given_peerAdvancedOnTheIdAlone_should_refuseTheStaleCursor() {
+      // -- ARRANGE: a keyset round read (CURSOR, a); a peer then persisted (CURSOR, b)
+      assertThat(insertIfAbsent(CURSOR)).isOne();
+      assertThat(advanceFrom(CURSOR, null, CURSOR, "a")).isOne();
+      assertThat(advanceFrom(CURSOR, "a", CURSOR, "b")).isOne();
+
+      // -- ACT: the first round persists the cursor it computed from (CURSOR, a)
+      int written = advanceFrom(CURSOR, "a", LATER, "z");
+
+      // -- ASSERT: the timestamp still matches, the id does not: the write must not land
+      assertThat(written).as("the id is part of the compared value").isZero();
+      entityManager.clear();
+      IndexingStatus status = entityManager.find(IndexingStatus.class, "asset");
+      assertThat(status.getLastIndexing()).isEqualTo(CURSOR);
+      assertThat(status.getLastId()).isEqualTo("b");
+    }
+
+    @Test
+    @DisplayName("The epoch re-assertion clears the keyset id of the abandoned position")
+    void given_keysetCursor_should_clearTheIdOnEpochReassertion() {
+      // -- ARRANGE --
+      assertThat(insertIfAbsent(CURSOR)).isOne();
+      assertThat(advanceFrom(CURSOR, null, LATER, "a")).isOne();
+
+      // -- ACT --
+      int written =
+          indexingStatusRepository.reassertCursorUnlessResetRequested(
+              "asset", Instant.EPOCH, EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+
+      // -- ASSERT --
+      assertThat(written).isOne();
+      entityManager.clear();
+      IndexingStatus status = entityManager.find(IndexingStatus.class, "asset");
+      assertThat(status.getLastIndexing()).isEqualTo(Instant.EPOCH);
+      assertThat(status.getLastId()).isNull();
     }
   }
 
@@ -1189,6 +1247,71 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(queryModel("vulnerable-endpoint").getTotal()).isZero();
+    }
+  }
+
+  @Nested
+  @DisplayName("Keyset paging - additive slice, no behaviour change")
+  class KeysetPagingRegression {
+
+    @Test
+    @DisplayName("Existing handler persists a null indexing_status_last_id")
+    void given_existingHandler_should_persistANullLastId() {
+      // -- ARRANGE --
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      awaitEndpointIndexedAssertion(() -> assertThat(queryModel("asset").getTotal()).isEqualTo(1));
+      assertThat(indexingStatusRepository.findByType("asset"))
+          .as("none of the 13 existing handlers has opted into keyset paging yet")
+          .hasValueSatisfying(status -> assertThat(status.getLastId()).isNull());
+    }
+
+    @Test
+    @DisplayName("Existing handler keeps its historical cursor-advancement behaviour")
+    void given_existingHandler_should_keepUnchangedCursorBehaviour() {
+      // -- ARRANGE --
+      // Pinned to PAST (outside the grace window) so the persisted cursor equals the row's
+      // updated_at exactly, instead of being capped to now-graceWindow and clock-dependent.
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      entityManager.flush();
+      pushEndpointToPast(endpointWrapper.get().getId());
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      awaitEndpointIndexedAssertion(() -> assertThat(queryModel("asset").getTotal()).isEqualTo(1));
+      assertThat(indexingStatusRepository.findByType("asset"))
+          .as("a timestamp-only handler must still land on the last row's updated_at, with no id")
+          .hasValueSatisfying(
+              status -> {
+                assertThat(status.getLastIndexing()).isEqualTo(PAST);
+                assertThat(status.getLastId()).isNull();
+              });
+    }
+
+    @Test
+    @DisplayName("Empty batch writes no indexing_status row")
+    void given_emptyBatch_should_writeNoIndexingStatusRow() {
+      // -- ARRANGE --
+      // No endpoint fixture is created: @BeforeEach resets the endpoint composer, so the asset
+      // handler's fetch is empty and the loop takes the untouched "up to date" branch.
+      assertThat(queryModel("asset").getTotal())
+          .as("precondition: no seeded asset, otherwise the batch would not be empty")
+          .isZero();
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      assertThat(indexingStatusRepository.findByType("asset"))
+          .as("the empty-batch branch must write no row (locked as-is until the Epic 2 PR)")
+          .isEmpty();
     }
   }
 }

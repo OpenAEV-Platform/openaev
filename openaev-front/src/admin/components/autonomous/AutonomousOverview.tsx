@@ -120,7 +120,7 @@ const AutonomousOverview: FunctionComponent<AutonomousOverviewProps> = ({ run, s
             }
             if (postureResults.length === 0) {
               return (
-                <SamplePreview active variant="subtle">
+                <SamplePreview active variant="subtle" atPanelEdge>
                   <PostureGauges expectationResultsByTypes={SAMPLE_POSTURE} />
                 </SamplePreview>
               );

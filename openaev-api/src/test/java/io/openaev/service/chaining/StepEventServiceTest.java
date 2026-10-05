@@ -61,7 +61,7 @@ class StepEventServiceTest {
     // Tenant-propagation tests assert the scope opened around the event, not run() itself; make the
     // step lookup explicitly empty so the primitive's Runnable takes the (harmless) not-found
     // branch.
-    lenient().when(stepRepository.findById(any())).thenReturn(Optional.empty());
+    lenient().when(stepRepository.findForUpdateById(any())).thenReturn(Optional.empty());
   }
 
   @AfterEach
@@ -129,6 +129,27 @@ class StepEventServiceTest {
       // -------- Assert --------
       verify(stepRun).setStatus(StepStatus.RUN);
       verify(stepService).saveStep(stepRun);
+    }
+
+    @Test
+    void shouldDropDuplicateWithoutRunningOrTouchingStep_whenStepAlreadyRan()
+        throws ChainingException {
+      // -------- Prepare --------
+      Step stepReady = mock(Step.class);
+      ActionStep actionStep = mock(ActionStep.class);
+
+      when(stepReady.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
+          .thenReturn(actionStep);
+      when(actionStep.isAlreadyRun(stepReady)).thenReturn(true);
+
+      // -------- Act --------
+      stepEventService.run(stepReady);
+
+      // -------- Assert --------
+      verify(actionStep, never()).run(any());
+      verify(stepReady, never()).setStatus(any());
+      verify(stepService, never()).saveStep(any());
     }
 
     @Test
@@ -232,7 +253,7 @@ class StepEventServiceTest {
       step.setStepAction(StepActionClass.INJECT_EXECUTION);
       Step stepRun = new Step();
 
-      when(stepRepository.findById(stepId)).thenReturn(Optional.of(step));
+      when(stepRepository.findForUpdateById(stepId)).thenReturn(Optional.of(step));
       when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), any()))
           .thenReturn(actionStep);
       when(actionStep.run(step)).thenReturn(Optional.of(stepRun));
@@ -241,7 +262,7 @@ class StepEventServiceTest {
       stepEventService.handleReadyStepEvent(event);
 
       // Assert
-      verify(stepRepository).findById(stepId);
+      verify(stepRepository).findForUpdateById(stepId);
       assertEquals(StepStatus.RUN, stepRun.getStatus());
       verify(stepService).saveStep(stepRun);
     }
@@ -253,13 +274,13 @@ class StepEventServiceTest {
       String stepId = UUID.randomUUID().toString();
       when(event.getStepId()).thenReturn(stepId);
 
-      when(stepRepository.findById(stepId)).thenReturn(Optional.empty());
+      when(stepRepository.findForUpdateById(stepId)).thenReturn(Optional.empty());
 
       // Act
       stepEventService.handleReadyStepEvent(event);
 
       // Assert
-      verify(stepRepository).findById(stepId);
+      verify(stepRepository).findForUpdateById(stepId);
       verify(stepService, never()).saveStep(any());
     }
 
