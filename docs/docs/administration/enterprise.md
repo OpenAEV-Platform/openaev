@@ -49,7 +49,14 @@ expiration date of its certificate. The instance creation date is recorded at th
 never reset afterwards, even when the configured instance id changes; a CI license is refused while that date is
 missing, unreadable or in the future. If the certificate is missing, does not verify or has expired, the platform is
 back in Community Edition, unless it has its own OpenAEV license. While XTM One cannot be reached, the last verified certificate keeps
-applying, within its validity dates. This requires XTM One 1.261001.0 or later, which returns the license certificate;
+applying, within its validity dates.
+
+The certificate is verified offline: it is not bound to the XTM One instance that returns it nor to a registration,
+and OpenAEV cannot ask Filigran whether a sub-license is still in force. A sub-license revoked on XTM One therefore
+ends when XTM One answers without the certificate, not while it cannot be reached. Likewise, a copy of a valid
+certificate served from the XTM One URL configured on this platform keeps granting Enterprise Edition until the
+certificate expires (plus the grace period of its type), and a `global` certificate covers any OpenAEV platform.
+Point the XTM One URL at a host you trust, over HTTPS. This requires XTM One 1.261001.0 or later, which returns the license certificate;
 with an older XTM One, only the OpenAEV license applies and a warning is logged.
 
 The Enterprise Edition card of the platform settings shows the license source: **XTM One license** (with the
