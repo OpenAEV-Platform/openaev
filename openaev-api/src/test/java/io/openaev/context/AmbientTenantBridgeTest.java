@@ -26,15 +26,15 @@ import org.springframework.transaction.support.TransactionTemplate;
  * The bridge aligns the ambient tenant and the v1 {@code tenantFilter} on the write tenant for the
  * duration of a call, then puts back exactly what it found: the filter armed on the same tenant, or
  * no filter at all when the surrounding transaction had none. The probe is a v1-filtered entity
- * ({@code Team}) read through JPQL: which rows come back is what the filter state means for the
+ * ({@code Scenario}) read through JPQL: which rows come back is what the filter state means for the
  * rest of the transaction. It must still carry {@code @Filter("tenantFilter")}: once its table is
  * activated on v2 the filter is gone and the probe sees every row, so move it to another v1 entity
- * (it was {@code Organization} until organizations went v2).
+ * (it was {@code Organization}, then {@code Team}, until each went v2).
  *
  * <p>Not {@code @Transactional}: one case runs inside the background primitive, which refuses an
  * active transaction. Rows are seeded and removed in auto-committed JDBC. The active-tables list is
- * pinned so the statement inspector never scopes {@code teams} here, whatever a shadow run arms:
- * the filter must be the only thing deciding what the probe sees.
+ * pinned so the statement inspector never scopes {@code scenarios} here, whatever a shadow run
+ * arms: the filter must be the only thing deciding what the probe sees.
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @DisplayName("AmbientTenantBridge restores the filter state it found")
@@ -50,23 +50,23 @@ class AmbientTenantBridgeTest extends IntegrationTest {
   private JdbcTemplate jdbc;
   private String tenantA;
   private String tenantB;
-  private String teamA;
-  private String teamB;
+  private String scenarioA;
+  private String scenarioB;
 
   @BeforeEach
-  void seedOneTeamPerTenant() {
+  void seedOneScenarioPerTenant() {
     jdbc = new JdbcTemplate(dataSource);
     tenantA = seedTenant("bridge-a-" + UUID.randomUUID());
     tenantB = seedTenant("bridge-b-" + UUID.randomUUID());
-    teamA = seedTeam("bridge-a-" + UUID.randomUUID(), tenantA);
-    teamB = seedTeam("bridge-b-" + UUID.randomUUID(), tenantB);
+    scenarioA = seedScenario("bridge-a-" + UUID.randomUUID(), tenantA);
+    scenarioB = seedScenario("bridge-b-" + UUID.randomUUID(), tenantB);
     TenantContext.clearCurrentTenant();
   }
 
   @AfterEach
   void cleanup() {
     TenantContext.clearCurrentTenant();
-    jdbc.update("DELETE FROM teams WHERE team_id IN (?, ?)", teamA, teamB);
+    jdbc.update("DELETE FROM scenarios WHERE scenario_id IN (?, ?)", scenarioA, scenarioB);
     jdbc.update("DELETE FROM tenants WHERE tenant_id IN (?, ?)", tenantA, tenantB);
   }
 
@@ -87,19 +87,19 @@ class AmbientTenantBridgeTest extends IntegrationTest {
 
             // Act
             List<String> seenDuring =
-                bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleTeams);
+                bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleScenarios);
 
             // Assert
             assertEquals(
-                List.of(teamB),
+                List.of(scenarioB),
                 seenDuring,
                 "inside the call the v1 filter follows the write tenant");
             assertNull(
                 session.getEnabledFilter(TENANT_FILTER),
                 "the state found at entry, no filter, is restored");
             assertEquals(
-                List.of(teamA, teamB),
-                visibleTeams(),
+                List.of(scenarioA, scenarioB),
+                visibleScenarios(),
                 "the rest of the transaction is not narrowed to one tenant");
             assertFalse(TenantContext.hasCurrentTenant(), "the ambient tenant is cleared again");
             return null;
@@ -124,17 +124,17 @@ class AmbientTenantBridgeTest extends IntegrationTest {
 
                 // Act
                 List<String> seenDuring =
-                    bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleTeams);
+                    bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleScenarios);
 
                 // Assert
                 assertEquals(
-                    List.of(teamB),
+                    List.of(scenarioB),
                     seenDuring,
                     "inside the call the v1 filter follows the write tenant");
                 assertEquals(tenantA, TenantContext.getCurrentTenant(), "ambient tenant restored");
                 assertEquals(tenantA, enabledFilterTenant(session), "the filter is back on A");
                 assertEquals(
-                    List.of(teamA), visibleTeams(), "the rest of the transaction reads A again");
+                    List.of(scenarioA), visibleScenarios(), "the rest of the transaction reads A again");
                 return null;
               });
     }
@@ -162,7 +162,7 @@ class AmbientTenantBridgeTest extends IntegrationTest {
                     enabledFilterTenant(session),
                     "the filter goes back to the tenant it was armed on, not to the ambient one");
                 assertEquals(
-                    List.of(teamA), visibleTeams(), "the rest of the transaction reads A again");
+                    List.of(scenarioA), visibleScenarios(), "the rest of the transaction reads A again");
                 assertFalse(
                     TenantContext.hasCurrentTenant(), "the ambient tenant is cleared again");
                 return null;
@@ -188,11 +188,11 @@ class AmbientTenantBridgeTest extends IntegrationTest {
 
             // Act
             List<String> seenDuring =
-                bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleTeams);
+                bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleScenarios);
 
             // Assert
             assertEquals(
-                List.of(teamB),
+                List.of(scenarioB),
                 seenDuring,
                 "inside the call the v1 reads are confined to the write tenant, not unfiltered");
             assertNull(
@@ -218,11 +218,11 @@ class AmbientTenantBridgeTest extends IntegrationTest {
 
                 // Act
                 List<String> seenDuring =
-                    bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleTeams);
+                    bridge.callInTenant(tenantB, AmbientTenantBridgeTest.this::visibleScenarios);
 
                 // Assert
                 assertEquals(
-                    List.of(teamB),
+                    List.of(scenarioB),
                     seenDuring,
                     "inside the call the v1 reads follow the write tenant, not the filter armed at"
                         + " entry");
@@ -257,10 +257,10 @@ class AmbientTenantBridgeTest extends IntegrationTest {
   }
 
   /** The v1-filtered rows a JPQL read sees right now: the meaning of the current filter state. */
-  private List<String> visibleTeams() {
+  private List<String> visibleScenarios() {
     return entityManager
-        .createQuery("select t.id from Team t where t.id in :ids order by t.id", String.class)
-        .setParameter("ids", List.of(teamA, teamB))
+        .createQuery("select s.id from Scenario s where s.id in :ids order by s.id", String.class)
+        .setParameter("ids", List.of(scenarioA, scenarioB))
         .getResultList();
   }
 
@@ -282,9 +282,14 @@ class AmbientTenantBridgeTest extends IntegrationTest {
     return id;
   }
 
-  private String seedTeam(String id, String tenantId) {
+  private String seedScenario(String id, String tenantId) {
     jdbc.update(
-        "INSERT INTO teams (team_id, team_name, tenant_id) VALUES (?, ?, ?)", id, id, tenantId);
+        "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from, tenant_id)"
+            + " VALUES (?, ?, ?, ?)",
+        id,
+        id,
+        "bridge@filigran.io",
+        tenantId);
     return id;
   }
 }
