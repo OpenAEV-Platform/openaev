@@ -4455,7 +4455,7 @@
   "Warning": "Warnung",
   "was previously": "({previous_number} vorher)",
   "We detected that your change will trigger an {assetrule}. Would you like to apply the defined asset groups on your current existing injects?": "Wir haben festgestellt, dass Ihre Änderung eine {assetrule} auslösen wird. Möchten Sie die definierten Asset-Gruppen auf Ihre bestehenden Injects anwenden?",
-  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href='${lessons_uri}'>${lessons_uri}</a>.": "Wir danken Ihnen für Ihre Teilnahme an dieser Simulation. Wir bitten Sie, diesen Fragebogen zu den gewonnenen Erkenntnissen auszufüllen: <a href='${lessons_uri}'>${lessons_uri}</a>.",
+  "We would like thank your for your participation in this simulation. You are kindly requested to fill this lessons learned questionnaire: <a href=\"${lessons_uri}\">${lessons_uri}</a>.": "Wir danken Ihnen für Ihre Teilnahme an dieser Simulation. Wir bitten Sie, diesen Fragebogen zu den gewonnenen Erkenntnissen auszufüllen: '<a href=\"${lessons_uri}\">${lessons_uri}</a>'.",
   "Weak posture": "Schwache Sicherheitslage",
   "Weakness Enumeration": "Common Weakness Enumeration",
   "Web App": "Web-App",

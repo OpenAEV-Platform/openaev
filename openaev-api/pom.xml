@@ -33,9 +33,9 @@
         <!-- GCP credential status validation: signs the service account RS256 JWT and exchanges
              the OAuth2 refresh token. Same trade-off as Azure — SDK for the token, plain
              HttpClient for the resource probe. BSD-3-Clause. -->
-        <google-auth-library.version>1.53.0</google-auth-library.version>
+        <google-auth-library.version>1.54.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.55.5</aws-sts.version>
+        <aws-sts.version>2.55.10</aws-sts.version>
     </properties>
 
     <profiles>
@@ -259,7 +259,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.7.1-jre</version>
+            <version>33.7.2-jre</version>
         </dependency>
         <!-- Playwright drives an in-container headless Chromium to render reports (PDF/HTML).
              On dev machines the browser bundle is downloaded automatically on first use; the
@@ -413,7 +413,7 @@
         <dependency>
             <groupId>com.github.jsqlparser</groupId>
             <artifactId>jsqlparser</artifactId>
-            <version>5.3</version>
+            <version>5.4</version>
         </dependency>
     </dependencies>
 
