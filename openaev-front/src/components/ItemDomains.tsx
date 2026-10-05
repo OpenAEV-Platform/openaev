@@ -59,7 +59,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
     resolvedDomains
       .filter(d => d.domain_name !== TO_CLASSIFY)
       .map(domain => (
-        <Tooltip key={domain.domain_id} title={t(domain.domain_name)}>
+        <Tooltip key={domain.domain_id}>
           <TooltipTrigger asChild>
             <Chip
               startIcon={getIconByDomain(domain.domain_name, {
@@ -70,7 +70,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
               color={domain.domain_color}
             />
           </TooltipTrigger>
-          {domain.domain_name && <TooltipContent>{domain.domain_name}</TooltipContent>}
+          {domain.domain_name && <TooltipContent>{t(domain.domain_name)}</TooltipContent>}
         </Tooltip>
       ));
 
@@ -89,7 +89,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
                 fontSize: 14,
                 color: primaryDomain.domain_color,
               })}
-              label={truncate(primaryDomain.domain_name, truncateLimit) ?? ''}
+              label={truncate(t(primaryDomain.domain_name), truncateLimit) ?? ''}
               color={primaryDomain.domain_color}
             />
           </TooltipTrigger>
