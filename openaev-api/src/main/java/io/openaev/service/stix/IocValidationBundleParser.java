@@ -218,13 +218,16 @@ public class IocValidationBundleParser {
           "An IOC validation request is limited to %d IOCs, found %d"
               .formatted(MAX_INDICATORS, iocs.size()));
     }
-    Set<String> indicators = new LinkedHashSet<>();
-    iocs.forEach(ioc -> indicators.add(ioc.indicatorRef()));
-    pairs.forEach(pair -> indicators.add(pair.indicatorRef()));
-    if (indicators.size() > MAX_INDICATORS) {
-      throw new BundleValidationError(
-          "An IOC validation request is limited to %d indicators, found %d"
-              .formatted(MAX_INDICATORS, indicators.size()));
+    // OpenCTI builds every pair from an IOC of the request: a pair without one could never be
+    // tested and is a malformed request
+    Set<String> iocIndicators = new LinkedHashSet<>();
+    iocs.forEach(ioc -> iocIndicators.add(ioc.indicatorRef()));
+    for (IocValidationRequest.Pair pair : pairs) {
+      if (!iocIndicators.contains(pair.indicatorRef())) {
+        throw new BundleValidationError(
+            "The IOC validation request pairs indicator %s, which has no IOC"
+                .formatted(pair.indicatorRef()));
+      }
     }
     long platforms = pairs.stream().map(IocValidationRequest.Pair::platformRef).distinct().count();
     if (platforms > MAX_PLATFORMS) {

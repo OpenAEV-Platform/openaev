@@ -191,6 +191,17 @@ class IocValidationBundleParserTest {
   }
 
   @Test
+  @DisplayName("rejects a pair whose indicator has no IOC in the request")
+  void given_pairWithoutIoc_should_throw() {
+    ObjectNode request = request();
+    ((ObjectNode) request.get("pairs").get(0))
+        .put("indicator_ref", "indicator--00000000-0000-4000-8000-000000000000");
+    assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining("has no IOC");
+  }
+
+  @Test
   @DisplayName("rejects payloads that are not STIX bundles")
   void given_invalidJson_should_throw() {
     assertThatThrownBy(() -> parser.parse("{not json", REQUEST_ID))

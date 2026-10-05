@@ -28,5 +28,5 @@ export const searchIocValidationAssetGroupOptions = (searchText: string = '') =>
 };
 
 export const updateIocValidationSettings = (data: IocValidationSettingsInput) => {
-  return simplePutCall(`${IOC_VALIDATION_URI}/settings`, data);
+  return simplePutCall(`${IOC_VALIDATION_URI}/settings`, data, undefined, true, false);
 };

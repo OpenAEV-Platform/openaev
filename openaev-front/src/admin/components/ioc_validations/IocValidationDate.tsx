@@ -11,7 +11,7 @@ const IocValidationDate: FunctionComponent<Props> = ({ date }) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <time dateTime={date}>{moment(date).fromNow()}</time>
+        <time dateTime={date} tabIndex={0}>{moment(date).fromNow()}</time>
       </TooltipTrigger>
       <TooltipContent>{fldt(date)}</TooltipContent>
     </Tooltip>
