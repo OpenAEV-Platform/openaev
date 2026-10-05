@@ -88,6 +88,9 @@ public class IocValidationService {
           IocValidationStatus.COMPLETED, IocValidationStatus.PARTIAL, IocValidationStatus.FAILED);
 
   private static final int MAX_SCENARIO_NAME_LENGTH = 255;
+  // The results message stays well within the 5000 characters OpenCTI accepts for a status message
+  static final int MAX_ERROR_REASONS_IN_MESSAGE = 5;
+  static final int MAX_ERROR_REASON_LENGTH = 300;
   static final int OUTBOX_PAGE_SIZE = 100;
 
   private final AtomicReference<String> runningResultsCursor = new AtomicReference<>("");
@@ -966,14 +969,35 @@ public class IocValidationService {
         : message + ", %d skipped by the safety settings".formatted(skipped);
   }
 
-  private static String resultsMessage(IocValidation validation) {
-    return "Prevented %d, detected %d, missed %d, error %d (of %d indicator-platform pairs)"
-        .formatted(
-            validation.getPreventedCount(),
-            validation.getDetectedCount(),
-            validation.getMissedCount(),
-            validation.getErrorCount(),
-            validation.getPairsCount());
+  /**
+   * The results message sent to OpenCTI with the final status: the counts, then the distinct
+   * reasons of the error outcomes, so OpenCTI tells why a pair could not be evaluated. The
+   * deployment's {@code error_message} is not used for them: it is the error of the deployment
+   * itself, written by the stream connector of the security platform.
+   */
+  static String resultsMessage(IocValidation validation) {
+    String counts =
+        "Prevented %d, detected %d, missed %d, error %d (of %d indicator-platform pairs)"
+            .formatted(
+                validation.getPreventedCount(),
+                validation.getDetectedCount(),
+                validation.getMissedCount(),
+                validation.getErrorCount(),
+                validation.getPairsCount());
+    List<String> reasons =
+        validation.getPairs().stream()
+            .filter(pair -> pair.getOutcome() == IocValidationOutcome.ERROR)
+            .map(IocValidationPair::getOutcomeReason)
+            .filter(reason -> reason != null && !reason.isBlank())
+            .map(
+                reason ->
+                    reason.length() > MAX_ERROR_REASON_LENGTH
+                        ? reason.substring(0, MAX_ERROR_REASON_LENGTH)
+                        : reason)
+            .distinct()
+            .limit(MAX_ERROR_REASONS_IN_MESSAGE)
+            .toList();
+    return reasons.isEmpty() ? counts : counts + ". Errors: " + String.join("; ", reasons);
   }
 
   private static String scenarioDescription(IocValidation validation) {

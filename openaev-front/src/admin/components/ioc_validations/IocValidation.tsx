@@ -1,13 +1,12 @@
 import { Alert, Button, Text } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 
-import { fetchIocValidation } from '../../../actions/ioc_validations/ioc-validation-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import { Field, Section } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
-import type { IocValidationIocOutput, IocValidationOutput, IocValidationPairOutput } from '../../../utils/api-types';
+import type { IocValidationIocOutput, IocValidationPairOutput } from '../../../utils/api-types';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import IocValidationDate from './IocValidationDate';
@@ -27,27 +26,14 @@ import {
   isPollingStatus,
   isWebLink,
 } from './iocValidationUtils';
+import useIocValidation from './useIocValidation';
 
 const IocValidation = () => {
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
   const canManageSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
   const { iocValidationId } = useParams() as { iocValidationId: string };
-  const [iocValidation, setIocValidation] = useState<IocValidationOutput | null>(null);
-  const [loadError, setLoadError] = useState<'not_found' | 'failed' | null>(null);
-
-  // Only a 404 means the request is gone; any other failure keeps what is loaded, and polling, going.
-  const load = useCallback(() => fetchIocValidation(iocValidationId)
-    .then((result: { data: IocValidationOutput }) => {
-      setIocValidation(result.data);
-      setLoadError(null);
-    })
-    .catch((error: {
-      status?: number;
-      response?: { status?: number };
-    }) => {
-      setLoadError((error?.response?.status ?? error?.status) === 404 ? 'not_found' : 'failed');
-    }), [iocValidationId]);
+  const { iocValidation, loadError, load, update } = useIocValidation(iocValidationId);
 
   useEffect(() => {
     load();
@@ -241,7 +227,7 @@ const IocValidation = () => {
               </a>
             </Button>
           )}
-          <IocValidationDecisionActions iocValidation={iocValidation} onUpdate={setIocValidation} onRefresh={load} />
+          <IocValidationDecisionActions iocValidation={iocValidation} onUpdate={update} onRefresh={load} />
         </div>
       </header>
       {statusMessage && (
