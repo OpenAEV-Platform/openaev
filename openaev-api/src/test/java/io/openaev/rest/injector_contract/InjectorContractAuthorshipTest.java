@@ -52,6 +52,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class InjectorContractAuthorshipTest {
 
   private static final String PUBLISHER = "Nuclei";
+  private static final String TENANT_ID = "tenant-1";
 
   @Mock private InjectorContractRepository injectorContractRepository;
   @Mock private AttackPatternService attackPatternService;
@@ -77,6 +78,7 @@ class InjectorContractAuthorshipTest {
     injector.setName(PUBLISHER);
     injector.setType("openaev_nuclei");
     injector.setExternal(true);
+    injector.setTenantId(TENANT_ID);
 
     publisherOrganization = new Organization();
     publisherOrganization.setId("org-1");
@@ -92,7 +94,7 @@ class InjectorContractAuthorshipTest {
         .when(injectorContractRepository.save(any(InjectorContract.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
     lenient()
-        .when(organizationService.findOrCreateByName(PUBLISHER))
+        .when(organizationService.findOrCreateByName(PUBLISHER, TENANT_ID))
         .thenReturn(publisherOrganization);
     lenient().when(userService.currentUser()).thenReturn(sessionUser);
   }
