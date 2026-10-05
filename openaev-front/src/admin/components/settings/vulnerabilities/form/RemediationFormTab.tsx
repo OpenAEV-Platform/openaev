@@ -6,7 +6,7 @@ const RemediationFormTab = () => {
 
   return (
     <>
-      <TextFieldController variant="standard" name="vulnerability_remediation" label={t('Vulnerability Remediation')} multiline />
+      <TextFieldController name="vulnerability_remediation" label={t('Vulnerability Remediation')} multiline />
     </>
   );
 };

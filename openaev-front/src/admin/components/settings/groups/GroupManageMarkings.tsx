@@ -99,7 +99,7 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
       {
         field: 'marking_definition_type',
         label: 'Type',
-        value: (marking: MarkingDefinitionOutput) => marking.marking_definition_type,
+        value: (marking: MarkingDefinitionOutput) => marking.marking_definition_type.toUpperCase(),
         width: 40,
       },
       {
@@ -112,7 +112,7 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
             gap: 0.5,
           }}
           >
-            <span>{marking.marking_definition_definition}</span>
+            <span>{marking.marking_definition_definition.toUpperCase()}</span>
           </Box>
         ),
         width: 60,

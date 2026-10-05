@@ -1,5 +1,6 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useEffect } from 'react';
 import { type FieldValues, FormProvider, type Resolver, type SubmitHandler, useForm, useWatch } from 'react-hook-form';
@@ -337,20 +338,10 @@ const ThreatArsenalActionForm = ({
             marginBottom: theme.spacing(2),
           }}
           >
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleClose}
-              disabled={isSubmitting}
-            >
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
               {t('Cancel')}
             </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              type="submit"
-              disabled={isSubmitting || !isDirty}
-            >
+            <Button type="submit" disabled={isSubmitting || !isDirty}>
               {editing ? t('Update') : t('Create')}
             </Button>
           </div>

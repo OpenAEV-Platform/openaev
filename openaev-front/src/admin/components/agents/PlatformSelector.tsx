@@ -1,18 +1,9 @@
-import { DownloadingOutlined } from '@mui/icons-material';
-import { Card, CardActionArea, CardContent, Grid, Typography } from '@mui/material';
+import { Box, Card, CardActionArea, CardContent, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type ExecutorOutput } from '../../../utils/api-types';
-
-const useStyles = makeStyles()(() => ({
-  area: {
-    height: '100%',
-    width: 220,
-  },
-}));
 
 interface PlatformSelectorProps {
   selectedExecutor: ExecutorOutput;
@@ -20,10 +11,12 @@ interface PlatformSelectorProps {
   setActiveStep: (step: number) => void;
 }
 
+// Choice cards in a dialog, on the same frame as the sibling product: outlined,
+// equal columns, the icon on top and the label under it, everything centred.
 const PlatformSelector: React.FC<PlatformSelectorProps> = ({ selectedExecutor, setPlatform, setActiveStep }) => {
   const theme = useTheme();
-  const { classes } = useStyles();
   const { t } = useFormatter();
+  const platforms = selectedExecutor?.executor_platforms ?? [];
 
   const handlePlatformSelection = (platformSelected: string) => {
     setPlatform(platformSelected);
@@ -31,42 +24,46 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({ selectedExecutor, s
   };
 
   return (
-    <Grid container spacing={1}>
-      {selectedExecutor?.executor_platforms
-        && selectedExecutor?.executor_platforms.map(platform => (
-          <Card
-            key={platform}
-            variant="outlined"
-            style={{
-              height: 150,
-              margin: theme.spacing(2),
+    <Box sx={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(${platforms.length}, 1fr)`,
+      gap: 1,
+    }}
+    >
+      {platforms.map(platform => (
+        <Card
+          key={platform}
+          variant="outlined"
+          aria-label={t('Install {platform} agent', { platform })}
+          sx={{
+            minWidth: 0,
+            textAlign: 'center',
+            // No outline on a choice card: the outlined variant is kept only to
+            // hold the geometry, its border is transparent.
+            borderColor: 'transparent',
+          }}
+        >
+          <CardActionArea
+            onClick={() => handlePlatformSelection(platform)}
+            sx={{
+              height: '100%',
+              padding: theme.spacing(3),
             }}
           >
-            <CardActionArea onClick={() => handlePlatformSelection(platform)} classes={{ root: classes.area }}>
-              <CardContent
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <PlatformIcon platform={platform} width={30} />
-                <Typography
-                  style={{
-                    fontSize: 14,
-                    padding: theme.spacing(3, 0),
-                    display: 'flex',
-                  }}
-                >
-                  <DownloadingOutlined style={{ marginRight: theme.spacing(1) }} />
-                  {t('Install {platform} agent', { platform })}
-                </Typography>
-              </CardContent>
-            </CardActionArea>
-          </Card>
-        ))}
-    </Grid>
+            <CardContent sx={{
+              'padding': 0,
+              '&:last-child': { paddingBottom: 0 },
+            }}
+            >
+              <Box><PlatformIcon platform={platform} width={40} /></Box>
+              <Typography gutterBottom variant="h2" sx={{ marginBlock: 2 }}>
+                {t('Install {platform} agent', { platform })}
+              </Typography>
+            </CardContent>
+          </CardActionArea>
+        </Card>
+      ))}
+    </Box>
   );
 };
 

@@ -65,7 +65,7 @@ class ExerciseImportApiTenantIsolationTest extends IntegrationTest {
     mapperB = seedMapper(tenantB, "ex-mapper-b");
     when(exerciseService.exercise(any())).thenReturn(new Exercise());
     when(injectImportService.importInjectIntoExerciseFromXLS(
-            any(), any(), any(), any(), anyInt(), anyBoolean()))
+            any(), any(), any(), any(), any(), anyInt(), anyBoolean()))
         .thenReturn(new ImportTestSummary());
   }
 

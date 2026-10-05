@@ -1,15 +1,6 @@
+import { Button, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { KeyboardArrowDown, LinkOff, LinkOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  ClickAwayListener,
-  IconButton,
-  Paper,
-  Popper,
-  Switch,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, ClickAwayListener, Paper, Popper, Switch, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
 import AutocompleteField from '../../../../../components/fields/AutocompleteField';
@@ -140,19 +131,20 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                   <Typography variant="caption" color="text.secondary">
                     {t('Limit to Local Scope')}
                   </Typography>
-                  <Button
-                    size="small"
-                    variant="text"
-                    color="primary"
-                    endIcon={<KeyboardArrowDown />}
-                    onClick={openTypeSelector}
-                  >
+                  <Button type="button" priority="tertiary" size="sm" endIcon={<KeyboardArrowDown fontSize="small" />} onClick={openTypeSelector}>
                     {t('Edit links')}
                   </Button>
-                  <Tooltip title={t('Unlink')}>
-                    <IconButton size="small" onClick={() => onUnlink(fieldKey)}>
-                      <LinkOff fontSize="small" />
-                    </IconButton>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <IconButton
+                        icon={<LinkOff fontSize="small" />}
+                        aria-label={t('Unlink')}
+                        onClick={() => onUnlink(fieldKey)}
+                        priority="tertiary"
+                        size="sm"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>{t('Unlink')}</TooltipContent>
                   </Tooltip>
                 </Box>
               )}
@@ -165,17 +157,7 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                 justifyContent: 'flex-end',
               }}
               >
-                <Button
-                  size="small"
-                  variant="text"
-                  color="primary"
-                  endIcon={<KeyboardArrowDown />}
-                  onClick={openTypeSelector}
-                  sx={{
-                    whiteSpace: 'nowrap',
-                    textTransform: 'none',
-                  }}
-                >
+                <Button type="button" priority="tertiary" size="sm" endIcon={<KeyboardArrowDown fontSize="small" />} onClick={openTypeSelector} style={{ whiteSpace: 'nowrap' }}>
                   {t('Link an Output')}
                 </Button>
               </Box>
@@ -203,7 +185,6 @@ const FieldOutputLink: FunctionComponent<Props> = ({
               <AutocompleteField
                 autoFocus
                 label={t('Primitive types')}
-                variant="standard"
                 multiple
                 disableCloseOnSelect
                 disableOptionTooltip

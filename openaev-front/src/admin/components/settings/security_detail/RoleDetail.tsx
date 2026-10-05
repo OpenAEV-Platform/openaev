@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { GroupsOutlined, LocalPoliceOutlined, SecurityOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { type ReactElement, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
@@ -174,12 +175,7 @@ const RoleDetail = () => {
               icon={SecurityOutlined}
               title={title}
               chips={(
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={t('{count} capabilities', { count: capabilities.length })}
-                  sx={{ borderRadius: 1 }}
-                />
+                <Chip label={String(t('{count} capabilities', { count: capabilities.length }))} />
               )}
               action={(
                 <RolePopover

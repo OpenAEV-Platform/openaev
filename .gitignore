@@ -46,3 +46,7 @@ dependency-reduced-pom.xml
 # .github/scripts/ holds CI helper scripts that are also meant to be run locally
 __pycache__/
 *.pyc
+
+### FDS token migration (local validation artifacts, never committed) ###
+.fds-validation-artifacts/
+fds-migration/reports/

@@ -1,22 +1,14 @@
+import { IconButton, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
-import {
-  Box,
-  FormControl,
-  FormHelperText,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  type SelectChangeEvent,
-  Switch,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+// fds:keep-mui survives the AI/EE screens wave: the field carries slotProps to float its
+// helper text, so an error does not shift the condition row. The library field has no slot
+// for that, and no way to take the helper out of the flow (LIBRARY-FEEDBACK.md 65).
+import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import ActionTypeIcon from '../ActionTypeIcon';
 import { useOutputProviders } from '../useOutputProviders';
@@ -46,14 +38,27 @@ interface Props {
 }
 
 // Helper texts are floated below their control so they never grow the row: otherwise the
-// centred flex layout would drift the input upwards, out of line with the other fields.
 const floatingHelperTextSx = {
-  position: 'absolute',
-  top: '100%',
-  left: 0,
-  right: 0,
-  marginTop: '2px',
+  '& > div > div > div[id]:last-child': {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: '2px',
+  },
 } as const;
+
+const useStyles = makeStyles()(() => ({
+  fieldOption: {
+    '& > span': {
+      flex: 1,
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    },
+  },
+}));
 
 const EventConditionRow: FunctionComponent<Props> = ({
   condition,
@@ -64,7 +69,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
   readOnly = false,
 }) => {
   const { t } = useFormatter();
-  const theme = useTheme();
+  const { classes } = useStyles();
   const { providers } = useOutputProviders();
   // One source for the whole row: the selectable fields, the operators they support, their
   // case-sensitivity and the format their value must satisfy all come from the same descriptors.
@@ -109,8 +114,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
     );
   };
 
-  const handleFieldChange = (e: SelectChangeEvent<ConditionKeyType>) => {
-    const newField = e.target.value;
+  const handleFieldChange = (newField: ConditionKeyType) => {
     // The new field may not support the current operator (e.g. "greater than" on a text field)
     const newOperator = resolveOperator(newField, condition.operator, descriptorsByType);
     onUpdate({
@@ -124,8 +128,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
     });
   };
 
-  const handleOperatorChange = (e: SelectChangeEvent<ComparisonOperator>) => {
-    const newOp = e.target.value;
+  const handleOperatorChange = (newOp: ComparisonOperator) => {
     onUpdate({
       ...condition,
       operator: newOp,
@@ -164,9 +167,13 @@ const EventConditionRow: FunctionComponent<Props> = ({
   return (
     <Box sx={{
       display: 'flex',
-      alignItems: 'center',
+      // The fields carry their label above a 36px control: centring the row put the drag handle,
+      // the case toggle and the trash on the label + control block. Aligned on the bottom, and
+      // each given a 36px box, they sit on the controls' middle.
+      alignItems: 'flex-end',
       gap: '8px',
       padding: '8px 12px',
+      paddingBottom: '26px',
       borderRadius: 1,
       backgroundColor: 'background.paper',
       width: '100%',
@@ -178,6 +185,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
+          height: 36,
           cursor: readOnly ? 'default' : 'grab',
         }}
       >
@@ -189,147 +197,146 @@ const EventConditionRow: FunctionComponent<Props> = ({
       </span>
 
       {/* Field to check */}
-      <FormControl size="small" sx={{ minWidth: 140 }}>
-        <InputLabel>{t('Field to Check')}</InputLabel>
-        <Select<ConditionKeyType>
-          label={t('Field to Check')}
+      <div style={{ minWidth: 140 }}>
+        <Select
           value={condition.field}
-          onChange={handleFieldChange}
+          onValueChange={value => handleFieldChange(value as ConditionKeyType)}
           disabled={readOnly || isConditionKeyTypesUnavailable}
-          renderValue={val => formatConditionKeyLabel(val)}
+          // The library declares `error` once on the root and propagates it by
+          // context; main's `<FormHelperText error>` said the same thing locally.
+          error={!isLoadingConditionKeyTypes && !!conditionKeyTypesError}
         >
+          <SelectLabel>{t('Field to Check')}</SelectLabel>
+          <SelectTrigger style={{ minWidth: 140 }}>
+            <span>{formatConditionKeyLabel(condition.field)}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {!isLoadingConditionKeyTypes && !conditionKeyTypesError && conditionKeyTypes.map((key) => {
+              const keyProviders = providers[key] ?? [];
+              return (
+                <SelectItem
+                  key={key}
+                  value={key}
+                  className={classes.fieldOption}
+                >
+                  <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
+                  {keyProviders.length > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoOutlined sx={{
+                          fontSize: 16,
+                          color: 'info.main',
+                          flexShrink: 0,
+                        }}
+                        />
+                      </TooltipTrigger>
+                      {buildProviderTooltip(key) && <TooltipContent side="right">{buildProviderTooltip(key)}</TooltipContent>}
+                    </Tooltip>
+                  )}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
           {isLoadingConditionKeyTypes && (
-            <MenuItem disabled>{t('Loading argument types...')}</MenuItem>
+            <SelectHelperText>{t('Loading argument types...')}</SelectHelperText>
           )}
           {!isLoadingConditionKeyTypes && conditionKeyTypesError && (
-            <MenuItem disabled>{t('Failed to load argument types')}</MenuItem>
+            <SelectHelperText>{t('Failed to load argument types')}</SelectHelperText>
           )}
-          {!isLoadingConditionKeyTypes && !conditionKeyTypesError && conditionKeyTypes.map((key) => {
-            const keyProviders = providers[key] ?? [];
-            return (
-              <MenuItem
-                key={key}
-                value={key}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                }}
-              >
-                <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
-                {keyProviders.length > 0 && (
-                  <Tooltip
-                    title={buildProviderTooltip(key)}
-                    placement="right"
-                  >
-                    <InfoOutlined sx={{
-                      fontSize: 16,
-                      color: 'info.main',
-                      flexShrink: 0,
-                    }}
-                    />
-                  </Tooltip>
-                )}
-              </MenuItem>
-            );
-          })}
         </Select>
-        {isLoadingConditionKeyTypes && (
-          <FormHelperText sx={floatingHelperTextSx}>{t('Loading argument types...')}</FormHelperText>
-        )}
-        {!isLoadingConditionKeyTypes && conditionKeyTypesError && (
-          <FormHelperText error sx={floatingHelperTextSx}>{t('Failed to load argument types')}</FormHelperText>
-        )}
-      </FormControl>
+      </div>
 
       {/* Operator */}
-      <FormControl size="small" sx={{ minWidth: 130 }}>
-        <InputLabel>{t('Operator')}</InputLabel>
-        <Select<ComparisonOperator>
-          label={t('Operator')}
+      <div style={{ minWidth: 130 }}>
+        <Select
           value={condition.operator}
-          onChange={handleOperatorChange}
+          onValueChange={value => handleOperatorChange(value as ComparisonOperator)}
           disabled={readOnly}
         >
-          {operatorOptions.map(op => (
-            <MenuItem key={op} value={op}>
-              {t(OPERATOR_LABELS[op])}
-            </MenuItem>
-          ))}
+          <SelectLabel>{t('Operator')}</SelectLabel>
+          <SelectTrigger style={{ minWidth: 130 }}>
+            <SelectValue placeholder={t('Operator')} />
+          </SelectTrigger>
+          <SelectContent>
+            {operatorOptions.map(op => (
+              <SelectItem key={op} value={op}>
+                {t(OPERATOR_LABELS[op])}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-      </FormControl>
-
-      {/* Expected value */}
+      </div>
       {showValue && (
-        <TextField
-          label={t('Expected Value')}
-          size="small"
-          value={condition.value}
-          onChange={e => handleValueChange(e.target.value)}
-          disabled={readOnly}
-          error={!!valueError}
-          helperText={valueError ? t(valueError) : undefined}
-          slotProps={{ formHelperText: { sx: floatingHelperTextSx } }}
-          sx={{
-            flex: 1,
-            position: 'relative',
-          }}
-        />
+        <Box sx={{
+          flex: 1,
+          minWidth: 0,
+          position: 'relative',
+          ...floatingHelperTextSx,
+        }}
+        >
+          <TextFieldFds
+            label={t('Expected Value')}
+            value={condition.value}
+            onChange={e => handleValueChange(e.target.value)}
+            disabled={readOnly}
+            error={valueError ? t(valueError) : undefined}
+          />
+        </Box>
       )}
       {!showValue && <Box sx={{ flex: 1 }} />}
 
       <Box sx={{
         display: 'flex',
         alignItems: 'center',
+        height: 36,
         gap: 1,
         flexShrink: 0,
       }}
       >
         {showCaseSensitive && (
-          <Tooltip title={condition.caseSensitive ? t('Case-sensitive') : t('Case-insensitive')}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-            }}
-            >
-              <Switch
-                size="small"
-                checked={condition.caseSensitive}
-                onChange={handleCaseSensitiveToggle}
-                color="primary"
-                disabled={readOnly}
-              />
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                }}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
               >
-                {t('Aa')}
-              </Typography>
-            </div>
+                {/* The visible "Aa" is a caption beside the control, and the
+                  tooltip text follows the state — neither can be the name, so
+                  the switch carries a stable one of its own. */}
+                <Switch
+                  aria-label={t('Case-sensitive')}
+                  checked={condition.caseSensitive}
+                  onCheckedChange={handleCaseSensitiveToggle}
+                  disabled={readOnly}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t('Aa')}
+                </Typography>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{condition.caseSensitive ? t('Case-sensitive') : t('Case-insensitive')}</TooltipContent>
           </Tooltip>
         )}
 
         {/* Delete button (only visible when more than one condition) */}
         {canDelete && (
           <IconButton
-            size="small"
+            icon={<DeleteOutline fontSize="small" />}
             onClick={onDelete}
             disabled={readOnly}
-            sx={{
-              'color': 'error.main',
-              'border': '1px solid',
-              'borderColor': 'error.main',
-              'borderRadius': 1,
-              '&:hover': { backgroundColor: `${theme.palette.error.main}1A` },
-            }}
             aria-label={t('Delete condition')}
-          >
-            <DeleteOutline fontSize="small" />
-          </IconButton>
+            variant="destructive"
+            priority="secondary"
+            size="sm"
+          />
         )}
       </Box>
     </Box>

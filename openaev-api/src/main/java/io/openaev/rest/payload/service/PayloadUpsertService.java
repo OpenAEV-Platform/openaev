@@ -2,8 +2,9 @@ package io.openaev.rest.payload.service;
 
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -48,11 +49,13 @@ public class PayloadUpsertService {
   private final DocumentService documentService;
   private final DomainService domainService;
   private final ResultsMetricCollector resultsMetricCollector;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @Transactional(rollbackFor = Exception.class)
-  public Payload upsertPayload(PayloadUpsertInput input) {
+  public Payload upsertPayload(TxCtx ctx, PayloadUpsertInput input) {
     // Telemetry: one payload upserted by a collector (attempts semantics).
     resultsMetricCollector.recordPayloadUpserted();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<Payload> payload = payloadRepository.findByExternalId(input.getExternalId());
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
@@ -73,25 +76,26 @@ public class PayloadUpsertService {
       // A collector's payloads are authored by the collector's organization
       // (created on first use), so the arsenal can be filtered "created by
       // Atomic Red Team" etc.
-      collectorOrganization = resolveCollectorOrganization(collector);
+      collectorOrganization = resolveCollectorOrganization(collector, tenantId);
     }
     List<AttackPattern> attackPatterns =
         attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-            input.getAttackPatternsExternalIds(), TenantContext.getCurrentTenant());
+            input.getAttackPatternsExternalIds(), tenantId);
     if (payload.isPresent()) {
       return updatePayloadFromUpsert(
-          input, payload.get(), attackPatterns, collectorType, collectorOrganization);
+          tenantId, input, payload.get(), attackPatterns, collectorType, collectorOrganization);
     } else {
-      return createPayloadFromUpsert(input, attackPatterns, collectorType, collectorOrganization);
+      return createPayloadFromUpsert(
+          tenantId, input, attackPatterns, collectorType, collectorOrganization);
     }
   }
 
   /**
    * Finds or creates the {@link Organization} that authors a collector's payloads. The collector's
    * source-declared author override wins when present; otherwise the collector's display name is
-   * used, keyed within the current tenant.
+   * used, keyed within the write tenant.
    */
-  private Organization resolveCollectorOrganization(Collector collector) {
+  private Organization resolveCollectorOrganization(Collector collector, String tenantId) {
     String name =
         collector.getAuthor() != null && !collector.getAuthor().isBlank()
             ? collector.getAuthor()
@@ -105,12 +109,13 @@ public class PayloadUpsertService {
             () -> {
               Organization organization = new Organization();
               organization.setName(name);
-              organization.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+              organization.setTenant(new Tenant(tenantId));
               return organizationRepository.save(organization);
             });
   }
 
   private Payload createPayloadFromUpsert(
+      String tenantId,
       PayloadUpsertInput input,
       List<AttackPattern> attackPatterns,
       CollectorType collectorType,
@@ -120,6 +125,7 @@ public class PayloadUpsertService {
 
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload, false);
+    payload.setTenant(new Tenant(tenantId));
 
     if (collectorType != null) {
       payload.setCollectorType(collectorType);
@@ -139,20 +145,21 @@ public class PayloadUpsertService {
         saved,
         attackPatterns,
         input.getDomains() != null
-            ? domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
+            ? domainService.upserts(input.getDomains(), tenantId)
             : new HashSet<>(
                 Set.of(
                     domainService.upsert(
                         Domain.builder()
                             .name(PresetDomain.getToClassify().getName())
                             .color(PresetDomain.getToClassify().getColor())
-                            .tenant(new Tenant(TenantContext.getCurrentTenant()))
+                            .tenant(new Tenant(tenantId))
                             .build()))),
         this.tagService.tagSet((input.getTagIds())));
     return saved;
   }
 
   public Payload updatePayloadFromUpsert(
+      String tenantId,
       PayloadUpsertInput input,
       Payload existingPayload,
       List<AttackPattern> attackPatterns,
@@ -176,10 +183,9 @@ public class PayloadUpsertService {
     final Set<Domain> existingDomains =
         existingInjectorContracts.isPresent()
             ? this.domainService.upsertDomainEntities(
-                existingInjectorContracts.get().getDomains(), TenantContext.getCurrentTenant())
+                existingInjectorContracts.get().getDomains(), tenantId)
             : Set.of();
-    final Set<Domain> domainsToAdd =
-        this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant());
+    final Set<Domain> domainsToAdd = this.domainService.upserts(input.getDomains(), tenantId);
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));
@@ -191,8 +197,7 @@ public class PayloadUpsertService {
     payloadService.synchroniseInjectorContractBasedOnPayload(
         saved,
         attackPatterns,
-        this.domainService.mergeDomains(
-            existingDomains, domainsToAdd, new Tenant(TenantContext.getCurrentTenant())),
+        this.domainService.mergeDomains(existingDomains, domainsToAdd, new Tenant(tenantId)),
         this.tagService.tagSet((input.getTagIds())));
     return saved;
   }

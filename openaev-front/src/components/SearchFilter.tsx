@@ -1,5 +1,4 @@
-import { Search } from '@mui/icons-material';
-import { InputAdornment, TextField } from '@mui/material';
+import { SearchField } from '@filigran/design-system';
 import { type ChangeEvent, type FunctionComponent, useEffect, useRef, useState } from 'react';
 
 import { useFormatter } from './i18n';
@@ -8,6 +7,7 @@ interface Props {
   keyword?: string;
   onChange?: (value?: string) => void;
   onSubmit?: (value?: string) => void;
+  /** `thin` takes the library's compact size; `small` and the default share the 36px of the toolbar fields next to them. */
   variant?: string;
   fullWidth?: boolean;
   placeholder?: string;
@@ -25,10 +25,6 @@ const SearchInput: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-
-  // The variant name doubles as a CSS class on the input root and input
-  // element, driving the variant-specific selectors in the sx below.
-  const variantClass = variant ?? '';
 
   // Controlled value so external keyword changes (e.g. "Clear filters"
   // resetting the text search) are reflected in the input.
@@ -68,65 +64,24 @@ const SearchInput: FunctionComponent<Props> = ({
     }
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      const { target } = event as unknown as ChangeEvent<HTMLInputElement>;
-      onSubmit?.(target.value);
-    }
+  // The clear cross and Escape both come through here; a cleared search applies at once.
+  const handleClear = () => {
+    cancelPendingChange();
+    setValue('');
+    onChange?.('');
   };
 
   return (
-    <TextField
+    <SearchField
+      aria-label={placeholder ?? t('Search these results')}
+      placeholder={placeholder ?? `${t('Search these results')}...`}
+      size={variant === 'thin' ? 'sm' : 'md'}
       fullWidth={fullWidth}
       name="keyword"
       value={value}
-      variant="outlined"
-      size="small"
-      placeholder={placeholder ?? `${t('Search these results')}...`}
       onChange={handleChange}
-      onKeyDown={handleKeyDown}
-      sx={theme => ({
-        '& .MuiOutlinedInput-root': {
-          'borderRadius': '5px',
-          'padding': '0 10px',
-          'backgroundColor': theme.palette.background.paper,
-          // OpenCTI-aligned icon-to-text gap: a tight 4px between the leading
-          // search icon and the placeholder, instead of MUI's default 8px
-          // adornment margin.
-          '& .MuiInputAdornment-positionStart': { marginRight: theme.spacing(0.5) },
-          '&.inDrawer': { height: 30 },
-          // OpenCTI-aligned top bar field: fills its wrapper (the TopBar
-          // constrains min/max width), sits on the secondary background with
-          // no visible border.
-          '&.topBar': {
-            'marginRight': '5px',
-            'width': '100%',
-            'borderRadius': '4px',
-            'backgroundColor': theme.palette.background.secondary ?? theme.palette.background.paper,
-            '& fieldset': { borderColor: 'transparent' },
-          },
-          '&.thin': { height: 30 },
-        },
-        '& .MuiOutlinedInput-input': {
-          'transition': theme.transitions.create('width'),
-          'width': 200,
-          '&:focus': { width: 350 },
-          '&.topBar': { width: '100%' },
-          '&.small, &.thin': {
-            'width': 150,
-            '&:focus': { width: 250 },
-          },
-        },
-      })}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <Search fontSize="small" />
-          </InputAdornment>
-        ),
-        className: variantClass,
-      }}
-      inputProps={{ className: variantClass }}
+      onSubmit={submitted => onSubmit?.(submitted)}
+      onClear={handleClear}
       autoComplete="off"
     />
   );

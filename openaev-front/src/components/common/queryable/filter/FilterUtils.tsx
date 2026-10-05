@@ -143,6 +143,10 @@ export const OperatorKeyValues: { [key: string]: string } = {
   not_empty: 'Not empty',
 };
 
+const NUMERIC_PROPERTY_TYPES = ['double', 'float', 'integer', 'long', 'short', 'bigdecimal'];
+
+export const isNumericProperty = (propertySchema: PropertySchemaDTO) => NUMERIC_PROPERTY_TYPES.includes(propertySchema.schema_property_type);
+
 export const availableOperators = (propertySchema: PropertySchemaDTO) => {
   if (propertySchema.schema_property_override_operators && propertySchema.schema_property_override_operators.length > 0) {
     return propertySchema.schema_property_override_operators;
@@ -155,7 +159,7 @@ export const availableOperators = (propertySchema: PropertySchemaDTO) => {
   // operators. Only ES-backed properties are numeric today - the ES engine
   // supports range queries on any field, while no JPA schema exposes a
   // filterable numeric property (its gt/lt path only parses dates).
-  if (['double', 'float', 'integer', 'long', 'short', 'bigdecimal'].includes(propertySchema.schema_property_type)) {
+  if (isNumericProperty(propertySchema)) {
     return ['gte', 'lte', 'gt', 'lt', 'eq', 'not_eq', 'empty', 'not_empty'];
   }
   // Enum & not array

@@ -141,7 +141,8 @@ class V1_DataImporterTest extends IntegrationTest {
     Optional<Exercise> exercise = this.exerciseRepository.findOne(exerciseByName(EXERCISE_NAME));
     assertTrue(exercise.isPresent());
 
-    Optional<Team> team = this.teamRepository.findByName(TEAM_NAME);
+    Optional<Team> team =
+        this.teamRepository.findByNameAndTenantIdIn(TEAM_NAME, List.of(Tenant.DEFAULT_TENANT_UUID));
     assertTrue(team.isPresent());
     assertEquals(1, team.get().getUsersNumber());
     assertEquals(ORGANIZATION_NAME, team.get().getOrganization().getName());
@@ -861,7 +862,9 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     Team importedTeam =
-        teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).stream()
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .stream()
             .findFirst()
             .orElseThrow();
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -917,7 +920,9 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     Team importedTeam =
-        teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).stream()
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .stream()
             .findFirst()
             .orElseThrow();
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -2038,7 +2043,10 @@ class V1_DataImporterTest extends IntegrationTest {
     Workflow workflow = findImportedWorkflow(scenarioName);
     assertEquals(2, workflow.getWorkflowScopeRules().size());
 
-    Team createdTeam = teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).getFirst();
+    Team createdTeam =
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .getFirst();
     assertEquals(teamName, createdTeam.getName());
 
     User createdPlayer = userRepository.findByEmailIgnoreCase(playerEmail).orElseThrow();
@@ -2121,7 +2129,10 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
-    Team createdTeam = teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).getFirst();
+    Team createdTeam =
+        teamRepository
+            .findByNameIgnoreCaseAndNotContextual(teamName, List.of(Tenant.DEFAULT_TENANT_UUID))
+            .getFirst();
     assertEquals(2, createdTeam.getUsers().size());
     assertTrue(
         createdTeam.getUsers().stream()
@@ -2165,7 +2176,8 @@ class V1_DataImporterTest extends IntegrationTest {
     String externalId = "T1021.002";
     AttackPattern existing =
         attackPatternRepository.save(
-            AttackPatternFixture.createAttackPatternsWithExternalId(externalId));
+            AttackPatternFixture.createAttackPatternsWithExternalId(
+                externalId, TenantContext.getCurrentTenant()));
     String targetId = existing.getId();
     String sourceId = UUID.randomUUID().toString();
     assertNotEquals(targetId, sourceId);
@@ -2389,7 +2401,8 @@ class V1_DataImporterTest extends IntegrationTest {
     // be preserved when it still exists on the target, not silently wiped to an empty array.
     AttackPattern existing =
         attackPatternRepository.save(
-            AttackPatternFixture.createAttackPatternsWithExternalId("T1105-" + UUID.randomUUID()));
+            AttackPatternFixture.createAttackPatternsWithExternalId(
+                "T1105-" + UUID.randomUUID(), TenantContext.getCurrentTenant()));
     ObjectMapper om = new ObjectMapper();
     ObjectNode contractNode = om.createObjectNode();
     contractNode.set("injector_contract_attack_patterns", tagIdArray(om, existing.getId()));
@@ -2626,7 +2639,8 @@ class V1_DataImporterTest extends IntegrationTest {
             KillChainPhaseFixture.getKillChainPhase(
                 "execution", 2L, TenantContext.getCurrentTenant()));
     AttackPattern targetAttackPattern =
-        AttackPatternFixture.createAttackPatternsWithExternalId("T1059.001");
+        AttackPatternFixture.createAttackPatternsWithExternalId(
+            "T1059.001", TenantContext.getCurrentTenant());
     targetAttackPattern.setKillChainPhases(new ArrayList<>(List.of(targetPhase)));
     targetAttackPattern = attackPatternRepository.save(targetAttackPattern);
 
@@ -3900,7 +3914,8 @@ class V1_DataImporterTest extends IntegrationTest {
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     AttackPattern existing =
         attackPatternRepository.save(
-            AttackPatternFixture.createAttackPatternsWithExternalId("T1105-" + UUID.randomUUID()));
+            AttackPatternFixture.createAttackPatternsWithExternalId(
+                "T1105-" + UUID.randomUUID(), TenantContext.getCurrentTenant()));
     String existingAttackPatternId = existing.getId();
 
     ObjectMapper om = new ObjectMapper();
