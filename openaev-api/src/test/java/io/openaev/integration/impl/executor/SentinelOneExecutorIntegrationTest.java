@@ -207,6 +207,32 @@ public class SentinelOneExecutorIntegrationTest {
   }
 
   @Test
+  @DisplayName("When a key is missing from the saved instance, the integration keeps its default")
+  public void whenKeyMissingFromInstance_integrationKeepsDefault() throws Exception {
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    ConnectorInstancePersisted instance =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst()).getFirst();
+    instance
+        .getConfigurations()
+        .removeIf(
+            c ->
+                c.getKey().equals("EXECUTOR_SENTINELONE_API_REGISTER_INTERVAL")
+                    || c.getKey().equals("EXECUTOR_SENTINELONE_CLEAN_IMPLANT_CRON"));
+
+    Integration integration = integrationFactory.spawn(instance);
+
+    SentinelOneExecutorConfig config =
+        (SentinelOneExecutorConfig) FieldUtils.computeAllFieldValues(integration).get("config");
+    AssertionsForClassTypes.assertThat(config.getApiRegisterInterval())
+        .isEqualTo(sentinelOneExecutorConfig.getApiRegisterInterval());
+    AssertionsForClassTypes.assertThat(config.getCleanImplantCron())
+        .isEqualTo(SentinelOneExecutorConfig.DEFAULT_CLEAN_IMPLANT_CRON);
+  }
+
+  @Test
   @DisplayName(
       "When factory is initialised and an instance is spawned with an unsupported connector instance type, the encryption service is null")
   public void whenInstanceIsSpawn_encryptionServiceIsNull() throws Exception {
