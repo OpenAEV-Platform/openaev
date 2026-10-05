@@ -16,8 +16,9 @@ public enum TenantSettingKeys {
   // assets / findings / persons from recon on the fly.
   AUTONOMOUS_ADDITIONAL_AGENT_MODES("platform_autonomous_additional_agent_modes", "", false),
   // IOC validation safety settings (OpenCTI dissemination assurance). Comma-separated test kinds;
-  // only DNS resolution is allowed until an administrator widens the list.
-  IOC_VALIDATION_ALLOWED_TEST_KINDS("ioc_validation_allowed_test_kinds", "DNS_RESOLUTION", false),
+  // none is allowed until an administrator chooses them: even a DNS resolution reaches the name
+  // servers of the domain through the recursive resolver.
+  IOC_VALIDATION_ALLOWED_TEST_KINDS("ioc_validation_allowed_test_kinds", "", false),
   IOC_VALIDATION_HTTP_PROXY_URL("ioc_validation_http_proxy_url", "", false),
   IOC_VALIDATION_SINKHOLE_ADDRESS("ioc_validation_sinkhole_address", "", false),
   IOC_VALIDATION_NETWORK_PORT("ioc_validation_network_port", "443", false),

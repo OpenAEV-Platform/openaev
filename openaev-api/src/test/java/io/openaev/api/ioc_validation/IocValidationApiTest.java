@@ -227,6 +227,7 @@ class IocValidationApiTest extends IntegrationTest {
     @Test
     @DisplayName("records the request awaiting approval with the planned test")
     void given_request_should_recordAwaitingApproval() throws Exception {
+      allowTestKindOnValidationTargets(IocValidationTestKind.DNS_RESOLUTION);
       String id = receiveDnsRequest();
 
       String response = validation(id);
@@ -666,8 +667,8 @@ class IocValidationApiTest extends IntegrationTest {
   class Settings {
 
     @Test
-    @DisplayName("defaults to DNS resolution only on port 443")
-    void given_defaults_should_allowDnsOnly() throws Exception {
+    @DisplayName("defaults to no allowed test kind, on port 443")
+    void given_defaults_should_allowNothing() throws Exception {
       String response =
           mvc.perform(get(TENANT_IOC_VALIDATION_URI + "/settings", tenantId))
               .andExpect(status().isOk())
@@ -676,7 +677,7 @@ class IocValidationApiTest extends IntegrationTest {
               .getContentAsString();
 
       assertThat((List<String>) JsonPath.read(response, "$.ioc_validation_allowed_test_kinds"))
-          .containsExactly("DNS_RESOLUTION");
+          .isEmpty();
       assertThat((Integer) JsonPath.read(response, "$.ioc_validation_network_port")).isEqualTo(443);
     }
 

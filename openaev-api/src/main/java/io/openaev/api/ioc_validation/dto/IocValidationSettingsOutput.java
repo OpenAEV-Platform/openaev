@@ -11,7 +11,7 @@ import java.util.List;
 /** The tenant IOC validation safety settings and the state of the OpenCTI connection. */
 public record IocValidationSettingsOutput(
     @JsonProperty("ioc_validation_allowed_test_kinds")
-        @Schema(description = "Test kinds the tenant allows (default: DNS_RESOLUTION only)")
+        @Schema(description = "Test kinds the tenant allows (default: none)")
         @NotNull
         List<IocValidationTestKind> allowedTestKinds,
     @JsonProperty("ioc_validation_http_proxy_url")

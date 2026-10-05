@@ -7681,7 +7681,7 @@ export interface IocValidationSettingsInput {
 }
 
 export interface IocValidationSettingsOutput {
-  /** Test kinds the tenant allows (default: DNS_RESOLUTION only) */
+  /** Test kinds the tenant allows (default: none) */
   ioc_validation_allowed_test_kinds: (
     | "DNS_RESOLUTION"
     | "NETWORK_TRAFFIC"

@@ -18,16 +18,18 @@ IOC validation is designed so that nothing dangerous ever runs:
 
 - **Nothing runs without an approval.** Every request waits in status *Awaiting approval* until an operator
   approves or rejects it.
-- **Only the test kinds you allow run.** By default, only *DNS resolution* is allowed. Every other kind must be
-  enabled explicitly in the settings.
+- **Only the test kinds you allow run.** By default, no test kind is allowed: each one, *DNS resolution*
+  included, must be enabled explicitly in the settings.
 - **An approval never runs more than the request showed.** A test the settings no longer allow at approval time is
   dropped; a test that was skipped when the request arrived stays skipped even if you allow it meanwhile. Ask for a
   new validation from OpenCTI to run it.
 - **The real indicator is never downloaded or executed.** File indicators are replaced by a benign text file that
   only carries the file name, and hashes are only written to a log line.
-- **No contact with adversary infrastructure by default.** DNS resolution never connects to the resolved
-  address. Network tests can be redirected to a sinkhole you control, and HTTP tests can only be allowed once an
-  egress proxy is configured.
+- **No contact with adversary infrastructure by default.** Nothing runs until you allow a test kind. DNS
+  resolution never connects to the resolved address, but the resolver of the endpoint may query the name servers
+  of the domain, which can tell its owner that the name was looked up: point the endpoints at a resolver that does
+  not forward to the internet if that matters to you. Network tests can be redirected to a sinkhole you control,
+  and HTTP tests can only be allowed once an egress proxy is configured.
 - **Skipped indicators are explained.** When a test kind is not allowed or does not apply to an indicator, the
   request shows why before anyone approves it.
 
@@ -35,7 +37,7 @@ IOC validation is designed so that nothing dangerous ever runs:
 
 | Test kind        | Applies to                  | What it does                                                                                   |
 |------------------|-----------------------------|------------------------------------------------------------------------------------------------|
-| DNS resolution   | Domain names, host names    | Resolves the name. No connection is made to the resolved address.                              |
+| DNS resolution   | Domain names, host names    | Resolves the name. No connection is made to the resolved address; the resolver may query the name servers of the domain. |
 | Network traffic  | IPv4 and IPv6 addresses     | Opens a TCP connection, to the sinkhole when one is set, and closes it at once without payload. |
 | HTTP HEAD request| URLs                        | Sends an HTTP HEAD request through the egress proxy. No content is downloaded.                 |
 | Benign file drop | Files and artifacts         | Writes a benign text file named after the indicator file name, in a temporary directory created for the test (`openaev-ioc-validation-<run>`). The cleanup removes the file only while it still holds the surrogate of its run (never a directory that carries its name, nor a file that was there before or was put in its place), then the directory only when it is empty: anything else written in it is left in place. Neither the drop nor the cleanup ever follows a link: a run directory or a file path replaced by a symbolic link, a junction or another reparse point stops the drop with an error and is left alone by the cleanup. The file is always created as a new file: a file already at its path is never written over, and the test then ends with an execution error rather than a missed result, as does any other write failure. Each inject gets its own run identifier; an inject without one is not executed. Before writing or removing anything, the endpoint checks that the run identifier is 32 lowercase hexadecimal characters and that the file name is a plain file name, so files of other applications are never touched. On Windows, a file name that Windows cannot create (a reserved device name such as `CON.txt` or `COM1`, or a name ending with a dot or a space) stops the test with an error before any file operation; the same name still runs on Linux and macOS. |
