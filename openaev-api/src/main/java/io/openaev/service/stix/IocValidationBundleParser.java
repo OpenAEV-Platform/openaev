@@ -122,9 +122,14 @@ public class IocValidationBundleParser {
       throw new BundleValidationError("The IOC validation request has no iocs array");
     }
     List<IocValidationRequest.Ioc> iocs = new ArrayList<>();
-    Set<String> seen = new LinkedHashSet<>();
+    // One test per indicator, the first IOC given for it, as OpenCTI sends them: further entries of
+    // an indicator are ignored, so a request never runs more tests than it has indicators
+    Set<String> seenIndicators = new LinkedHashSet<>();
     for (JsonNode node : iocsNode) {
       String indicatorRef = required(node, "indicator_ref");
+      if (!seenIndicators.add(indicatorRef)) {
+        continue;
+      }
       String observableType = required(node, "observable_type");
       String value = required(node, "value");
       if (value.length() > MAX_VALUE_LENGTH) {
@@ -140,9 +145,6 @@ public class IocValidationBundleParser {
                       new BundleValidationError(
                           "Unknown IOC validation test kind '%s' for indicator %s"
                               .formatted(testKindValue, indicatorRef)));
-      if (!seen.add(indicatorRef + "|" + testKind)) {
-        continue;
-      }
       iocs.add(
           new IocValidationRequest.Ioc(
               indicatorRef,
@@ -211,6 +213,11 @@ public class IocValidationBundleParser {
   private static void checkLimits(
       List<IocValidationRequest.Ioc> iocs, List<IocValidationRequest.Pair> pairs)
       throws BundleValidationError {
+    if (iocs.size() > MAX_INDICATORS) {
+      throw new BundleValidationError(
+          "An IOC validation request is limited to %d IOCs, found %d"
+              .formatted(MAX_INDICATORS, iocs.size()));
+    }
     Set<String> indicators = new LinkedHashSet<>();
     iocs.forEach(ioc -> indicators.add(ioc.indicatorRef()));
     pairs.forEach(pair -> indicators.add(pair.indicatorRef()));
