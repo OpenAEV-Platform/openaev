@@ -229,7 +229,7 @@ public class SentinelOneExecutorIntegrationTest {
     AssertionsForClassTypes.assertThat(config.getApiRegisterInterval())
         .isEqualTo(sentinelOneExecutorConfig.getApiRegisterInterval());
     AssertionsForClassTypes.assertThat(config.getCleanImplantCron())
-        .isEqualTo(SentinelOneExecutorConfig.DEFAULT_CLEAN_IMPLANT_CRON);
+        .isEqualTo(sentinelOneExecutorConfig.getCleanImplantCron());
   }
 
   @Test
