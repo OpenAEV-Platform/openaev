@@ -18,9 +18,11 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { type Header } from '../../../../components/common/SortHeadersList';
 import DangerZone from '../../../../components/common/tag/DangerZone';
 import { useFormatter } from '../../../../components/i18n';
+import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import {
   type MarkingDefinitionInput,
   type MarkingDefinitionOutput,
+  type SearchPaginationInput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/permissionsContext';
@@ -51,6 +53,11 @@ const MarkingDefinitions = () => {
   const dispatch = useAppDispatch();
 
   const [markingDefinitions, setMarkingDefinitions] = useState<MarkingDefinitionOutput[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const searchMarkingDefinitionsToLoad = (input: SearchPaginationInput) => {
+    setLoading(true);
+    return searchMarkingDefinitions(input).finally(() => setLoading(false));
+  };
   const [openCreate, setOpenCreate] = useState(false);
 
   const availableFilterNames = [
@@ -169,7 +176,7 @@ const MarkingDefinitions = () => {
           ]}
         />
         <PaginationComponentV2
-          fetch={searchMarkingDefinitions}
+          fetch={searchMarkingDefinitionsToLoad}
           searchPaginationInput={searchPaginationInput}
           setContent={setMarkingDefinitions}
           availableFilterNames={availableFilterNames}
@@ -199,7 +206,8 @@ const MarkingDefinitions = () => {
               )}
             />
           </ListItem>
-          {markingDefinitions.map((item: MarkingDefinitionOutput) => (
+          {loading && <PaginatedListLoader Icon={CenterFocusStrongOutlined} headers={headers} headerStyles={inlineStyles} />}
+          {!loading && markingDefinitions.map((item: MarkingDefinitionOutput) => (
             <ListItem
               key={item.marking_definition_id}
               secondaryAction={(
