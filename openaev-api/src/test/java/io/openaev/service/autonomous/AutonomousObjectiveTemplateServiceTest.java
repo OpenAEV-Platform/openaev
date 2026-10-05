@@ -5,13 +5,20 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.autonomous.AutonomousObjectiveTemplate;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -100,6 +107,34 @@ class AutonomousObjectiveTemplateServiceTest {
     service.listForCurrentTenant();
 
     verify(repository, never()).save(any());
+  }
+
+  @Test
+  void every_builtin_label_and_description_has_a_frontend_translation_key() throws IOException {
+    // The frontend renders t(label) / t(description); the i18n checker only sees literal t('...')
+    // calls, so a built-in renamed here would silently fall back to English in every locale.
+    Path englishCatalog =
+        Stream.of(
+                Path.of("..", "openaev-front", "src", "utils", "lang", "en.json"),
+                Path.of("openaev-front", "src", "utils", "lang", "en.json"))
+            .filter(Files::exists)
+            .findFirst()
+            .orElseThrow(
+                () -> new AssertionError("openaev-front/src/utils/lang/en.json not found"));
+    JsonNode english = new ObjectMapper().readTree(englishCatalog.toFile());
+
+    List<String> missing = new ArrayList<>();
+    for (AutonomousObjectiveTemplate template : seedAll().values()) {
+      for (String text : Arrays.asList(template.getLabel(), template.getDescription())) {
+        if (text != null && !english.has(text)) {
+          missing.add(text);
+        }
+      }
+    }
+
+    assertTrue(
+        missing.isEmpty(),
+        "Add these built-in objective texts to openaev-front/src/utils/lang/*.json: " + missing);
   }
 
   @Test

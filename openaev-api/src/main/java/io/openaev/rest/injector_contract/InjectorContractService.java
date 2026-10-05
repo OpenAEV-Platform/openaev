@@ -440,7 +440,8 @@ public class InjectorContractService implements DependenciesManager {
    */
   private void attributeToPublisher(InjectorContract contract, Injector injector) {
     contract.setAuthorUser(null);
-    contract.setAuthorOrganization(organizationService.findOrCreateByName(injector.getName()));
+    contract.setAuthorOrganization(
+        organizationService.findOrCreateByName(injector.getName(), injector.getTenantId()));
   }
 
   /** Attributes an interactively created contract to the authenticated human creating it. */

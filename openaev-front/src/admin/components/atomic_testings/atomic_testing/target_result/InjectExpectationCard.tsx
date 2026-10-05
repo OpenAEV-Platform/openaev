@@ -235,7 +235,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
                 icon={['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type)
                   ? <AddModeratorOutlined color="primary" fontSize="medium" />
                   : <InventoryOutlined color="primary" fontSize="medium" />}
-                aria-label="Add"
+                aria-label={t('Add')}
                 onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
                 priority="tertiary"
                 size="sm"

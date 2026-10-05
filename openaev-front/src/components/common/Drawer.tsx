@@ -8,6 +8,7 @@ import { computeBannerSettings } from '../../public/components/systembanners/uti
 import { CVSS_SEVERITY, getSeverityAndColor } from '../../utils/Colors';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../utils/fdsLayer';
 import useAuth from '../../utils/hooks/useAuth';
+import { useFormatter } from '../i18n';
 
 // Same surfaces as the sibling product's Drawer: the paper is a layer-2 surface
 // (`layer-2` + the three input aliases, see utils/fdsLayer.ts), the header sits on
@@ -98,6 +99,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
   disableEnforceFocus = false,
   containerStyle = {},
 }) => {
+  const { t } = useFormatter();
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
 
@@ -169,7 +171,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
           {additionalChipLabel && (
             <Chip label={additionalChipLabel} severity={CVSS_SEVERITY[severity]} />
           )}
-          <IconButton icon={<Close />} aria-label="Close" onClick={handleClose} priority="tertiary" size="md" />
+          <IconButton icon={<Close />} aria-label={t('Close')} onClick={handleClose} priority="tertiary" size="md" />
         </div>
       </div>
       <div className={classes.container} style={containerStyle}>

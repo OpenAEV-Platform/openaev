@@ -83,12 +83,14 @@ const IocValidation = () => {
   const awaitingApproval = isAwaitingApproval(iocValidation.ioc_validation_status);
   const rejected = iocValidation.ioc_validation_status === 'REJECTED';
   const runnable = iocValidation.ioc_validation_iocs.filter(ioc => ioc.ioc_test_kind).length;
-  const statusMessage = awaitingApproval
-    ? t('Waiting for approval: {runnable, plural, one {# IOC to test} other {# IOCs to test}}{skipped, plural, =0 {} other {, # skipped by the safety settings}}', {
+  const skipped = iocValidation.ioc_validation_iocs.length - runnable;
+  const awaitingMessage = skipped > 0
+    ? t('Waiting for approval - IOCs to test: {runnable}, skipped by the safety settings: {skipped}', {
         runnable: String(runnable),
-        skipped: String(iocValidation.ioc_validation_iocs.length - runnable),
+        skipped: String(skipped),
       })
-    : iocValidation.ioc_validation_status_message;
+    : t('Waiting for approval - IOCs to test: {runnable}', { runnable: String(runnable) });
+  const statusMessage = awaitingApproval ? awaitingMessage : iocValidation.ioc_validation_status_message;
   const allowedTestKinds = iocValidation.ioc_validation_allowed_test_kinds ?? [];
   const skippedBySettings = (ioc: IocValidationIocOutput) => !ioc.ioc_test_kind
     && !!ioc.ioc_requested_test_kind && !allowedTestKinds.includes(ioc.ioc_requested_test_kind);
