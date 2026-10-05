@@ -660,7 +660,12 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.tag_rule.TagRuleApi#tags",
           "io.openaev.rest.tag_rule.TagRuleApi#updateTagRule",
           "io.openaev.rest.team.TeamApi#searchInjectsForTeam",
-          "io.openaev.rest.user.PlayerApi#searchInjectsForPlayer");
+          "io.openaev.rest.user.PlayerApi#searchInjectsForPlayer",
+          // bulk snapshot export (#7505): the pending-indexing probe is a native query on
+          // tenant-active tables (findings, assets); without the TxCtx scope it reads zero rows
+          // and reports a ready snapshot while rows are still pending.
+          "io.openaev.api.snapshot.SnapshotObservationApi#searchAttackObservations",
+          "io.openaev.api.snapshot.SnapshotObservationApi#searchVulnerabilityObservations");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

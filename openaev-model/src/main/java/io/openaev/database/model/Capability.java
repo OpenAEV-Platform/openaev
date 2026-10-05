@@ -212,6 +212,15 @@ public enum Capability {
       pair(ResourceType.FINDING, Action.CREATE)),
   DELETE_FINDINGS(MANAGE_FINDINGS, true, pair(ResourceType.FINDING, Action.DELETE)),
 
+  // Vulnerability and attack snapshot — bulk export consumed by external GRC integrations.
+  // SEARCH only: the snapshot has no per-resource endpoint, so no resourceId is ever resolved and
+  // the capability is the sole authorisation gate.
+  ACCESS_SNAPSHOT_OBSERVATION(
+      null,
+      CapabilityGroup.FINDINGS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.SNAPSHOT_OBSERVATION, Action.SEARCH)),
+
   // Documents
   ACCESS_DOCUMENTS(
       null,
@@ -458,6 +467,15 @@ public enum Capability {
       pair(ResourceType.MARKING_DEFINITION, Action.CREATE)),
   DELETE_MARKING_DEFINITION(
       MANAGE_MARKING_DEFINITION, pair(ResourceType.MARKING_DEFINITION, Action.DELETE)),
+
+  // Marking assignment
+  ASSIGN_MARKING(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.MARKING_ASSIGNMENT, Action.WRITE)),
+  DELETE_MARKING_ASSIGNMENT(ASSIGN_MARKING, pair(ResourceType.MARKING_ASSIGNMENT, Action.DELETE)),
+
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
       null,
@@ -722,12 +740,5 @@ public enum Capability {
           "Dropping out-of-scope capabilities {} not allowed for scope {}", dropped, requiredScope);
     }
     return valid;
-  }
-
-  public boolean isCredentialCapability() {
-    return this == ACCESS_CREDENTIALS
-        || this == MANAGE_CREDENTIALS
-        || this == DELETE_CREDENTIALS
-        || this == RESOLVE_INJECT_SECRET;
   }
 }
