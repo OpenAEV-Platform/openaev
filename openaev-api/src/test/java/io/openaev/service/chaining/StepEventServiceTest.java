@@ -290,7 +290,7 @@ class StepEventServiceTest {
       StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
       Step step = new Step();
       step.setStepAction(StepActionClass.INJECT_EXECUTION);
-      when(stepRepository.findById(event.getStepId())).thenReturn(Optional.of(step));
+      when(stepRepository.findForUpdateById(event.getStepId())).thenReturn(Optional.of(step));
       when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), any()))
           .thenReturn(actionStep);
       when(actionStep.run(step)).thenReturn(Optional.empty());
