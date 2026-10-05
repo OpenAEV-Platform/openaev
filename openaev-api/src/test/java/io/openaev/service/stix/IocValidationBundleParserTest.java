@@ -202,6 +202,17 @@ class IocValidationBundleParserTest {
   }
 
   @Test
+  @DisplayName("rejects a pair whose security platform has no named identity in the bundle")
+  void given_pairWithoutPlatformIdentity_should_throw() {
+    ObjectNode request = request();
+    ((ObjectNode) request.get("pairs").get(0))
+        .put("platform_ref", "identity--00000000-0000-4000-8000-000000000000");
+    assertThatThrownBy(() -> parser.parse(bundle(request), REQUEST_ID))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining("has no named identity");
+  }
+
+  @Test
   @DisplayName("rejects payloads that are not STIX bundles")
   void given_invalidJson_should_throw() {
     assertThatThrownBy(() -> parser.parse("{not json", REQUEST_ID))

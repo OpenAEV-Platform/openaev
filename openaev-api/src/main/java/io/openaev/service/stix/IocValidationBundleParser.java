@@ -64,7 +64,7 @@ public class IocValidationBundleParser {
 
     List<IocValidationRequest.Ioc> iocs = parseIocs(request.path("iocs"), indicatorNames);
     List<IocValidationRequest.Pair> pairs = parsePairs(request.path("pairs"));
-    checkLimits(iocs, pairs);
+    checkLimits(iocs, pairs, platformNames);
 
     return new IocValidationRequest(
         requestId,
@@ -211,15 +211,18 @@ public class IocValidationBundleParser {
   }
 
   private static void checkLimits(
-      List<IocValidationRequest.Ioc> iocs, List<IocValidationRequest.Pair> pairs)
+      List<IocValidationRequest.Ioc> iocs,
+      List<IocValidationRequest.Pair> pairs,
+      Map<String, String> platformNames)
       throws BundleValidationError {
     if (iocs.size() > MAX_INDICATORS) {
       throw new BundleValidationError(
           "An IOC validation request is limited to %d IOCs, found %d"
               .formatted(MAX_INDICATORS, iocs.size()));
     }
-    // OpenCTI builds every pair from an IOC of the request: a pair without one could never be
-    // tested and is a malformed request
+    // OpenCTI builds every pair from an IOC of the request and sends the named identity of every
+    // paired security platform, the only way a platform is matched here: a pair without either
+    // could never be tested and is a malformed request
     Set<String> iocIndicators = new LinkedHashSet<>();
     iocs.forEach(ioc -> iocIndicators.add(ioc.indicatorRef()));
     for (IocValidationRequest.Pair pair : pairs) {
@@ -227,6 +230,11 @@ public class IocValidationBundleParser {
         throw new BundleValidationError(
             "The IOC validation request pairs indicator %s, which has no IOC"
                 .formatted(pair.indicatorRef()));
+      }
+      if (!platformNames.containsKey(pair.platformRef())) {
+        throw new BundleValidationError(
+            "The IOC validation request pairs security platform %s, which has no named identity"
+                .formatted(pair.platformRef()));
       }
     }
     long platforms = pairs.stream().map(IocValidationRequest.Pair::platformRef).distinct().count();
