@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
-/* A value identical to the en.json one means the key was never translated.
+/* Every en.json key must exist in each locale, and a value identical to the en.json one means
+   the key was never translated.
    Exempt: values made only of protected terms (i18n-glossary.json) and the loanwords
    listed in i18n-loanwords.json ("all" applies to every locale). Consumed by i18n-checker.js. */
 import fs from 'node:fs';
@@ -27,7 +28,19 @@ export const collectUntranslatedViolations = () => {
 
     const translated = JSON.parse(fs.readFileSync(file, 'utf8'));
     for (const [key, enValue] of Object.entries(english)) {
-      if (typeof enValue !== 'string' || translated[key] !== enValue) continue;
+      if (typeof enValue !== 'string') continue;
+      // Parity first: keys reaching t() through a variable (backend-provided labels) are invisible
+      // to the literal t('…') scan, so a key absent from the locale would otherwise go unnoticed.
+      if (!Object.hasOwn(translated, key)) {
+        violations.push({
+          lang,
+          key,
+          value: enValue,
+          missing: true,
+        });
+        continue;
+      }
+      if (translated[key] !== enValue) continue;
       if (hasTranslatableText(enValue) && !isLoanword(lang, enValue)) {
         violations.push({
           lang,
@@ -43,11 +56,11 @@ export const collectUntranslatedViolations = () => {
 
 export const reportUntranslatedViolations = (violations) => {
   for (const v of violations) {
-    console.error(`${v.lang}.json — identical to the English value`);
+    console.error(`${v.lang}.json — ${v.missing ? 'key missing from the file' : 'identical to the English value'}`);
     console.error(`  key   : ${v.key.slice(0, 90)}`);
     if (v.value !== v.key) console.error(`  value : ${v.value.slice(0, 90)}`);
   }
-  console.error(`Total: ${violations.length} untranslated value(s).`);
+  console.error(`Total: ${violations.length} missing or untranslated value(s).`);
   console.error('Run "yarn auto-translation:all" to translate them. If a value is legitimately identical');
   console.error('(loanword, language name), add it to scripts/i18n-loanwords.json under the locale, e.g. "de": ["Dashboard"].');
 };
