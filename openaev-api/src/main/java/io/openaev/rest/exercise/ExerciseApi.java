@@ -540,8 +540,12 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  @Operation(
+      summary = "Duplicate a simulation",
+      description =
+          "Duplicates a simulation's authored content. A chained simulation also gets a copy of its logic map (workflow, steps and conditions); execution artefacts - including its runtime-generated injects - are never copied. Requires an Enterprise Edition license when the simulation is chained.")
   public Exercise duplicateExercise(TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
-    return hydrateForResponse(exerciseService.getDuplicateExercise(exerciseId));
+    return hydrateForResponse(exerciseService.duplicateExercise(exerciseId));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
