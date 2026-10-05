@@ -1,3 +1,4 @@
+import { Button, Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, IconButton, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AddOutlined,
   BrushOutlined,
@@ -10,20 +11,7 @@ import {
   GroupsOutlined,
   InfoOutlined,
 } from '@mui/icons-material';
-import {
-  Autocomplete,
-  Box,
-  Button,
-  FormControl,
-  Grid,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { Component, type ComponentType, type JSX, type ReactNode } from 'react';
 import { connect } from 'react-redux';
@@ -234,16 +222,6 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
     this.setState({ actionsInputs });
   }
 
-  handleChangeActionInputValuesReplace(i: number, event: { target: { value: string } }) {
-    const { value } = event.target;
-    const actionsInputs = [...this.state.actionsInputs];
-    actionsInputs[i] = {
-      ...(actionsInputs[i]),
-      values: [value],
-    };
-    this.setState({ actionsInputs });
-  }
-
   renderFieldOptions(i: number) {
     const { t } = this.props;
     const { actionsInputs } = this.state;
@@ -267,20 +245,27 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
     }
     return (
       <Select
-        variant="standard"
         disabled={disabled}
         value={actionsInputs[i]?.field || ''}
-        onChange={event => this.handleChangeActionInput(i, 'field', event as { target: { value: string } })}
+        onValueChange={next => this.handleChangeActionInput(i, 'field', { target: { value: next } })}
       >
-        {options.length > 0 ? (
-          options.map(n => (
-            <MenuItem key={n.value} value={n.value}>
-              {n.label}
-            </MenuItem>
-          ))
-        ) : (
-          <MenuItem value="none">{t('None')}</MenuItem>
-        )}
+        {/* The library field reserves no notch for a floating label, so the
+            label is the library's own and sits above the field. */}
+        <SelectLabel>{t('Field')}</SelectLabel>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.length > 0 ? (
+            options.map(n => (
+              <SelectItem key={n.value} value={n.value}>
+                {n.label}
+              </SelectItem>
+            ))
+          ) : (
+            <SelectItem value="none">{t('None')}</SelectItem>
+          )}
+        </SelectContent>
       </Select>
     );
   }
@@ -299,156 +284,64 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
     const { t } = this.props;
     const { actionsInputs } = this.state;
     const disabled = !actionsInputs[i]?.field;
-    switch (actionsInputs[i]?.field) {
-      case 'assets':
-        return (
-          <Autocomplete
-            disabled={disabled}
-            size="small"
-            fullWidth
-            selectOnFocus
-            autoHighlight
-            getOptionLabel={(option: ToolBarSelectOption) => (option.label ? option.label : '')}
-            value={(actionsInputs[i]?.values as ToolBarSelectOption[]) || []}
-            multiple
-            renderInput={params => (
-              <TextField
-                {...params}
-                variant="standard"
-                label={t('Values')}
-                fullWidth
-                style={{ marginTop: 3 }}
-              />
-            )}
-            noOptionsText={t('No available options')}
-            options={this.props.endpoints}
-            onInputChange={(event, value) => this.handleSearch(i, event, value)}
-            inputValue={actionsInputs[i]?.inputValue || ''}
-            onChange={(event, value) => this.handleChangeActionInputValues(i, event, value)}
-            renderOption={(props, option: ToolBarSelectOption) => (
-              <li {...props}>
-                <Box sx={{
-                  pt: 0.5,
-                  display: 'inline-block',
-                }}
-                >
-                  <DevicesOtherOutlined />
-                </Box>
-                <Box sx={{
-                  display: 'inline-block',
-                  flexGrow: 1,
-                  ml: 1.25,
-                }}
-                >
-                  {option.label}
-                </Box>
-              </li>
-            )}
-          />
-        );
-      case 'asset_groups':
-        return (
-          <Autocomplete
-            disabled={disabled}
-            size="small"
-            fullWidth
-            selectOnFocus
-            autoHighlight
-            getOptionLabel={(option: ToolBarSelectOption) => (option.label ? option.label : '')}
-            value={(actionsInputs[i]?.values as ToolBarSelectOption[]) || []}
-            multiple
-            renderInput={params => (
-              <TextField
-                {...params}
-                variant="standard"
-                label={t('Values')}
-                fullWidth
-                style={{ marginTop: 3 }}
-              />
-            )}
-            noOptionsText={t('No available options')}
-            options={this.props.assetGroups}
-            onInputChange={(event, value) => this.handleSearch(i, event, value)}
-            inputValue={actionsInputs[i]?.inputValue || ''}
-            onChange={(event, value) => this.handleChangeActionInputValues(i, event, value)}
-            renderOption={(props, option: ToolBarSelectOption) => (
-              <li {...props}>
-                <Box sx={{
-                  pt: 0.5,
-                  display: 'inline-block',
-                }}
-                >
-                  <SelectGroup />
-                </Box>
-                <Box sx={{
-                  display: 'inline-block',
-                  flexGrow: 1,
-                  ml: 1.25,
-                }}
-                >
-                  {option.label}
-                </Box>
-              </li>
-            )}
-          />
-        );
-      case 'teams':
-        return (
-          <Autocomplete
-            disabled={disabled}
-            size="small"
-            fullWidth
-            selectOnFocus
-            autoHighlight
-            getOptionLabel={(option: ToolBarSelectOption) => (option.label ? option.label : '')}
-            value={(actionsInputs[i]?.values as ToolBarSelectOption[]) || []}
-            multiple
-            renderInput={params => (
-              <TextField
-                {...params}
-                variant="standard"
-                label={t('Values')}
-                fullWidth
-                style={{ marginTop: 3 }}
-              />
-            )}
-            noOptionsText={t('No available options')}
-            options={this.props.teams}
-            onInputChange={(event, value) => this.handleSearch(i, event, value)}
-            inputValue={actionsInputs[i]?.inputValue || ''}
-            onChange={(event, value) => this.handleChangeActionInputValues(i, event, value)}
-            renderOption={(props, option: ToolBarSelectOption) => (
-              <li {...props}>
-                <Box sx={{
-                  pt: 0.5,
-                  display: 'inline-block',
-                }}
-                >
-                  <GroupsOutlined />
-                </Box>
-                <Box sx={{
-                  display: 'inline-block',
-                  flexGrow: 1,
-                  ml: 1.25,
-                }}
-                >
-                  {option.label}
-                </Box>
-              </li>
-            )}
-          />
-        );
-      default:
-        return (
-          <TextField
-            variant="standard"
-            disabled={disabled}
-            label={t('Values')}
-            fullWidth
-            onChange={event => this.handleChangeActionInputValuesReplace(i, event as { target: { value: string } })}
-          />
-        );
-    }
+    // The three fields differ only in where their options come from and which
+    // glyph each row draws. Before one is picked the same field renders,
+    // disabled and empty, so it does not change shape under the cursor.
+    const sources: Record<string, {
+      options: ToolBarSelectOption[];
+      Glyph: typeof GroupsOutlined;
+    }> = {
+      assets: {
+        options: this.props.endpoints,
+        Glyph: DevicesOtherOutlined,
+      },
+      asset_groups: {
+        options: this.props.assetGroups,
+        Glyph: SelectGroup,
+      },
+      teams: {
+        options: this.props.teams,
+        Glyph: GroupsOutlined,
+      },
+    };
+    const source = sources[actionsInputs[i]?.field ?? ''];
+    const Glyph = source?.Glyph;
+    return (
+      <Combobox<ToolBarSelectOption>
+        multiple
+        disabled={disabled}
+        options={source?.options ?? []}
+        value={(actionsInputs[i]?.values as ToolBarSelectOption[]) || []}
+        getOptionLabel={option => option.label ?? ''}
+        isOptionEqualToValue={(option, val) => option.value === val.value}
+        inputValue={actionsInputs[i]?.inputValue || ''}
+        onInputChange={(search, meta) => {
+          if (meta.cause === 'type') {
+            this.handleSearch(i, meta.event, search);
+          }
+        }}
+        onValueChange={next => this.handleChangeActionInputValues(i, null, next as ToolBarSelectOption[])}
+        renderOption={Glyph
+          ? option => (
+            <>
+              <Glyph fontSize="small" />
+              <span>{option.label}</span>
+            </>
+          )
+          : undefined}
+      >
+        <ComboboxLabel>{t('Values')}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxChips />
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxClear />
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent emptyMessage={t('No available options')} />
+      </Combobox>
+    );
   }
 
   areStepValid() {
@@ -555,18 +448,13 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             {' '}
             {t('selected').toLowerCase()}
             <IconButton
+              icon={<ClearOutlined fontSize="small" />}
               aria-label="clear"
               disabled={numberOfSelectedElements === 0 || this.state.processing}
               onClick={() => handleClearSelectedElements()}
-              size="small"
-              color="primary"
-              sx={{
-                ml: 0,
-                p: 0.5,
-              }}
-            >
-              <ClearOutlined fontSize="small" />
-            </IconButton>
+              priority="tertiary"
+              size="md"
+            />
           </Typography>
           {info && (
             <Box
@@ -587,78 +475,99 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
           )}
           {customAction && customAction}
           {canExport && (
-            <Tooltip title={t('Export')}>
-              <span>
-                <IconButton
-                  aria-label="export"
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={this.handleOpenExport.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <FileDownloadOutlined fontSize="small" />
-                </IconButton>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<FileDownloadOutlined fontSize="small" />}
+                      aria-label="export"
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={this.handleOpenExport.bind(this)}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('Export')}</TooltipContent>
             </Tooltip>
           )}
           {canUpdate && (
-            <Tooltip title={t('Update')}>
-              <span>
-                <IconButton
-                  aria-label="update"
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={this.handleOpenUpdate.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <BrushOutlined fontSize="small" />
-                </IconButton>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<BrushOutlined fontSize="small" />}
+                      aria-label="update"
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={this.handleOpenUpdate.bind(this)}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('Update')}</TooltipContent>
             </Tooltip>
           )}
           {canTest && (
-            <Tooltip title={t('Test')}>
-              <span>
-                <IconButton
-                  aria-label="test"
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={this.handleOpenBulkTest.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <ForwardToInbox fontSize="small" />
-                </IconButton>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<ForwardToInbox fontSize="small" />}
+                      aria-label="test"
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={this.handleOpenBulkTest.bind(this)}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('Test')}</TooltipContent>
             </Tooltip>
           )}
           {canDelete && (
-            <Tooltip title={t('Delete')}>
-              <span>
-                <IconButton
-                  aria-label="delete"
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={this.handleOpenBulkDelete.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <DeleteOutlined fontSize="small" />
-                </IconButton>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={<DeleteOutlined fontSize="small" />}
+                      variant="destructive"
+                      aria-label="delete"
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={this.handleOpenBulkDelete.bind(this)}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('Delete')}</TooltipContent>
             </Tooltip>
           )}
           {toolTasks.map(toolTask => (
-            <Tooltip key={toolTask.type} title={toolTask.title ?? ''}>
-              <span>
-                <IconButton
-                  aria-label={toolTask.type}
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={toolTask.onClick}
-                  color="primary"
-                  size="small"
-                >
-                  {toolTask.icon()}
-                </IconButton>
-              </span>
+            <Tooltip key={toolTask.type}>
+              <TooltipTrigger asChild>
+                <span>
+                  <span className="inline-flex">
+                    <IconButton
+                      icon={toolTask.icon()}
+                      aria-label={toolTask.type}
+                      disabled={numberOfSelectedElements === 0 || this.state.processing}
+                      onClick={toolTask.onClick}
+                      priority="tertiary"
+                      size="md"
+                    />
+                  </span>
+                </span>
+              </TooltipTrigger>
+              {(toolTask.title ?? '') && <TooltipContent>{toolTask.title ?? ''}</TooltipContent>}
             </Tooltip>
           ))}
         </Box>
@@ -686,59 +595,58 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                   }}
                 >
                   <IconButton
+                    icon={<CancelOutlined fontSize="small" />}
                     disabled={actionsInputs.length === 1}
                     aria-label="Delete"
-                    sx={{
+                    onClick={this.handleRemoveStep.bind(this, i)}
+                    style={{
                       position: 'absolute',
                       top: -2.5,
                       right: -2.5,
                     }}
-                    onClick={this.handleRemoveStep.bind(this, i)}
-                    size="small"
+                    priority="tertiary"
+                    size="md"
+                  />
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 3,
+                    width: '100%',
+                  }}
                   >
-                    <CancelOutlined fontSize="small" />
-                  </IconButton>
-                  <Grid container spacing={3} sx={{ width: '100%' }}>
-                    <Grid size={{ xs: 3 }}>
-                      <FormControl sx={{ width: '100%' }}>
-                        <InputLabel>{t('Action type')}</InputLabel>
-                        <Select
-                          variant="standard"
-                          value={actionsInputs[i]?.type || ''}
-                          onChange={event => this.handleChangeActionInput(i, 'type', event as { target: { value: string } })}
-                        >
-                          <MenuItem value="ADD">{t('Add')}</MenuItem>
-                          <MenuItem value="REPLACE">
-                            {t('Replace')}
-                          </MenuItem>
-                          <MenuItem value="REMOVE">{t('Remove')}</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    <Grid size={{ xs: 3 }}>
-                      <FormControl sx={{ width: '100%' }}>
-                        <InputLabel>{t('Field')}</InputLabel>
-                        {this.renderFieldOptions(i)}
-                      </FormControl>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
+                    <Box sx={{ flex: '0 0 25%' }}>
+                      <Select
+                        value={actionsInputs[i]?.type || ''}
+                        onValueChange={next => this.handleChangeActionInput(i, 'type', { target: { value: next } })}
+                      >
+                        <SelectLabel>{t('Action type')}</SelectLabel>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={t('Action type')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ADD">{t('Add')}</SelectItem>
+                          <SelectItem value="REPLACE">{t('Replace')}</SelectItem>
+                          <SelectItem value="REMOVE">{t('Remove')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Box>
+                    {/* Its trigger is `w-full`, so it needs a real basis: in a shrink-to-fit
+                        flex item the 100% would resolve against the content and collapse. */}
+                    <Box sx={{ flex: '0 0 25%' }}>
+                      {this.renderFieldOptions(i)}
+                    </Box>
+                    <Box sx={{
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                    >
                       {this.renderValuesOptions(i)}
-                    </Grid>
-                  </Grid>
+                    </Box>
+                  </Box>
                 </Box>
               ))}
             <Box>
-              <Button
-                disabled={!this.areStepValid()}
-                variant="contained"
-                color="secondary"
-                size="small"
-                onClick={this.handleAddStep.bind(this)}
-                sx={{
-                  width: '100%',
-                  height: 2.5,
-                }}
-              >
+              <Button type="button" priority="secondary" fullWidth aria-label={t('Add')} disabled={!this.areStepValid()} onClick={this.handleAddStep.bind(this)}>
                 <AddOutlined fontSize="small" />
               </Button>
             </Box>
@@ -747,13 +655,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               textAlign: 'right',
             }}
             >
-              <Button
-                disabled={!this.areStepValid()}
-                variant="contained"
-                color="primary"
-                onClick={this.handleLaunchUpdate.bind(this)}
-                sx={{ ml: 2 }}
-              >
+              <Button type="button" disabled={!this.areStepValid()} onClick={this.handleLaunchUpdate.bind(this)} style={{ marginLeft: 16 }}>
                 {t('Update')}
               </Button>
             </Box>

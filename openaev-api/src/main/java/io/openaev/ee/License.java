@@ -99,6 +99,9 @@ public class License {
   @JsonProperty("license_is_extra_expiration")
   private boolean extraExpiration = false;
 
+  @JsonProperty("license_source")
+  private LicenseSource source = LicenseSource.openaev;
+
   @JsonProperty("license_extra_expiration_days")
   private long extraExpirationDays = 0;
 

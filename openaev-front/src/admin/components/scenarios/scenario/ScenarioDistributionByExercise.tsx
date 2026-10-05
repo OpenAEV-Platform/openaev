@@ -286,7 +286,7 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
   // results): the tiles above are an illustrative sample so the widget previews
   // its final shape. Mark it explicitly as a sample (greyed + "Sample" chip),
   // like the other overview widgets, so it can never be mistaken for real posture.
-  return isFakeData ? <SamplePreview active variant="subtle">{grid}</SamplePreview> : grid;
+  return isFakeData ? <SamplePreview active variant="subtle" atPanelEdge>{grid}</SamplePreview> : grid;
 };
 
 export default ScenarioDistributionByExercise;

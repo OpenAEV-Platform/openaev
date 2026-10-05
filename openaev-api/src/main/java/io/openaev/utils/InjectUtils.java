@@ -332,6 +332,7 @@ public class InjectUtils {
    */
   public static Inject duplicateInject(@NotNull Inject injectOrigin) {
     Inject duplicatedInject = new Inject();
+    duplicatedInject.setTenant(injectOrigin.getTenant());
     duplicatedInject.setUser(injectOrigin.getUser());
     duplicatedInject.setTitle(injectOrigin.getTitle());
     duplicatedInject.setDescription(injectOrigin.getDescription());

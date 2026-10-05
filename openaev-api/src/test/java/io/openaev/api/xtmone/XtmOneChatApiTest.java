@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -17,6 +19,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NullNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.ee.EnterpriseEditionService;
@@ -45,7 +49,10 @@ class XtmOneChatApiTest extends IntegrationTest {
   private static final String CHAT_SESSIONS_URL = "/api/xtmone/chat/sessions";
   private static final String CHAT_STEER_URL = "/api/xtmone/chat/messages/steer";
   private static final String CHAT_APPROVE_URL = "/api/xtmone/chat/messages/approve";
+  private static final String CHAT_PROMPTS_URL = "/api/xtmone/chat/prompts";
+  private static final String CHAT_QUOTA_URL = "/api/xtmone/chat/quota";
   private static final String CONVERSATION_ID = "11111111-1111-1111-1111-111111111111";
+  private static final String MESSAGE_ID = "22222222-2222-2222-2222-222222222222";
 
   @Autowired private MockMvc mvc;
   @MockitoBean private XtmOneClient xtmOneClient;
@@ -849,5 +856,292 @@ class XtmOneChatApiTest extends IntegrationTest {
       mvc.perform(get(url(CONVERSATION_ID)).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isNotFound());
     }
+  }
+
+  @Nested
+  @DisplayName("GET /api/xtmone/chat/prompts")
+  class ListPrompts {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One not configured should return an empty prompt list")
+    void given_notConfigured_should_returnEmptyPrompts() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(false);
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_PROMPTS_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.prompts").isArray())
+          .andExpect(jsonPath("$.prompts").isEmpty());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One returns prompts should relay them")
+    void given_prompts_should_relayThem() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.getChatPrompts())
+          .thenReturn(
+              Map.of(
+                  "prompts",
+                  List.of(Map.of("id", "p-1", "title", "Summarize", "content", "Summarize"))));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_PROMPTS_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.prompts[0].id").value("p-1"))
+          .andExpect(jsonPath("$.prompts[0].content").value("Summarize"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream answers 503 should propagate 503")
+    void given_upstreamUnavailable_should_return503() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.getChatPrompts())
+          .thenThrow(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI disabled"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_PROMPTS_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isServiceUnavailable());
+    }
+  }
+
+  @Nested
+  @DisplayName("GET /api/xtmone/chat/quota")
+  class GetQuota {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One not configured should return a JSON null")
+    void given_notConfigured_should_returnNull() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(false);
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_QUOTA_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(content().string("null"));
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One returns a quota should relay it")
+    void given_quota_should_relayIt() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.getChatQuota())
+          .thenReturn(
+              JsonNodeFactory.instance
+                  .objectNode()
+                  .put("used", 3)
+                  .put("limit", 10)
+                  .put("period", "daily")
+                  .put("scope", "user"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_QUOTA_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.used").value(3))
+          .andExpect(jsonPath("$.limit").value(10))
+          .andExpect(jsonPath("$.period").value("daily"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One has nothing to show should return a JSON null")
+    void given_nothingToShow_should_returnNull() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.getChatQuota()).thenReturn(NullNode.getInstance());
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(CHAT_QUOTA_URL).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(content().string("null"));
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/xtmone/chat/conversations/{conversationId}/messages/{messageId}/feedback")
+  class SubmitMessageFeedback {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One not configured should return 400")
+    void given_notConfigured_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(false);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(feedbackUrl(CONVERSATION_ID, MESSAGE_ID))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"rating\":\"positive\"}"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a non-UUID message id should return 400 without calling XTM One")
+    void given_invalidMessageId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(feedbackUrl(CONVERSATION_ID, "not-a-uuid"))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"rating\":\"positive\"}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given an unknown rating should return 400 without calling XTM One")
+    void given_unknownRating_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(feedbackUrl(CONVERSATION_ID, MESSAGE_ID))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"rating\":\"neutral\"}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a comment over 2000 characters should return 400 without calling XTM One")
+    void given_overlongComment_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(feedbackUrl(CONVERSATION_ID, MESSAGE_ID))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"rating\":\"negative\",\"comment\":\"" + "x".repeat(2001) + "\"}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a valid rating should forward it and return the stored rating")
+    void given_validRating_should_forwardAndReturnStoredRating() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.submitMessageFeedback(CONVERSATION_ID, MESSAGE_ID, "negative", "Wrong CVE"))
+          .thenReturn(Map.of("rating", "negative", "comment", "Wrong CVE"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(feedbackUrl(CONVERSATION_ID, MESSAGE_ID))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"rating\":\"negative\",\"comment\":\"Wrong CVE\"}"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.rating").value("negative"))
+          .andExpect(jsonPath("$.comment").value("Wrong CVE"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream answers 404 (message not readable) should propagate 404")
+    void given_upstreamNotFound_should_return404() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.submitMessageFeedback(
+              eq(CONVERSATION_ID), eq(MESSAGE_ID), eq("positive"), isNull()))
+          .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(feedbackUrl(CONVERSATION_ID, MESSAGE_ID))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"rating\":\"positive\"}"))
+          .andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
+  @DisplayName(
+      "DELETE /api/xtmone/chat/conversations/{conversationId}/messages/{messageId}/feedback")
+  class RetractMessageFeedback {
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One not configured should return 400")
+    void given_notConfigured_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(false);
+
+      // -- ACT & ASSERT --
+      mvc.perform(delete(feedbackUrl(CONVERSATION_ID, MESSAGE_ID)).with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a non-UUID conversation id should return 400 without calling XTM One")
+    void given_invalidConversationId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(delete(feedbackUrl("not-a-uuid", MESSAGE_ID)).with(csrf()))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given valid ids should retract the rating and return 204")
+    void given_validIds_should_returnNoContent() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(delete(feedbackUrl(CONVERSATION_ID, MESSAGE_ID)).with(csrf()))
+          .andExpect(status().isNoContent());
+      verify(xtmOneClient).retractMessageFeedback(CONVERSATION_ID, MESSAGE_ID);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream answers 404 should propagate 404")
+    void given_upstreamNotFound_should_return404() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"))
+          .when(xtmOneClient)
+          .retractMessageFeedback(CONVERSATION_ID, MESSAGE_ID);
+
+      // -- ACT & ASSERT --
+      mvc.perform(delete(feedbackUrl(CONVERSATION_ID, MESSAGE_ID)).with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+  }
+
+  private static String feedbackUrl(String conversationId, String messageId) {
+    return "/api/xtmone/chat/conversations/"
+        + conversationId
+        + "/messages/"
+        + messageId
+        + "/feedback";
   }
 }

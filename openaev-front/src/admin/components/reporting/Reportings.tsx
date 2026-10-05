@@ -1,7 +1,8 @@
+import { ButtonGroup, ButtonGroupItem, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined, GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { FileChartOutline } from 'mdi-material-ui';
-import { type CSSProperties, type SyntheticEvent, useMemo, useState } from 'react';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -86,11 +87,7 @@ const Reportings = () => {
       label: 'Subject type',
       isSortable: true,
       value: (reporting: Reporting) => (
-        <Chip
-          label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])}
-          size="small"
-          variant="outlined"
-        />
+        <Chip label={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])} />
       ),
     },
     {
@@ -120,8 +117,8 @@ const Reportings = () => {
   ], [t, fldt]);
 
   const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
-  const handleViewModeChange = (_: SyntheticEvent, value: ViewMode | null) => {
-    if (!value) return;
+  const handleViewModeChange = (next: string) => {
+    const value = next as ViewMode;
     setViewMode(value);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
@@ -129,25 +126,26 @@ const Reportings = () => {
   };
 
   const viewSwitcher = (
-    <ToggleButtonGroup
+    <ButtonGroup
       value={viewMode}
-      exclusive
-      size="small"
-      onChange={handleViewModeChange}
+      size="md"
+      usecase="isolated"
+      onValueChange={handleViewModeChange}
       aria-label={t('View mode')}
-      sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
     >
-      <ToggleButton value="cards" aria-label={t('Cards view')}>
-        <Tooltip title={t('Cards view')}>
-          <GridViewOutlined fontSize="small" />
-        </Tooltip>
-      </ToggleButton>
-      <ToggleButton value="list" aria-label={t('List view')}>
-        <Tooltip title={t('List view')}>
-          <ViewListOutlined fontSize="small" />
-        </Tooltip>
-      </ToggleButton>
-    </ToggleButtonGroup>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ButtonGroupItem value="cards" aria-label={t('Cards view')} icon={<GridViewOutlined fontSize="small" />} />
+        </TooltipTrigger>
+        <TooltipContent>{t('Cards view')}</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+        </TooltipTrigger>
+        <TooltipContent>{t('List view')}</TooltipContent>
+      </Tooltip>
+    </ButtonGroup>
   );
 
   const renderCards = () => {
@@ -243,15 +241,19 @@ const Reportings = () => {
                       secondaryAction={(
                         <Box display="flex" alignItems="center">
                           {downloadable && (
-                            <Tooltip title={t('Download latest generation')}>
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                component="a"
-                                href={downloadReportingGenerationUrl(generation.reporting_generation_id)}
-                              >
-                                <FileDownloadOutlined fontSize="small" />
-                              </IconButton>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <IconButton
+                                  asChild
+                                  icon={<FileDownloadOutlined fontSize="small" />}
+                                  aria-label={t('Download latest generation')}
+                                  priority="tertiary"
+                                  size="sm"
+                                >
+                                  <a href={downloadReportingGenerationUrl(generation.reporting_generation_id)} />
+                                </IconButton>
+                              </TooltipTrigger>
+                              <TooltipContent>{t('Download latest generation')}</TooltipContent>
                             </Tooltip>
                           )}
                           <ReportingPopover

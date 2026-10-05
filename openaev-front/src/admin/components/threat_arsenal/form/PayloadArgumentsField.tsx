@@ -1,6 +1,5 @@
+import { IconButton } from '@filigran/design-system';
 import { DeleteOutlined } from '@mui/icons-material';
-import { IconButton } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import DocumentField from '../../../../components/fields/DocumentField';
@@ -10,6 +9,7 @@ import TextFieldController from '../../../../components/fields/TextFieldControll
 import { useFormatter } from '../../../../components/i18n';
 import type { PayloadArgument } from '../../../../utils/api-types';
 import { formatPrimitiveTypeLabel } from '../../../../utils/String';
+import useArgumentRowStyles from './useArgumentRowStyles';
 import useArgumentTypes from './useArgumentTypes';
 
 interface Props {
@@ -20,7 +20,7 @@ interface Props {
 
 const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentRemoveClick }: Props) => {
   const { t } = useFormatter();
-  const theme = useTheme();
+  const { classes } = useArgumentRowStyles();
   const { watch, control } = useFormContext();
   const argumentType: PayloadArgument['type'] = watch(`${argumentName}.type`);
   const { argumentTypes, argumentWithDefaultValueTypes } = useArgumentTypes();
@@ -80,10 +80,10 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
 
   return (
     <div
+      className={classes.alignedRow}
       style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${columnCount}, 1fr) auto`,
-        gap: theme.spacing(1),
       }}
     >
       <SelectFieldController
@@ -131,14 +131,20 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
           />
         </>
       )}
-      <IconButton
-        onClick={onArgumentRemoveClick}
-        size="small"
-        color="primary"
-        data-testid={`${argumentName}.delete-btn`}
-      >
-        <DeleteOutlined />
-      </IconButton>
+      <div className={classes.deleteCell}>
+        <span aria-hidden className={classes.deleteLabelSpacer}>&nbsp;</span>
+        <div className={classes.deleteControl}>
+          <IconButton
+            icon={<DeleteOutlined />}
+            variant="destructive"
+            aria-label={t('Delete')}
+            onClick={onArgumentRemoveClick}
+            data-testid={`${argumentName}.delete-btn`}
+            priority="tertiary"
+            size="sm"
+          />
+        </div>
+      </div>
     </div>
   );
 };

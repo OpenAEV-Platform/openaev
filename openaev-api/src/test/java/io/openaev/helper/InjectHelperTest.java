@@ -9,6 +9,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +56,7 @@ public class InjectHelperTest extends IntegrationTest {
     user.setEmail(USER_EMAIL);
     this.userRepository.save(user);
 
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName("My team");
     team.setExercises(exercises);
     team.setUsers(List.of(user));

@@ -1,21 +1,27 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { IntlProvider } from 'react-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AskArianeButton from '../../../../admin/components/ariane/AskArianeButton';
 import { ChatbotContext, type ChatbotContextType } from '../../../../admin/components/ariane/chatbotContext';
+import EnterpriseEditionContext from '../../../../components/EnterpriseEditionContext';
 import { type PlatformSettings, type User } from '../../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../../utils/hooks/useAuth';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { expectLibraryButton, expectNoMuiControls } from '../../../utils/designSystemAssertions';
 
 const theme = createTheme({
   palette: {
     ai: {
       main: '#9575ff',
       light: '#c4b5fd',
+    },
+    ee: {
+      main: '#00f1bd',
+      background: '#00f1bd33',
     },
   },
 });
@@ -42,6 +48,14 @@ const chatbotContext: ChatbotContextType = {
   setIsResizing: vi.fn(),
 };
 
+const enterpriseEditionContext = {
+  open: false,
+  openDialog: vi.fn(),
+  closeDialog: vi.fn(),
+  EEFeatureDetectedInfo: '',
+  setEEFeatureDetectedInfo: vi.fn(),
+};
+
 const ability = { can: () => true } as unknown as AppAbility;
 
 const renderButton = (settingsOverrides: Partial<PlatformSettings> = {}) => {
@@ -62,11 +76,13 @@ const renderButton = (settingsOverrides: Partial<PlatformSettings> = {}) => {
     <ThemeProvider theme={theme}>
       <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
         <UserContext.Provider value={userContext}>
-          <AbilityContext.Provider value={ability}>
-            <ChatbotContext.Provider value={chatbotContext}>
-              {children}
-            </ChatbotContext.Provider>
-          </AbilityContext.Provider>
+          <EnterpriseEditionContext.Provider value={enterpriseEditionContext}>
+            <AbilityContext.Provider value={ability}>
+              <ChatbotContext.Provider value={chatbotContext}>
+                {children}
+              </ChatbotContext.Provider>
+            </AbilityContext.Provider>
+          </EnterpriseEditionContext.Provider>
         </UserContext.Provider>
       </IntlProvider>
     </ThemeProvider>
@@ -79,6 +95,45 @@ describe('AskArianeButton', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  // Scope rule (designer, round 2): where the library ships a component, use it.
+  describe('Design system adoption', () => {
+    it('is the library Button, not a MUI look-alike', () => {
+      renderButton();
+      // `ia` is the library's AI variant - the gradient treatment this button
+      // hand-rolled with backgroundClip on a MUI Button. Asserting the variant
+      // and not merely "some library class" is what keeps the AI identity from
+      // silently degrading to a default button.
+      expectLibraryButton(
+        screen.getByRole('button', { name: new RegExp(LABEL, 'i') }),
+        'Ask Ariane',
+        {
+          variant: 'ia',
+          priority: 'tertiary',
+        },
+      );
+    });
+
+    it('marks the Enterprise Edition feature with the library EE chip, decoratively', () => {
+      // Sandy's rule: an implemented component is composed of library components
+      // only. This marker was a hand-styled span in a MUI Tooltip (9px text,
+      // 21x14 box, theme.palette.ee.*) - now the library's own EE severity.
+      renderButton({ platform_license: { license_is_validated: false } });
+      const button = screen.getByRole('button', { name: new RegExp(LABEL, 'i') });
+      expectNoMuiControls(button, 'the Ask Ariane button');
+      const marker = screen.getByText('EE');
+      // The fill sits on the chip root, the text on its label span.
+      const painted = [marker, marker.parentElement, marker.parentElement?.parentElement]
+        .filter(Boolean)
+        .map(el => String((el as Element).getAttribute('class') ?? ''))
+        .join(' ');
+      expect(painted).toContain('bg-filigran-tonic-accent');
+      // Decorative: the button owns the behaviour and the accessible name, so the
+      // marker must not add itself to that name (same split as the glyph slot).
+      expect(marker.closest('[aria-hidden="true"]')).not.toBeNull();
+      expect(button.getAttribute('aria-label')).toBeNull();
+    });
   });
 
   describe('Visibility', () => {
@@ -110,6 +165,36 @@ describe('AskArianeButton', () => {
     it('renders nothing when the XTM One URL is not an http(s) URL', () => {
       const { container } = renderButton({ platform_xtm_one_url: 'javascript:alert(1)' });
       expect(container.firstChild).toBeNull();
+    });
+  });
+
+  describe('Enterprise Edition gating', () => {
+    it('opens the chat with an OpenAEV Enterprise Edition license', () => {
+      renderButton();
+      fireEvent.click(screen.getByText(LABEL));
+      expect(chatbotContext.toggleChat).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('EE')).toBeNull();
+    });
+
+    it('opens the chat when Enterprise Edition comes from the verified XTM One license', () => {
+      renderButton({
+        platform_license: {
+          license_is_validated: true,
+          license_source: 'xtm_one',
+        },
+      });
+      fireEvent.click(screen.getByText(LABEL));
+      expect(chatbotContext.toggleChat).toHaveBeenCalledTimes(1);
+      expect(enterpriseEditionContext.openDialog).not.toHaveBeenCalled();
+      expect(screen.queryByText('EE')).toBeNull();
+    });
+
+    it('asks for Enterprise Edition in Community Edition', () => {
+      renderButton({ platform_license: { license_is_validated: false } });
+      fireEvent.click(screen.getByText(LABEL));
+      expect(enterpriseEditionContext.openDialog).toHaveBeenCalledTimes(1);
+      expect(chatbotContext.toggleChat).not.toHaveBeenCalled();
+      expect(screen.getByText('EE')).toBeDefined();
     });
   });
 });

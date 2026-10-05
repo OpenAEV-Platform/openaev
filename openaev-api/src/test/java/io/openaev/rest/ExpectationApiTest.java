@@ -110,7 +110,9 @@ class ExpectationApiTest extends IntegrationTest {
 
     // -- Collector --
     CollectorType collectorType1 = new CollectorType(UUID.randomUUID().toString());
+    collectorType1.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     CollectorType collectorType2 = new CollectorType(UUID.randomUUID().toString());
+    collectorType2.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
 
     collectorTypeRepository.save(collectorType1);
     collectorTypeRepository.save(collectorType2);
@@ -1186,6 +1188,7 @@ class ExpectationApiTest extends IntegrationTest {
               SecurityPlatformFixture.createDefault(
                   platformType + "-platform-" + UUID.randomUUID(), platformType));
       CollectorType collectorType = new CollectorType(UUID.randomUUID().toString());
+      collectorType.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       collectorTypeRepository.save(collectorType);
       Collector collector = new Collector();
       collector.setId(UUID.randomUUID().toString());

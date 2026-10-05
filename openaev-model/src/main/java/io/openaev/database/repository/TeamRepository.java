@@ -4,6 +4,7 @@ import io.openaev.database.model.Team;
 import io.openaev.database.raw.RawTeamIndexing;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -24,14 +25,17 @@ public interface TeamRepository
   Optional<Team> findById(@NotNull String id);
 
   @NotNull
-  Optional<Team> findByName(@NotNull final String name);
+  Optional<Team> findByNameAndTenantIdIn(
+      @NotNull final String name, @NotNull final Collection<String> tenantIds);
 
   @NotNull
-  List<Team> findAllByNameIgnoreCase(@NotNull final String name);
+  List<Team> findAllByNameIgnoreCaseAndTenantIdIn(
+      @NotNull final String name, @NotNull final Collection<String> tenantIds);
 
   @Query(
-      "SELECT team FROM Team team where lower(team.name) = lower(:name) and team.contextual = false and team.tenant.id = :#{#tenantContext.currentTenant}")
-  List<Team> findByNameIgnoreCaseAndNotContextual(@NotNull final String name);
+      "SELECT team FROM Team team where lower(team.name) = lower(:name) and team.contextual = false and team.tenant.id in :tenantIds")
+  List<Team> findByNameIgnoreCaseAndNotContextual(
+      @NotNull final String name, @NotNull final Collection<String> tenantIds);
 
   @Query(
       value =
@@ -50,10 +54,10 @@ public interface TeamRepository
               + "FROM teams "
               + "LEFT JOIN teams_tags ON teams_tags.team_id = teams.team_id "
               + "LEFT JOIN users_teams ON users_teams.team_id = teams.team_id "
-              + "WHERE teams.tenant_id = :#{#tenantContext.currentTenant} "
+              + "WHERE teams.tenant_id IN :tenantIds "
               + "GROUP BY teams.team_id ;",
       nativeQuery = true)
-  List<RawTeamIndexing> rawTeams();
+  List<RawTeamIndexing> rawTeams(@Param("tenantIds") Collection<String> tenantIds);
 
   @NotNull
   Page<Team> findAll(@NotNull Specification<Team> spec, @NotNull Pageable pageable);
@@ -85,8 +89,9 @@ public interface TeamRepository
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
           + " ) AND (:name IS NULL OR lower(t.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
-          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
-  List<Team> findAllBySimulationOrScenarioIdAndName(String simulationOrScenarioId, String name);
+          + " AND i.tenant.id in :tenantIds")
+  List<Team> findAllBySimulationOrScenarioIdAndName(
+      String simulationOrScenarioId, String name, Collection<String> tenantIds);
 
   @Query(
       value =
@@ -95,9 +100,10 @@ public interface TeamRepository
               + "WHERE (EXISTS (SELECT 1 FROM injects_teams it WHERE it.team_id = t.team_id) "
               + "OR EXISTS (SELECT 1 FROM exercises_teams et WHERE et.team_id = t.team_id) "
               + "OR EXISTS (SELECT 1 FROM scenarios_teams st WHERE st.team_id = t.team_id)) "
-              + "AND t.tenant_id = :#{#tenantContext.currentTenant};",
+              + "AND t.tenant_id IN :tenantIds;",
       nativeQuery = true)
-  List<Team> findAllTeamsForAtomicTestingsSimulationsAndScenarios();
+  List<Team> findAllTeamsForAtomicTestingsSimulationsAndScenarios(
+      @Param("tenantIds") Collection<String> tenantIds);
 
   @Query(
       value =
@@ -108,6 +114,14 @@ public interface TeamRepository
   List<RawTeamIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   Optional<Team> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /**
+   * By-id read keyed on a request's resolved tenant scope rather than on the v1 ambient tenant. The
+   * ambient tenant is set only on the tenant-prefixed route, so an ambient-keyed lookup read the
+   * default tenant's row while the request scope pinned another tenant: the row read and the row
+   * written could disagree by route.
+   */
+  Optional<Team> findByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 }

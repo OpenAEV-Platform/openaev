@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useCallback, useState } from 'react';
 
 interface Props {
@@ -25,25 +25,28 @@ const EllipsisTooltip: FunctionComponent<Props> = ({ children, style }) => {
   }, []);
   const close = useCallback(() => setOpen(false), []);
   return (
-    <Tooltip title={children} open={open} disableInteractive>
-      <span
-        tabIndex={0}
-        onMouseEnter={openIfTruncated}
-        onMouseLeave={close}
-        onFocus={openIfTruncated}
-        onBlur={close}
-        style={{
-          display: 'block',
-          width: 0,
-          minWidth: '100%',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          ...style,
-        }}
-      >
-        {children}
-      </span>
+    <Tooltip open={open}>
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          onMouseEnter={openIfTruncated}
+          onMouseLeave={close}
+          onFocus={openIfTruncated}
+          onBlur={close}
+          style={{
+            display: 'block',
+            width: 0,
+            minWidth: '100%',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            ...style,
+          }}
+        >
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{children}</TooltipContent>
     </Tooltip>
   );
 };

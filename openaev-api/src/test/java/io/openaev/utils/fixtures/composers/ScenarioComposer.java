@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.service.scenario.ScenarioService;
@@ -79,6 +80,11 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
     public Composer persist() {
       articleComposers.forEach(ArticleComposer.Composer::persist);
       simulationComposers.forEach(ExerciseComposer.Composer::persist);
+      // The listener now fails fast on an unattributed write; stamp the ambient tenant here when
+      // the caller left it unset, mirroring EndpointComposer and SecurityPlatformComposer.
+      if (scenario.getTenant() == null) {
+        scenario.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      }
       scenarioRepository.save(scenario);
       tagComposers.forEach(TagComposer.Composer::persist);
       injectComposers.forEach(InjectComposer.Composer::persist);

@@ -1,9 +1,9 @@
 ---
 name: review-frontend
 description: >-
-  Frontend review checklist for OpenAEV React/TypeScript code: component patterns, forms,
-  MUI usage, permissions, i18n, state management, dead code. Use when reviewing PRs or
-  auditing frontend features.
+  Frontend review checklist for OpenAEV React/TypeScript code: component patterns, Filigran
+  Design System adoption, forms, MUI usage, permissions, i18n, state management, dead code.
+  Use when reviewing PRs or auditing frontend features.
 ---
 
 # Frontend Review
@@ -24,12 +24,33 @@ description: >-
 - Field controllers: `TextFieldController`, `SelectFieldController`, `TagFieldController`
 - Form layout: flexbox with `gap: theme.spacing(2)`, no MUI Grid
 - Validate types match `api-types.d.ts` (auto-generated, never manual)
+- Forms hosting a `required` library field set `noValidate` (otherwise the native browser check hides the Zod message)
+- Library labels only (`SelectLabel`, `ComboboxLabel`), no MUI `InputLabel` beside a library field
 
-### Step 3 — Check MUI & styling
+### Step 3 — Check design system, MUI & styling
 
+Rules: `frontend.instructions.md` → *Design System & Layout*.
+
+- **Library first** — no new `@mui/*` import of a component the design system replaces, unless it carries `// fds:keep-mui <reason>`:
+  ```bash
+  node fds-migration/scripts/check-mui-regression.mjs --base origin/main
+  node fds-migration/scripts/check-fds-conformity.mjs
+  ```
+- **No local look-alike** of a library component, no MUI control inside a converted library container
+- **Library prop contracts** — `IconButton` gets `icon` + `aria-label`; variant/priority named explicitly; `Paper padding` in `0/8/16/24/32` and `title` never `''`; control sizes match their row (`sm` in rows, forms, cards and `Paper` headers)
+- **Navigation** — buttons/chips/cards that navigate wrap a real `Link` / `<a>` (`asChild`), no `onClick={navigate}`
+- **Colours** — no `alpha()` / `darken()` / `lighten()` on a value that may be a token (use `tint()` from `utils/tint.ts`):
+  ```bash
+  cd openaev-front && yarn test src/__tests__/utils/tokenColoursNotInAlpha.test.ts
+  ```
+- **No arbitrary utility classes** — every class string used on a library component must exist in the shipped sheet:
+  ```bash
+  grep -c "\.<class>{" openaev-front/node_modules/@filigran/design-system/dist/index.css   # 0 = the class is a silent no-op
+  ```
 - **No MUI for layout** — native `div`, `section`, `header`, flexbox/grid
-- **`sx` over `style`** — use `sx` on MUI components, never `style={{ }}`
-- **Theme tokens** — use `theme.palette`, `theme.spacing()`, `theme.shape`, `theme.typography` for all visual values; no hardcoded `#hex`, `rgba()`, or raw `px` (fixed `width` exempt)
+- **`sx` on MUI, `style` on library components** — never `style={{ }}` on a MUI component; when moving `sx` → `style`, every bare spacing number must be converted to px (`p: 2` → `16`)
+- **Theme tokens** — use `theme.palette`, `theme.spacing()`, `theme.shape`, `theme.typography` or design-system tokens for all visual values; no hardcoded `#hex`, `rgba()`, or raw `px` (fixed `width` exempt). `src/components/fds-tokens.generated.ts` is never hand-edited
+- **Visual delta** — for a conversion, ask for a before/after measurement in the running app (both themes); lint and type-check do not see most design-system regressions
 
 ### Step 4 — Check permissions
 
