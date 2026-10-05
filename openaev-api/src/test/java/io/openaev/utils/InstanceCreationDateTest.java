@@ -28,8 +28,24 @@ class InstanceCreationDateTest {
     String value = InstanceCreationDate.format(CREATED);
 
     assertThat(value).isEqualTo("2026-10-05T16:02:03.456Z");
-    assertThat(InstanceCreationDate.isInstant(value)).isTrue();
+    assertThat(InstanceCreationDate.isCanonical(value)).isTrue();
     assertThat(InstanceCreationDate.parse(value)).contains(CREATED);
+    assertThat(InstanceCreationDate.isCanonical("2026-10-05T16:02:03Z")).isTrue();
+  }
+
+  @ParameterizedTest(name = "\"{0}\"")
+  @ValueSource(
+      strings = {
+        "2026-10-05T18:02:03.456+02:00",
+        "2026-10-05T16:02:03.456+00:00",
+        "2026-10-05T16:02:03.456000Z",
+        " 2026-10-05T16:02:03.456Z ",
+        "2026-10-05 16:02:03.456"
+      })
+  @DisplayName("Given a readable value in another form should read it as not canonical")
+  void given_nonCanonicalValue_should_readItAsNotCanonical(String value) {
+    assertThat(InstanceCreationDate.parse(value, ZoneId.of("UTC"))).contains(CREATED);
+    assertThat(InstanceCreationDate.isCanonical(value)).isFalse();
   }
 
   @Test
@@ -55,7 +71,7 @@ class InstanceCreationDateTest {
         .contains(Instant.parse("2026-10-05T16:02:03.123456789Z"));
     assertThat(InstanceCreationDate.parse("2026-10-05 16:02:03", ZoneId.of("UTC")))
         .contains(Instant.parse("2026-10-05T16:02:03Z"));
-    assertThat(InstanceCreationDate.isInstant("2026-10-05 16:02:03.0")).isFalse();
+    assertThat(InstanceCreationDate.isCanonical("2026-10-05 16:02:03.0")).isFalse();
   }
 
   @Test
@@ -90,13 +106,13 @@ class InstanceCreationDateTest {
   @DisplayName("Given a blank or unreadable value should read nothing")
   void given_unreadableValue_should_readNothing(String value) {
     assertThat(InstanceCreationDate.parse(value)).isEmpty();
-    assertThat(InstanceCreationDate.isInstant(value)).isFalse();
+    assertThat(InstanceCreationDate.isCanonical(value)).isFalse();
   }
 
   @Test
   @DisplayName("Given no value should read nothing")
   void given_null_should_readNothing() {
     assertThat(InstanceCreationDate.parse(null)).isEmpty();
-    assertThat(InstanceCreationDate.isInstant(null)).isFalse();
+    assertThat(InstanceCreationDate.isCanonical(null)).isFalse();
   }
 }

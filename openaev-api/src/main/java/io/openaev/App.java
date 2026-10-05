@@ -86,8 +86,9 @@ public class App {
    * Keeps the earliest known creation date of this instance. It bounds a {@code ci} XTM license, so
    * it is written once, with the first instance id, and never moved afterwards: not when the
    * configured instance id changes, not when the value is missing, unreadable or in the future
-   * (each of which refuses a {@code ci} license until the value is corrected). A value in the
-   * legacy {@link java.sql.Timestamp} form is rewritten as the same instant in ISO-8601 UTC.
+   * (each of which refuses a {@code ci} license until the value is corrected). A readable value
+   * that is not canonical (the legacy {@link java.sql.Timestamp} form, another offset than {@code
+   * Z}) is rewritten as the same instant in ISO-8601 UTC.
    */
   private void keepInstanceCreationDate(Optional<Setting> stored, boolean newInstance) {
     String value = stored.map(Setting::getValue).orElse(null);
@@ -106,8 +107,9 @@ public class App {
     Optional<Instant> creationDate = InstanceCreationDate.parse(value);
     if (creationDate.isEmpty()) {
       log.error(
-          "The creation date of this instance cannot be read (expected an ISO-8601 instant): a ci"
-              + " XTM license is refused until it is corrected.");
+          "The creation date of this instance cannot be read (expected {}): a ci XTM license is"
+              + " refused until it is corrected.",
+          InstanceCreationDate.READABLE_FORMS);
       return;
     }
     if (creationDate.get().isAfter(Instant.now())) {
@@ -116,7 +118,7 @@ public class App {
               + " until it is corrected.",
           creationDate.get());
     }
-    if (!InstanceCreationDate.isInstant(value)) {
+    if (!InstanceCreationDate.isCanonical(value)) {
       Setting setting = stored.get();
       setting.setValue(InstanceCreationDate.format(creationDate.get()));
       settingRepository.save(setting);

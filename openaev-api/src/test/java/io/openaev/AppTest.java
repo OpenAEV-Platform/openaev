@@ -133,6 +133,7 @@ class AppTest extends IntegrationTest {
     Instant before = Instant.now();
 
     new App(settingRepository, openAEVConfig).init();
+    Instant after = Instant.now();
 
     ArgumentCaptor<Setting> saved = ArgumentCaptor.forClass(Setting.class);
     verify(settingRepository, times(2)).save(saved.capture());
@@ -141,7 +142,7 @@ class AppTest extends IntegrationTest {
             .filter(setting -> PLATFORM_INSTANCE_CREATION.key().equals(setting.getKey()))
             .findFirst()
             .orElseThrow();
-    assertThat(Instant.parse(creation.getValue())).isBetween(before, Instant.now());
+    assertThat(Instant.parse(creation.getValue())).isBetween(before, after);
   }
 
   @DisplayName("Should keep the creation date when restarted with another instance id")
@@ -213,5 +214,21 @@ class AppTest extends IntegrationTest {
                 setting ->
                     PLATFORM_INSTANCE_CREATION.key().equals(setting.getKey())
                         && setting.getValue().equals(expected.toString())));
+  }
+
+  @DisplayName("Should rewrite a creation date with another offset as the same instant in UTC")
+  @Test
+  void shouldRewriteOffsetCreationDateAsUtcInstant() {
+    openAEVConfig.setInstanceId(null);
+    givenStoredInstance(UUID.randomUUID().toString(), "2026-09-01T10:00:00.123+02:00");
+
+    new App(settingRepository, openAEVConfig).init();
+
+    verify(settingRepository)
+        .save(
+            argThat(
+                setting ->
+                    PLATFORM_INSTANCE_CREATION.key().equals(setting.getKey())
+                        && "2026-09-01T08:00:00.123Z".equals(setting.getValue())));
   }
 }
