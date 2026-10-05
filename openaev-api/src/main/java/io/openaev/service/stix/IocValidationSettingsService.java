@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Reads and writes the tenant IOC validation safety settings. Unset or unreadable values fall back
- * to the safest default: DNS resolution only, no proxy, no sinkhole, port 443, no asset group.
+ * to the safest default: no allowed test kind, no proxy, no sinkhole, port 443, no asset group.
  */
 @Service
 @RequiredArgsConstructor

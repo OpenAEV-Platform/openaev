@@ -207,7 +207,7 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
             marginBottom: 12,
           }}
         >
-          {t('Every request needs an approval, and only the test kinds allowed here run. DNS resolution never connects to the indicator.')}
+          {t('Every request needs an approval, and only the test kinds allowed here run: none is allowed until you choose it.')}
         </Text>
         <Controller
           control={control}
@@ -238,6 +238,14 @@ const IocValidationSettingsForm = ({ settings, onSaved }: IocValidationSettingsF
             severity="warning"
             title={t('Network and HTTP tests reach the indicator infrastructure. Use a sinkhole for network tests and an egress proxy you control for HTTP tests.')}
             style={{ marginTop: 12 }}
+          />
+        )}
+        {allowedKinds.includes('DNS_RESOLUTION') && (
+          <Alert
+            severity="warning"
+            title={t('DNS resolution tests never connect to the indicator, but the resolver of the endpoints may query the name servers of its domain, which can tell their owner that the name was looked up. Point the endpoints at a resolver that does not forward to the internet to avoid it.')}
+            style={{ marginTop: 12 }}
+            data-testid="ioc-validation-dns-warning"
           />
         )}
       </Paper>
