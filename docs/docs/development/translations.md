@@ -69,7 +69,7 @@ The `Frontend Quality & Unit Tests` job runs `yarn i18n-checker`. The job fails 
 | Missing key | A `t('…')` call uses a key absent from a language file, placeholders and escaped quotes included. |
 | Catalog parity | A key of `en.json` is absent from another language file. This also covers the keys that reach `t()` through a variable (labels sent by the backend), which the missing-key check cannot see. |
 | Untranslated value | A value is identical to the English one, unless it only holds protected terms or is listed in `i18n-loanwords.json`. |
-| Placeholders | A translation does not keep the same `{x}`, `{{x}}`, `${x}` and tags (`<a>`, `</a>`) as the English value, or contains a literal `undefined`. |
+| Placeholders | A translation does not keep the same `{x}`, `{{x}}`, `${x}` and tags, attributes included (`<a href='${url}'>`, `</a>`), as the English value, or contains a literal `undefined`. |
 | Protected terms | A term of `i18n-glossary.json` present in the English value is missing from the translation. |
 
 ## Configuration files

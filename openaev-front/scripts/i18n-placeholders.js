@@ -1,17 +1,14 @@
 /* eslint-disable no-console */
-/* A translation must keep the same placeholders ({x}, {{x}}, ${x}) and tags (<a>, </a>) as the en.json value,
+/* A translation must keep the same placeholders ({x}, {{x}}, ${x}) and tags (<a href='…'>, </a>) as the en.json value,
    and must not contain a literal "undefined" (a known artefact of the auto-translation tool).
    Consumed by i18n-checker.js. */
 import fs from 'node:fs';
 
 import { DEFAULT_LANG, supportedLanguages } from './constants/Lang.js';
+import tokens from './i18n-tokens.js';
 
 const english = JSON.parse(fs.readFileSync(`src/utils/lang/${DEFAULT_LANG}.json`, 'utf8'));
 
-// The optional "$" matters: the email templates use ${var}, and a lost "$" prints the variable name.
-const TOKEN_RE = /\$?\{\{[^{}]+\}\}|\$?\{[^{}]+\}|<\/?[a-zA-Z0-9]+\s*\/?>/g;
-// A set, not a count: react-intl replaces every occurrence, so a translation may repeat a placeholder.
-const tokens = value => [...new Set(value.match(TOKEN_RE) ?? [])].sort();
 const UNDEFINED_RE = /\bundefined\b/;
 
 export const collectPlaceholderViolations = () => {
