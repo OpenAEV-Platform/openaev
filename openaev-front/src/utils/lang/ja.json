@@ -4533,6 +4533,7 @@
   "You cannot delete your own account.": "自分のアカウントは削除できません。",
   "You do not have access to this simulation's attack path.": "このシミュレーションの attack path にはアクセスできません。",
   "You do not have permission to connect this product. Please contact your product administrator to connect the product on your behalf.": "この製品に接続する権限がありません。製品管理者に連絡し、代わりに接続してもらうよう依頼してください。",
+  "You do not have the right to perform this action.": "この操作を実行する権限がありません。",
   "You dont have the right access. Please contact your administrator.": "適切なアクセス権がありません。管理者に連絡してください。",
   "You have canceled the connection process": "接続プロセスをキャンセルしました",
   "You have canceled the disconnection process": "切断プロセスをキャンセルしました",

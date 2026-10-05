@@ -99,6 +99,9 @@ export const api = <T>(schema?: Schema<T> | null): AxiosInstance => {
         return Promise.reject({
           status: res.status,
           ...res.data,
+          // A write still refused after the CSRF retry is a real permission refusal.
+          // eslint-disable-next-line no-underscore-dangle
+          forbiddenAction: res.status === 403 && !!config?.__isRetryRequest && (config.method ?? 'get').toLowerCase() !== 'get',
         } as ApiErrorResponse);
       }
       // eslint-disable-next-line prefer-promise-reject-errors
