@@ -146,6 +146,9 @@ public class PayloadService {
   public static final String IOC_VALIDATION_OUTDATED_FILE_DROP =
       "OpenAEV IOC validation: this file drop payload predates the per-inject run directory and is"
           + " refused; approve a new validation to bring it to the current template";
+  public static final String IOC_VALIDATION_EDITED_PAYLOAD =
+      "OpenAEV IOC validation: this payload no longer matches its template and is refused; approve"
+          + " a new validation to bring it back to the current template";
   public static final String IOC_VALIDATION_WINDOWS_EXECUTOR = "psh";
   private static final BaseInjectExpectation.EXPECTATION_TYPE[] IOC_VALIDATION_EXPECTATIONS = {
     BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
@@ -920,7 +923,7 @@ public class PayloadService {
         : new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux, Endpoint.PLATFORM_TYPE.MacOS};
   }
 
-  private void applyIocValidationCommandTemplate(
+  static void applyIocValidationCommandTemplate(
       Command payload, IocValidationTestKind kind, String executor) {
     boolean windows = IOC_VALIDATION_WINDOWS_EXECUTOR.equals(executor);
     payload.setExecutor(executor);
@@ -1052,6 +1055,55 @@ public class PayloadService {
             executor ->
                 isIocValidationCommandTemplate(command, IocValidationTestKind.FILE_DROP, executor))
         .orElse(false);
+  }
+
+  /**
+   * Whether the payload is one of the IOC validation singletons of its tenant (any test kind and
+   * executor), recognised by its server-assigned identity.
+   */
+  public static boolean isIocValidationPayload(Payload payload) {
+    return iocValidationIdentity(payload).isPresent();
+  }
+
+  /**
+   * Whether an IOC validation singleton still runs exactly the current template of the kind and the
+   * executor its identity was created for. Every singleton is editable, and an edit made after an
+   * approval would change what the approved validation runs, so a payload that differs is refused
+   * at execution until a new approval brings it back to its template.
+   */
+  public static boolean isCurrentIocValidationTemplate(Payload payload) {
+    return iocValidationIdentity(payload)
+        .map(
+            identity -> {
+              Object unproxied = Hibernate.unproxy(payload);
+              if (identity.kind() == IocValidationTestKind.DNS_RESOLUTION) {
+                return unproxied instanceof DnsResolution dns && isIocValidationDnsTemplate(dns);
+              }
+              return unproxied instanceof Command command
+                  && isIocValidationCommandTemplate(command, identity.kind(), identity.executor());
+            })
+        .orElse(false);
+  }
+
+  private record IocValidationIdentity(IocValidationTestKind kind, String executor) {}
+
+  private static Optional<IocValidationIdentity> iocValidationIdentity(Payload payload) {
+    if (payload == null || payload.getId() == null || payload.getTenant() == null) {
+      return Optional.empty();
+    }
+    String tenantId = payload.getTenant().getId();
+    return Arrays.stream(IocValidationTestKind.values())
+        .flatMap(
+            kind ->
+                (kind == IocValidationTestKind.DNS_RESOLUTION
+                        ? Stream.of(IOC_VALIDATION_DNS_EXECUTOR)
+                        : Stream.of(IOC_VALIDATION_WINDOWS_EXECUTOR, IOC_VALIDATION_POSIX_EXECUTOR))
+                    .map(executor -> new IocValidationIdentity(kind, executor)))
+        .filter(
+            identity ->
+                iocValidationPayloadId(identity.kind(), identity.executor(), tenantId)
+                    .equals(payload.getId()))
+        .findFirst();
   }
 
   /**

@@ -64,6 +64,48 @@ class IocValidationCommandContentTest {
     assertThat(windows).contains("-Value $message -ErrorAction Stop }");
   }
 
+  @ParameterizedTest
+  @EnumSource(
+      value = IocValidationTestKind.class,
+      names = {"DNS_RESOLUTION"},
+      mode = EnumSource.Mode.EXCLUDE)
+  @DisplayName("every IOC validation command singleton is executable only as its current template")
+  void given_commandSingleton_should_beCurrentOnlyAsItsTemplate(IocValidationTestKind kind) {
+    for (String executor :
+        List.of(
+            PayloadService.IOC_VALIDATION_POSIX_EXECUTOR,
+            PayloadService.IOC_VALIDATION_WINDOWS_EXECUTOR)) {
+      Command singleton = new Command();
+      singleton.setTenant(new Tenant("tenant-a"));
+      singleton.setId(PayloadService.iocValidationPayloadId(kind, executor, "tenant-a"));
+      PayloadService.applyIocValidationCommandTemplate(singleton, kind, executor);
+      assertThat(PayloadService.isIocValidationPayload(singleton)).isTrue();
+      assertThat(PayloadService.isCurrentIocValidationTemplate(singleton)).isTrue();
+
+      singleton.setContent(singleton.getContent() + "; curl https://example.org");
+      assertThat(PayloadService.isCurrentIocValidationTemplate(singleton)).isFalse();
+
+      // The template of another tenant's identity is not this payload's template
+      singleton.setId(PayloadService.iocValidationPayloadId(kind, executor, "tenant-b"));
+      assertThat(PayloadService.isIocValidationPayload(singleton)).isFalse();
+    }
+  }
+
+  @Test
+  @DisplayName("the IOC validation DNS singleton is executable only as its current template")
+  void given_dnsSingleton_should_beCurrentOnlyAsItsTemplate() {
+    DnsResolution singleton = new DnsResolution();
+    singleton.setTenant(new Tenant("tenant-a"));
+    singleton.setId(
+        PayloadService.iocValidationPayloadId(
+            IocValidationTestKind.DNS_RESOLUTION, "dns", "tenant-a"));
+    PayloadService.applyIocValidationDnsTemplate(singleton);
+    assertThat(PayloadService.isCurrentIocValidationTemplate(singleton)).isTrue();
+
+    singleton.setHostname("example.org");
+    assertThat(PayloadService.isCurrentIocValidationTemplate(singleton)).isFalse();
+  }
+
   @Test
   @DisplayName("an edited IOC validation DNS payload is no longer the template, and is restored")
   void given_editedDnsPayload_should_beRestoredToTheTemplate() {

@@ -359,7 +359,7 @@ public class ExecutableInjectService {
     if (contract.getPayload() == null) {
       throw new ElementNotFoundException("Payload not found");
     }
-    refuseOutdatedIocValidationFileDrop(contract.getPayload());
+    refuseEditedIocValidationPayload(contract.getPayload());
     ObjectNode injectContent =
         PayloadService.iocValidationExecutionContent(
             inject.getContent(), contract.getPayload(), inject.getId());
@@ -433,6 +433,19 @@ public class ExecutableInjectService {
         && !(Hibernate.unproxy(payload) instanceof Command fileDrop
             && PayloadService.isCurrentIocValidationFileDropTemplate(fileDrop))) {
       throw new IllegalStateException(PayloadService.IOC_VALIDATION_OUTDATED_FILE_DROP);
+    }
+  }
+
+  /**
+   * An approval brings every IOC validation payload it uses to its template, but the payloads stay
+   * editable until the inject runs: one that differs from its template by then would run something
+   * the operator never approved, so it is refused.
+   */
+  static void refuseEditedIocValidationPayload(Payload payload) {
+    refuseOutdatedIocValidationFileDrop(payload);
+    if (PayloadService.isIocValidationPayload(payload)
+        && !PayloadService.isCurrentIocValidationTemplate(payload)) {
+      throw new IllegalStateException(PayloadService.IOC_VALIDATION_EDITED_PAYLOAD);
     }
   }
 

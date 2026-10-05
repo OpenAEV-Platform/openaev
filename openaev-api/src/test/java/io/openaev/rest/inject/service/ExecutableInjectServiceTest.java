@@ -101,6 +101,32 @@ class ExecutableInjectServiceTest {
   }
 
   @Test
+  @DisplayName("Should refuse any IOC validation payload edited after its approval")
+  void given_editedIocValidationPayload_should_refuseExecution() {
+    // Arrange: the network singleton, edited to reach another target than the approved one
+    Command edited = new Command();
+    edited.setTenant(new Tenant("tenant-a"));
+    edited.setExecutor(PayloadService.IOC_VALIDATION_POSIX_EXECUTOR);
+    edited.setId(
+        PayloadService.iocValidationPayloadId(
+            IocValidationTestKind.NETWORK_TRAFFIC,
+            PayloadService.IOC_VALIDATION_POSIX_EXECUTOR,
+            "tenant-a"));
+    edited.setContent("nc -z 198.51.100.9 443");
+    Command userPayload = new Command();
+    userPayload.setTenant(new Tenant("tenant-a"));
+    userPayload.setId("4b3f8e52-2f1b-4c36-9a4e-1d2c3b4a5f60");
+    userPayload.setContent(edited.getContent());
+
+    // Act / Assert
+    assertThatThrownBy(() -> ExecutableInjectService.refuseEditedIocValidationPayload(edited))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage(PayloadService.IOC_VALIDATION_EDITED_PAYLOAD);
+    assertThatCode(() -> ExecutableInjectService.refuseEditedIocValidationPayload(userPayload))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
   @DisplayName(
       "Should refuse an IOC validation file drop without its own run, whatever the defaults")
   void given_iocValidationFileDropWithoutRun_should_refuseExecution() {
