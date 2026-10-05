@@ -68,6 +68,13 @@ public class V6_20261005152500000__Add_security_coverage_hunt_validations
               + " ON security_coverage_hunt_validations (tenant_id,"
               + " security_coverage_hunt_validation_status,"
               + " security_coverage_hunt_validation_next_attempt_at)");
+      // Expiry sweep of the delivery job, within one tenant: PENDING rows planned before the
+      // staleness cutoff, found without scanning the fresh due backlog.
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_security_coverage_hunt_validations_tenant_stale"
+              + " ON security_coverage_hunt_validations (tenant_id,"
+              + " security_coverage_hunt_validation_status,"
+              + " security_coverage_hunt_validation_created_at)");
     }
   }
 }

@@ -614,5 +614,30 @@ class SecurityCoverageHuntValidationServiceTest extends IntegrationTest {
           .isInstanceOf(DataIntegrityViolationException.class)
           .hasMessageContaining("idx_security_coverage_hunt_validations_key_tenant_uq");
     }
+
+    @Test
+    @DisplayName("given the delivery queries should have an index for the due and the stale reads")
+    void given_deliveryQueries_should_haveDueAndStaleIndexes() {
+      // Act
+      @SuppressWarnings("unchecked")
+      List<Object[]> indexes =
+          entityManager
+              .createNativeQuery(
+                  "SELECT indexname, indexdef FROM pg_indexes"
+                      + " WHERE tablename = 'security_coverage_hunt_validations'")
+              .getResultList();
+
+      // Assert
+      assertThat(indexes)
+          .extracting(
+              index -> index[0] + " " + index[1].toString().replaceAll("^.*USING btree ", ""))
+          .contains(
+              "idx_security_coverage_hunt_validations_tenant_due (tenant_id,"
+                  + " security_coverage_hunt_validation_status,"
+                  + " security_coverage_hunt_validation_next_attempt_at)",
+              "idx_security_coverage_hunt_validations_tenant_stale (tenant_id,"
+                  + " security_coverage_hunt_validation_status,"
+                  + " security_coverage_hunt_validation_created_at)");
+    }
   }
 }
