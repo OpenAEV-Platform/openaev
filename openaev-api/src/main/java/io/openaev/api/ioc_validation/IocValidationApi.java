@@ -20,6 +20,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.UserService;
+import io.openaev.service.stix.IocValidationHostAnswers;
 import io.openaev.service.stix.IocValidationService;
 import io.openaev.service.stix.IocValidationSettingsService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -33,6 +34,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -125,7 +127,9 @@ public class IocValidationApi extends RestBehavior {
   // -- UPDATE --
 
   @PostMapping("/{iocValidationId}/approve")
-  @Transactional(rollbackFor = Exception.class)
+  // As the intake endpoint: the DNS answers are gathered between the read and the approval
+  // transaction of the service, so no connection or lock waits for a DNS server
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @LogExecutionTime
   @AccessControl(
       resourceId = "#iocValidationId",
@@ -145,7 +149,10 @@ public class IocValidationApi extends RestBehavior {
   })
   public IocValidationOutput approveIocValidation(
       @RequireTenantSelector TxCtx ctx, @PathVariable @NotBlank final String iocValidationId) {
-    return toOutput(iocValidationService.approve(ctx, iocValidationId, userService.currentUser()));
+    IocValidationHostAnswers hostAnswers =
+        IocValidationHostAnswers.resolve(iocValidationService.urlHostNames(ctx, iocValidationId));
+    return toOutput(
+        iocValidationService.approve(ctx, iocValidationId, userService.currentUser(), hostAnswers));
   }
 
   @PostMapping("/{iocValidationId}/reject")

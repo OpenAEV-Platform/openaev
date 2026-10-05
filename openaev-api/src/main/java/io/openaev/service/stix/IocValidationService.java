@@ -143,6 +143,33 @@ public class IocValidationService {
         .orElseThrow(() -> new ElementNotFoundException("IOC validation not found"));
   }
 
+  /**
+   * The host names the HTTP HEAD tests of a request posted by OpenCTI would resolve, to resolve
+   * them before {@link #receiveRequest} opens its transaction. Reads nothing from the database.
+   *
+   * @throws BundleValidationError when the bundle does not follow the contract
+   */
+  public Set<String> urlHostNames(String stixJson, String entityId) throws BundleValidationError {
+    return IocValidationPlanner.urlHostNames(
+        bundleParser.parse(stixJson, entityId).iocs().stream()
+            .map(IocValidationService::toIoc)
+            .toList());
+  }
+
+  /**
+   * The host names the HTTP HEAD tests of a validation awaiting approval would resolve, to resolve
+   * them before {@link #approve} opens its transaction; empty when it no longer awaits approval.
+   *
+   * @throws ElementNotFoundException when it does not exist or belongs to another tenant
+   */
+  @Transactional(readOnly = true)
+  public Set<String> urlHostNames(TxCtx ctx, @NotBlank final String id) {
+    IocValidation validation = iocValidation(id);
+    return validation.getStatus() == IocValidationStatus.AWAITING_APPROVAL
+        ? IocValidationPlanner.urlHostNames(validation.getIocs())
+        : Set.of();
+  }
+
   private IocValidation lockedIocValidation(@NotBlank final String id) {
     return iocValidationRepository
         .findByIdForUpdate(id)
@@ -162,10 +189,13 @@ public class IocValidationService {
    * @param ctx single-tenant scope the request is attributed to
    * @param stixJson the bundle of the CTI event
    * @param entityId the OpenCTI request internal id of the CTI event
+   * @param hostAnswers the DNS answers for {@link #urlHostNames(String, String)}, gathered before
+   *     this transaction
    * @throws BundleValidationError when the bundle does not follow the contract
    */
   @Transactional(rollbackFor = Exception.class)
-  public IocValidation receiveRequest(TxCtx ctx, String stixJson, String entityId)
+  public IocValidation receiveRequest(
+      TxCtx ctx, String stixJson, String entityId, IocValidationHostAnswers hostAnswers)
       throws BundleValidationError {
     String tenantId = singleTenant(ctx);
     IocValidationRequest request = bundleParser.parse(stixJson, entityId);
@@ -198,7 +228,7 @@ public class IocValidationService {
                 .map(pair -> toPair(pair, request.platformNamesByRef()))
                 .toList()));
     validation.setOpenctiUrl(openCtiUrl(tenantId, request.requestId()));
-    IocValidationPlanner.apply(validation.getIocs(), settings);
+    IocValidationPlanner.apply(validation.getIocs(), settings, hostAnswers.resolver());
     matchSecurityPlatforms(validation, tenantId);
     validation.setStatusMessage(intakeMessage(validation));
     validation.refreshCounters();
@@ -225,7 +255,11 @@ public class IocValidationService {
    *     test, no asset group, no endpoint with an active agent)
    */
   @Transactional(rollbackFor = Exception.class)
-  public IocValidation approve(TxCtx ctx, @NotBlank final String id, @NotNull final User decider) {
+  public IocValidation approve(
+      TxCtx ctx,
+      @NotBlank final String id,
+      @NotNull final User decider,
+      @NotNull final IocValidationHostAnswers hostAnswers) {
     String tenantId = singleTenant(ctx);
     IocValidation validation = lockedIocValidation(id);
     requireAwaitingApproval(validation);
@@ -240,7 +274,8 @@ public class IocValidationService {
     List<Boolean> shownRefusals = iocs.stream().map(IocValidationIoc::isRefused).toList();
     List<String> shownFingerprints =
         iocs.stream().map(IocValidationIoc::getPlanFingerprint).toList();
-    IocValidationPlanner.HostResolver resolved = IocValidationPlanner.apply(iocs, settings);
+    IocValidationPlanner.HostResolver resolved =
+        IocValidationPlanner.apply(iocs, settings, hostAnswers.resolver());
     for (int index = 0; index < iocs.size(); index++) {
       IocValidationIoc ioc = iocs.get(index);
       String shownFingerprint = shownFingerprints.get(index);

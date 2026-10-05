@@ -20,7 +20,9 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -448,21 +450,15 @@ class IocValidationValueChecksTest {
     @Test
     @DisplayName("only the host names of HTTP HEAD tests are resolved")
     void given_mixedIocs_should_resolveOnlyUrlHostNames() {
-      List<String> lookups = Collections.synchronizedList(new ArrayList<>());
-      HostResolver counting =
-          host -> {
-            lookups.add(host);
-            return List.of(address("8.8.8.8"));
-          };
-      IocValidationPlanner.resolveAll(
-          List.of(
-              ioc("Domain-Name", "dns.example.com", IocValidationTestKind.DNS_RESOLUTION),
-              ioc("Url", "https://WEB.example.com/x", IocValidationTestKind.HTTP_HEAD),
-              ioc("Url", "http://8.8.4.4/x", IocValidationTestKind.HTTP_HEAD),
-              ioc("Url", REPRODUCTION, IocValidationTestKind.HTTP_HEAD)),
-          counting,
-          Duration.ofSeconds(5));
-      assertThat(lookups).containsExactly("web.example.com");
+      assertThat(
+              IocValidationPlanner.urlHostNames(
+                  List.of(
+                      ioc("Domain-Name", "dns.example.com", IocValidationTestKind.DNS_RESOLUTION),
+                      ioc("Url", "https://WEB.example.com/x", IocValidationTestKind.HTTP_HEAD),
+                      ioc("Url", "https://web.example.com/y", IocValidationTestKind.HTTP_HEAD),
+                      ioc("Url", "http://8.8.4.4/x", IocValidationTestKind.HTTP_HEAD),
+                      ioc("Url", REPRODUCTION, IocValidationTestKind.HTTP_HEAD))))
+          .containsExactly("web.example.com");
     }
 
     @Test
@@ -483,12 +479,9 @@ class IocValidationValueChecksTest {
       long start = System.nanoTime();
 
       HostResolver answers =
-          IocValidationPlanner.resolveAll(
-              List.of(
-                  ioc("Url", "https://slow.example.com/a", IocValidationTestKind.HTTP_HEAD),
-                  ioc("Url", "https://fast.example.com/a", IocValidationTestKind.HTTP_HEAD)),
-              slow,
-              Duration.ofMillis(500));
+          IocValidationHostAnswers.resolve(
+                  List.of("slow.example.com", "fast.example.com"), slow, Duration.ofMillis(500))
+              .resolver();
 
       assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(5));
       // Not answered in time: a name that does not resolve here, whatever the late answer says
@@ -497,11 +490,41 @@ class IocValidationValueChecksTest {
     }
 
     @Test
+    @DisplayName("the lookups of every request share a bounded number of threads")
+    void given_manyHosts_should_neverRunMoreLookupsThanThePool() {
+      AtomicInteger running = new AtomicInteger();
+      AtomicInteger highest = new AtomicInteger();
+      HostResolver tracking =
+          host -> {
+            highest.accumulateAndGet(running.incrementAndGet(), Math::max);
+            try {
+              Thread.sleep(100);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } finally {
+              running.decrementAndGet();
+            }
+            return List.of(address("8.8.8.8"));
+          };
+      List<String> hosts =
+          IntStream.range(0, 4 * IocValidationHostAnswers.THREADS)
+              .mapToObj(index -> "host" + index + ".example.com")
+              .toList();
+
+      HostResolver answers =
+          IocValidationHostAnswers.resolve(hosts, tracking, Duration.ofSeconds(10)).resolver();
+
+      assertThat(highest.get()).isBetween(1, IocValidationHostAnswers.THREADS);
+      assertThat(hosts).allSatisfy(host -> assertThat(answers.resolve(host)).hasSize(1));
+    }
+
+    @Test
     @DisplayName("a host the request did not announce is resolved directly")
     void given_unannouncedHost_should_resolveItDirectly() {
       HostResolver answers =
-          IocValidationPlanner.resolveAll(
-              List.of(), host -> List.of(address("10.0.0.1")), Duration.ofSeconds(1));
+          IocValidationHostAnswers.resolve(
+                  List.of(), host -> List.of(address("10.0.0.1")), Duration.ofSeconds(1))
+              .resolver();
       assertThat(answers.resolve("other.example.com")).containsExactly(address("10.0.0.1"));
     }
   }

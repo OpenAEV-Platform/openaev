@@ -22,7 +22,6 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -34,12 +33,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,9 +59,6 @@ public final class IocValidationPlanner {
   static final int MAX_HOST_LENGTH = 253;
   static final int MAX_URL_LENGTH = 2048;
   static final int MAX_FILE_NAME_LENGTH = 128;
-  static final Duration RESOLUTION_DEADLINE = Duration.ofSeconds(5);
-  private static final int RESOLUTION_THREADS = 16;
-
   private static final Set<String> HOST_TYPES = Set.of("domain-name", "hostname");
   private static final Set<String> ADDRESS_TYPES = Set.of("ipv4-addr", "ipv6-addr");
   private static final Set<String> URL_TYPES = Set.of("url");
@@ -203,19 +193,24 @@ public final class IocValidationPlanner {
     };
   }
 
-  /**
-   * Applies {@link #plan} to every IOC, recording the kind that runs and the reason otherwise.
-   *
-   * @return the DNS answers the plans were built from, to build the same plans again without a
-   *     second lookup
-   */
+  /** Applies {@link #plan} to every IOC with the resolver of the OpenAEV server. */
   static HostResolver apply(List<IocValidationIoc> iocs, IocValidationSettings settings) {
     return apply(iocs, settings, HostResolver.SYSTEM);
   }
 
+  /**
+   * Applies {@link #plan} to every IOC, recording the kind that runs and the reason otherwise.
+   *
+   * @param resolver the DNS answers to plan with, gathered before the transaction (see {@link
+   *     IocValidationHostAnswers})
+   * @return the DNS answers the plans were built from, to build the same plans again without a
+   *     second lookup
+   */
   static HostResolver apply(
       List<IocValidationIoc> iocs, IocValidationSettings settings, HostResolver resolver) {
-    HostResolver once = resolveAll(iocs, resolver, RESOLUTION_DEADLINE);
+    // One lookup per host and pass: a request often holds several URLs of the same host
+    Map<String, List<InetAddress>> resolved = new HashMap<>();
+    HostResolver once = host -> resolved.computeIfAbsent(host, resolver::resolve);
     for (IocValidationIoc ioc : iocs) {
       Plan plan = plan(ioc, settings, once);
       ioc.setTestKind(plan.testKind());
@@ -226,55 +221,15 @@ public final class IocValidationPlanner {
     return once;
   }
 
-  /**
-   * Resolves every host name an HTTP HEAD test of these IOCs would request: once per host, in
-   * parallel, and within {@code deadline} overall, since planning runs inside the transaction of
-   * the intake or the approval. A name not answered in time counts as a name that does not resolve
-   * from the OpenAEV server (the egress proxy resolves it again at execution anyway). A host the
-   * IOCs did not announce is resolved directly.
-   */
-  static HostResolver resolveAll(
-      List<IocValidationIoc> iocs, HostResolver resolver, Duration deadline) {
+  /** The host names an HTTP HEAD test of these IOCs would resolve, IP literals excluded. */
+  static Set<String> urlHostNames(List<IocValidationIoc> iocs) {
     Set<String> hosts = new LinkedHashSet<>();
     for (IocValidationIoc ioc : iocs) {
       if (ioc.getRequestedTestKind() == IocValidationTestKind.HTTP_HEAD) {
         urlHostName(ioc.getValue()).ifPresent(hosts::add);
       }
     }
-    Map<String, List<InetAddress>> answers = new HashMap<>();
-    if (!hosts.isEmpty()) {
-      List<String> names = List.copyOf(hosts);
-      ExecutorService pool =
-          Executors.newFixedThreadPool(
-              Math.min(RESOLUTION_THREADS, names.size()),
-              Thread.ofPlatform().daemon().name("ioc-validation-dns-", 0).factory());
-      try {
-        List<Future<List<InetAddress>>> lookups =
-            pool.invokeAll(
-                names.stream()
-                    .map(host -> (Callable<List<InetAddress>>) () -> resolver.resolve(host))
-                    .toList(),
-                deadline.toMillis(),
-                TimeUnit.MILLISECONDS);
-        // Only the answers in time: a lookup cancelled at the deadline never changes the result
-        for (int index = 0; index < names.size(); index++) {
-          Future<List<InetAddress>> lookup = lookups.get(index);
-          if (!lookup.isCancelled()) {
-            try {
-              answers.put(names.get(index), lookup.get());
-            } catch (ExecutionException e) {
-              // a failed lookup counts as a name that does not resolve
-            }
-          }
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      } finally {
-        pool.shutdownNow();
-      }
-    }
-    return host ->
-        hosts.contains(host) ? answers.getOrDefault(host, List.of()) : resolver.resolve(host);
+    return hosts;
   }
 
   /** The host name {@link #normalizeUrl} would resolve for a value, empty for an IP literal. */

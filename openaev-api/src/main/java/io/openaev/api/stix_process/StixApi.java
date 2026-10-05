@@ -14,6 +14,7 @@ import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
 import io.openaev.opencti.dto.CTIEvent;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.service.stix.IocValidationHostAnswers;
 import io.openaev.service.stix.IocValidationService;
 import io.openaev.service.stix.StixService;
 import io.openaev.service.stix.error.BundleValidationError;
@@ -176,8 +177,12 @@ public class StixApi extends RestBehavior {
     openCTIService.acknowledgeReceivedOfIocValidation(
         workId, "OpenAEV received the IOC validation request", tenantId);
     try {
+      // Resolved before the intake transaction opens: no connection waits for a DNS server
+      IocValidationHostAnswers hostAnswers =
+          IocValidationHostAnswers.resolve(
+              iocValidationService.urlHostNames(event.getStixObjects(), entityId));
       IocValidation validation =
-          iocValidationService.receiveRequest(ctx, event.getStixObjects(), entityId);
+          iocValidationService.receiveRequest(ctx, event.getStixObjects(), entityId, hostAnswers);
       openCTIService.acknowledgeProcessedOfIocValidation(
           workId,
           IocValidationService.intakeAcknowledgement(validation.getStatus()),
