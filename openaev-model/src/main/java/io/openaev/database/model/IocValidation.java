@@ -48,8 +48,9 @@ public class IocValidation implements TenantBase, Auditable {
   public static final int MAX_PLATFORMS = 10;
 
   /**
-   * Category of every validation scenario and of the simulations launched from it. Coverage
-   * statistics filter it out: a validation run proves a deployment, it does not measure coverage.
+   * Category of every validation scenario and of the simulations launched from it, so operators can
+   * tell them apart. Coverage statistics leave validation runs out (a run proves a deployment, it
+   * does not measure coverage) through {@link #simulationId}, never through this editable category.
    */
   public static final String SCENARIO_CATEGORY = "ioc-validation";
 

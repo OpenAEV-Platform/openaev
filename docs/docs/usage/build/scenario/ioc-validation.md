@@ -183,7 +183,8 @@ simulation never ends.
 
 Validation simulations are kept out of the coverage statistics: their expectations never count in the
 security coverage matrix of the home page, in the ATT&CK coverage, or in the custom dashboards, so a benign
-test never changes how well your attack patterns look covered.
+test never changes how well your attack patterns look covered. A simulation is a validation simulation because
+an IOC validation launched it, not because of its category: editing its category does not bring it into the coverage.
 
 ![A partial result: outcomes per indicator and security platform, with the reason of each outcome](assets/ioc-validation-result.png)
 

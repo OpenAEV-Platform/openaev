@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.engine.model.asset.AssetHandler;
 import io.openaev.engine.model.asset.EsAsset;
 import io.openaev.engine.model.finding.EsFinding;
@@ -28,6 +29,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +64,7 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private VulnerableEndpointHandler vulnerableEndpointHandler;
   @Autowired private FindingHandler findingHandler;
 
+  @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
@@ -139,6 +142,21 @@ class IndexingRegressionTest extends IntegrationTest {
                 + " WHERE inject_expectation_id = :id")
         .setParameter("ts", PAST)
         .setParameter("id", expectationId)
+        .executeUpdate();
+  }
+
+  /** Makes the simulation an IOC validation run: the validation that launched it links it. */
+  private void linkIocValidation(String simulationId) {
+    entityManager.flush();
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO ioc_validations (ioc_validation_id, ioc_validation_external_id,"
+                + " ioc_validation_name, ioc_validation_status, ioc_validation_simulation,"
+                + " tenant_id) SELECT :id, :externalId, 'Validation run', 'RUNNING',"
+                + " exercise_id, tenant_id FROM exercises WHERE exercise_id = :simulationId")
+        .setParameter("id", UUID.randomUUID().toString())
+        .setParameter("externalId", UUID.randomUUID().toString())
+        .setParameter("simulationId", simulationId)
         .executeUpdate();
   }
 
@@ -628,6 +646,33 @@ class IndexingRegressionTest extends IntegrationTest {
   // ---------------------------------------------------------------------------
 
   @Nested
+  @DisplayName("ExerciseRepository.findLatestExerciseIdsByStatus")
+  class LatestSimulationsCoverageScope {
+
+    @Test
+    @DisplayName("The latest simulations leave IOC validation runs out, whatever their category")
+    void given_iocValidationRuns_should_leaveThemOutOfTheLatestSimulations() {
+      Exercise recategorizedRun = finishedSimulation("attack-scenario");
+      Exercise lookalike = finishedSimulation(IocValidation.SCENARIO_CATEGORY);
+      linkIocValidation(recategorizedRun.getId());
+      entityManager.flush();
+
+      List<String> latest =
+          exerciseRepository.findLatestExerciseIdsByStatus(ExerciseStatus.FINISHED.name(), 1000);
+
+      assertThat(latest).contains(lookalike.getId()).doesNotContain(recategorizedRun.getId());
+    }
+
+    private Exercise finishedSimulation(String category) {
+      Exercise exercise = ExerciseFixture.createDefaultExercise();
+      exercise.setCategory(category);
+      exercise.setStatus(ExerciseStatus.FINISHED);
+      exercise.setEnd(Instant.now());
+      return exerciseComposer.forExercise(exercise).persist().get();
+    }
+  }
+
+  @Nested
   @DisplayName("InjectExpectationHandler.findForIndexing")
   class InjectExpectationIndexing {
 
@@ -671,32 +716,56 @@ class IndexingRegressionTest extends IntegrationTest {
     @Test
     @DisplayName("Expectations of an IOC validation run are never indexed for the coverage")
     void given_iocValidationSimulation_should_notIndexItsExpectations() {
-      BaseInjectExpectation regular = expectationInSimulation(null);
-      BaseInjectExpectation validation = expectationInSimulation(IocValidation.SCENARIO_CATEGORY);
+      BaseInjectExpectation regular = expectationInSimulation(null, false);
+      BaseInjectExpectation validation =
+          expectationInSimulation(IocValidation.SCENARIO_CATEGORY, true);
       entityManager.flush();
       entityManager.clear();
 
       List<EsInjectExpectation> results = injectExpectationHandler.fetch(FROM, 5000);
-      List<String> indexedIds =
-          results.stream()
-              .filter(es -> !(es instanceof EsSkipped))
-              .map(EsInjectExpectation::getBase_id)
-              .toList();
-      List<String> skippedIds =
-          results.stream()
-              .filter(es -> es instanceof EsSkipped)
-              .map(EsInjectExpectation::getBase_id)
-              .toList();
 
-      assertThat(indexedIds).contains(regular.getId()).doesNotContain(validation.getId());
-      assertThat(skippedIds).contains(validation.getId()).doesNotContain(regular.getId());
+      assertThat(indexedIds(results)).contains(regular.getId()).doesNotContain(validation.getId());
+      assertThat(skippedIds(results)).contains(validation.getId()).doesNotContain(regular.getId());
+    }
+
+    @Test
+    @DisplayName("An edited simulation category never moves a run in or out of the coverage")
+    void given_editedCategory_should_notChangeWhatIsIndexed() {
+      BaseInjectExpectation recategorizedRun = expectationInSimulation("attack-scenario", true);
+      BaseInjectExpectation lookalike =
+          expectationInSimulation(IocValidation.SCENARIO_CATEGORY, false);
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsInjectExpectation> results = injectExpectationHandler.fetch(FROM, 5000);
+
+      assertThat(skippedIds(results))
+          .contains(recategorizedRun.getId())
+          .doesNotContain(lookalike.getId());
+      assertThat(indexedIds(results))
+          .contains(lookalike.getId())
+          .doesNotContain(recategorizedRun.getId());
+    }
+
+    private static List<String> indexedIds(List<EsInjectExpectation> results) {
+      return results.stream()
+          .filter(es -> !(es instanceof EsSkipped))
+          .map(EsInjectExpectation::getBase_id)
+          .toList();
+    }
+
+    private static List<String> skippedIds(List<EsInjectExpectation> results) {
+      return results.stream()
+          .filter(es -> es instanceof EsSkipped)
+          .map(EsInjectExpectation::getBase_id)
+          .toList();
     }
 
     @Test
     @DisplayName("A page holding only expectations of IOC validation runs still moves the cursor")
     void given_onlyIocValidationExpectations_should_advanceCursorPastThem() {
-      BaseInjectExpectation first = expectationInSimulation(IocValidation.SCENARIO_CATEGORY);
-      BaseInjectExpectation second = expectationInSimulation(IocValidation.SCENARIO_CATEGORY);
+      BaseInjectExpectation first = expectationInSimulation(IocValidation.SCENARIO_CATEGORY, true);
+      BaseInjectExpectation second = expectationInSimulation(IocValidation.SCENARIO_CATEGORY, true);
       entityManager.flush();
       int i = 0;
       for (BaseInjectExpectation expectation : List.of(first, second)) {
@@ -734,7 +803,12 @@ class IndexingRegressionTest extends IntegrationTest {
           .doesNotContain(first.getId(), second.getId());
     }
 
-    private BaseInjectExpectation expectationInSimulation(String category) {
+    /**
+     * An expectation in a simulation of the given category. An IOC validation run is the simulation
+     * an IOC validation links, whatever its category.
+     */
+    private BaseInjectExpectation expectationInSimulation(
+        String category, boolean iocValidationRun) {
       BaseInjectExpectation expectation =
           InjectExpectationFixture.createDefaultDetectionInjectExpectation();
       InjectComposer.Composer injectWrapper =
@@ -748,6 +822,9 @@ class IndexingRegressionTest extends IntegrationTest {
       Exercise exercise = ExerciseFixture.createDefaultExercise();
       exercise.setCategory(category);
       exerciseComposer.forExercise(exercise).withInject(injectWrapper).persist();
+      if (iocValidationRun) {
+        linkIocValidation(exercise.getId());
+      }
       return expectation;
     }
 
