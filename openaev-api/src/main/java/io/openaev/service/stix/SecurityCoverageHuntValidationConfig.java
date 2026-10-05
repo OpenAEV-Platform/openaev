@@ -11,7 +11,9 @@ import org.springframework.stereotype.Component;
  * that technique on that platform, over the emulation window.
  *
  * <p>Properties are loaded with the {@code openaev.security-coverage.hunt-validation.*} prefix.
- * Out-of-range values fall back to the nearest valid value instead of failing the startup.
+ * Invalid values never fail the startup: a negative window padding reads as zero, a batch size or
+ * attempts below one as one, and a missing, zero or negative request timeout or maximum age as its
+ * default (30 seconds, 7 days).
  *
  * <pre>{@code
  * openaev:
@@ -39,7 +41,10 @@ public class SecurityCoverageHuntValidationConfig {
   /** Added before the start and after the end of the inject execution window. */
   private Duration windowPadding = DEFAULT_WINDOW_PADDING;
 
-  /** Bound of the connect, the TLS handshake and every read of one OpenCTI call. */
+  /**
+   * Bound of the connect, the TLS handshake and every read of one OpenCTI call, and of the whole
+   * call: it is cancelled once this duration elapses, even while reads keep arriving.
+   */
   private Duration requestTimeout = DEFAULT_REQUEST_TIMEOUT;
 
   /** Maximum number of validations sent per tenant and per delivery run. */
