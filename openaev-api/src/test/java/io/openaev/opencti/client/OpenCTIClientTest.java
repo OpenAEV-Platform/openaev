@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -35,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -299,6 +301,21 @@ public class OpenCTIClientTest extends IntegrationTest {
       verify(mockHttpClientFactory).httpClientNoRetry(timeout.capture());
       assertThat(timeout.getValue().toMilliseconds()).isEqualTo(7000L);
       verify(mockHttpClientFactory, never()).httpClientCustom();
+    }
+
+    @Test
+    @DisplayName("It releases the deadline of a request that completes before its timeout")
+    public void itReleasesTheDeadlineOfARequestThatCompletesEarly() throws IOException {
+      when(boundedHttpClient.execute((ClassicHttpRequest) any(), (HttpClientResponseHandler) any()))
+          .thenReturn(getMockResponse(HttpStatus.SC_OK, "{\"data\": {\"outcome\": \"good\"}}"));
+      ScheduledThreadPoolExecutor deadlines =
+          (ScheduledThreadPoolExecutor) ReflectionTestUtils.getField(client, "requestDeadlines");
+      int queuedBefore = deadlines.getQueue().size();
+
+      client.execute(baseUrl, authToken, MutationFixture.getDefaultMutation(), Duration.ofHours(1));
+
+      // The cancelled deadline task, and the request with its token it holds, are not kept queued
+      assertThat(deadlines.getQueue().size()).isEqualTo(queuedBefore);
     }
 
     @Test

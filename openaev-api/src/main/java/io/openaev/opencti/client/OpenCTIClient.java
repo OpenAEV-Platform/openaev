@@ -15,9 +15,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
@@ -43,13 +43,21 @@ public class OpenCTIClient {
   private final ObjectMapper mapper;
 
   /** Cancels the bounded requests that outlive their timeout. */
-  private final ScheduledExecutorService requestDeadlines =
-      Executors.newSingleThreadScheduledExecutor(
-          runnable -> {
-            Thread thread = new Thread(runnable, "opencti-request-deadline");
-            thread.setDaemon(true);
-            return thread;
-          });
+  private final ScheduledExecutorService requestDeadlines = requestDeadlineExecutor();
+
+  private static ScheduledExecutorService requestDeadlineExecutor() {
+    ScheduledThreadPoolExecutor executor =
+        new ScheduledThreadPoolExecutor(
+            1,
+            runnable -> {
+              Thread thread = new Thread(runnable, "opencti-request-deadline");
+              thread.setDaemon(true);
+              return thread;
+            });
+    // A request that completes early releases its deadline task, and the request it holds, at once
+    executor.setRemoveOnCancelPolicy(true);
+    return executor;
+  }
 
   public Response execute(String url, String authToken, Mutation mutation) throws IOException {
     return execute(url, authToken, mutation.getQueryText(), mutation.getVariables());
