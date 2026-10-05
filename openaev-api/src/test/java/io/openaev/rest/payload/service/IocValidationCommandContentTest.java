@@ -26,6 +26,7 @@ import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.command.CommandArgumentBinder;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -487,21 +488,26 @@ class IocValidationCommandContentTest {
         .contains("$oaevIocFile -match '" + PayloadService.WINDOWS_RESERVED_FILE_NAME + "'")
         .contains("('openaev-ioc-validation-' + $oaevIocRun)")
         .contains("[System.IO.FileAttributes]::ReparsePoint")
-        .contains("if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)) { throw")
+        .contains(PayloadService.WINDOWS_OWNER_TEST)
+        .contains(
+            "if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)"
+                + " -or -not (Test-OaevOwned $oaevIocDir)) { throw")
         // Created as a new file: never an overwrite, never through a link at the surrogate path
         .contains("[System.IO.FileMode]::CreateNew")
         .contains(PayloadService.IOC_VALIDATION_FAILED_FILE_DROP)
         .doesNotContain("Set-Content")
         .doesNotContain("GetTempPath()) " + FILE_NAME);
     assertThat(content.indexOf("throw")).isLessThan(content.indexOf("CreateDirectory"));
-    // A link is refused right before the creation, after the directory exists
-    assertThat(content.indexOf("if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath))"))
+    // A link, or a run directory another account owns, is refused right before the creation,
+    // after the directory exists
+    assertThat(content.indexOf("-or -not (Test-OaevOwned $oaevIocDir)) { throw"))
         .isGreaterThan(content.indexOf("CreateDirectory"))
         .isLessThan(content.indexOf("CreateNew"));
     // and again once the surrogate is open, before anything is written to it
     int recheck =
         content.indexOf(
-            "$oaevIocMoved = (Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)");
+            "$oaevIocMoved = (Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)"
+                + " -or -not (Test-OaevOwned $oaevIocDir);");
     assertThat(recheck)
         .isGreaterThan(content.indexOf("CreateNew"))
         .isLessThan(content.indexOf("$oaevIocStream.Write("));
@@ -532,20 +538,26 @@ class IocValidationCommandContentTest {
   void given_fileDropCleanupOnWindows_should_removeOnlyWhatTheRunCreated() {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
-    // The surrogate is deleted through its handle, never by path; a run directory or a surrogate
-    // path that is a link is left alone, and only an empty run directory is removed
+    // The surrogate is deleted through its handle, never by path; a run directory another account
+    // owns, or a run directory or a surrogate path that is a link, is left alone, and only an
+    // empty run directory is removed
     String deleteByHandle = "SetFileInformationByHandle($oaevIocHandle, 4";
+    String ownRunDirectory =
+        "-and -not (Test-OaevLink $oaevIocDir) -and (Test-OaevOwned $oaevIocDir)) {";
+    String deleteDirectory = "[System.IO.Directory]::Delete($oaevIocDir)";
     assertThat(cleanup)
-        .contains("-and -not (Test-OaevLink $oaevIocDir)")
+        .contains(PayloadService.WINDOWS_OWNER_TEST)
+        .contains(ownRunDirectory)
         .contains("if (-not (Test-OaevLink $oaevIocPath))")
         .contains(deleteByHandle)
-        .contains("[System.IO.Directory]::Delete($oaevIocDir)")
+        .contains(deleteDirectory)
         .doesNotContain("[System.IO.File]::Delete")
         .doesNotContain("Remove-Item")
         .doesNotContain("-Recurse");
     assertThat(cleanup.indexOf("throw")).isLessThan(cleanup.indexOf(deleteByHandle));
-    assertThat(cleanup.indexOf("Test-OaevLink $oaevIocDir"))
-        .isLessThan(cleanup.indexOf(deleteByHandle));
+    assertThat(cleanup.indexOf(ownRunDirectory))
+        .isLessThan(cleanup.indexOf(deleteByHandle))
+        .isLessThan(cleanup.indexOf(deleteDirectory));
   }
 
   @Test
@@ -556,7 +568,10 @@ class IocValidationCommandContentTest {
     String cleanup =
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
     int open = cleanup.indexOf("[OaevIoc.Native]::CreateFileW($oaevIocPath");
-    int recheck = cleanup.indexOf("(Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)");
+    int recheck =
+        cleanup.indexOf(
+            "(Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)"
+                + " -or -not (Test-OaevOwned $oaevIocDir))");
     int read = cleanup.indexOf("$oaevIocStream.Read($oaevIocRead");
     int delete = cleanup.indexOf("SetFileInformationByHandle($oaevIocHandle, 4");
     int close = cleanup.indexOf("$oaevIocStream.Dispose()");
@@ -881,6 +896,9 @@ class IocValidationCommandContentTest {
 
     private String shell;
 
+    // Put first on the PATH of the executed commands when set
+    private Path standInDirectory;
+
     @BeforeEach
     void requirePowerShell() {
       shell =
@@ -958,6 +976,14 @@ class IocValidationCommandContentTest {
       builder.environment().put("TMPDIR", tmp.toString());
       builder.environment().put("TMP", tmp.toString());
       builder.environment().put("TEMP", tmp.toString());
+      if (standInDirectory != null) {
+        builder
+            .environment()
+            .merge(
+                "PATH",
+                standInDirectory.toString(),
+                (path, standIn) -> standIn + File.pathSeparator + path);
+      }
       builder.redirectErrorStream(true);
       builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
       Process process = builder.start();
@@ -1024,6 +1050,53 @@ class IocValidationCommandContentTest {
       }
       assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
       assertThat(surrogate).doesNotExist();
+    }
+
+    /**
+     * A run directory another account owns. On Windows it is given to the local service account,
+     * which takes the restore privilege; off Windows the owner is compared with {@code id -u}, so a
+     * stand-in printing another user id makes the directory foreign.
+     */
+    private Path foreignRunDirectory() throws Exception {
+      Path runDirectory =
+          Files.createDirectories(tmp.resolve("openaev-ioc-validation-" + VALID_RUN));
+      if (System.getProperty("os.name", "").startsWith("Windows")) {
+        Process process =
+            new ProcessBuilder("icacls", runDirectory.toString(), "/setowner", "*S-1-5-19")
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        assumeTrue(
+            process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0,
+            "requires the right to give a directory another owner");
+      } else {
+        int uid = (int) Files.getAttribute(runDirectory, "unix:uid");
+        standInDirectory = Files.createDirectories(tmp.resolve("stand-in"));
+        Path id =
+            Files.writeString(
+                standInDirectory.resolve("id"), "#!/bin/sh\necho " + (uid + 1) + "\n");
+        assumeTrue(id.toFile().setExecutable(true), "requires an executable stand-in for id");
+      }
+      return runDirectory;
+    }
+
+    @Test
+    @DisplayName(
+        "refuses a run directory another account owns, writing nothing in it, and leaves it and"
+            + " its content at cleanup")
+    void given_foreignRunDirectory_should_failWithoutWritingNorRemovingIt() throws Exception {
+      Path runDirectory = foreignRunDirectory();
+      Path surrogate = runDirectory.resolve("invoice.pdf");
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isNotZero();
+      assertThat(surrogate).doesNotExist();
+
+      String surrogateText =
+          PayloadService.IOC_VALIDATION_SURROGATE_TEXT + " " + VALID_RUN + System.lineSeparator();
+      Files.writeString(surrogate, surrogateText);
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(surrogate).hasContent(surrogateText);
     }
 
     // The cleanup deletes the surrogate through a Windows file handle: elsewhere it removes nothing

@@ -115,6 +115,28 @@ class IocValidationBundleParserTest {
   }
 
   @Test
+  @DisplayName(
+      "rejects a request id longer than the stored external id, from the event or the bundle")
+  void given_overlongRequestId_should_throw() throws BundleValidationError {
+    String longest = "r".repeat(IocValidationBundleParser.MAX_REQUEST_ID_LENGTH);
+    String overlong = longest + "r";
+    ObjectNode withoutExtension = request();
+    withoutExtension.remove("extensions");
+    ObjectNode overlongExtension = request();
+    ((ObjectNode)
+            overlongExtension.path("extensions").path(IocValidationBundleParser.OPENCTI_EXTENSION))
+        .put("id", overlong);
+
+    assertThat(parser.parse(bundle(withoutExtension), longest).requestId()).isEqualTo(longest);
+    assertThatThrownBy(() -> parser.parse(bundle(withoutExtension), overlong))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining("exceeds " + IocValidationBundleParser.MAX_REQUEST_ID_LENGTH);
+    assertThatThrownBy(() -> parser.parse(bundle(overlongExtension), null))
+        .isInstanceOf(BundleValidationError.class)
+        .hasMessageContaining("exceeds " + IocValidationBundleParser.MAX_REQUEST_ID_LENGTH);
+  }
+
+  @Test
   @DisplayName("deduplicates repeated IOCs and pairs")
   void given_duplicates_should_keepOne() throws BundleValidationError {
     ObjectNode request = request();

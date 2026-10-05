@@ -31,6 +31,8 @@ public class IocValidationBundleParser {
   public static final String OPENCTI_EXTENSION =
       "extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba";
   static final int MAX_NAME_LENGTH = 255;
+  // The request id is stored in ioc_validation_external_id VARCHAR(255)
+  static final int MAX_REQUEST_ID_LENGTH = 255;
   static final int MAX_VALUE_LENGTH = 8192;
   static final int MAX_HASHES = 10;
 
@@ -95,25 +97,39 @@ public class IocValidationBundleParser {
   /**
    * The OpenCTI id of the request, from the event or the OpenCTI extension of the request object.
    * When both are present they must be equal: the lifecycle reported back to OpenCTI must target
-   * the request whose IOCs are executed.
+   * the request whose IOCs are executed. An id longer than {@link #MAX_REQUEST_ID_LENGTH} makes the
+   * bundle malformed.
    */
   static String resolveRequestId(JsonNode request, String entityId) throws BundleValidationError {
-    String eventId = entityId == null || entityId.isBlank() ? null : entityId.trim();
+    String eventId = requestIdOrNull(entityId);
     String extensionId =
-        blankToNull(text(request.path("extensions").path(OPENCTI_EXTENSION), "id"));
-    if (eventId != null && extensionId != null && !eventId.equals(extensionId.trim())) {
+        requestIdOrNull(text(request.path("extensions").path(OPENCTI_EXTENSION), "id"));
+    if (eventId != null && extensionId != null && !eventId.equals(extensionId)) {
       throw new BundleValidationError(
           "The event targets request %s but the bundle carries request %s"
-              .formatted(eventId, extensionId.trim()));
+              .formatted(eventId, extensionId));
     }
     if (eventId != null) {
       return eventId;
     }
     if (extensionId != null) {
-      return extensionId.trim();
+      return extensionId;
     }
     throw new BundleValidationError(
         "The IOC validation request carries no OpenCTI id (event.entity_id or extension id)");
+  }
+
+  private static String requestIdOrNull(String id) throws BundleValidationError {
+    if (id == null || id.isBlank()) {
+      return null;
+    }
+    String trimmed = id.trim();
+    if (trimmed.length() > MAX_REQUEST_ID_LENGTH) {
+      throw new BundleValidationError(
+          "The OpenCTI id of the IOC validation request exceeds %d characters"
+              .formatted(MAX_REQUEST_ID_LENGTH));
+    }
+    return trimmed;
   }
 
   private static List<IocValidationRequest.Ioc> parseIocs(

@@ -119,6 +119,17 @@ public class PayloadService {
           + " -band [System.IO.FileAttributes]::ReparsePoint) }"
           + " catch [System.IO.FileNotFoundException], [System.IO.DirectoryNotFoundException]"
           + " { $false } catch { $true } }";
+  // Defines Test-OaevOwned: whether the runner owns a directory, a path that cannot be read
+  // counting
+  // as not owned. On Windows the owner is the account, or the group an elevated token gives new
+  // objects as owner; PowerShell off Windows compares the user id, as the POSIX drop does.
+  static final String WINDOWS_OWNER_TEST =
+      "function Test-OaevOwned($oaevPath) { try { if ($IsWindows -eq $false) { return"
+          + " [string](Get-Item -LiteralPath $oaevPath -Force -ErrorAction Stop).UnixStat.UserId"
+          + " -eq (id -u) }; $oaevOwner = (Get-Acl -LiteralPath $oaevPath -ErrorAction Stop).GetOwner("
+          + "[System.Security.Principal.SecurityIdentifier]);"
+          + " $oaevMe = [System.Security.Principal.WindowsIdentity]::GetCurrent();"
+          + " ($oaevOwner -eq $oaevMe.User) -or ($oaevOwner -eq $oaevMe.Owner) } catch { $false } }";
   // CreateFileW opens a file without following a link (FILE_FLAG_OPEN_REPARSE_POINT), with the
   // read and delete rights and a read-only share; SetFileInformationByHandle with the file
   // disposition class (4) deletes that file when its handle closes.
@@ -1193,11 +1204,16 @@ public class PayloadService {
             windowsRunDirectory()
                 + "; "
                 + WINDOWS_LINK_TEST
+                + "; "
+                + WINDOWS_OWNER_TEST
                 + "; $oaevIocPath = Join-Path $oaevIocDir $oaevIocFile;"
                 + " if (Test-OaevLink $oaevIocDir) { throw '"
                 + IOC_VALIDATION_UNSAFE_FILE_DROP
+                // CreateDirectory also returns a directory that already exists: one created
+                // beforehand by another account is refused by its owner
                 + "' }; [void][System.IO.Directory]::CreateDirectory($oaevIocDir);"
-                + " if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)) { throw '"
+                + " if ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)"
+                + " -or -not (Test-OaevOwned $oaevIocDir)) { throw '"
                 + IOC_VALIDATION_UNSAFE_FILE_DROP
                 // The open surrogate pins the run directory (a directory holding an open file
                 // cannot be renamed or removed), so the run directory is checked again once the
@@ -1205,7 +1221,8 @@ public class PayloadService {
                 + "' }; $oaevIocStream = $null; $oaevIocMoved = $false; try {"
                 + " $oaevIocStream = [System.IO.File]::Open($oaevIocPath,"
                 + " [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write);"
-                + " $oaevIocMoved = (Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath);"
+                + " $oaevIocMoved = (Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)"
+                + " -or -not (Test-OaevOwned $oaevIocDir);"
                 + " if (-not $oaevIocMoved) {"
                 + " $oaevIocBytes = [System.Text.Encoding]::UTF8.GetBytes('"
                 + IOC_VALIDATION_SURROGATE_TEXT
@@ -1296,8 +1313,9 @@ public class PayloadService {
       return null;
     }
     if (windows) {
-      // Directory.Delete never removes a non-empty directory; a run directory or a surrogate path
-      // that is a link is left alone. The surrogate is opened once, without following a link and
+      // Directory.Delete never removes a non-empty directory; a run directory the runner does not
+      // own, or a run directory or a surrogate path that is a link, is left alone. The surrogate
+      // is opened once, without following a link and
       // sharing reads only: while it is open no one can rename, replace or write it, and a
       // directory holding an open file cannot be renamed. It is deleted through that same handle
       // (file disposition), so the file removed is the file whose bytes were checked. The file is
@@ -1306,9 +1324,11 @@ public class PayloadService {
       return windowsRunDirectory()
           + "; "
           + WINDOWS_LINK_TEST
+          + "; "
+          + WINDOWS_OWNER_TEST
           + "; $oaevIocPath = Join-Path $oaevIocDir $oaevIocFile;"
           + " if ((Test-Path -LiteralPath $oaevIocDir -PathType Container)"
-          + " -and -not (Test-OaevLink $oaevIocDir)) {"
+          + " -and -not (Test-OaevLink $oaevIocDir) -and (Test-OaevOwned $oaevIocDir)) {"
           + " if (-not (Test-OaevLink $oaevIocPath)) { $oaevIocHandle = $null; $oaevIocStream = $null;"
           + " try { "
           + WINDOWS_FILE_HANDLE_TYPE
@@ -1321,7 +1341,8 @@ public class PayloadService {
           + " $oaevIocBytes = [System.Text.Encoding]::UTF8.GetBytes('"
           + IOC_VALIDATION_SURROGATE_TEXT
           + " ' + $oaevIocRun + [Environment]::NewLine);"
-          + " if (-not ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath))"
+          + " if (-not ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)"
+          + " -or -not (Test-OaevOwned $oaevIocDir))"
           + " -and $oaevIocStream.Length -eq $oaevIocBytes.Length) {"
           + " $oaevIocRead = New-Object byte[] $oaevIocBytes.Length; $oaevIocCount = 0;"
           + " while ($oaevIocCount -lt $oaevIocRead.Length) { $oaevIocChunk ="

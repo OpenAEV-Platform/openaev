@@ -60,7 +60,7 @@ public class ScenarioToExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public Exercise toExercise(
       @NotBlank final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
-    return toSimulation(scenario, start, isRunning).simulation();
+    return createSimulation(scenario, start, isRunning).simulation();
   }
 
   /**
@@ -70,6 +70,11 @@ public class ScenarioToExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public ScenarioSimulation toSimulation(
       @NotBlank final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
+    return createSimulation(scenario, start, isRunning);
+  }
+
+  private ScenarioSimulation createSimulation(
+      final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
     Exercise exercise = new Exercise();
     exercise.setScenario(scenario);
     exercise.setName(scenario.getName());
