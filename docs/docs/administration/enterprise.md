@@ -55,8 +55,9 @@ applying, within its validity dates.
 The certificate is verified offline: it is not bound to the XTM One instance that returns it nor to a registration,
 and OpenAEV cannot ask Filigran whether a sub-license is still in force. A sub-license revoked on XTM One therefore
 ends when XTM One answers without the certificate, not while it cannot be reached. Likewise, a copy of a valid
-certificate served from the XTM One URL configured on this platform keeps granting Enterprise Edition until the
-certificate expires (plus the grace period of its type), and a `global` certificate covers any OpenAEV platform.
+certificate served from the XTM One URL configured on this platform keeps granting Enterprise Edition for as long
+as its license is valid as described above: until its expiration date plus the grace period of its type, or, for a
+CI license, until the earliest of its three end dates. A `global` certificate covers any OpenAEV platform.
 Point the XTM One URL at a host you trust, over HTTPS. This requires XTM One 1.261001.0 or later, which returns the license certificate;
 with an older XTM One, only the OpenAEV license applies and a warning is logged.
 
