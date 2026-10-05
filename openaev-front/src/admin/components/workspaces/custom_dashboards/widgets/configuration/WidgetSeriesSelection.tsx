@@ -157,7 +157,7 @@ const WidgetSeriesSelection: FunctionComponent<{
           >
             <IconButton
               disabled={index === 0}
-              aria-label="Delete"
+              aria-label={t('Delete')}
               onClick={handleRemoveSeries}
               size="small"
             >

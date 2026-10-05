@@ -6,6 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { computeBannerSettings } from '../../public/components/systembanners/utils';
 import { getSeverityAndColor } from '../../utils/Colors';
 import useAuth from '../../utils/hooks/useAuth';
+import { useFormatter } from '../i18n';
 
 // Byte-for-byte mirror of OpenCTI's Drawer surfaces (see opencti-front
 // src/private/components/common/drawer/Drawer.tsx):
@@ -103,6 +104,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
   disableEnforceFocus = false,
   containerStyle = {},
 }) => {
+  const { t } = useFormatter();
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
 
@@ -178,7 +180,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
             />
           )}
           <IconButton
-            aria-label="Close"
+            aria-label={t('Close')}
             onClick={handleClose}
             size="small"
             color="primary"

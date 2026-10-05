@@ -284,7 +284,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           {primaryDomain && (
             <Chip
               size="small"
-              label={primaryDomain.domain_name}
+              label={t(primaryDomain.domain_name)}
               variant="outlined"
               sx={{
                 height: 20,
@@ -300,7 +300,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
             />
           )}
           {domains.length > 1 && (
-            <Tooltip title={domains.slice(1).map(d => d.domain_name).join(', ')}>
+            <Tooltip title={domains.slice(1).map(d => t(d.domain_name)).join(', ')}>
               <Chip
                 size="small"
                 label={`+${domains.length - 1}`}

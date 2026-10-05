@@ -44,7 +44,7 @@ const InjectsListButtons: FunctionComponent<Props> = ({
         size="small"
         exclusive
         style={{ float: 'right' }}
-        aria-label="Change view mode"
+        aria-label={t('Change view mode')}
       >
         {(!!setViewMode && availableButtons.includes('list'))
           && (
@@ -53,7 +53,7 @@ const InjectsListButtons: FunctionComponent<Props> = ({
                 value="list"
                 onClick={() => setViewMode('list')}
                 selected={viewModeContext === 'list'}
-                aria-label="List view mode"
+                aria-label={t('List view mode')}
               >
                 <ReorderOutlined fontSize="small" color={viewModeContext === 'list' ? 'inherit' : 'primary'} />
               </ToggleButton>
@@ -66,7 +66,7 @@ const InjectsListButtons: FunctionComponent<Props> = ({
                 value="chain"
                 onClick={() => setViewMode('chain')}
                 selected={viewModeContext === 'chain'}
-                aria-label="Interactive view mode"
+                aria-label={t('Interactive view mode')}
               >
                 <ViewTimelineOutlined fontSize="small" color={viewModeContext === 'chain' ? 'inherit' : 'primary'} />
               </ToggleButton>
@@ -79,7 +79,7 @@ const InjectsListButtons: FunctionComponent<Props> = ({
                 value="distribution"
                 onClick={() => setViewMode('distribution')}
                 selected={viewModeContext === 'distribution'}
-                aria-label="Distribution view mode"
+                aria-label={t('Distribution view mode')}
               >
                 <BarChartOutlined fontSize="small" color={viewModeContext === 'distribution' ? 'inherit' : 'primary'} />
               </ToggleButton>

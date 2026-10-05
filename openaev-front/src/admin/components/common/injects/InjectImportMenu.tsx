@@ -98,7 +98,7 @@ const InjectImportMenu = ({ onImportedInjects = () => {} }: Props) => {
       >
         <Tooltip
           title={t('Import injects')}
-          aria-label="Import injects"
+          aria-label={t('Import injects')}
         >
           <CloudUploadOutlined
             color="primary"

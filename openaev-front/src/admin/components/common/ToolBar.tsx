@@ -687,7 +687,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                 >
                   <IconButton
                     disabled={actionsInputs.length === 1}
-                    aria-label="Delete"
+                    aria-label={t('Delete')}
                     sx={{
                       position: 'absolute',
                       top: -2.5,

@@ -951,7 +951,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 <div style={{ justifyContent: 'left' }}>
                   <Button
                     color="secondary"
-                    aria-label="Add"
+                    aria-label={t('Add')}
                     size="large"
                     onClick={() => {
                       addConditionParent(parent);
@@ -1063,7 +1063,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 <div style={{ justifyContent: 'left' }}>
                   <Button
                     color="secondary"
-                    aria-label="Add"
+                    aria-label={t('Add')}
                     size="large"
                     onClick={() => {
                       addConditionChildren(children);

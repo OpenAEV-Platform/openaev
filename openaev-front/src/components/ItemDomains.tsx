@@ -8,7 +8,8 @@ import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
 import { getIconByDomain } from '../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../utils/domains/domainUtils';
-import { getLabelOfRemainingItems, truncate } from '../utils/String';
+import { truncate } from '../utils/String';
+import { useFormatter } from './i18n';
 
 const useStyles = makeStyles()(theme => ({
   inline: {
@@ -38,6 +39,7 @@ interface ItemsDomainsProps {
 
 const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
   const { classes } = useStyles();
+  const { t } = useFormatter();
 
   const allDomains: Domain[] = useHelper((helper: DomainHelper) => {
     return helper.getDomains();
@@ -72,7 +74,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
     resolvedDomains
       .filter(d => d.domain_name !== TO_CLASSIFY)
       .map(domain => (
-        <Tooltip key={domain.domain_id} title={domain.domain_name}>
+        <Tooltip key={domain.domain_id} title={t(domain.domain_name)}>
           <Chip
             variant="outlined"
             classes={{ root: style }}
@@ -80,7 +82,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
               fontSize: 14,
               color: domain.domain_color,
             })}
-            label={truncate(domain.domain_name, truncateLimit)}
+            label={truncate(t(domain.domain_name), truncateLimit)}
             style={{
               color: domain.domain_color,
               borderColor: domain.domain_color,
@@ -94,11 +96,11 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
     const primaryDomain = resolvedDomains[0];
     if (!primaryDomain || primaryDomain.domain_name === TO_CLASSIFY) return null;
 
-    const tooltipLabel = getLabelOfRemainingItems(resolvedDomains, 1, 'domain_name');
+    const tooltipLabel = resolvedDomains.slice(1).map(d => t(d.domain_name)).join(', ');
 
     return (
       <>
-        <Tooltip title={primaryDomain.domain_name}>
+        <Tooltip title={t(primaryDomain.domain_name)}>
           <Chip
             variant="outlined"
             classes={{ root: style }}
@@ -106,7 +108,7 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
               fontSize: 14,
               color: primaryDomain.domain_color,
             })}
-            label={truncate(primaryDomain.domain_name, truncateLimit)}
+            label={truncate(t(primaryDomain.domain_name), truncateLimit)}
             style={{
               color: primaryDomain.domain_color,
               borderColor: primaryDomain.domain_color,

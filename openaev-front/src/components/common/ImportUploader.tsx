@@ -86,7 +86,7 @@ const ImportUploader: FunctionComponent<Props> = ({
         >
           <Tooltip
             title={t(title)}
-            aria-label={title}
+            aria-label={t(title)}
           >
             <CloudUploadOutlined
               color="primary"
@@ -97,7 +97,7 @@ const ImportUploader: FunctionComponent<Props> = ({
       ) : (
         <Tooltip
           title={t(title)}
-          aria-label={title}
+          aria-label={t(title)}
         >
           <Button
             onClick={handleOpenUpload}

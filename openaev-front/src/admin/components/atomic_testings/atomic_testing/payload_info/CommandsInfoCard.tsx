@@ -110,7 +110,7 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
             >
               <Table
                 size="small"
-                aria-label="Table to show payload's arguments"
+                aria-label={t('Table to show payload\'s arguments')}
                 sx={{
                   'minWidth': 650,
                   '& .MuiTableCell-root': {

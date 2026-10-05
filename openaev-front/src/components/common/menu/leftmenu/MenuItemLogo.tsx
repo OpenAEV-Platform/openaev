@@ -20,7 +20,7 @@ const MenuItemLogo: FunctionComponent<Props> = ({ navOpen, onClick }) => {
 
   return (
     <MenuItem
-      aria-label="By Filigran"
+      aria-label={t('By Filigran')}
       dense
       onClick={onClick}
       sx={{

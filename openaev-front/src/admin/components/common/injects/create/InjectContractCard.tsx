@@ -37,7 +37,7 @@ const InjectContractCard: FunctionComponent<Props> = ({
   onSelect,
   onToggle,
 }) => {
-  const { tPick } = useFormatter();
+  const { t, tPick } = useFormatter();
   const theme = useTheme();
 
   const allDomains: Domain[] = useHelper(
@@ -215,7 +215,7 @@ const InjectContractCard: FunctionComponent<Props> = ({
                 fontSize: 13,
                 color: accent,
               })}
-              label={primaryDomain.domain_name}
+              label={t(primaryDomain.domain_name)}
               variant="outlined"
               sx={{
                 'height': 20,
@@ -232,7 +232,7 @@ const InjectContractCard: FunctionComponent<Props> = ({
             />
           )}
           {domains.length > 1 && (
-            <Tooltip title={domains.slice(1).map(d => d.domain_name).join(', ')}>
+            <Tooltip title={domains.slice(1).map(d => t(d.domain_name)).join(', ')}>
               <Chip
                 size="small"
                 label={`+${domains.length - 1}`}

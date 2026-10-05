@@ -16,6 +16,7 @@ const DIAGRAM_HEIGHT = 60;
  * Drawn inline as SVG so it scales sharply and follows the palette / theme mode.
  */
 const ChainingDiagram: FunctionComponent = () => {
+  const { t } = useFormatter();
   const theme = useTheme();
   const accent = theme.palette.primary.main;
   const muted = theme.palette.text.disabled;
@@ -27,7 +28,7 @@ const ChainingDiagram: FunctionComponent = () => {
       viewBox={`0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`}
       fill="none"
       role="img"
-      aria-label="Chaining flow diagram"
+      aria-label={t('Chaining flow diagram')}
       style={{ filter: `drop-shadow(0 1px 3px ${alpha(accent, 0.3)})` }}
     >
       <defs>
@@ -57,6 +58,7 @@ const ChainingDiagram: FunctionComponent = () => {
  * timeline with tick marks, conveying execution at fixed scheduled intervals.
  */
 const TimeBasedDiagram: FunctionComponent = () => {
+  const { t } = useFormatter();
   const theme = useTheme();
   const accent = theme.palette.secondary.main;
   const line = theme.palette.text.disabled;
@@ -69,7 +71,7 @@ const TimeBasedDiagram: FunctionComponent = () => {
       viewBox={`0 0 ${DIAGRAM_WIDTH} ${DIAGRAM_HEIGHT}`}
       fill="none"
       role="img"
-      aria-label="Time-based schedule diagram"
+      aria-label={t('Time-based schedule diagram')}
       style={{ filter: `drop-shadow(0 1px 3px ${alpha(accent, 0.25)})` }}
     >
       {/* Timeline. */}

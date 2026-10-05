@@ -40,7 +40,7 @@ const ParametersTab = () => {
         </Typography>
         <IconButton
           color="secondary"
-          aria-label="Add"
+          aria-label={t('Add')}
           onClick={() => handleAddParameter(items[0].value)}
           size="small"
         >

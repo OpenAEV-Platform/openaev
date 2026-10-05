@@ -226,7 +226,7 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
         {isManuallyUpdatable && canManage && (
           <Tooltip title={t('Add a result')}>
             <IconButton
-              aria-label="Add"
+              aria-label={t('Add')}
               size="small"
               onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
             >

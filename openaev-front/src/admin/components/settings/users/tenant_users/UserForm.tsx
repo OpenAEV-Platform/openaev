@@ -99,7 +99,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         />
         <TextFieldController name="user_firstname" label={t('Firstname')} />
         <TextFieldController name="user_lastname" label={t('Lastname')} />
-        {type === 'PLATFORM' && <TenantFieldController name="user_tenants" label="Tenants" />}
+        {type === 'PLATFORM' && <TenantFieldController name="user_tenants" label={t('Tenants')} />}
         {type !== 'PLATFORM' && <OrganizationFieldController name="user_organization" label={t('Organization')} />}
         {type !== 'PLATFORM' && <TagFieldController name="user_tags" label={t('Tags')} />}
         <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
