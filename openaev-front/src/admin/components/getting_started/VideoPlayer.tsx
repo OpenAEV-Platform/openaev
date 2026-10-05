@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 
+import { useFormatter } from '../../../components/i18n';
+
 const iframeWrapperStyle: React.CSSProperties = {
   position: 'relative',
   width: '100%',
@@ -20,6 +22,7 @@ const iframeStyle: React.CSSProperties = {
 interface VideoPlayerProps { videoLink: string }
 
 const VideoPlayer = ({ videoLink }: VideoPlayerProps) => {
+  const { t } = useFormatter();
   const scriptLoadedRef = useRef(false);
 
   useEffect(() => {
@@ -44,7 +47,7 @@ const VideoPlayer = ({ videoLink }: VideoPlayerProps) => {
         allow="fullscreen"
         allowFullScreen
         style={iframeStyle}
-        title="Video OpenAEV Demo"
+        title={t('Video OpenAEV Demo')}
       />
     </div>
   );

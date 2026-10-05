@@ -3668,6 +3668,9 @@ public class AutonomousRunService {
       team = teamRepository.save(existing);
     } else {
       Team created = new Team();
+      // The run's own tenant, already validated against the caller's scope when the run was
+      // created: the wrapper team belongs where the simulation it wraps belongs.
+      created.setTenant(new Tenant(runTenantId(run)));
       created.setName(hasText(name) ? name : defaultTargetTeamName(players));
       created.setContextual(true);
       created.setUsers(new ArrayList<>(players));

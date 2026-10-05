@@ -50,10 +50,13 @@ import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
+import javax.sql.DataSource;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -63,10 +66,12 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -77,7 +82,7 @@ import org.springframework.transaction.annotation.Transactional;
 // executors to this list was tried and turns four of this class's tests red on their executor
 // fixtures, which is a separate piece of work; executors has its own activation and its own
 // coverage. Widen this list when that fixture work is done, not inside this activation.
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
+@TestPropertySource(properties = "openaev.tenant.active-tables=assets,asset_agent_jobs")
 class EndpointApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -97,6 +102,7 @@ class EndpointApiTest extends IntegrationTest {
   @MockitoSpyBean private InjectStatusService injectStatusService;
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private TenantRepository tenantRepository;
+  @Autowired private DataSource dataSource;
   @Autowired private io.openaev.utils.mockUser.TestUserHolder testUserHolder;
 
   @BeforeEach
@@ -961,6 +967,453 @@ class EndpointApiTest extends IntegrationTest {
 
         // -------- Assert --------
         assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+      }
+    }
+
+    /**
+     * asset_agent_jobs is v2-active: isolation for its DELETE endpoint now comes from {@code
+     * TenantStatementInspector} (via the tenant selected by the request), not the removed v1
+     * filter. Covers both routes per D29/I4 - the prefixed {@code /api/tenants/{id}/...} route and
+     * the legacy {@code X-Tenant-Ids} header route - since {@code cleanupAssetAgentJob} carries a
+     * bare {@code TxCtx}, resolved identically on either one.
+     *
+     * <p>The read tests here cover the route contract end to end: a caller scoped to another tenant
+     * gets nothing back from either read endpoint. They do NOT isolate a single mechanism, because
+     * the production table set is active in this context and both read specifications join {@code
+     * agents} and {@code assets}, which are v2-active too. The proof that the inspector scopes
+     * {@code asset_agent_jobs} itself lives in {@code AssetAgentJobDeletionScopeTest}, where that
+     * table is the only active one and removing it from the list turns the cross-tenant read red.
+     */
+    @Nested
+    @DisplayName("Asset agent job isolation")
+    @WithMockUser
+    class AssetAgentJobIsolation {
+
+      private final List<String> committedTenantIds = new ArrayList<>();
+      private JdbcTemplate jdbc;
+
+      @BeforeEach
+      void setUpJdbc() {
+        jdbc = new JdbcTemplate(dataSource);
+      }
+
+      @AfterEach
+      void cleanupCommittedTenants() {
+        if (!committedTenantIds.isEmpty()) {
+          tenantHelper.deleteCommittedTenants(committedTenantIds.toArray(new String[0]));
+          committedTenantIds.clear();
+        }
+      }
+
+      /**
+       * Persists an endpoint, an agent and one asset agent job under {@code tenantId}, committed.
+       */
+      private AssetAgentJob createTenantAssetAgentJob(String tenantId) {
+        tenantHelper.switchToTenant(tenantId, entityManager);
+        Endpoint endpoint = EndpointFixture.createEndpoint("Job Isolation Endpoint " + tenantId);
+        AgentComposer.Composer agentComposerX = agentComposer.forAgent(createDefaultAgentService());
+        endpointComposer.forEndpoint(endpoint).withAgent(agentComposerX).persist();
+
+        AssetAgentJob job = new AssetAgentJob();
+        job.setCommand("whoami");
+        job.setAgent(agentComposerX.get());
+        job.setTenant(new Tenant(tenantId));
+        job.setCreatedAt(Instant.now());
+        AssetAgentJob saved = assetAgentJobRepository.save(job);
+
+        // Commits everything created so far and opens a fresh transaction for the cross-tenant
+        // Act call (see EndpointCrudIsolation#commitArrangeAndStartFreshTransaction for why: two
+        // different tenant scopes cannot coexist in one physical transaction).
+        entityManager.flush();
+        entityManager.clear();
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        TestTransaction.start();
+        return saved;
+      }
+
+      /**
+       * Ground truth via a raw {@link JdbcTemplate} on the {@link DataSource}, deliberately NOT
+       * {@code entityManager.createNativeQuery}: with the table v2-active, a native query issued
+       * through Hibernate's own session still goes through {@code TenantStatementInspector} (it
+       * inspects every SQL statement Hibernate sends to the driver, regardless of JPQL, Criteria or
+       * native origin), so it fails closed the same as any other unscoped access to the table in
+       * the test's own transaction, which carries no {@code TxCtx} of its own - proving nothing
+       * either way (see the activate-tenant-table skill's {@code FindingApiTest} {@code [] == []}
+       * trap, and {@code AssetGroupBackgroundIsolationTest}, whose seeding/ground-truth idiom this
+       * follows). A connection obtained straight from the {@link DataSource} bypasses Hibernate's
+       * {@code SessionFactory} entirely, so the inspector never sees it.
+       */
+      private boolean assetAgentJobRowStillExists(String assetAgentJobId) {
+        Integer count =
+            jdbc.queryForObject(
+                "SELECT count(*) FROM asset_agent_jobs WHERE asset_agent_id = ?",
+                Integer.class,
+                assetAgentJobId);
+        return count != null && count > 0;
+      }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should NOT be deletable from tenant Y (prefixed"
+              + " route)")
+      void given_jobInTenantX_should_notBeDeletableFromTenantY_prefixedRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        Tenant tenantY =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant Y", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenantX.getId());
+
+        // -------- Act --------
+        mvc.perform(
+                delete("/api/tenants/" + tenantY.getId() + "/endpoints/jobs/" + jobX.getId())
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId()))
+            .as("a DELETE scoped to tenant Y must not remove tenant X's job")
+            .isTrue();
+      }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should be deletable from tenant X (prefixed route)")
+      void given_jobInTenantX_should_beDeletableFromTenantX_prefixedRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        committedTenantIds.add(tenantX.getId());
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenantX.getId());
+
+        // -------- Act --------
+        mvc.perform(
+                delete("/api/tenants/" + tenantX.getId() + "/endpoints/jobs/" + jobX.getId())
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId())).isFalse();
+      }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should NOT be deletable from tenant Y (X-Tenant-Ids"
+              + " header route)")
+      void given_jobInTenantX_should_notBeDeletableFromTenantY_headerRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        Tenant tenantY =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant Y", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenantX.getId());
+
+        // -------- Act --------
+        mvc.perform(
+                delete(ENDPOINT_URI + "/jobs/" + jobX.getId())
+                    .header("X-Tenant-Ids", tenantY.getId())
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId()))
+            .as("a DELETE scoped to tenant Y via X-Tenant-Ids must not remove tenant X's job")
+            .isTrue();
+      }
+
+      /**
+       * Seeds an endpoint, an agent carrying {@code externalReference} and one asset agent job
+       * under {@code tenantId}, committed. Both read endpoints resolve jobs by joining the agent's
+       * external reference, so the reference is what the request has to carry.
+       */
+      private void createTenantAssetAgentJob(String tenantId, String externalReference) {
+        tenantHelper.switchToTenant(tenantId, entityManager);
+        Endpoint endpoint = EndpointFixture.createEndpoint("Job Read Endpoint " + tenantId);
+        Agent agent = createDefaultAgentService();
+        agent.setExternalReference(externalReference);
+        AgentComposer.Composer agentComposerX = agentComposer.forAgent(agent);
+        endpointComposer.forEndpoint(endpoint).withAgent(agentComposerX).persist();
+
+        AssetAgentJob job = new AssetAgentJob();
+        job.setCommand("whoami");
+        job.setAgent(agentComposerX.get());
+        job.setTenant(new Tenant(tenantId));
+        job.setCreatedAt(Instant.now());
+        assetAgentJobRepository.save(job);
+
+        entityManager.flush();
+        entityManager.clear();
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        TestTransaction.start();
+      }
+
+      /**
+       * Number of jobs the search endpoint returns. One call per test: the scope aspect refuses a
+       * second, differently scoped request inside the same physical transaction.
+       */
+      private int jobsReturnedBySearch(String uri, String headerTenantId, String externalReference)
+          throws Exception {
+        EndpointRegisterInput input =
+            createWindowsEndpointRegisterInput(List.of(), externalReference);
+        MockHttpServletRequestBuilder request =
+            post(uri)
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf());
+        if (headerTenantId != null) {
+          request = request.header("X-Tenant-Ids", headerTenantId);
+        }
+        String response =
+            mvc.perform(request)
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return JsonPath.<Integer>read(response, "$.length()");
+      }
+
+      /**
+       * Number of jobs the deprecated by-reference endpoint returns. One call per test, as above.
+       */
+      private int jobsReturnedByReference(String uri, String headerTenantId) throws Exception {
+        MockHttpServletRequestBuilder request =
+            get(uri).accept(MediaType.APPLICATION_JSON).with(csrf());
+        if (headerTenantId != null) {
+          request = request.header("X-Tenant-Ids", headerTenantId);
+        }
+        String response =
+            mvc.perform(request)
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return JsonPath.<Integer>read(response, "$.length()");
+      }
+
+      /** Two tenants with the runtime capability, both cleaned up after the test. */
+      private Tenant[] twoTenants() throws Exception {
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        Tenant tenantY =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant Y", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        return new Tenant[] {tenantX, tenantY};
+      }
+
+      @Test
+      @DisplayName(
+          "Job search scoped to tenant X should return tenant X's own job (prefixed route)")
+      void given_jobInTenantX_should_beReadableFromTenantX_searchPrefixedRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        String reference = "read-search-prefixed-own-" + UUID.randomUUID();
+        createTenantAssetAgentJob(tenants[0].getId(), reference);
+
+        // -------- Act --------
+        int jobs =
+            jobsReturnedBySearch(
+                "/api/tenants/" + tenants[0].getId() + "/endpoints/jobs", null, reference);
+
+        // -------- Assert --------
+        assertThat(jobs)
+            .as("tenant X must see its own job, otherwise the cross-tenant test proves nothing")
+            .isEqualTo(1);
+      }
+
+      @Test
+      @DisplayName(
+          "Job search scoped to tenant Y should not return tenant X's job (prefixed route)")
+      void given_jobInTenantX_should_notBeReadableFromTenantY_searchPrefixedRoute()
+          throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        String reference = "read-search-prefixed-cross-" + UUID.randomUUID();
+        createTenantAssetAgentJob(tenants[0].getId(), reference);
+
+        // -------- Act --------
+        int jobs =
+            jobsReturnedBySearch(
+                "/api/tenants/" + tenants[1].getId() + "/endpoints/jobs", null, reference);
+
+        // -------- Assert --------
+        assertThat(jobs).as("a search scoped to tenant Y must not return tenant X's job").isZero();
+      }
+
+      @Test
+      @DisplayName(
+          "Job search scoped to tenant X should return tenant X's own job (X-Tenant-Ids header"
+              + " route)")
+      void given_jobInTenantX_should_beReadableFromTenantX_searchHeaderRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        String reference = "read-search-header-own-" + UUID.randomUUID();
+        createTenantAssetAgentJob(tenants[0].getId(), reference);
+
+        // -------- Act --------
+        int jobs = jobsReturnedBySearch(ENDPOINT_URI + "/jobs", tenants[0].getId(), reference);
+
+        // -------- Assert --------
+        assertThat(jobs).as("tenant X must see its own job on the header route too").isEqualTo(1);
+      }
+
+      @Test
+      @DisplayName(
+          "Job search scoped to tenant Y should not return tenant X's job (X-Tenant-Ids header"
+              + " route)")
+      void given_jobInTenantX_should_notBeReadableFromTenantY_searchHeaderRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        String reference = "read-search-header-cross-" + UUID.randomUUID();
+        createTenantAssetAgentJob(tenants[0].getId(), reference);
+
+        // -------- Act --------
+        int jobs = jobsReturnedBySearch(ENDPOINT_URI + "/jobs", tenants[1].getId(), reference);
+
+        // -------- Assert --------
+        assertThat(jobs)
+            .as("a search scoped to tenant Y via X-Tenant-Ids must not return tenant X's job")
+            .isZero();
+      }
+
+      @Test
+      @DisplayName(
+          "Deprecated job read scoped to tenant X should return tenant X's own job (prefixed"
+              + " route)")
+      void given_jobInTenantX_should_beReadableFromTenantX_byReferencePrefixedRoute()
+          throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        String reference = "read-byref-prefixed-own-" + UUID.randomUUID();
+        createTenantAssetAgentJob(tenants[0].getId(), reference);
+
+        // -------- Act --------
+        int jobs =
+            jobsReturnedByReference(
+                "/api/tenants/" + tenants[0].getId() + "/endpoints/jobs/" + reference, null);
+
+        // -------- Assert --------
+        assertThat(jobs).as("tenant X must see its own job on the deprecated route").isEqualTo(1);
+      }
+
+      @Test
+      @DisplayName(
+          "Deprecated job read scoped to tenant Y should not return tenant X's job (prefixed"
+              + " route)")
+      void given_jobInTenantX_should_notBeReadableFromTenantY_byReferencePrefixedRoute()
+          throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        String reference = "read-byref-prefixed-cross-" + UUID.randomUUID();
+        createTenantAssetAgentJob(tenants[0].getId(), reference);
+
+        // -------- Act --------
+        int jobs =
+            jobsReturnedByReference(
+                "/api/tenants/" + tenants[1].getId() + "/endpoints/jobs/" + reference, null);
+
+        // -------- Assert --------
+        assertThat(jobs)
+            .as("the deprecated route scoped to tenant Y must not return tenant X's job")
+            .isZero();
+      }
+
+      @Test
+      @DisplayName(
+          "Deprecated job read scoped to tenant X should return tenant X's own job (X-Tenant-Ids"
+              + " header route)")
+      void given_jobInTenantX_should_beReadableFromTenantX_byReferenceHeaderRoute()
+          throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        String reference = "read-byref-header-own-" + UUID.randomUUID();
+        createTenantAssetAgentJob(tenants[0].getId(), reference);
+
+        // -------- Act --------
+        int jobs = jobsReturnedByReference(ENDPOINT_URI + "/jobs/" + reference, tenants[0].getId());
+
+        // -------- Assert --------
+        assertThat(jobs)
+            .as("tenant X must see its own job on the deprecated header route")
+            .isEqualTo(1);
+      }
+
+      @Test
+      @DisplayName(
+          "Deprecated job read scoped to tenant Y should not return tenant X's job (X-Tenant-Ids"
+              + " header route)")
+      void given_jobInTenantX_should_notBeReadableFromTenantY_byReferenceHeaderRoute()
+          throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        String reference = "read-byref-header-cross-" + UUID.randomUUID();
+        createTenantAssetAgentJob(tenants[0].getId(), reference);
+
+        // -------- Act --------
+        int jobs = jobsReturnedByReference(ENDPOINT_URI + "/jobs/" + reference, tenants[1].getId());
+
+        // -------- Assert --------
+        assertThat(jobs)
+            .as("the deprecated header route scoped to tenant Y must not return tenant X's job")
+            .isZero();
+      }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should be deletable from tenant X (X-Tenant-Ids"
+              + " header route)")
+      void given_jobInTenantX_should_beDeletableFromTenantX_headerRoute() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.AGENT_RUNTIME_ACCESS));
+        committedTenantIds.add(tenantX.getId());
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenantX.getId());
+
+        // -------- Act --------
+        mvc.perform(
+                delete(ENDPOINT_URI + "/jobs/" + jobX.getId())
+                    .header("X-Tenant-Ids", tenantX.getId())
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId())).isFalse();
+      }
+
+      @Test
+      @DisplayName(
+          "Asset agent job created in tenant X should be deletable by a caller who also belongs to"
+              + " tenant Y (no selector, plain TxCtx)")
+      void given_callerInTenantXAndY_should_beAbleToDeleteJobInTenantX_noSelector()
+          throws Exception {
+        // -------- Arrange --------
+        Tenant[] tenants = twoTenants();
+        AssetAgentJob jobX = createTenantAssetAgentJob(tenants[0].getId());
+
+        // -------- Act --------
+        // No path tenant, no X-Tenant-Ids header: the caller's scope is its whole membership set
+        // (tenant X and tenant Y), so this must succeed rather than 400 (a plain TxCtx has no
+        // @RequireTenantSelector to demand a single tenant on a multi-tenant caller).
+        mvc.perform(delete(ENDPOINT_URI + "/jobs/" + jobX.getId()).with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // -------- Assert --------
+        assertThat(assetAgentJobRowStillExists(jobX.getId())).isFalse();
       }
     }
 

@@ -1,0 +1,17 @@
+name: FDS Conformity
+description: >
+  Design-system conformity for the wired zones: the generated token bridge must not have been
+  hand-edited, the theme files must still import it, and no hardcoded value may return to a
+  migrated zone. `bridge-freshness` reports SKIPPED rather than failing: it can only be computed
+  against a theme.css, and this action installs nothing.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version: "24.21.0"
+
+    - name: Check design-system conformity
+      shell: bash
+      run: node fds-migration/scripts/check-fds-conformity.mjs

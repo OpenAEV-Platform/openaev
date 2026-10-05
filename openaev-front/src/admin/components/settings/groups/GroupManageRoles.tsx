@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { LockOutlined, SecurityOutlined } from '@mui/icons-material';
-import { Box, Tooltip } from '@mui/material';
+import { Box } from '@mui/material';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -98,13 +99,16 @@ const GroupManageRoles: FunctionComponent<Props> = ({
           >
             <span>{role.role_name}</span>
             {isRoleRestricted(role) && (
-              <Tooltip title={restrictedTooltip}>
-                <LockOutlined
-                  sx={{
-                    color: 'text.disabled',
-                    fontSize: 16,
-                  }}
-                />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <LockOutlined
+                    sx={{
+                      color: 'text.disabled',
+                      fontSize: 16,
+                    }}
+                  />
+                </TooltipTrigger>
+                {restrictedTooltip && <TooltipContent>{restrictedTooltip}</TooltipContent>}
               </Tooltip>
             )}
           </Box>
@@ -153,18 +157,21 @@ const GroupManageRoles: FunctionComponent<Props> = ({
   let headerActions;
   if (restrictedSelectedRoles.length > 0) {
     headerActions = (
-      <Tooltip
-        title={t('The current user must remove the restricted roles before saving: {roles}',
-          { roles: restrictedSelectedRoles.map(role => role.role_name).join(', ') })}
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <LockOutlined sx={{ color: 'text.disabled' }} />
-        </Box>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <LockOutlined sx={{ color: 'text.disabled' }} />
+          </Box>
+        </TooltipTrigger>
+        <TooltipContent>
+          {t('The current user must remove the restricted roles before saving: {roles}',
+            { roles: restrictedSelectedRoles.map(role => role.role_name).join(', ') })}
+        </TooltipContent>
       </Tooltip>
     );
   }

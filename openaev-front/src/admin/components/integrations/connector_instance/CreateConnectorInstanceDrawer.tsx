@@ -74,7 +74,7 @@ const CreateConnectorInstanceDrawer = ({
         configuration_value: migrationSource as unknown as JsonNode,
       });
     }
-    createConnectorInstance({
+    return createConnectorInstance({
       catalog_connector_id: catalogConnectorId,
       ...data,
     }).then(({ data }) => {

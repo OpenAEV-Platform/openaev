@@ -33,6 +33,10 @@ public class UserFixture {
     return LoginUserInput.builder().login(EMAIL).password(RAW_PASSWORD).build();
   }
 
+  public static LoginUserInput getLoginUserInputWithWrongPassword() {
+    return LoginUserInput.builder().login(EMAIL).password("wrong-" + RAW_PASSWORD).build();
+  }
+
   public static User getUserWithDefaultEmail() {
     User user = getUser();
     user.setEmail("user_email-%s@unittests.invalid".formatted(UUID.randomUUID()));

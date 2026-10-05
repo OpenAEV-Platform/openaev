@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, TextField as MuiTextField, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ import { type SecurityPlatformHelper } from '../../../../../../actions/assets/as
 import { fetchSecurityPlatforms } from '../../../../../../actions/assets/securityPlatform-actions';
 import { updateInjectExpectation } from '../../../../../../actions/Exercise';
 import SecurityPlatformField from '../../../../../../components/fields/SecurityPlatformField';
+import TextFieldFds from '../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
 import { type InjectExpectationResult, type SecurityPlatform } from '../../../../../../utils/api-types';
@@ -113,15 +114,13 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
           />
         )}
       />
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Score')}
         type="number"
         error={!!errors.expectation_score}
         helperText={errors.expectation_score?.message ?? `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
-        slotProps={{ htmlInput: { ...register('expectation_score', { valueAsNumber: true }) } }}
-        sx={{ marginTop: 2.5 }}
+        {...{ ...register('expectation_score', { valueAsNumber: true }) }}
+        style={{ marginTop: 20 }}
       />
 
       {appliesToAllAgents && (

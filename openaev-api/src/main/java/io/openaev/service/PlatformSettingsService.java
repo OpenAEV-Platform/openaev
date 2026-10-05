@@ -38,6 +38,8 @@ import io.openaev.xtmone.XtmOneIdentity;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -313,6 +315,8 @@ public class PlatformSettingsService {
     platformSettings.setPlatformBaseUrl(openAEVConfig.getBaseUrl());
     platformSettings.setPlatformAgentUrl(openAEVConfig.getBaseUrlForAgent());
     platformSettings.setPlatformVersion(openAEVConfig.getVersion());
+    platformSettings.setPlatformCommit(
+        StringUtils.hasText(openAEVConfig.getCommit()) ? openAEVConfig.getCommit() : null);
     platformSettings.setXtmOneConfigured(xtmOneConfig.isConfigured());
     // Where the browser opens XTM One: its published identity, not an internal address.
     platformSettings.setXtmOneUrl(xtmOneIdentity.browserUrl());
@@ -386,6 +390,28 @@ public class PlatformSettingsService {
     return openAEVConfig.getVersion();
   }
 
+  /**
+   * Get this instance's creation date, written at first startup as a {@link Timestamp} string. It
+   * bounds the validity of a {@code ci} XTM license, which must not outlive the pipeline that
+   * created the instance.
+   *
+   * @return the creation date, or empty when it is missing or unreadable
+   */
+  public Optional<Instant> findInstanceCreationDate() {
+    return this.settingRepository
+        .findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key())
+        .map(Setting::getValue)
+        .filter(StringUtils::hasText)
+        .flatMap(
+            value -> {
+              try {
+                return Optional.of(Timestamp.valueOf(value.trim()).toInstant());
+              } catch (IllegalArgumentException e) {
+                return Optional.empty();
+              }
+            });
+  }
+
   public Map<String, Setting> findSettingsByKeys(List<String> keys) {
     return mapOfSettings(this.settingRepository.findAllByKeyInAndTenantIsNull(keys));
   }
@@ -410,6 +436,8 @@ public class PlatformSettingsService {
     themeInput.setAccentColor(
         getValueFromMapOfSettings(
             dbSettings, themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key()));
+    themeInput.setTextColor(
+        getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key()));
     themeInput.setLogoUrl(
         getValueFromMapOfSettings(dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key()));
     themeInput.setLogoLoginUrl(
@@ -542,6 +570,9 @@ public class PlatformSettingsService {
             dbSettings,
             themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key(),
             input.getAccentColor()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key(), input.getTextColor()));
     settingsToSave.add(
         resolveFromMap(
             dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key(), input.getLogoUrl()));

@@ -20,7 +20,7 @@ const PhishingEmailTemplateHeader = () => {
       iconNode={<MailOutlineOutlined />}
       overline={t('Phishing email template')}
       title={emailTemplate.phishing_email_template_name ?? '-'}
-      action={<PhishingEmailTemplatePopover emailTemplate={emailTemplate} />}
+      action={<PhishingEmailTemplatePopover emailTemplate={emailTemplate} variant="toggle" />}
     />
   );
 };

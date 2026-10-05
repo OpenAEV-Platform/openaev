@@ -101,14 +101,14 @@ public class PlayerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
   public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
-    return playerService.createPlayer(input);
+    return hydrateUserForResponse(playerService.createPlayer(input));
   }
 
   @PostMapping({PLAYER_URI + "/upsert", TENANT_PLAYER_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
   public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
-    return playerService.upsertPlayer(input);
+    return hydrateUserForResponse(playerService.upsertPlayer(input));
   }
 
   @PutMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
@@ -126,7 +126,7 @@ public class PlayerApi extends RestBehavior {
       throw new ForbiddenException("Only an administrator can update a platform administrator");
     }
     applyProfile(user, input);
-    return userRepository.save(user);
+    return hydrateUserForResponse(userRepository.save(user));
   }
 
   private void applyProfile(User user, PlayerInput input) {

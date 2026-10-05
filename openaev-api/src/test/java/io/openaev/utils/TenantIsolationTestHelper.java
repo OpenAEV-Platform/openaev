@@ -235,12 +235,15 @@ public class TenantIsolationTestHelper {
   /**
    * Removes tenants that were COMMITTED by a non-transactional test class (tests around the
    * background transaction primitive cannot run inside a test transaction, so nothing rolls back).
-   * Deletes the one tenant child without ON DELETE CASCADE ({@code collector_types}) first; every
-   * other tenant-scoped row cascades with the tenant. Null ids are skipped so a partially failed
-   * setup still cleans what it managed to create. Table-specific rows the caller created (and any
-   * join table without a cascading FK) must be removed by the caller BEFORE this call. External
-   * residue (per-tenant broker queues) cannot be removed here; that is the suite-wide pre-existing
-   * pattern for service-created tenants.
+   * Deletes the tenant children without ON DELETE CASCADE first, in FK order: {@code collectors}
+   * references {@code collector_types} via {@code fk_collector_type_ref} with no cascade (migration
+   * V4_92), so a tenant onboarded through the normal flow (which seeds a default collector
+   * referencing its own collector type) fails the {@code collector_types} delete unless its {@code
+   * collectors} row is gone first. Every other tenant-scoped row cascades with the tenant. Null ids
+   * are skipped so a partially failed setup still cleans what it managed to create. Table-specific
+   * rows the caller created (and any join table without a cascading FK) must be removed by the
+   * caller BEFORE this call. External residue (per-tenant broker queues) cannot be removed here;
+   * that is the suite-wide pre-existing pattern for service-created tenants.
    */
   @Transactional
   public void deleteCommittedTenants(String... tenantIds) {
@@ -248,6 +251,10 @@ public class TenantIsolationTestHelper {
       if (tenantId == null) {
         continue;
       }
+      entityManager
+          .createNativeQuery("DELETE FROM collectors WHERE tenant_id = :id")
+          .setParameter("id", tenantId)
+          .executeUpdate();
       entityManager
           .createNativeQuery("DELETE FROM collector_types WHERE tenant_id = :id")
           .setParameter("id", tenantId)

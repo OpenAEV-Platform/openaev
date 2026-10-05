@@ -1,21 +1,23 @@
 package io.openaev.api.platform.users;
 
-import static io.openaev.api.users.dto.UserMapper.toPlatformOutput;
-
 import io.openaev.aop.AccessControl;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.User;
 import io.openaev.service.UserCreationScope;
 import io.openaev.service.UserService;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -28,6 +30,18 @@ import org.springframework.web.bind.annotation.*;
 public class PlatformUserApi {
 
   private final UserService userService;
+  private final OrganizationService organizationService;
+
+  // Only an organization visible in the caller's scope is exposed: a user may belong to the
+  // organization of a tenant the caller is not a member of.
+  private UserOutput toPlatformOutput(User user) {
+    return toPlatformOutputs(List.of(user)).getFirst();
+  }
+
+  private List<UserOutput> toPlatformOutputs(List<User> users) {
+    Map<String, Organization> organizations = organizationService.usersOrganizationsInScope(users);
+    return users.stream().map(user -> UserMapper.toPlatformOutput(user, organizations)).toList();
+  }
 
   // -- CREATE --
 
@@ -79,7 +93,7 @@ public class PlatformUserApi {
   @PostMapping("/find")
   @Transactional
   public List<UserOutput> find(TxCtx ctx, @RequestBody @Valid @NotNull final List<String> userIds) {
-    return userService.find(userIds).stream().map(UserMapper::toPlatformOutput).toList();
+    return toPlatformOutputs(userService.find(userIds));
   }
 
   // -- UPDATE --

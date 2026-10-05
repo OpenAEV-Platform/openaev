@@ -1,4 +1,5 @@
-import { Paper, type SvgIconProps } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { type SvgIconProps } from '@mui/material';
 import { cloneElement, type FunctionComponent, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -21,12 +22,6 @@ const useStyles = makeStyles()(theme => ({
     fontSize: 40,
     fontWeight: 800,
     float: 'left',
-  },
-  container: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
   },
 }));
 
@@ -56,7 +51,14 @@ const PaperMetric: FunctionComponent<Props> = ({
     },
   });
   return (
-    <Paper variant="outlined" className={classes.container}>
+    <Paper
+      padding={16}
+      style={{
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+      }}
+    >
       <div>
         <div>
           <span className={classes.title}>{t(title)}</span>

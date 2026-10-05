@@ -69,5 +69,9 @@ RUN set -eux; \
     java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install chromium; \
     chmod -R a+rX /ms-playwright
 
+# Set by CI to the built commit, exposed in the platform settings
+ARG OPENAEV_COMMIT
+ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
+
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["java", "-jar", "openaev-api.jar"]

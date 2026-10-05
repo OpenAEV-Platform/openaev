@@ -17,6 +17,7 @@ import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
@@ -38,7 +39,8 @@ class PhishingExecutorTest {
 
   @Test
   @DisplayName(
-      "createResult receives the resolved team id, not the team name (phishing_results_team_fk)")
+      "createResult receives the inject's tenant and the resolved team id, not the team name"
+          + " (phishing_results_team_fk)")
   void process_should_resolveTeamNameToTeamId() throws Exception {
     // Collaborators
     InjectorContext context = mock(InjectorContext.class);
@@ -80,6 +82,8 @@ class PhishingExecutorTest {
     Inject inject = new Inject();
     inject.setId("inject-1");
     inject.setInjectorContract(contract);
+    // The tracking rows are attributed from the inject, so the executor must pass this tenant on.
+    inject.setTenant(new Tenant("tenant-of-the-inject"));
 
     PhishingLandingPage landingPage = new PhishingLandingPage();
     when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(landingPage));
@@ -103,7 +107,7 @@ class PhishingExecutorTest {
 
     PhishingResult result = new PhishingResult();
     result.setToken("token-1");
-    when(phishingTrackingService.createResult(any(), any(), any(), any(), any()))
+    when(phishingTrackingService.createResult(any(), any(), any(), any(), any(), any()))
         .thenReturn(result);
 
     Execution execution = mock(Execution.class);
@@ -112,7 +116,13 @@ class PhishingExecutorTest {
 
     ArgumentCaptor<String> teamCaptor = ArgumentCaptor.forClass(String.class);
     verify(phishingTrackingService)
-        .createResult(eq(inject), eq(landingPage), eq("user-1"), teamCaptor.capture(), isNull());
+        .createResult(
+            eq(inject),
+            eq("tenant-of-the-inject"),
+            eq(landingPage),
+            eq("user-1"),
+            teamCaptor.capture(),
+            isNull());
     // The bug wrote the team NAME ("CEO") into phishing_result_team (an FK to teams.team_id),
     // failing phishing_results_team_fk. The fix resolves it to the real team id.
     assertEquals("team-ceo-id", teamCaptor.getValue());

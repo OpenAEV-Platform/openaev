@@ -65,11 +65,15 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
+    // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
+    // class-wide fixture names the default tenant explicitly rather than relying on it.
     Scenario scenario1 = ScenarioFixture.createDefaultCrisisScenario();
+    scenario1.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     testScenarioCrisis = this.scenarioRepository.save(scenario1);
     SCENARIO_IDS.add(testScenarioCrisis.getId());
 
     Scenario scenario2 = ScenarioFixture.createDefaultIncidentResponseScenario();
+    scenario2.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     testScenarioIncident = this.scenarioRepository.save(scenario2);
     SCENARIO_IDS.add(testScenarioIncident.getId());
 

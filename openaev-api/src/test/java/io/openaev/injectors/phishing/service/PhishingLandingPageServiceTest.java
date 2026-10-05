@@ -16,6 +16,8 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Document;
@@ -24,6 +26,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.PhishingLandingPage;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -75,6 +78,7 @@ class PhishingLandingPageServiceTest {
   @Mock private DomainService domainService;
   @Mock private OrganizationService organizationService;
   @Mock private ObjectMapper mapper;
+  @Mock private TenantWriteScopeResolver writeScopeResolver;
 
   @InjectMocks private PhishingLandingPageService phishingLandingPageService;
 
@@ -128,7 +132,7 @@ class PhishingLandingPageServiceTest {
     when(expectationBuilderService.buildDetectionExpectation()).thenReturn(new Expectation());
     when(expectationBuilderService.buildManualExpectation()).thenReturn(new Expectation());
     when(domainService.upsertDomainEntities(any(), any())).thenReturn(Set.of());
-    when(organizationService.findOrCreateByName(any())).thenReturn(new Organization());
+    when(organizationService.findOrCreateByName(any(), anyString())).thenReturn(new Organization());
 
     AttackPattern spearphishingLink = new AttackPattern();
     spearphishingLink.setExternalId("T1566.002");
@@ -284,7 +288,7 @@ class PhishingLandingPageServiceTest {
     when(expectationBuilderService.buildDetectionExpectation()).thenReturn(new Expectation());
     when(expectationBuilderService.buildManualExpectation()).thenReturn(new Expectation());
     when(domainService.upsertDomainEntities(any(), any())).thenReturn(Set.of());
-    when(organizationService.findOrCreateByName(any())).thenReturn(new Organization());
+    when(organizationService.findOrCreateByName(any(), anyString())).thenReturn(new Organization());
     when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(any(), any()))
         .thenReturn(List.of());
     when(mapper.writeValueAsString(any())).thenReturn("{}");
@@ -370,6 +374,7 @@ class PhishingLandingPageServiceTest {
     PhishingLandingPage landingPage = new PhishingLandingPage();
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
+    landingPage.setTenant(new Tenant("tenant-1"));
     Document darkLogo = new Document();
     darkLogo.setId("doc-dark");
     when(landingPageRepository.findById("lp-1")).thenReturn(Optional.of(landingPage));
@@ -379,7 +384,8 @@ class PhishingLandingPageServiceTest {
         .thenReturn(List.of());
 
     // -- ACT --
-    PhishingLandingPage updated = phishingLandingPageService.updateLogos("lp-1", "doc-dark", null);
+    PhishingLandingPage updated =
+        phishingLandingPageService.updateLogos(TxCtx.missing(), "lp-1", "doc-dark", null);
 
     // -- ASSERT --
     assertSame(darkLogo, updated.getLogoDark());
@@ -394,10 +400,13 @@ class PhishingLandingPageServiceTest {
     PhishingLandingPage landingPage = new PhishingLandingPage();
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setRedirectUrl("javascript:alert(document.cookie)");
 
     // -- ACT / ASSERT --
-    assertThrows(BadRequestException.class, () -> phishingLandingPageService.upsert(landingPage));
+    assertThrows(
+        BadRequestException.class,
+        () -> phishingLandingPageService.upsert(TxCtx.missing(), landingPage));
     verify(landingPageRepository, never()).save(any(PhishingLandingPage.class));
   }
 
@@ -408,10 +417,13 @@ class PhishingLandingPageServiceTest {
     PhishingLandingPage landingPage = new PhishingLandingPage();
     landingPage.setId("lp-1");
     landingPage.setName("Login page");
+    landingPage.setTenant(new Tenant("tenant-1"));
     landingPage.setRedirectUrl("java\tscript:alert(1)");
 
     // -- ACT / ASSERT --
-    assertThrows(BadRequestException.class, () -> phishingLandingPageService.upsert(landingPage));
+    assertThrows(
+        BadRequestException.class,
+        () -> phishingLandingPageService.upsert(TxCtx.missing(), landingPage));
     verify(landingPageRepository, never()).save(any(PhishingLandingPage.class));
   }
 
@@ -429,10 +441,11 @@ class PhishingLandingPageServiceTest {
       PhishingLandingPage landingPage = new PhishingLandingPage();
       landingPage.setId("lp-1");
       landingPage.setName("Login page");
+      landingPage.setTenant(new Tenant("tenant-1"));
       landingPage.setRedirectUrl(url);
 
       // -- ACT --
-      PhishingLandingPage saved = phishingLandingPageService.upsert(landingPage);
+      PhishingLandingPage saved = phishingLandingPageService.upsert(TxCtx.missing(), landingPage);
 
       // -- ASSERT --
       assertSame(landingPage, saved);
