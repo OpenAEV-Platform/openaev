@@ -8,10 +8,17 @@ name: "[Core] Deploy Feature Branch Result"
 #   { deployment_id, pr_number, sha, state, description, environment_url,
 #     log_url, docker_tag, dry_run }
 #
-# It posts the status on the PR's GitHub deployment and, on success, writes the
-# environment URL under the Deployment checkbox of the PR description. A
-# success retires the previously live deployment; a result for a closed PR
-# leaves the deployment inactive.
+# - Success while the commit is still the PR head: a new "live" deployment is
+#   created and marked successful, so the deployment panel shows the go-live
+#   time instead of the time the build was requested. Its success retires the
+#   build deployment and the previously live one.
+# - Success after the head moved on: the build deployment is marked successful
+#   without retiring anything, so the newer commit being deployed keeps its row.
+# - Any other state is posted on the build deployment and retires nothing, so
+#   the previously live commit stays active.
+# - On success, the environment URL is written under the Deployment checkbox
+#   of the PR description.
+# - A result for a closed PR leaves every deployment it touched inactive.
 #
 # SECURITY: This workflow NEVER checks out code, and repository_dispatch runs it
 # from the default branch. deployment_id comes from build metadata produced by a
@@ -23,7 +30,7 @@ on:
     types: [feature-deploy-result]
 
 permissions:
-  deployments: write # to post the deployment status
+  deployments: write # to create deployments and post their statuses
   pull-requests: write # to write the environment URL in the PR description
 
 jobs:
@@ -43,8 +50,8 @@ jobs:
             const result = context.payload.client_payload?.result ?? {};
 
             const STATES = ['success', 'failure', 'error', 'inactive'];
-            const ENVIRONMENT_URL = /^https:\/\/feat-[a-z0-9-]+\.oaev\.staging\.filigran\.io$/;
-            const LOG_URL = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/actions\/runs\/\d+(\/attempts\/\d+)?$/;
+            // Release runs are where the promotion logs live
+            const LOG_URL = /^https:\/\/github\.com\/OpenAEV-Platform\/release\/actions\/runs\/\d+(\/attempts\/\d+)?$/;
 
             const deploymentId = Number(result.deployment_id);
             const prNumber = Number(result.pr_number);
@@ -57,12 +64,16 @@ jobs:
               return;
             }
 
+            // The release workflow names the environment feat-<pr>-<branch>, so the URL
+            // must belong to this PR
+            const ENVIRONMENT_URL = new RegExp(`^https://feat-${prNumber}(-[a-z0-9-]+)?\\.oaev\\.staging\\.filigran\\.io$`);
             const environmentUrl = state === 'success' ? String(result.environment_url ?? '') : '';
             if (state === 'success' && !ENVIRONMENT_URL.test(environmentUrl)) {
-              core.setFailed(`Unexpected environment URL: ${environmentUrl}`);
+              core.setFailed(`Unexpected environment URL for PR #${prNumber}: ${environmentUrl}`);
               return;
             }
             const logUrl = LOG_URL.test(result.log_url ?? '') ? result.log_url : undefined;
+            const description = String(result.description ?? '').slice(0, 140);
 
             const { data: deployment } = await github.rest.repos.getDeployment({
               owner, repo, deployment_id: deploymentId
@@ -75,32 +86,59 @@ jobs:
               return;
             }
 
-            await github.rest.repos.createDeploymentStatus({
-              owner, repo,
-              deployment_id: deploymentId,
-              state,
-              description: String(result.description ?? '').slice(0, 140),
-              log_url: logUrl,
-              environment_url: environmentUrl || undefined,
-              // Only a success retires the previously live deployment; after a failure it stays live
-              auto_inactive: state === 'success'
-            });
-            core.info(`Deployment ${deploymentId} of PR #${prNumber} marked ${state}`);
+            const touched = [deploymentId];
+            const { data: current } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
+
+            if (state === 'success' && current.head.sha === sha) {
+              const { data: live } = await github.rest.repos.createDeployment({
+                owner, repo,
+                ref: sha,
+                environment: deployment.environment,
+                description: deployment.description,
+                // Not transient, so auto_inactive below retires the earlier deployments
+                transient_environment: false,
+                production_environment: false,
+                auto_merge: false,
+                required_contexts: [],
+                payload: deployment.payload
+              });
+              touched.push(live.id);
+              await github.rest.repos.createDeploymentStatus({
+                owner, repo,
+                deployment_id: live.id,
+                state: 'success',
+                description,
+                environment_url: environmentUrl,
+                auto_inactive: true
+              });
+              core.info(`Live deployment ${live.id} created for PR #${prNumber} at ${sha}`);
+            } else {
+              await github.rest.repos.createDeploymentStatus({
+                owner, repo,
+                deployment_id: deploymentId,
+                state,
+                description,
+                log_url: logUrl,
+                environment_url: environmentUrl || undefined,
+                auto_inactive: false
+              });
+              core.info(`Deployment ${deploymentId} of PR #${prNumber} marked ${state}`);
+            }
 
             // A result can land after the PR was closed and its deployments deactivated.
             // Checking after publishing also covers a close racing with this run.
             const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
             if (pr.state !== 'open') {
-              if (state !== 'inactive') {
+              for (const id of touched) {
                 await github.rest.repos.createDeploymentStatus({
                   owner, repo,
-                  deployment_id: deploymentId,
+                  deployment_id: id,
                   state: 'inactive',
                   description: 'PR closed',
                   auto_inactive: false
                 });
               }
-              core.info(`PR #${prNumber} is ${pr.state}, deployment ${deploymentId} kept inactive`);
+              core.info(`PR #${prNumber} is ${pr.state}, its deployments stay inactive`);
               return;
             }
 

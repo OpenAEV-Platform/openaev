@@ -5,8 +5,10 @@ name: "[Core] Deploy Feature Branch"
 # the PR timeline and in the branch deployment panel — no PR comments.
 #
 # The deployment panel only shows the PR head commit:
-#   - "being deployed": the head is deploying, the previous commit stays live
-#   - "successfully deployed": the head is live
+#   - pending: the image is building (this workflow), the previous commit stays live
+#   - in progress: the image is being deployed to staging (done workflow)
+#   - successfully deployed: the head is live (result workflow, on a new
+#     deployment so the panel shows the go-live time)
 #   - failed: the previous commit stays live
 # Once a deploy succeeds, deploy-feature-branch-result.yml writes the
 # environment URL under the Deployment checkbox of the PR description.
@@ -240,12 +242,14 @@ jobs:
             // The done workflow matches the build run against this log_url.
             // No environment_url: the panel only shows the PR head, so a "View deployment"
             // button here would open the previous version. The URL is in the PR description.
+            // pending while the image builds; the done workflow moves it to in_progress
+            // once the promotion takes over.
             await github.rest.repos.createDeploymentStatus({
               owner, repo,
               deployment_id: deployment.id,
-              state: 'in_progress',
+              state: 'pending',
               log_url: run.html_url,
-              description: `Deploying ${headSha.slice(0, 7)}`,
+              description: `Building ${headSha.slice(0, 7)}`,
               auto_inactive: false
             });
 

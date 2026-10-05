@@ -1,9 +1,11 @@
 name: "[Core] Deploy Feature Branch Done"
 
 # Triggered when the unprivileged build workflow completes.
-# Reports a failed or cancelled build on the PR's GitHub deployment. On
-# success it stays silent: a downstream promotion workflow
-# picks up the artifact, deploys the image and owns the deployment status.
+# Reports the build outcome on the PR's GitHub deployment:
+#   - success: in_progress, the release repo's promotion now deploys the image
+#     and deploy-feature-branch-result.yml reports its outcome
+#   - cancelled (superseded by a newer commit or /deploy): inactive
+#   - anything else: failure
 #
 # SECURITY: This workflow NEVER checks out PR code. The metadata artifact is
 # produced by a run that executed PR code, so its deployment_id is only
@@ -63,12 +65,6 @@ jobs:
             const runUrl = context.payload.workflow_run.html_url;
             const conclusion = context.payload.workflow_run.conclusion;
 
-            if (conclusion === 'success' && meta.build_result === 'success') {
-              // Downstream promotion reports progress from here on
-              core.info('Build succeeded, downstream promotion takes over the deployment status.');
-              return;
-            }
-
             const { data: deployment } = await github.rest.repos.getDeployment({
               owner, repo, deployment_id: deploymentId
             });
@@ -84,7 +80,11 @@ jobs:
 
             const shortSha = deployment.sha.slice(0, 7);
             let state, description;
-            if (conclusion === 'cancelled') {
+            if (conclusion === 'success' && meta.build_result === 'success') {
+              // The promotion picks up the image now; deploy-feature-branch-result.yml reports its outcome
+              state = 'in_progress';
+              description = `Deploying ${shortSha} to staging`;
+            } else if (conclusion === 'cancelled') {
               // Superseded by a newer commit or /deploy
               state = 'inactive';
               description = `${shortSha} superseded by a newer deployment`;
