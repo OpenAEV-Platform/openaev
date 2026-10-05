@@ -59,8 +59,12 @@ public final class InstanceCreationDate {
       return instant;
     }
     try {
+      // The later offset in a daylight-saving overlap, as java.sql.Timestamp.valueOf resolves it
       return Optional.of(
-          LocalDateTime.parse(trimmed, LEGACY_FORMAT).atZone(legacyZone).toInstant());
+          LocalDateTime.parse(trimmed, LEGACY_FORMAT)
+              .atZone(legacyZone)
+              .withLaterOffsetAtOverlap()
+              .toInstant());
     } catch (DateTimeParseException e) {
       return Optional.empty();
     }

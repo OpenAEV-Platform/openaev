@@ -58,6 +58,18 @@ class InstanceCreationDateTest {
     assertThat(InstanceCreationDate.isInstant("2026-10-05 16:02:03.0")).isFalse();
   }
 
+  @Test
+  @DisplayName("Given a legacy value in a daylight-saving change should read it as Timestamp did")
+  void given_legacyValueAtDaylightSavingChange_should_matchTimestamp() {
+    ZoneId paris = ZoneId.of("Europe/Paris");
+    // 02:30 happens twice on 2026-10-25 in Paris: Timestamp.valueOf takes the later one (+01:00)
+    assertThat(InstanceCreationDate.parse("2026-10-25 02:30:00.0", paris))
+        .contains(Instant.parse("2026-10-25T01:30:00Z"));
+    // 02:30 does not exist on 2026-03-29 in Paris: both move it forward to 03:30 (+02:00)
+    assertThat(InstanceCreationDate.parse("2026-03-29 02:30:00.0", paris))
+        .contains(Instant.parse("2026-03-29T01:30:00Z"));
+  }
+
   @ParameterizedTest(name = "\"{0}\"")
   @ValueSource(
       strings = {
