@@ -1,0 +1,231 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the job.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The job type, normalized to the caption of the <code>type_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "file" : {
+      "type" : "object_t",
+      "description" : "The file that pertains to the job.",
+      "requirement" : "optional",
+      "caption" : "File",
+      "object_type" : "file",
+      "object_name" : "File"
+    },
+    "user" : {
+      "type" : "object_t",
+      "description" : "The user that created the job.",
+      "requirement" : "optional",
+      "caption" : "User",
+      "object_type" : "user",
+      "object_name" : "User"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The description of the job.",
+      "requirement" : "recommended",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique job identifier.",
+      "requirement" : "optional",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The job is executed by <code>systemd</code> on Linux.",
+          "caption" : "Systemd"
+        },
+        "0" : {
+          "description" : "The job orchestration mechanism is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The job is executed by the Task Scheduler on Windows.",
+          "caption" : "Task Scheduler"
+        },
+        "2" : {
+          "description" : "The job is executed by <code>cron</code> on Linux, macOS, or another a Unix-like OS.",
+          "caption" : "Cron"
+        },
+        "99" : {
+          "description" : "The job orchestration mechanism is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "The job is executed by <code>launchd</code> on macOS.",
+          "caption" : "Launchd"
+        }
+      },
+      "description" : "The job type, i.e. the mechanism that executes the job.",
+      "requirement" : "recommended",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "cmd_line" : {
+      "type" : "string_t",
+      "description" : "The job command line.",
+      "requirement" : "recommended",
+      "caption" : "Command Line",
+      "@deprecated" : {
+        "message" : "Use the <code>job_action.cmd_line</code> attribute instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "job_action.cmd_line" ]
+      },
+      "type_name" : "String",
+      "observable" : 13
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the job was created.",
+      "requirement" : "recommended",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "job_actions" : {
+      "type" : "object_t",
+      "description" : "An array of actions that will be performed by the job when certain conditions are met.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Job Actions",
+      "object_type" : "job_action",
+      "object_name" : "Job Action"
+    },
+    "job_triggers" : {
+      "type" : "object_t",
+      "description" : "An array of conditions or events that, when met, will initiate the job to perform specified actions.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Job Triggers",
+      "object_type" : "job_trigger",
+      "object_name" : "Job Trigger"
+    },
+    "last_run_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the job was last run.",
+      "requirement" : "recommended",
+      "caption" : "Last Run",
+      "@deprecated" : {
+        "message" : "Use the <code>job_trigger.last_run_time</code> attribute instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "job_trigger.last_run_time" ]
+      },
+      "type_name" : "Timestamp"
+    },
+    "next_run_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the job will next be run.",
+      "requirement" : "optional",
+      "caption" : "Next Run",
+      "@deprecated" : {
+        "message" : "Use the <code>job_trigger.next_run_time</code> attribute instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "job_trigger.next_run_time" ]
+      },
+      "type_name" : "Timestamp"
+    },
+    "run_state" : {
+      "type" : "string_t",
+      "description" : "The run state of the job.",
+      "requirement" : "optional",
+      "caption" : "Run State",
+      "type_name" : "String"
+    },
+    "run_state_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "Running"
+        },
+        "0" : {
+          "description" : "The run state is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Ready"
+        },
+        "2" : {
+          "caption" : "Queued"
+        },
+        "99" : {
+          "description" : "The run state is not mapped. See the <code>run_state</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "Stopped"
+        },
+        "5" : {
+          "caption" : "Disabled"
+        }
+      },
+      "description" : "The run state ID of the job.",
+      "requirement" : "recommended",
+      "caption" : "Run State ID",
+      "sibling" : "run_state",
+      "type_name" : "Integer"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the job was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "last_run_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the job was last run.",
+      "requirement" : "optional",
+      "caption" : "Last Run",
+      "profiles" : [ "datetime" ],
+      "@deprecated" : {
+        "message" : "Use the <code>job_trigger.last_run_time</code> attribute instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "job_trigger.last_run_time" ]
+      },
+      "type_name" : "Datetime"
+    },
+    "next_run_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the job will next be run.",
+      "requirement" : "optional",
+      "caption" : "Next Run",
+      "profiles" : [ "datetime" ],
+      "@deprecated" : {
+        "message" : "Use the <code>job_trigger.next_run_time</code> attribute instead.",
+        "since" : "1.9.0",
+        "superseded_by" : [ "job_trigger.next_run_time" ]
+      },
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "job",
+  "description" : "The Job object provides information about a scheduled job or task, including its name, command line, and state. It encompasses attributes that describe the properties and status of the scheduled job.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "name", "type_id" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ScheduledJob.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ScheduledJob/"
+  } ],
+  "caption" : "Job",
+  "profiles" : [ "container", "data_classification", "datetime" ],
+  "_links" : [ ]
+}

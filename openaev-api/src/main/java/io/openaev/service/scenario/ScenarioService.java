@@ -39,6 +39,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.export.FileExportBase;
 import io.openaev.export.Mixins;
 import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -68,6 +69,7 @@ import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
@@ -126,6 +128,7 @@ public class ScenarioService {
   private String imapUsername;
 
   @Resource private OpenAEVConfig openAEVConfig;
+  @Resource private OrganizationService organizationService;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -831,15 +834,10 @@ public class ScenarioService {
       scenarioFileExport.setUsers(players);
       objectMapper.addMixIn(User.class, Mixins.User.class);
       scenarioTags.addAll(players.stream().flatMap(user -> user.getTags().stream()).toList());
-      // organizations
+      // organizations: only the scenario's tenant ones, a player may belong to another tenant's
       List<Organization> organizations =
-          new ArrayList<>(
-              players.stream().map(User::getOrganization).filter(Objects::nonNull).toList());
-      organizations.addAll(
-          scenario.getTeams().stream()
-              .map(Team::getOrganization)
-              .filter(Objects::nonNull)
-              .toList());
+          organizationService.organizationsInTenant(
+              players, scenario.getTeams(), scenario.getTenant().getId());
       scenarioFileExport.setOrganizations(organizations);
       objectMapper.addMixIn(Organization.class, Mixins.Organization.class);
       scenarioTags.addAll(organizations.stream().flatMap(org -> org.getTags().stream()).toList());
@@ -966,6 +964,7 @@ public class ScenarioService {
     zipEntry.setComment(EXPORT_ENTRY_SCENARIO);
     zipExport.putNextEntry(zipEntry);
     ObjectNode exportNode = objectMapper.valueToTree(scenarioFileExport);
+    FileExportBase.dropForeignOrganizationReferences(exportNode, "scenario");
     workflowExportInitializer.enrichWorkflowDataForExport(
         exportNode, "scenario_workflow", objectMapper);
     zipExport.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));
@@ -976,7 +975,12 @@ public class ScenarioService {
         .forEach(
             docId -> {
               Document doc = this.documentRepository.findById(docId).orElseThrow();
-              Optional<InputStream> docStream = this.fileService.getFile(doc);
+              // Include a document's bytes only when it belongs to the scenario's tenant: a
+              // document
+              // bound from another tenant is skipped, as if the object were missing.
+              Optional<InputStream> docStream =
+                  this.fileService.getFile(
+                      doc, scenario.getTenant() == null ? null : scenario.getTenant().getId());
               if (docStream.isPresent()) {
                 try {
                   ZipEntry zipDoc = new ZipEntry(doc.getTarget());
@@ -1061,13 +1065,11 @@ public class ScenarioService {
   }
 
   public Scenario addScenarioPlayer(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
@@ -1079,13 +1081,11 @@ public class ScenarioService {
   }
 
   public Scenario enableAddScenarioTeamPlayer(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamService.teamInScope(ctx, teamId);
     return this.enablePlayers(scenarioId, team, playerIds);
   }
 
@@ -1194,6 +1194,7 @@ public class ScenarioService {
 
   private Scenario copyScenario(Scenario scenario) {
     Scenario scenarioDuplicate = new Scenario();
+    scenarioDuplicate.setTenant(scenario.getTenant());
     scenarioDuplicate.setName(duplicateString(scenario.getName()));
     scenarioDuplicate.setCategory(scenario.getCategory());
     scenarioDuplicate.setDescription(scenario.getDescription());

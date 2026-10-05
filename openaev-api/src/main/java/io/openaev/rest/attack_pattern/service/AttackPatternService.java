@@ -6,7 +6,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.attack_pattern.dto.AttackPatternCoverageOutput;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -14,10 +15,10 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.engine.EngineService;
 import io.openaev.engine.api.StructuralHistogramRuntime;
 import io.openaev.engine.api.StructuralHistogramWidget;
 import io.openaev.engine.api.WidgetConfigurationWithSeries;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.query.EsSeries;
 import io.openaev.engine.query.EsSeriesData;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
@@ -69,6 +70,7 @@ public class AttackPatternService {
 
   private final Environment env;
   private final AttackPatternRepository attackPatternRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
   private final KillChainPhaseRepository killChainPhaseRepository;
   private final EnterpriseEditionService enterpriseEditionService;
   private final RestTemplate restTemplate;
@@ -181,7 +183,7 @@ public class AttackPatternService {
    *     prevention or detection result are excluded)
    */
   @Transactional(readOnly = true)
-  public List<AttackPatternCoverageOutput> getGlobalCoverage(Integer latest) {
+  public List<AttackPatternCoverageOutput> getGlobalCoverage(TxCtx ctx, Integer latest) {
     List<String> simulationIds = resolveLatestSimulationIds(latest);
     if (simulationIds != null && simulationIds.isEmpty()) {
       // latest scoping was requested but no finished simulation exists -> nothing to aggregate
@@ -221,7 +223,7 @@ public class AttackPatternService {
 
     List<EsSeries> series =
         engineService.multiTermHistogram(
-            user, new StructuralHistogramRuntime(widget, Map.of(), Map.of()));
+            ctx, user, new StructuralHistogramRuntime(widget, Map.of(), Map.of()));
 
     // attackPatternId -> [preventionSuccess, preventionFailed, detectionSuccess, detectionFailed]
     Map<String, long[]> countsByAttackPattern = new HashMap<>();
@@ -387,12 +389,16 @@ public class AttackPatternService {
     return externalAttackPatternIds;
   }
 
+  /**
+   * Resolves external ids within the transaction's scope. The tenant is not named here on purpose:
+   * on the non-prefixed route the v1 thread-local resolves to the default tenant while the scope is
+   * the one the caller selected, and the two disagreeing is a read that returns nothing.
+   */
   public List<AttackPattern> getAttackPatternsByExternalIds(Set<String> ids) {
     if (ids.isEmpty()) {
       return Collections.emptyList();
     }
-    return this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-        new ArrayList<>(ids), TenantContext.getCurrentTenant());
+    return this.attackPatternRepository.findAllByExternalIdInIgnoreCase(new ArrayList<>(ids));
   }
 
   private List<AttackPattern> getAttackPatternsByInternalIds(Set<String> ids) {
@@ -568,7 +574,7 @@ public class AttackPatternService {
   }
 
   private AttackPattern createAttackPatternFromAttackPatternCreateInput(
-      AttackPatternCreateInput input) {
+      AttackPatternCreateInput input, String tenantId) {
     AttackPattern newAttackPattern = new AttackPattern();
     newAttackPattern.setName(input.getName());
     newAttackPattern.setStixId(input.getStixId());
@@ -576,7 +582,7 @@ public class AttackPatternService {
     newAttackPattern.setExternalId(input.getExternalId());
     newAttackPattern.setPlatforms(input.getPlatforms());
     newAttackPattern.setPermissionsRequired(input.getPermissionsRequired());
-    newAttackPattern.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    newAttackPattern.setTenant(new Tenant(tenantId));
     return newAttackPattern;
   }
 
@@ -589,25 +595,34 @@ public class AttackPatternService {
    * @param input the attack pattern data used for lookup (by external ID) and creation
    * @return the existing or newly created attack pattern
    */
-  public AttackPattern findOrCreate(AttackPatternCreateInput input) {
-    String tenant = TenantContext.getCurrentTenant();
+  public AttackPattern findOrCreate(TxCtx ctx, AttackPatternCreateInput input) {
+    // A read-before-write keyed on the external id is only single-valued under a single-tenant
+    // scope: under a broader one the lookup would find another tenant's row and skip the create.
+    // Resolving the write tenant first and pinning the lookup to it makes both halves agree.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<AttackPattern> attackPattern =
         attackPatternRepository
-            .findAllByExternalIdInIgnoreCaseAndTenantId(List.of(input.getExternalId()), tenant)
+            .findAllByExternalIdInIgnoreCaseAndTenantId(List.of(input.getExternalId()), tenantId)
             .stream()
             .findFirst();
     return attackPattern.orElseGet(
-        () -> attackPatternRepository.save(createAttackPatternFromAttackPatternCreateInput(input)));
+        () ->
+            attackPatternRepository.save(
+                createAttackPatternFromAttackPatternCreateInput(input, tenantId)));
   }
 
   public List<AttackPattern> internalUpsertAttackPatterns(
-      List<AttackPatternCreateInput> attackPatterns, Boolean ignoreDependencies) {
+      TxCtx ctx, List<AttackPatternCreateInput> attackPatterns, Boolean ignoreDependencies) {
+    // Same reasoning as findOrCreate: the external id and the STIX id are unique per tenant, so
+    // every lookup this upsert makes is pinned to the tenant the new rows are attributed to.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     List<AttackPattern> upserted = new ArrayList<>();
     attackPatterns.forEach(
         attackPatternInput -> {
           String attackPatternExternalId = attackPatternInput.getExternalId();
           Optional<AttackPattern> optionalAttackPattern =
-              attackPatternRepository.findByExternalId(attackPatternExternalId);
+              attackPatternRepository.findByExternalIdAndTenantId(
+                  attackPatternExternalId, tenantId);
           List<KillChainPhase> killChainPhases =
               attackPatternInput.getKillChainPhasesIds() != null
                       && !attackPatternInput.getKillChainPhasesIds().isEmpty()
@@ -618,13 +633,13 @@ public class AttackPatternService {
           AttackPattern attackPatternParent =
               attackPatternInput.getParentId() != null
                   ? attackPatternRepository
-                      .findByStixId(attackPatternInput.getParentId())
+                      .findByStixIdAndTenantId(attackPatternInput.getParentId(), tenantId)
                       .orElseThrow(ElementNotFoundException::new)
                   : null;
           if (optionalAttackPattern.isEmpty()) {
             attackPatternInput.setExternalId(attackPatternExternalId);
             AttackPattern newAttackPattern =
-                createAttackPatternFromAttackPatternCreateInput(attackPatternInput);
+                createAttackPatternFromAttackPatternCreateInput(attackPatternInput, tenantId);
             newAttackPattern.setKillChainPhases(killChainPhases);
             newAttackPattern.setExternalId(attackPatternExternalId);
             upserted.add(newAttackPattern);

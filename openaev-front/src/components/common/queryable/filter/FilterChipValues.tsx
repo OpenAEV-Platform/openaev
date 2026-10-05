@@ -88,12 +88,18 @@ const FilterChipValues: FunctionComponent<Props> = ({
     );
   };
 
+  const isInstant = propertySchema?.schema_property_type.includes('instant');
+  const formatLabel = (label: string) => {
+    if (!label) return label;
+    return isInstant ? fldt(label) : t(label);
+  };
+
   const toValues = (opts: Option[], mode: Filter['mode']) => opts.map((o, idx) => (
     <Fragment key={o.id}>
       {idx > 0 && i18nMode(mode)}
       <span>
         {' '}
-        {propertySchema?.schema_property_type.includes('instant') || !o.label ? (o.label) : t(o.label)}
+        {formatLabel(o.label)}
       </span>
     </Fragment>
   ));
@@ -123,11 +129,7 @@ const FilterChipValues: FunctionComponent<Props> = ({
       if (idx > 0) {
         str = `${str} ${t(filter.mode === 'and' ? 'and' : 'or')}`;
       }
-      if (propertySchema?.schema_property_type.includes('instant')) {
-        str = `${str} ${o.label ? fldt(o.label) : o.label}`;
-      } else {
-        str = `${str} ${o.label ? t(o.label) : o.label}`;
-      }
+      str = `${str} ${formatLabel(o.label)}`;
     });
     return str;
   }

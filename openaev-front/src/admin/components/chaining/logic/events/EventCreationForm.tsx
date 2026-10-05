@@ -1,7 +1,8 @@
+import { Button } from '@filigran/design-system';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AddOutlined } from '@mui/icons-material';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, useCallback, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,6 +10,7 @@ import { z } from 'zod';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
 import ActionFormButtons from '../drawer/ActionFormButtons';
+import usePrimitiveTypeDescriptors from '../usePrimitiveTypeDescriptors';
 import ConditionGroupBuilder from './ConditionGroupBuilder';
 import {
   type ConditionGroup,
@@ -44,6 +46,8 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
   readOnly = false,
 }) => {
   const { t } = useFormatter();
+  // Same descriptors the rows use, so the submit button and the row-level errors agree.
+  const { descriptorsByType } = usePrimitiveTypeDescriptors();
   const methods = useForm<EventBaseInput>({
     mode: 'onChange',
     resolver: zodResolver(eventBaseSchema),
@@ -146,7 +150,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
     description: '',
     groupOperators,
     conditionGroups,
-  });
+  }, descriptorsByType);
   const canSubmit = isFormValid && conditionsValid;
 
   const onValid = (base: EventBaseInput) => {
@@ -188,7 +192,6 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
             label={t('Name')}
             required
             disabled={readOnly}
-            variant="standard"
           />
 
           <TextFieldController
@@ -197,7 +200,6 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
             multiline
             rows={3}
             disabled={readOnly}
-            variant="standard"
           />
 
           <Box sx={{ mt: 2 }}>
@@ -219,13 +221,7 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
               mb: 2,
             }}
             >
-              <Button
-                size="small"
-                color="primary"
-                disabled={readOnly}
-                startIcon={<AddOutlined fontSize="small" />}
-                onClick={handleAddConditionGroup}
-              >
+              <Button type="button" priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} disabled={readOnly} onClick={handleAddConditionGroup}>
                 {t('Add Condition Group')}
               </Button>
             </Box>

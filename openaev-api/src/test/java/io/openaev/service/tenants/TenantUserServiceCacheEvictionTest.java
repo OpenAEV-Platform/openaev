@@ -10,6 +10,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserService;
+import io.openaev.service.organization.OrganizationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,10 +30,15 @@ class TenantUserServiceCacheEvictionTest {
   @Mock private UserRepository userRepository;
   @Mock private TenantRepository tenantRepository;
   @Mock private TenantMembershipCacheManager tenantMembershipCacheManager;
+  @Mock private OrganizationService organizationService;
 
   private TenantUserService newService() {
     return new TenantUserService(
-        userService, userRepository, tenantRepository, tenantMembershipCacheManager);
+        userService,
+        userRepository,
+        tenantRepository,
+        tenantMembershipCacheManager,
+        organizationService);
   }
 
   @Test

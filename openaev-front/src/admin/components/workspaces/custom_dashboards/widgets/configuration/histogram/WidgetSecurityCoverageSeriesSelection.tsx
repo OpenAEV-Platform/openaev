@@ -105,7 +105,8 @@ const WidgetSecurityCoverageSeriesSelection: FunctionComponent<Props> = ({ value
           <Card
             key={perspective.title}
             variant="outlined"
-            style={{ borderColor: isSelected ? `${theme.palette.primary.main}` : undefined }}
+            // A choice card in a dialog carries no outline: only the selected one does.
+            style={{ borderColor: isSelected ? `${theme.palette.primary.main}` : 'transparent' }}
           >
             <CardActionArea
               onClick={() => onChangeSeries(getSeries(perspective.type, simulationId))}

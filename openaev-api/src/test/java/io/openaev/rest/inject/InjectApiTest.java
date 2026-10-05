@@ -38,10 +38,14 @@ import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationF
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
 import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.jobs.InjectsExecutionJob;
+import io.openaev.secrets.provider.SecretResolvedValue;
+import io.openaev.secrets.provider.SecretsProvider;
+import io.openaev.secrets.provider.SecretsProviderResolver;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.scenario.ScenarioService;
@@ -62,10 +66,13 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import net.javacrumbs.jsonunit.core.Option;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -122,13 +129,17 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private DocumentRepository documentRepository;
+  @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private CommunicationRepository communicationRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
+  @Autowired private InjectAuthorisationRepository injectAuthorisationRepository;
+  @Autowired private SecretReferenceRepository secretReferenceRepository;
   @Autowired private TeamRepository teamRepository;
   @Autowired private FindingRepository findingRepository;
   @Autowired private UserRepository userRepository;
   @Resource private ObjectMapper objectMapper;
   @MockitoBean private JavaMailSender javaMailSender;
+  @MockitoBean private SecretsProviderResolver secretsProviderResolver;
 
   @Autowired private InjectTestHelper injectTestHelper;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
@@ -168,13 +179,16 @@ class InjectApiTest extends IntegrationTest {
     Document document1 = new Document();
     document1.setName("Document 1");
     document1.setType("image");
+    // documents is v2-active: the removed listener no longer stamps the tenant, so attribute it.
+    document1.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     Document document2 = new Document();
     document2.setName("Document 2");
     document2.setType("pdf");
+    document2.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     DOCUMENT1 = documentRepository.save(document1);
     DOCUMENT2 = documentRepository.save(document2);
 
-    Team team = new Team();
+    Team team = TeamFixture.getEmptyTeam();
     team.setName("team");
     TEAM = teamRepository.save(team);
 
@@ -185,6 +199,231 @@ class InjectApiTest extends IntegrationTest {
     AGENT = agentRepository.save(agent);
 
     domainComposer.reset();
+  }
+
+  @Nested
+  @Transactional
+  @DisplayName("Resolve inject attachment secret")
+  class ResolveInjectAttachmentSecretTest {
+
+    private Inject inject;
+    private CredentialSecretReference credentialReference;
+    private InjectAttachmentInput input;
+
+    @BeforeEach
+    void setUp() {
+      inject = InjectFixture.getDefaultInject();
+      inject.setExercise(EXERCISE);
+      inject.setInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject = injectRepository.save(inject);
+      InjectStatus injectStatus = new InjectStatus();
+      injectStatus.setInject(inject);
+      injectStatus.setName(ExecutionStatus.PENDING);
+      injectStatus = injectStatusComposer.forInjectStatus(injectStatus).persist().get();
+      inject.setStatus(injectStatus);
+      inject = injectRepository.save(inject);
+
+      credentialReference = CredentialSecretReferenceFixture.getUsernamePasswordReference();
+      credentialReference.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+      credentialReference.setStatus(SecretReference.SECRET_STATUS.ACTIVE);
+      credentialReference.setConnectorInstanceId("connector-instance-id");
+      credentialReference = secretReferenceRepository.save(credentialReference);
+
+      inject.setSecretReferences(new ArrayList<>(List.of(credentialReference)));
+      injectRepository.save(inject);
+
+      InjectAuthorisation authorisation = new InjectAuthorisation();
+      authorisation.setInject(inject);
+      authorisation.setCode(io.openaev.helper.CryptoHelper.hashWithSHA256("auth-code"));
+      authorisation.setIssuedAt(Instant.now());
+      injectAuthorisationRepository.save(authorisation);
+
+      input = new InjectAttachmentInput();
+      input.setAttachmentId(credentialReference.getId());
+      input.setAuthorisation("auth-code");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Admin should resolve an active inject attachment secret")
+    void given_adminAndValidAuthorisation_should_resolveInjectAttachmentSecret() throws Exception {
+      SecretsProvider provider = mock(SecretsProvider.class);
+      when(provider.getResolvedSecret(any()))
+          .thenReturn(SecretResolvedValue.forUsernamePassword("alice", "secret123"));
+      when(secretsProviderResolver.resolveByConnectorInstanceId(
+              Tenant.DEFAULT_TENANT_UUID, "connector-instance-id"))
+          .thenReturn(provider);
+
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("type").isEqualTo("USERNAME_PASSWORD");
+      assertThatJson(response).node("value.username").isEqualTo("alice");
+      assertThatJson(response).node("value.password").isEqualTo("secret123");
+      verify(provider).getResolvedSecret(any(CredentialSecretReference.class));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.RESOLVE_INJECT_SECRET})
+    @DisplayName(
+        "Resolve inject secret capability should allow resolving an active inject attachment secret")
+    void given_resolveInjectSecretCapability_should_resolveInjectAttachmentSecret()
+        throws Exception {
+      SecretsProvider provider = mock(SecretsProvider.class);
+      when(provider.getResolvedSecret(any()))
+          .thenReturn(SecretResolvedValue.forUsernamePassword("bob", "hunter2"));
+      when(secretsProviderResolver.resolveByConnectorInstanceId(
+              Tenant.DEFAULT_TENANT_UUID, "connector-instance-id"))
+          .thenReturn(provider);
+
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("value.username").isEqualTo("bob");
+      assertThatJson(response).node("value.password").isEqualTo("hunter2");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Invalid authorisation should be forbidden")
+    void given_invalidAuthorisation_should_forbidResolvingInjectAttachmentSecret()
+        throws Exception {
+      input.setAuthorisation("wrong-code");
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertEquals(
+                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Inactive credential should be rejected")
+    void given_inactiveCredential_should_rejectResolvingInjectAttachmentSecret() throws Exception {
+      credentialReference.setStatus(SecretReference.SECRET_STATUS.TIMEOUT);
+      secretReferenceRepository.save(credentialReference);
+
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("message").isEqualTo("CREDENTIAL_INACTIVE");
+    }
+
+    private static Stream<SecretReference.SECRET_STATUS> credentialAccessDeniedStatuses() {
+      return Stream.of(
+          SecretReference.SECRET_STATUS.AUTH_FAILED,
+          SecretReference.SECRET_STATUS.PERMISSION_DENIED);
+    }
+
+    @ParameterizedTest
+    @MethodSource("credentialAccessDeniedStatuses")
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Credential access denied statuses should be forbidden")
+    void given_credentialAccessDeniedStatuses_should_forbidResolvingInjectAttachmentSecret(
+        SecretReference.SECRET_STATUS status) throws Exception {
+      credentialReference.setStatus(status);
+      secretReferenceRepository.save(credentialReference);
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertEquals(
+                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Inject not in progress should deny credential access")
+    void given_injectStatusNotInProgress_should_denyCredentialAccess() throws Exception {
+      InjectStatus injectStatus = inject.getStatus().orElseThrow();
+      injectStatus.setName(ExecutionStatus.DRAFT);
+      injectStatusRepository.save(injectStatus);
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertEquals(
+                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Attachment not on inject should be not found")
+    void given_attachmentNotOnInject_should_returnNotFound() throws Exception {
+      input.setAttachmentId("missing-attachment");
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound())
+          .andExpect(
+              result ->
+                  assertEquals("CREDENTIAL_NOT_FOUND", result.getResolvedException().getMessage()));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName(
+        "Missing resolve inject secret capability should forbid resolving an inject attachment secret")
+    void given_missingResolveInjectSecretCapability_should_forbidResolvingInjectAttachmentSecret()
+        throws Exception {
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
   }
 
   // BULK DELETE
@@ -762,6 +1001,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutablePayloadInjectWithArguments() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       PayloadPrerequisite prerequisite = new PayloadPrerequisite();
       prerequisite.setGetCommand("cd ./src");
       prerequisite.setExecutor("bash");
@@ -782,6 +1023,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
 
@@ -793,7 +1038,12 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                  get(INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -827,6 +1077,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void given_argumentWithShellMetacharacters_should_neutralizeThem() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       PayloadPrerequisite prerequisite = new PayloadPrerequisite();
       prerequisite.setGetCommand("cd ./src");
       prerequisite.setExecutor("bash");
@@ -846,6 +1098,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
 
@@ -856,7 +1112,12 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                  get(INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -877,6 +1138,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void given_targetedAssetArgument_should_replaceByAssetIDs() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       String command =
           "echo separatebyspace : #{asset-separate-by-space} separatebycoma : #{asset-separate-by-comma}";
       Command payloadCommand = PayloadFixture.createCommand("bash", command, null, null);
@@ -901,7 +1164,7 @@ class InjectApiTest extends IntegrationTest {
       endpoint1.setIps(endpoint1IP);
       endpoint1.setSeenIp("seen-ip-endpoint1");
       EndpointComposer.Composer endpointWrapper1 =
-          endpointComposer.forEndpoint(endpoint1).persist();
+          endpointComposer.forEndpoint(endpoint1).withAgent(targetAgentWrapper).persist();
 
       Endpoint endpoint2 = EndpointFixture.createEndpoint();
       endpoint2.setHostname("endpoint2-hostname");
@@ -944,7 +1207,12 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                  get(INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -1055,10 +1323,116 @@ class InjectApiTest extends IntegrationTest {
                       .hasSize(1));
     }
 
+    @DisplayName(
+        "Should return 403 when the requesting agent is not a target of the inject (F408690-41)")
+    @Test
+    void given_agentNotTargetedByInject_should_returnForbidden() throws Exception {
+      // -- PREPARE --
+      // Agent assigned to an endpoint that is NOT one of the inject's targets: a service-account
+      // token carrying AGENT_RUNTIME_ACCESS must not be able to read the payload of an inject it
+      // isn't a target of, even though the capability check alone would let the request through.
+      AgentComposer.Composer strangerAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpointComposer
+          .forEndpoint(EndpointFixture.createEndpoint())
+          .withAgent(strangerAgentWrapper)
+          .persist();
+
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(
+                          payloadComposer.forPayload(PayloadFixture.createDefaultCommand())))
+              .persist()
+              .get();
+
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              get(INJECT_URI
+                      + "/"
+                      + injectSaved.getId()
+                      + "/"
+                      + strangerAgentWrapper.get().getId()
+                      + "/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @DisplayName("Should return 403 when the inject does not exist (F408690-41)")
+    @Test
+    void given_unknownInject_should_returnForbidden() throws Exception {
+      // -- PREPARE --
+      // A 404 here would let any token holder probe whether an inject id exists.
+      AgentComposer.Composer agentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpointComposer
+          .forEndpoint(EndpointFixture.createEndpoint())
+          .withAgent(agentWrapper)
+          .persist();
+
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              get(INJECT_URI
+                      + "/"
+                      + UUID.randomUUID()
+                      + "/"
+                      + agentWrapper.get().getId()
+                      + "/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThat(result.getResolvedException()).isInstanceOf(ForbiddenException.class));
+    }
+
+    @DisplayName("Should return 403 when the agent does not exist (F408690-41)")
+    @Test
+    void given_unknownAgent_should_returnForbidden() throws Exception {
+      // -- PREPARE --
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(
+                          payloadComposer.forPayload(PayloadFixture.createDefaultCommand())))
+              .persist()
+              .get();
+
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              get(INJECT_URI
+                      + "/"
+                      + injectSaved.getId()
+                      + "/"
+                      + UUID.randomUUID()
+                      + "/executable-payload")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThat(result.getResolvedException()).isInstanceOf(ForbiddenException.class));
+    }
+
     @DisplayName("Get obfuscate command")
     @Test
     void getExecutableObfuscatePayloadInject() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       Command payloadCommand =
           PayloadFixture.createCommand("psh", "echo Hello World", List.of(), "echo cleanup cmd");
 
@@ -1076,6 +1450,10 @@ class InjectApiTest extends IntegrationTest {
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
       doNothing()
@@ -1085,7 +1463,12 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+                  get(INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -1109,6 +1492,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void getExecutableCmdPayloadInject() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       Command payloadCommand =
           PayloadFixture.createCommand("cmd", "echo Hello World", List.of(), "echo cleanup cmd");
 
@@ -1126,6 +1511,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
       doNothing()
@@ -1135,7 +1524,12 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+                  get(INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -1159,6 +1553,8 @@ class InjectApiTest extends IntegrationTest {
     @Test
     void shouldNotGetExecutableCmdPayloadInject() throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       Command payloadCommand =
           PayloadFixture.createCommand("cmd", "echo Hello World", List.of(), "echo cleanup cmd");
 
@@ -1176,6 +1572,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
       doNothing()
@@ -1184,7 +1584,12 @@ class InjectApiTest extends IntegrationTest {
 
       // -- EXECUTE & ASSERT --
       mvc.perform(
-              get(INJECT_URI + "/" + injectSaved.getId() + "/fakeagentID/executable-payload")
+              get(INJECT_URI
+                      + "/"
+                      + injectSaved.getId()
+                      + "/"
+                      + targetAgentWrapper.get().getId()
+                      + "/executable-payload")
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isBadRequest());
@@ -1197,6 +1602,8 @@ class InjectApiTest extends IntegrationTest {
         given_documentArgumentOverriddenInInjectContent_should_returnActualDocumentIdInPayloadArguments()
             throws Exception {
       // -- PREPARE --
+      AgentComposer.Composer targetAgentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       // Simulate a payload whose document argument has a generic default (e.g., a template UUID)
       String payloadDefaultDocumentId = UUID.randomUUID().toString();
       PayloadArgument docArg =
@@ -1221,6 +1628,10 @@ class InjectApiTest extends IntegrationTest {
                       .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                       .withInjector(InjectorFixture.createDefaultPayloadInjector())
                       .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .withEndpoint(
+                  endpointComposer
+                      .forEndpoint(EndpointFixture.createEndpoint())
+                      .withAgent(targetAgentWrapper))
               .persist()
               .get();
 
@@ -1231,7 +1642,12 @@ class InjectApiTest extends IntegrationTest {
       // -- EXECUTE --
       String response =
           mvc.perform(
-                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                  get(INJECT_URI
+                          + "/"
+                          + injectSaved.getId()
+                          + "/"
+                          + targetAgentWrapper.get().getId()
+                          + "/executable-payload")
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())

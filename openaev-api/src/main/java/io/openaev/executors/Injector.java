@@ -39,7 +39,10 @@ public abstract class Injector {
         throw new UnsupportedOperationException("Inject is empty");
       }
       // If inject is too old, reject the execution
-      if (isScheduledInject && !isInInjectableRange(executableInject.getInjection())) {
+      if (isScheduledInject
+          && !isInInjectableRange(
+              executableInject.getInjection(),
+              this.context.getOpenAEVConfig().getInjectStalenessThreshold())) {
         throw new UnsupportedOperationException(
             "Inject is now too old for execution: id "
                 + executableInject.getInjection().getId()
@@ -68,6 +71,10 @@ public abstract class Injector {
   public List<DataAttachment> resolveAttachments(
       Execution execution, ExecutableInject injection, List<Document> documents) {
     List<DataAttachment> resolved = new ArrayList<>();
+    // Attach a document's bytes only when it belongs to the inject's tenant: a document bound from
+    // another tenant is not attached, as if the object were missing.
+    Tenant injectTenant = injection.getInjection().getInject().getTenant();
+    String owningTenantId = injectTenant == null ? null : injectTenant.getId();
     // Add attachments from direct configuration
     injection
         .getDirectAttachments()
@@ -91,7 +98,8 @@ public abstract class Injector {
               this.context.getDocumentRepository().findById(documentId);
           try {
             Document doc = askedDocument.orElseThrow();
-            InputStream fileInputStream = this.context.getFileService().getFile(doc).orElseThrow();
+            InputStream fileInputStream =
+                this.context.getFileService().getFile(doc, owningTenantId).orElseThrow();
             byte[] content = IOUtils.toByteArray(fileInputStream);
             resolved.add(new DataAttachment(documentId, doc.getName(), content, doc.getType()));
           } catch (Exception e) {

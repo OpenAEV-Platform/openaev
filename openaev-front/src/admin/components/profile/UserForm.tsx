@@ -1,5 +1,5 @@
+import { Button } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -31,7 +31,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<UpdateProfileInput>().with({
-        user_email: z.email(t('Should be a valid email address')),
         user_firstname: z.string().min(1, { message: t('Should not be empty') }),
         user_lastname: z.string().min(1, { message: t('Should not be empty') }),
         user_organization: z.string().optional(),
@@ -60,6 +59,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="userForm"
         onSubmit={handleSubmitWithoutPropagation}
         style={{
@@ -69,7 +69,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
           gap: theme.spacing(2.5),
         }}
       >
-        <TextFieldController required name="user_email" label={t('Email address')} disabled={initialValues.user_is_external} />
         <TextFieldController required name="user_firstname" label={t('Firstname')} />
         <TextFieldController required name="user_lastname" label={t('Lastname')} />
         <OrganizationFieldController name="user_organization" label={t('Organization')} />
@@ -77,13 +76,12 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <SelectFieldController name="user_theme" label={t('Theme')} items={themeItems(t)} />
         <SelectFieldController name="user_lang" label={t('Language')} items={langItems(t)} />
         <CustomDashboardAutocompleteFieldController name="user_home_dashboard" label={t('Home dashboard')} disabled={false} withPlatformDefault />
-        <div>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={!isDirty || isSubmitting}
-          >
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+        >
+          <Button type="submit" disabled={!isDirty || isSubmitting}>
             {t('Update')}
           </Button>
         </div>

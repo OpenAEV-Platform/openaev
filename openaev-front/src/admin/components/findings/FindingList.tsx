@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GridViewOutlined, InfoOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, Button, Checkbox, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Checkbox, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Popover, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { Binoculars, Cog } from 'mdi-material-ui';
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -15,6 +16,7 @@ import SortHeadersComponentV2 from '../../../components/common/queryable/sort/So
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import Empty from '../../../components/Empty';
+import { FDS } from '../../../components/fds-tokens.generated';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
@@ -330,27 +332,30 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       // Findings are technical values (ports, sockets, hostnames, credentials...): render them
       // as inline code, mirroring the <pre> block of the finding overview page.
       value: (finding: AggregatedFindingOutput) => (
-        <Tooltip title={finding.finding_value}>
-          <Box
-            component="code"
-            sx={theme => ({
-              display: 'inline-block',
-              maxWidth: '95%',
-              padding: '2px 8px',
-              borderRadius: 1,
-              backgroundColor: theme.palette.background.accent,
-              border: `1px solid ${theme.palette.divider}`,
-              fontFamily: 'Consolas, monaco, monospace',
-              fontSize: 12,
-              lineHeight: '18px',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              verticalAlign: 'middle',
-            })}
-          >
-            {finding.finding_value}
-          </Box>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Box
+              component="code"
+              sx={theme => ({
+                display: 'inline-block',
+                maxWidth: '95%',
+                padding: '2px 8px',
+                borderRadius: 1,
+                backgroundColor: theme.palette.background.accent,
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: 'Consolas, monaco, monospace',
+                fontSize: FDS.scalars['--text-3'],
+                lineHeight: '18px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                verticalAlign: 'middle',
+              })}
+            >
+              {finding.finding_value}
+            </Box>
+          </TooltipTrigger>
+          {finding.finding_value && <TooltipContent>{finding.finding_value}</TooltipContent>}
         </Tooltip>
       ),
     },
@@ -478,13 +483,19 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
               sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
             >
               <ToggleButton value="grid" aria-label={t('Grid view')}>
-                <Tooltip title={t('Grid view')}>
-                  <GridViewOutlined fontSize="small" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <GridViewOutlined fontSize="small" />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Grid view')}</TooltipContent>
                 </Tooltip>
               </ToggleButton>
               <ToggleButton value="list" aria-label={t('List view')}>
-                <Tooltip title={t('List view')}>
-                  <ViewListOutlined fontSize="small" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ViewListOutlined fontSize="small" />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('List view')}</TooltipContent>
                 </Tooltip>
               </ToggleButton>
             </ToggleButtonGroup>
@@ -492,14 +503,17 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
           <ExportButton totalElements={total} exportProps={exportProps} />
           {user?.user_admin && (
             <>
-              <Tooltip title={t('Finding settings')}>
-                <IconButton
-                  size="small"
-                  onClick={e => setSettingsAnchorEl(e.currentTarget)}
-                  aria-label={t('Finding settings')}
-                >
-                  <Cog fontSize="small" />
-                </IconButton>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <IconButton
+                    size="small"
+                    onClick={e => setSettingsAnchorEl(e.currentTarget)}
+                    aria-label={t('Finding settings')}
+                  >
+                    <Cog fontSize="small" />
+                  </IconButton>
+                </TooltipTrigger>
+                <TooltipContent>{t('Finding settings')}</TooltipContent>
               </Tooltip>
               <Popover
                 open={Boolean(settingsAnchorEl)}
@@ -559,11 +573,14 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
           }}
           >
             {t('Archived')}
-            <Tooltip title={t('Findings that have been inactive for the configured period. They remain available here before being removed from this page and remain accessible from the simulations that found them.')}>
-              <InfoOutlined
-                fontSize="small"
-                onClick={event => event.stopPropagation()}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InfoOutlined
+                  fontSize="small"
+                  onClick={event => event.stopPropagation()}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('Findings that have been inactive for the configured period. They remain available here before being removed from this page and remain accessible from the simulations that found them.')}</TooltipContent>
             </Tooltip>
           </Box>
         )}
@@ -586,20 +603,23 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       topBarButtons={showArchiveTabs ? null : actions}
       leftSlot={showArchiveTabs && viewMode === 'grid'
         ? (
-            <Tooltip title={t('Select all')}>
-              <span>
-                <Checkbox
-                  size="small"
-                  checked={selectAll}
-                  indeterminate={
-                    (!selectAll && numberOfSelectedElements > 0)
-                    || (selectAll && Object.keys(deSelectedElements ?? {}).length > 0)
-                  }
-                  onChange={handleToggleSelectAll}
-                  disabled={findings.length === 0}
-                  slotProps={{ input: { 'aria-label': t('Select all') } }}
-                />
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Checkbox
+                    size="small"
+                    checked={selectAll}
+                    indeterminate={
+                      (!selectAll && numberOfSelectedElements > 0)
+                      || (selectAll && Object.keys(deSelectedElements ?? {}).length > 0)
+                    }
+                    onChange={handleToggleSelectAll}
+                    disabled={findings.length === 0}
+                    slotProps={{ input: { 'aria-label': t('Select all') } }}
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('Select all')}</TooltipContent>
             </Tooltip>
           )
         : undefined}

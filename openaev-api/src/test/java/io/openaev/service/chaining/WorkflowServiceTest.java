@@ -15,6 +15,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
@@ -22,9 +23,11 @@ import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.LessonsService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.sql.SQLException;
 import java.util.*;
@@ -71,6 +74,7 @@ class WorkflowServiceTest {
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private InjectService injectService;
   @Mock private InjectStatusService injectStatusService;
+  @Mock private AttackPathExecutionIngestionService attackPathExecutionIngestionService;
 
   private WorkflowService workflowService;
   private WorkflowEndService workflowEndService;
@@ -88,7 +92,8 @@ class WorkflowServiceTest {
             workflowRepository,
             scopeSnapshotService,
             assetAgentJobRepository,
-            workflowStateRepository);
+            workflowStateRepository,
+            attackPathExecutionIngestionService);
 
     workflowService =
         new WorkflowService(
@@ -1487,6 +1492,112 @@ class WorkflowServiceTest {
     }
 
     @Test
+    @DisplayName("should reject a new variable whose value does not match its declared type")
+    void given_newVariableWithMalformedValue_should_throwBadRequest() {
+      // Arrange - a variable carries a single exact value, so the type's format always applies
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "target", PrimitiveType.IPv4, "not-an-ip", null)));
+
+      // Act & Assert
+      assertThrows(
+          BadRequestException.class,
+          () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+      verify(workflowRepository, never()).save(any(Workflow.class));
+    }
+
+    @Test
+    @DisplayName("should accept a new variable whose value matches its declared type")
+    void given_newVariableWithWellFormedValue_should_createVariable() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "target", PrimitiveType.IPv4, "10.0.0.1", null)));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertEquals("10.0.0.1", result.getWorkflowScopeVariables().getFirst().getValue());
+    }
+
+    @Test
+    @DisplayName("should accept any value on a type that constrains no format")
+    void given_newVariableOnUnconstrainedType_should_createVariable() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "note", PrimitiveType.Text, "anything ###", null)));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertEquals("anything ###", result.getWorkflowScopeVariables().getFirst().getValue());
+    }
+
+    @Test
+    @DisplayName("should reject an update that makes an existing variable value malformed")
+    void given_updateWithMalformedValue_should_throwBadRequest() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("target");
+      existing.setType(PrimitiveType.IPv4);
+      existing.setValue("10.0.0.1");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(varId, "target", PrimitiveType.IPv4, "999.0.0.1", null)));
+
+      // Act & Assert
+      assertThrows(
+          BadRequestException.class,
+          () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+    }
+
+    @Test
+    @DisplayName("should validate the resolved value, not the masked echo sent back by the client")
+    void given_maskedEchoOnValidatedType_should_notRejectTheStoredValue() {
+      // Arrange - the stored value is masked in responses, and the client echoes the mask back
+      // while retyping the variable to a format-validated type. Validating the payload would
+      // reject "1******1"; validating the resolved value accepts the stored address.
+      Workflow workflow = buildTemplate(false);
+      String address = "10.0.0.1";
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("secret_host");
+      existing.setType(PrimitiveType.Password);
+      existing.setValue(address);
+      existing.setDescription("old desc");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      String maskedEcho = SensitiveValueMaskingUtils.maskIfNeeded(PrimitiveType.Password, address);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(
+              new ScopeVariableInput(
+                  varId, "secret_host", PrimitiveType.IPv4, maskedEcho, "new desc")));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
+      assertEquals(address, updated.getValue());
+      assertEquals(PrimitiveType.IPv4, updated.getType());
+    }
+
+    @Test
     @DisplayName("should translate the database uniqueness violation into a business message")
     void given_databaseDuplicateKeyViolation_should_throwAlreadyExistingException() {
       // Arrange - the duplicate is reported by the database on flush
@@ -2849,6 +2960,7 @@ class WorkflowServiceTest {
   @Nested
   @DisplayName("cancelSimulationEndWorkflowRun")
   class CancelSimulationEndWorkflowRunTests {
+    WorkflowEndService.WORKFLOW_END_CAUSE cause = WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED;
     private static final String TENANT = "tenant-1";
 
     @Test
@@ -2858,6 +2970,7 @@ class WorkflowServiceTest {
     void given_singleRunWithActiveSteps_should_endItAndCleanUpDependencies() {
       // Arrange
       Exercise simulation = exerciseWithId("sim-1");
+      simulation.setTenant(new Tenant(TENANT));
       Workflow run =
           Workflow.builder()
               .id("wf-run-1")
@@ -2866,18 +2979,13 @@ class WorkflowServiceTest {
               .build();
 
       // Act
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
-        workflowService.cancelSimulationEndWorkflowRun(List.of(run));
-      }
+      workflowService.cancelSimulationEndWorkflowRun(List.of(run));
 
       // Assert
       assertEquals(WorkflowStatus.END, run.getStatus());
-      verify(scopeSnapshotService).freezeEnd(run);
-      verify(stepService)
-          .endActiveStepsByWorkflowId("wf-run-1", WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
-      verify(stepDelayQueueService)
-          .deleteAllByWorkflowRun(run, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+      verify(scopeSnapshotService).freezeEnd(run, cause);
+      verify(stepService).endActiveStepsByWorkflowId("wf-run-1", cause);
+      verify(stepDelayQueueService).deleteAllByWorkflowRun(run, cause);
       verify(assetAgentJobRepository).deleteAllBySimulationIdAndTenantId("sim-1", TENANT);
       verify(workflowStateRepository).deleteAllByWorkflowExecution_Simulation_Id("sim-1");
       verify(workflowRepository).save(run);
@@ -2889,7 +2997,9 @@ class WorkflowServiceTest {
     void given_multipleRuns_should_endEachRunIndependently() {
       // Arrange
       Exercise simulation1 = exerciseWithId("sim-1");
+      simulation1.setTenant(new Tenant(TENANT));
       Exercise simulation2 = exerciseWithId("sim-2");
+      simulation2.setTenant(new Tenant(TENANT));
       Workflow run1 =
           Workflow.builder()
               .id("wf-run-1")
@@ -2904,11 +3014,7 @@ class WorkflowServiceTest {
               .build();
 
       // Act
-      WorkflowEndService.WORKFLOW_END_CAUSE cause = WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED;
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
-        workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
-      }
+      workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
 
       // Assert
       assertEquals(WorkflowStatus.END, run1.getStatus());

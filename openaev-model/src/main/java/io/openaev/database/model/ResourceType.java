@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 public enum ResourceType {
   ASSET,
   AGENT,
+  AGENT_INSTALLER,
   SCENARIO,
   SIMULATION,
   PLAYER,
@@ -22,6 +23,7 @@ public enum ResourceType {
   SECURITY_PLATFORM,
   CREDENTIAL,
   MARKING_DEFINITION,
+  MARKING_ASSIGNMENT,
   DOCUMENT,
   CHANNEL,
   PHISHING_LANDING_PAGE,
@@ -62,6 +64,7 @@ public enum ResourceType {
   PLATFORM_GROUP,
   PLATFORM_USER,
   XTM_HUB_REGISTRATION,
+  SNAPSHOT_OBSERVATION,
   // Special resource types
   UNKNOWN,
   SIMULATION_OR_SCENARIO, // Used to represent either a simulation or a scenario.

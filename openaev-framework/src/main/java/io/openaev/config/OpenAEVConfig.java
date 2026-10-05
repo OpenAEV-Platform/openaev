@@ -57,6 +57,10 @@ public class OpenAEVConfig {
   @Value("${openbas.version:${openaev.version:#{null}}}")
   private String version;
 
+  @JsonProperty("application_commit")
+  @Value("${openaev.commit:#{null}}")
+  private String commit;
+
   @JsonProperty("map_tile_server_light")
   @Value("${openbas.map-tile-server-light:${openaev.map-tile-server-light:#{null}}}")
   private String mapTileServerLight;
@@ -170,6 +174,23 @@ public class OpenAEVConfig {
   @JsonProperty("frontend_url")
   @Value("${openbas.frontend-url:${openaev.frontend-url:}}")
   private String frontendUrl;
+
+  @JsonProperty("inject_staleness_threshold")
+  @Value("${openaev.scheduling.inject-staleness-threshold:4}")
+  private Integer injectStalenessThreshold;
+
+  /**
+   * Gets the configured inject staleness threshold value. The value is clamped to a minimum of 1
+   * (one minute).
+   *
+   * @return the inject staleness threshold in minutes, with a minimum of 1 (one).
+   */
+  public Integer getInjectStalenessThreshold() {
+    if (this.injectStalenessThreshold < 1) {
+      return 1;
+    }
+    return this.injectStalenessThreshold;
+  }
 
   /**
    * Returns the normalized base URL for the platform.

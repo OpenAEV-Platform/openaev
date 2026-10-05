@@ -149,6 +149,7 @@ nav:
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
         - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
+        - Elasticsearch 9: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:
@@ -219,6 +220,7 @@ nav:
     - Rest API: usage/rest-api.md
   - Administration:
     - Introduction: administration/introduction.md
+    - User profile: administration/profile.md
     - Enterprise edition: administration/enterprise.md
     - Multi-tenancy: administration/multi-tenancy.md
     - Debug mode: administration/debug-mode.md
@@ -232,12 +234,14 @@ nav:
       - XTM Hub: administration/hub.md # Warning: page is linked in XTM Hub documentation
   - Reference:
       - APIs:
+          - Bulk snapshot export: reference/apis/bulk-snapshot.md
           - Filters: reference/apis/filters.md
       - Deployment and stack:
           - Telemetry: reference/deployment/telemetry.md
   - Development:
     - Prerequisites:
       - Ubuntu: development/environment-ubuntu.md
+      - macOS: development/environment-macos.md
       - Windows: development/environment-windows.md
     - Building and running from source: development/build-from-source.md
     - Database migrations: development/database-migrations.md
@@ -247,4 +251,4 @@ nav:
     - Injectors: development/injectors.md
     - Attack path: development/attack-path.md
     - REST API: development/api-usage.md
-    - Best Practices: development/translations.md
+    - Translations: development/translations.md

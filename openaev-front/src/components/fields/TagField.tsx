@@ -1,12 +1,20 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  IconButton,
+} from '@filigran/design-system';
 import { AddOutlined, LabelOutlined } from '@mui/icons-material';
 import {
-  Autocomplete as MuiAutocomplete,
-  Box,
   Dialog,
   DialogContent,
   DialogTitle,
-  IconButton,
-  TextField,
 } from '@mui/material';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
@@ -19,10 +27,17 @@ import { type TagHelper } from '../../actions/tags/tag-helper';
 import TagForm from '../../admin/components/settings/tags/TagForm';
 import { useHelper } from '../../store';
 import { type Tag, type TagCreateInput } from '../../utils/api-types';
+import { validHexColor } from '../../utils/Colors';
 import { useAppDispatch } from '../../utils/hooks';
 import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
+
+type TagOption = {
+  id: string;
+  label: string;
+  color?: string;
+};
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -74,7 +89,7 @@ const TagField: FunctionComponent<Props> = ({
     n => ({
       id: n.tag_id,
       label: n.tag_name,
-      color: n.tag_color,
+      color: validHexColor(n.tag_color),
     }),
   );
   const values = () => {
@@ -106,62 +121,56 @@ const TagField: FunctionComponent<Props> = ({
       ...style,
     }}
     >
-      <MuiAutocomplete
-        value={values()}
-        size="small"
+      <Combobox<TagOption>
+        required={required}
         multiple
-        selectOnFocus
-        autoHighlight
-        clearOnBlur={false}
-        clearOnEscape={false}
-        disabled={disabled}
+        value={values()}
         options={tagsOptions}
-        onChange={(_, value) => {
-          fieldOnChange(value.map(v => v.id));
+        disabled={disabled}
+        selectOnFocus
+        keepInputOnBlur
+        onValueChange={(value) => {
+          fieldOnChange((value as TagOption[]).map(v => v.id));
         }}
-        renderOption={(props, option) => (
-          <Box component="li" {...props} key={option.id}>
+        getOptionLabel={option => option.label}
+        isOptionEqualToValue={(option, value) => option.id === value.id}
+        error={!!error}
+        renderOption={option => (
+          <>
+            {/* The tint comes from the tag's own data and stays on the glyph, never behind text. */}
             <div className={classes.icon} style={{ color: option.color }}>
               <LabelOutlined />
             </div>
             <div className={classes.text}>{option.label}</div>
-          </Box>
+          </>
         )}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={label}
-            variant="standard"
-            fullWidth
-            error={!!error}
-            required={required}
-            slotProps={{
-              input: {
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
-                      <IconButton
-                        style={{
-                          position: 'absolute',
-                          right: '35px',
-                        }}
-                        disabled={disabled}
-                        onClick={() => handleOpenTagCreation()}
-                      >
-                        <AddOutlined />
-                      </IconButton>
-                    </Can>
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
-              },
-            }}
-          />
-        )}
-        classes={{ clearIndicator: classes.autoCompleteIndicator }}
-      />
+      >
+        <ComboboxLabel required={required}>{label}</ComboboxLabel>
+        <ComboboxField
+          adornment={(
+            // `<Can>` renders nothing without the ability; the slot is `empty:hidden`,
+            // so it then costs neither width nor the shell's gap.
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
+              <IconButton
+                size="sm"
+                priority="tertiary"
+                disabled={disabled}
+                onClick={() => handleOpenTagCreation()}
+                aria-label={t('Create a new tag')}
+                icon={<AddOutlined fontSize="small" />}
+              />
+            </Can>
+          )}
+        >
+          <ComboboxChips />
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxClear />
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+      </Combobox>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
         <Dialog
           open={tagCreation}

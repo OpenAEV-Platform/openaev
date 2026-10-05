@@ -1,5 +1,6 @@
+import { Chip } from '@filigran/design-system';
 import { GroupsOutlined, KeyboardArrowRight, PermIdentityOutlined, SecurityOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
@@ -24,6 +25,7 @@ import { useQueryable } from '../../../../components/common/queryable/useQueryab
 import { type Header } from '../../../../components/common/SortHeadersList';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
+import ItemMarkings from '../../../../components/ItemMarkings';
 import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { GROUP_BASE_URL, ROLE_BASE_URL, USER_BASE_URL } from '../../../../constants/BaseUrls';
@@ -31,7 +33,9 @@ import { useHelper } from '../../../../store';
 import { type Group, type PlatformGroupOutput, type RoleOutput, type SearchPaginationInput, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { CAPABILITY_SCOPES } from '../../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import PlatformGroupPopover from '../groups/platform_groups/PlatformGroupPopover';
 import GroupPopover from '../groups/tenant_groups/GroupPopover';
@@ -69,6 +73,10 @@ const GroupDetail = () => {
   const { groupId } = useParams() as { groupId: string };
   const { scope } = useSecurityScope();
   const isPlatform = scope === CAPABILITY_SCOPES.PLATFORM;
+  const markingEnabled = isFeatureEnabled('MARKING');
+  // Markings are tenant-groups-only (see task2/tech-design.md): a platform group has no
+  // group_markings field at all, so this must never fetch/render in that scope.
+  const markingDefinitions = useMarkingDefinitions({ skip: isPlatform || !markingEnabled });
 
   const [group, setGroup] = useState<Group | null>(null);
   const [platformGroup, setPlatformGroup] = useState<PlatformGroupOutput | null>(null);
@@ -218,7 +226,7 @@ const GroupDetail = () => {
       label: 'Administrator',
       isSortable: true,
       value: (member: MemberRow) => (member.user_admin
-        ? <Chip size="small" color="primary" variant="outlined" label={t('Administrator')} sx={{ borderRadius: 1 }} />
+        ? <Chip label={t('Administrator')} severity="info" />
         : <>-</>),
     },
   ], [t]);
@@ -277,8 +285,8 @@ const GroupDetail = () => {
             title={title}
             chips={(
               <>
-                <Chip size="small" variant="outlined" label={t('{count} members', { count: members.length })} sx={{ borderRadius: 1 }} />
-                <Chip size="small" variant="outlined" label={t('{count} roles', { count: roleItems.length })} sx={{ borderRadius: 1 }} />
+                <Chip label={String(t('{count} members', { count: members.length }))} />
+                <Chip label={String(t('{count} roles', { count: roleItems.length }))} />
               </>
             )}
             action={isPlatform
@@ -292,9 +300,12 @@ const GroupDetail = () => {
                 )
               : (
                   <GroupPopover
+                    variant="toggle"
                     group={group!}
                     groupUsersIds={group!.group_users ?? []}
                     groupRolesIds={group!.group_roles ?? []}
+                    groupMarkingIds={group!.group_markings ?? []}
+                    markingEnabled={markingEnabled}
                     onUpdate={(updated: Group) => setGroup(updated)}
                     onDelete={() => navigate(groupsLink)}
                   />
@@ -337,6 +348,14 @@ const GroupDetail = () => {
                 </List>
               )}
             </Section>
+            {!isPlatform && markingEnabled && (
+              <Section title={t('Markings')}>
+                <ItemMarkings
+                  markingIds={group?.group_markings ?? []}
+                  definitions={markingDefinitions}
+                />
+              </Section>
+            )}
           </DetailSections>
 
           <div>

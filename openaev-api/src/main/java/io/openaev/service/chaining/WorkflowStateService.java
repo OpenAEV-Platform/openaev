@@ -10,7 +10,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
-import io.openaev.utils.IpAddressUtils;
+import io.openaev.validator.IpAddressUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -617,8 +617,7 @@ public class WorkflowStateService {
   }
 
   private static WorkflowStateEntries createInitialEntries() {
-    return new WorkflowStateEntries(
-        new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+    return new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   }
 
   /**

@@ -30,6 +30,17 @@ runs:
         RABBITMQ_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images openaev-dev-rabbitmq)
         MINIO_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images openaev-test-minio)
 
+        SEARCH_IMAGE="$SEARCH_ENGINE_IMAGE"
+        if [ -z "$SEARCH_IMAGE" ]; then
+          SEARCH_SERVICE=$([ "$SEARCH_ENGINE" = "opensearch" ] && echo "openaev-dev-opensearch" || echo "openaev-dev-elasticsearch")
+          SEARCH_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images "$SEARCH_SERVICE")
+        fi
+
+        # Pull first to report registry failures before docker run.
+        for image in "$POSTGRES_IMAGE" "$SEARCH_IMAGE" "$RABBITMQ_IMAGE" "$MINIO_IMAGE"; do
+          docker pull --quiet "$image"
+        done
+
         docker run -d --name pgsql \
           -p 5432:5432 \
           -e POSTGRES_USER=openaev \
@@ -37,11 +48,6 @@ runs:
           -e POSTGRES_DB=openaev \
           "$POSTGRES_IMAGE" \
           -c max_connections=1000
-        SEARCH_IMAGE="$SEARCH_ENGINE_IMAGE"
-        if [ -z "$SEARCH_IMAGE" ]; then
-          SEARCH_SERVICE=$([ "$SEARCH_ENGINE" = "opensearch" ] && echo "openaev-dev-opensearch" || echo "openaev-dev-elasticsearch")
-          SEARCH_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images "$SEARCH_SERVICE")
-        fi
         if [ "$SEARCH_ENGINE" = "opensearch" ]; then
           docker run -d --name search-engine \
             -p 9200:9200 \

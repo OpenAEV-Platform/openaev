@@ -76,7 +76,7 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.utils.IpAddressUtils;
+import io.openaev.validator.IpAddressUtils;
 import io.openaev.xtmone.XtmOneClient;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -3668,6 +3668,9 @@ public class AutonomousRunService {
       team = teamRepository.save(existing);
     } else {
       Team created = new Team();
+      // The run's own tenant, already validated against the caller's scope when the run was
+      // created: the wrapper team belongs where the simulation it wraps belongs.
+      created.setTenant(new Tenant(runTenantId(run)));
       created.setName(hasText(name) ? name : defaultTargetTeamName(players));
       created.setContextual(true);
       created.setUsers(new ArrayList<>(players));

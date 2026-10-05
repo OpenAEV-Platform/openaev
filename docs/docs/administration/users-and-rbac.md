@@ -106,6 +106,7 @@ Below is a full list of capabilities in OpenAEV:
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete Dashboards` | Permanently delete Dashboards. Requires *Manage Dashboards*.                                                                              |
 | **Findings** |                                                                                                                                           |
 | `Access Findings` | Read-only access to assessment Findings and results generated from Simulations and Atomic Tests.                                          |
+| `Access observation snapshots` | Read-only access to the bulk snapshot export endpoints, which return the current verified state of every Endpoint as a machine-readable feed. |
 | **Content** |                                                                                                                                           |
 | `Access documents` | Read-only access to documents stored in the platform (reports, attachments, playbooks).                                                   |
 | &nbsp;&nbsp;`Manage documents` | Upload, create, and update documents. Requires *Access documents*.                                                                        |
@@ -141,6 +142,7 @@ Below is a full list of capabilities in OpenAEV:
 | `Access tenant users, groups and roles` | Read-only access to the tenant's users, groups and roles.                                                                                 |
 | &nbsp;&nbsp;`Manage tenant users, groups and roles` | Create and update the tenant's users, groups and roles. Requires *Access tenant users, groups and roles*.                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete tenant users, groups and roles` | Permanently delete them. Requires *Manage tenant users, groups and roles*.                                                                |
+| `Install agent` | Get the agent install command and installer token, and download the agent binaries. Has no parent or child capability.                   |
 
 
 

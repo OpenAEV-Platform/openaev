@@ -3,12 +3,18 @@ package io.openaev.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
+import io.openaev.engine.facade.EngineService;
+import io.openaev.engine.model.EsBase;
 import io.openaev.engine.query.EsEntities;
 import io.openaev.utils.CustomDashboardTimeRange;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -42,6 +48,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
   @Autowired private EngineService engineService;
   @Autowired private EngineContext engineContext;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   /** An admin RawUserAuth used to call engineService.entities() directly. */
   private static final RawUserAuth ADMIN_USER =
@@ -74,12 +81,18 @@ class EngineServiceIntegrationTest extends IntegrationTest {
   // Helpers
   // -----------------------------------------------------------------------
 
-  private EsEntities queryEndpoints() {
+  private EsEntities queryEndpoints(TxCtx ctx) {
     ListConfiguration config = engineService.createListConfiguration("asset", Map.of());
     // ALL_TIME avoids the DEFAULT branch that requires a dashboard timeRange parameter
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
     ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 100));
-    return engineService.entities(ADMIN_USER, runtime);
+    return engineService.entities(ctx, ADMIN_USER, runtime);
+  }
+
+  private String persistEndpointForTenant(String tenantId, String name) {
+    Endpoint endpoint = EndpointFixture.createEndpoint(name);
+    endpoint.setTenant(new Tenant(tenantId));
+    return endpointComposer.forEndpoint(endpoint).persist().get().getId();
   }
 
   private void indexAndWait() throws InterruptedException {
@@ -114,7 +127,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
 
       indexAndWait();
 
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("endpoint should be present in engine before deletion")
           .isEqualTo(1);
 
@@ -122,7 +135,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
       deleteAndWait(List.of(endpointId));
 
       // Assert
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("endpoint should have been removed from the engine index after bulkDelete")
           .isZero();
     }
@@ -148,7 +161,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
 
       indexAndWait();
 
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("both endpoints should be present in engine before deletion")
           .isEqualTo(2);
 
@@ -156,7 +169,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
       deleteAndWait(List.of(endpointAId, endpointBId));
 
       // Assert
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as(
               "all endpoints should have been removed from the engine index after"
                   + " bulkDelete with multiple IDs")
@@ -177,7 +190,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
 
       indexAndWait();
 
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("both endpoints should be present before partial deletion")
           .isEqualTo(2);
 
@@ -185,9 +198,85 @@ class EngineServiceIntegrationTest extends IntegrationTest {
       deleteAndWait(List.of(endpointToDeleteId));
 
       // Assert
-      assertThat(queryEndpoints().getTotal())
+      assertThat(queryEndpoints(TxCtx.allTenants()).getTotal())
           .as("only the targeted endpoint should have been deleted; the other must remain")
           .isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant scope (#6462)")
+  class TenantScope {
+
+    @Test
+    @DisplayName(
+        "given two tenants with an indexed asset each, a restricted scope should see only its own"
+            + " tenant's asset")
+    void given_twoTenants_restrictedScope_should_seeOnlyOwnTenantAsset() throws Exception {
+      // Arrange
+      String tenantA = tenantHelper.createTenantWithCurrentUser("engine-scope-tenant-a").getId();
+      String tenantB = tenantHelper.createTenantWithCurrentUser("engine-scope-tenant-b").getId();
+      String endpointAId = persistEndpointForTenant(tenantA, "ep-tenant-a");
+      String endpointBId = persistEndpointForTenant(tenantB, "ep-tenant-b");
+
+      indexAndWait();
+
+      // Act
+      EsEntities tenantARead = queryEndpoints(TxCtx.forTenant(tenantA));
+      EsEntities tenantBRead = queryEndpoints(TxCtx.forTenant(tenantB));
+
+      // Assert: non-empty positive results first, distinguishing "filtered" from "empty"
+      assertThat(tenantARead.getTotal()).as("tenant A scope must see its own asset").isEqualTo(1);
+      assertThat(tenantARead.getEsDatas().getFirst().getBase_id()).isEqualTo(endpointAId);
+      assertThat(tenantBRead.getTotal()).as("tenant B scope must see its own asset").isEqualTo(1);
+      assertThat(tenantBRead.getEsDatas().getFirst().getBase_id()).isEqualTo(endpointBId);
+    }
+
+    @Test
+    @DisplayName("given a missing scope should see no tenant-scoped asset (fail-closed)")
+    void given_missingScope_should_seeNoAsset() throws Exception {
+      // Arrange
+      String tenantA = tenantHelper.createTenantWithCurrentUser("engine-scope-missing-a").getId();
+      persistEndpointForTenant(tenantA, "ep-missing-scope");
+
+      indexAndWait();
+
+      // Sanity: the asset is genuinely indexed and reachable with the right scope, so an empty
+      // result below is a filter, not an empty index.
+      assertThat(queryEndpoints(TxCtx.forTenant(tenantA)).getTotal())
+          .as("sanity: the asset is indexed and visible under its own tenant scope")
+          .isEqualTo(1);
+
+      // Act
+      EsEntities missingRead = queryEndpoints(TxCtx.missing());
+
+      // Assert
+      assertThat(missingRead.getTotal())
+          .as("a missing scope must deny every tenant-scoped document")
+          .isZero();
+    }
+
+    @Test
+    @DisplayName("given an allTenants scope should see every tenant's asset")
+    void given_allTenantsScope_should_seeEveryTenantAsset() throws Exception {
+      // Arrange
+      String tenantA = tenantHelper.createTenantWithCurrentUser("engine-scope-all-a").getId();
+      String tenantB = tenantHelper.createTenantWithCurrentUser("engine-scope-all-b").getId();
+      String endpointAId = persistEndpointForTenant(tenantA, "ep-all-a");
+      String endpointBId = persistEndpointForTenant(tenantB, "ep-all-b");
+
+      indexAndWait();
+
+      // Act
+      EsEntities allTenantsRead = queryEndpoints(TxCtx.allTenants());
+
+      // Assert
+      assertThat(allTenantsRead.getTotal())
+          .as("a platform read must see every tenant's asset")
+          .isEqualTo(2);
+      assertThat(allTenantsRead.getEsDatas())
+          .extracting(EsBase::getBase_id)
+          .containsExactlyInAnyOrder(endpointAId, endpointBId);
     }
   }
 }

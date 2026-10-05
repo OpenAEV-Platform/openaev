@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
+import io.openaev.export.FileExportBase;
 import io.openaev.export.Mixins;
 import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -17,6 +18,7 @@ import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
 import io.openaev.service.chaining.WorkflowService;
+import io.openaev.service.organization.OrganizationService;
 import jakarta.annotation.Resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -38,6 +40,7 @@ public class ExportService {
   @Resource private FileService fileService;
   @Resource private WorkflowService workflowService;
   @Resource private WorkflowExportInitializer workflowExportInitializer;
+  @Resource private OrganizationService organizationService;
 
   public String getZipFileName(
       Exercise exercise, int exportOptionsMask, boolean isChaining, boolean isWithScopeDefinition) {
@@ -76,7 +79,11 @@ public class ExportService {
 
     ExerciseFileExport importExport =
         ExerciseFileExport.fromExercise(
-                exercise, objectMapper, this.challengeService, this.articleService)
+                exercise,
+                objectMapper,
+                this.challengeService,
+                this.articleService,
+                this.organizationService)
             .withOptions(exportOptionsMask);
     boolean isChaining = workflowService.isSimulationChaining(exercise.getId());
     if (isChaining) {
@@ -110,6 +117,7 @@ public class ExportService {
     zipEntry.setComment(EXPORT_ENTRY_EXERCISE);
     zipExport.putNextEntry(zipEntry);
     ObjectNode exportNode = importExport.getObjectMapper().valueToTree(importExport);
+    FileExportBase.dropForeignOrganizationReferences(exportNode, "exercise");
     workflowExportInitializer.enrichWorkflowDataForExport(
         exportNode, "exercise_workflow", importExport.getObjectMapper());
     zipExport.write(
@@ -125,7 +133,12 @@ public class ExportService {
             docId -> {
               Document doc =
                   documentRepository.findById(docId).orElseThrow(ElementNotFoundException::new);
-              Optional<InputStream> docStream = fileService.getFile(doc);
+              // Include a document's bytes only when it belongs to the exercise's tenant: a
+              // document
+              // bound from another tenant is skipped, as if the object were missing.
+              Optional<InputStream> docStream =
+                  fileService.getFile(
+                      doc, exercise.getTenant() == null ? null : exercise.getTenant().getId());
               if (docStream.isPresent()) {
                 try {
                   ZipEntry zipDoc = new ZipEntry(doc.getTarget());

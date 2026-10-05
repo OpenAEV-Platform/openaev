@@ -45,7 +45,6 @@ import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
-import io.openaev.rest.exception.ChainingOperationNotSupportedException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExerciseBulkProcessingInput;
 import io.openaev.rest.exercise.form.ExerciseSimple;
@@ -60,6 +59,7 @@ import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -88,6 +88,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -154,6 +155,7 @@ public class ExerciseService {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   private final WorkflowService workflowService;
+  private final WorkflowPauseService workflowPauseService;
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
@@ -231,6 +233,18 @@ public class ExerciseService {
     return this.exerciseRepository
         .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+  }
+
+  /**
+   * Initializes the lazy {@code exercise_documents} a raw {@link Exercise} response serializes as
+   * an id array. Serialization runs open-in-view after the controller transaction has committed,
+   * where the tenant scope no longer exists: a lazy load at that point fails closed and the array
+   * comes back empty. Call it on the endpoints that manage the exercise documents and return the
+   * entity.
+   */
+  public Exercise withDocumentLinksInitialized(Exercise exercise) {
+    Hibernate.initialize(exercise.getDocuments());
+    return exercise;
   }
 
   public RawSimulationIndexing rawSimulation(@NotBlank final String simulationId) {
@@ -600,11 +614,12 @@ public class ExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
-    // Attack-path rows have no FK to the simulation, so the native exercise delete does not cascade
-    // them: clear them explicitly under the caller's tenant (same primitive as the reset path),
-    // otherwise a deleted simulation leaves orphan attack-path executions and findings behind.
-    attackPathExecutionService.deleteAllBySimulationId(
-        simulationId, TenantContext.getCurrentTenant());
+
+    if (workflowService.isSimulationChaining(simulationId)) {
+      workflowService.deleteSimulationDeleteWorkflows(simulationId);
+      log.info("[Chaining] Workflow TEMPLATE will be deleted for simulation {}", simulationId);
+    }
+
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
     // must be notified explicitly or the simulation (and its cascade-deleted injects,
@@ -674,9 +689,6 @@ public class ExerciseService {
   }
 
   // Still declares ChainingException: startWorkflowBySimulationId (chaining engine start)
-  // propagates that checked exception. The pause refusal no longer travels through it - it is now
-  // the unchecked ChainingOperationNotSupportedException, mapped to a 400 by RestBehavior instead
-  // of bubbling up unhandled as a 500.
   @Transactional(rollbackFor = Exception.class)
   public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
       throws ChainingException {
@@ -751,16 +763,11 @@ public class ExerciseService {
             }
           });
       if (workflowService.isSimulationChaining(exercise.getId())) {
-        // DELETE workflow states
-        workflowService.resetSimulationDeleteWorkflow(exercise.getId());
+        // DELETE workflow execution
+        workflowService.resetSimulationDeleteWorkflowExecution(exercise.getId());
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
-        // Delete attack path execution
-        this.attackPathExecutionService.deleteAllBySimulationId(
-            exercise.getId(), exercise.getTenant().getId());
-        // Clean scope rules of the simulation
-        workflowService.cleanScopeRulesSimulation(exercise.getId());
       }
       urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
@@ -776,10 +783,9 @@ public class ExerciseService {
     // we log the pause date to be able to recompute inject dates.
     if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
-      // Resume is deliberately NOT blocked for a chained simulation (issue #307): only pausing is
-      // unsupported by the queue-based chaining engine. A chained simulation already sitting in
-      // PAUSED (created before that block, or from a historical state) must remain resumable -
-      // the UI keeps offering its Resume button - otherwise it would be stuck forever.
+      // A chained simulation also resumes its workflow run (ADR-010): the paused duration is added
+      // to the delay goals, READY steps are re-enqueued and progress is re-evaluated so outputs
+      // recorded while paused produce their READY steps. The run may end right there.
       Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
       exercise.setCurrentPause(null);
       Pause pause = new Pause();
@@ -787,27 +793,31 @@ public class ExerciseService {
       pause.setExercise(exercise);
       pause.setDuration(between(lastPause, now()).getSeconds());
       pauseRepository.save(pause);
+      if (workflowService.isSimulationChaining(exercise.getId())) {
+        boolean isEnded = workflowPauseService.resumeSimulationWorkflowRuns(exercise.getId());
+        if (isEnded) {
+          return this.exercise(
+              exerciseId); // Reload the exercise to get the updated status after the workflow has
+          // ended
+        }
+      }
     }
     // If pause is asked, just set the pause date.
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
-      // Pausing a chained simulation is unsupported (issue #307): the chaining engine is
-      // queue-based and has no pause semantics. Autonomous (AI-driven) runs need first-class
-      // steering though, so the block is lifted for them: the orchestrator relies on being able
-      // to pause and resume the underlying chained simulation.
-      if (workflowService.isSimulationChaining(exercise.getId())
-          && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
-        throw new ChainingOperationNotSupportedException(
-            "Pausing a chained simulation is not allowed yet, please contact support");
-      }
       exercise.setCurrentPause(Instant.now());
+      if (workflowService.isSimulationChaining(exercise.getId())) {
+        workflowPauseService.pauseSimulationWorkflowRuns(exercise.getId());
+      }
     }
-    // Cancelation
-    if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
+    // Cancelation, from a running or a paused simulation
+    if ((ExerciseStatus.RUNNING.equals(exercise.getStatus())
+            || ExerciseStatus.PAUSED.equals(exercise.getStatus()))
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
-      // End WORKFLOW + STEP + delete workflow states
-      List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
+      // End WORKFLOW + STEP + delete workflow states. A paused run is STOP, not RUN: it must be
+      // ended too, or the simulation is CANCELED while its workflow stays parked forever.
+      List<Workflow> run = workflowService.findActiveWorkflowBySimulationId(exercise.getId());
       if (!run.isEmpty()) {
         workflowService.cancelSimulationEndWorkflowRun(run);
 
@@ -831,39 +841,6 @@ public class ExerciseService {
     exercise.setUpdatedAt(now());
     exercise.setStatus(status);
     return exerciseRepository.save(exercise);
-  }
-
-  private void resetExercise(Exercise exercise) {
-    // 1. DELETE PAUSES
-    pauseExerciseService.deleteAllPauseByExerciseId(exercise.getId());
-
-    // 2. RESET INJECTS (status, communications, findings, expectations, collect status)
-    // Fetched separately from exercise.getInjects() for performance (avoids Eager loading overhead)
-    injectService.resetInjectByExerciseId(exercise.getId());
-
-    // 3. RESET LESSONS ANSWERS
-    lessonsService.resetLessonsAnswer(exercise.getId());
-
-    // 4. CLEAR WORKFLOW STATES
-    workflowService.resetSimulationDeleteWorkflow(exercise.getId());
-
-    // 5. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            try {
-              fileService.deleteDirectory(exercise.getId());
-            } catch (Exception e) {
-              log.error("Failed to delete directory for exercise {}", exercise.getId(), e);
-            }
-          }
-        });
-
-    // 6. RESET EXERCISE DATES
-    exercise.setStart(null);
-    exercise.setEnd(null);
-    exercise.setCurrentPause(null);
   }
 
   public void throwIfExerciseNotLaunchable(Exercise exercise) {

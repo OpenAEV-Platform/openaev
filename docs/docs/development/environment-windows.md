@@ -90,10 +90,10 @@ This starts:
 
 | Service | Port | Description |
 |---|---|---|
-| PostgreSQL 17 | 5432 | Database |
-| Silo | 10000, 10001 | S3-compatible object storage (MinIO fork) |
-| Elasticsearch 8 | 9200 | Analytics engine |
-| RabbitMQ 4 | 5672, 15672 | Message broker |
+| PostgreSQL | 5432 | Database |
+| Silo | 10000, 10001 | S3-compatible object storage |
+| Elasticsearch | 9200 | Analytics engine |
+| RabbitMQ | 5672, 15672 | Message broker |
 
 !!! warning
 
@@ -104,3 +104,4 @@ This starts:
 - [Platform development](platform.md) -- Build and run OpenAEV from source
 - [Build from source](build-from-source.md) -- Detailed build instructions
 - [Prerequisites Ubuntu](environment-ubuntu.md) -- Linux setup instructions
+- [Prerequisites macOS](environment-macos.md) -- macOS setup instructions

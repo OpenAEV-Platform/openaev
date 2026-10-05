@@ -43,9 +43,9 @@ import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
-import io.openaev.utils.IpAddressUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
+import io.openaev.validator.IpAddressUtils;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -177,6 +177,19 @@ public class InjectExecutionStep implements ActionStep {
     readyStep.setData(bakeTargetIntoStepData(stepTemplate.getData(), input));
 
     return Optional.of(readyStep);
+  }
+
+  /**
+   * A READY step that already ran carries the id of the inject it created ({@link #run} bakes it
+   * into the step data): its presence means this READY request is a duplicate.
+   */
+  @Override
+  public boolean isAlreadyRun(Step readyStep) {
+    if (readyStep.getData() == null) {
+      return false;
+    }
+    String injectId = StepService.getField(readyStep.getData(), "inject_id");
+    return injectId != null && !injectId.isBlank();
   }
 
   /**
@@ -1144,11 +1157,11 @@ public class InjectExecutionStep implements ActionStep {
       // Resolve and re-parent the document links deserialized from the step data. The element
       // deserializer only produces id-carrying stubs (a query inside it would cost one database
       // round trip per attachment), so all referenced documents are resolved here through a
-      // single JPQL query: unlike a primary-key find, the query goes through Hibernate's enabled
-      // filters, so tenantFilter applies and a stale or crafted step referencing a deleted or
-      // foreign-tenant document degrades to "no attachment" instead of failing the step.
-      // Surviving links are re-parented because the @MapsId composite id needs both associations
-      // before run() cascade-persists this inject.
+      // single JPQL query. documents is v2-active, so the statement inspector scopes this query to
+      // the run's tenant (the queue run opens a TenantScopedTransaction on the inject's tenant): a
+      // stale or crafted step referencing a deleted or foreign-tenant document degrades to "no
+      // attachment" instead of failing the step. Surviving links are re-parented because the
+      // @MapsId composite id needs both associations before run() cascade-persists this inject.
       List<InjectDocument> injectDocuments = inject.getDocuments();
       if (injectDocuments != null && !injectDocuments.isEmpty()) {
         injectDocuments.removeIf(Objects::isNull);

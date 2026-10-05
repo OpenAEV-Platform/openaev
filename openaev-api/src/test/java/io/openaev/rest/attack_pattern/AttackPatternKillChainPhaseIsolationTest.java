@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * transaction, so a tenant sees its own phases and never another tenant's.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases")
+@TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases,attack_patterns")
 @WithMockUser(isAdmin = true)
 @DisplayName("kill_chain_phases isolation through the attack pattern association")
 class AttackPatternKillChainPhaseIsolationTest extends IntegrationTest {
@@ -79,20 +79,12 @@ class AttackPatternKillChainPhaseIsolationTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("under tenant A's path: B's pattern exposes none of B's phases")
+  @DisplayName("under tenant A's path: B's pattern is not reachable at all")
   void crossTenantPatternExposesNoPhase() throws Exception {
-    // attack_patterns is NOT tenant-active yet, so B's pattern itself is still reachable here. What
-    // this activation guarantees is narrower and is exactly what is asserted: the phases hanging
-    // off
-    // it belong to B, so under A's scope the association resolves to nothing.
-    String response =
-        mvc.perform(get(TENANT_PATTERN_BY_ID, tenantA, patternB))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    assertFalse(response.contains(phaseB), "B's phase must not be readable under A's scope");
-    assertFalse(response.contains(phaseA), "A's phase is not linked to B's pattern");
+    // attack_patterns is tenant-active too, so the pattern itself is now out of A's scope and the
+    // lookup is a 404. Before that activation this returned 200 with an empty phase list, which
+    // was the narrower guarantee kill_chain_phases alone could give.
+    mvc.perform(get(TENANT_PATTERN_BY_ID, tenantA, patternB)).andExpect(status().isNotFound());
   }
 
   @Test

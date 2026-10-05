@@ -129,13 +129,16 @@ public class EndpointApi extends RestBehavior {
     return this.endpointService.getEndpointJobs(input);
   }
 
+  // Deprecated but kept open to ResourceType.JOB (not ASSET) so old agents relying on this API to
+  // fetch their jobs can still upgrade: ASSET would let any asset-management user (ACCESS_ASSETS)
+  // leak jobs/tokens for any endpoint, whereas JOB is only granted via AGENT_RUNTIME_ACCESS.
   @Deprecated(since = "1.11.0")
   @LogExecutionTime
   @GetMapping({
     ENDPOINT_URI + "/jobs/{endpointExternalReference}",
     TENANT_ENDPOINT_URI + "/jobs/{endpointExternalReference}"
   })
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(
       TxCtx ctx, @PathVariable @NotBlank final String endpointExternalReference) {
@@ -149,6 +152,8 @@ public class EndpointApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
+  // ctx is unused directly: the aspect reads it to scope this transaction against asset_agent_jobs,
+  // which is v2-active; the inspector validates that the row this DELETE touches is in scope.
   public void cleanupAssetAgentJob(
       TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
     this.assetAgentJobRepository
@@ -167,6 +172,8 @@ public class EndpointApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
+  // ctx is unused directly: the aspect reads it to scope this transaction against asset_agent_jobs,
+  // which is v2-active; the inspector validates that the row this DELETE touches is in scope.
   public void cleanupAssetAgentJobDepreacted(
       TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
     this.assetAgentJobRepository.deleteById(assetAgentJobId);

@@ -11,7 +11,9 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.service.UserService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +45,7 @@ public class MarkingDefinitionApi extends RestBehavior {
 
   private final MarkingDefinitionService service;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final UserService userService;
 
   // -- SEARCH --
 
@@ -55,6 +58,31 @@ public class MarkingDefinitionApi extends RestBehavior {
       description = "Get the list of marking definitions")
   public List<MarkingDefinitionOutput> list(TxCtx ctx) {
     return service.list(ctx).stream().map(MarkingDefinitionMapper::toOutput).toList();
+  }
+
+  @LogExecutionTime
+  @GetMapping("/assignable")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(
+      summary = "Get the marking definitions the current user may assign",
+      description =
+          "The tenant's marking definitions narrowed to the caller's own clearance (cumulative per"
+              + " type - holding TLP:AMBER also covers TLP:GREEN and TLP:CLEAR), the same rule"
+              + " enforced server-side when a marking is actually assigned. Built for an assignment"
+              + " picker: every definition returned here is one a submission is actually allowed to"
+              + " include.")
+  public List<MarkingDefinitionOutput> assignable(TxCtx ctx) {
+    // tenantForWrite is a "write scope" resolver by name, but what it actually does - resolve the
+    // request scope to exactly one tenant or refuse an ambiguous one - is exactly what a clearance
+    // lookup needs too; this endpoint doesn't write anything.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    User currentUser = userService.currentUser();
+    return service
+        .listAssignable(ctx, tenantId, currentUser.getId(), currentUser.isAdminOrBypass())
+        .stream()
+        .map(MarkingDefinitionMapper::toOutput)
+        .toList();
   }
 
   @LogExecutionTime

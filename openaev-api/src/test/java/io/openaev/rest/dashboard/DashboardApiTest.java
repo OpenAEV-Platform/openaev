@@ -19,12 +19,12 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.engine.EngineContext;
-import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.api.EngineSortField;
 import io.openaev.engine.api.HistogramInterval;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.SortDirection;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.es.EntitiesPaginationInput;
@@ -124,6 +124,12 @@ class DashboardApiTest extends IntegrationTest {
     for (EsModel<?> model : engineContext.getModels()) {
       engineService.cleanUpIndex(model.getName());
     }
+
+    // The mock admin user carries no users_tenants row by default (see
+    // TenantIsolationTestHelper#attachCurrentUserToTenant), so the engine read's TxCtx would
+    // resolve to missing() and every widget query below would see nothing. Every fixture in this
+    // class is stamped with the ambient default tenant, so grant real membership there.
+    tenantIsolationHelper.attachCurrentUserToTenant(TenantContext.getCurrentTenant());
   }
 
   @Nested
@@ -1068,12 +1074,13 @@ class DashboardApiTest extends IntegrationTest {
     @Test
     @DisplayName("Given security coverage widget should return list of inject expectations")
     void given_securityCoverageWidget_should_returnListOfInjectExpectations() throws Exception {
+      String tenantId = TenantContext.getCurrentTenant();
       AttackPattern attackPattern1 =
-          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern(tenantId));
       AttackPattern attackPattern2 =
-          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern(tenantId));
       AttackPattern attackPattern3 =
-          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
+          attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern(tenantId));
       Inject inject1 =
           createTechnicalInject(
               null,

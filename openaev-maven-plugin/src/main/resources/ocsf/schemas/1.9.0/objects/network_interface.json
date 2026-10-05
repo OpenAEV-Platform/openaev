@@ -1,0 +1,118 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the network interface.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The type of network interface.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "ip" : {
+      "type" : "ip_t",
+      "description" : "The IP address associated with the network interface.",
+      "requirement" : "recommended",
+      "caption" : "IP Address",
+      "type_name" : "IP Address"
+    },
+    "hostname" : {
+      "type" : "hostname_t",
+      "description" : "The hostname associated with the network interface.",
+      "requirement" : "recommended",
+      "caption" : "Hostname",
+      "type_name" : "Hostname"
+    },
+    "mac" : {
+      "type" : "mac_t",
+      "description" : "The MAC address of the network interface.",
+      "requirement" : "recommended",
+      "caption" : "MAC Address",
+      "type_name" : "MAC Address"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier for the network interface.",
+      "requirement" : "optional",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "namespace" : {
+      "type" : "string_t",
+      "description" : "The namespace is useful in merger or acquisition situations. For example, when similar entities exist that you need to keep separate.",
+      "requirement" : "optional",
+      "caption" : "Namespace",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "Mobile"
+        },
+        "0" : {
+          "description" : "The type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Wired"
+        },
+        "2" : {
+          "caption" : "Wireless"
+        },
+        "99" : {
+          "description" : "The type is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "Tunnel"
+        }
+      },
+      "description" : "The network interface type identifier.",
+      "requirement" : "recommended",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "open_ports" : {
+      "type" : "object_t",
+      "description" : "The list of open ports on a network interface, including port numbers and associated protocol information.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Open Ports",
+      "object_type" : "port_info",
+      "object_name" : "Port Information"
+    },
+    "subnet_prefix" : {
+      "type" : "integer_t",
+      "description" : "The subnet prefix length determines the number of bits used to represent the network part of the IP address. The remaining bits are reserved for identifying individual hosts within that subnet.",
+      "requirement" : "optional",
+      "caption" : "Subnet Prefix Length",
+      "type_name" : "Integer"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "network_interface",
+  "description" : "The Network Interface object describes the type and associated attributes of a physical or virtual network interface.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "ip", "mac", "name", "hostname", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:NetworkInterfaceCard.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:NetworkInterfaceCard/"
+  } ],
+  "caption" : "Network Interface",
+  "_links" : [ ]
+}

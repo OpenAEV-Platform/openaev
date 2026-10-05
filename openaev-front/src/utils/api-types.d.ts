@@ -588,6 +588,7 @@ export interface Asset {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -800,6 +801,24 @@ export interface AssetGroupTarget {
     | "SUCCESS";
 }
 
+export interface AssetMarkingsOutput {
+  /**
+   * Asset Id
+   * @minLength 1
+   */
+  asset_id: string;
+  /**
+   * Markings currently carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
+   * Asset name
+   * @minLength 1
+   */
+  asset_name: string;
+}
+
 export interface AssetOptionOutput {
   /** Product-facing asset category, used to group options in pickers */
   category?: string;
@@ -971,6 +990,10 @@ export interface AssetSnapshotOutput {
   asset_snapshot_name?: string;
 }
 
+export interface AssetUpdateMarkingsInput {
+  asset_markings: string[];
+}
+
 export interface AtomicInjectorContractOutput {
   convertedContent?: object;
   /** @minLength 1 */
@@ -1011,6 +1034,91 @@ export interface AtomicTestingInput {
 
 export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
+}
+
+export interface AttackObservationOutput {
+  /** Asset id */
+  asset_id?: string;
+  /** Asset name */
+  asset_name?: string;
+  /** Attack pattern external id */
+  attack_pattern_external_id?: string;
+  /** Attack pattern name */
+  attack_pattern_name?: string;
+  /**
+   * Successful attempts
+   * @format int64
+   */
+  attempts_success?: number;
+  /**
+   * Total attempts
+   * @format int64
+   */
+  attempts_total?: number;
+  /**
+   * Coverage ratio
+   * @format double
+   */
+  coverage_ratio?: number;
+  /** Endpoint hostname, null for an asset that is not an endpoint */
+  endpoint_hostname?: string;
+  /** Endpoint platform, null for an asset that is not an endpoint */
+  endpoint_platform?: string;
+  /** Expectation status */
+  expectation_status?: string;
+  /** Expectation type */
+  expectation_type?: string;
+  /** Observation id */
+  id?: string;
+  /** Id of the inject of the latest verified attempt */
+  last_inject_id?: string;
+  /** Id of the last simulation that produced this observation */
+  last_simulation_id?: string;
+  /** Name of the last simulation that produced this observation */
+  last_simulation_name?: string;
+  /**
+   * Start date of the last simulation that produced this observation
+   * @format date-time
+   */
+  last_simulation_start_date?: string;
+  /** Status of the last simulation that produced this observation */
+  last_simulation_status?: string;
+  /**
+   * Last verification timestamp
+   * @format date-time
+   */
+  last_verified_at?: string;
+  /**
+   * Types of the security platforms that reported on this technique
+   * @uniqueItems true
+   */
+  platform_types_reporting?: string[];
+  /**
+   * Types of the security platforms that succeeded
+   * @uniqueItems true
+   */
+  platform_types_succeeded?: string[];
+  /**
+   * Ids of the security platforms that reported on this technique
+   * @uniqueItems true
+   */
+  platforms_reporting?: string[];
+  /**
+   * Ids of the security platforms that succeeded
+   * @uniqueItems true
+   */
+  platforms_succeeded?: string[];
+  /** Scenario id */
+  scenario_id?: string;
+  /** Scenario name */
+  scenario_name?: string;
+  /** Tenant name */
+  tenant_name?: string;
+  /**
+   * Last update timestamp
+   * @format date-time
+   */
+  updated_at?: string;
 }
 
 export interface AttackPathAlertDTO {
@@ -1868,6 +1976,108 @@ export type AverageConfiguration = UtilRequiredKeys<
   series: Series[];
 };
 
+export type AwsAccessKey = Value & {
+  aws_access_key_id?: string;
+  aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  aws_secret_access_key?: string;
+  aws_session_token?: string;
+};
+
+export type AwsAssumeRole = Value & {
+  aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  aws_external_id?: string;
+  aws_role_arn?: string;
+  aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
+  aws_source_profile_access_key_id?: string;
+  aws_source_profile_secret_access_key?: string;
+};
+
+export type AzureManagedIdentity = Value & {
+  azure_client_id?: string;
+  azure_environment?: string;
+  azure_subscription_id?: string;
+};
+
+export type AzureServicePrincipal = Value & {
+  azure_client_id?: string;
+  azure_client_secret?: string;
+  azure_environment?: string;
+  azure_subscription_id?: string;
+  azure_tenant_id?: string;
+};
+
 interface BaseEsBase {
   /** @format date-time */
   base_created_at?: string;
@@ -2351,11 +2561,6 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_id?: string;
   catalog_connector_logo_url?: string;
   catalog_connector_short_description?: string;
-}
-
-export interface ChainingOutput {
-  conditions?: EventOutput[];
-  steps?: StepOutput[];
 }
 
 export interface Challenge {
@@ -3936,6 +4141,7 @@ export interface Endpoint {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -4226,6 +4432,11 @@ export interface EndpointOutput {
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
   /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
+  /**
    * Asset name
    * @minLength 1
    */
@@ -4424,6 +4635,11 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_mac_addresses?: string[];
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /** Free-form category-specific attributes */
   asset_metadata?: Record<string, any>;
   /**
@@ -4826,6 +5042,54 @@ export interface EsAssetGroup {
   name?: string;
 }
 
+export interface EsAttackObservation {
+  asset_hostname?: string;
+  asset_name?: string;
+  attack_observation_attack_pattern_external_id?: string;
+  attack_observation_attack_pattern_name?: string;
+  /** @format int64 */
+  attack_observation_attempts_success?: number;
+  /** @format int64 */
+  attack_observation_attempts_total?: number;
+  /** @format double */
+  attack_observation_coverage_ratio?: number;
+  attack_observation_expectation_type?: string;
+  /** @format date-time */
+  attack_observation_last_verified_at?: string;
+  /** @uniqueItems true */
+  attack_observation_platform_types_reporting?: string[];
+  /** @uniqueItems true */
+  attack_observation_platform_types_succeeded?: string[];
+  /** @uniqueItems true */
+  attack_observation_platforms_succeeded?: string[];
+  attack_observation_scenario_name?: string;
+  attack_observation_simulation_name?: string;
+  /** @format date-time */
+  attack_observation_simulation_start_date?: string;
+  attack_observation_simulation_status?: string;
+  attack_observation_status?: string;
+  attack_observation_tenant_name?: string;
+  base_asset_side?: string;
+  /** @uniqueItems true */
+  base_attack_patterns_side?: string[];
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  base_id?: string;
+  base_inject_side?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  base_scenario_side?: string;
+  /** @uniqueItems true */
+  base_security_platforms_side?: string[];
+  base_simulation_side?: string;
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_platform?: string;
+}
+
 export interface EsAttackPath {
   /** @uniqueItems true */
   attackPatternChildrenIds?: string[];
@@ -4882,6 +5146,14 @@ export type EsBase = BaseEsBase &
     | BaseEsBaseBaseEntityMapping<"security-platform", EsSecurityPlatform>
     | BaseEsBaseBaseEntityMapping<"security-domain", EsSecurityDomain>
     | BaseEsBaseBaseEntityMapping<"asset-group", EsAssetGroup>
+    | BaseEsBaseBaseEntityMapping<
+        "snapshot-attack-observation",
+        EsAttackObservation
+      >
+    | BaseEsBaseBaseEntityMapping<
+        "snapshot-vulnerability-observation",
+        EsVulnerabilityObservation
+      >
   );
 
 export interface EsCountInterval {
@@ -5157,6 +5429,35 @@ export interface EsTeam {
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
+}
+
+export interface EsVulnerabilityObservation {
+  asset_hostname?: string;
+  asset_name?: string;
+  base_asset_side?: string;
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  /** @uniqueItems true */
+  base_findings_side?: string[];
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  base_scenario_side?: string;
+  base_simulation_side?: string;
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_platform?: string;
+  finding_type?: string;
+  finding_value?: string;
+  vulnerability_observation_external_id?: string;
+  /** @format date-time */
+  vulnerability_observation_last_verified_at?: string;
+  vulnerability_observation_scenario_name?: string;
+  vulnerability_observation_simulation_name?: string;
+  vulnerability_observation_tenant_name?: string;
 }
 
 export interface EsVulnerableEndpoint {
@@ -6328,6 +6629,21 @@ export interface FullTextSearchResult {
   tags?: Tag[];
 }
 
+export type GcpOAuth2 = Value & {
+  gcp_oauth_client_id?: string;
+  gcp_oauth_client_secret?: string;
+  gcp_oauth_refresh_token?: string;
+  gcp_project_id?: string;
+  gcp_scope?: string;
+};
+
+export type GcpServiceAccount = Value & {
+  /** @format byte */
+  gcp_private_key_json?: Blob;
+  gcp_project_id?: string;
+  gcp_scope?: string;
+};
+
 export interface GetExercisesInput {
   exercise_ids?: string[];
 }
@@ -6365,6 +6681,7 @@ export interface Group {
   group_grants?: Grant[];
   /** @minLength 1 */
   group_id: string;
+  group_markings?: string[];
   /** @minLength 1 */
   group_name: string;
   group_roles?: string[];
@@ -6384,6 +6701,10 @@ export interface GroupGrantInput {
     | "UNKNOWN";
 }
 
+export interface GroupUpdateMarkingsInput {
+  group_markings: string[];
+}
+
 export interface GroupUpdateRolesInput {
   /** List of role ids associated with the group */
   group_roles?: string[];
@@ -6392,6 +6713,11 @@ export interface GroupUpdateRolesInput {
 export interface GroupUpdateUsersInput {
   group_users?: string[];
 }
+
+export type Hash = Value & {
+  hash?: string;
+  hash_algorithm?: "SHA" | "NTLM";
+};
 
 export interface HealthCheck {
   /**
@@ -6430,6 +6756,33 @@ export interface HealthCheck {
     | "MESSAGE"
     | "SCOPE_DEFINITION"
     | "UNKNOWN";
+}
+
+/** Detailed health check response. */
+export interface HealthCheckDetailsOutput {
+  /**
+   * Size used by the object storage bucket, in bytes
+   * @format int64
+   * @example 20971520
+   */
+  s3_used_size?: number;
+  /**
+   * Size used by the analytics engine indexes (replicas excluded), in bytes
+   * @format int64
+   * @example 524288000
+   */
+  es_used_size?: number;
+  /**
+   * Size used by the PostgreSQL database, in bytes
+   * @format int64
+   * @example 104857600
+   */
+  pg_used_size?: number;
+  /**
+   * Status of the platform
+   * @example "success"
+   */
+  status?: string;
 }
 
 export interface ImportMapper {
@@ -6581,6 +6934,13 @@ export interface InjectAssistantInput {
    * @format int32
    */
   inject_by_ttp_number: number;
+}
+
+export interface InjectAttachmentInput {
+  /** @minLength 1 */
+  attachment_id: string;
+  /** @minLength 1 */
+  authorisation: string;
 }
 
 export interface InjectAuthorisation {
@@ -8007,6 +8367,7 @@ export interface License {
   license_is_valid_product?: boolean;
   license_is_validated?: boolean;
   license_platform?: string;
+  license_source?: "openaev" | "xtm_one";
   /** @format date-time */
   license_start_date?: string;
   license_type?: "trial" | "nfr" | "standard" | "lts";
@@ -8114,8 +8475,11 @@ export interface MapperConditionOutput {
 }
 
 export interface MarkingDefinitionInput {
-  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
-  marking_definition_color?: string;
+  /**
+   * @minLength 1
+   * @pattern ^#[0-9a-fA-F]{6}$
+   */
+  marking_definition_color: string;
   /** @minLength 1 */
   marking_definition_definition: string;
   /**
@@ -8128,7 +8492,8 @@ export interface MarkingDefinitionInput {
 }
 
 export interface MarkingDefinitionOutput {
-  marking_definition_color?: string;
+  /** @minLength 1 */
+  marking_definition_color: string;
   /** @format date-time */
   marking_definition_created_at: string;
   /** @minLength 1 */
@@ -8335,6 +8700,7 @@ export interface NotificationTriggerInput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -8350,6 +8716,7 @@ export interface NotificationTriggerInput {
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
     | "MARKING_DEFINITION"
+    | "MARKING_ASSIGNMENT"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -8390,6 +8757,7 @@ export interface NotificationTriggerInput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "SNAPSHOT_OBSERVATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -8444,6 +8812,7 @@ export interface NotificationTriggerOutput {
   notification_trigger_resource_type?:
     | "ASSET"
     | "AGENT"
+    | "AGENT_INSTALLER"
     | "SCENARIO"
     | "SIMULATION"
     | "PLAYER"
@@ -8459,6 +8828,7 @@ export interface NotificationTriggerOutput {
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
     | "MARKING_DEFINITION"
+    | "MARKING_ASSIGNMENT"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -8499,6 +8869,7 @@ export interface NotificationTriggerOutput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "SNAPSHOT_OBSERVATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -8684,7 +9055,7 @@ export interface PageAggregatedFindingOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8703,7 +9074,7 @@ export interface PageAsset {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8722,7 +9093,7 @@ export interface PageAssetGroupOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8741,7 +9112,7 @@ export interface PageAssetOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8760,7 +9131,7 @@ export interface PageAttackPatternOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8779,7 +9150,7 @@ export interface PageConnectorInstanceLog {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8798,7 +9169,7 @@ export interface PageCredentialOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8817,7 +9188,7 @@ export interface PageCustomDashboard {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8836,7 +9207,7 @@ export interface PageCustomDomain {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8855,7 +9226,7 @@ export interface PageEndpointOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8874,7 +9245,7 @@ export interface PageEndpointTargetOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8893,7 +9264,7 @@ export interface PageExerciseSimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8950,7 +9321,7 @@ export interface PageFullTextSearchResult {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8969,7 +9340,7 @@ export interface PageGroup {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -8988,7 +9359,7 @@ export interface PageInjectResultOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9007,7 +9378,7 @@ export interface PageInjectTarget {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9026,7 +9397,7 @@ export interface PageInjectTestStatusOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9045,7 +9416,7 @@ export interface PageInjectorContractBaseOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9064,7 +9435,7 @@ export interface PageKillChainPhase {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9083,7 +9454,7 @@ export interface PageLessonsTemplate {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9102,7 +9473,7 @@ export interface PageMarkingDefinitionOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9121,7 +9492,7 @@ export interface PageMitigation {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9140,7 +9511,7 @@ export interface PageNotificationOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9159,7 +9530,7 @@ export interface PageNotificationTriggerOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9178,7 +9549,7 @@ export interface PageNotifierOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9197,7 +9568,7 @@ export interface PageOrganization {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9216,7 +9587,7 @@ export interface PagePayload {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9235,7 +9606,7 @@ export interface PagePhishingEmailTemplate {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9254,7 +9625,7 @@ export interface PagePhishingLandingPage {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9273,7 +9644,7 @@ export interface PagePlatformGroupOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9292,7 +9663,7 @@ export interface PagePlayerOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9311,7 +9682,7 @@ export interface PageRawPaginationDocument {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9330,7 +9701,7 @@ export interface PageRawPaginationImportMapper {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9349,7 +9720,7 @@ export interface PageRawPaginationScenario {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9368,7 +9739,7 @@ export interface PageRelatedFindingOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9387,7 +9758,7 @@ export interface PageReporting {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9406,7 +9777,7 @@ export interface PageRoleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9425,7 +9796,7 @@ export interface PageSecurityPlatform {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9463,7 +9834,7 @@ export interface PageTag {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9482,7 +9853,7 @@ export interface PageTagRuleOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9501,7 +9872,7 @@ export interface PageTeamOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9520,7 +9891,7 @@ export interface PageTenantOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9539,7 +9910,7 @@ export interface PageUserOutput {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -9558,7 +9929,7 @@ export interface PageVulnerabilitySimple {
   pageable?: PageableObject;
   /** @format int32 */
   size?: number;
-  sort?: SortObject[];
+  sort?: SortObject;
   /** @format int64 */
   totalElements?: number;
   /** @format int32 */
@@ -10150,6 +10521,7 @@ export interface PlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
     | "MARKING"
+    | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10210,6 +10582,8 @@ export interface PlatformSettings {
   platform_banner_by_level?: Record<string, string[]>;
   /** Base URL of the platform */
   platform_base_url?: string;
+  /** Git commit the platform was built from, when the build provides it */
+  platform_commit?: string;
   /** Definition of the dark theme */
   platform_dark_theme?: ThemeInput;
   /** id of the platform */
@@ -10260,7 +10634,7 @@ export interface PlatformSettings {
   platform_whitemark?: string;
   /** True if XTM One is configured (url and token set) */
   platform_xtm_one_configured?: boolean;
-  /** XTM One platform URL */
+  /** URL a browser opens XTM One on: the identity it publishes, else its configured URL */
   platform_xtm_one_url?: string;
   /** Current version of the PostgreSQL */
   postgre_version?: string;
@@ -10374,6 +10748,93 @@ export interface PolicyInput {
   platform_login_message?: string;
 }
 
+/** Operator capabilities of a primitive chaining type. */
+export interface PrimitiveTypeCapabilitiesOutput {
+  /** Comparing values depends on case: the case-sensitivity toggle is meaningful and must be offered. */
+  is_case_sensitivity?: boolean;
+  /** Values are numbers: the greater-than / less-than operators are meaningful and must be offered, and a value must be numeric whatever the operator. */
+  is_numeric_value?: boolean;
+}
+
+/** Operator capabilities and value format rules of a primitive chaining type, so the UI can offer the right operators and validate values without duplicating backend rules. */
+export interface PrimitiveTypeDescriptorOutput {
+  /** The primitive type this descriptor applies to. */
+  primitive_type?:
+    | "account_with_password_not_required"
+    | "action_output"
+    | "admin_username"
+    | "asreproastable_account"
+    | "asset_group_id"
+    | "asset_id"
+    | "computer_name"
+    | "cve"
+    | "delegation_account"
+    | "document"
+    | "domain"
+    | "email"
+    | "file_name"
+    | "file_path"
+    | "group_name"
+    | "hash"
+    | "host"
+    | "ipv4"
+    | "ipv6"
+    | "ip_subnet"
+    | "kerberoastable_account"
+    | "key"
+    | "number"
+    | "password"
+    | "permissions"
+    | "port"
+    | "service"
+    | "severity"
+    | "share_name"
+    | "sid"
+    | "targeted-asset"
+    | "text"
+    | "username"
+    | "value"
+    | "vulnerability_name"
+    | "vulnerability_status";
+  /** What the user can do with values of this type. */
+  primitive_type_capabilities?: PrimitiveTypeCapabilitiesOutput;
+  /** How a value of this type is validated. */
+  primitive_type_validation?: PrimitiveTypeValidationOutput;
+}
+
+/** A single value format rule. */
+export interface PrimitiveTypeFormatRuleOutput {
+  /** Stable key for the error message, to be translated by the frontend. Never a pre-translated sentence. */
+  error_message_key?: string;
+  /** Identifier of the rule. When no pattern is exposed, the frontend must provide its own implementation for this identifier, pinned by the shared test vectors. */
+  kind?: string;
+  /** Pattern to apply, written in the Java / ECMAScript intersection so it can be passed straight to RegExp. Absent for rules backed by a parser that no portable regex can express (IP addresses, subnets, email). */
+  pattern?: string;
+}
+
+/** Value format validation of a primitive chaining type. */
+export interface PrimitiveTypeValidationOutput {
+  /** Operators the rules apply to. Deliberately excludes IS_NULL / IS_NOT_NULL, which carry no value, and IN / NIN, which are evaluated as substring matches so a partial value is legitimate. */
+  applies_to?: (
+    | "AND"
+    | "OR"
+    | "EQ"
+    | "NEQ"
+    | "IS_NULL"
+    | "IS_NOT_NULL"
+    | "GT"
+    | "GTE"
+    | "LT"
+    | "LTE"
+    | "IN"
+    | "NIN"
+    | "MAPPER"
+    | "DEPEND_ON"
+  )[];
+  /** Alternative rules, combined with OR semantics. Empty when the type constrains no format, in which case any value is accepted. */
+  rules?: PrimitiveTypeFormatRuleOutput[];
+}
+
 export interface PropertySchemaDTO {
   schema_property_entity: string;
   schema_property_has_dynamic_value?: boolean;
@@ -10446,6 +10907,7 @@ export interface PublicPlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
     | "MARKING"
+    | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10923,9 +11385,6 @@ export interface RoleInput {
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
     | "RESOLVE_INJECT_SECRET"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10937,6 +11396,7 @@ export interface RoleInput {
     | "DELETE_FINDINGS"
     | "MANAGE_FINDING_TRIAGE"
     | "MANAGE_FINDING_ARCHIVE"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -10969,13 +11429,20 @@ export interface RoleInput {
     | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
     | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
     | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "AGENT_DOCUMENT_ACCESS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -11006,9 +11473,6 @@ export interface RoleOutput {
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
     | "RESOLVE_INJECT_SECRET"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -11020,6 +11484,7 @@ export interface RoleOutput {
     | "DELETE_FINDINGS"
     | "MANAGE_FINDING_TRIAGE"
     | "MANAGE_FINDING_ARCHIVE"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -11052,13 +11517,20 @@ export interface RoleOutput {
     | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
     | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
     | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "AGENT_DOCUMENT_ACCESS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -11573,6 +12045,27 @@ export interface SearchTerm {
   searchTerm?: string;
 }
 
+export interface SecretResolvedValue {
+  type?:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
+  value?:
+    | AwsAccessKey
+    | AwsAssumeRole
+    | AzureManagedIdentity
+    | AzureServicePrincipal
+    | GcpOAuth2
+    | GcpServiceAccount
+    | Hash
+    | UsernamePassword;
+}
+
 export interface SecretsProvider {
   external?: boolean;
   listened?: boolean;
@@ -11653,6 +12146,7 @@ export interface SecurityPlatform {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -11982,6 +12476,82 @@ export interface SimulationsResultsLatest {
     string,
     GlobalScoreBySimulationEndDate[]
   >;
+}
+
+export interface SnapshotSearchInput {
+  /** Opaque resume cursor from a previous page */
+  cursor?: string | null;
+  /**
+   * Page size, default 500, capped at 1000
+   * @format int32
+   */
+  page_size?: number | null;
+  /**
+   * Safety lag in seconds, default 120, clamped to [max(60, grace), 3600]
+   * @format int32
+   */
+  safety_lag_seconds?: number | null;
+  /**
+   * Full reconciliation lower bound; mutually exclusive with cursor
+   * @format date-time
+   */
+  since?: string | null;
+}
+
+export interface SnapshotSearchOutputAttackObservationOutput {
+  /** Always "eventual" */
+  consistency_mode?: string;
+  /** Whether another page is expected to follow */
+  has_more?: boolean;
+  /**
+   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
+   * @format date-time
+   */
+  indexed_through?: string;
+  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
+  next_cursor?: string | null;
+  /** Page of observations */
+  observations?: AttackObservationOutput[];
+  /**
+   * Server time at which this response was computed
+   * @format date-time
+   */
+  server_time?: string;
+  /** Whether the window is current with the indexing horizon */
+  snapshot_ready?: boolean;
+  /**
+   * Inclusive upper bound of this page's window
+   * @format date-time
+   */
+  snapshot_window_end?: string;
+}
+
+export interface SnapshotSearchOutputVulnerabilityObservationOutput {
+  /** Always "eventual" */
+  consistency_mode?: string;
+  /** Whether another page is expected to follow */
+  has_more?: boolean;
+  /**
+   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
+   * @format date-time
+   */
+  indexed_through?: string;
+  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
+  next_cursor?: string | null;
+  /** Page of observations */
+  observations?: VulnerabilityObservationOutput[];
+  /**
+   * Server time at which this response was computed
+   * @format date-time
+   */
+  server_time?: string;
+  /** Whether the window is current with the indexing horizon */
+  snapshot_ready?: boolean;
+  /**
+   * Inclusive upper bound of this page's window
+   * @format date-time
+   */
+  snapshot_window_end?: string;
 }
 
 export interface SortField {
@@ -12702,6 +13272,24 @@ export interface TenantGroupCreateInput {
   group_name: string;
 }
 
+export interface TenantGroupMarkingsOutput {
+  /**
+   * Group Id
+   * @minLength 1
+   */
+  group_id: string;
+  /**
+   * Markings currently granted by the group
+   * @uniqueItems true
+   */
+  group_markings?: string[];
+  /**
+   * Group name
+   * @minLength 1
+   */
+  group_name: string;
+}
+
 export interface TenantInput {
   tenant_description?: string;
   /** @minLength 1 */
@@ -12747,15 +13335,30 @@ export interface TenantSettingsUpdateInput {
 }
 
 export interface ThemeInput {
-  /** Accent color of the theme */
+  /**
+   * Accent color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   accent_color?: string;
-  /** Background color of the theme */
+  /**
+   * Background color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   background_color?: string;
-  /** Solid color of the login page aside */
+  /**
+   * Solid color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_color?: string;
-  /** Gradient end color of the login page aside */
+  /**
+   * Gradient end color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_gradient_end?: string;
-  /** Gradient start color of the login page aside */
+  /**
+   * Gradient start color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_gradient_start?: string;
   /** Url of the login page aside background image */
   login_aside_image?: string;
@@ -12765,14 +13368,31 @@ export interface ThemeInput {
   logo_url?: string;
   /** 'true' if the logo needs to be collapsed */
   logo_url_collapsed?: string;
-  /** Navigation color of the theme */
+  /**
+   * Navigation color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   navigation_color?: string;
-  /** Paper color of the theme */
+  /**
+   * Paper color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   paper_color?: string;
-  /** Primary color of the theme */
+  /**
+   * Primary color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   primary_color?: string;
-  /** Secondary color of the theme */
+  /**
+   * Secondary color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   secondary_color?: string;
+  /**
+   * Text color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
+  text_color?: string;
 }
 
 export interface ThreatArsenalAction {
@@ -13226,6 +13846,16 @@ export interface UpdateExerciseInput {
   exercise_tags?: string[];
 }
 
+export interface UpdateMeEmailInput {
+  /** @minLength 1 */
+  user_current_password: string;
+  /**
+   * @format email
+   * @minLength 1
+   */
+  user_email: string;
+}
+
 export interface UpdateMePasswordInput {
   /** @minLength 1 */
   user_current_password: string;
@@ -13235,11 +13865,6 @@ export interface UpdateMePasswordInput {
 
 export interface UpdateProfileInput {
   user_country?: string;
-  /**
-   * @format email
-   * @minLength 1
-   */
-  user_email: string;
   /** @minLength 1 */
   user_firstname: string;
   user_home_dashboard?: string;
@@ -13321,9 +13946,6 @@ export interface User {
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
     | "RESOLVE_INJECT_SECRET"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -13335,6 +13957,7 @@ export interface User {
     | "DELETE_FINDINGS"
     | "MANAGE_FINDING_TRIAGE"
     | "MANAGE_FINDING_ARCHIVE"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -13367,13 +13990,20 @@ export interface User {
     | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
     | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
     | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
     | "MANAGE_PLATFORM_SESSIONS"
+    | "INSTALL_AGENT"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "AGENT_DOCUMENT_ACCESS"
   )[];
   /** City of the user */
   user_city?: string;
@@ -13490,6 +14120,11 @@ export interface UserTenantOutput {
   tenant_name?: string;
 }
 
+export type UsernamePassword = Value & {
+  password?: string;
+  username?: string;
+};
+
 export interface ValidationContent {
   /** A list of errors */
   errors?: string[];
@@ -13511,6 +14146,8 @@ export interface ValidationErrorBag {
   /** Return message */
   message?: string;
 }
+
+export type Value = any;
 
 export interface Variable {
   listened?: boolean;
@@ -13604,6 +14241,47 @@ export interface VulnerabilityCreateInput {
    * @example "ANALYZED"
    */
   vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+}
+
+export interface VulnerabilityObservationOutput {
+  /** Asset id */
+  asset_id?: string;
+  /** Asset name */
+  asset_name?: string;
+  /** Endpoint hostname, null for an asset that is not an endpoint */
+  endpoint_hostname?: string;
+  /** Endpoint platform, null for an asset that is not an endpoint */
+  endpoint_platform?: string;
+  /** Finding type */
+  finding_type?: string;
+  /** Finding value */
+  finding_value?: string;
+  /** Observation id */
+  id?: string;
+  /** Id of the finding that defines the current state of this grain */
+  last_finding_id?: string;
+  /** Id of the last scenario that produced this observation */
+  last_scenario_id?: string;
+  /** Name of the last scenario that produced this observation */
+  last_scenario_name?: string;
+  /** Id of the last simulation that produced this observation */
+  last_simulation_id?: string;
+  /** Name of the last simulation that produced this observation */
+  last_simulation_name?: string;
+  /**
+   * Last verification timestamp
+   * @format date-time
+   */
+  last_verified_at?: string;
+  /** Tenant name */
+  tenant_name?: string;
+  /**
+   * Last update timestamp
+   * @format date-time
+   */
+  updated_at?: string;
+  /** Vulnerability external id */
+  vulnerability_external_id?: string;
 }
 
 /** Full vulnerability output including references and CWEs */
@@ -13862,6 +14540,16 @@ export interface Workflow {
    * @max 5940
    */
   workflow_max_temporal_rate_seconds?: number;
+  /**
+   * Timestamp when the workflow has been paused
+   * @format date-time
+   */
+  workflow_pause_at?: string;
+  /**
+   * Total pause duration in seconds, incremented at each pause/resume cycle
+   * @format int64
+   */
+  workflow_pause_second?: number;
   workflow_rate_limit_enabled?: boolean;
   workflow_safe_mode_enabled?: boolean;
   workflow_scope_rules?: WorkflowScopeRule[];

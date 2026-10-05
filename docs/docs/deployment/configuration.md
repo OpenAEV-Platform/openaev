@@ -42,6 +42,9 @@ Here are the configuration keys, for both containers (environment variables) and
 | openaev.admin.encryption_key                          | OPENAEV_ADMIN_ENCRYPTION_KEY                          | ChangeMe              | Encryption key used for encrypting sensitive data in database. Encryption key and salt are used to generate a 256bit encryption key for encrypting purpose.                                |
 | openaev.admin.encryption_salt                         | OPENAEV_ADMIN_ENCRYPTION_SALT                         | ChangeMe              | Encryption salt used for encrypting sensitive data in database. Must be at least 8 bytes long. Encryption key and salt are used to generate a 256bit encryption key for encrypting purpose |
 | openaev.healthcheck.key                               | OPENAEV_HEALTHCHECK_KEY                               | ChangeMe              | The key to use in the health check endpoint (/api/health)                                                                                                                                  |
+| openaev.healthcheck.connectivity-probe-interval       | OPENAEV_HEALTHCHECK_CONNECTIVITY_PROBE_INTERVAL       | PT10S                 | Interval between two background connectivity probes of the dependencies (ISO-8601 duration). `/api/health` serves the result of the last probe and never contacts a dependency itself; it answers 503 once a required dependency (database, RabbitMQ, file storage) is down or has not been probed for 3 intervals |
+| openaev.healthcheck.storage-probe-interval            | OPENAEV_HEALTHCHECK_STORAGE_PROBE_INTERVAL            | PT4H                  | Interval between two background computations of the storage sizes returned by `/api/health?details=true` and exported as `openaev_storage_used_bytes` (ISO-8601 duration). Computing them walks the whole object storage listing and queries the engine cluster, so low values are costly |
+| openaev.metrics.key                                   | OPENAEV_METRICS_KEY                                   | *empty*               | Scrape key for `/actuator/prometheus`, sent by the scraper as `Authorization: Bearer <key>`. While empty (the default), every `/actuator/**` request is rejected with a 401                |
 | inject.execution.threshold.minutes                    | INJECT_EXECUTION_THRESHOLD_MINUTES                    | 10                    | Inject execution threshold in minutes. If this time is exceeded, the inject will be moved to the MAYBE_PREVENTED status.                                                                   |
 | openaev.cron.config.agent.inactivity.monitor.interval | OPENAEV_CRON_CONFIG_AGENT_INACTIVITY_MONITOR_INTERVAL | 5                     | Polling interval in minutes for the agent inactivity monitor job.                                                                                               |
 | openaev.run-mode                                      | OPENAEV_RUN-MODE                                      | normal                | Startup run mode (`normal` or `safe`). In `safe`, Quartz background processing is disabled. See [Run modes](platform/run-modes.md).                                                       |
@@ -84,15 +87,25 @@ Audit logging will allow you to have a trace of the actions performed using API 
 
     Please note that only modifying actions are logged (creating, updating, deleting) and not reading actions.
 
-| Parameter                          | Environment variable               | Default value    | Description                                                                                                                                              |
-|:-------------------------------------|:--------------------------------------|:-------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |                  | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console |
-| openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false            | Parameter to stop the platform if audit logging is failing.                                                                                              |
-| logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
-| openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs             | Preferred setting for the audit log directory when `file` transport is enabled.                                                                          |
-| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit            | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                       |
-|                                    | AUDIT_LOG_DIR                      | logs             | Legacy compatibility env var for the audit log directory. When set, it overrides `openaev.audit-logs.file.dir`.                                          |
-|                                    | AUDIT_LOG_FILENAME                 | audit            | Legacy compatibility env var for the audit log basename. When set, it overrides `openaev.audit-logs.file.filename`; `audit` and `audit.log` are accepted. |
+| Parameter                          | Environment variable               | Default value | Description                                                                                                                                               |
+|:-----------------------------------|:-----------------------------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |               | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console  |
+| openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false         | Parameter to stop the platform if audit logging is failing.                                                                                               |
+| logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |               | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                           |
+| openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs          | Preferred setting for the audit log directory when `file` transport is enabled.                                                                           |
+| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit         | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                        |
+|                                    | AUDIT_LOG_DIR                      | logs          | Legacy compatibility env var for the audit log directory. When set, it overrides `openaev.audit-logs.file.dir`.                                           |
+|                                    | AUDIT_LOG_FILENAME                 | audit         | Legacy compatibility env var for the audit log basename. When set, it overrides `openaev.audit-logs.file.filename`; `audit` and `audit.log` are accepted. |
+
+#### Inject execution
+
+The inject execution engine is the component responsible for executing the actions described in the various contracts
+registered in OpenAEV.
+
+| Parameter                                     | Environment variable                          | Default value | Description                                                                                                                                                                                                                                                                                          |
+|:----------------------------------------------|:----------------------------------------------|:--------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Recommended value: `4` (four minutes). Supported values: positive integers. Duration in minutes for the grace period after a time-based inject's configured start time, within which the inject is considered for execution. After this period, an inject will be deemed "too old" and set in error. |
+
 
 #### Credential status validation
 
@@ -136,6 +149,15 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.hub.collector.id                          | OPENAEV_XTM_HUB_COLLECTOR_ID                          | b402f1f5-29ba-4ee3-b366-f0467754cf4e | Identifier of the XTM Hub connectivity collector                    |
 | openaev.xtm.hub.collector.connectivity-check-interval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 1 hour in milliseconds               | Interval at which the connectivity with XTM Hub is checked          |
 
+#### XTM Suite: XTM One
+
+| Parameter            | Environment variable  | Default value | Description                                                                                                       |
+|:---------------------|:----------------------|:--------------|:------------------------------------------------------------------------------------------------------------------|
+| openaev.xtm.one.url   | OPENAEV_XTM_ONE_URL   |               | XTM One URL, as reachable from OpenAEV (an internal address such as `http://xtm-one:4000` in Docker works)         |
+| openaev.xtm.one.token | OPENAEV_XTM_ONE_TOKEN |               | XTM One registration token. With the URL, OpenAEV registers with XTM One every 5 minutes                          |
+
+OpenAEV signs the requests of its users to XTM One, and verifies the requests XTM One sends back, with short-lived tokens. When `OPENAEV_XTM_ONE_URL` is an internal address, OpenAEV reads XTM One's public identity (its `BASE_URL`) from `/xtm/auth/metadata` on that address and fetches XTM One's signing keys there too, so the two URLs may differ. The links that open XTM One in the browser (Ask Ariane, the CTEM Command Center, the MCP card, the autonomous run and autonomous attack settings) use that public identity as well: it is read in the background with the five-minute registration and refreshed at most once an hour, so a change of XTM One's public URL reaches them at the next successful refresh; while XTM One cannot be reached they keep the last identity it published. On the XTM One side, set `OPENAEV_API_URL` to the address XTM One reaches OpenAEV on. `openaev.base-url` stays the public URL of OpenAEV: it is the identity XTM One trusts, and the audience OpenAEV expects on XTM One's tokens.
+
 #### PostgreSQL
 
 | Parameter                  | Environment variable       | Default value         | Description                                                                                |
@@ -150,22 +172,22 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 
 - With a classic authentication, you can use either ElasticSearch or OpenSearch as an engine.
 
-| Parameter              | Environment variable   | Default value         | Description                                                                                    |
-|:--------------------------|:--------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------|
-| engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                    |
-| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch and `opensearch` for OpenSearch) |
-| engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                              |
-| engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                             |
-| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the database                                          |
+| Parameter              | Environment variable   | Default value         | Description                                                                                                                            |
+|:--------------------------|:--------------------------|:--------------------------|:---------------------------------------------------------------------------------------------------------------------------------------|
+| engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                                                            |
+| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch 8 -default-, `elk9` for Elasticsearch 9 and `opensearch` for OpenSearch) |
+| engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                                                                      |
+| engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                                                                     |
+| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the database                                                                                  |
 
 - With AWS SigV4 authentication, you can use Amazon OpenSearch or Amazon OpenSearch Serverless as an engine.
 
-| Parameter                | Environment variable     | Default value         | Description                                                                                                |
-|:----------------------------|:----------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
-| engine.engine-aws-mode   | ENGINE_ENGINE_AWS_MODE   |                       | Whether to use AWS SigV4 authentication Amazon OpenSearch or Amazon OpenSearch Serverless (`es` or `aoss`) |
-| engine.engine-selector   | ENGINE_ENGINE_SELECTOR   |                       | Engine to use for storage and search (`opensearch` for OpenSearch)                                         |
-| engine.engine-aws-host   | ENGINE_ENGINE_AWS_HOST   |                       | URL of the OpenSearch database, no http(s) prefix                                                          |
-| engine.engine-aws-region | ENGINE_ENGINE_AWS_REGION |                       | Example: eu-west-3                                                                                         |
+| Parameter                    | Environment variable     | Default value         | Description                                                                                                |
+|:-----------------------------|:-------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
+| engine.engine-aws-mode       | ENGINE_ENGINE_AWS_MODE   |                       | Whether to use AWS SigV4 authentication Amazon OpenSearch or Amazon OpenSearch Serverless (`es` or `aoss`) |
+| engine.engine-selector       | ENGINE_ENGINE_SELECTOR   |                       | Engine to use for storage and search (`opensearch` for OpenSearch)                                         |
+| engine.engine-aws-host       | ENGINE_ENGINE_AWS_HOST   |                       | URL of the OpenSearch database, no http(s) prefix                                                          |
+| engine.engine-aws-region     | ENGINE_ENGINE_AWS_REGION |                       | Example: eu-west-3                                                                                         |
 
 !!! tip "Adding the needed authorization to AWS OpenSearch"
 

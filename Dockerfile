@@ -1,4 +1,4 @@
-FROM node:24.20.0-alpine3.24 AS front-builder
+FROM node:24.21.0-alpine3.24 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
@@ -12,12 +12,16 @@ RUN yarn build
 FROM maven:3.9.16-eclipse-temurin-21-noble AS api-builder
 
 WORKDIR /opt/openaev-build/openaev
-COPY openaev-annotation-processor ./openaev-annotation-processor
+COPY openaev-build-services ./openaev-build-services
 COPY openaev-maven-plugin ./openaev-maven-plugin
 COPY openaev-model ./openaev-model
+COPY openaev-es8-client ./openaev-es8-client
+COPY openaev-es9-client ./openaev-es9-client
+COPY openaev-opensearch-client ./openaev-opensearch-client
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api
 COPY openaev-maven-plugin ./openaev-maven-plugin
+COPY openaev-ocsf ./openaev-ocsf
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev
@@ -27,7 +31,11 @@ FROM eclipse-temurin:21.0.12_8-jre-noble AS app
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini && rm -rf /var/lib/apt/lists/*
+# Upgrade the base image's packages: it lags behind Ubuntu updates between two rebuilds.
+RUN DEBIAN_FRONTEND=noninteractive apt-get update -q \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 # Install Chromium and its system libraries for server-side report rendering. The boot jar uses
 # the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI (Spring Boot 3.x
@@ -35,6 +43,10 @@ COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-ap
 RUN DEBIAN_FRONTEND=noninteractive java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* \
     && chmod -R a+rX /ms-playwright
+
+# Set by CI to the built commit, exposed in the platform settings
+ARG OPENAEV_COMMIT
+ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["java", "-jar", "openaev-api.jar"]

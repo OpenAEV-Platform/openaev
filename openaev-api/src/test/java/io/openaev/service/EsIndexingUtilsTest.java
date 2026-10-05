@@ -1,10 +1,21 @@
 package io.openaev.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import io.openaev.database.model.IndexingStatus;
+import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.model.EsBase;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,8 +34,13 @@ class EsIndexingUtilsTest {
   private static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");
 
   private static EsBase row(Instant updatedAt) {
+    return row(updatedAt, null);
+  }
+
+  private static EsBase row(Instant updatedAt, String baseId) {
     EsBase row = new EsBase();
     row.setBase_updated_at(updatedAt);
+    row.setBase_id(baseId);
     return row;
   }
 
@@ -179,6 +195,334 @@ class EsIndexingUtilsTest {
 
       assertThat(EsIndexingUtils.capCursorToGraceWindow(ts(999), now, -30)).isEqualTo(ts(999));
       assertThat(EsIndexingUtils.capCursorToGraceWindow(ts(1030), now, -30)).isEqualTo(now);
+    }
+  }
+
+  @Nested
+  @DisplayName("isReindexRequested")
+  class IsReindexRequested {
+
+    private static Optional<IndexingStatus> statusAt(Instant cursor) {
+      IndexingStatus status = new IndexingStatus();
+      status.setType("expectation-inject");
+      status.setLastIndexing(cursor);
+      return Optional.of(status);
+    }
+
+    @Test
+    @DisplayName("A missing status row requests a reset (never initialized or row deleted)")
+    void given_missingRow_should_requestReset() {
+      assertThat(EsIndexingUtils.isReindexRequested(Optional.empty())).isTrue();
+    }
+
+    @Test
+    @DisplayName("The far-future sentinel cursor requests a reset")
+    void given_sentinelCursor_should_requestReset() {
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR)))
+          .isTrue();
+      // Anything at or beyond the sentinel is a request too: a clock cannot legitimately be there.
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.plusSeconds(1))))
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("A sentinel shifted by a round trip (time zone, dropped time part) still requests")
+    void given_shiftedSentinelCursor_should_stillRequestReset() {
+      // The widest UTC offset is 14 hours: a sentinel read back through a local-time conversion
+      // must not turn into a regular cursor and lose the reset silently.
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minus(Duration.ofHours(14)))))
+          .isTrue();
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minus(Duration.ofDays(1)))))
+          .isTrue();
+      // The request range starts at the threshold, inclusive.
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD)))
+          .isTrue();
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  statusAt(EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD.minusSeconds(1))))
+          .isFalse();
+    }
+
+    @Test
+    @DisplayName("A regular cursor, epoch and wall-clock included, does not request a reset")
+    void given_regularCursor_should_notRequestReset() {
+      assertThat(EsIndexingUtils.isReindexRequested(statusAt(T0))).isFalse();
+      assertThat(EsIndexingUtils.isReindexRequested(statusAt(Instant.EPOCH))).isFalse();
+      assertThat(EsIndexingUtils.isReindexRequested(statusAt(Instant.now()))).isFalse();
+    }
+
+    @Test
+    @DisplayName("The threshold leaves a wide margin under the sentinel and above any real clock")
+    void given_threshold_should_sitFarBelowSentinelAndFarAboveNow() {
+      assertThat(EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD)
+          .isBefore(EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minus(Duration.ofDays(365)))
+          .isAfter(Instant.now().plus(Duration.ofDays(365L * 1000)));
+    }
+  }
+
+  @Nested
+  @DisplayName("requestReindexAtStartup - in-process reset request")
+  class StartupResetRequest {
+
+    private final String model = "reset-request-test-" + UUID.randomUUID();
+
+    private static Optional<IndexingStatus> statusAt(String type, Instant cursor) {
+      IndexingStatus status = new IndexingStatus();
+      status.setType(type);
+      status.setLastIndexing(cursor);
+      return Optional.of(status);
+    }
+
+    @AfterEach
+    void clearRequest() {
+      EsIndexingUtils.reindexRequestFulfilled(model);
+    }
+
+    @Test
+    @DisplayName("An in-process request wins over a regular row until the reset is fulfilled")
+    void given_startupRequest_should_requestResetUntilFulfilled() {
+      assertThat(EsIndexingUtils.isReindexRequested(model, statusAt(model, T0))).isFalse();
+
+      EsIndexingUtils.requestReindexAtStartup(model);
+
+      // The row may show a regular cursor (an older pod overwrote the sentinel mid-round): the
+      // in-process request still triggers the reset at this startup.
+      assertThat(EsIndexingUtils.isReindexRequested(model, statusAt(model, T0))).isTrue();
+      assertThat(EsIndexingUtils.isReindexRequested(model, statusAt(model, Instant.EPOCH)))
+          .isTrue();
+      assertThat(EsIndexingUtils.isReindexRequested(model, Optional.empty())).isTrue();
+      // Other models are unaffected.
+      assertThat(EsIndexingUtils.isReindexRequested("other-" + model, statusAt(model, T0)))
+          .isFalse();
+
+      EsIndexingUtils.reindexRequestFulfilled(model);
+
+      assertThat(EsIndexingUtils.isReindexRequested(model, statusAt(model, T0))).isFalse();
+    }
+
+    @Test
+    @DisplayName("Fulfilling clears only the in-process half: the row-level request still holds")
+    void given_fulfilledRequest_should_keepHonouringTheRow() {
+      EsIndexingUtils.requestReindexAtStartup(model);
+      EsIndexingUtils.reindexRequestFulfilled(model);
+
+      assertThat(EsIndexingUtils.isReindexRequested(model, Optional.empty())).isTrue();
+      assertThat(
+              EsIndexingUtils.isReindexRequested(
+                  model, statusAt(model, EsIndexingUtils.REINDEX_REQUESTED_CURSOR)))
+          .isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("isRollingDeployReset")
+  class IsRollingDeployReset {
+
+    private final String model = "rolling-reset-test-" + UUID.randomUUID();
+
+    private static Optional<IndexingStatus> statusAt(String type, Instant cursor) {
+      IndexingStatus status = new IndexingStatus();
+      status.setType(type);
+      status.setLastIndexing(cursor);
+      return Optional.of(status);
+    }
+
+    @AfterEach
+    void clearRequest() {
+      EsIndexingUtils.reindexRequestFulfilled(model);
+    }
+
+    @Test
+    @DisplayName(
+        "A missing row (fresh install, single-instance reset) is not a rolling-deploy reset")
+    void given_missingRow_should_notBeRollingDeployReset() {
+      assertThat(EsIndexingUtils.isRollingDeployReset(model, Optional.empty())).isFalse();
+    }
+
+    @Test
+    @DisplayName("The sentinel on the row and the in-process request both are")
+    void given_sentinelOrStartupRequest_should_beRollingDeployReset() {
+      assertThat(
+              EsIndexingUtils.isRollingDeployReset(
+                  model, statusAt(model, EsIndexingUtils.REINDEX_REQUESTED_CURSOR)))
+          .isTrue();
+      assertThat(EsIndexingUtils.isRollingDeployReset(model, statusAt(model, T0))).isFalse();
+
+      EsIndexingUtils.requestReindexAtStartup(model);
+
+      assertThat(EsIndexingUtils.isRollingDeployReset(model, statusAt(model, T0))).isTrue();
+      assertThat(EsIndexingUtils.isRollingDeployReset(model, Optional.empty())).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("persistCursor - compare-and-set on the cursor the round read")
+  class PersistCursor {
+
+    private final IndexingStatusRepository repository = mock(IndexingStatusRepository.class);
+
+    @Test
+    @DisplayName("A round that read a row writes through the compare-and-set on that value")
+    void given_readCursor_should_advanceFromIt() {
+      when(repository.advanceCursorFrom(
+              "asset", T0, "a", ts(60), "b", EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD))
+          .thenReturn(1);
+
+      boolean persisted =
+          EsIndexingUtils.persistCursor(
+              repository,
+              new EsIndexingUtils.CursorAdvance(
+                  "asset", new IndexingCursor(T0, "a"), new IndexingCursor(ts(60), "b")),
+              LOG);
+
+      assertThat(persisted).isTrue();
+      verify(repository)
+          .advanceCursorFrom(
+              "asset", T0, "a", ts(60), "b", EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+      verify(repository, never()).insertCursorIfAbsent(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("A round that found no row only ever inserts, never overwrites")
+    void given_noReadCursor_should_insertIfAbsent() {
+      when(repository.insertCursorIfAbsent("asset", ts(60), null)).thenReturn(1);
+
+      boolean persisted =
+          EsIndexingUtils.persistCursor(
+              repository,
+              new EsIndexingUtils.CursorAdvance("asset", null, new IndexingCursor(ts(60), null)),
+              LOG);
+
+      assertThat(persisted).isTrue();
+      verify(repository).insertCursorIfAbsent("asset", ts(60), null);
+      verify(repository, never()).advanceCursorFrom(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("A refused write (the row changed since it was read) is reported, not retried")
+    void given_rowChangedSinceRead_should_reportRefusedWrite() {
+      when(repository.advanceCursorFrom(any(), any(), any(), any(), any(), any())).thenReturn(0);
+      when(repository.insertCursorIfAbsent(any(), any(), any())).thenReturn(0);
+
+      assertThat(
+              EsIndexingUtils.persistCursor(
+                  repository,
+                  new EsIndexingUtils.CursorAdvance(
+                      "asset", new IndexingCursor(T0, null), new IndexingCursor(ts(60), null)),
+                  LOG))
+          .isFalse();
+      assertThat(
+              EsIndexingUtils.persistCursor(
+                  repository,
+                  new EsIndexingUtils.CursorAdvance(
+                      "asset", null, new IndexingCursor(ts(60), null)),
+                  LOG))
+          .isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("indexResetFailedMessage")
+  class IndexResetFailedMessage {
+
+    @Test
+    @DisplayName("The message names the model, the index, the failure and the recovery steps")
+    void given_failure_should_nameIndexAndRecovery() {
+      String message =
+          EsIndexingUtils.indexResetFailedMessage(
+              "expectation-inject", "openaev_expectation-inject", "its index could not be deleted");
+
+      assertThat(message)
+          .contains("'expectation-inject'")
+          .contains("'openaev_expectation-inject'")
+          .contains("its index could not be deleted")
+          .contains("retried at the next startup")
+          .contains("UPDATE indexing_status SET indexing_status_indexing_date = to_timestamp(0),")
+          .contains("indexing_status_last_id = NULL")
+          .contains("WHERE indexing_status_type = 'expectation-inject'");
+    }
+  }
+
+  @Nested
+  @DisplayName("Keyset cursor")
+  class KeysetCursor {
+
+    @Test
+    @DisplayName("Keyset batch returns the last row's timestamp and id")
+    void given_keysetBatch_should_returnLastRowTimestampAndId() {
+      // A batch with distinct timestamps: the cursor must be the last row's pair, not the greatest
+      // timestamp of the batch alone.
+      List<EsBase> batch = List.of(row(ts(1), "a"), row(ts(2), "b"), row(ts(3), "c"));
+
+      IndexingCursor cursor = EsIndexingUtils.computeKeysetCursor(batch);
+
+      assertThat(cursor).isEqualTo(new IndexingCursor(ts(3), "c"));
+    }
+
+    @Test
+    @DisplayName("Full batch sharing one timestamp advances on the id alone")
+    void given_fullKeysetBatchSharingOneTimestamp_should_advanceOnTheIdAlone() {
+      // Unlike computeNewCursor, a keyset handler can safely advance past a full batch where every
+      // row shares the same timestamp: the id makes progress observable even when the timestamp
+      // does not move.
+      List<EsBase> batch = List.of(row(ts(5), "a"), row(ts(5), "b"), row(ts(5), "c"));
+
+      IndexingCursor cursor = EsIndexingUtils.computeKeysetCursor(batch);
+
+      assertThat(cursor).isEqualTo(new IndexingCursor(ts(5), "c"));
+    }
+
+    @Test
+    @DisplayName("Null timestamp on the last row yields a null cursor")
+    void given_keysetBatchWithNullTimestamp_should_returnNull() {
+      List<EsBase> batch = List.of(row(ts(1), "a"), row(null, "b"));
+
+      IndexingCursor cursor = EsIndexingUtils.computeKeysetCursor(batch);
+
+      assertThat(cursor).isNull();
+    }
+
+    @Test
+    @DisplayName("Grace-window cap moving the timestamp drops the last id")
+    void given_capMovesTheTimestamp_should_dropTheLastId() {
+      Instant now = ts(1000);
+      IndexingCursor cursor = new IndexingCursor(ts(990), "a");
+
+      IndexingCursor capped = EsIndexingUtils.capToGraceWindow(cursor, now, 60);
+
+      assertThat(capped).isEqualTo(new IndexingCursor(ts(940), null));
+    }
+
+    @Test
+    @DisplayName("Grace-window cap not moving the timestamp keeps the last id")
+    void given_capDoesNotMoveTheTimestamp_should_keepTheLastId() {
+      Instant now = ts(1000);
+      IndexingCursor cursor = new IndexingCursor(ts(900), "a");
+
+      IndexingCursor capped = EsIndexingUtils.capToGraceWindow(cursor, now, 60);
+
+      assertThat(capped).isEqualTo(cursor);
+    }
+
+    @Test
+    @DisplayName("Negative grace window never caps into the future")
+    void given_negativeGraceWindow_should_notCapIntoTheFuture() {
+      Instant now = ts(1000);
+      IndexingCursor cursor = new IndexingCursor(ts(1030), "a");
+
+      IndexingCursor capped = EsIndexingUtils.capToGraceWindow(cursor, now, -30);
+
+      assertThat(capped).isEqualTo(new IndexingCursor(now, null));
     }
   }
 }

@@ -67,7 +67,7 @@ public class ExerciseImportApi extends RestBehavior {
                             "The import mapper %s was not found", input.getImportMapperId())));
 
     return this.injectImportService.importInjectIntoExerciseFromXLS(
-        exercise, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
+        ctx, exercise, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
   }
 
   @PostMapping({
@@ -104,7 +104,13 @@ public class ExerciseImportApi extends RestBehavior {
 
     ImportTestSummary importTestSummary =
         injectImportService.importInjectIntoExerciseFromXLS(
-            exercise, importMapper, importId, input.getName(), input.getTimezoneOffset(), true);
+            ctx,
+            exercise,
+            importMapper,
+            importId,
+            input.getName(),
+            input.getTimezoneOffset(),
+            true);
     this.exerciseService.updateExercise(exercise);
     return importTestSummary;
   }
@@ -121,9 +127,11 @@ public class ExerciseImportApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public void injectsImport(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this write (importInjectsForSimulation reads InjectorContract#
-      // getFirstInjector() to attach an injector to each imported inject).
+      // The TxCtx parameter makes the transaction aspect set the request's tenant scope, under
+      // which the importer reads InjectorContract#getFirstInjector() to attach an injector to
+      // each imported inject and writes in the simulation's tenant, which must lie inside that
+      // scope. It does not scope the simulation lookup itself: that is a primary-key load,
+      // unscoped until exercises is tenant-active.
       TxCtx ctx,
       @RequestPart("file") MultipartFile file,
       @PathVariable @NotBlank final String simulationId,

@@ -1,8 +1,8 @@
-import { Chip, Skeleton } from '@mui/material';
+import { Chip } from '@filigran/design-system';
+import { Skeleton } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
-import colorStyles from '../../../../../components/Color';
 import { useFormatter } from '../../../../../components/i18n';
 import { type EsInject, type InjectorContract } from '../../../../../utils/api-types';
 import { isNotEmptyField } from '../../../../../utils/utils';
@@ -56,16 +56,9 @@ export const ScenarioStatusCell: FunctionComponent<{ status?: string }> = ({ sta
   const scheduled = status === 'SCHEDULED';
   return (
     <Chip
-      sx={{
-        fontSize: 12,
-        height: 20,
-        float: 'left',
-        textTransform: 'uppercase',
-        borderRadius: 1,
-        width: 120,
-      }}
-      style={scheduled ? colorStyles.green : colorStyles.grey}
       label={t(scheduled ? SCENARIO_SCHEDULED_STATUS : SCENARIO_NOT_SCHEDULED_STATUS)}
+      severity={scheduled ? 'low' : 'neutral'}
+      style={{ float: 'left' }}
     />
   );
 };

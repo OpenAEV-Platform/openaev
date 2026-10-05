@@ -26,12 +26,14 @@ const useStyles = makeStyles()((theme) => ({
     display: 'flex',
     justifyContent: 'center',
   },
+  // The band is filled with a feedback colour, so its text reads in the ink
+  // meant for a filled surface, not in a literal black.
   bannerText: {
-    color: 'black',
+    color: 'var(--text-negative-primary)',
     fontWeight: 'bold',
   },
   bannerLink: {
-    color: 'black',
+    color: 'var(--text-negative-primary)',
     marginLeft: 4,
   },
   banner_debug: {

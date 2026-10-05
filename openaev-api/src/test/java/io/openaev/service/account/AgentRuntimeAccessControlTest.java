@@ -24,6 +24,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -177,6 +178,42 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName(
+      "Get endpoint jobs by external reference (GET /jobs/{externalReference}, deprecated)")
+  class GetEndpointJobsByExternalReference {
+
+    @Test
+    @DisplayName("should be forbidden with only MANAGE_ASSETS capability")
+    @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
+    void given_manageAssetsOnly_should_forbidJobsByExternalReference() throws Exception {
+      // Act & Assert — regression check: this endpoint used to be gated on ResourceType.ASSET,
+      // which let any asset-management user (no agent capability) read/leak agent jobs.
+      mvc.perform(get(ENDPOINT_URI + "/jobs/ext-ref-test").accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName(
+        "should not be forbidden with AGENT_RUNTIME_ACCESS capability so old agents can upgrade")
+    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+    void given_agentRuntimeAccess_should_allowJobsByExternalReference() throws Exception {
+      // Act & Assert — old agents still authenticating with this deprecated API must keep
+      // working so they can fetch their upgrade job.
+      mvc.perform(get(ENDPOINT_URI + "/jobs/ext-ref-test").accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
+    @DisplayName("should be forbidden with no capabilities at all")
+    @WithMockUser
+    void given_noCapabilities_should_forbidJobsByExternalReference() throws Exception {
+      // Act & Assert
+      mvc.perform(get(ENDPOINT_URI + "/jobs/ext-ref-test").accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+  }
+
+  @Nested
   @DisplayName("Cleanup agent job (DELETE /jobs/{id})")
   class CleanupAgentJob {
 
@@ -320,11 +357,16 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     @DisplayName("should not be forbidden with AGENT_RUNTIME_ACCESS capability")
     @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
     void given_agentRuntimeAccess_should_allowGetPayload() throws Exception {
-      // Act & Assert — will get 404 (inject not found) which proves RBAC passed
+      // Act & Assert — the unknown inject is rejected by the object-level gate
+      // (ForbiddenException),
+      // not by the RBAC aspect (ResponseStatusException), which proves RBAC passed
       mvc.perform(
               get(INJECT_URI + "/" + FAKE_INJECT_ID + "/" + FAKE_AGENT_ID + "/executable-payload")
                   .accept(MediaType.APPLICATION_JSON))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isForbidden())
+          .andExpect(
+              result ->
+                  assertThat(result.getResolvedException()).isInstanceOf(ForbiddenException.class));
     }
   }
 

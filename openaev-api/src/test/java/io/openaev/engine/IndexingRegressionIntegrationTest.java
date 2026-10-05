@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
+import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.asset.EsAsset;
 import io.openaev.engine.model.inject.EsInject;
 import io.openaev.engine.model.injectexpectation.EsInjectExpectation;
@@ -16,6 +19,7 @@ import io.openaev.engine.model.scenario.EsScenario;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.query.EsEntities;
 import io.openaev.scheduler.jobs.engine_sync.EngineSyncExecutionJob;
+import io.openaev.service.EsIndexingUtils;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -57,6 +61,8 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
 
   @Autowired private EngineService engineService;
   @Autowired private EngineContext engineContext;
+  @Autowired private IndexingStatusRepository indexingStatusRepository;
+  @Autowired private IndexResetEpochReassertion epochReassertion;
 
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -65,8 +71,13 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private ScenarioComposer scenarioComposer;
 
-  /** One hour ago - used as the {@code lastIndexing} cursor for incremental tests. */
-  private static final Instant FROM = Instant.now().minus(1, ChronoUnit.HOURS);
+  /**
+   * One hour ago - used as the {@code lastIndexing} cursor for incremental tests. Truncated to the
+   * microsecond precision of a PostgreSQL {@code timestamp} so a round-trip through the column is
+   * exact.
+   */
+  private static final Instant FROM =
+      Instant.now().truncatedTo(ChronoUnit.MICROS).minus(1, ChronoUnit.HOURS);
 
   /** A point in time safely before {@code FROM} - used to push timestamps into the past. */
   private static final Instant PAST = FROM.minus(1, ChronoUnit.DAYS);
@@ -123,7 +134,9 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
     // ALL_TIME avoids the DEFAULT branch that requires a dashboard timeRange parameter
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
     ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 5000));
-    return engineService.entities(ADMIN_USER, runtime);
+    // Not a tenant-scope test: it only checks indexing/deletion counts across fixtures that may
+    // span tenants, so it reads the platform-wide view rather than any one tenant's.
+    return engineService.entities(TxCtx.allTenants(), ADMIN_USER, runtime);
   }
 
   /**
@@ -262,11 +275,307 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   }
 
   private void setIndexingStatusToFrom(String type) {
+    setIndexingStatus(type, FROM);
+  }
+
+  private void setIndexingStatus(String type, Instant cursor) {
     IndexingStatus status = new IndexingStatus();
     status.setType(type);
-    status.setLastIndexing(FROM);
+    status.setLastIndexing(cursor);
     entityManager.merge(status);
     entityManager.flush();
+  }
+
+  private Instant readIndexingCursor(String type) {
+    entityManager.clear();
+    return entityManager.find(IndexingStatus.class, type).getLastIndexing();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Index reset marker
+  // ---------------------------------------------------------------------------
+
+  @Nested
+  @DisplayName("REINDEX_REQUESTED_CURSOR - reset marker survives the incremental sync")
+  class ReindexRequestedMarker {
+
+    /**
+     * Regression test for the rolling-deploy race that left ghost expectation documents: a reset
+     * requested through the far-future cursor must be invisible to the incremental sync of an
+     * instance that is still running - it indexes nothing under it and never rewrites the marker -
+     * so the next startup is the only thing that consumes it (wipe, recreate, re-feed from epoch).
+     */
+    @Test
+    @DisplayName("A sentinel cursor makes the sync a no-op that keeps the marker for the next boot")
+    void given_reindexRequestedCursor_should_indexNothingAndKeepTheMarker() {
+      // -- ARRANGE --
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      setIndexingStatus("asset", EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      awaitEndpointIndexedAssertion(
+          () ->
+              assertThat(queryEndpoints().getTotal())
+                  .as("nothing is indexed while a reset is pending")
+                  .isZero());
+      assertThat(readIndexingCursor("asset"))
+          .as("the running instance must leave the reset marker untouched")
+          .isEqualTo(EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cursor persistence guard
+  // ---------------------------------------------------------------------------
+
+  /**
+   * The cursor write of a sync round is a compare-and-set on the cursor the round READ at its
+   * start: a round reads first and persists last, so whatever landed in between - a reset request
+   * (the sentinel written by a migration during a rolling deploy), the epoch written by a boot-time
+   * reset once the index was wiped and recreated, a peer replica's advance - must survive that
+   * write. These tests replay the interleavings at the SQL level, which is where the race is
+   * decided: the reads happen implicitly (the value handed to the write is the one the round read),
+   * the writes in between are plain row updates. {@link ReindexRequestedMarker} covers the read
+   * side (nothing is fetched under the marker).
+   */
+  @Nested
+  @DisplayName("persistCursor - a stale cursor write never lands")
+  class CursorAdvanceGuard {
+
+    private static final Instant CURSOR = Instant.parse("2026-01-01T00:00:00Z");
+    private static final Instant LATER = CURSOR.plus(Duration.ofHours(1));
+
+    /** The write of a round that read {@code readCursor} and computed {@code cursor} for asset. */
+    private int advanceFrom(Instant readCursor, Instant cursor) {
+      return advanceFrom(readCursor, null, cursor, null);
+    }
+
+    /** The keyset variant of {@link #advanceFrom(Instant, Instant)}, ids compared and written. */
+    private int advanceFrom(Instant readCursor, String readLastId, Instant cursor, String lastId) {
+      return indexingStatusRepository.advanceCursorFrom(
+          "asset",
+          readCursor,
+          readLastId,
+          cursor,
+          lastId,
+          EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+    }
+
+    /** The write of a round that found no {@code asset} row and computed {@code cursor}. */
+    private int insertIfAbsent(Instant cursor) {
+      return indexingStatusRepository.insertCursorIfAbsent("asset", cursor, null);
+    }
+
+    @Test
+    @DisplayName(
+        "Read C, a reset writes epoch after the recreate, the stale write of C' is refused")
+    void given_resetWroteEpochAfterTheRead_should_refuseTheStaleCursor() {
+      // -- ARRANGE: the round read CURSOR, then the boot-time reset wiped the index and wrote epoch
+      setIndexingStatus("asset", CURSOR);
+      setIndexingStatus("asset", Instant.EPOCH);
+
+      // -- ACT: the round persists the cursor it computed for its (pre-wipe) batch
+      int written = advanceFrom(CURSOR, LATER);
+
+      // -- ASSERT: epoch stands, the recreated index is re-fed from the beginning
+      assertThat(written).as("a stale write over a recreated index must not land").isZero();
+      assertThat(readIndexingCursor("asset")).isEqualTo(Instant.EPOCH);
+    }
+
+    @Test
+    @DisplayName("Read C, a migration writes the sentinel, the stale write of C' is refused")
+    void given_resetRequestedAfterTheRead_should_refuseTheStaleCursor() {
+      // -- ARRANGE --
+      setIndexingStatus("asset", CURSOR);
+      setIndexingStatus("asset", EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+
+      // -- ACT --
+      int written = advanceFrom(CURSOR, LATER);
+
+      // -- ASSERT --
+      assertThat(written).as("the in-flight round must not consume the reset request").isZero();
+      assertThat(readIndexingCursor("asset")).isEqualTo(EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+    }
+
+    @Test
+    @DisplayName("A round that read the sentinel itself never writes it away (threshold guard)")
+    void given_sentinelRead_should_refuseToAdvancePastIt() {
+      // -- ARRANGE: a shifted sentinel, past the threshold but not the exact constant
+      Instant shifted = EsIndexingUtils.REINDEX_REQUESTED_CURSOR.minus(Duration.ofHours(14));
+      setIndexingStatus("asset", shifted);
+
+      // -- ACT --
+      int written = advanceFrom(shifted, LATER);
+
+      // -- ASSERT --
+      assertThat(written).isZero();
+      assertThat(readIndexingCursor("asset")).isEqualTo(shifted);
+    }
+
+    @Test
+    @DisplayName("Read no row, a reset created it meanwhile, the stale insert is refused")
+    void given_rowCreatedAfterTheMissingRead_should_refuseTheStaleInsert() {
+      // -- ARRANGE: @BeforeEach deleted every row; the reset then created the row with epoch
+      setIndexingStatus("asset", Instant.EPOCH);
+
+      // -- ACT --
+      int written = insertIfAbsent(LATER);
+
+      // -- ASSERT --
+      assertThat(written).isZero();
+      assertThat(readIndexingCursor("asset")).isEqualTo(Instant.EPOCH);
+    }
+
+    @Test
+    @DisplayName("Two peers read C: the first advance wins, the second is refused and re-fetches")
+    void given_twoPeersReadTheSameCursor_should_letOnlyTheFirstAdvance() {
+      // -- ARRANGE --
+      setIndexingStatus("asset", CURSOR);
+
+      // -- ACT --
+      int first = advanceFrom(CURSOR, LATER);
+      int second = advanceFrom(CURSOR, CURSOR.plus(Duration.ofMinutes(30)));
+
+      // -- ASSERT: the loser's batch is at or after CURSOR and is fetched again by the owner
+      assertThat(first).isOne();
+      assertThat(second).isZero();
+      assertThat(readIndexingCursor("asset")).isEqualTo(LATER);
+    }
+
+    @Test
+    @DisplayName("An unchanged row is advanced forwards or backwards (the grace window may cap it)")
+    void given_unchangedRow_should_advanceTheCursor() {
+      // -- ARRANGE --
+      setIndexingStatus("asset", CURSOR);
+
+      // -- ACT --
+      int forwards = advanceFrom(CURSOR, LATER);
+      Instant afterForwards = readIndexingCursor("asset");
+      int backwards = advanceFrom(LATER, CURSOR.minus(Duration.ofHours(1)));
+
+      // -- ASSERT --
+      assertThat(forwards).isOne();
+      assertThat(afterForwards).isEqualTo(LATER);
+      assertThat(backwards).isOne();
+      assertThat(readIndexingCursor("asset")).isEqualTo(CURSOR.minus(Duration.ofHours(1)));
+    }
+
+    @Test
+    @DisplayName("A missing row is created with the cursor (first indexed batch of a model)")
+    void given_missingRow_should_insertTheCursor() {
+      // -- ARRANGE: @BeforeEach deleted every indexing_status row --
+
+      // -- ACT --
+      int written = insertIfAbsent(CURSOR);
+
+      // -- ASSERT --
+      assertThat(written).isOne();
+      assertThat(readIndexingCursor("asset")).isEqualTo(CURSOR);
+    }
+
+    @Test
+    @DisplayName(
+        "Read (C, a), a peer advances on the id alone to (C, b), the stale write is refused")
+    void given_peerAdvancedOnTheIdAlone_should_refuseTheStaleCursor() {
+      // -- ARRANGE: a keyset round read (CURSOR, a); a peer then persisted (CURSOR, b)
+      assertThat(insertIfAbsent(CURSOR)).isOne();
+      assertThat(advanceFrom(CURSOR, null, CURSOR, "a")).isOne();
+      assertThat(advanceFrom(CURSOR, "a", CURSOR, "b")).isOne();
+
+      // -- ACT: the first round persists the cursor it computed from (CURSOR, a)
+      int written = advanceFrom(CURSOR, "a", LATER, "z");
+
+      // -- ASSERT: the timestamp still matches, the id does not: the write must not land
+      assertThat(written).as("the id is part of the compared value").isZero();
+      entityManager.clear();
+      IndexingStatus status = entityManager.find(IndexingStatus.class, "asset");
+      assertThat(status.getLastIndexing()).isEqualTo(CURSOR);
+      assertThat(status.getLastId()).isEqualTo("b");
+    }
+
+    @Test
+    @DisplayName("The epoch re-assertion clears the keyset id of the abandoned position")
+    void given_keysetCursor_should_clearTheIdOnEpochReassertion() {
+      // -- ARRANGE --
+      assertThat(insertIfAbsent(CURSOR)).isOne();
+      assertThat(advanceFrom(CURSOR, null, LATER, "a")).isOne();
+
+      // -- ACT --
+      int written =
+          indexingStatusRepository.reassertCursorUnlessResetRequested(
+              "asset", Instant.EPOCH, EsIndexingUtils.REINDEX_REQUESTED_THRESHOLD);
+
+      // -- ASSERT --
+      assertThat(written).isOne();
+      entityManager.clear();
+      IndexingStatus status = entityManager.find(IndexingStatus.class, "asset");
+      assertThat(status.getLastIndexing()).isEqualTo(Instant.EPOCH);
+      assertThat(status.getLastId()).isNull();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Epoch re-assertion after a rolling-deploy reset
+  // ---------------------------------------------------------------------------
+
+  /**
+   * The repair pass for the one write the compare-and-set cannot refuse: a pod running an older
+   * version persists its cursor unconditionally, so a round of it in flight across the reset moves
+   * the cursor from epoch to its stale value after the recreate. The pod that performed the reset
+   * re-asserts epoch after a drain delay; the pass must never replace a newer reset request nor
+   * re-create a deleted row.
+   */
+  @Nested
+  @DisplayName("IndexResetEpochReassertion - the stale write of an older pod is repaired")
+  class EpochReassertion {
+
+    private static final Instant STALE = Instant.parse("2026-01-01T00:00:00Z");
+
+    @Test
+    @DisplayName("A stale cursor written after the recreate is moved back to epoch")
+    void given_staleCursorAfterReset_should_reassertEpoch() {
+      // -- ARRANGE: reset wrote epoch, an older pod's unconditional write then landed
+      setIndexingStatus("asset", Instant.EPOCH);
+      setIndexingStatus("asset", STALE);
+
+      // -- ACT --
+      boolean reasserted = epochReassertion.reassertEpoch("asset");
+
+      // -- ASSERT --
+      assertThat(reasserted).isTrue();
+      assertThat(readIndexingCursor("asset")).isEqualTo(Instant.EPOCH);
+    }
+
+    @Test
+    @DisplayName("A new reset request written meanwhile is left untouched")
+    void given_newResetRequest_should_keepTheSentinel() {
+      // -- ARRANGE --
+      setIndexingStatus("asset", EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+
+      // -- ACT --
+      boolean reasserted = epochReassertion.reassertEpoch("asset");
+
+      // -- ASSERT --
+      assertThat(reasserted).isFalse();
+      assertThat(readIndexingCursor("asset")).isEqualTo(EsIndexingUtils.REINDEX_REQUESTED_CURSOR);
+    }
+
+    @Test
+    @DisplayName("A row deleted meanwhile (reset by deletion) is not re-created")
+    void given_missingRow_should_notCreateIt() {
+      // -- ARRANGE: @BeforeEach deleted every indexing_status row --
+
+      // -- ACT --
+      boolean reasserted = epochReassertion.reassertEpoch("asset");
+
+      // -- ASSERT --
+      assertThat(reasserted).isFalse();
+      entityManager.clear();
+      assertThat(entityManager.find(IndexingStatus.class, "asset")).isNull();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -938,6 +1247,71 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(queryModel("vulnerable-endpoint").getTotal()).isZero();
+    }
+  }
+
+  @Nested
+  @DisplayName("Keyset paging - additive slice, no behaviour change")
+  class KeysetPagingRegression {
+
+    @Test
+    @DisplayName("Existing handler persists a null indexing_status_last_id")
+    void given_existingHandler_should_persistANullLastId() {
+      // -- ARRANGE --
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      awaitEndpointIndexedAssertion(() -> assertThat(queryModel("asset").getTotal()).isEqualTo(1));
+      assertThat(indexingStatusRepository.findByType("asset"))
+          .as("none of the 13 existing handlers has opted into keyset paging yet")
+          .hasValueSatisfying(status -> assertThat(status.getLastId()).isNull());
+    }
+
+    @Test
+    @DisplayName("Existing handler keeps its historical cursor-advancement behaviour")
+    void given_existingHandler_should_keepUnchangedCursorBehaviour() {
+      // -- ARRANGE --
+      // Pinned to PAST (outside the grace window) so the persisted cursor equals the row's
+      // updated_at exactly, instead of being capped to now-graceWindow and clock-dependent.
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      entityManager.flush();
+      pushEndpointToPast(endpointWrapper.get().getId());
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      awaitEndpointIndexedAssertion(() -> assertThat(queryModel("asset").getTotal()).isEqualTo(1));
+      assertThat(indexingStatusRepository.findByType("asset"))
+          .as("a timestamp-only handler must still land on the last row's updated_at, with no id")
+          .hasValueSatisfying(
+              status -> {
+                assertThat(status.getLastIndexing()).isEqualTo(PAST);
+                assertThat(status.getLastId()).isNull();
+              });
+    }
+
+    @Test
+    @DisplayName("Empty batch writes no indexing_status row")
+    void given_emptyBatch_should_writeNoIndexingStatusRow() {
+      // -- ARRANGE --
+      // No endpoint fixture is created: @BeforeEach resets the endpoint composer, so the asset
+      // handler's fetch is empty and the loop takes the untouched "up to date" branch.
+      assertThat(queryModel("asset").getTotal())
+          .as("precondition: no seeded asset, otherwise the batch would not be empty")
+          .isZero();
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      assertThat(indexingStatusRepository.findByType("asset"))
+          .as("the empty-batch branch must write no row (locked as-is until the Epic 2 PR)")
+          .isEmpty();
     }
   }
 }

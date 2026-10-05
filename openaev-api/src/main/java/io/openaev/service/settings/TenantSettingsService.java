@@ -116,6 +116,7 @@ public class TenantSettingsService {
     upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.PRIMARY_COLOR, input.getPrimaryColor());
     upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.SECONDARY_COLOR, input.getSecondaryColor());
     upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.ACCENT_COLOR, input.getAccentColor());
+    upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.TEXT_COLOR, input.getTextColor());
     upsertThemeKey(tenant, themeType, Theme.THEME_KEYS.LOGO_URL, input.getLogoUrl());
     upsertThemeKey(
         tenant, themeType, Theme.THEME_KEYS.LOGO_URL_COLLAPSED, input.getLogoUrlCollapsed());
@@ -235,6 +236,8 @@ public class TenantSettingsService {
         getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.SECONDARY_COLOR.key()));
     theme.setAccentColor(
         getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.ACCENT_COLOR.key()));
+    theme.setTextColor(
+        getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.TEXT_COLOR.key()));
     theme.setLogoUrl(getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.LOGO_URL.key()));
     theme.setLogoUrlCollapsed(
         getSettingValue(settings, themeType + "." + Theme.THEME_KEYS.LOGO_URL_COLLAPSED.key()));
