@@ -59,7 +59,22 @@ class InstanceCreationDateTest {
   }
 
   @ParameterizedTest(name = "\"{0}\"")
-  @ValueSource(strings = {"", "  ", "yesterday", "2026-10-05", "2026-13-05 16:02:03", "16:02:03"})
+  @ValueSource(
+      strings = {
+        "",
+        "  ",
+        "yesterday",
+        "2026-10-05",
+        "2026-13-05 16:02:03",
+        "16:02:03",
+        "2026-02-30 16:02:03",
+        "2027-02-29 16:02:03.5",
+        "2026-10-05 24:00:00",
+        "2026-10-05 16:02:03.",
+        "2026-10-05 16:02:03.1234567890",
+        "2026-02-30T16:02:03Z",
+        "2026-10-05T16:02:03"
+      })
   @DisplayName("Given a blank or unreadable value should read nothing")
   void given_unreadableValue_should_readNothing(String value) {
     assertThat(InstanceCreationDate.parse(value)).isEmpty();

@@ -7,6 +7,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.util.Optional;
 
@@ -21,13 +22,15 @@ import java.util.Optional;
  */
 public final class InstanceCreationDate {
 
+  // Strict: an impossible date or a '.' without digits is unreadable, never adjusted
   private static final DateTimeFormatter LEGACY_FORMAT =
       new DateTimeFormatterBuilder()
-          .appendPattern("yyyy-MM-dd HH:mm:ss")
+          .appendPattern("uuuu-MM-dd HH:mm:ss")
           .optionalStart()
-          .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+          .appendFraction(ChronoField.NANO_OF_SECOND, 1, 9, true)
           .optionalEnd()
-          .toFormatter();
+          .toFormatter()
+          .withResolverStyle(ResolverStyle.STRICT);
 
   private InstanceCreationDate() {}
 
