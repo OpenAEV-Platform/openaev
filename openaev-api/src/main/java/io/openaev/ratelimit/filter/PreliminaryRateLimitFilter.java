@@ -37,27 +37,30 @@ public class PreliminaryRateLimitFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    SecurityContext ctx = SecurityContextHolder.getContext();
+    // only handle /api
+    if (request.getRequestURI().startsWith("/api")) {
+      SecurityContext ctx = SecurityContextHolder.getContext();
 
-    boolean authenticated =
-        ctx.getAuthentication() != null && ctx.getAuthentication().isAuthenticated();
+      boolean authenticated =
+          ctx.getAuthentication() != null && ctx.getAuthentication().isAuthenticated();
 
-    if (!authenticated) {
-      LimitSpecification spec = new LimitSpecification(config.getDefaultRps());
-      LimitConsumptionRequest lcr =
-          new LimitConsumptionRequest(
-              new RateLimitedPrincipal(getClientIpAddressFromRequest(request)),
-              "all endpoints",
-              spec);
+      if (!authenticated) {
+        LimitSpecification spec = new LimitSpecification(config.getDefaultRps());
+        LimitConsumptionRequest lcr =
+            new LimitConsumptionRequest(
+                new RateLimitedPrincipal(getClientIpAddressFromRequest(request)),
+                "all endpoints",
+                spec);
 
-      Limit l = rateLimitService.consume(lcr);
+        Limit l = rateLimitService.consume(lcr);
 
-      if (l.getIsRateLimited()) {
-        response.setHeader("RateLimit-Limit", config.getDefaultRps().toString());
-        response.setHeader("RateLimit-Remaining", l.getRemaining().toString());
-        response.setHeader("RateLimit-Reset", l.getReset().toString());
-        response.sendError(HttpStatus.SC_TOO_MANY_REQUESTS, "Rate limited.");
-        return;
+        if (l.getIsRateLimited()) {
+          response.setHeader("RateLimit-Limit", config.getDefaultRps().toString());
+          response.setHeader("RateLimit-Remaining", l.getRemaining().toString());
+          response.setHeader("RateLimit-Reset", l.getReset().toString());
+          response.sendError(HttpStatus.SC_TOO_MANY_REQUESTS, "Rate limited.");
+          return;
+        }
       }
     }
     filterChain.doFilter(request, response);
