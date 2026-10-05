@@ -409,7 +409,7 @@ class IocValidationCommandContentTest {
         PayloadService.iocValidationCleanupCommand(IocValidationTestKind.FILE_DROP, true);
     int open = cleanup.indexOf("[System.IO.File]::Open($oaevIocPath");
     int recheck = cleanup.indexOf("(Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath)");
-    int read = cleanup.indexOf(".ReadToEnd()");
+    int read = cleanup.indexOf("$oaevIocStream.Read($oaevIocRead");
     int delete = cleanup.indexOf("[System.IO.File]::Delete($oaevIocPath)");
     int close = cleanup.indexOf("$oaevIocStream.Dispose()");
 
@@ -420,7 +420,9 @@ class IocValidationCommandContentTest {
     assertThat(close).isGreaterThan(delete);
     assertThat(cleanup)
         .contains("[System.IO.FileShare]::Read -bor [System.IO.FileShare]::Delete")
-        .doesNotContain("ReadAllText");
+        .contains("$oaevIocStream.Length -eq $oaevIocBytes.Length")
+        .doesNotContain("ReadAllText")
+        .doesNotContain("StreamReader");
   }
 
   // PowerShell -match is case-insensitive
@@ -856,6 +858,24 @@ class IocValidationCommandContentTest {
       assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
 
       assertThat(Files.readString(surrogate)).isEqualTo(replacement);
+    }
+
+    @Test
+    @DisplayName("keeps at cleanup a file that adds a byte-order mark before the surrogate")
+    void given_surrogateWithByteOrderMark_should_keepItAtCleanup() throws Exception {
+      Path surrogate = tmp.resolve("openaev-ioc-validation-" + VALID_RUN).resolve("invoice.pdf");
+
+      assertThat(execute(drop(), VALID_RUN, "invoice.pdf")).isZero();
+      byte[] dropped = Files.readAllBytes(surrogate);
+      byte[] replacement = new byte[dropped.length + 3];
+      replacement[0] = (byte) 0xEF;
+      replacement[1] = (byte) 0xBB;
+      replacement[2] = (byte) 0xBF;
+      System.arraycopy(dropped, 0, replacement, 3, dropped.length);
+      Files.write(surrogate, replacement);
+      assertThat(execute(cleanup(), VALID_RUN, "invoice.pdf")).isZero();
+
+      assertThat(surrogate).hasBinaryContent(replacement);
     }
   }
 }

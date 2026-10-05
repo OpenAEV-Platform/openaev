@@ -99,7 +99,6 @@ public class PayloadService {
           + " written";
   // The surrogate holds this text and its run: the proof, at cleanup, that the drop created it.
   static final String IOC_VALIDATION_SURROGATE_TEXT = "OpenAEV IOC validation benign surrogate";
-  private static final int IOC_VALIDATION_SURROGATE_MAX_BYTES = 128;
   static final String IOC_VALIDATION_FAILED_FILE_DROP =
       "OpenAEV IOC validation: the surrogate could not be created as a new file in the run"
           + " directory";
@@ -1111,7 +1110,9 @@ public class PayloadService {
       // File.Delete never removes a directory (Remove-Item would remove an empty one); a run
       // directory or a surrogate path that is a link is left alone. The surrogate stays open from
       // the link checks to its deletion: a directory holding an open file cannot be renamed, so the
-      // run directory cannot be swapped for a link between the content check and the deletion
+      // run directory cannot be swapped for a link between the content check and the deletion.
+      // The file is compared byte for byte with the bytes the drop wrote: a text reader would skip
+      // a byte-order mark and take a replacement starting with one for the surrogate
       return windowsRunDirectory()
           + "; "
           + WINDOWS_LINK_TEST
@@ -1122,13 +1123,18 @@ public class PayloadService {
           + " $oaevIocStream = [System.IO.File]::Open($oaevIocPath, [System.IO.FileMode]::Open,"
           + " [System.IO.FileAccess]::Read,"
           + " ([System.IO.FileShare]::Read -bor [System.IO.FileShare]::Delete));"
-          + " if (-not ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath))"
-          + " -and $oaevIocStream.Length -le "
-          + IOC_VALIDATION_SURROGATE_MAX_BYTES
-          + " -and (New-Object System.IO.StreamReader($oaevIocStream,"
-          + " [System.Text.Encoding]::UTF8)).ReadToEnd() -ceq ('"
+          + " $oaevIocBytes = [System.Text.Encoding]::UTF8.GetBytes('"
           + IOC_VALIDATION_SURROGATE_TEXT
-          + " ' + $oaevIocRun + [Environment]::NewLine)) { [System.IO.File]::Delete($oaevIocPath) }"
+          + " ' + $oaevIocRun + [Environment]::NewLine);"
+          + " if (-not ((Test-OaevLink $oaevIocDir) -or (Test-OaevLink $oaevIocPath))"
+          + " -and $oaevIocStream.Length -eq $oaevIocBytes.Length) {"
+          + " $oaevIocRead = New-Object byte[] $oaevIocBytes.Length; $oaevIocCount = 0;"
+          + " while ($oaevIocCount -lt $oaevIocRead.Length) { $oaevIocChunk ="
+          + " $oaevIocStream.Read($oaevIocRead, $oaevIocCount, $oaevIocRead.Length - $oaevIocCount);"
+          + " if ($oaevIocChunk -le 0) { break }; $oaevIocCount += $oaevIocChunk };"
+          + " if ($oaevIocCount -eq $oaevIocBytes.Length -and [System.Convert]::ToBase64String("
+          + "$oaevIocRead) -ceq [System.Convert]::ToBase64String($oaevIocBytes)) {"
+          + " [System.IO.File]::Delete($oaevIocPath) } }"
           + " } catch { } finally { if ($oaevIocStream) { $oaevIocStream.Dispose() } } };"
           + " try { [System.IO.Directory]::Delete($oaevIocDir) } catch { } }";
     }
