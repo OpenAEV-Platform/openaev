@@ -1,4 +1,4 @@
-import { enUS, esES, frFR, type Localization, zhCN } from '@mui/material/locale';
+import { deDE, enUS, esES, frFR, itIT, jaJP, koKR, type Localization, ruRU, zhCN } from '@mui/material/locale';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
@@ -18,6 +18,11 @@ const localeMap = {
   en: enUS,
   fr: frFR,
   es: esES,
+  de: deDE,
+  it: itIT,
+  ja: jaJP,
+  ko: koKR,
+  ru: ruRU,
   zh: zhCN,
 };
 
@@ -44,7 +49,7 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
   }, [settings, tenantSettings, me]);
 
   useEffect(() => {
-    setMuiLocale(localeMap[locale as keyof typeof localeMap]);
+    setMuiLocale(localeMap[locale as keyof typeof localeMap] ?? enUS);
   }, [locale]);
 
   // createTheme is expensive and a new theme object invalidates the style cache of the

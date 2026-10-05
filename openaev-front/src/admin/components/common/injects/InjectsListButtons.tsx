@@ -44,7 +44,7 @@ const InjectsListButtons: FunctionComponent<Props> = ({
         size="md"
         usecase="isolated"
         style={{ float: 'right' }}
-        aria-label="Change view mode"
+        aria-label={t('Change view mode')}
         value={viewModeContext}
         onValueChange={next => setViewMode?.(next as typeof viewModeContext)}
       >
@@ -54,7 +54,7 @@ const InjectsListButtons: FunctionComponent<Props> = ({
               <TooltipTrigger asChild>
                 <ButtonGroupItem
                   value="list"
-                  aria-label="List view mode"
+                  aria-label={t('List view mode')}
                   icon={<ReorderOutlined fontSize="small" />}
                 />
               </TooltipTrigger>
@@ -67,7 +67,7 @@ const InjectsListButtons: FunctionComponent<Props> = ({
               <TooltipTrigger asChild>
                 <ButtonGroupItem
                   value="chain"
-                  aria-label="Interactive view mode"
+                  aria-label={t('Interactive view mode')}
                   icon={<ViewTimelineOutlined fontSize="small" />}
                 />
               </TooltipTrigger>
@@ -80,7 +80,7 @@ const InjectsListButtons: FunctionComponent<Props> = ({
               <TooltipTrigger asChild>
                 <ButtonGroupItem
                   value="distribution"
-                  aria-label="Distribution view mode"
+                  aria-label={t('Distribution view mode')}
                   icon={<BarChartOutlined fontSize="small" />}
                 />
               </TooltipTrigger>

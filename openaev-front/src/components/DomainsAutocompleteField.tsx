@@ -4,6 +4,7 @@ import { type FieldRenderProps } from 'react-final-form';
 import { type Domain } from '../utils/api-types';
 import { TO_CLASSIFY } from '../utils/domains/domainUtils';
 import AutocompleteField from './fields/AutocompleteField';
+import { useFormatter } from './i18n';
 
 type DomainValue = Domain | string;
 interface Props {
@@ -23,6 +24,7 @@ const DomainsAutocompleteField = ({
   disabled,
 }: Props) => {
   const theme = useTheme();
+  const { t } = useFormatter();
 
   const domains = domainOptions ?? [];
 
@@ -51,7 +53,7 @@ const DomainsAutocompleteField = ({
 
   const mappedOptions = optionsForAutocomplete.map(d => ({
     id: d.domain_id,
-    label: d.domain_name,
+    label: t(d.domain_name),
   }));
 
   const handleChange = (ids: string[]) => {
@@ -73,7 +75,7 @@ const DomainsAutocompleteField = ({
       error={meta.touched && meta.error}
       onInputChange={() => {}}
       onChange={handleChange}
-      hideOption={option => option.label === TO_CLASSIFY}
+      hideOption={option => option.id === toClassifyDomain?.domain_id}
     />
   );
 };
