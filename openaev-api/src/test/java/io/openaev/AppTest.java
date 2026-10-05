@@ -12,6 +12,8 @@ import io.openaev.database.repository.SettingRepository;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -147,22 +149,26 @@ class AppTest extends IntegrationTest {
   void shouldKeepCreationDateWhenInstanceIdChanges() {
     String createdAt = "2026-09-01T08:00:00Z";
     givenStoredInstance(UUID.randomUUID().toString(), createdAt);
+    // The same Setting instance is saved at each restart: record what each save wrote
+    List<String> saved = new ArrayList<>();
+    when(settingRepository.save(any(Setting.class)))
+        .thenAnswer(
+            invocation -> {
+              Setting setting = invocation.getArgument(0);
+              saved.add(setting.getKey() + "=" + setting.getValue());
+              return setting;
+            });
+    List<String> expected = new ArrayList<>();
 
     // Two restarts, each with another configured instance id
     for (int restart = 0; restart < 2; restart++) {
       String configuredId = UUID.randomUUID().toString();
       openAEVConfig.setInstanceId(configuredId);
       new App(settingRepository, openAEVConfig).init();
-      verify(settingRepository)
-          .save(
-              argThat(
-                  setting ->
-                      PLATFORM_INSTANCE.key().equals(setting.getKey())
-                          && configuredId.equals(setting.getValue())));
+      expected.add(PLATFORM_INSTANCE.key() + "=" + configuredId);
     }
 
-    verify(settingRepository, never())
-        .save(argThat(setting -> PLATFORM_INSTANCE_CREATION.key().equals(setting.getKey())));
+    assertThat(saved).containsExactlyElementsOf(expected);
   }
 
   @DisplayName("Should not set a missing creation date again on an existing instance")
