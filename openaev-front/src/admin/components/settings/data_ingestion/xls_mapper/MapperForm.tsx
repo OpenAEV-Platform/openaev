@@ -115,7 +115,7 @@ const MapperForm: FunctionComponent<Props> = ({
           </Typography>
           <IconButton
             icon={<Add fontSize="small" />}
-            aria-label="Add"
+            aria-label={t('Add')}
             onClick={() => {
               append({
                 inject_importer_type_value: '',

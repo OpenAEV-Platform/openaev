@@ -285,14 +285,14 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         }}
         >
           {primaryDomain && (
-            <Chip label={primaryDomain.domain_name} color={accent} />
+            <Chip label={t(primaryDomain.domain_name)} color={accent} />
           )}
           {domains.length > 1 && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Chip label={`+${domains.length - 1}`} />
               </TooltipTrigger>
-              {domains.slice(1).map(d => d.domain_name).join(', ') && <TooltipContent>{domains.slice(1).map(d => d.domain_name).join(', ')}</TooltipContent>}
+              {domains.slice(1).map(d => t(d.domain_name)).join(', ') && <TooltipContent>{domains.slice(1).map(d => d.domain_name).join(', ')}</TooltipContent>}
             </Tooltip>
           )}
         </Box>

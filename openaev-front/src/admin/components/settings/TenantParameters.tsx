@@ -76,6 +76,7 @@ const TenantParameters = () => {
     paper_color: tenantSettings.platform_dark_theme?.paper_color ?? '',
     primary_color: tenantSettings.platform_dark_theme?.primary_color ?? '',
     secondary_color: tenantSettings.platform_dark_theme?.secondary_color ?? '',
+    text_color: tenantSettings.platform_dark_theme?.text_color ?? '',
   };
 
   const initialValuesLight = {
@@ -88,6 +89,7 @@ const TenantParameters = () => {
     paper_color: tenantSettings.platform_light_theme?.paper_color ?? '',
     primary_color: tenantSettings.platform_light_theme?.primary_color ?? '',
     secondary_color: tenantSettings.platform_light_theme?.secondary_color ?? '',
+    text_color: tenantSettings.platform_light_theme?.text_color ?? '',
   };
 
   return (

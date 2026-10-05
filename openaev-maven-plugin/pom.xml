@@ -14,7 +14,7 @@
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
-    <commons-lang3.version>3.20.0</commons-lang3.version>
+    <commons-lang3.version>3.21.0</commons-lang3.version>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -58,7 +58,7 @@
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-plugin-api</artifactId>
-      <version>3.9.16</version>
+      <version>3.10.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>

@@ -82,8 +82,10 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
         icon={item.icon()}
         // Applied by the library only while collapsed: the flyout trigger then
         // is a real link, so Ctrl/⌘-click on a collapsed group opens the group
-        // landing page in a new tab instead of doing nothing.
+        // landing page in a new tab instead of doing nothing. The router Link
+        // keeps the tenant basename that a plain <a href> would drop.
         to={item.path}
+        linkComponent={Link}
       >
         {subItems.map(subItem => (
           <NavbarSubmenuItem key={subItem.label} asChild>
