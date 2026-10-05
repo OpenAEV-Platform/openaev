@@ -191,9 +191,9 @@ public class ScenarioApi extends RestBehavior {
       summary = "Duplicate a scenario",
       description =
           "Duplicates a scenario's authored content. A chained scenario also gets a copy of its logic map (workflow, steps and conditions); execution artefacts are never copied. Requires an Enterprise Edition license when the scenario is chained.")
-  public Scenario duplicateScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+  public Scenario duplicateScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId)
+      throws ChainingException {
     return hydrateForResponse(scenarioService.duplicateScenario(scenarioId));
-
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
