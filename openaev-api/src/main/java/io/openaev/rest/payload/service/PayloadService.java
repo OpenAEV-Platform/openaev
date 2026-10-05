@@ -1083,7 +1083,9 @@ public class PayloadService {
       case NETWORK_TRAFFIC ->
           // A refused or blocked connection is an outcome for the security platform to report;
           // an endpoint with no tool to attempt it fails, so the test is never taken for run.
-          "if command -v nc >/dev/null 2>&1; then nc -z -w 5 "
+          // BusyBox nc has no -z (the unknown option would end the test without a connection):
+          // it connects and closes with an empty input instead.
+          "if command -v nc >/dev/null 2>&1 && nc -h 2>&1 | grep -q -e ' -z'; then nc -z -w 5 "
               + host
               + " "
               + port
@@ -1092,7 +1094,11 @@ public class PayloadService {
               + host
               + " "
               + port
-              + "; true; else echo '"
+              + "; true; elif command -v nc >/dev/null 2>&1; then nc -w 5 "
+              + host
+              + " "
+              + port
+              + " </dev/null; true; else echo '"
               + IOC_VALIDATION_NO_TCP_TOOL
               + "' >&2; exit 1; fi";
       case HTTP_HEAD ->

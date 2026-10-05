@@ -77,7 +77,11 @@ class IocValidationCommandContentTest {
         .startsWith("if command -v curl >/dev/null 2>&1; then")
         .contains(PayloadService.IOC_VALIDATION_NO_HTTP_TOOL)
         .endsWith("exit 1; fi");
-    assertThat(tcp.split("; true;", -1)).hasSize(3);
+    assertThat(tcp)
+        .startsWith("if command -v nc >/dev/null 2>&1 && nc -h 2>&1 | grep -q -e ' -z'; then")
+        .contains("elif command -v nc >/dev/null 2>&1; then nc -w 5 ")
+        .contains(" </dev/null; true;");
+    assertThat(tcp.split("; true;", -1)).hasSize(4);
     assertThat(http.split("; true;", -1)).hasSize(2);
   }
 
