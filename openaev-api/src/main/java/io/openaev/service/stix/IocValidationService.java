@@ -164,7 +164,10 @@ public class IocValidationService {
    */
   @Transactional(readOnly = true)
   public Set<String> urlHostNames(TxCtx ctx, @NotBlank final String id) {
-    IocValidation validation = iocValidation(id);
+    IocValidation validation =
+        iocValidationRepository
+            .findById(id)
+            .orElseThrow(() -> new ElementNotFoundException("IOC validation not found"));
     return validation.getStatus() == IocValidationStatus.AWAITING_APPROVAL
         ? IocValidationPlanner.urlHostNames(validation.getIocs())
         : Set.of();
