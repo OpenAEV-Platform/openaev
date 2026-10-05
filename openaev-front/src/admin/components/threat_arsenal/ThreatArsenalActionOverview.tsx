@@ -350,7 +350,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                       backgroundColor: alpha(domainColor, 0.08),
                     }}
                   >
-                    {domain.domain_name}
+                    {t(domain.domain_name)}
                   </Box>
                 );
               })}

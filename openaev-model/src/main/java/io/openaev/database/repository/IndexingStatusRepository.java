@@ -34,22 +34,31 @@ public interface IndexingStatusRepository
    * equality already refuses it). Bulk JPQL update on a row that is neither indexed, audited nor
    * streamed: no listener side effect is lost.
    *
+   * <p>The keyset id is compared and written with the timestamp: a keyset batch can advance on the
+   * id alone, and a reset leaves it null. Null ids compare equal (coalesced to the empty string,
+   * which no {@code base_id} is).
+   *
    * @param type the engine model name
    * @param readCursor the cursor the round read at its start (the row existed)
+   * @param readLastId the keyset id the round read at its start, null for timestamp-only models
    * @param cursor the cursor to persist
+   * @param lastId the keyset id to persist, null for timestamp-only models
    * @param resetThreshold {@link EsIndexingUtils#REINDEX_REQUESTED_THRESHOLD}
    * @return 1 when the cursor was persisted, 0 when the row changed since it was read
    */
   @Modifying
   @Transactional
   @Query(
-      "UPDATE IndexingStatus s SET s.lastIndexing = :cursor"
+      "UPDATE IndexingStatus s SET s.lastIndexing = :cursor, s.lastId = :lastId"
           + " WHERE s.type = :type AND s.lastIndexing = :readCursor"
+          + " AND coalesce(s.lastId, '') = coalesce(:readLastId, '')"
           + " AND s.lastIndexing < :resetThreshold")
   int advanceCursorFrom(
       @Param("type") String type,
       @Param("readCursor") Instant readCursor,
+      @Param("readLastId") String readLastId,
       @Param("cursor") Instant cursor,
+      @Param("lastId") String lastId,
       @Param("resetThreshold") Instant resetThreshold);
 
   /**
@@ -65,17 +74,20 @@ public interface IndexingStatusRepository
    *
    * @param type the engine model name
    * @param cursor the cursor to persist
+   * @param lastId the keyset id to persist, null for timestamp-only models
    * @return 1 when the row was created, 0 when a row already exists
    */
   @Modifying
   @Transactional
   @Query(
       value =
-          "INSERT INTO indexing_status (indexing_status_type, indexing_status_indexing_date)"
-              + " VALUES (:type, :cursor)"
+          "INSERT INTO indexing_status"
+              + " (indexing_status_type, indexing_status_indexing_date, indexing_status_last_id)"
+              + " VALUES (:type, :cursor, :lastId)"
               + " ON CONFLICT (indexing_status_type) DO NOTHING",
       nativeQuery = true)
-  int insertCursorIfAbsent(@Param("type") String type, @Param("cursor") Instant cursor);
+  int insertCursorIfAbsent(
+      @Param("type") String type, @Param("cursor") Instant cursor, @Param("lastId") String lastId);
 
   /**
    * Re-asserts the epoch cursor of a model after a boot-time reset, unless the row carries a new
@@ -84,8 +96,8 @@ public interface IndexingStatusRepository
    * pod running a version older than this one persists its cursor unconditionally, and a round of
    * it that was in flight from before a reset migration committed until after the new pod wiped and
    * recreated the index moves the cursor from epoch to its stale value. Re-feeding from epoch a
-   * second time is idempotent (upserts). Bulk JPQL update, same justification as {@link
-   * #advanceCursorFrom}.
+   * second time is idempotent (upserts). The keyset id is cleared with it: it belongs to the stale
+   * position, not to epoch. Bulk JPQL update, same justification as {@link #advanceCursorFrom}.
    *
    * @param type the engine model name
    * @param epoch the cursor to re-assert ({@link Instant#EPOCH})
@@ -95,7 +107,7 @@ public interface IndexingStatusRepository
   @Modifying
   @Transactional
   @Query(
-      "UPDATE IndexingStatus s SET s.lastIndexing = :epoch"
+      "UPDATE IndexingStatus s SET s.lastIndexing = :epoch, s.lastId = null"
           + " WHERE s.type = :type AND s.lastIndexing < :resetThreshold")
   int reassertCursorUnlessResetRequested(
       @Param("type") String type,

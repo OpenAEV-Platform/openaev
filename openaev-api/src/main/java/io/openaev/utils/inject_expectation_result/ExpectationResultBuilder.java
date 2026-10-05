@@ -63,7 +63,10 @@ public final class ExpectationResultBuilder {
   /**
    * Evaluate overall status from per-source results.
    *
-   * <p>* SUCCESS if any expected source reports expectedScore
+   * <p>* SUCCESS if any expected source reports expectedScore. For DETECTION and PREVENTION this
+   * settles the expectation at once: one security platform proving it is enough, so the other
+   * expected sources are not waited for. VULNERABILITY keeps waiting, since another source may
+   * still report the asset vulnerable.
    *
    * <p>* NO_DATA if no success and at least one expected source is missing
    *
@@ -76,11 +79,29 @@ public final class ExpectationResultBuilder {
     if (expectedScore == null) {
       return null;
     }
-    if (hasNoResults(results) || hasAnyEmptyResult(results)) {
+    if (hasNoResults(results)) {
+      return null;
+    }
+    if (isSettledByAnySource(expectation) && hasAnyScoreReaching(results, expectedScore)) {
+      return maxScore(results);
+    }
+    if (hasAnyEmptyResult(results)) {
       return null;
     }
 
     return maxScore(results);
+  }
+
+  private static boolean isSettledByAnySource(@NotNull final BaseInjectExpectation expectation) {
+    return BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.equals(expectation.getType())
+        || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(expectation.getType());
+  }
+
+  private static boolean hasAnyScoreReaching(
+      @NotNull final List<InjectExpectationResult> results, @NotNull final Double expectedScore) {
+    return results.stream()
+        .map(InjectExpectationResult::getScore)
+        .anyMatch(score -> score != null && score >= expectedScore);
   }
 
   /**
@@ -92,8 +113,21 @@ public final class ExpectationResultBuilder {
    *
    * <p>* ERROR if no success and all expected sources reported but none matched
    */
-  public static Double computeResultsScore(@NotNull final List<InjectExpectationResult> results) {
-    if (hasNoResults(results) || hasAnyEmptyResult(results)) {
+  // TODO: duplicate of computeScore
+  public static Double computeResultsScore(
+      @NotNull final List<InjectExpectationResult> results,
+      @NotNull final BaseInjectExpectation expectation) {
+    if (hasNoResults(results)) {
+      return null;
+    }
+    final Double expectedScore = expectation.getExpectedScore();
+    // TODO: improve the expectation type check in the inject refactor
+    if (expectedScore != null
+        && isSettledByAnySource(expectation)
+        && hasAnyScoreReaching(results, expectedScore)) {
+      return maxScore(results);
+    }
+    if (hasAnyEmptyResult(results)) {
       return null;
     }
 

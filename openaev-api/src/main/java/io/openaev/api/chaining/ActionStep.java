@@ -39,6 +39,17 @@ public interface ActionStep {
   Optional<Step> run(Step readyStep) throws ChainingException;
 
   /**
+   * Whether this READY step was already executed. A step runs once: a second READY request for it
+   * (the same step published twice, e.g. a message still queued when resume republishes the step's
+   * READY steps) is an anomaly the caller drops, without running the step again or touching it. No
+   * default on purpose: each action states how it recognises its own past execution.
+   *
+   * @param readyStep the step a READY request asks to run, read under its row lock
+   * @return {@code true} when the step already ran and must not run again
+   */
+  boolean isAlreadyRun(Step readyStep);
+
+  /**
    * Updates a step. Applies the necessary processing based on the new output.
    *
    * @param stepRun the step run to update

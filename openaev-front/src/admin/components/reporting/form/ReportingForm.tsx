@@ -29,6 +29,7 @@ import {
   type TenantSettingsOutput,
   type ThemeInput,
 } from '../../../../utils/api-types';
+import { sanitizeThemeColors } from '../../../../utils/Colors';
 import { layerInputVars } from '../../../../utils/fdsLayer';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -218,7 +219,7 @@ const ReportingForm: FunctionComponent<Props> = ({
     tenantSettings: helper.getTenantSettings(),
   }));
 
-  const themeConfigFor = (mode: ReportingThemeMode): ThemeInput | undefined => (mode === 'LIGHT'
+  const themeConfigFor = (mode: ReportingThemeMode): ThemeInput | undefined => sanitizeThemeColors(mode === 'LIGHT'
     ? tenantSettings?.platform_light_theme ?? settings?.platform_light_theme
     : tenantSettings?.platform_dark_theme ?? settings?.platform_dark_theme);
   const seedFor = (mode: ReportingThemeMode) => platformBrandingSeed(mode, themeConfigFor(mode));

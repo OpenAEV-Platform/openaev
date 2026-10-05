@@ -96,6 +96,7 @@ const TextFieldController = ({
               ? {
                   type: 'iconButton',
                   icon: <Icon name={showPassword ? 'eye-off' : 'eye'} size={16} aria-hidden />,
+                  disabled,
                   onClick: handleClickShowPassword,
                   label: showPassword ? 'Hide the password' : 'Display the password',
                 }

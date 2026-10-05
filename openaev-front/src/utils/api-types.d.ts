@@ -4915,6 +4915,54 @@ export interface EsAssetGroup {
   name?: string;
 }
 
+export interface EsAttackObservation {
+  asset_hostname?: string;
+  asset_name?: string;
+  attack_observation_attack_pattern_external_id?: string;
+  attack_observation_attack_pattern_name?: string;
+  /** @format int64 */
+  attack_observation_attempts_success?: number;
+  /** @format int64 */
+  attack_observation_attempts_total?: number;
+  /** @format double */
+  attack_observation_coverage_ratio?: number;
+  attack_observation_expectation_type?: string;
+  /** @format date-time */
+  attack_observation_last_verified_at?: string;
+  /** @uniqueItems true */
+  attack_observation_platform_types_reporting?: string[];
+  /** @uniqueItems true */
+  attack_observation_platform_types_succeeded?: string[];
+  /** @uniqueItems true */
+  attack_observation_platforms_succeeded?: string[];
+  attack_observation_scenario_name?: string;
+  attack_observation_simulation_name?: string;
+  /** @format date-time */
+  attack_observation_simulation_start_date?: string;
+  attack_observation_simulation_status?: string;
+  attack_observation_status?: string;
+  attack_observation_tenant_name?: string;
+  base_asset_side?: string;
+  /** @uniqueItems true */
+  base_attack_patterns_side?: string[];
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  base_id?: string;
+  base_inject_side?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  base_scenario_side?: string;
+  /** @uniqueItems true */
+  base_security_platforms_side?: string[];
+  base_simulation_side?: string;
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_platform?: string;
+}
+
 export interface EsAttackPath {
   /** @uniqueItems true */
   attackPatternChildrenIds?: string[];
@@ -4971,6 +5019,14 @@ export type EsBase = BaseEsBase &
     | BaseEsBaseBaseEntityMapping<"security-platform", EsSecurityPlatform>
     | BaseEsBaseBaseEntityMapping<"security-domain", EsSecurityDomain>
     | BaseEsBaseBaseEntityMapping<"asset-group", EsAssetGroup>
+    | BaseEsBaseBaseEntityMapping<
+        "snapshot-attack-observation",
+        EsAttackObservation
+      >
+    | BaseEsBaseBaseEntityMapping<
+        "snapshot-vulnerability-observation",
+        EsVulnerabilityObservation
+      >
   );
 
 export interface EsCountInterval {
@@ -5246,6 +5302,35 @@ export interface EsTeam {
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
+}
+
+export interface EsVulnerabilityObservation {
+  asset_hostname?: string;
+  asset_name?: string;
+  base_asset_side?: string;
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  /** @uniqueItems true */
+  base_findings_side?: string[];
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  base_scenario_side?: string;
+  base_simulation_side?: string;
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_platform?: string;
+  finding_type?: string;
+  finding_value?: string;
+  vulnerability_observation_external_id?: string;
+  /** @format date-time */
+  vulnerability_observation_last_verified_at?: string;
+  vulnerability_observation_scenario_name?: string;
+  vulnerability_observation_simulation_name?: string;
+  vulnerability_observation_tenant_name?: string;
 }
 
 export interface EsVulnerableEndpoint {
@@ -8184,6 +8269,7 @@ export interface NotificationTriggerInput {
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
     | "MARKING_DEFINITION"
+    | "MARKING_ASSIGNMENT"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -8223,6 +8309,7 @@ export interface NotificationTriggerInput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "SNAPSHOT_OBSERVATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -8293,6 +8380,7 @@ export interface NotificationTriggerOutput {
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
     | "MARKING_DEFINITION"
+    | "MARKING_ASSIGNMENT"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -8332,6 +8420,7 @@ export interface NotificationTriggerOutput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "SNAPSHOT_OBSERVATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -9927,6 +10016,7 @@ export interface PlatformSettings {
     | "CREDENTIAL_ASSET"
     | "MARKING"
     | "RATE_LIMITING"
+    | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10313,6 +10403,7 @@ export interface PublicPlatformSettings {
     | "CREDENTIAL_ASSET"
     | "MARKING"
     | "RATE_LIMITING"
+    | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10766,6 +10857,7 @@ export interface RoleInput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -10802,6 +10894,8 @@ export interface RoleInput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -10849,6 +10943,7 @@ export interface RoleOutput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -10885,6 +10980,8 @@ export interface RoleOutput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -12446,15 +12543,30 @@ export interface TenantSettingsUpdateInput {
 }
 
 export interface ThemeInput {
-  /** Accent color of the theme */
+  /**
+   * Accent color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   accent_color?: string;
-  /** Background color of the theme */
+  /**
+   * Background color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   background_color?: string;
-  /** Solid color of the login page aside */
+  /**
+   * Solid color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_color?: string;
-  /** Gradient end color of the login page aside */
+  /**
+   * Gradient end color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_gradient_end?: string;
-  /** Gradient start color of the login page aside */
+  /**
+   * Gradient start color of the login page aside
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   login_aside_gradient_start?: string;
   /** Url of the login page aside background image */
   login_aside_image?: string;
@@ -12464,15 +12576,30 @@ export interface ThemeInput {
   logo_url?: string;
   /** 'true' if the logo needs to be collapsed */
   logo_url_collapsed?: string;
-  /** Navigation color of the theme */
+  /**
+   * Navigation color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   navigation_color?: string;
-  /** Paper color of the theme */
+  /**
+   * Paper color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   paper_color?: string;
-  /** Primary color of the theme */
+  /**
+   * Primary color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   primary_color?: string;
-  /** Secondary color of the theme */
+  /**
+   * Secondary color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   secondary_color?: string;
-  /** Text color of the theme */
+  /**
+   * Text color of the theme
+   * @pattern ^$|^#[0-9a-fA-F]{6}$
+   */
   text_color?: string;
 }
 
@@ -13035,6 +13162,7 @@ export interface User {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -13071,6 +13199,8 @@ export interface User {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -13574,6 +13704,16 @@ export interface Workflow {
    * @max 5940
    */
   workflow_max_temporal_rate_seconds?: number;
+  /**
+   * Timestamp when the workflow has been paused
+   * @format date-time
+   */
+  workflow_pause_at?: string;
+  /**
+   * Total pause duration in seconds, incremented at each pause/resume cycle
+   * @format int64
+   */
+  workflow_pause_second?: number;
   workflow_rate_limit_enabled?: boolean;
   workflow_safe_mode_enabled?: boolean;
   workflow_scope_rules?: WorkflowScopeRule[];

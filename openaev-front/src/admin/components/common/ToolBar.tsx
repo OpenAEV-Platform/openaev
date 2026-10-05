@@ -597,7 +597,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                   <IconButton
                     icon={<CancelOutlined fontSize="small" />}
                     disabled={actionsInputs.length === 1}
-                    aria-label="Delete"
+                    aria-label={t('Delete')}
                     onClick={this.handleRemoveStep.bind(this, i)}
                     style={{
                       position: 'absolute',
