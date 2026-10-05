@@ -175,6 +175,7 @@ Claude Code ignores `applyTo`: it loads each instruction file through a one-line
 folders it covers (e.g. `openaev-front/CLAUDE.md`). When you add an instruction file or change an `applyTo`, add or move
 those imports in the same PR. Single files outside a dedicated folder go in the `paths` of a pointer rule in
 `.claude/rules/` (see `chaining-engine.md`). Never copy instruction content.
+Never add a file to `io/openaev/migration/` (the Migrations Guard CI job rejects it): its imports live in `openaev-api/CLAUDE.md`.
 A folder with its own `AGENTS.md` (e.g. `docs/`, `fds-migration/`) also needs a `CLAUDE.md` next to it containing
 `@AGENTS.md`: once a root `CLAUDE.md` exists, Claude Code no longer reads `AGENTS.md` files on its own.
 
