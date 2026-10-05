@@ -38,6 +38,8 @@ import io.openaev.xtmone.XtmOneIdentity;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -386,6 +388,28 @@ public class PlatformSettingsService {
    */
   public String getPlatformVersion() {
     return openAEVConfig.getVersion();
+  }
+
+  /**
+   * Get this instance's creation date, written at first startup as a {@link Timestamp} string. It
+   * bounds the validity of a {@code ci} XTM license, which must not outlive the pipeline that
+   * created the instance.
+   *
+   * @return the creation date, or empty when it is missing or unreadable
+   */
+  public Optional<Instant> findInstanceCreationDate() {
+    return this.settingRepository
+        .findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key())
+        .map(Setting::getValue)
+        .filter(StringUtils::hasText)
+        .flatMap(
+            value -> {
+              try {
+                return Optional.of(Timestamp.valueOf(value.trim()).toInstant());
+              } catch (IllegalArgumentException e) {
+                return Optional.empty();
+              }
+            });
   }
 
   public Map<String, Setting> findSettingsByKeys(List<String> keys) {
